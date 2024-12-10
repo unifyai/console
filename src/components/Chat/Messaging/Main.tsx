@@ -257,24 +257,27 @@ const Messaging = ({ endpoints, chatWrapper }: {
                     />
                 </div>
                 <form
-                    className="h-fit rounded-lg border bg-background focus-within:ring-1 focus-within:ring-ring p-1 mt-auto"
+                    className="flex justify-between h-fit rounded-lg border bg-background focus-within:ring-1 focus-within:ring-ring p-1 mt-auto"
+                    onKeyDown={(e => {
+                        if (e.key === "Enter" && !e.shiftKey)
+                            handleMessageSent(e);
+                    })}
                 >
                     <ChatInput
                         placeholder={selectedEndpoints.length ? "Type your message here..." : "Please select an endpoint to continue..."}
                         className={
-                            "min-h-12 resize-none rounded-lg bg-background border-0 p-3 shadow-none focus-visible:ring-0 "
+                            "min-h-24 resize-none rounded-lg bg-background border-0 p-3 shadow-none focus-visible:ring-0 "
                             + (selectedEndpoints.length ? "" : "pointer-events-none")
                         }
                         onChange={(e) => setMessage(e.target.value)}
                         value={selectedEndpoints.length ? message : ""}
                     />
-                    <div className="flex items-center justify-end p-0 pt-0">
                     <Button
                         size="icon"
                         variant="ghost"
                         onClick={handleMessageSent}
                         disabled={!complete || selectedEndpoints.length === 0 || message.trim().length === 0}
-                        className={`transition-colors ${
+                        className={`mr-2 transition-colors ${
                             (!complete || selectedEndpoints.length === 0) 
                                 ? '' 
                                 : 'hover:bg-primary group'
@@ -287,7 +290,6 @@ const Messaging = ({ endpoints, chatWrapper }: {
                         }`} />
                         <span className="sr-only">Send message</span>
                     </Button>
-                </div>
                 </form>
             </div>
         </div>
