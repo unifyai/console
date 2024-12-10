@@ -21,7 +21,7 @@ const NavList: NavItem[] = [
       {
         title: "Chat",
         icon: MessageSquare,
-        href: "/chat",
+        href: "/chat?endpoints=chatgpt-4o-latest@openai&lastSelected=chatgpt-4o-latest@openai",
       },
       {
         title: "Keys",
