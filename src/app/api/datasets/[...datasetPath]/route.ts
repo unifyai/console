@@ -4,10 +4,12 @@ const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { datasetName: string } }
+    { params }: { params: { datasetPath: string[] } }
 ) {
+    const datasetName = params.datasetPath.join("/");
+    console.log(`dataset name ${datasetName}`);
     const response = await fetch(
-        `${baseUrl}/dataset/${params.datasetName}`, 
+        `${baseUrl}/dataset/${datasetName}`, 
         {
             method: "GET",
             headers: {
