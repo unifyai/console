@@ -72,9 +72,9 @@ const Selection = ({ params, logs }: { params: LogItemProps, logs: LogProps[] | 
                             </div>
 
     return (
-        <div className="bg-background rounded-md w-full h-full overflow-y-scroll p-5 flex flex-col gap-4">
+        <div className="bg-background rounded-md w-full h-full overflow-y-scroll p-5 flex flex-col">
             {baseLog
-            ? <div className="relative">
+            ? <div className="relative gap-4 flex flex-col">
                 {comparisonLogs.length > 1 && comparisonToggle}
                 {Object.keys(baseLog.params).length > 0 && paramsNodes(baseLog)}
                 {entriesNodes(baseLog)}

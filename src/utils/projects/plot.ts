@@ -60,7 +60,7 @@ export const drawAxes = (
                     const date = new Date(d as number);
                     return `${date.toLocaleDateString()}`;
                 } else {
-                    return `${(d as number).toFixed(2)}`;
+                    return `${(d as number).toFixed(5)}`;
                 }
             }) as any
         );   
@@ -84,7 +84,7 @@ export const drawAxes = (
         .call(
             d3.axisLeft(y as d3.ScaleLinear<number, number, never> | d3.ScaleLinear<number, number, never>)
             .tickValues(yTicks as number[])
-            .tickFormat(d => `${(d as number).toFixed(2)}`) as any
+            .tickFormat(d => `${(d as number).toFixed(5)}`) as any
         );
     yAxis.selectAll("text") // Axis labels style
         .attr("stroke", "black") 

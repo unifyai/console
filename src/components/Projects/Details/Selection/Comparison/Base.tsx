@@ -33,7 +33,7 @@ const Compare = ({logs, comparables, comparisonLogs, value}: {
             const rowIndex = logs?.findIndex(log => log.id === comparisonLogs?.at(index)!.id) as number;
             newValue = comparable ?? "None";
             return  <div key={index} className="relative">
-                      {index && badge(rowIndex)}
+                      {rowIndex && badge(rowIndex)}
                       <Difference oldValue={oldValue} newValue={newValue}/>
                     </div>
           })
@@ -50,7 +50,7 @@ const Compare = ({logs, comparables, comparisonLogs, value}: {
     return (
       <BaseNode key={index} unfolded={unfolded} setUnfolded={setUnfolded} property={property} className="ml-5 hover:bg-muted p-2 rounded-md relative">
         <>
-          {index && badge(rowIndex)}
+          {rowIndex && badge(rowIndex)}
           {unfolded && <Difference oldValue={oldValue} newValue={newValue} />}
         </>
       </BaseNode>
@@ -60,10 +60,3 @@ const Compare = ({logs, comparables, comparisonLogs, value}: {
 
 
 export default Compare;
-
-/* 
-<div key={index} className={`flex flex-col text-left cursor-pointer relative`}>
-                    {index && badge(rowIndex)}
-                    <Difference oldValue={oldValue} newValue={newValue} />
-                  </div>
-*/

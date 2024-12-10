@@ -209,7 +209,8 @@ export const nestedColumns = (
             let cellValue = cell.getValue();
             if (type === "params") cellValue = data.params[node.path][cellValue as string];
             if (isImage(cellValue)) return <ImageDisplay value={cellValue as string} className="object-scale-down h-5 w-5"/>
-            const displayValue = cellValue ? JSON.stringify(cellValue).trimStart() : "";
+            if (parseFloat(cellValue as string)) cellValue = parseFloat(cellValue as string).toFixed(5).toString()
+            const displayValue = cellValue != undefined ? JSON.stringify(cellValue).trimStart() : "";
             return displayValue.slice(0, 50);
           },
           meta: {
