@@ -226,6 +226,7 @@ const Messaging = ({ endpoints, chatWrapper }: {
                             return (
                                 <ChatBubble variant="sent" key={index}>
                                     <ChatBubbleMessage variant="sent">
+                                        <MessageHeader model={"You"} content={chat.content} />
                                         <MarkdownRender content={chat.content} index={index} subIndex={0} />
                                     </ChatBubbleMessage>
                                 </ChatBubble>

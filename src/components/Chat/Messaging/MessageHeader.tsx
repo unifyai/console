@@ -4,11 +4,11 @@ import { CopyButton } from "@/components/Common/Buttons/Copy";
 import { providers } from "@/constants/endpoints";
 
 const MessageHeader = ({ model, provider, content, cost }: {
-    model: string, provider: string, content: string, cost: number | undefined
+    model: string, provider?: string, content: string, cost?: number
 }) => {
     return (<div className="flex justify-between items-center mb-2">
         <div className="flex gap-2 items-center">
-            <Tooltip content={provider}>
+            {provider && <Tooltip content={provider}>
                 <Image
                     src={providers[provider]}
                     alt={provider}
@@ -16,7 +16,7 @@ const MessageHeader = ({ model, provider, content, cost }: {
                     height={20}
                     className="min-w-4"
                 />
-            </Tooltip>
+            </Tooltip>}
             <div className="flex-col gap-2">
                 <div className="font-semibold">{model}</div>
                 {cost && <div className="text-tiny text-muted-foreground">$ {cost.toExponential(2)}</div>}
