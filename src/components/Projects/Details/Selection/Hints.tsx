@@ -1,0 +1,45 @@
+import { Badge } from "@/components/UI/badge"
+import { ArrowUp, ArrowDown } from "lucide-react"
+import { ReactNode } from "react"
+
+const Hint = ({command, instruction}: {command: string | ReactNode, instruction: string}) => {
+    return (
+    <div className="grid grid-cols-2 items-start py-2">
+        <Badge variant={"outline"} className="w-fit scale-120">{command}</Badge>
+        <p className="text-gray-500">{instruction}</p>
+    </div>        
+    )
+}
+
+const SelectionHints = () => {
+    return (
+    <div className="grid grid-cols-8">
+        <div/>
+        <div className="flex flex-col col-span-6 gap-2">
+
+            <div className="flex flex-col gap-1 border-secondary border-1 rounded-md p-4">
+                <p className="font-bold">Table Actions</p>
+                <div className="grid grid-rows-2">
+                    <Hint command="Click" instruction="Click on a row to select it"/>
+                    <Hint command="Shift + Click" instruction="Shift and click on a row to select multiple rows"/>
+                    <Hint command="Esc" instruction="Deselect all selected rows"/>
+                    <Hint command="Backspace / Delete" instruction="Press delete or backspace to delete selected rows"/>
+                </div>
+            </div>
+
+            <div className="flex flex-col gap-1 border-secondary border-1 rounded-md p-4">
+                <p className="font-bold">Comparing Logs</p>
+                <div className="grid grid-rows-2">
+                    <Hint command="Ctrl + Click"  instruction="Ctrl and click on a row to set it as base and display its content in this panel"/>
+                    <Hint command="Alt + Click"   instruction="Alt and click on a row to compare its content with the base"/>
+                    <Hint command={<><ArrowUp size={15}/><ArrowDown size={15}/></>}  instruction="Press Up (Down) key to set the previous (next) row as the base"/>
+                </div>
+            </div>
+
+        </div>
+        <div/>
+    </div>
+    )
+}
+
+export default SelectionHints;

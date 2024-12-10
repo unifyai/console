@@ -1,33 +1,123 @@
+/* global.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+    --forest-green: #2a862a;
+    --lime-green: #4cc552;
+    --dark-slate-gray: #2f4f4f;
+    --white-smoke: #f5f5f5;
+    --eerie-black: #1b1b1b;
+    --light-neutral-grey: #b0bec5;
+    --alert-red: #e53935;
+
+    /* Light theme variables */
+    --background: var(--white-smoke);
+    --foreground: var(--eerie-black);
+
+    --primary: var(--forest-green);
+    --primary-foreground: var(--white-smoke);
+
+    --secondary: var(--forest-green);
+    --secondary-foreground: var(--white-smoke);
+
+    --accent: var(--forest-green);
+    --accent-foreground: var(--white-smoke);
+
+    --muted: var(--light-neutral-grey);
+    --muted-foreground: var(--dark-slate-gray);
+
+    --destructive: var(--alert-red);
+    --destructive-foreground: var(--white-smoke);
+
+    --popover: var(--white-smoke);
+    --popover-foreground: var(--eerie-black);
+
+    --border: var(--light-neutral-grey);
+    --input: var(--light-neutral-grey);
+
+    --card: var(--white-smoke);
+    --card-foreground: var(--eerie-black);
+
+    --ring: var(--light-neutral-grey);
+
+    --radius: 0.5rem;
+
+    --chart-1: #e8623c; 
+    --chart-2: #2aa096; 
+    --chart-3: #274654; 
+    --chart-4: #f3c45a; 
+    --chart-5: #f2ab35; 
+
+    --sidebar-background: var(--white-smoke);
+    --sidebar-foreground: var(--eerie-black);
+    --sidebar-primary: var(--forest-green);
+    --sidebar-primary-foreground: var(--white-smoke);
+    --sidebar-accent: var(--forest-green);
+    --sidebar-accent-foreground: var(--white-smoke);
+    --sidebar-border: var(--light-neutral-grey);
+    --sidebar-ring: var(--light-neutral-grey);
   }
-}
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
-}
+  .dark {
+    /* Dark theme variables */
+    --background: var(--eerie-black);
+    --foreground: var(--white-smoke);
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+    --primary: var(--lime-green);
+    --primary-foreground: var(--eerie-black);
+
+    --secondary: var(--lime-green);
+    --secondary-foreground: var(--eerie-black);
+
+    --accent: var(--lime-green);
+    --accent-foreground: var(--eerie-black);
+
+    --muted: var(--dark-slate-gray);
+    --muted-foreground: var(--light-neutral-grey);
+
+    --destructive: var(--alert-red);
+    --destructive-foreground: var(--white-smoke);
+
+    --popover: var(--eerie-black);
+    --popover-foreground: var(--white-smoke);
+
+    --border: var(--dark-slate-gray);
+    --input: var(--dark-slate-gray);
+
+    --card: var(--eerie-black);
+    --card-foreground: var(--white-smoke);
+
+    --ring: var(--dark-slate-gray);
+
+    --radius: 0.5rem;
+
+    --chart-5: #eb2483; 
+    --chart-1: #264cb2; 
+    --chart-2: #2db88f; 
+    --chart-3: #ef921c; 
+    --chart-4: #cb5de8; 
+
+    --sidebar-background: var(--eerie-black);
+    --sidebar-foreground: var(--white-smoke);
+    --sidebar-primary: var(--lime-green);
+    --sidebar-primary-foreground: var(--white-smoke);
+    --sidebar-accent: var(--lime-green);
+    --sidebar-accent-foreground: var(--white-smoke);
+    --sidebar-border: var(--dark-slate-gray);
+    --sidebar-ring: var(--dark-slate-gray);
+  }
+
+  /* Ensure all elements have the correct border color */
+  * {
+    border-color: var(--border);
+  }
+
+  /* Apply background and text colors */
+  body {
+    @apply bg-[color:var(--background)] text-[color:var(--foreground)];
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }

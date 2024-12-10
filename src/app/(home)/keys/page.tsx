@@ -1,0 +1,40 @@
+import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
+import { getCurrentUser } from "@/lib/user/user";
+import { Suspense } from "react";
+import Main from "@/components/Keys/Main";
+import { listProviders, createCustomKey, deleteCustomKey, renameCustomKey, listCustomKeys } from "./actions";
+import { FileProps } from "@/types/common";
+
+const CustomKeysPage = async () => {
+    // get user and api key
+    const user = await getCurrentUser();
+    if (!user) {
+        return null;
+    }
+    const apiKey = user.apiKey;
+    const onPrem = process.env.ON_PREM;
+
+    // get custom keys
+    const getKeys = await listCustomKeys(apiKey);
+    const customKeysList = await getKeys();
+    const customKeys : FileProps[] = customKeysList.map((key) => ({path: key.name, type: "file", data: {...key}}));
+    
+    // get default providers
+    const getProviders = await listProviders(apiKey);
+    const providers = await getProviders();
+
+    // get server actions
+	const customKeyActions = { 
+		rename: await renameCustomKey(apiKey),
+		delete: await deleteCustomKey(apiKey),
+        create: await createCustomKey(apiKey)
+	};
+
+    return (
+        <Suspense fallback={<SkeletonLoader />}>
+            <Main apiKey={apiKey} onPrem={onPrem} providers={providers} customKeys={customKeys} customKeyActions={customKeyActions}/>
+        </Suspense>
+    );
+};
+
+export default CustomKeysPage;
