@@ -1,18 +1,20 @@
-import { NextApiRequest, NextApiResponse } from "next";
-import { getSession } from "next-auth/react";
+import { getSession } from "@/lib/user/user";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(req: NextApiRequest, res: NextApiResponse) {
-    const session = await getSession({ req });
-    res.setHeader("Access-Control-Allow-Origin", "https://unify.ai");
-    res.setHeader("Access-Control-Allow-Methods", "GET");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-    res.setHeader("Access-Control-Allow-Credentials", "true");
+export async function GET(req: NextRequest) {
+    const session = await getSession();
+    const headers = {
+        "Access-Control-Allow-Origin": "https://unify.ai",
+        "Access-Control-Allow-Methods": "GET",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Credentials": "true"
+    };
 
     if (session) {
         // User is authenticated
-        res.status(200).json({ session });
+        return NextResponse.json({ session }, { status: 200, headers: headers });
     } else {
         // User is not authenticated
-        res.status(401).json({ error: "Unauthorized" });
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: headers });
     }
 }
