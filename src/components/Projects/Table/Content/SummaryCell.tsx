@@ -35,7 +35,7 @@ const SummaryCell = ({ column, state, metrics, pending }: {
 		<>
 			{<TableCell style={style} ref={setNodeRef}>
 				<Tooltip content={metricTooltip}>
-					{pending ? <Badge>Loading...</Badge> : logEntryMetric?.toFixed(2) ?? 0}
+					{pending ? <Badge>Loading...</Badge> : logEntryMetric?.toFixed(5) ?? 0}
 				</Tooltip>
 			</TableCell>}
 		</>

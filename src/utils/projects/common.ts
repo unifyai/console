@@ -47,15 +47,15 @@ export function toComputableValue(value: any) {
 export function computeStatistic(statistic: string, data: number[]): number | string {
   switch (statistic) {
     case "mean":
-      return _.mean(data).toFixed(2);
+      return _.mean(data).toFixed(5);
     case "var": {
       const variance = data.reduce((sum, value, index, array) => sum + Math.pow(value - array.reduce((sum, value) => sum + value, 0) / array.length, 2), 0) / data.length;
-      return variance.toFixed(2);
+      return variance.toFixed(5);
     }
     case "std": {
       const squaredDiffs = data.reduce((sum, value, index, array) => sum + Math.pow(value - array.reduce((sum, value) => sum + value, 0) / array.length, 2), 0) / data.length;
       const std = Math.sqrt(squaredDiffs);
-      return std.toFixed(2);
+      return std.toFixed(5);
     }
     case "count":
       return data.length;
