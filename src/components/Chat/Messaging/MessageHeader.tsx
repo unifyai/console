@@ -14,7 +14,7 @@ const MessageHeader = ({ model, provider, content, cost }: {
                     alt={provider}
                     width={20}
                     height={20}
-                    className="min-w-4"
+                    className="min-w-6 p-1 rounded-md bg-muted"
                 />
             </Tooltip>}
             <div className="flex-col gap-2">

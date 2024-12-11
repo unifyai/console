@@ -26,7 +26,7 @@ const Messaging = ({ endpoints, chatWrapper }: {
     chatWrapper: (props: ChatWrapper) => Promise<StreamResponseChunk<ChatFrame>>
 }) => {
     // endpoint selection
-    const [selectedEndpointsParam,] = useQueryState("endpoints");
+    const [selectedEndpointsParam, setSelectedEndpointsParam] = useQueryState("endpoints");
     const selectedEndpoints: Endpoint[] = selectedEndpointsParam ? selectedEndpointsParam.split(",").map(
         ep => endpoints.find(endpoint => `${endpoint.code}@${endpoint.provider}` == ep)
     ).filter(ep => ep != undefined) : [];
@@ -174,6 +174,15 @@ const Messaging = ({ endpoints, chatWrapper }: {
         const newPinnedEndpoints = [...pinnedEndpoints, endpoint];
         setPinnedEndpoints(newPinnedEndpoints);
     }
+    const handleUnselectEndpoint = (endpoint: Endpoint) => {
+        const newSelectedEndpoints = selectedEndpoints.filter(
+            ep => ep.code != endpoint.code || ep.provider != endpoint.provider
+        );
+        if (newSelectedEndpoints.length == 0)
+            setSelectedEndpointsParam(null);
+        else
+            setSelectedEndpointsParam(newSelectedEndpoints.map(ep => `${ep.code}@${ep.provider}`).join(","));
+    }
 
     // clear chat
     const handleClearChat = async () => {
@@ -249,12 +258,14 @@ const Messaging = ({ endpoints, chatWrapper }: {
                                 : "You can only pin 3 endpoints. Unpin another endpoint first"
                         }
                         handleClick={(endpoint: Endpoint) => pinnedEndpoints.length < 3 ? handlePinEndpoint(endpoint) : undefined}
+                        handleUnselect={handleUnselectEndpoint}
                     />
                     <ChatPinning
                         endpoints={pinnedEndpoints}
                         side="right"
                         pinTooltipContent={"Unpin from chat"}
                         handleClick={handleUnpinEndpoint}
+                        handleUnselect={handleUnselectEndpoint}
                     />
                 </div>
                 <form
