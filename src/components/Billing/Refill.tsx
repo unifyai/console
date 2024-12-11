@@ -1,158 +1,181 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { Switch } from "../UI/switch";
-import BaseCard from "../Common/Card/Base";
-import { Input } from "../Common/Input/Content";
-import PrimaryButton from "../Common/Buttons/Primary";
-import {
-  getUserBillingDetails,
-  enableAutoRecharge,
-  setAutoRechargeThreshold,
-  setAutoRechargeQty,
-} from "@/lib/user/billing/billing";
-import { getCustomerDefaultPaymentMethod } from "@/lib/user/billing/stripe/stripe";
-import { getCurrentUser } from "@/lib/user/user";
-import { BalanceDetails, User } from "@/types/user";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/UI/alert"
-import { AlertCircle } from "lucide-react"
+import { Input } from "../UI/input";
+import { Button } from "../UI/button";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../UI/card";
+import { Alert, AlertDescription, AlertTitle } from "../UI/alert";
+import { AlertCircle } from "lucide-react";
 
-const AutomaticRefill = () => {
-  const [userID, setUserID] = useState<string>("");
+interface AutomaticRefillProps {
+  hasPaymentMethod: boolean;
+}
+
+const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
   const [isAutoRechargeEnabled, setIsAutoRechargeEnabled] = useState(false);
-  const [minCutoff, setMinCutoff] = useState("");
+  const [minBalance, setMinBalance] = useState("");
   const [rechargeAmount, setRechargeAmount] = useState("");
-  const [initialMinCutoff, setInitialMinCutoff] = useState("");
+  const [initialMinBalance, setInitialMinBalance] = useState("");
   const [initialRechargeAmount, setInitialRechargeAmount] = useState("");
-  const [hasDefaultPaymentMethod, setHasDefaultPaymentMethod] = useState(false);
-  const [alert, setAlert] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [alertType, setAlertType] = useState<"success" | "error">("success");
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchAutoRechargeSettings = async () => {
       try {
-        const billingDetailsResponse = fetch(`/api/billing/details`);
-        const defaultPaymentMethodResponse = fetch(`/api/stripe/defaultPaymentMethod`);
-
-        const [billingDetails, defaultPaymentMethod] = await Promise.all([
-          billingDetailsResponse.then((res) => res.json()),
-          defaultPaymentMethodResponse.then((res) => res.json()),
-        ]);
-
-        if (billingDetails && billingDetails.length > 0) {
-          const userDetails = billingDetails[0];
-          const initialCutoff = userDetails.autorecharge_threshold || "";
-          const initialAmount = userDetails.autorecharge_qty || "";
-
-          setMinCutoff(initialCutoff.toString());
-          setRechargeAmount(initialAmount.toString());
-          setInitialMinCutoff(initialCutoff.toString());
-          setInitialRechargeAmount(initialAmount.toString());
-          setIsAutoRechargeEnabled(userDetails.autorecharge || false);
+        console.log("Fetching auto-recharge settings...");
+        const response = await fetch("/api/billing/auto-recharge/settings",);
+        if (response.ok) {
+          const data = await response.json();
+          setIsAutoRechargeEnabled(data.autoRechargeEnabled);
+          setMinBalance(data.autoRechargeThreshold.toString());
+          setRechargeAmount(data.autoRechargeQty.toString());
+          setInitialMinBalance(data.autoRechargeThreshold.toString());
+          setInitialRechargeAmount(data.autoRechargeQty.toString());
         }
-
-        setHasDefaultPaymentMethod(!!defaultPaymentMethod);
       } catch (error) {
-        console.error("Error fetching user data:", error);
-        setAlert({ type: 'error', message: "Billing details have not been set." });
+        console.error("Error fetching auto-recharge settings:", error);
       }
     };
-    fetchData();
-  }, []);
+
+    if (hasPaymentMethod) {
+      fetchAutoRechargeSettings();
+    } else {
+      setIsAutoRechargeEnabled(false);
+    }
+  }, [hasPaymentMethod]);
 
   const handleToggleAutoRecharge = async () => {
     const newStatus = !isAutoRechargeEnabled;
     setIsAutoRechargeEnabled(newStatus);
+
     try {
-      await enableAutoRecharge(userID, newStatus);
-      setAlert({ type: 'success', message: `Auto-recharge ${newStatus ? 'enabled' : 'disabled'}.` });
+      console.log("Toggling auto-recharge to:", newStatus);
+      await fetch("/api/billing/auto-recharge/enable", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ enabled: newStatus }),
+      });
+      setAlertMessage(
+        `Auto-recharge has been ${newStatus ? "enabled" : "disabled"}.`
+      );
+      setAlertType("success");
     } catch (error) {
       console.error("Error toggling auto-recharge:", error);
-      setAlert({ type: 'error', message: "Failed to update auto-recharge status." });
+      setAlertMessage("Failed to update auto-recharge status.");
+      setAlertType("error");
     }
   };
 
-  const handleSave = async () => {
-    if (Number(minCutoff) <= 0 || Number(rechargeAmount) <= 0) {
-      setAlert({ type: 'error', message: "Please enter valid non-zero values before saving." });
+  const handleSaveSettings = async () => {
+    if (Number(minBalance) <= 0 || Number(rechargeAmount) <= 0) {
+      setAlertMessage("Please enter valid amounts greater than zero.");
+      setAlertType("error");
       return;
     }
 
     try {
-      await Promise.all([
-        setAutoRechargeThreshold(userID, Number(minCutoff)),
-        setAutoRechargeQty(userID, Number(rechargeAmount))
-      ]);
-      setInitialMinCutoff(minCutoff);
+      console.log("Saving auto-recharge settings...");
+      await fetch("/api/billing/auto-recharge/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          autoRechargeEnabled: isAutoRechargeEnabled,
+          autoRechargeThreshold: Number(minBalance),
+          autoRechargeQty: Number(rechargeAmount),
+        }),
+      });
+      
+      setInitialMinBalance(minBalance);
       setInitialRechargeAmount(rechargeAmount);
-      setAlert({ type: 'success', message: `Auto-recharge settings saved: Min Cutoff - $${minCutoff}, Recharge Amount - $${rechargeAmount}` });
+      setAlertMessage("Auto-recharge settings updated successfully.");
+      setAlertType("success");
     } catch (error) {
       console.error("Error saving auto-recharge settings:", error);
-      setAlert({ type: 'error', message: "Failed to save auto-recharge settings." });
+      setAlertMessage("Failed to save auto-recharge settings.");
+      setAlertType("error");
     }
   };
 
   const hasChanges = () => {
     return (
-      minCutoff !== initialMinCutoff || rechargeAmount !== initialRechargeAmount
+      minBalance !== initialMinBalance || rechargeAmount !== initialRechargeAmount
     );
   };
 
   return (
-    <BaseCard
-      title="Automatic Refill"
-      description="Set up automatic refills to keep your account balance topped up."
-      className="relative"
-    >
-      <div className="absolute top-4 right-4">
-        <Switch
-          checked={isAutoRechargeEnabled}
-          onCheckedChange={handleToggleAutoRecharge}
-          disabled={!hasDefaultPaymentMethod}
-        />
-      </div>
-      <div className="space-y-4">
-        <div className="flex flex-col gap-2">
-          <p className="text-sm text-primary">
-            Minimum balance:
-          </p>
-          <Input
-            StartContent="$"
-            type="number"
-            value={minCutoff}
-            onChange={(e) => setMinCutoff(e.target.value)}
-            placeholder="Enter minimum balance"
+    <Card className="w-full relative">
+      <CardHeader>
+        <CardTitle className="text-2xl">Automatic Refill</CardTitle>
+        <CardDescription className="text-sm">
+          Set up automatic refills to keep your account balance topped up.
+        </CardDescription>
+        <div className="absolute top-4 right-4">
+          <Switch
+            checked={isAutoRechargeEnabled}
+            onCheckedChange={handleToggleAutoRecharge}
+            disabled={!hasPaymentMethod}
           />
         </div>
-        <div className="flex flex-col gap-2">
-          <p className="text-sm text-primary">
-            Recharge amount:
-          </p>
-          <Input
-            StartContent="$"
-            type="number"
-            value={rechargeAmount}
-            onChange={(e) => setRechargeAmount(e.target.value)}
-            placeholder="Enter recharge amount"
-          />
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="flex flex-col">
+            <label htmlFor="minBalance" className="text-sm font-medium">
+              Minimum Balance
+            </label>
+            <Input
+              prefix="$"
+              id="minBalance"
+              type="number"
+              placeholder="Enter minimum balance"
+              value={minBalance}
+              onChange={(e) => setMinBalance(e.target.value)}
+              disabled={!isAutoRechargeEnabled}
+            />
+          </div>
+          <div className="flex flex-col">
+            <label htmlFor="rechargeAmount" className="text-sm font-medium">
+              Recharge Amount
+            </label>
+            <Input
+              prefix="$"
+              id="rechargeAmount"
+              type="number"
+              placeholder="Enter recharge amount"
+              value={rechargeAmount}
+              onChange={(e) => setRechargeAmount(e.target.value)}
+              disabled={!isAutoRechargeEnabled}
+            />
+          </div>
+          <Button
+            onClick={handleSaveSettings}
+            disabled={!hasChanges() || !isAutoRechargeEnabled}
+          >
+            Save Changes
+          </Button>
+          {!hasPaymentMethod && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Add a payment method to enable automatic refills.
+              </AlertDescription>
+            </Alert>
+          )}
+          {alertMessage && (
+            <Alert variant={alertType === "success" ? "default" : "destructive"}>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{alertMessage}</AlertDescription>
+            </Alert>
+          )}
         </div>
-        <PrimaryButton
-          onClick={handleSave}
-          disabled={!hasChanges()}
-          label="Save Changes"
-        />
-      </div>
-      {alert && (
-        <Alert variant={alert.type === 'error' ? "destructive" : "default"}>
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{alert.type === 'error' ? "Error" : "Success"}</AlertTitle>
-          <AlertDescription>{alert.message}</AlertDescription>
-        </Alert>
-      )}
-    </BaseCard>
+      </CardContent>
+    </Card>
   );
 };
 

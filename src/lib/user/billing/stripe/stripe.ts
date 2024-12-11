@@ -48,6 +48,7 @@ export async function createCustomerPortalSession(customerID: string) {
     customer: customerID,
     return_url: process.env.NEXTAUTH_URL + "/billing",
   });
+
   return billingPortalSession.url;
 }
 
@@ -79,12 +80,11 @@ export async function getCustomerDefaultPaymentMethod(customerID: string) {
 
 
 /**
- * Creates a new Stripe checkout session for the given customer ID.
- * The checkout session is used for embedding a payment form on the frontend.
+ * Creates a new Stripe checkout session for the given customer ID and returns the session URL.
  * @param customerID - The Stripe customer ID of the user.
- * @returns The created checkout session object.
+ * @returns The URL of the created checkout session.
  */
-export async function createCheckoutSession(customerID: string) {
+export async function createCheckoutSession(userID: string, customerID: string): Promise<string> {
   if (!stripe) {
     throw new Error('Stripe is not initialized. Check your environment variables.');
   }
@@ -92,25 +92,40 @@ export async function createCheckoutSession(customerID: string) {
     mode: "payment",
     submit_type: "pay",
     line_items: [{
-      price: process.env.STRIPE_PRICE_ID_LIVE as string,
+      price: process.env.STRIPE_PRICE_ID as string,
       quantity: 1,
     }],
     customer: customerID,
-    ui_mode: "embedded",
-    return_url: process.env.NEXTAUTH_URL + "/billing",
+    success_url: `${process.env.NEXTAUTH_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${process.env.NEXTAUTH_URL}/billing`,
     billing_address_collection: "required",
-    invoice_creation: {
-      enabled: true,
-    },
-    consent_collection: {
-      terms_of_service: "required",
-    },
-    // save card on file
     payment_method_types: ["card"],
     payment_intent_data: {
       setup_future_usage: "off_session",
     },
+    metadata: {
+      userID: userID,
+    }
   });
 
-  return checkoutSession;
+  if (!checkoutSession.url) {
+    throw new Error('Failed to create checkout session URL');
+  }
+
+  return checkoutSession.url;
+}
+
+/**
+ * Retrieves a list of card fingerprints associated with a given Stripe customer ID.
+ * @param customerID - The Stripe customer ID of the user.
+ * @returns A list of card fingerprints.
+ */
+export async function getStripeFingerprints(customerID : string){
+  if (!stripe) {
+    throw new Error('Stripe is not initialized. Check your environment variables.');
+  }
+
+  const paymentMethods = await stripe.customers.listPaymentMethods(customerID);
+
+  return paymentMethods.data.map((entry:any) => entry.card.fingerprint);
 }

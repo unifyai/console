@@ -1,34 +1,71 @@
 "use client";
 
-import { useState } from "react";
-import SinglePaneBody from "../Common/Body/SinglePaneBody";
-import AccountBalance from "./Balance";
+import { useState, useEffect } from "react";
+import Balance from "./Balance";
 import AutomaticRefill from "./Refill";
+import { Separator } from "../UI/separator";
+import { Alert, AlertDescription, AlertTitle } from "../UI/alert";
+import { AlertCircle } from "lucide-react";
 
 const Main = () => {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const overlay = (isVisible: boolean) => isVisible && <div className="fixed inset-0 bg-background opacity-50 z-40"></div>
-    const body =    <div className={`relative ${isSidebarOpen ? "pointer-events-none" : ""}`}>
-                        {overlay(isSidebarOpen)}
-                        <div className="w-full flex flex-col gap-5">
-                            <AccountBalance setIsSidebarOpen={setIsSidebarOpen}/>
-                            <AutomaticRefill/>
-                        </div>
-                    </div>
-    return (
-    <SinglePaneBody 
-        isPending={false}
-        body={
-            <div className="text-lg font-normal flex flex-col gap-5 p-5 w-fit h-fit">
-                <div className="flex flex-col gap-2 w-full">
-                    <h1 className="text-4xl font-bold text-foreground">Billing</h1>
-                    <p className="text-muted-foreground">Manage your credits balance and payment preferences.</p>
-                </div>
-                {body}
-            </div>
-        }
-        />
-    );
+  const [hasPaymentMethod, setHasPaymentMethod] = useState(false);
+  const [billingSetupChecked, setBillingSetupChecked] = useState(false);
+
+  useEffect(() => {
+    // Check if the user has a payment method set up
+    const checkPaymentMethod = async () => {
+      console.log("Checking for payment method...");
+      const SyncCards = await fetch("/api/billing/syncCards");
+      if (!SyncCards.ok) {
+        console.error("Error syncing cards:", SyncCards.statusText);
+      }
+
+      const checkCardSetup = await fetch("/api/billing/hasCardSetup");
+      if (checkCardSetup.ok) {
+        const hasCardSetup = await checkCardSetup.json();
+        setHasPaymentMethod(hasCardSetup.hasCardSetup);
+        console.log("Has payment method:", hasCardSetup.hasCardSetup);
+      } else {
+        console.error("Error checking for card setup:", checkCardSetup.statusText);
+      }
+
+      setBillingSetupChecked(true);
+    };
+
+    checkPaymentMethod();
+  }, []);
+
+  return (
+    <div className="space-y-6 p-8 w-fit">
+      <div>
+        <h1 className="text-4xl font-bold text-foreground">Billing</h1>
+        <p className="text-muted-foreground">
+          Manage your credits balance and payment preferences.
+        </p>
+      </div>
+
+      {!billingSetupChecked ? (
+        <p>Loading...</p>
+      ) : (
+        <>
+          {!hasPaymentMethod && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Payment Method Required</AlertTitle>
+              <AlertDescription>
+                Please set up your payment method to enable purchasing credits
+                and automatic refills.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <Balance hasPaymentMethod={hasPaymentMethod} />
+          <Separator />
+          <AutomaticRefill hasPaymentMethod={hasPaymentMethod} />
+        </>
+      )}
+    </div>
+  );
 };
 
 export default Main;

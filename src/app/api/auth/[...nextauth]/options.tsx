@@ -107,18 +107,7 @@ const authOptions: AuthOptions = {
             }
             return session;
         },
-        },
-    events: {
-        async signIn({ user }) {
-            console.log("User signed in");
-        },
-        async signOut({ token, session }) {
-            console.log("User signed out");
-        },
-        async session({ token, session }) {
-            console.log("Session was checked");
         }
-    }
 };
 
 export default authOptions;

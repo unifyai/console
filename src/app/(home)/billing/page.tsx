@@ -12,7 +12,6 @@ export const metadata: Metadata = {
 const BillingPage: React.FC = async () => {
   const onPrem = process.env.ON_PREM;
 
-
   return (
     <Suspense fallback={<SkeletonLoader />}>
       {onPrem ? <OnPrem /> : <Main/>}
