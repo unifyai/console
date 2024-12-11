@@ -9,19 +9,21 @@ import { Table } from "@tanstack/react-table";
 export function useTableHotkeys (table: Table<any | unknown> ,logs: LogProps[] | undefined, setState: SetStateProps) {
 
     // Change base log with arrow keys
-    useKey("ArrowUp", () => setState.setBaseLog((baseLog: LogProps | undefined) => {
-        if (!baseLog || !logs) return undefined;
-        const index = logs.map(log => log.id).indexOf(baseLog.id);
-        const newIndex = index != 0 ? index - 1 : index;
-        return logs.at(newIndex); 
-      }));
-    useKey("ArrowDown", () => setState.setBaseLog((baseLog: LogProps | undefined) => {
-        if (!baseLog || !logs) return undefined;
-        const index = logs.map(log => log.id).indexOf(baseLog.id);
-        const newIndex = index != logs.length - 1 ? index + 1 : index;
-        return logs.at(newIndex); 
-    }));
+    // useKey("ArrowUp", () => setState.setBaseLog((baseLog: LogProps | undefined) => {
+    //     if (!baseLog || !logs) return undefined;
+    //     const index = logs.map(log => log.id).indexOf(baseLog.id);
+    //     const newIndex = index != 0 ? index - 1 : index;
+    //     return logs.at(newIndex); 
+    //   }));
+    // useKey("ArrowDown", () => setState.setBaseLog((baseLog: LogProps | undefined) => {
+    //     if (!baseLog || !logs) return undefined;
+    //     const index = logs.map(log => log.id).indexOf(baseLog.id);
+    //     const newIndex = index != logs.length - 1 ? index + 1 : index;
+    //     return logs.at(newIndex); 
+    // }));
     useKey("Escape", () => {
-        table.toggleAllRowsSelected(false)
+        table.toggleAllRowsSelected(false);
+        setState.setBaseLog((l: LogProps) => undefined);
+        setState.setComparisonLogs((l: LogProps[]) => undefined);    
     });
 }

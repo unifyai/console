@@ -10,11 +10,10 @@ import React, { useEffect, useState } from "react";
 import { Loader2 } from 'lucide-react';
 import { FileProps, ResponseProps } from "@/types/common";
 import { buildTree, nestedColumns, onRowClick } from "@/utils/evals/table";
-import IndexBadge from "./Content/IndexBadge";
+import { Badge } from "@/components/UI/badge";
 import { useQueryState } from "nuqs";
 import { useTableHotkeys } from "@/hooks/Logs/useTableHotkeys";
 import ColumnFilter from "./Buttons/ColumnFilter";
-import VersionBadge from "./Content/VersionBadge";
 import AggregatedCell from "./Content/AggregatedCell";
 import VisibilityFilter from "./Buttons/VisibilityFilter";
 import DeleteRows from "./Buttons/DeleteRows";
@@ -22,8 +21,6 @@ import ColumnMetrics from "./Buttons/ColumnMetrics";
 import SummaryCell from "./Content/SummaryCell";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import CreateProject from "./Buttons/CreateProject";
-import { createProject } from "@/app/(home)/evals/actions";
-
 
 const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, paramsProperties, metrics, logsData, projectActions, logsActions }: {
 	searchParams: { project?: string, metric?: string, filters?: string },
@@ -99,11 +96,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 		{
 			id: "RowNumbering",
 			cell: ({ row }: { row: Row<LogProps> }) => {
-				return <IndexBadge
-					row={row}
-					baseLog={logs && baseLog ? baseLog : undefined}
-					comparisonLogs={logs ? comparisonLogs : undefined}
-				/>;
+				return <Badge>{row.index + 1}</Badge>;
 			},
 			meta: {
 				dataType: () => null,
@@ -316,7 +309,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 									state={state}
 									setState={setState}
 									tableHotkeys={useTableHotkeys}
-									onRowClick={(table, row, event) => onRowClick(logs, state, setState, table, row, event)}
+									onRowClick={(table, row, event) => onRowClick(state, setState, table, row, event)}
 									ColumnFilters={(column) => <>
 										<ColumnFilter setError={setError} setFilters={setLogsFilters} filters={logsFilters} column={column} />
 									</>}

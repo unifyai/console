@@ -226,62 +226,100 @@ export const nestedColumns = (
 };
 
 /* 
-  Update row selection state, and selected and comparison logs when clicking on a row
+  Update row selection state and base / comparison logs on row clicks
 */
 export const onRowClick = (
-  logs: LogProps[],
   state: StateProps,
   setState: SetStateProps,
   table: Table<any | unknown>,
   row: Row<any | unknown>, 
-  event: MouseEvent<HTMLTableRowElement, globalThis.MouseEvent>
+  event: MouseEvent<HTMLTableRowElement, globalThis.MouseEvent>,
 ) => {
 
-  const logID = row.original.id;
-  const log = logs.find(log => log.id === logID)!;
-
-  // Select base log to view in details panel
-  if (event.ctrlKey || event.metaKey) {
-    setState.setBaseLog((l: LogProps) => l && l.id === logID ? undefined : log);
-    setState.setComparisonLogs(undefined);
-  }
-  // Select comparable logs to view differences
-  else if (event.altKey) {
-    setState.setComparisonLogs((logs: LogProps[]) => !logs ? [log]
-        : logs.map(l => l.id).includes(logID)
-          ? logs.length === 1 
-            ? undefined
-            : logs.filter(l => l.id !== logID)
-          : [...logs, log]
-    );
-  }
-  // Select multiple rows in a range
-  else if (event.shiftKey) {
-
-    // Single selection and early exit if no selected rows
-    if (table.getSelectedRowModel().rows.length === 0) {
-      row.toggleSelected();
-      return;        
-    }
-
-    const lastSelectedRowIndex = table.getRowModel().rows.findIndex(r => r === state.lastSelectedRow);
-    const rowIndex = table.getRowModel().rows.findIndex(r => r === row );
-
-    const minIndex = Math.min(lastSelectedRowIndex, rowIndex);
-    const maxIndex = Math.max(lastSelectedRowIndex, rowIndex);
-
-    event.preventDefault();
-    table.getRowModel().rows.slice(minIndex, maxIndex + 1).map(r => r.toggleSelected());
-    setState.setLastSelectedRow(row);
+  /* Update row selections */
   
-  // Select a single row
-  } else {
-  
+  event.stopPropagation();
+
+  let selectedRows = table.getSelectedRowModel().rows;    //  Currently selected rows in the table. Updates asynchronously.
+  let selections = selectedRows;                          //  Local state tracking variable used to pass the updated selections to the update comparables functions
+
+  if (selectedRows.length === 0) {
+    
+    // If no row is selected:
+    // Select the row and set it as base.
+    
     row.toggleSelected();
     setState.setLastSelectedRow(row);
+    selections.push(row);
+
+  } else {
+
+      if (event.ctrlKey || event.metaKey) {
+        
+        // If some rows are selected and ctrl+click: 
+        // Select / deselect the row and add / remove to the local selections variable.
+        
+        row.toggleSelected();
+        setState.setLastSelectedRow(row);
+        selections = selections.includes(row) ? selections.filter(s => s != row) : [...selections, row];
+      
+      } else if (event.shiftKey) {
+
+          // If some rows are selected and shift+click: 
+          // Determine range of rows to toggle between the last selected and the currently selected, then
+          // Select / deselect rows in the range and append to / remove from local selections variable. 
+
+          const lastSelectedRowIndex = table.getRowModel().rows.findIndex(r => r === state.lastSelectedRow);
+          const rowIndex = table.getRowModel().rows.findIndex(r => r === row );
+      
+          let minIndex = Math.min(lastSelectedRowIndex, rowIndex);
+          minIndex += minIndex === lastSelectedRowIndex ? 1 : 0;
+          let maxIndex = Math.max(lastSelectedRowIndex, rowIndex);
+          maxIndex += maxIndex === rowIndex ? 1 : 0;
+
+          event.preventDefault();
+          table.getRowModel().rows.slice(minIndex, maxIndex).map(r => {
+            r.toggleSelected()
+            selections = selections.includes(r) ? selections.filter(s => s != r) : [...selections, r];
+          });
+          setState.setLastSelectedRow(row);
+
+      } else {
+          
+          // If some rows are selected and simple click: 
+          // Deselect all rows then select / deselect row in the range and set local selections variable to that row only.
+          
+          table.toggleAllRowsSelected(false);
+          row.toggleSelected();
+          setState.setLastSelectedRow(row);
+          selections = [row];
+
+        }
+  }
+
+  /* Update base and comparison logs */
+
+  if (selections.length === 0) {
+
+    // If no selected row reset base and comparison logs
+    setState.setBaseLog((l: LogProps) => undefined);
+    setState.setComparisonLogs((l: LogProps[]) => undefined);
+  
+  } else if (selections.length === 1) {
+  
+    // If one row selected set its log as the base and reset comparison logs
+    setState.setBaseLog((l: LogProps) => selections.at(0)!.original)
+    setState.setComparisonLogs((l: LogProps[]) =>undefined);
+  
+  } else if (selections.length > 1) {
+  
+    // If more than one row selected set the first row's log as the base and the others as comparison logs
+    setState.setBaseLog((l: LogProps) => selections.at(0)!.original)
+    setState.setComparisonLogs((l: LogProps[]) => selections.slice(1).map(row => row.original));
   
   }
 };
+
 
 /* 
   Merges vertically adjacent table cells that have the same value
