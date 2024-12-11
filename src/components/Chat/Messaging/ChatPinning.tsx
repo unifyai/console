@@ -39,7 +39,7 @@ const ChatPinning = ({ endpoints, side, pinTooltipContent, handleClick, handleUn
                                 alt={endpoint.provider}
                                 width={20}
                                 height={20}
-                                className="min-w-4"
+                                className="min-w-4 cursor-default"
                             />
                         </div>
                     </Tooltip>
