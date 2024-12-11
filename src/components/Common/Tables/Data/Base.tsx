@@ -11,7 +11,7 @@ import { DndContext, closestCenter } from "@dnd-kit/core";
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 
-import { handleDragEnd } from "@/utils/projects/table";
+import { handleDragEnd } from "@/utils/evals/table";
 import { Table, TableHeader, TableRow, TableBody, TableCell, TableFooter } from "@/components/UI/table";
 
 import DataTableHeader from "./Content/Header";
@@ -19,9 +19,9 @@ import DataTableCell from "./Content/Cell";
 
 import { StateProps } from "@/types/dataTable";
 import { SetStateProps } from "@/types/dataTable";
-import { LogProps } from "@/types/projects/logs";
+import { LogProps } from "@/types/evals/logs";
 
-import { mergeCells } from "@/utils/projects/table";
+import { mergeCells } from "@/utils/evals/table";
 
 export default function DataTable<TData, TValue>({ data, columns, state, setState, tableHotkeys, onRowClick, FooterCell, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
     data: TData[],

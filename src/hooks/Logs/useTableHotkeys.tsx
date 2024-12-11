@@ -2,7 +2,7 @@
 
 import { useKey } from "react-use";
 import { SetStateProps } from "@/types/dataTable";
-import { LogProps } from "@/types/projects/logs";
+import { LogProps } from "@/types/evals/logs";
 import { Table } from "@tanstack/react-table";
 
 /* Perform different actions using keyboard keys */

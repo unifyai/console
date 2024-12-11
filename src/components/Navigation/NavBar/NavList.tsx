@@ -16,7 +16,7 @@ const NavList: NavItem[] = [
   {
     title: "Universal API",
     icon: Globe,
-    href: "/projects",
+    href: "/evals",
     tabs: [
       {
         title: "Chat",
@@ -38,7 +38,7 @@ const NavList: NavItem[] = [
   {
     title: "Projects",
     icon: ClipboardPen,
-    href: "/projects",
+    href: "/evals",
   },
   {
     title: "Usage",

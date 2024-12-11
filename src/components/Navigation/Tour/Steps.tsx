@@ -3,7 +3,7 @@ const step = (target: string, content: string) => {
 }
 
 const Steps = {
-    "/projects" :   [
+    "/evals" :   [
                         step("body", "Welcome to Unify! This guided tour will walk you through the projects page where you can visualize your LLM evaluations."),
                         step(".tutorial-logs-table", "The logs table is the main interface that shows all your logged experiments in tabular format. You can customize the table with different sorting, ordering, grouping, etc. to create the view that best fits your needs. This view will be saved in the URL for reuse."),
                         step(".tutorial-details-panel", "This section contains additional modules that help explore your logs data in-depth. You can switch between the different modules using the tabs."),
