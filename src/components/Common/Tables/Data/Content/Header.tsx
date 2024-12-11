@@ -32,6 +32,9 @@ const DataTableHeader = ({header, ColumnFilters}: {
     whiteSpace: "nowrap",
     width: `calc(var(--header-${header?.id}-size) * 1px)`,
     zIndex: isDragging || isPinned ? 1 : 0,
+    borderRight: "1px solid var(--muted)",
+    borderBottom: "1px solid var(--muted)",
+    borderTop: "1px solid var(--muted)",
   };
 
   return (

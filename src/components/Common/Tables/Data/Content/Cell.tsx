@@ -36,6 +36,7 @@ const DataTableCell = ({ cell, row, state, setState, AggregatedCell, ExtraCellCo
         height: "21px",
         width: `calc(var(--header-${cell.column.id}-size) * 1px)`,
         zIndex: isDragging || isPinned ? 1 : 0,
+        borderRight: "1px solid var(--muted)",
       };
 
       if (cell.isRowSpanned) return null;

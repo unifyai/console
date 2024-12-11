@@ -110,7 +110,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
             <Table className="sticky top-0 z-10 max-h-[90vh] w-full border-1" style={{ ...columnSizeVars }}>
                 <TableHeader className="sticky -top-[1px] z-10 bg-background">
                     {table.getHeaderGroups().map((headerGroup) => (
-                        <TableRow key={headerGroup.id} className="border-none">
+                        <TableRow key={headerGroup.id}>
                             <SortableContext items={state.columnOrder} strategy={horizontalListSortingStrategy}>
                                 {headerGroup.headers.map((header) =>
                                     <DataTableHeader
