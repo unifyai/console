@@ -36,7 +36,7 @@ const NavList: NavItem[] = [
     ],
   },
   {
-    title: "Projects",
+    title: "Evals",
     icon: ClipboardPen,
     href: "/evals",
   },
