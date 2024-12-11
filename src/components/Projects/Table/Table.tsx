@@ -128,6 +128,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 
 	// project
 	const [projectQuery, setProject] = useQueryState("project", { shallow: false });
+	const projectQueryVal = (projects || []).find(proj => proj == projectQuery);
 
 	// log filters
 	const [logsFiltersQuery, setLogsFiltersQuery] = useQueryState("filters", { shallow: false });
@@ -253,7 +254,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 
 	// set pending when project changes
 	useEffect(() => {
-		if (project == projectQuery)
+		if (project == projectQueryVal)
 			setPending(false);
 		else
 			setPending(true);
@@ -290,7 +291,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 							setProject(projectPath);
 						}}
 						type="Projects"
-						defaultValue={projectQuery || undefined}
+						defaultValue={projectQueryVal}
 					/>
 					{project && (
 						<DeleteDialog

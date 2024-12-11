@@ -31,7 +31,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, datasetsAction
 }) => {
 	// get projects
 	const projects: string[] = await projectsActions.get();
-	const project: string | undefined = searchParams.project || undefined;
+	const project: string | undefined = projects.find(project => project == searchParams.project);
 
 	// get logs
 	const logsFilters = searchParams.filters ? Object.fromEntries(searchParams.filters.split(",").map((filter => {
