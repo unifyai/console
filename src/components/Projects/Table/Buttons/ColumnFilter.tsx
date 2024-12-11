@@ -38,7 +38,7 @@ const ColumnFilter = ({ setError, setFilters, filters, column }: {
     const [changed, setChanged] = useState(false);
 
     const onSubmit = (selectedFilter: { fn: string; value: string }) => {
-        if (selectedFilter.value.includes(" ")) {
+        if (selectedFilter.value.includes(" ") && !/^(['"])(.*?)\1$/.test(selectedFilter.value)) {
             setError("Please wrap your filter string with quotes as it contains whitespace characters.");
             setSelectedFilter(filters[property] ?? { fn: "", value: "" });
         }
