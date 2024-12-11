@@ -21,6 +21,8 @@ import DeleteRows from "./Buttons/DeleteRows";
 import ColumnMetrics from "./Buttons/ColumnMetrics";
 import SummaryCell from "./Content/SummaryCell";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
+import CreateProject from "./Buttons/CreateProject";
+import { createProject } from "@/app/(home)/projects/actions";
 
 
 const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, paramsProperties, metrics, logsData, projectActions, logsActions }: {
@@ -34,6 +36,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 	logsData: LogsResponseProps,
 	projectActions: {
 		get: () => Promise<string[]>,
+		create: (name: string) => Promise<ResponseProps>,
 		rename: (oldName: string, newName: string) => Promise<ResponseProps>,
 		delete: (name: string) => Promise<ResponseProps>
 	}
@@ -254,7 +257,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 	return (
 		<div className="flex flex-col gap-4 w-full h-full p-3 bg-background rounded-md">
 			<div className="flex flex-row justify-between w-full h-fit">
-				<div className="w-fit gap-3 flex flex-row">
+				<div className="w-fit gap-3 flex flex-row items-center">
 					<FileDirectory
 						data={data}
 						renamingFunction={projectActions.rename}
@@ -282,6 +285,11 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 							variant="outline"
 						/>
 					)}
+					{projects &&
+					<CreateProject
+						creationFunction={projectActions.create}
+						paths={projects}
+					/>}
 					<div className="flex flex-row gap-3 LogsTablePreferences">
 						{
 							project && columns.length &&
@@ -296,7 +304,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 				? <SkeletonLoader />
 				: <div className="w-full h-fit overflow-auto tutorial-logs-table">
 					{project                    // If project selected
-						? logs                  // If logs data found
+						? logs.length > 0       // If logs data found
 							? <div className="relative flex-col gap-2">
 								{loading && <div className="rounded-lg absolute z-20 w-full h-full flex justify-center">
 									<Loader2 className="animate-spin my-36" />
@@ -326,7 +334,9 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 									</>}
 								/>
 							</div>
-							: <DataTable state={state} setState={setState} columns={columns} data={[]} />
+							: <BaseTable items={[
+								{ "Entries": <p>No logs found. Start running local evaluations as shown in this <a href="https://docs.unify.ai/data_flywheel/teaching_assistant" target="_blank" className="font-bold underline text-primary">getting started</a> example.</p>}
+							]} />
 						: <BaseTable items={[{ "Entries": "Select a project to display your logs." }]} />
 					}
 				</div>}

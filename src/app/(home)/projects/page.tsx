@@ -11,6 +11,7 @@ import {
     getLogMetrics,
     getLogs,
     getProjects,
+    createProject,
     renameDataset,
     renameProject
 } from "./actions";
@@ -29,6 +30,7 @@ const ProjectsPage = async (
     // get server actions
     const projectsActions = {
         get: await getProjects(apiKey),
+        create: await createProject(apiKey),
         rename: await renameProject(apiKey),
         delete: await deleteProject(apiKey)
     };

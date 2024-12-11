@@ -1,5 +1,23 @@
 "use server";
 
+// create project
+export const createProject = async (apiKey: string) => {
+    return async (name: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/projects`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({ name: name })
+            }
+        );
+        return await response.json();
+    };
+};
+
+
 // get projects
 export const getProjects = async (apiKey: string) => {
     return async () => {

@@ -13,6 +13,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, datasetsAction
 	searchParams: { project?: string, metric?: string, filters?: string },
 	projectsActions: {
 		get: () => Promise<string[]>,
+		create: (name: string) => Promise<ResponseProps>,
 		rename: (name: string, newName: string) => Promise<ResponseProps>,
 		delete: (name: string) => Promise<ResponseProps>},
 	logsActions: {

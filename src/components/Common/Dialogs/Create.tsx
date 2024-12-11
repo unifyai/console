@@ -12,12 +12,13 @@ import { z } from "zod"
 import { Form } from "@/components/UI/form"
 import SettingButton from "../Buttons/Setting";
 
-export default function CreateDialog ({ type, creationFunction, CreateSchema, form, Fields }: {
+export default function CreateDialog ({ type, creationFunction, CreateSchema, form, Fields, extraFormActions }: {
     type: string;
     creationFunction: (...args: any[]) => Promise<ResponseProps>
     CreateSchema: z.ZodObject<any>,
     form: UseFormReturn<any, any, undefined>
-    Fields: ReactNode
+    Fields: ReactNode,
+    extraFormActions?: (data: z.infer<typeof CreateSchema>) => void
 }) {
     // Define messages
     const messages = {
@@ -35,6 +36,7 @@ export default function CreateDialog ({ type, creationFunction, CreateSchema, fo
         creationFunction(...Object.values(data)).then(response => {
             if ("info" in response) {
                 setSuccess(true);
+                if (extraFormActions) extraFormActions(data);
                 window.location.reload();
             }
             else {
@@ -51,7 +53,7 @@ export default function CreateDialog ({ type, creationFunction, CreateSchema, fo
     }
     
     const tooltip = `Create ${type}`
-    const button =  <SettingButton icon={<Plus/>} onClick={onOpen} tooltip={tooltip} />
+    const button =  <SettingButton icon={<Plus/>} onClick={onOpen} tooltip={tooltip}/>
     
     const title = tooltip
     const body =    success ? messages["success"] : error ? messages["error"] : Fields;
