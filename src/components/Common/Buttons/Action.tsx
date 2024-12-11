@@ -7,7 +7,7 @@ export default function ActionButton ({tooltip, text, icon, variant, onClick, cl
     tooltip: string,
     text?: string,
     icon?: ReactNode,
-    variant?: "secondary" | "destructive" | "outline" | "ghost" | "link",
+    variant?: "primary" | "secondary" | "destructive" | "outline" | "ghost" | "link",
     onClick?: MouseEventHandler<HTMLButtonElement>,
     className?: string
 }) {

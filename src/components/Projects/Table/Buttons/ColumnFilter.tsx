@@ -56,9 +56,10 @@ const ColumnFilter = ({ setError, setFilters, filters, column }: {
         }
     };
 
+    const button = <ActionButton icon={<Filter />} tooltip="Filter" variant={Object.keys(filters).length > 0 ? "primary" : undefined} /> 
     return (
         <BaseDropdown
-            button={<ActionButton icon={<Filter />} tooltip="Filter" />}
+            button={button}
             label={`Filter logs by`}
         >
             {filterModes.map((mode, index) =>

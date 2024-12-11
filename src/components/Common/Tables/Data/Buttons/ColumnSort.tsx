@@ -1,14 +1,19 @@
 import { Column } from "@tanstack/react-table";
-import { SortDesc, SortAsc } from "lucide-react";
+import { SortDesc, SortAsc, AlignJustify } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
 const ColumnSort = ({column}: {column: Column<any | unknown>}) => {
-
+    const states = [
+        { key: false, tooltip: "Sort ascending", icon: <AlignJustify/> },
+        { key: "asc", tooltip: "Sort descending", icon: <SortAsc/> },
+        { key: "desc", tooltip: "Unsort", icon: <SortDesc/> },
+    ];
+    const state = states.find(state => state.key === column.getIsSorted())!;
+    const tooltip = state.tooltip;
+    const icon = state.icon;
+    const variant = column.getIsSorted() ? "primary" : undefined;
+    const onClick = () => column.toggleSorting()
     return(
-        <ActionButton
-            tooltip={`Sort (${column.getIsSorted() === "asc" ? "descending" : "ascending"})`}
-            icon={column.getIsSorted() === "asc" ? <SortDesc/> : <SortAsc/>}
-            onClick={() => column.getIsSorted() === "asc" ? column.toggleSorting(true) : column.toggleSorting(false)}
-        />
+        <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick}/>
     );
 }
 
