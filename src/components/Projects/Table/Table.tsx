@@ -21,7 +21,6 @@ import DeleteRows from "./Buttons/DeleteRows";
 import ColumnMetrics from "./Buttons/ColumnMetrics";
 import SummaryCell from "./Content/SummaryCell";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
-import PageController from "@/components/Common/Tables/Data/Buttons/PageController";
 
 
 const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, paramsProperties, metrics, logsData, projectActions, logsActions }: {
@@ -149,20 +148,6 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 		);
 	};
 
-	// pagination
-	const [pageIndex, setPageIndex] = useQueryState("page_index");
-	const [pageSize, setPageSize] = useQueryState("page_size");
-	const pagination = {
-		pageIndex: pageIndex ? parseInt(pageIndex) - 1 : 0,
-		pageSize: pageSize ? parseInt(pageSize) : 18
-	};
-	const setPagination = (pagination: { [key: string]: number }) => {
-		setPageIndex(`${pagination.pageIndex + 1}`);
-		setPageSize(`${pagination.pageSize}`);
-	};
-	let totalPages = logs ? Object.keys(logs).length / pagination.pageSize : 1;
-	totalPages = totalPages != Math.floor(totalPages) ? Math.floor(totalPages) + 1 : totalPages;
-
 	// column order
 	const [columnOrderStr, setColumnOrderStr] = useQueryState("column_order");
 	const columnOrder = columnOrderStr ? columnOrderStr.split(",") : columnIDs;
@@ -226,7 +211,6 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 		lastSelectedRow,
 		metric,
 		sorting,
-		pagination,
 		columnVisibility,
 		columnOrder,
 		columnFilters,
@@ -239,7 +223,6 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 		setLastSelectedRow,
 		setMetric,
 		setSorting,
-		setPagination,
 		setColumnVisibility,
 		setColumnOrder,
 		setColumnFilters,
@@ -279,8 +262,6 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 							const projectPath = project ? project.path : null;
 							setBaseLogParam(null);
 							setComparisonLogsParam(null);
-							setPageIndex(null);
-							setPageSize(null);
 							setColumnOrderStr(null);
 							setHiddenColumns(null);
 							setSortingStr(null);
@@ -309,9 +290,6 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 							</div>
 						}
 					</div>
-				</div>
-				<div className="w-fit">
-					<PageController totalPages={totalPages} pagination={pagination} setPagination={setPagination} />
 				</div>
 			</div>
 			{pending

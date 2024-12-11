@@ -4,7 +4,6 @@ import { Dispatch, SetStateAction, MouseEventHandler, ReactNode } from "react";
 
 export interface StateProps {
     sorting: SortingState,
-    pagination: {pageIndex: number, pageSize: number},
     columnVisibility: {[key:string]: boolean},
     columnOrder: string[],
     columnFilters: ColumnFiltersState,
@@ -14,7 +13,6 @@ export interface StateProps {
 
 export interface SetStateProps {
     setSorting: (sorting: ColumnSort[]) => void,
-    setPagination: (pagination: { [key: string]: number; }) => void,
     setColumnVisibility: (columnVisibility: { [k: string]: boolean; }) => void,
     setColumnOrder: (columnOrder: string[]) => void,
     setColumnFilters: Dispatch<SetStateAction<ColumnFiltersState>>,

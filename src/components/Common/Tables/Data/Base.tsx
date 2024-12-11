@@ -3,7 +3,7 @@
 import { useMemo, ReactNode, MouseEvent } from "react";
 
 import { ColumnFiltersState, GroupingState, SortingState, Updater, useReactTable } from "@tanstack/react-table";
-import { getCoreRowModel, getPaginationRowModel, getFilteredRowModel, getExpandedRowModel, getGroupedRowModel, getSortedRowModel } from "@tanstack/react-table";
+import { getCoreRowModel, getFilteredRowModel, getExpandedRowModel, getGroupedRowModel, getSortedRowModel } from "@tanstack/react-table";
 import { ColumnDef, Table as TanstackTable, Column as TanstackColumn, Cell as TanstackCell, Row as TanstackRow } from "@tanstack/react-table";
 
 import { useSensors, useSensor, MouseSensor, TouchSensor, KeyboardSensor } from "@dnd-kit/core";
@@ -63,7 +63,6 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
             state.columnFilters, setState.setColumnFilters, updater
         ),
         getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         getExpandedRowModel: getExpandedRowModel(),
         getGroupedRowModel: getGroupedRowModel(),

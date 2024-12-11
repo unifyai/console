@@ -10,7 +10,6 @@ import { useQueryState } from "nuqs";
 import RenameDialog from "@/components/Common/Dialogs/Rename";
 import path from "path";
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
-import PageController from "@/components/Common/Tables/Data/Buttons/PageController";
 
 const Interface = ({ project, filteredDatasets, datasetEntries, renameDataset, deleteDataset }: {
     project: string | undefined,
@@ -48,20 +47,6 @@ const Interface = ({ project, filteredDatasets, datasetEntries, renameDataset, d
             : [{ "Entries": "Select a dataset to display the contents." }]
     );
 
-    // pagination
-	const [pageIndex, setPageIndex] = useQueryState("dataset_page_index");
-	const [pageSize, setPageSize] = useQueryState("dataset_page_size");
-	const pagination = {
-		pageIndex: pageIndex ? parseInt(pageIndex) - 1 : 0,
-		pageSize: pageSize ? parseInt(pageSize) : 5
-	};
-	const setPagination = (pagination: { [key: string]: number }) => {
-		setPageIndex(`${pagination.pageIndex + 1}`);
-		setPageSize(`${pagination.pageSize}`);
-	};
-	let totalPages = datasetItems ? Object.keys(datasetItems).length / pagination.pageSize : 1;
-	totalPages = totalPages != Math.floor(totalPages) ? Math.floor(totalPages) + 1 : totalPages;
-
     return (
         <SinglePaneBody
             isPending={pending}
@@ -87,9 +72,6 @@ const Interface = ({ project, filteredDatasets, datasetEntries, renameDataset, d
                                 />
                                 <DeleteDialog resource={selectedDataset.path} type="dataset" deletingFunction={deleteDataset} />
                             </>}
-                        </div>
-                        <div className="w-fit">
-                            <PageController totalPages={totalPages} pagination={pagination} setPagination={setPagination} />
                         </div>
                     </div>
                     <DatasetsTable items={datasetItems} />

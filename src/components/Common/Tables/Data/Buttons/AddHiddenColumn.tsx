@@ -1,7 +1,6 @@
 "use client";
 
 import { PlusCircle } from "lucide-react";
-import Tooltip from "@/components/Common/Misc/Tooltip";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import ActionButton from "@/components/Common/Buttons/Action";
