@@ -320,7 +320,6 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 									ColumnFilters={(column) => <>
 										<ColumnFilter setError={setError} setFilters={setLogsFilters} filters={logsFilters} column={column} />
 									</>}
-									ExtraCellContent={(cell) => <VersionBadge cell={cell} />}
 									AggregatedCell={(cell, row) => <AggregatedCell cell={cell} row={row} metric="mean" />}
 									FooterCell={(column) => column.columnDef.id === "RowNumbering"
 										? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric} />

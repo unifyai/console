@@ -126,7 +126,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
                 <TableBody>
                     {table.getRowModel().rows?.length ? (
                         <>
-                            {mergeCells(table.getRowModel().rows).map((row, index) => (
+                            {table.getRowModel().rows.map((row, index) => (
                                 <TableRow
                                     key={row.id}
                                     className="cursor-pointer"
