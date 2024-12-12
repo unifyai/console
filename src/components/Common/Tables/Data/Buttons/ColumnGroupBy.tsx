@@ -7,8 +7,8 @@ const ColumnGroupBy = ({column}: {
     column: Column<any, unknown>
 }) => {
     const states = [
-        { key: false, tooltip: "Ungroup by", icon: <Group/> },
-        { key: true, tooltip: "Group by", icon: <Ungroup/> },
+        { key: false, tooltip: "Group by", icon: <Group/> },
+        { key: true, tooltip: "Ungroup by", icon: <Ungroup/> },
     ];
     const state = states.find(state => state.key === column.getIsGrouped())!;
     const tooltip = state.tooltip;

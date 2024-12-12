@@ -129,7 +129,6 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
                             {table.getRowModel().rows.map((row, index) => (
                                 <TableRow
                                     key={row.id}
-                                    className="cursor-pointer"
                                     onClick={(event) => onRowClick && onRowClick(table, row, event)}
                                 >
                                     {row.getVisibleCells().map(cell => {

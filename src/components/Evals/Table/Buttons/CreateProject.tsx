@@ -13,8 +13,6 @@ const CreateProject = ({paths, creationFunction}: {
     creationFunction: (name: string, value: string) => Promise<ResponseProps>
 }) => {
 
-	const [_, setProject] = useQueryState("project");
-
     // Input validation
     const CreateSchema = z.object({
         name: z
@@ -40,6 +38,14 @@ const CreateProject = ({paths, creationFunction}: {
     )} </>
     
     // Select created project
+    const updateProject = (data: z.infer<typeof CreateSchema>) => {
+        const currentUrl = new URL(window.location.href);
+        const params = new URLSearchParams(currentUrl.search);
+        params.set("project", data.toString());
+        currentUrl.search = params.toString();
+        window.history.pushState({}, '', currentUrl.href);
+    }
+    
     return (
         <CreateDialog 
             type={"project"} 
@@ -47,7 +53,7 @@ const CreateProject = ({paths, creationFunction}: {
             CreateSchema={CreateSchema} 
             Fields={Fields} 
             form={form}
-            extraFormActions={(data) => setProject(data.name)}
+            extraFormActions={(data) => updateProject(data.name)}
         />
     )
 }

@@ -1,9 +1,9 @@
 import { Column } from "@tanstack/react-table";
-import { SortDesc, SortAsc, AlignJustify } from "lucide-react";
+import { SortDesc, SortAsc, ArrowUpDown } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
 const ColumnSort = ({column}: {column: Column<any | unknown>}) => {
     const states = [
-        { key: false, tooltip: "Sort ascending", icon: <AlignJustify/> },
+        { key: false, tooltip: "Sort ascending", icon: <ArrowUpDown/> },
         { key: "asc", tooltip: "Sort descending", icon: <SortAsc/> },
         { key: "desc", tooltip: "Unsort", icon: <SortDesc/> },
     ];
