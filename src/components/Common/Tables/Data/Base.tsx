@@ -51,6 +51,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
         data,
         columns,
         state,
+        autoResetExpanded: false,
         enableColumnResizing: true,
         columnResizeMode: "onChange",
         onColumnVisibilityChange: (updater: Updater<{ [k: string]: boolean }>) => setUpdatedState(

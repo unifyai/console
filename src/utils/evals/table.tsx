@@ -240,28 +240,46 @@ export const onRowClick = (
   
   event.stopPropagation();
 
-  let selectedRows = table.getSelectedRowModel().rows;    //  Currently selected rows in the table. Updates asynchronously.
-  let selections = selectedRows;                          //  Local state tracking variable used to pass the updated selections to the update comparables functions
+  const selectedRows = table.getSelectedRowModel().rows;    //  Currently selected rows in the table. Updates asynchronously.
+  let selections = selectedRows;                            //  Local state tracking variable used to pass the updated selections to the update comparables functions
+  const subRows = row.subRows                               //  Tracking subrows for batch selection
 
   if (selectedRows.length === 0) {
     
     // If no row is selected:
-    // Select the row and set it as base.
-    
-    row.toggleSelected();
-    setState.setLastSelectedRow(row);
-    selections.push(row);
+    // Select the row (if leaf row) or subrows (if parent row) and set it as base.
 
-  } else {
+    row.toggleSelected();
+    if (subRows.length === 0) {
+      setState.setLastSelectedRow(row);
+      selections.push(row);  
+    } else {
+      subRows.forEach(r => {
+        r.toggleSelected();
+        selections.push(r);  
+      })
+      setState.setLastSelectedRow(subRows.at(-1));
+    } 
+
+  } 
+ 
+  else {
 
       if (event.ctrlKey || event.metaKey) {
         
         // If some rows are selected and ctrl+click: 
-        // Select / deselect the row and add / remove to the local selections variable.
-        
+        // Select / deselect the row (if leaf row) or subrows (if parent row) and add / remove to the local selections variable.
+
         row.toggleSelected();
-        setState.setLastSelectedRow(row);
-        selections = selections.includes(row) ? selections.filter(s => s != row) : [...selections, row];
+        if (subRows.length === 0) {
+          setState.setLastSelectedRow(row);
+          selections = selections.includes(row) ? selections.filter(s => s != row) : [...selections, row];
+        } else {
+          setState.setLastSelectedRow(subRows.at(-1));
+          subRows.forEach(r => {
+            selections = selections.includes(r) ? selections.filter(s => s != r) : [...selections, r];
+          })
+        }
       
       } else if (event.shiftKey) {
 
@@ -287,16 +305,20 @@ export const onRowClick = (
       } else {
           
           // If some rows are selected and simple click: 
-          // Deselect all rows then select / deselect row in the range and set local selections variable to that row only.
-          
-          table.toggleAllRowsSelected(false);
-          row.toggleSelected();
-          setState.setLastSelectedRow(row);
-          selections = [row];
+          // Deselect all rows then select / deselect row (if leaf row) or subrows (if parent row) and set local selections variable to that /those row(s) only.
 
+          table.resetRowSelection(true);
+          row.toggleSelected();
+          if (subRows.length === 0) {
+            setState.setLastSelectedRow(row);
+            selections = [row];  
+          } else {
+            setState.setLastSelectedRow(subRows.at(-1));
+            selections = [...subRows];  
+          }
         }
   }
-
+  
   /* Update base and comparison logs */
 
   if (selections.length === 0) {
@@ -318,6 +340,7 @@ export const onRowClick = (
     setState.setComparisonLogs((l: LogProps[]) => selections.slice(1).map(row => row.original));
   
   }
+  
 };
 
 
