@@ -40,6 +40,12 @@ const DataTableCell = ({ cell, row, resizeMap, AggregatedCell, ExtraCellContent 
 
       if (cell.isRowSpanned) return null;
     
+      const nestedExpand = (row: Row<any>, expanded: boolean) => {
+        row.toggleExpanded(expanded)
+        if (row.subRows.length > 0)
+          row.subRows.forEach(r => nestedExpand(r, expanded))
+      }
+
       return (
         <TableCell 
           rowSpan={cell.rowSpan}
@@ -53,7 +59,7 @@ const DataTableCell = ({ cell, row, resizeMap, AggregatedCell, ExtraCellContent 
                 <div className="flex flex-row gap-2 items-center text-left truncate ... overflow-hidden">
                   <button className={`${row.getIsExpanded() ? "rotate-90" : ""} cursor-pointer`} onClick={(e) => {
                       e.stopPropagation();
-                      row.toggleExpanded();
+                      nestedExpand(row, !row.getIsExpanded());
                     }}>
                     <ChevronRight/>
                   </button>

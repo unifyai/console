@@ -314,7 +314,11 @@ export const onRowClick = (
             selections = selectedRows.length === 1 && selectedRows.at(0) === row ? [] : [row];  
           } else {
             setState.setLastSelectedRow(subRows.at(-1));
-            selections = selectedRows.length === subRows.length && selectedRows === subRows ? [] : [...subRows];  
+            selections =  selectedRows.length === subRows.length && 
+                          selectedRows.every(r => subRows.indexOf(r) > -1) && 
+                          subRows.every(r => selectedRows.indexOf(r) > -1) 
+                            ? [] 
+                            : [...subRows];  
           }
         }
   }
