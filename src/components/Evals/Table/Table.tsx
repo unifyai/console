@@ -127,7 +127,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 
 	// log filters
 	const [logsFiltersQuery, setLogsFiltersQuery] = useQueryState("filters", { shallow: false });
-	const logsFilters = (logsFiltersQuery || "").split(",").map((filter => {
+	const logsFilters = logsFiltersQuery ? logsFiltersQuery.split(",").map((filter => {
 		const [key, fn, value] = filter.split("@");
 		return { [key]: { [fn]: value } };
 	})).reduce((acc, curr) => {
@@ -138,7 +138,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
                 acc[key] = curr[key];
         }
 		return acc;
-	}, {});
+	}, {}) : {};
 
 	const setLogsFilters = (logsFilters: { [key: string]: { [key: string]: string } }) => {
 		const keys = Object.keys(logsFilters);
