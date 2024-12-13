@@ -7,14 +7,12 @@ import { CSS } from "@dnd-kit/utilities";
 import { TableCell } from "@/components/UI/table";
 
 import { ChevronRight } from "lucide-react";
-import AddHiddenColumn from "../Buttons/AddHiddenColumn";
-import { SetStateProps, StateProps } from "@/types/dataTable";
+import ColumnResizer from "../Buttons/ColumnResize";
 
-const DataTableCell = ({ cell, row, state, setState, AggregatedCell, ExtraCellContent }: { 
+const DataTableCell = ({ cell, row, resizeMap, AggregatedCell, ExtraCellContent }: { 
     cell: Cell<any, unknown>, 
     row: Row<any | unknown>, 
-    state: StateProps,
-    setState: SetStateProps,
+    resizeMap: { [x: string]: (event: unknown) => void },
     AggregatedCell?: (cell: Cell<any, unknown>, row: Row<any | unknown>) => ReactNode,
     ExtraCellContent?: (cell: Cell<any, unknown>) => ReactNode
   }) => {
@@ -34,9 +32,10 @@ const DataTableCell = ({ cell, row, state, setState, AggregatedCell, ExtraCellCo
         transform: CSS.Translate.toString(transform), // translate instead of transform to avoid squishing
         transition: "width transform 0.2s ease-in-out",
         height: "21px",
-        width: `calc(var(--header-${cell.column.id}-size) * 1px)`,
+        maxWidth: `${Math.round(cell.column.getSize())}px`,
         zIndex: isDragging || isPinned ? 1 : 0,
         borderRight: "1px solid var(--muted)",
+        backgroundColor: isPinned ? "var(--background)" : "",
       };
 
       if (cell.isRowSpanned) return null;
@@ -48,8 +47,7 @@ const DataTableCell = ({ cell, row, state, setState, AggregatedCell, ExtraCellCo
           ref={setNodeRef} 
           className={`group/cell relative select-none overflow-visible ${row.getIsSelected() ? "bg-secondary" : ""}`}
         >
-
-          <div className="truncate ...">
+          <div className="overflow-hidden text-nowrap text-ellipsis ...">
             {cell.getIsGrouped() 
               ? ( properties.includes(columnID) &&
                 <div className="flex flex-row gap-2 items-center text-left truncate ... overflow-hidden">
@@ -68,8 +66,8 @@ const DataTableCell = ({ cell, row, state, setState, AggregatedCell, ExtraCellCo
                   : (flexRender(cell.column.columnDef.cell, cell.getContext()))
             }
           </div>
-          
-          {Object.values(state.columnVisibility).some(value => !value) && <AddHiddenColumn cell={cell} state={state} setState={setState}/>}
+
+          <ColumnResizer column={cell.column} resizeHandler={resizeMap[cell.column.id]}/>
 
           {ExtraCellContent && ExtraCellContent(cell)}
 

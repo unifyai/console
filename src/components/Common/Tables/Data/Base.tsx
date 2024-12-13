@@ -2,7 +2,7 @@
 
 import { useMemo, ReactNode, MouseEvent } from "react";
 
-import { ColumnFiltersState, GroupingState, SortingState, Updater, useReactTable } from "@tanstack/react-table";
+import { ColumnFiltersState, GroupingState, Header, SortingState, Updater, useReactTable } from "@tanstack/react-table";
 import { getCoreRowModel, getFilteredRowModel, getExpandedRowModel, getGroupedRowModel, getSortedRowModel } from "@tanstack/react-table";
 import { ColumnDef, Table as TanstackTable, Column as TanstackColumn, Cell as TanstackCell, Row as TanstackRow } from "@tanstack/react-table";
 
@@ -20,8 +20,6 @@ import DataTableCell from "./Content/Cell";
 import { StateProps } from "@/types/dataTable";
 import { SetStateProps } from "@/types/dataTable";
 import { LogProps } from "@/types/evals/logs";
-
-import { mergeCells } from "@/utils/evals/table";
 
 export default function DataTable<TData, TValue>({ data, columns, state, setState, tableHotkeys, onRowClick, FooterCell, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
     data: TData[],
@@ -63,11 +61,12 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
         onColumnFiltersChange: (updater: Updater<ColumnFiltersState>) => setUpdatedState(
             state.columnFilters, setState.setColumnFilters, updater
         ),
+        onColumnSizingChange: setState.setColumnSizing,
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         getExpandedRowModel: getExpandedRowModel(),
         getGroupedRowModel: getGroupedRowModel(),
-        getSortedRowModel: getSortedRowModel()
+        getSortedRowModel: getSortedRowModel(),
     });
 
     // Set up drag-and-drop
@@ -76,19 +75,6 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
         useSensor(TouchSensor, {}),
         useSensor(KeyboardSensor, {})
     );
-
-    // Handle column resizing
-    const columnSizeVars = useMemo(() => {
-        const headers = table.getFlatHeaders();
-        const colSizes: { [key: string]: number } = {};
-        for (let i = 0; i < headers.length; i++) {
-            const header = headers[i]!;
-            colSizes[`--header-${header.id}-size`] = header.getSize();
-            colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
-        }
-        return colSizes;
-    }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
-
 
     if (tableHotkeys) tableHotkeys(table, data as LogProps[], setState);
 
@@ -101,6 +87,13 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
             : visibleColumns
     );
 
+    const resizeMap = table.getLeafHeaders().map(
+        (header: Header<TData, unknown>) => ({[header.id]: header.getResizeHandler()})
+    ).reduce((acc, curr) => ({...acc, ...curr}), {});
+
+    // click status (to avoid resizing from selecting rows)
+    let click = false;
+
     return (<>
         <DndContext
             collisionDetection={closestCenter}
@@ -108,18 +101,20 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
             onDragEnd={(event) => handleDragEnd(event, state.columnOrder, setState.setColumnOrder, state.grouping, setState.setGrouping, table.getAllFlatColumns())}
             sensors={sensors}
         >
-            <Table className="sticky top-0 z-10 max-h-[90vh] w-full border-1" style={{ ...columnSizeVars }}>
+            <Table className="sticky top-0 z-10 max-h-[90vh] w-full" style={{ width: table.getTotalSize() }}>
                 <TableHeader className="sticky -top-[6px] z-10 bg-background">
                     {table.getHeaderGroups().map((headerGroup) => (
                         <TableRow key={headerGroup.id}>
                             <SortableContext items={state.columnOrder} strategy={horizontalListSortingStrategy}>
-                                {headerGroup.headers.map((header) =>
+                                {headerGroup.headers.map((header) => (
                                     <DataTableHeader
                                         key={header.id}
                                         header={header}
+                                        columnVisibility={state.columnVisibility}
+                                        setColumnVisibility={setState.setColumnVisibility}
                                         ColumnFilters={ColumnFilters}
                                     />
-                                )}
+                                ))}
                             </SortableContext>
                         </TableRow>
                     ))}
@@ -130,7 +125,10 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
                             {table.getRowModel().rows.map((row, index) => (
                                 <TableRow
                                     key={row.id}
-                                    onClick={(event) => onRowClick && onRowClick(table, row, event)}
+                                    onClick={(event) => click &&onRowClick && onRowClick(table, row, event)}
+                                    onMouseDown={() => {
+                                        click = true;
+                                    }}
                                 >
                                     {row.getVisibleCells().map(cell => {
                                         return (
@@ -138,8 +136,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
                                                 <DataTableCell
                                                     cell={cell}
                                                     row={row}
-                                                    state={state}
-                                                    setState={setState}
+                                                    resizeMap={resizeMap}
                                                     ExtraCellContent={ExtraCellContent}
                                                     AggregatedCell={AggregatedCell}
                                                 />

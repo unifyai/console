@@ -10,11 +10,12 @@ import { TableHead } from "@/components/UI/table";
 import ColumnSort from "../Buttons/ColumnSort";
 import ColumnGroupBy from "../Buttons/ColumnGroupBy";
 import ColumnHide from "../Buttons/ColumnHide";
-import ColumnSearch from "../Buttons/ColumnSearch";
-import ColumnResizer from "../Buttons/ColumnResize";
+import ColumnShow from "../Buttons/ColumnShow";
 
-const DataTableHeader = ({header, ColumnFilters}: {
+const DataTableHeader = ({header, columnVisibility, setColumnVisibility, ColumnFilters}: {
   header: Header<any, unknown>,
+  columnVisibility: { [key: string]: boolean },
+  setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void,
   ColumnFilters?: (column: Column<any | unknown>) => ReactNode;
 }) => {
   
@@ -30,11 +31,12 @@ const DataTableHeader = ({header, ColumnFilters}: {
     transform: CSS.Translate.toString(transform), // translate instead of transform to avoid squishing
     transition: "width transform 0.2s ease-in-out",
     whiteSpace: "nowrap",
-    width: `calc(var(--header-${header?.id}-size) * 1px)`,
+    width: `${Math.round(header.getSize())}px`,
     zIndex: isDragging || isPinned ? 1 : 0,
     borderRight: "1px solid var(--muted)",
     borderBottom: "1px solid var(--muted)",
     borderTop: "1px solid var(--muted)",
+    backgroundColor: isPinned ? "var(--background)" : ""
   };
 
   return (
@@ -42,10 +44,9 @@ const DataTableHeader = ({header, ColumnFilters}: {
       colSpan={header.colSpan} 
       ref={setNodeRef} 
       style={style} 
-      className="py-2 border-1 border-gray-200 rounded-md"
+      className="py-2 border-1 border-gray-200 rounded-md relative"
     >
-        <div className={`${header.subHeaders.length > 0 ? "text-center" : "inline-flex w-full justify-between gap-3"} items-center`}>
-          
+        <div className="flex-col items-center">
           {/* Content */}
           <div {...attributes} {...listeners} className={`cursor-grabbing select-none`}>
             {header.isPlaceholder
@@ -65,11 +66,10 @@ const DataTableHeader = ({header, ColumnFilters}: {
           }
         </div>
 
-        {/*!header.isPlaceholder && header.subHeaders.length === 0 && header.column.columnDef.meta?.columnType != "util" &&
-          <ColumnSearch column={header.column}/>
-        */}
+        {!header.isPlaceholder && header.subHeaders.length === 0 && header.column.columnDef.meta?.columnType != "util" &&
+          <ColumnShow header={header} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility}  />
+        }
 
-        <ColumnResizer header={header}/>
     </TableHead>
   );
 };

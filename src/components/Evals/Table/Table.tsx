@@ -5,7 +5,7 @@ import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
 import FileDirectory from "@/components/Directory/FileDirectory";
 import { LogProps, LogsResponseProps } from "@/types/evals/logs";
-import { Row, ColumnDef, ColumnFiltersState, ColumnSort, ColumnPinningState, Updater } from "@tanstack/react-table";
+import { Row, ColumnDef, ColumnFiltersState, ColumnSort, ColumnPinningState, Updater, ColumnSizingState } from "@tanstack/react-table";
 import React, { useEffect, useState } from "react";
 import { Loader2 } from 'lucide-react';
 import { FileProps, ResponseProps } from "@/types/common";
@@ -197,6 +197,11 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 		setColumnsPinRight(columnPinning.right ? columnPinning.right.join(",") : null);
 	};
 
+	// sizing
+	const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(
+		columnIDs.map(id => ({ [id]: id == "RowNumbering" ? 50 : 150 })).reduce((acc, curr) => ({...acc, ...curr}))
+	);
+
 	// Extra states
 	let [metricQuery, setMetric] = useQueryState("metric", { shallow: false });
 	const metric = metricQuery ? metricQuery : "mean";
@@ -212,6 +217,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 		columnFilters,
 		grouping,
 		columnPinning,
+		columnSizing,
 		comparisonLogs,
 		baseLog
 	};
@@ -224,6 +230,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 		setColumnFilters,
 		setGrouping,
 		setColumnPinning,
+		setColumnSizing,
 		setComparisonLogs,
 		setBaseLog
 	};
