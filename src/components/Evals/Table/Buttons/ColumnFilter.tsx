@@ -56,7 +56,7 @@ const ColumnFilter = ({ setError, setFilters, filters, column }: {
         }
     };
 
-    const button = <ActionButton icon={<Filter />} tooltip="Filter" variant={Object.keys(filters).length > 0 ? "primary" : undefined} /> 
+    const button = <ActionButton icon={<Filter />} tooltip="Filter" variant={property in filters ? "primary" : undefined} />
     return (
         <BaseDropdown
             button={button}
