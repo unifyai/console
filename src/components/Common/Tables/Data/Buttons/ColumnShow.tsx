@@ -3,7 +3,6 @@ import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { Header } from "@tanstack/react-table";
 import { CirclePlus } from "lucide-react";
-import { CSSProperties } from "react";
 
 const ColumnShow = ({ header, columnVisibility, setColumnVisibility }: {
     header: Header<any, unknown>,
@@ -18,7 +17,6 @@ const ColumnShow = ({ header, columnVisibility, setColumnVisibility }: {
         newVisibility[column] = true;
         setColumnVisibility(newVisibility);
     }
-    console.dir(hiddenColumns);
     return (
         <div className="absolute top-5 -right-4 z-10 hover:opacity-100 opacity-0 transition-all">
             {!hiddenColumns || hiddenColumns?.length == 0 ? (

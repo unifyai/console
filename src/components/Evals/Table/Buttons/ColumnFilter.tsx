@@ -36,6 +36,7 @@ const ColumnFilter = ({ setError, setFilters, filters, column }: {
     const property = column.columnDef.header?.valueOf() as string;
     const [selectedFilter, setSelectedFilter] = useState(filters[property] ?? { fn: "", value: "" });
     const [changed, setChanged] = useState(false);
+    const [open, setOpen] = useState(false);
 
     const onSubmit = (selectedFilter: { fn: string; value: string }) => {
         if (selectedFilter.value.includes(" ") && !/^(['"])(.*?)\1$/.test(selectedFilter.value)) {
@@ -54,12 +55,15 @@ const ColumnFilter = ({ setError, setFilters, filters, column }: {
             }
             setFilters(newFilters);
         }
+        setOpen(false);
     };
 
     const button = <ActionButton icon={<Filter />} tooltip="Filter" variant={property in filters ? "primary" : undefined} />
     return (
         <BaseDropdown
             button={button}
+            open={open}
+            setOpen={setOpen}
             label={`Filter logs by`}
         >
             {filterModes.map((mode, index) =>
@@ -75,6 +79,10 @@ const ColumnFilter = ({ setError, setFilters, filters, column }: {
                         onChange={() => setChanged(true)}
                         value={selectedFilter.fn === mode.fn ? selectedFilter.value : ""}
                         onInput={(input) => setSelectedFilter({ fn: mode.fn, value: input.currentTarget.value })}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter")
+                                onSubmit(selectedFilter);
+                        }}
                     />
                 </div>
             )}
