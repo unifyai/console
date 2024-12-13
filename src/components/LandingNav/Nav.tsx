@@ -39,12 +39,6 @@ const Nav = ({ children, setMenuOpen: onOpenMenu, onSelectionHover, menuOpen }: 
                 <div className="hidden lg:block" id="unify-navbar-end">
                     <div className="flex flex-row gap-5 items-center">
                         {children}
-                        <a className="text-[#606264] hover:text-primary" href="https://github.com/unifyai/unify" target="_blank">
-                            <FaGithub/>
-                        </a>
-                        <a className="text-[#606264] hover:text-primary" href="https://discord.com/invite/sXyFF8tDtm" target="_blank">
-                            <FaDiscord/>
-                        </a>
                     </div>
                 </div>
             }

@@ -2,12 +2,9 @@ import Image from "next/image";
 import { Logo } from "@/utils/landingNav/consts";
 
 const footerLinks: { [id: string]: { name: string, href: string }[] } = {
-    "Developers": [
-        { name: "Runtime Benchmarks", href: "https://unify.ai/benchmarks/" },
-        { name: "Documentation", href: "https://unify.ai/docs/" },
-        { name: "Apps Showcase", href: "https://unify.ai/showcase" },
-    ],
     "Learn": [
+        { name: "Documentation", href: "https://unify.ai/docs/" },
+        { name: "Github", href: "https://github.com/unifyai/unify" },
         { name: "Blog", href: "https://unify.ai/blog" },
         { name: "Paper Readings", href: "https://www.youtube.com/playlist?list=PLwNuX3xB_tv91QvDXlW2TjrLGHW51uMul" },
         { name: "Talks", href: "https://www.youtube.com/playlist?list=PLwNuX3xB_tv_b74nU1y6Q4Bnug5nTnRaw" },
