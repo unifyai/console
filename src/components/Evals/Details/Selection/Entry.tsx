@@ -13,10 +13,9 @@ import DictionaryNode from "./Nodes/Nested/Dictionary";
 import { isMatrix, isDict, isList, isImage } from "@/utils/evals/selection";
 import ImageNode from "./Nodes/Leaf/Image";
 
-const SelectionEntry = ({property, parentPath, value, rowColor, newEntry, comparisonLogs, oldParentNode, newParentNodes, type, logs}: {
+const SelectionEntry = ({property, parentPath, value, newEntry, comparisonLogs, oldParentNode, newParentNodes, type, logs}: {
     property: string,
     value: any, 
-    rowColor: string,
     newEntry?: boolean,
     comparisonLogs?: LogProps[] | undefined
     parentPath?: string,
@@ -40,16 +39,16 @@ const SelectionEntry = ({property, parentPath, value, rowColor, newEntry, compar
     : [];
   
     return (
-      <div className={`${rowColor} p-3 ${!comparables || comparables?.length === 1 ? "hover:bg-gray-200" : ""}`}>
+      <div className={`p-3 ${!comparables || comparables?.length === 1 ? "hover:bg-foreground/[0.1]" : ""}`}>
       <BaseNode unfolded={unfolded} setUnfolded={setUnfolded} newEntry={newEntry} property={property}>
         {isDict(value)
-          ? <DictionaryNode unfolded={unfolded} setUnfolded={setUnfolded} comparables={comparables} comparisonLogs={comparisonLogs} rowColor={rowColor} property={property} value={value} type={type} path={path} logs={logs}/>
+          ? <DictionaryNode unfolded={unfolded} setUnfolded={setUnfolded} comparables={comparables} comparisonLogs={comparisonLogs} property={property} value={value} type={type} path={path} logs={logs}/>
           : isImage(value)
             ? <ImageNode unfolded={unfolded} comparables={comparables} comparisonLogs={comparisonLogs} value={value} logs={logs}/>
             : isMatrix(value)
               ? <MatrixNode unfolded={unfolded} comparables={comparables} comparisonLogs={comparisonLogs} value={value} logs={logs}/>
               : isList(value)
-                ? <ListNode comparables={comparables} comparisonLogs={comparisonLogs} rowColor={rowColor} value={value} type={type} path={path} logs={logs}/>
+                ? <ListNode comparables={comparables} comparisonLogs={comparisonLogs} value={value} type={type} path={path} logs={logs}/>
                 : <StringNode unfolded={unfolded} comparables={comparables} comparisonLogs={comparisonLogs} value={value} logs={logs}/>
         }
       </BaseNode>

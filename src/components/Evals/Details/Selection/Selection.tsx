@@ -34,12 +34,10 @@ const Selection = ({ params, logs }: { params: LogItemProps, logs: LogProps[] | 
                                 <p className="font-bold text-lg">Parameters</p>
                                 <div className={`flex flex-col gap-1 rounded-md border-2 border-gray-200 min-h-10 ${comparisonMode === "multiple" ? "overflow-y-auto" : ""}`}>
                                     {Object.entries(extractParamsValues(baseLog.params, params)).map(([property, value], index) => {
-                                        const rowColor = index % 2 === 1 ? "bg-gray-100" : "bg-background";
                                         return <SelectionEntry 
                                             key={index} 
                                             property={property} 
                                             value={value} 
-                                            rowColor={rowColor} 
                                             comparisonLogs={comparisonLogs?.map(log => ({...log, params: extractParamsValues(log.params, params)}))} 
                                             oldParentNode={extractParamsValues(baseLog.params, params)} 
                                             newParentNodes={comparisonLogs?.map(log => extractParamsValues(log.params, params))}
@@ -55,12 +53,10 @@ const Selection = ({ params, logs }: { params: LogItemProps, logs: LogProps[] | 
                                 <p className="font-bold text-lg">Entries</p>
                                 <div className={`flex flex-col gap-1 rounded-md border-2 border-gray-200 min-h-10 ${comparisonMode === "multiple" ? "overflow-y-auto" : ""}`}>
                                     {Object.entries(baseLog.entries).map(([property, value], index) => {
-                                        const rowColor = index % 2 === 1 ? "bg-gray-100" : "bg-background";
                                         return <SelectionEntry
                                             key={index} 
                                             property={property} 
                                             value={value} 
-                                            rowColor={rowColor} 
                                             comparisonLogs={comparisonLogs} 
                                             oldParentNode={baseLog.entries} 
                                             newParentNodes={comparisonLogs?.map(comparisonLog => comparisonLog.entries)}

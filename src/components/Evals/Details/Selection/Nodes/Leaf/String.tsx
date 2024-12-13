@@ -12,9 +12,9 @@ const StringNode = ({unfolded, comparisonLogs, comparables, value, logs}: {
     if (!unfolded) return null;
     if (comparables.length === 0) {
       if (typeof value === "string" && value.startsWith("```") && value.endsWith("```")) 
-        return <CodeBlock language="ts">{value.slice(3).slice(0, -3)}</CodeBlock>
+        return <CodeBlock language="python" className="whitespace-pre-wrap">{value.slice(3).slice(0, -3)}</CodeBlock>
       else 
-        return <p className="font-normal px-3 whitespace-pre-wrap">{(value ?? "None").toString()}</p> 
+        return <CodeBlock language="python" className="whitespace-pre-wrap">{(value ?? "None").toString()}</CodeBlock> 
     }
     return <Compare logs={logs} comparables={comparables} comparisonLogs={comparisonLogs} value={value}/>;
 }
