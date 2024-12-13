@@ -311,10 +311,10 @@ export const onRowClick = (
           row.toggleSelected();
           if (subRows.length === 0) {
             setState.setLastSelectedRow(row);
-            selections = [row];  
+            selections = selectedRows.length === 1 && selectedRows.at(0) === row ? [] : [row];  
           } else {
             setState.setLastSelectedRow(subRows.at(-1));
-            selections = [...subRows];  
+            selections = selectedRows.length === subRows.length && selectedRows === subRows ? [] : [...subRows];  
           }
         }
   }
