@@ -127,19 +127,26 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 
 	// log filters
 	const [logsFiltersQuery, setLogsFiltersQuery] = useQueryState("filters", { shallow: false });
-	const logsFilters = logsFiltersQuery ? Object.fromEntries(logsFiltersQuery.split(",").map((filter => {
+	const logsFilters = (logsFiltersQuery || "").split(",").map((filter => {
 		const [key, fn, value] = filter.split("@");
-		return [key, { fn: fn, value: value }];
-	}))) : {};
-	const setLogsFilters = (logsFilters: { [key: string]: { fn: string, value: string } }) => {
-		const keys = Object.keys(logsFilters).filter(key => logsFilters[key].fn);
-		setBaseLogParam(null);
-		setComparisonLogsParam(null);
+		return { [key]: { [fn]: value } };
+	})).reduce((acc, curr) => {
+		for (const key in curr) {
+			if (acc.hasOwnProperty(key))
+                acc[key] = { ...acc[key], ...curr[key] };
+            else
+                acc[key] = curr[key];
+        }
+		return acc;
+	}, {});
+
+	const setLogsFilters = (logsFilters: { [key: string]: { [key: string]: string } }) => {
+		const keys = Object.keys(logsFilters);
 		setLogsFiltersQuery(
 			keys.length
 				? Object.entries(logsFilters).map(
-					([key, value]) => `${key}@${value.fn}@${value.value}`
-				).join(",")
+					([key, value]) => Object.entries(value).map(([fn, val]) => `${key}@${fn}@${val}`)
+				).flat().join(",")
 				: null
 		);
 	};

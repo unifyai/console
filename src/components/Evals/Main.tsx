@@ -35,13 +35,21 @@ const Main = async ({ searchParams, projectsActions, logsActions, datasetsAction
 	const project: string | undefined = projects.find(project => project == searchParams.project);
 
 	// get logs
-	const logsFilters = searchParams.filters ? Object.fromEntries(searchParams.filters.split(",").map((filter => {
+	const logsFilters = searchParams.filters ? searchParams.filters.split(",").map((filter => {
 		const [key, fn, value] = filter.split("@");
-		return [key, { fn: fn, value: value }];
-	}))) : undefined;
-	const filterExpression = logsFilters ?Object.entries(logsFilters).map(
-		([key, value]) => `${key} ${value.fn} ${value.value}`
-	).join(" and ") : null;
+		return { [key]: { [fn]: value } };
+	})).reduce((acc, curr) => {
+		for (const key in curr) {
+			if (acc.hasOwnProperty(key))
+                acc[key] = { ...acc[key], ...curr[key] };
+            else
+                acc[key] = curr[key];
+        }
+		return acc;
+	}, {}) : null;
+	const filterExpression = logsFilters ? Object.entries(logsFilters).map(
+		([key, value]) => Object.entries(value).map(([fn, val]) => `${key} ${fn} ${val}`)
+	).flat().join(" and ") : null;
 	let logsData: LogsResponseProps = { params: {}, logs: [] };
 	if (project)
 		logsData = await logsActions.get(project, filterExpression);

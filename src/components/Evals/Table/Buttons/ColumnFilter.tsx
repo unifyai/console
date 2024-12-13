@@ -1,6 +1,6 @@
 "use client";
 
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
 
 import { Column } from "@tanstack/react-table";
 import { Filter } from "lucide-react";
@@ -9,12 +9,9 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import CancelButton from "@/components/Common/Buttons/Cancel";
-import Tooltip from "@/components/Common/Misc/Tooltip";
 
 import { Equal, EqualNot, Brackets, } from "lucide-react";
 import { FaGreaterThan, FaGreaterThanEqual, FaLessThan, FaLessThanEqual } from "react-icons/fa";
-import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 
 const filterModes = [
     { icon: <Brackets />, name: "In", fn: "in", description: "Values included in the input range." },
@@ -28,33 +25,37 @@ const filterModes = [
 
 const ColumnFilter = ({ setError, setFilters, filters, column }: {
     setError: Dispatch<SetStateAction<string | undefined>>,
-    setFilters: (x: { [key: string]: { fn: string, value: string } }) => void,
-    filters: { [key: string]: { fn: string, value: string } },
+    setFilters: (x: { [key: string]: { [fn: string]: string } }) => void,
+    filters: { [key: string]: { [fn: string]: string } },
     column: Column<any | unknown>
 }) => {
 
     const property = column.columnDef.header?.valueOf() as string;
-    const [selectedFilter, setSelectedFilter] = useState(filters[property] ?? { fn: "", value: "" });
+    const [selectedFilters, setSelectedFilters] = useState(filters[property] ?? {});
     const [changed, setChanged] = useState(false);
     const [open, setOpen] = useState(false);
 
-    const onSubmit = (selectedFilter: { fn: string; value: string }) => {
-        if (selectedFilter.value.includes(" ") && !/^(['"])(.*?)\1$/.test(selectedFilter.value)) {
-            setError("Please wrap your filter string with quotes as it contains whitespace characters.");
-            setSelectedFilter(filters[property] ?? { fn: "", value: "" });
-        }
-        else {
-            const newFilters = { ...filters };
-            if (selectedFilter.value === "")
-                newFilters[property] = { fn: "", value: "" };
+    const onSubmit = (selectedFilters: { [fn: string]: string }) => {
+        const newFilters = { ...filters };
+        let isError = false;
+        Object.entries(selectedFilters).forEach(([key, value]) => {
+            if (value.includes(" ") && !/^(['"])(.*?)\1$/.test(value))
+                isError = true;
+            if (value === "")
+                newFilters[property] = {};
             else {
                 newFilters[property] = {
-                    fn: selectedFilter.fn,
-                    value: selectedFilter.fn != "in" ? selectedFilter.value : `[${selectedFilter.value}]`
+                    ...newFilters[property],
+                    [key]: key != "in" ? value : `[${value}]`
                 };
             }
-            setFilters(newFilters);
+        });
+        if (isError) {
+            setError("Please wrap your filter string with quotes as it contains whitespace characters.");
+            setSelectedFilters(filters[property] ?? {});
         }
+        else
+            setFilters(newFilters);
         setOpen(false);
     };
 
@@ -77,18 +78,18 @@ const ColumnFilter = ({ setError, setFilters, filters, column }: {
                         className="col-span-3"
                         placeholder={"Enter a filter value.."}
                         onChange={() => setChanged(true)}
-                        value={selectedFilter.fn === mode.fn ? selectedFilter.value : ""}
-                        onInput={(input) => setSelectedFilter({ fn: mode.fn, value: input.currentTarget.value })}
+                        value={mode.fn in selectedFilters ? selectedFilters[mode.fn] : ""}
+                        onInput={(input) => setSelectedFilters({ ...selectedFilters, [mode.fn]: input.currentTarget.value })}
                         onKeyDown={(e) => {
                             if (e.key === "Enter")
-                                onSubmit(selectedFilter);
+                                onSubmit(selectedFilters);
                         }}
                     />
                 </div>
             )}
             {changed &&
                 <div className="flex flex-row gap-3 justify-end p-2 mx-1 rounded-lg outline-none">
-                    <SubmitButton text="Apply" onClick={() => onSubmit(selectedFilter)} />
+                    <SubmitButton text="Apply" onClick={() => onSubmit(selectedFilters)} />
                 </div>
             }
         </BaseDropdown>
