@@ -55,9 +55,9 @@ const DeleteDialog = ({ resource, type, deletingFunction, showDialog, variant, s
     const footer =  success ? null : <DeleteButton disabled={loading} onClick={onSubmit}/>
     
     // Hotkey to trigger form submission when pressing enter
-    useKey("Enter", () => {
-        onSubmit()
-    });
+    // useKey("Enter", () => {
+    //     onSubmit();
+    // });
 
 
     return (
