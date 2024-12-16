@@ -27,7 +27,7 @@ const MessageHeader = ({ model, provider, content, cost }: {
                 content={content}
                 copyMessage="Copied!"
                 tooltipContent="Copy message"
-                className="h-5 w-5"
+                className="h-5 w-5 p-1"
             />
         </div>
     </div>);

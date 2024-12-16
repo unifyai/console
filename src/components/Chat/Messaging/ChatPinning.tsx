@@ -4,32 +4,31 @@ import { Endpoint } from "@/types/chat/endpoints";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { providers } from "@/constants/endpoints";
 
-const ChatPinning = ({ endpoints, side, pinTooltipContent, handleClick, handleUnselect }: {
+const ChatPinning = ({ endpoints, side, handlePinToggle, handleUnselect }: {
     endpoints: Endpoint[],
     side: "left" | "right",
-    pinTooltipContent: string,
-    handleClick: (endpoint: Endpoint) => void,
+    handlePinToggle: (endpoint: Endpoint) => void,
     handleUnselect: (endpoint: Endpoint) => void
 }) => {
     return (
-        <div className={"w-1/2 flex gap-6" + (side == "right" ? " justify-end" : "")}>
+        <div className={"w-1/2 flex gap-6" + (side === "right" ? " justify-end" : "")}>
             {endpoints.map((endpoint, index) => (
                 <div key={index} className="relative my-1">
-                    <Tooltip content={pinTooltipContent}>
+                    <Tooltip content="Toggle pin">
                         <Pin
                             size={14}
                             className={
-                                "absolute -top-2 -left-2 rounded-full hover:bg-secondary hover:text-white transition-colors "
-                                + (side == "right" ? "text-primary" : "")
+                                "absolute -top-2 -left-2 rounded-full hover:bg-secondary hover:text-white transition-colors cursor-pointer " +
+                                (side === "right" ? "text-primary" : "")
                             }
-                            onClick={() => handleClick(endpoint)}
+                            onClick={() => handlePinToggle(endpoint)}
                         />
                     </Tooltip>
-                    <Tooltip content={"De-select endpoint"}>
+                    <Tooltip content="Deselect endpoint">
                         <CircleX
                             size={14}
                             onClick={() => handleUnselect(endpoint)}
-                            className="absolute -top-2 -right-2 rounded-full text-destructive hover:bg-destructive hover:text-white transition-colors"
+                            className="absolute -top-2 -right-2 rounded-full text-destructive hover:bg-destructive hover:text-white transition-colors cursor-pointer"
                         />
                     </Tooltip>
                     <Tooltip content={`${endpoint.code}@${endpoint.provider}`}>
@@ -46,7 +45,7 @@ const ChatPinning = ({ endpoints, side, pinTooltipContent, handleClick, handleUn
                 </div>
             ))}
         </div>
-    )
+    );
 };
 
 export default ChatPinning;

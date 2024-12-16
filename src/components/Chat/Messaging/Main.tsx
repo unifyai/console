@@ -1,132 +1,128 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/UI/button";
 import { ChatBubble, ChatBubbleMessage } from "@/components/UI/Chat/chat-bubble";
 import { ChatInput } from "@/components/UI/Chat/chat-input";
 import { ChatMessageList } from "@/components/UI/Chat/chat-message-list";
-import { CornerDownLeft, Trash } from "lucide-react";
+import { SendHorizontal, Trash, Settings2 } from "lucide-react";
 import { Endpoint } from "@/types/chat/endpoints";
-import { useQueryState } from "nuqs";
-import { DefaultRoutingParams } from "@/lib/chat/chat";
-import { Arguments, Parameters, AssistantMessage, ChatHistory, ChatFrame, ChatWrapper } from "@/types/chat/chat";
-import { chat, clearChat } from "@/utils/chat/chat/server";
-import { generateInput, getEndpointChat, iterateStreamResponse } from "@/utils/chat/chat/client";
-import { useEffect, useRef, useState } from "react";
+import {
+  Arguments,
+  Parameters,
+  AssistantMessage,
+  ChatHistory,
+  ChatFrame,
+  ChatWrapper,
+  UserMessage,
+} from "@/types/chat/chat";
 import { defaultModelArgs } from "@/constants/chat";
+import {
+  generateInput,
+  getEndpointChat,
+  iterateStreamResponse,
+} from "@/utils/chat/chat/client";
 import MarkdownRender from "./MarkdownRender";
 import MessageHeader from "./MessageHeader";
-import ActionButton from "@/components/Common/Buttons/Action";
-import ChatPinning from "./ChatPinning";
+import { Sheet, SheetTrigger, SheetContent } from "@/components/UI/sheet";
+import EndpointsTable from "../Endpoints/Main";
 import { StreamResponseChunk } from "@/utils/chat/chat/stream";
-import { SendHorizontal } from "lucide-react";
-
+import { DefaultRoutingParams } from "@/lib/chat/chat";
+import { clearChat } from "@/utils/chat/chat/server";
+import ChatPinning from "./ChatPinning";
 
 const Messaging = ({ endpoints, chatWrapper }: {
     endpoints: Endpoint[],
     chatWrapper: (props: ChatWrapper) => Promise<StreamResponseChunk<ChatFrame>>
 }) => {
-    // endpoint selection
-    const [selectedEndpointsParam, setSelectedEndpointsParam] = useQueryState("endpoints");
-    const selectedEndpoints: Endpoint[] = selectedEndpointsParam ? selectedEndpointsParam.split(",").map(
-        ep => endpoints.find(endpoint => `${endpoint.code}@${endpoint.provider}` == ep)
-    ).filter(ep => ep != undefined) : [];
-
-    // pinned endpoints
-    const [pinnedEndpointsParam, setPinnedEndpointsParam] = useQueryState("pinned");
-    const pinnedEndpointsStr = pinnedEndpointsParam ? pinnedEndpointsParam.split(",") : selectedEndpoints.slice(0, 3).map(ep => `${ep.code}@${ep.provider}`);
-    const pinnedEndpoints = pinnedEndpointsStr.map(ep => endpoints.find(endpoint => `${endpoint.code}@${endpoint.provider}` == ep)!);
-    const setPinnedEndpoints = (endpoints: Endpoint[]) => (
-        setPinnedEndpointsParam(endpoints.map(ep => `${ep.code}@${ep.provider}`).join(","))
+    // State for selected endpoints
+    const [selectedEndpoints, setSelectedEndpoints] = useState<Endpoint[]>([]);
+    const [pinnedEndpoints, setPinnedEndpoints] = useState<Endpoint[]>([]);
+    const unpinnedEndpoints = selectedEndpoints.filter(
+        ep => !pinnedEndpoints.some(
+            pinned => pinned.code === ep.code && pinned.provider === ep.provider
+        )
     );
 
-    // non pinned endpoints
-    const nonPinnedEndpoints = selectedEndpoints.filter(ep => !pinnedEndpointsStr.includes(`${ep.code}@${ep.provider}`));
-
-    // chatref for auto-scroll
+    // Chat ref for auto-scroll
     const chatRef = useRef<HTMLDivElement>(null);
 
-    // chat states
+    // Chat states
     const [chatHistory, setChatHistory] = useState<ChatHistory>([]);
-    const [message, setMessage] = useState<string>(
-        "Tell me a joke"
-    );
+    const [message, setMessage] = useState<string>("");
     const [chatKey, setChatKey] = useState<string | undefined>(undefined);
-    const complete = (
-        !chatHistory || !chatHistory.length || !(chatHistory.at(-1) as AssistantMessage[]
-        ).some(message => message.thinking));
+    const complete =
+        !chatHistory.length ||
+        !(chatHistory.at(-1) instanceof Array && 
+          (chatHistory.at(-1) as AssistantMessage[]).some((msg) => msg.thinking));
 
-    // parameters
+    // Parameters
     const [parameters, setParameters] = useState<Parameters>({
         routing: DefaultRoutingParams,
         modelArguments: defaultModelArgs as Arguments,
-        modelInputs: generateInput(defaultModelArgs as Arguments, null, [{
-            content: "YOUR_MESSAGE",
-            role: "user"
-        }]),
+        modelInputs: generateInput(defaultModelArgs as Arguments, null, [
+            { content: "YOUR_MESSAGE", role: "user" },
+        ]),
     });
 
-    // update params and auto-scroll
+    // Update parameters and auto-scroll
     useEffect(() => {
-        chatRef.current?.scrollTo({ top: chatRef.current?.scrollHeight, behavior: "smooth" })
-        setParameters((params) => {
-            return {
-                ...params,
-                modelInputs: generateInput(
-                    params.modelArguments,
-                    params.modelInputs ?? null,
-                    [
-                        ...getEndpointChat(selectedEndpoints[selectedEndpoints.length - 1], chatHistory),
-                        {
-                            content: "YOUR_MESSAGE",
-                            role: "user"
-                        }
-                    ]
-                ),
-            };
-        });
-    }, [chatHistory]);
+        chatRef.current?.scrollTo({ top: chatRef.current?.scrollHeight, behavior: "smooth" });
+        setParameters((params) => ({
+            ...params,
+            modelInputs: generateInput(
+                params.modelArguments,
+                params.modelInputs ?? null,
+                [
+                    ...(selectedEndpoints.length > 0 ? getEndpointChat(selectedEndpoints[0], chatHistory) : []),
+                    { content: "YOUR_MESSAGE", role: "user" },
+                ]
+            ),
+        }));
+    }, [chatHistory, selectedEndpoints]);
 
-    // submit message
+    // Submit message
     const sendMessage = async () => {
+        if (selectedEndpoints.length === 0) {
+            alert("Please select at least one endpoint to send messages.");
+            return;
+        }
+
+        const endpointsToUse = selectedEndpoints;
+
         const newChatHistory: ChatHistory = [
             ...chatHistory,
-            { content: message, role: "user" }
+            { content: message, role: "user" },
         ];
         setMessage("");
 
-        let responses: AssistantMessage[] = selectedEndpoints.map((endpoint) => {
-            return {
-                content: "",
-                thinking: true,
-                role: "assistant",
-                endpoint: endpoint,
-            };
-        });
-        setChatHistory([
-            ...newChatHistory,
-            responses
-        ]);
-        let prevResponses = responses;
-        if (chatHistory.length > 0)
-            prevResponses = chatHistory.at(-1) as AssistantMessage[];
+        let responses: AssistantMessage[] = endpointsToUse.map((endpoint) => ({
+            content: "",
+            thinking: true,
+            role: "assistant",
+            endpoint: endpoint,
+        }));
+        setChatHistory([...newChatHistory, responses]);
+        let prevResponses =
+            chatHistory.length > 0
+                ? (chatHistory.at(-1) as AssistantMessage[])
+                : responses;
 
-        for await (const frame of iterateStreamResponse(chatWrapper({
-            key: chatKey,
-            message,
-            endpoints: selectedEndpoints,
-            parameters,
-            prevResponses,
-        }))) {
+        for await (const frame of iterateStreamResponse(
+            chatWrapper({
+                key: chatKey,
+                message,
+                endpoints: endpointsToUse,
+                parameters,
+                prevResponses,
+            })
+        )) {
             const { key, endpoint, delta, error, done } = frame;
 
             setChatKey(key);
 
-            const responseIdx = selectedEndpoints.findIndex(
-                (ep) => (
-                    ep.router ?
-                        (ep.code == endpoint.code) :
-                        (ep.code == endpoint.code && ep.provider == endpoint.provider)
-                )
+            const responseIdx = endpointsToUse.findIndex(
+                (ep) => ep.code === endpoint.code && ep.provider === endpoint.provider
             );
 
             if (responseIdx === -1) {
@@ -139,13 +135,10 @@ const Messaging = ({ endpoints, chatWrapper }: {
                     content: "An error occurred",
                     role: "assistant",
                     thinking: false,
-                    endpoint: selectedEndpoints[responseIdx],
+                    endpoint: endpointsToUse[responseIdx],
                     error: true,
                 };
-                setChatHistory([
-                    ...newChatHistory,
-                    responses
-                ]);
+                setChatHistory([...newChatHistory, responses]);
                 continue;
             }
 
@@ -153,48 +146,59 @@ const Messaging = ({ endpoints, chatWrapper }: {
                 content: responses[responseIdx].content + delta,
                 thinking: !done,
                 role: "assistant",
-                endpoint: selectedEndpoints[responseIdx],
+                endpoint: endpointsToUse[responseIdx],
                 metrics: frame.metrics,
             };
-            setChatHistory([
-                ...newChatHistory,
-                responses
-            ]);
+            setChatHistory([...newChatHistory, responses]);
         }
     };
 
-    // pinning handlers
-    const handleUnpinEndpoint = (endpoint: Endpoint) => {
-        const newPinnedEndpoints = pinnedEndpoints.filter(
-            ep => ep.code != endpoint.code || ep.provider != endpoint.provider
+    // Function to toggle pinning
+    const handlePinToggle = (endpoint: Endpoint) => {
+        const isPinned = pinnedEndpoints.some(
+            ep => ep.code === endpoint.code && ep.provider === endpoint.provider
         );
-        setPinnedEndpoints(newPinnedEndpoints);
-    }
-    const handlePinEndpoint = (endpoint: Endpoint) => {
-        const newPinnedEndpoints = [...pinnedEndpoints, endpoint];
-        setPinnedEndpoints(newPinnedEndpoints);
-    }
-    const handleUnselectEndpoint = (endpoint: Endpoint) => {
-        const newSelectedEndpoints = selectedEndpoints.filter(
-            ep => ep.code != endpoint.code || ep.provider != endpoint.provider
-        );
-        if (newSelectedEndpoints.length == 0)
-            setSelectedEndpointsParam(null);
-        else
-            setSelectedEndpointsParam(newSelectedEndpoints.map(ep => `${ep.code}@${ep.provider}`).join(","));
-    }
+        if (isPinned) {
+            handleUnpinEndpoint(endpoint);
+        } else {
+            if (pinnedEndpoints.length >= 3) {
+                alert("You can only pin up to 3 endpoints. Unpin another endpoint first.");
+                return;
+            }
+            handlePinEndpoint(endpoint);
+        }
+    };
 
-    // clear chat
+    // Functions to handle pinning
+    const handlePinEndpoint = (endpoint: Endpoint) => {
+        setPinnedEndpoints([...pinnedEndpoints, endpoint]);
+    };
+
+    const handleUnpinEndpoint = (endpoint: Endpoint) => {
+        setPinnedEndpoints(pinnedEndpoints.filter(
+            ep => !(ep.code === endpoint.code && ep.provider === endpoint.provider)
+        ));
+    };
+
+    // Function to deselect an endpoint
+    const handleUnselectEndpoint = (endpoint: Endpoint) => {
+        setSelectedEndpoints(selectedEndpoints.filter(
+            ep => !(ep.code === endpoint.code && ep.provider === endpoint.provider)
+        ));
+        setPinnedEndpoints(pinnedEndpoints.filter(
+            ep => !(ep.code === endpoint.code && ep.provider === endpoint.provider)
+        ));
+    };
+
+    // Clear chat
     const handleClearChat = async () => {
         setChatHistory([]);
-
         if (!chatKey) return;
-
         clearChat(chatKey);
         setChatKey(undefined);
     };
 
-    // message handler
+    // Message handler
     const handleMessageSent = async (e?: React.FormEvent) => {
         e?.preventDefault();
         if (message.trim().length === 0) return;
@@ -203,110 +207,169 @@ const Messaging = ({ endpoints, chatWrapper }: {
         }
     };
 
-    // Wrap with ChatMessageList
-    return (<div className="relative w-full h-full bg-background tutorial-chat-interface">
-        <div className="absolute bottom-0 w-full pb-4">
-            <div className="h-[70vh]">
-                <ChatMessageList className="text-sm overflow-y-auto" ref={chatRef}>
-                    {chatHistory.map((chat, index) => {
-                        if (chat instanceof Array) {
-                            return (
-                                <div className="flex gap-4" key={index}>
-                                    {chat.filter(
-                                        (ch) => pinnedEndpointsStr.includes(`${ch.endpoint.code}@${ch.endpoint.provider}`)
-                                    ).map((ch, idx) => {
-                                        const model = ch.endpoint.code;
-                                        const provider = ch.endpoint.provider;
-                                        return (
-                                            <ChatBubble variant="received" key={idx} className={
-                                                pinnedEndpointsStr.length == 3 ? "w-1/3" : "w-1/2"
-                                            }>
-                                                <ChatBubbleMessage variant="received" isLoading={ch.content.length == 0}>
-                                                    <MessageHeader model={model} provider={provider} content={ch.content} cost={ch.metrics?.cost} />
-                                                    <MarkdownRender content={ch.content} index={index} subIndex={idx} />
-                                                </ChatBubbleMessage>
-                                            </ChatBubble>
-                                        );
-                                    })}
-                                </div>
-                            )
-                        }
-                        else {
-                            return (
-                                <ChatBubble variant="sent" key={index}>
-                                    <ChatBubbleMessage variant="sent">
-                                        <MessageHeader model={"You"} content={chat.content} />
-                                        <MarkdownRender content={chat.content} index={index} subIndex={0} />
-                                    </ChatBubbleMessage>
-                                </ChatBubble>
-                            )
-                        }
-                    })}
-                </ChatMessageList>
-            </div>
-            <div className="mx-4">
-                {chatHistory.length > 0 ? <div className="w-fit mx-auto mb-4">
-                    <ActionButton tooltip={"Clear Chat"} icon={<Trash />} variant={"outline"} onClick={handleClearChat} />
-                </div> : <></>}
-                <div className="bg-background my-2 flex">
-                    <ChatPinning
-                        endpoints={nonPinnedEndpoints}
-                        side="left"
-                        pinTooltipContent={
-                            pinnedEndpoints.length < 3
-                                ? "Pin to chat"
-                                : "You can only pin 3 endpoints. Unpin another endpoint first"
-                        }
-                        handleClick={(endpoint: Endpoint) => pinnedEndpoints.length < 3 ? handlePinEndpoint(endpoint) : undefined}
-                        handleUnselect={handleUnselectEndpoint}
-                    />
-                    <ChatPinning
-                        endpoints={pinnedEndpoints}
-                        side="right"
-                        pinTooltipContent={"Unpin from chat"}
-                        handleClick={handleUnpinEndpoint}
-                        handleUnselect={handleUnselectEndpoint}
-                    />
-                </div>
-                <form
-                    className="flex justify-between h-fit rounded-lg border bg-background focus-within:ring-1 focus-within:ring-ring p-1 mt-auto"
-                    onKeyDown={(e => {
-                        if (e.key === "Enter" && !e.shiftKey)
-                            handleMessageSent(e);
-                    })}
-                >
-                    <ChatInput
-                        placeholder={selectedEndpoints.length ? "Type your message here..." : "Please select an endpoint to continue..."}
-                        className={
-                            "min-h-24 resize-none rounded-lg bg-background border-0 p-3 shadow-none focus-visible:ring-0 "
-                            + (selectedEndpoints.length ? "" : "pointer-events-none")
-                        }
-                        onChange={(e) => setMessage(e.target.value)}
-                        value={selectedEndpoints.length ? message : ""}
-                    />
-                    <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={handleMessageSent}
-                        disabled={!complete || selectedEndpoints.length === 0 || message.trim().length === 0}
-                        className={`mr-2 transition-colors ${
-                            (!complete || selectedEndpoints.length === 0) 
-                                ? '' 
-                                : 'hover:bg-primary group'
-                        }`}
-                    >
-                        <SendHorizontal className={`h-4 w-4 transition-colors ${
-                            (!complete || selectedEndpoints.length === 0) 
-                                ? 'text-muted-foreground' 
-                                : 'text-primary group-hover:text-primary-foreground'
-                        }`} />
-                        <span className="sr-only">Send message</span>
-                    </Button>
-                </form>
-            </div>
-        </div>
-    </div>);
-};
+    // Function to check if an endpoint is pinned
+    const isEndpointPinned = (endpoint: Endpoint) => {
+        return pinnedEndpoints.some(
+            ep => ep.code === endpoint.code && ep.provider === endpoint.provider
+        );
+    };
 
+    return (
+        <div className="relative w-full h-full bg-background tutorial-chat-interface">
+            {/* Header */}
+            <div className="absolute top-0 w-full p-4 flex justify-between items-center">
+                <h2 className="text-xl font-bold">Chat</h2>
+            </div>
+
+            {/* Chat Messages */}
+            <div className="absolute bottom-0 w-full pb-4">
+                <div className="h-[70vh] mt-16">
+                    <ChatMessageList className="text-sm overflow-y-auto" ref={chatRef}>
+                        {chatHistory.map((chat, index) => {
+                            if (Array.isArray(chat)) {
+                                // It's an array of assistant responses
+                                const responses = chat as AssistantMessage[];
+                                // Filter responses to only include those from pinned endpoints
+                                const visibleResponses = responses.filter(ch => isEndpointPinned(ch.endpoint));
+                                if (visibleResponses.length === 0) return null; // No pinned responses to display
+                                return (
+                                    <div className="flex gap-4" key={index}>
+                                        {visibleResponses.map((ch, idx) => {
+                                            const model = ch.endpoint.code;
+                                            const provider = ch.endpoint.provider;
+                                            return (
+                                                <ChatBubble variant="received" key={idx} className="w-full">
+                                                    <ChatBubbleMessage
+                                                        variant="received"
+                                                        isLoading={ch.content.length === 0}
+                                                    >
+                                                        <MessageHeader
+                                                            model={model}
+                                                            provider={provider}
+                                                            content={ch.content}
+                                                            cost={ch.metrics?.cost}
+                                                        />
+                                                        <MarkdownRender
+                                                            content={ch.content}
+                                                            index={index}
+                                                            subIndex={idx}
+                                                        />
+                                                    </ChatBubbleMessage>
+                                                </ChatBubble>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            } else {
+                                // It's a user message
+                                const userMessage = chat as UserMessage;
+                                return (
+                                    <ChatBubble variant="sent" key={index}>
+                                        <ChatBubbleMessage variant="sent">
+                                            <MessageHeader model={"You"} content={userMessage.content} />
+                                            <MarkdownRender
+                                                content={userMessage.content}
+                                                index={index}
+                                                subIndex={0}
+                                            />
+                                        </ChatBubbleMessage>
+                                    </ChatBubble>
+                                );
+                            }
+                        })}
+                    </ChatMessageList>
+                </div>
+
+                {/* Chat Pinning Components */}
+                {selectedEndpoints.length > 0 && (
+                    <div className="bg-background my-2 flex px-5">
+                        <ChatPinning
+                            endpoints={unpinnedEndpoints}
+                            side="left"
+                            handlePinToggle={handlePinToggle}
+                            handleUnselect={handleUnselectEndpoint}
+                        />
+                        <ChatPinning
+                            endpoints={pinnedEndpoints}
+                            side="right"
+                            handlePinToggle={handlePinToggle}
+                            handleUnselect={handleUnselectEndpoint}
+                        />
+                    </div>
+                )}
+
+                {/* Chat Input */}
+                <div className="mx-4">
+                    {chatHistory.length > 0 && (
+                        <div className="w-fit mx-auto mb-4">
+                            <Button variant="outline" onClick={handleClearChat}>
+                                <Trash className="mr-2" /> Clear Chat
+                            </Button>
+                        </div>
+                    )}
+                    <form
+                        className="flex justify-between h-fit rounded-lg border bg-background focus-within:ring-1 focus-within:ring-ring p-1 mt-auto"
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) handleMessageSent(e);
+                        }}
+                    >
+                        <ChatInput
+                            placeholder={selectedEndpoints.length === 0 ? "Please select an endpoint..." : "Type your message here..."}
+                            className="min-h-24 resize-none rounded-lg bg-background border-0 p-3 shadow-none focus-visible:ring-0"
+                            onChange={(e) => setMessage(e.target.value)}
+                            value={message}
+                            disabled={selectedEndpoints.length === 0}
+                        />
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={handleMessageSent}
+                            disabled={
+                                !complete ||
+                                selectedEndpoints.length === 0 ||
+                                message.trim().length === 0
+                            }
+                            className={`mr-2 transition-colors ${
+                                !complete || selectedEndpoints.length === 0
+                                    ? ""
+                                    : "hover:bg-primary group"
+                            }`}
+                        >
+                            <SendHorizontal
+                                className={`h-4 w-4 transition-colors ${
+                                    !complete || selectedEndpoints.length === 0
+                                        ? "text-muted-foreground"
+                                        : "text-primary group-hover:text-primary-foreground"
+                                }`}
+                            />
+                            <span className="sr-only">Send message</span>
+                        </Button>
+                    </form>
+                </div>
+            </div>
+
+            {/* Select Endpoints Icon */}
+            <Sheet>
+                <SheetTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 z-50"
+                    >
+                        <Settings2 className="w-6 h-6" />
+                        <span className="sr-only">Select Endpoints</span>
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="right">
+                    <EndpointsTable
+                        endpoints={endpoints}
+                        selectedEndpoints={selectedEndpoints}
+                        setSelectedEndpoints={setSelectedEndpoints}
+                    />
+                </SheetContent>
+            </Sheet>
+        </div>
+    );
+};
 
 export default Messaging;
