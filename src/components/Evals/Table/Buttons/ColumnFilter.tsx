@@ -66,6 +66,7 @@ const ColumnFilter = ({ setError, setFilters, filters, column }: {
         else
             setFilters(newFilters);
         setOpen(false);
+        setChanged(false);
         setNewRow(false);
     };
 
