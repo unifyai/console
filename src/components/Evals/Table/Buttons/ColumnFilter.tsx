@@ -15,7 +15,7 @@ import { FaGreaterThan, FaGreaterThanEqual, FaLessThan, FaLessThanEqual } from "
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/UI/dropdown-menu";
 
 const filterModes = [
-    { icon: <Brackets />, name: "In", fn: "in", description: "Values included in the input range." },
+    { icon: <Brackets />, name: "Contains", fn: "in", description: "Values contained in the input." },
     { icon: <Equal />, name: "Is", fn: "is", description: "Values equal to the the input." },
     { icon: <EqualNot />, name: "Not", fn: "not", description: "Values not equal to the the input." },
     { icon: <FaGreaterThan />, name: "Greater Than", fn: ">", description: "Values greater than the input number" },
@@ -51,7 +51,7 @@ const ColumnFilter = ({ setError, setFilters, filters, column }: {
             else {
                 newFilters[property] = {
                     ...newFilters[property],
-                    [key]: key != "in" ? value : `[${value}]`
+                    [key]: value
                 };
             }
         });

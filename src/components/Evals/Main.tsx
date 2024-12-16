@@ -48,7 +48,9 @@ const Main = async ({ searchParams, projectsActions, logsActions, datasetsAction
 		return acc;
 	}, {}) : null;
 	const filterExpression = logsFilters ? Object.entries(logsFilters).map(
-		([key, value]) => Object.entries(value).map(([fn, val]) => `${key} ${fn} ${val}`)
+		([key, value]) => Object.entries(value).map(
+			([fn, val]) => fn === "in" ? `${val} ${fn} ${key}` : `${key} ${fn} ${val}`
+		)
 	).flat().join(" and ") : null;
 	let logsData: LogsResponseProps = { params: {}, logs: [] };
 	if (project)
