@@ -18,7 +18,7 @@ const ChatPinning = ({ endpoints, side, handlePinToggle, handleUnselect }: {
                         <Pin
                             size={14}
                             className={
-                                "absolute -top-2 -left-2 rounded-full hover:bg-secondary hover:text-white transition-colors cursor-pointer " +
+                                "absolute -top-2 -left-2 rounded-full hover:bg-primary hover:primary-foreground transition-colors cursor-pointer " +
                                 (side === "right" ? "text-primary" : "")
                             }
                             onClick={() => handlePinToggle(endpoint)}
@@ -28,7 +28,7 @@ const ChatPinning = ({ endpoints, side, handlePinToggle, handleUnselect }: {
                         <CircleX
                             size={14}
                             onClick={() => handleUnselect(endpoint)}
-                            className="absolute -top-2 -right-2 rounded-full text-destructive hover:bg-destructive hover:text-white transition-colors cursor-pointer"
+                            className="absolute -top-2 -right-2 rounded-full text-destructive hover:bg-destructive hover:destructive-foreground transition-colors cursor-pointer"
                         />
                     </Tooltip>
                     <Tooltip content={`${endpoint.code}@${endpoint.provider}`}>

@@ -28,6 +28,7 @@ import {
 import { Copy } from "lucide-react"; // For copy functionality
 import { ScrollArea } from "@/components/UI/scroll-area"; // Ensure the correct path
 import { Separator } from "../UI/separator";
+import { CopyButton } from "../Common/Buttons/Copy";
 
 interface QueryHistoryTableProps {
   queries: QueryResult[];
@@ -161,21 +162,12 @@ export default function QueryHistoryTable({ queries }: QueryHistoryTableProps) {
                       {selectedQuery.messages[
                         selectedQuery.messages.length - 2
                       ]?.content && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation(); // Prevent accordion toggle
-                            copyToClipboard(
-                              selectedQuery.messages[
-                                selectedQuery.messages.length - 2
-                              ].content
-                            );
-                          }}
-                          aria-label="Copy Prompt"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
+                        <CopyButton
+                          content={selectedQuery.messages[selectedQuery.messages.length - 2].content}
+                          copyMessage="Prompt copied to clipboard"
+                          tooltipContent="Copy Prompt"
+                          className="h-5 w-5"
+                        />
                       )}
                     </div>
                     <AccordionContent>
@@ -197,21 +189,12 @@ export default function QueryHistoryTable({ queries }: QueryHistoryTableProps) {
                       {selectedQuery.messages[
                         selectedQuery.messages.length - 1
                       ]?.content && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation(); // Prevent accordion toggle
-                            copyToClipboard(
-                              selectedQuery.messages[
-                                selectedQuery.messages.length - 1
-                              ].content
-                            );
-                          }}
-                          aria-label="Copy Response"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
+                        <CopyButton
+                          content={selectedQuery.messages[selectedQuery.messages.length - 1].content}
+                          copyMessage="Response copied to clipboard"
+                          tooltipContent="Copy Response"
+                          className="h-5 w-5"
+                        />
                       )}
                     </div>
                     <AccordionContent>
