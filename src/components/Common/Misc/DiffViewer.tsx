@@ -39,7 +39,7 @@ const DiffViewer = ({oldValue, newValue, showDiffOnly = false, hideMarkers = tru
 
     const render = (str: string) => <p className='text-foreground'>{str}</p>
     return (
-        <div className="rounded-md border bg-background/50 p-4 font-mono text-sm w-full">
+        <div className="rounded-md border bg-background/50 p-4 font-mono text-sm w-full max-h-[200px] overflow-y-auto">
             <ReactDiffViewer 
                 oldValue={oldValue} 
                 newValue={newValue}

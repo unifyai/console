@@ -42,7 +42,7 @@ const SelectionEntry = ({property, parentPath, value, newEntry, comparisonLogs, 
       <div className={`p-3 ${!comparables || comparables?.length === 1 ? "hover:bg-foreground/[0.1]" : ""}`}>
       <BaseNode unfolded={unfolded} setUnfolded={setUnfolded} newEntry={newEntry} property={property}>
         {isDict(value)
-          ? <DictionaryNode unfolded={unfolded} setUnfolded={setUnfolded} comparables={comparables} comparisonLogs={comparisonLogs} property={property} value={value} type={type} path={path} logs={logs}/>
+          ? <DictionaryNode unfolded={unfolded} setUnfolded={setUnfolded} comparables={comparables} comparisonLogs={comparisonLogs} value={value} type={type} path={path} logs={logs}/>
           : isImage(value)
             ? <ImageNode unfolded={unfolded} comparables={comparables} comparisonLogs={comparisonLogs} value={value} logs={logs}/>
             : isMatrix(value)

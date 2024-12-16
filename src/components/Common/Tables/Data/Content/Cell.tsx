@@ -51,7 +51,7 @@ const DataTableCell = ({ cell, row, resizeMap, AggregatedCell, ExtraCellContent 
           rowSpan={cell.rowSpan}
           style={style}
           ref={setNodeRef} 
-          className={`group/cell relative select-none overflow-visible ${row.getIsSelected() ? "bg-secondary text-white" : ""}`}
+          className={`group/cell relative select-none overflow-visible ${row.getIsSelected() ? `bg-secondary ${isPinned ? "" : "text-background"}` : ""}`}
         >
           <div className="overflow-hidden text-nowrap text-ellipsis ...">
             {cell.getIsGrouped() 

@@ -5,7 +5,6 @@ import { Dispatch, SetStateAction } from "react";
 const DictionaryNode = ({unfolded, value, comparisonLogs, path, comparables, type, logs}: {
     unfolded: boolean,
     setUnfolded: Dispatch<SetStateAction<boolean>>,
-    property: string,
     value: any,
     comparisonLogs: LogProps[] | undefined,
     path: string,

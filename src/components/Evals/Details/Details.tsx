@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Info, Database, ScatterChart } from "lucide-react";
+import { Eye, Database, ScatterChart } from "lucide-react";
 import LogsPlot from "./Plot/Plot";
 import Selection from "./Selection/Selection";
 import Datasets from "./Datasets/Main";
@@ -21,15 +21,15 @@ const Details = ({ project, params, logs, datasetsActions }: {
 	}
 }) => {
     return (
-        <Tabs defaultValue="Selection" className="w-full h-full tutorial-details-panel">
+        <Tabs defaultValue="View" className="w-full h-full tutorial-details-panel">
             <TabsList className="bg-background rounded-md w-full justify-between py-8 px-4">
                 <div className="flex flex-row gap-3">
                     <TabsTrigger 
-                    value="Selection"
+                    value="View"
                     className="flex flex-row gap-2 data-[state=active]:text-accent hover:text-primary"
                     >
-                        <Info/>
-                        {"Selection"}
+                        <Eye/>
+                        {"View"}
                     </TabsTrigger>
                     <TabsTrigger
                     value="Datasets" 
@@ -47,7 +47,7 @@ const Details = ({ project, params, logs, datasetsActions }: {
                     </TabsTrigger>
                 </div>
             </TabsList>
-            <TabsContent value="Selection" className="w-full h-[calc(100%-50px)] tutorial-selection-pane">
+            <TabsContent value="View" className="w-full h-[calc(100%-50px)] tutorial-selection-pane">
                 <Selection params={params} logs={logs} />
             </TabsContent>
             <TabsContent value="Datasets" className="w-full h-[calc(100%-50px)] tutorial-datasets-pane">
