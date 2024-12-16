@@ -124,7 +124,7 @@ const Compare = ({logs, comparables, comparisonLogs, value}: {
         {unfolded && comparison(index, rowIndex)}
       </BaseNode>
     
-    return <div className="mt-2">{pairwise}</div>
+    return <div className="mt-2"key={index}>{pairwise}</div>
   })}
   </>
 };
