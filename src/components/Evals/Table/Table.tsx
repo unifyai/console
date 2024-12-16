@@ -22,9 +22,10 @@ import SummaryCell from "./Content/SummaryCell";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import CreateProject from "./Buttons/CreateProject";
 import ActionButton from "@/components/Common/Buttons/Action";
+import GlobalFilter from "./Buttons/GlobalFilter";
 
 const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, paramsProperties, metrics, logsData, projectActions, logsActions }: {
-	searchParams: { project?: string, metric?: string, filters?: string },
+	searchParams: { project?: string, metric?: string, filters?: string, common_filter?: string },
 	projects: string[] | undefined,
 	project: string | undefined,
 	logs: LogProps[],
@@ -54,9 +55,9 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 
 	// error message displayed for 5s
 	useEffect(() => {
-        if (error)
-            setTimeout(() => setError(undefined), 3000)
-    }, [error]);
+		if (error)
+			setTimeout(() => setError(undefined), 3000)
+	}, [error]);
 
 	// get logs selected for comparison/details
 	const [comparisonLogsParam, setComparisonLogsParam] = useQueryState("comparison");
@@ -128,16 +129,17 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 
 	// log filters
 	const [logsFiltersQuery, setLogsFiltersQuery] = useQueryState("filters", { shallow: false });
+	const [commonFilter, setCommonFilter] = useQueryState("common_filter", { shallow: false });
 	const logsFilters = logsFiltersQuery ? logsFiltersQuery.split(",").map((filter => {
 		const [key, fn, value] = filter.split("@");
 		return { [key]: { [fn]: value } };
 	})).reduce((acc, curr) => {
 		for (const key in curr) {
 			if (acc.hasOwnProperty(key))
-                acc[key] = { ...acc[key], ...curr[key] };
-            else
-                acc[key] = curr[key];
-        }
+				acc[key] = { ...acc[key], ...curr[key] };
+			else
+				acc[key] = curr[key];
+		}
 		return acc;
 	}, {}) : {};
 
@@ -207,7 +209,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 
 	// sizing
 	const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(
-		columnIDs.map(id => ({ [id]: id == "RowNumbering" ? 50 : 150 })).reduce((acc, curr) => ({...acc, ...curr}))
+		columnIDs.map(id => ({ [id]: id == "RowNumbering" ? 50 : 150 })).reduce((acc, curr) => ({ ...acc, ...curr }))
 	);
 
 	// Extra states
@@ -294,10 +296,8 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 						/>
 					)}
 					{projects &&
-					<CreateProject
-						creationFunction={projectActions.create}
-						paths={projects}
-					/>}
+						<CreateProject creationFunction={projectActions.create} paths={projects} />
+					}
 					<div className="flex flex-row gap-3 LogsTablePreferences">
 						{
 							project && columns.length &&
@@ -306,12 +306,13 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 							</div>
 						}
 					</div>
-					{searchParams.filters && <ActionButton
-						icon={<Filter />}
-						tooltip="Reset All Filters"
-						variant={"destructive"}
-						onClick={() => setLogsFilters({})}
-					/>}
+					<GlobalFilter
+						searchParams={searchParams}
+						columnNames={columnIDs.slice(1)}
+						commonFilterQuery={commonFilter || undefined}
+						setCommonFilterQuery={setCommonFilter}
+						setLogsFilters={setLogsFilters}
+					/>
 				</div>
 			</div>
 			{pending
@@ -331,9 +332,12 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 									setState={setState}
 									tableHotkeys={useTableHotkeys}
 									onRowClick={(table, row, event) => onRowClick(state, setState, table, row, event)}
-									ColumnFilters={(column) => <>
-										<ColumnFilter setError={setError} setFilters={setLogsFilters} filters={logsFilters} column={column} />
-									</>}
+									ColumnFilters={(column) => <ColumnFilter
+										setError={setError}
+										setFilters={setLogsFilters}
+										filters={logsFilters}
+										column={column}
+									/>}
 									AggregatedCell={(cell, row) => <AggregatedCell cell={cell} row={row} metric="mean" />}
 									FooterCell={(column) => column.columnDef.id === "RowNumbering"
 										? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric} />
@@ -348,7 +352,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 								/>
 							</div>
 							: <BaseTable items={[
-								{ "Entries": <p>No logs found. Start running local evaluations as shown in this <a href="https://docs.unify.ai/data_flywheel/teaching_assistant" target="_blank" className="font-bold underline text-primary">getting started</a> example.</p>}
+								{ "Entries": <p>No logs found. Start running local evaluations as shown in this <a href="https://docs.unify.ai/data_flywheel/teaching_assistant" target="_blank" className="font-bold underline text-primary">getting started</a> example.</p> }
 							]} />
 						: <BaseTable items={[{ "Entries": "Select a project to display your logs." }]} />
 					}

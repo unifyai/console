@@ -12,6 +12,9 @@
     --eerie-black: #1b1b1b;
     --light-neutral-grey: #b0bec5;
     --alert-red: #e53935;
+    --soft-amber: #F6A623;
+    --deep-teal:  #008080;
+    --lavender: #B39DDB;
 
     /* Light theme variables */
     --background: var(--white-smoke);
@@ -20,8 +23,8 @@
     --primary: var(--forest-green);
     --primary-foreground: var(--white-smoke);
 
-    --secondary: var(--forest-green);
-    --secondary-foreground: var(--white-smoke);
+    --secondary: var(--lavender);
+    --secondary-foreground: var(--eerie-black);
 
     --accent: var(--forest-green);
     --accent-foreground: var(--white-smoke);
@@ -69,8 +72,8 @@
     --primary: var(--lime-green);
     --primary-foreground: var(--eerie-black);
 
-    --secondary: var(--lime-green);
-    --secondary-foreground: var(--eerie-black);
+    --secondary: var(--deep-teal);
+    --secondary-foreground: var(--white-smoke);
 
     --accent: var(--lime-green);
     --accent-foreground: var(--eerie-black);

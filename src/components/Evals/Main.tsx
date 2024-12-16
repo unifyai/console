@@ -10,7 +10,7 @@ import { ResponseProps } from "@/types/common";
 import { DatasetProps } from "@/types/evals/datasets";
 
 const Main = async ({ searchParams, projectsActions, logsActions, datasetsActions }: {
-	searchParams: { project?: string, metric?: string, filters?: string },
+	searchParams: { project?: string, metric?: string, filters?: string, common_filter?: string },
 	projectsActions: {
 		get: () => Promise<string[]>,
 		create: (name: string) => Promise<ResponseProps>,
@@ -47,7 +47,12 @@ const Main = async ({ searchParams, projectsActions, logsActions, datasetsAction
         }
 		return acc;
 	}, {}) : null;
-	const filterExpression = logsFilters ? Object.entries(logsFilters).map(
+	let filterStr: string = "", filterParams: string[] = [];
+	if (searchParams.common_filter)
+		[filterStr, ...filterParams] = searchParams.common_filter.split(",");
+	const filterExpression = searchParams.common_filter ? filterParams.map(
+		filter => `${filterStr} in ${filter}`
+	).join(" or ") : logsFilters ? Object.entries(logsFilters).map(
 		([key, value]) => Object.entries(value).map(
 			([fn, val]) => fn === "in" ? `${val} ${fn} ${key}` : `${key} ${fn} ${val}`
 		)

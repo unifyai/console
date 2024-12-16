@@ -18,7 +18,7 @@ import {
 
 
 const EvalsPage = async (
-    { searchParams }: { searchParams: { project?: string, metric?: string } }
+    { searchParams }: { searchParams: { project?: string, metric?: string, filters?: string, common_filter?: string } }
 ) => {
     // get user and api key
     const user = await getCurrentUser();

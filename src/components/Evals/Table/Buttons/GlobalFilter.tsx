@@ -1,81 +1,56 @@
 "use client";
 
-import { Dispatch, SetStateAction, useState } from "react";
-
-import { Column } from "@tanstack/react-table";
-import { Filter } from "lucide-react";
+import { useState } from "react";
 import { Input } from "@/components/UI/input";
+import { Filter, X } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
-import BaseDropdown from "@/components/Common/Dropdowns/Base";
 
-import SubmitButton from "@/components/Common/Buttons/Submit";
-import CancelButton from "@/components/Common/Buttons/Cancel";
-import Tooltip from "@/components/Common/Misc/Tooltip";
-
-import { Equal, EqualNot, Brackets,  } from "lucide-react";
-import { FaGreaterThan, FaGreaterThanEqual, FaLessThan, FaLessThanEqual } from "react-icons/fa";
-import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
-import SettingButton from "@/components/Common/Buttons/Setting";
-
-const filterModes = [
-    {icon: <Brackets/>, name: "In", fn: "in", description: "Values included in the input range."},
-    {icon: <Equal/>, name: "Is", fn: "is", description: "Values equal to the the input."},
-    {icon: <EqualNot/>, name: "Not", fn: "not", description: "Values not equal to the the input."},
-    {icon: <FaGreaterThan/>, name: "Greater Than", fn: ">", description: "Values greater than the input number"},
-    {icon: <FaGreaterThanEqual/>, name: "Greater Or Equal", fn: ">=", description: "Values greater than or equal to the input number"},
-    {icon: <FaLessThan/>, name: "Lower Than", fn: "<", description: "Values lower than the input number number"},
-    {icon: <FaLessThanEqual/>, name: "Lower Or Equal", fn: "<=", description: "Values lower than or equal to the input number"},
-];
-
-const GlobalFilter = ({setFilters, filters, columns}: {
-    setFilters: (x: { [key: string]: { fn: string, value: string } }) => void, 
-    filters: { [key: string]: { fn: string, value: string } },
-    columns: string[]
+const GlobalFilter = ({ searchParams, columnNames, commonFilterQuery, setCommonFilterQuery, setLogsFilters }: {
+    searchParams: { project?: string, metric?: string, filters?: string, common_filter?: string },
+    columnNames: string[]
+    commonFilterQuery: string | undefined,
+    setCommonFilterQuery: (query: string | null) => void
+    setLogsFilters: (logsFilters: { [key: string]: { [key: string]: string } }) => void
 }) => {
-    
-    const [selectedFilter, setSelectedFilter] = useState({fn: "", value: ""});
-
-    const onSubmit = (selectedFilter: {fn: string; value: string}) => {
-        const newFilters = {...filters};
-        columns.forEach(column => {
-            newFilters[column] = {fn: selectedFilter.fn, value: selectedFilter.fn != "in" ? selectedFilter.value : `[${selectedFilter.value}]`};
-        })
-        setFilters(newFilters);
-    };
+    const [commonFilter, setCommonFilter] = useState<string | undefined>(
+        commonFilterQuery ? commonFilterQuery.split(",")[0] : undefined
+    );
 
     return (
-        <BaseDropdown
-            button={
-                <SettingButton icon={<Filter/>} tooltip="Filter all columns"/>
-            }
-            label={`Filter logs by`}
-        >
-            {filterModes.map((mode, index) => 
-                <DropdownMenuItem 
-                    key={index} 
-                    className="w-[300px] grid grid-cols-5 gap p-2 items-center hover:bg-gray-100"
-                    onClick={e => e.preventDefault()} // Prevent closing the dropdown when clicking on an item
-                >
-                    <span className="text-sm">Any column</span>
-                    <Tooltip content={mode.name}><span className="flex justify-center scale-90">{mode.icon}</span></Tooltip>
-                    <Input
-                        className="col-span-3"
-                        placeholder={"Enter a filter value.."} 
-                        onClick={(event) => event.stopPropagation()} 
-                        value={selectedFilter.fn === mode.fn ? selectedFilter.value : ""}
-                        onInput={(input) => setSelectedFilter({fn: mode.fn, value: input.currentTarget.value})}
-                    />
-                </DropdownMenuItem>
-            )}
-            {selectedFilter.value &&
-                <DropdownMenuItem className="flex flex-row gap-3 justify-end p-2">
-                    {Object.values(filters).map(filter => filter.value).some(value => value) && 
-                        <CancelButton text="Reset" onClick={() => onSubmit({fn: "", value: ""})}/>
-                    }
-                    <SubmitButton text="Apply" onClick={() => onSubmit(selectedFilter)} />
-                </DropdownMenuItem>
-            }
-        </BaseDropdown>
+        <>
+            <div className="relative">
+                <Input
+                    placeholder={"Enter a global filter.."}
+                    value={commonFilter || ""}
+                    onInput={(input) => setCommonFilter(input.currentTarget.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                            if (commonFilter) {
+                                setCommonFilterQuery([
+                                    (commonFilter.startsWith('"') && commonFilter.endsWith('"')) ? commonFilter : `"${commonFilter}"`,
+                                    ...columnNames
+                                ].join(","));
+                            }
+                            else
+                                setCommonFilterQuery(null);
+                        }
+                    }}
+                />
+                {commonFilter?.length ? <div className="absolute right-2 top-[9px]">
+                    <X size={18} onClick={() => setCommonFilter("")} className="cursor-pointer" />
+                </div> : <></>}
+            </div>
+            {(searchParams.filters || searchParams.common_filter) && <ActionButton
+                icon={<Filter />}
+                tooltip="Reset All Filters"
+                variant={"destructive"}
+                onClick={() => {
+                    setLogsFilters({});
+                    setCommonFilter("");
+                    setCommonFilterQuery(null);
+                }}
+            />}
+        </>
     );
 }
 
