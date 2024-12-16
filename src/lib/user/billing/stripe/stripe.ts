@@ -22,18 +22,17 @@ export async function createNewStripeCustomer(email: string, name: string) {
 }
 
 /**
- * Updates the Stripe customer ID for the user with the given userID.
+ * Updates the Stripe customer ID for the user with the given userID (in Orchestra)
  * @param userID - The ID of the user.
  * @param stripeCustomerID - The Stripe customer ID.
  * @returns The response from Orchestra.
  */
 export async function updateStripeCustomerID(userID: string, stripeCustomerID: string) {
-  const response = await OrchestraAdminClient.post("/stripe_customer_id", null, {
+  const response = await OrchestraAdminClient.put("/stripe_customer_id", null, {
     params: { id: userID, stripe_customer_id: stripeCustomerID },
   });
-  return response.data
+  return response;
 }
-
 
 /**
  * Creates a new Stripe billing portal session for the user with the given customerID.

@@ -78,16 +78,16 @@ export async function setAutoRechargeQty(userID: string, amount: number) {
 
 
 /**
- * Creates a recharge for a user, given the user's ID, the amount of credits to add
- * and a transaction ID.
+ * Creates a new recharge record for a user.
  * 
- * @param userID - The ID of the user to recharge.
- * @param credits - The amount of credits to add. Must be a positive number.
- * @param transactionID - The ID of the transaction that triggered the recharge.
- * @throws Will throw an error if the recharge amount is invalid.
+ * @param userID - The ID of the user.
+ * @param credits - The amount of credits to add.
+ * @param type - The type of recharge (e.g. "payment", "free", etc.).
+ * @param transactionID - The transaction ID associated with the recharge.
+ * @throws Will throw an error if the recharge amount is invalid or if the API call fails.
  * @returns The response from the API call.
  */
-export async function createRecharge(userID: string, credits: number, transactionID: string) {
+export async function createRecharge(userID: string, credits: number, type: string, transactionID: string) {
 
   if (credits <= 0) {
     throw new Error("Invalid recharge amount");
@@ -96,12 +96,12 @@ export async function createRecharge(userID: string, credits: number, transactio
   const rechargeData: RechargeModelRequest = {
       user_id: userID,
       quantity: credits,
-      type: "payment",
+      type: type,
       transaction_id: transactionID
   }
 
   const response = await OrchestraAdminClient.post("/create_recharge", rechargeData);
-  return response.data
+  return response
 }
 
 /**
@@ -109,7 +109,7 @@ export async function createRecharge(userID: string, credits: number, transactio
  * @param userID - The user ID.
  * @returns An array of card fingerprints.
  */
-export const getUserCards = async (userID: string): Promise<string[]> => {
+export const getUserCards = async (userID: string) => {
   const response = await OrchestraAdminClient.get("credit_card_fingerprint", {
     params: { user_id: userID },
   });
@@ -131,7 +131,7 @@ export const storeUserCard = async (userID: string, fingerprint: string) => {
 };
 
 /**
- * Checks if a card fingerprint is a duplicate for a user.
+ * Checks if a card fingerprint is a duplicate in Orchestra
  * @param userID - The ID of the user to check.
  * @param fingerprint - The card fingerprint to check.
  * @returns A boolean indicating whether the card fingerprint is a duplicate.
@@ -140,5 +140,34 @@ export const isDuplicateCard = async (userID: string, fingerprint: string) => {
   const response = await OrchestraAdminClient.get("duplicated_credit_card_fingerprint", {
     params: { user_id: userID, fingerprint },
   });
+  return response.data;
+}
+
+
+/**
+ * Retrieves recharges for a user based on specified parameters.
+ * 
+ * @param userID - The ID of the user to retrieve recharges for.
+ * @param id - Optional ID of the recharge.
+ * @param at - Optional date of the recharge (ISO date string).
+ * @param quantity - Optional quantity of the recharge.
+ * @param type - Optional type of the recharge.
+ * @returns An array of recharge objects.
+ */
+export async function getRecharges(
+  userID: string,
+  id?: number,
+  at?: string,
+  quantity?: number,
+  type?: string
+) {
+  const params = new URLSearchParams({ user_id: userID });
+
+  if (id !== undefined) params.append('id', id.toString());
+  if (at !== undefined) params.append('at', at);
+  if (quantity !== undefined) params.append('quantity', quantity.toString());
+  if (type !== undefined) params.append('type', type);
+
+  const response = await OrchestraAdminClient.get("/get_recharge", { params });
   return response.data;
 }

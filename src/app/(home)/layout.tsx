@@ -23,8 +23,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <ThemeLoader>
               <NavMenu/>
                 <main className="overflow-hidden relative container min-h-full h-full max-w-full w-full flex flex-row bg-background">
-                    <SidebarTrigger className="absolute bottom-2 left-2 bg-background hover:bg-primary z-50"/>
-                    <Tour buttonClassName="absolute top-2 right-5 bg-background hover:bg-primary z-50"/>     
+                    <SidebarTrigger className="absolute top-1/2 bg-transparent hover:bg-primary z-50"/>
+                    <Tour buttonClassName="absolute top-2 right-5 bg-transparent hover:bg-primary z-50"/>     
                   <div className="w-full h-full p-1 overflow-auto">
                     <NuqsAdapter>{children}</NuqsAdapter>
                   </div>

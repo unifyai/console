@@ -5,8 +5,6 @@ export async function handleCheckoutSessionCompleted(event: Stripe.Event) {
     const session = event.data.object as Stripe.Checkout.Session;
     const userID = session.metadata?.userID;
 
-    console.log("Checkout session completed:", event);
-
     if (session.payment_status === "paid") {
         const amountPaid = session.amount_total;
         const paymentIntent = session.payment_intent;
@@ -16,7 +14,6 @@ export async function handleCheckoutSessionCompleted(event: Stripe.Event) {
                 console.error("Failed to add credits: Amount paid is null");
                 return;
             }
-            console.log("Amount paid:", amountPaid);
             if (paymentIntent === null) {
                 console.error("Failed to add credits: Payment Intent is null");
                 return;
@@ -24,8 +21,7 @@ export async function handleCheckoutSessionCompleted(event: Stripe.Event) {
             const creditsToAdd = amountPaid / 100;
             const transactionId = typeof paymentIntent === "string" ? paymentIntent : "transaction_id_here";
             if (userID) {
-                let response = await createRecharge(userID, creditsToAdd, transactionId);
-                console.log("Recharge response:", response);
+                let response = await createRecharge(userID, creditsToAdd, "payment", transactionId);
             } else {
                 console.error("Failed to add credits: User ID is null");
             }

@@ -24,7 +24,6 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
   useEffect(() => {
     const fetchAutoRechargeSettings = async () => {
       try {
-        console.log("Fetching auto-recharge settings...");
         const response = await fetch("/api/billing/auto-recharge/settings",);
         if (response.ok) {
           const data = await response.json();
@@ -51,7 +50,6 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
     setIsAutoRechargeEnabled(newStatus);
 
     try {
-      console.log("Toggling auto-recharge to:", newStatus);
       await fetch("/api/billing/auto-recharge/enable", {
         method: "POST",
         headers: {
@@ -78,7 +76,6 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
     }
 
     try {
-      console.log("Saving auto-recharge settings...");
       await fetch("/api/billing/auto-recharge/settings", {
         method: "POST",
         headers: {

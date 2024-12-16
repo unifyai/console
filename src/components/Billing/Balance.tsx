@@ -22,7 +22,6 @@ const Balance = ({ hasPaymentMethod }: BalanceProps) => {
           throw new Error("Failed to fetch balance data");
         }
 
-        console.log("balance data:", balanceData);
         setBalance(balanceData.balance);
         setFullBalance(balanceData.fullBalance);
       } catch (error) {
@@ -39,16 +38,12 @@ const Balance = ({ hasPaymentMethod }: BalanceProps) => {
     try {
       const response = await fetch(`/api/stripe/checkoutSession`);
 
-      console.log("checkout session response:", response);
-
       if (!response.ok) {
         console.error("Error creating checkout session:", response.statusText);
         return;
       }
 
       const { url } = await response.json();
-
-      console.log("checkout session url:", url);
 
       if (url) {
         window.location.assign(url);
@@ -61,10 +56,8 @@ const Balance = ({ hasPaymentMethod }: BalanceProps) => {
   const handleOpenPortal = async () => {
     try {
       const response = await fetch("/api/stripe/portalSession");
-      console.log("portal session response:", response);
       if (response.ok) {
         const { url: portalUrl } = await response.json();
-        console.log("portal session url:", portalUrl);
         if (portalUrl) {
           window.location.assign(portalUrl);
         }
