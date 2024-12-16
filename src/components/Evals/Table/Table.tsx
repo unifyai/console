@@ -7,7 +7,7 @@ import FileDirectory from "@/components/Directory/FileDirectory";
 import { LogProps, LogsResponseProps } from "@/types/evals/logs";
 import { Row, ColumnDef, ColumnFiltersState, ColumnSort, ColumnPinningState, Updater, ColumnSizingState } from "@tanstack/react-table";
 import React, { useEffect, useState } from "react";
-import { Loader2 } from 'lucide-react';
+import { Filter, Loader2 } from 'lucide-react';
 import { FileProps, ResponseProps } from "@/types/common";
 import { buildTree, nestedColumns, onRowClick } from "@/utils/evals/table";
 import { Badge } from "@/components/UI/badge";
@@ -21,6 +21,7 @@ import ColumnMetrics from "./Buttons/ColumnMetrics";
 import SummaryCell from "./Content/SummaryCell";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import CreateProject from "./Buttons/CreateProject";
+import ActionButton from "@/components/Common/Buttons/Action";
 
 const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, paramsProperties, metrics, logsData, projectActions, logsActions }: {
 	searchParams: { project?: string, metric?: string, filters?: string },
@@ -305,6 +306,12 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 							</div>
 						}
 					</div>
+					{searchParams.filters && <ActionButton
+						icon={<Filter />}
+						tooltip="Reset All Filters"
+						variant={"destructive"}
+						onClick={() => setLogsFilters({})}
+					/>}
 				</div>
 			</div>
 			{pending
