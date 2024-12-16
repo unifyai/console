@@ -6,7 +6,7 @@ import { ResponseProps } from "@/types/common";
 import BaseDialog from "./Base";
 import ActionButton from "../Buttons/Action"
 import DeleteButton from "../Buttons/Delete";
-import SettingButton from "../Buttons/Setting";
+import { useKey } from "react-use";
 
 const DeleteDialog = ({ resource, type, deletingFunction, showDialog, variant, setShowDialog }: {
     resource: any,
@@ -54,6 +54,12 @@ const DeleteDialog = ({ resource, type, deletingFunction, showDialog, variant, s
     const body =    success ? messages["success"] : error ? messages["error"] : messages["warning"];
     const footer =  success ? null : <DeleteButton disabled={loading} onClick={onSubmit}/>
     
+    // Hotkey to trigger form submission when pressing enter
+    useKey("Enter", () => {
+        onSubmit()
+    });
+
+
     return (
         <BaseDialog button={button} title={title} body={body} footer={footer} open={showDialog ? showDialog : open} setOpen={setShowDialog ? setShowDialog : setOpen}/>
   );

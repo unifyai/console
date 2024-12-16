@@ -11,6 +11,7 @@ import { UseFormReturn } from "react-hook-form"
 import { z } from "zod"
 import { Form } from "@/components/UI/form"
 import SettingButton from "../Buttons/Setting";
+import { useKey } from "react-use";
 
 export default function CreateDialog ({ type, creationFunction, CreateSchema, form, Fields, extraFormActions }: {
     type: string;
@@ -62,6 +63,11 @@ export default function CreateDialog ({ type, creationFunction, CreateSchema, fo
         : error 
             ?   <RetryButton onClick={() => setError(false)}/>
             :   <SubmitButton disabled={loading} onClick={form.handleSubmit(onSubmit)}/>
+    
+    // Hotkey to trigger form submission when pressing enter
+    useKey("Enter", () => {
+        form.handleSubmit(onSubmit)()
+    });
     
     return (
     <Form {...form}>

@@ -14,6 +14,7 @@ import { z } from "zod"
 import { Form } from "@/components/UI/form"
 import { Input } from "@/components/UI/input"
 import FormEntry from "../Forms/Entry";
+import { useKey } from "react-use";
 
 export default function RenameDialog ({ path, paths, fileDir, fileName, type, renamingFunction }: {
     path: string;
@@ -89,6 +90,11 @@ export default function RenameDialog ({ path, paths, fileDir, fileName, type, re
         : error
             ?   <RetryButton onClick={() => setError(false)}/>
             :   <SubmitButton disabled={loading} onClick={form.handleSubmit(onSubmit)}/>
+
+    // Hotkey to trigger form submission when pressing enter
+    useKey("Enter", () => {
+        form.handleSubmit(onSubmit)()
+    });
 
     return (
     <Form {...form}>
