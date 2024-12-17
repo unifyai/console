@@ -8,16 +8,19 @@ import { toComputableValue, computeStatistic } from "./common";
 import { stringToColor } from "../misc/color";
 import { metrics } from "@/constants/logs";
 
+const foreground = getComputedStyle(document.documentElement).getPropertyValue('--foreground').trim()
+const background = getComputedStyle(document.documentElement).getPropertyValue('--background').trim()
+
 /* 
-    Filter log entries to keep non dictionary, non list items only
+    Filter log entries to keep non numeric items only
 */
-export function filterLogsForPlotting(logs: LogProps[]): LogProps[] { 
+export function filterNumericLogs(logs: LogProps[]): LogProps[] { 
     return logs.map(log => {
       const entries = log.entries;
       const filteredEntries: LogItemProps = {};
       for (const key in entries) {
         const entry = entries[key];
-       if (typeof entry != "object" && !Array.isArray(entry)) {
+       if (typeof entry === "number") {
         filteredEntries[key] = entries[key];
        }
       }
@@ -48,7 +51,15 @@ export const drawAxes = (
     if (plotType === "Bar Chart") {
         xAxis = svg.select(".xAxis")
         .attr("transform", `translate(0,${height - marginBottom})`)
-        .call(d3.axisBottom(x as d3.ScaleBand<string>).tickSizeOuter(0) as any);
+        .call(
+            d3.axisBottom(x as d3.ScaleBand<string>)
+              .tickSizeOuter(0)
+              .tickFormat(d => 
+                typeof d === "number" 
+                    ? (d as number).toExponential(2) 
+                    : JSON.stringify(d).slice(0, 5).replace(/^"|"$/g, '')
+            ) as any
+        );
     } else {
         xAxis = svg.select(".xAxis")
         .attr("transform", `translate(0,${height - marginBottom})`)
@@ -60,37 +71,39 @@ export const drawAxes = (
                     const date = new Date(d as number);
                     return `${date.toLocaleDateString()}`;
                 } else {
-                    return `${(d as number).toFixed(5)}`;
+                    return `${(d as number).toExponential(2)}`;
                 }
             }) as any
         );   
     }
-
+    
     xAxis.selectAll("text") // Axis labels style
         .attr("stroke", "black") 
         .attr("stroke-width", 0.1)
-        .attr("transform", "rotate(-30)")
-        .attr("transform", "translate(0, 5)")
+        .attr("transform", "rotate(-25) translate(0, 5)") // Combine rotate and translate
         .attr("text-anchor", "end")
-        .attr("font-size", "12px");
+        .attr("font-size", "10px");
     xAxis.select("path") // Axis line style
         .attr("stroke", "rgba(243, 244, 246, 1)");        
     xAxis.selectAll("line") // Ticks style
         .attr("stroke", "black")
         .attr("stroke-width", 0.5);
-
+ 
     const yAxis = svg.select(".yAxis")
         .attr("transform", `translate(${marginLeft},0)`)
         .call(
             d3.axisLeft(y as d3.ScaleLinear<number, number, never> | d3.ScaleLinear<number, number, never>)
-            .tickValues(yTicks as number[])
-            .tickFormat(d => `${(d as number).toFixed(5)}`) as any
+            .tickValues(plotType === "Bar Chart" 
+                ? yTicks.length > 1 ? yTicks.slice(1) : yTicks 
+                : yTicks as number[]
+            )
+            .tickFormat((d) => parseFloat((d as any)).toExponential(2)) as any
         );
     yAxis.selectAll("text") // Axis labels style
         .attr("stroke", "black") 
         .attr("stroke-width", 0.1)
         .attr("text-anchor", "end")
-        .attr("font-size", "12px");
+        .attr("font-size", `10px`);
     yAxis.select("path") // Axis line style
         .attr("stroke", "rgba(243, 244, 246, 1)");        
     yAxis.selectAll("line") // Ticks style
@@ -107,29 +120,30 @@ export const drawBorders = (
   width: number,
   marginBottom: number,
   marginLeft: number,
-  marginTop: number, marginRight: number
+  marginTop: number, 
+  marginRight: number
 ) => {
-  svg.select(".bottomLine")
+    svg.select(".bottomLine")
       .attr("x1", 0)
       .attr("y1", height - marginBottom )
       .attr("x2", width + marginLeft)
       .attr("y2", height - marginBottom)
-      .attr("stroke", "rgba(243, 244, 246, 1)")
-      .attr("stroke-width", 5);
+      .attr("stroke", foreground)
+      .attr("stroke-width", 0.5);
   svg.select(".leftLine")
       .attr("x1", marginLeft)
       .attr("y1", marginTop)
       .attr("x2", marginLeft)
       .attr("y2", height - marginBottom)
-      .attr("stroke", "rgba(243, 244, 246, 1)")
-      .attr("stroke-width", 5);
+      .attr("stroke", foreground)
+      .attr("stroke-width", 0.5);
   svg.select(".topLine")
       .attr("x1", 0)
       .attr("y1", marginTop)
       .attr("x2", width + marginLeft)
       .attr("y2", marginTop)
-      .attr("stroke", "rgba(243, 244, 246, 1)")
-      .attr("stroke-width", 5);
+      .attr("stroke", foreground)
+      .attr("stroke-width", 0.5);
 };
 
 /* 
@@ -151,12 +165,14 @@ export const calculateTicks = (length: number, scale: string, minY: number, maxY
           const yTick = Math.pow(10, Math.log10(minY) + i * yTickSpacing);
           yTicks.push(yTick);
       }
+
   } else {
       const xTickSpacing = (maxX - minX) / (numTicks - 1);
       for (let i = 0; i < numTicks; i++) {
           const xTick = minX + i * xTickSpacing;
           xTicks.push(xTick);
       }
+
       const yTickSpacing = (maxY - minY) / (numTicks - 1);
       for (let i = 0; i < numTicks; i++) {
           const yTick = minY + i * yTickSpacing;
@@ -231,7 +247,7 @@ export const drawBarChart = (
               }) as DataLabel[];
 
   }
-
+  
   // Define scales
   const xDomain = data.map(d => d[0]);
   const xRange = [marginLeft, width - marginRight];
@@ -240,10 +256,10 @@ export const drawBarChart = (
 
   const yValues = groupBy ? (data as GroupedDataLabel[]).flatMap((group) => group[1].map((d) => d[1])) : (data as DataLabel[]).map((d) => d[1]);
   const [minY = 0, maxY = 0] = d3.extent(yValues);
-  const yRange = [height - marginBottom, marginTop + axisPadding];
+  const yRange = [height - marginBottom, marginTop + 2 * axisPadding];
   const yAxisScale = scale === "log" ? d3.scaleLog : d3.scaleLinear;
   const y = yAxisScale().domain([minY, maxY]).range(yRange);
-
+  
   // Draw axes and borders
   const {xTicks, yTicks} = calculateTicks(data.length, scale, minY, maxY);
   drawAxes("Bar Chart", svg, dimensions, margins, x, y, [], yTicks, false);
@@ -527,15 +543,9 @@ export const drawScatterPlot = (
 
   if (xAxis && yAxis) {
       const filteredData = filteredLogs.filter((log) => log.entries[xAxis as keyof LogItemProps] && log.entries[yAxis as keyof LogItemProps]);
-      const convertedData = filteredData.map((log) => {
-          let entries = log.entries;
-          entries[xAxis] = toComputableValue(entries[xAxis]); 
-          entries[yAxis] = toComputableValue(entries[yAxis]);
-          return ({...log, entries});
-      });
-      data = convertedData.sort((a, b) => {
-          const valueA = toComputableValue(a.entries[xAxis]);
-          const valueB = toComputableValue(b.entries[xAxis]);
+      data = filteredData.sort((a, b) => {
+          const valueA = a.entries[xAxis];
+          const valueB = b.entries[xAxis];
           return valueA - valueB;
       });
   }
@@ -565,7 +575,7 @@ export const drawScatterPlot = (
               .duration(500)
               .attr("cx", d => x(d.entries[xAxis as keyof LogItemProps] as number))
               .attr("cy", d => y(d.entries[yAxis as keyof LogItemProps] as number))
-              .attr("r", 10)
+              .attr("r", 6)
               .attr("fill", "none")
               .attr("log-hover-id", d => `${d.id}-hover-area`)                    
               .attr("class", "hover-area");
@@ -580,7 +590,7 @@ export const drawScatterPlot = (
           .duration(500)
           .attr("cx", d => x(d.entries[xAxis as keyof LogItemProps] as number))
           .attr("cy", d => y(d.entries[yAxis as keyof LogItemProps] as number))
-          .attr("r", 3)
+          .attr("r", 2)
           .attr("fill", d => {
               const logEntry = logs && groupBy ? logs.find((log) => log.id === d.id)!.entries[groupBy] : undefined; 
               return logs && groupBy 

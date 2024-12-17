@@ -2,15 +2,17 @@
 
 import { Dispatch, SetStateAction } from "react";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
-import { Group } from "lucide-react";
+import { Group, Ungroup } from "lucide-react";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import SettingButton from "@/components/Common/Buttons/Setting";
 
 const PlotGroupBy = ({properties, groupBy, setGroupBy}: {properties: string[], groupBy: string | null, setGroupBy: (x: string | null) => void}) => {
+    const icon = !groupBy || groupBy === "None" ? <Group/> : <Ungroup/>;
+    const variant = !groupBy || groupBy === "None" ? "outline" : "primary";
     return (
         <BaseDropdown
             button={
-                <SettingButton icon={<Group/>} tooltip={"Group by property"}/>
+                <SettingButton icon={icon} tooltip={"Group by property"} variant={variant}/>
             }
             label={"Group plot by property"}
         >
