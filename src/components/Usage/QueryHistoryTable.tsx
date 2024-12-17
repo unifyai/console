@@ -121,7 +121,7 @@ export default function QueryHistoryTable({ queries }: QueryHistoryTableProps) {
       {selectedQuery && (
         <Sheet open={openSheet} onOpenChange={setOpenSheet}>
           {/* Adjust SheetContent to be a flex container */}
-          <SheetContent side="right" className="flex flex-col">
+          <SheetContent side="right" className="flex flex-col sm:max-w-3xl w-full">
             <SheetHeader>
               <SheetTitle>Query Details</SheetTitle>
               <SheetDescription>
