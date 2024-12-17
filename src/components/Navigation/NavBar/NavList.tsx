@@ -33,17 +33,17 @@ const NavList: NavItem[] = [
         icon: ArrowBigRightDash,
         href: "/endpoints",
       },
+      {
+        title: "Usage",
+        icon: ChartLine,
+        href: "/usage",
+      },
     ],
   },
   {
     title: "Evals",
     icon: ClipboardPen,
     href: "/evals",
-  },
-  {
-    title: "Usage",
-    icon: ChartLine,
-    href: "/usage",
   },
   {
     title: "Billing",
