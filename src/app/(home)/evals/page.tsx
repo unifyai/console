@@ -3,16 +3,12 @@ import { getCurrentUser } from "@/lib/user/user";
 import { Suspense } from "react";
 import Main from "@/components/Evals/Main";
 import {
-    deleteDataset,
     deleteLogs,
     deleteProject,
-    getDatasetEntries,
-    getDatasets,
     getLogMetrics,
     getLogs,
     getProjects,
     createProject,
-    renameDataset,
     renameProject
 } from "./actions";
 
@@ -35,12 +31,6 @@ const EvalsPage = async (
         delete: await deleteProject(apiKey)
     };
     const logsActions = { get: await getLogs(apiKey), getMetrics: await getLogMetrics(apiKey), delete: await deleteLogs(apiKey) }
-    const datasetsActions = {
-        getEntries: await getDatasetEntries(apiKey),
-        get: await getDatasets(apiKey),
-        rename: await renameDataset(apiKey),
-        delete: await deleteDataset(apiKey)
-    };
 
     return (
         <Suspense fallback={<SkeletonLoader />}>
@@ -48,7 +38,6 @@ const EvalsPage = async (
                 searchParams={searchParams}
                 projectsActions={projectsActions}
                 logsActions={logsActions}
-                datasetsActions={datasetsActions}
             />
         </Suspense>
     );

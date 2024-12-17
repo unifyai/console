@@ -2,23 +2,15 @@ import { Suspense } from "react";
 import { Eye, Database, ScatterChart } from "lucide-react";
 import LogsPlot from "./Plot/Plot";
 import Selection from "./Selection/Selection";
-import Datasets from "./Datasets/Main";
 import { LogProps, LogItemProps } from "@/types/evals/logs";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/UI/tabs"
-import { DatasetProps } from "@/types/evals/datasets";
 import { ResponseProps } from "@/types/common";
 
-const Details = ({ project, params, logs, datasetsActions }: {
+const Details = ({ params, logs}: {
     project: string | undefined,
     params: LogItemProps,
     logs: LogProps[] | undefined,
-    datasetsActions: {
-		getEntries: (project: string) => Promise<DatasetProps[]>
-		get: () => Promise<{ name: string }[]>,
-		rename: (name: string, newName: string) => Promise<ResponseProps>,
-		delete: (name: string) => Promise<ResponseProps>,
-	}
 }) => {
     return (
         <Tabs defaultValue="View" className="w-full h-full tutorial-details-panel">
@@ -31,13 +23,6 @@ const Details = ({ project, params, logs, datasetsActions }: {
                         <Eye/>
                         {"View"}
                     </TabsTrigger>
-                    <TabsTrigger
-                    value="Datasets" 
-                    className="flex flex-row gap-2 data-[state=active]:text-accent hover:text-primary"
-                    >
-                        <Database/>
-                        {"Datasets"}
-                    </TabsTrigger>
                     <TabsTrigger 
                     value="Plot" 
                     className="flex flex-row gap-2 data-[state=active]:text-accent hover:text-primary"
@@ -49,11 +34,6 @@ const Details = ({ project, params, logs, datasetsActions }: {
             </TabsList>
             <TabsContent value="View" className="w-full h-[calc(100%-50px)] tutorial-selection-pane">
                 <Selection params={params} logs={logs} />
-            </TabsContent>
-            <TabsContent value="Datasets" className="w-full h-[calc(100%-50px)] tutorial-datasets-pane">
-                <Suspense fallback={<SkeletonLoader />}>
-                    <Datasets project={project} datasetsActions={datasetsActions} />
-                </Suspense>
             </TabsContent>
             <TabsContent value="Plot" className="w-full h-[calc(100%-50px)] tutorial-plot-pane">
                 <LogsPlot logs={logs} />

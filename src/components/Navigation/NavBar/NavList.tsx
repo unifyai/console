@@ -10,6 +10,7 @@ import {
   ArrowBigRightDash,
   Globe,
   ClipboardPen,
+  TestTubeDiagonal,
 } from "lucide-react";
 
 const NavList: NavItem[] = [
@@ -44,6 +45,11 @@ const NavList: NavItem[] = [
     title: "Evals",
     icon: ClipboardPen,
     href: "/evals",
+  },
+  {
+    title: "Datasets",
+    icon: TestTubeDiagonal,
+    href: "/datasets",
   },
   {
     title: "Billing",

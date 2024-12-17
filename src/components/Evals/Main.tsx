@@ -7,9 +7,8 @@ import Details from "./Details/Details";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { Suspense } from "react";
 import { ResponseProps } from "@/types/common";
-import { DatasetProps } from "@/types/evals/datasets";
 
-const Main = async ({ searchParams, projectsActions, logsActions, datasetsActions }: {
+const Main = async ({ searchParams, projectsActions, logsActions }: {
 	searchParams: { project?: string, metric?: string, filters?: string, common_filter?: string },
 	projectsActions: {
 		get: () => Promise<string[]>,
@@ -22,12 +21,6 @@ const Main = async ({ searchParams, projectsActions, logsActions, datasetsAction
 			project: string, filterExpression: string | null, metricName: string, keyName: string
 		) => Promise<number>,
 		delete: (ids: string[]) => Promise<ResponseProps>
-	},
-	datasetsActions: {
-		getEntries: (project: string) => Promise<DatasetProps[]>
-		get: () => Promise<{ name: string }[]>,
-		rename: (name: string, newName: string) => Promise<ResponseProps>,
-		delete: (name: string) => Promise<ResponseProps>,
 	}
 }) => {
 	// get projects
@@ -101,7 +94,6 @@ const Main = async ({ searchParams, projectsActions, logsActions, datasetsAction
 							project={project}
 							params={params}
 							logs={logs}
-							datasetsActions={datasetsActions}
 						/>
 					</Suspense>
 				}
@@ -111,7 +103,6 @@ const Main = async ({ searchParams, projectsActions, logsActions, datasetsAction
 							project={project}
 							params={params}
 							logs={logs}
-							datasetsActions={datasetsActions}
 						/>
 					</Suspense>
 				}
