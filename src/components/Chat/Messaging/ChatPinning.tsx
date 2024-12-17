@@ -32,7 +32,7 @@ const ChatPinning = ({
             <DropdownMenuTrigger asChild>
               <div
                 className={`p-1 border rounded-lg bg-muted cursor-pointer relative ${
-                  !isEndpointPinned(endpoint) ? "opacity-50" : ""
+                  !isEndpointPinned(endpoint) ? "opacity-30" : ""
                 }`}
               >
                 <Image
@@ -44,7 +44,7 @@ const ChatPinning = ({
                 />
                 {/* Overlay an EyeOff icon if unpinned */}
                 {!isEndpointPinned(endpoint) && (
-                  <EyeOff className="absolute top-0 right-0 w-4 h-4 text-muted-foreground" />
+                  <EyeOff className="absolute top-1 right-1 w-5 h-5 text-muted-foreground" />
                 )}
               </div>
             </DropdownMenuTrigger>
