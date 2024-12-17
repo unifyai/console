@@ -227,7 +227,7 @@ export default function Usage() {
               {hasNextPage && (
                 <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
                   {isFetchingNextPage ? (
-                    <Loader2 className="animate-spin" />
+                    <Loader2 className="animate-spin text-primary" />
                   ) : (
                     "Load more"
                   )}
