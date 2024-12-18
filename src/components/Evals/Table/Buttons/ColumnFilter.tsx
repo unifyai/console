@@ -43,14 +43,14 @@ const ColumnFilter = ({ setFilters, filters, column, columnTypes }: {
     const onSubmit = (selectedFilters: { [fn: string]: string }) => {
         const newFilters = { ...filters };
         Object.entries(selectedFilters).forEach(([key, value]) => {
-            if (key == ">=" && !Number.isNaN(value) && ["int", "float"].includes(columnTypes[property]))
-                value = `${parseInt(value) - 1}`;
             if (value === "")
                 newFilters[property] = {};
             else {
                 newFilters[property] = {
                     ...newFilters[property],
-                    [key]: (value.startsWith('"') && value.endsWith('"')) ? value : `"${value}"`
+                    [key]: (
+                        value.startsWith('"') && value.endsWith('"')
+                    ) || (["int", "float"].includes(columnTypes[property])) ? value : `"${value}"`
                 };
             }
         });
