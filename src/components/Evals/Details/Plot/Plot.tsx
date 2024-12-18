@@ -16,6 +16,7 @@ import PlotAxis from "./Buttons/PlotAxis";
 import InfoCard from "./InfoCard";
 import GroupingKey from "./GroupingKey";
 import { useQueryState } from "nuqs";
+import { GroupingColors } from "@/types/evals/plot";
 
 const LogsPlot = ({ logs }: {
     logs: LogProps[] | undefined,
@@ -47,6 +48,7 @@ const LogsPlot = ({ logs }: {
     const [selectedXAxisProperty, setSelectedXAxisProperty] = useQueryState("x_axis");
     const [selectedYAxisProperty, setSelectedYAxisProperty] = useQueryState("y_axis");
     const [groupByProperty, setGroupByProperty] = useQueryState("plot_group_by");
+    const [groupByColors, setGroupByColors] = useState<GroupingColors>([]);
 
     // Draw plot
     useEffect (() => {
@@ -58,11 +60,11 @@ const LogsPlot = ({ logs }: {
         
         // Draw selected plot type        
         if (plotType === "Line Chart") {
-            drawLineChart(svg, scale, dimensions, margins, axisPadding, selectedXAxisProperty, selectedYAxisProperty, groupByProperty, numericLogs, numericAxisProperties);
+            drawLineChart(svg, scale, dimensions, margins, axisPadding, selectedXAxisProperty, selectedYAxisProperty, groupByProperty, setGroupByColors, numericLogs, numericAxisProperties);
         } else if (plotType  === "Bar Chart") {
-            drawBarChart(svg, scale, dimensions, margins, axisPadding, selectedXAxisProperty, selectedYAxisProperty, groupByProperty, logs ?? [], axisProperties);
+            drawBarChart(svg, scale, dimensions, margins, axisPadding, selectedXAxisProperty, selectedYAxisProperty, groupByProperty, setGroupByColors, logs ?? [], axisProperties);
         } else {
-            drawScatterPlot(svg, logs, scale, setInfoCardData, setInfoCardPosition, dimensions, margins, axisPadding, selectedXAxisProperty, selectedYAxisProperty, groupByProperty, numericLogs, numericAxisProperties);
+            drawScatterPlot(svg, logs, scale, setInfoCardData, setInfoCardPosition, dimensions, margins, axisPadding, selectedXAxisProperty, selectedYAxisProperty, groupByProperty, setGroupByColors, numericLogs, numericAxisProperties);
         }
                 
         // Add placeholder text if either properties are not selected
@@ -115,7 +117,7 @@ const LogsPlot = ({ logs }: {
                 <PlotReset setSelectedXAxisProperty={setSelectedXAxisProperty} setSelectedYAxisProperty={setSelectedYAxisProperty} setGroupByProperty={setGroupByProperty}/>
             </div>
             <div className="absolute top-24 right-3 z-10 PlotGroupBy">
-                <PlotGroupBy properties={numericAxisProperties} groupBy={groupByProperty} setGroupBy={setGroupByProperty}/>
+                <PlotGroupBy properties={numericAxisProperties} groupBy={groupByProperty} setGroupBy={setGroupByProperty} setGroupByColors={setGroupByColors}/>
             </div>
             <div className="absolute top-36 right-3 z-10 PlotScale">
                 <PlotScale scale={scale} setScale={setScale}/>
@@ -132,12 +134,8 @@ const LogsPlot = ({ logs }: {
             <g className="xAxis"/>
             <g className="yAxis"/>
         </svg>
-        {groupByProperty && groupByProperty != "None" && 
-            <GroupingKey
-                groupBy={groupByProperty}
-                logs={numericLogs}
-            />
-        }
+        {groupByProperty && groupByProperty != "None" && groupByColors.length > 0 && <GroupingKey groupBy={groupByProperty} groupByColors={groupByColors}/>}
+
         {/* Hover card for scatter plot */}
         {infoCardData && 
             <InfoCard 

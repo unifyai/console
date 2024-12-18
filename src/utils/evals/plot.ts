@@ -3,7 +3,7 @@
 import * as d3 from "d3";
 import { Dispatch, SetStateAction } from "react";
 import { LogProps, LogItemProps } from "@/types/evals/logs";
-import { DataLabel, DataPoint, GroupedDataLabel, GroupedDataPoint } from "@/types/evals/plot";
+import { DataLabel, DataPoint, GroupedDataLabel, GroupedDataPoint, GroupingColors } from "@/types/evals/plot";
 import { toComputableValue, computeStatistic } from "./common";
 import { stringToColor } from "../misc/color";
 import { metrics } from "@/constants/logs";
@@ -194,6 +194,7 @@ export const drawBarChart = (
   selectedXAxisProperty: string | null,
   selectedYAxisProperty: string | null,
   groupBy: string | null,
+  setGroupByColors: Dispatch<SetStateAction<GroupingColors>>,
   filteredLogs: LogProps[],
   axisProperties: string[]
 ) => {
@@ -228,7 +229,7 @@ export const drawBarChart = (
           ?  d3.groups(filteredData, d => d.entries[groupBy])
               .map(([groupKey, groupData]) => {
                   const group = groupKey.toString();
-                  const values = axisProperties.filter(property => property != xAxis)
+                  const values = axisProperties.filter(property => property === xAxis)
                   .map(property => {
                       const propertyData = groupData.map(data => toComputableValue(data.entries[property]));
                       const metric = computeStatistic(yAxis, propertyData);
@@ -267,7 +268,15 @@ export const drawBarChart = (
 
   // Draw rectangles
   if (groupBy) {
-      const color = d3.scaleOrdinal().domain(axisProperties).range(d3.schemeSpectral[axisProperties.length]).unknown("#ccc");
+      // let domain = (data as GroupedDataLabel[]).flatMap(d => d[1].map(sd => sd[0] as string))
+      let domain = (data as GroupedDataLabel[]).map(d => d[0])
+      domain = Array.from(new Set(domain))
+      const color = d3.scaleOrdinal(d3.schemeCategory10).domain(domain);      
+      setGroupByColors(
+        // domain.map((key) => ({key: key, color: color(key)}))
+        []
+      )
+
       const subX = xAxisScale()
           .domain(axisProperties.filter(property => property != xAxis))
           .range([0, x.bandwidth()]);
@@ -329,6 +338,7 @@ export const drawLineChart = (
   selectedXAxisProperty: string | null,
   selectedYAxisProperty: string | null,
   groupBy: string | null,
+  setGroupByColors: Dispatch<SetStateAction<GroupingColors>>,
   filteredLogs: LogProps[],
   axisProperties: string[]
 ) => {
@@ -421,6 +431,9 @@ export const drawLineChart = (
       // Create a color scale for different groups
       const domain = (data as GroupedDataPoint[]).map((d) => d[0]);
       const color = d3.scaleOrdinal(d3.schemeCategory10).domain(domain);
+      setGroupByColors(
+        data.map(d => ({key: d[0].toString(), color: color(d[0].toString())}))
+      )
 
       const points = (data as GroupedDataPoint[]).flatMap((group) => group[1].map(d => [x(d[0]) as number, y(d[1]) as number, group[0] as string]));
       
@@ -522,6 +535,7 @@ export const drawScatterPlot = (
   selectedXAxisProperty: string | null,
   selectedYAxisProperty: string | null,
   groupBy: string | null,
+  setGroupByColors: Dispatch<SetStateAction<GroupingColors>>,
   filteredLogs: LogProps[],
   axisProperties: string[]
 ) => {
@@ -580,34 +594,44 @@ export const drawScatterPlot = (
               .attr("log-hover-id", d => `${d.id}-hover-area`)                    
               .attr("class", "hover-area");
 
-  svg.selectAll("circle.data-point")
-      .data(data)
-      .join("circle")
-      .on("mouseover", (event, data) => hoverOnPoint(event, data))
-      .on("mousemove", (event, data) => moveOnPoint(event, data))
-      .on("mouseout", (event, data) => leavePoint(event, data))
-          .transition()
-          .duration(500)
-          .attr("cx", d => x(d.entries[xAxis as keyof LogItemProps] as number))
-          .attr("cy", d => y(d.entries[yAxis as keyof LogItemProps] as number))
-          .attr("r", 2)
-          .attr("fill", d => {
-              const logEntry = logs && groupBy ? logs.find((log) => log.id === d.id)!.entries[groupBy] : undefined; 
-              return logs && groupBy 
-                      ? logEntry
-                          ? stringToColor(JSON.stringify(logEntry))
-                          : "transparent"
-                      : "black";
-          })
-          .attr("stroke", d => {
-              const logEntry = logs && groupBy ? logs.find((log) => log.id === d.id)!.entries[groupBy] : undefined; 
-              return logs && groupBy 
-                      ? logEntry
-                          ? stringToColor(JSON.stringify(logEntry))
-                          : "transparent"
-                      : "black";
-          })
-          .attr("class", "data-point");
+  if (groupBy) {
+    let domain = data.map(d => JSON.stringify(d.entries[groupBy])) as string[];
+    domain = Array.from(new Set(domain))
+    const color = d3.scaleOrdinal(d3.schemeCategory10).domain(domain);
+    setGroupByColors(
+        domain.map((key) => ({key: key, color: color(key)}))
+    )
+
+    svg.selectAll("circle.data-point")
+        .data(data)
+        .join("circle")
+        .on("mouseover", (event, data) => hoverOnPoint(event, data))
+        .on("mousemove", (event, data) => moveOnPoint(event, data))
+        .on("mouseout", (event, data) => leavePoint(event, data))
+            .transition()
+            .duration(500)
+            .attr("cx", d => x(d.entries[xAxis as keyof LogItemProps] as number))
+            .attr("cy", d => y(d.entries[yAxis as keyof LogItemProps] as number))
+            .attr("r", 2)
+            .attr("fill", (d: LogProps) => color(JSON.stringify(d.entries[groupBy])) as string)
+            .attr("stroke", (d: LogProps) => color(JSON.stringify(d.entries[groupBy])) as string)
+            .attr("class", "data-point");
+  } else {
+    svg.selectAll("circle.data-point")
+        .data(data)
+        .join("circle")
+        .on("mouseover", (event, data) => hoverOnPoint(event, data))
+        .on("mousemove", (event, data) => moveOnPoint(event, data))
+        .on("mouseout", (event, data) => leavePoint(event, data))
+            .transition()
+            .duration(500)
+            .attr("cx", d => x(d.entries[xAxis as keyof LogItemProps] as number))
+            .attr("cy", d => y(d.entries[yAxis as keyof LogItemProps] as number))
+            .attr("r", 2)
+            .attr("fill", foreground)
+            .attr("stroke", foreground)
+            .attr("class", "data-point");
+  }
 
   // Point interaction functions
   function hoverOnPoint (event: any, data: LogProps) {
