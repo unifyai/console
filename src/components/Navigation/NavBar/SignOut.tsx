@@ -27,12 +27,7 @@ const SignOutButton = () => {
   const router = useRouter();
 
   const handleSignOut = async () => {
-    console.log('SignOut initiated');
-    console.log('Before signout:', await getSession());
     await signOut({ redirect: false });
-    console.log('After signout:', await getSession());
-    console.log('Local storage:', localStorage);
-    console.log('Cookies:', document.cookie);
     router.push("/login");
   }
   
