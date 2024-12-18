@@ -24,8 +24,7 @@ const filterModes = [
     { icon: <FaLessThanEqual />, name: "Lower Or Equal", fn: "<=", description: "Values lower than or equal to the input number" },
 ];
 
-const ColumnFilter = ({ setError, setFilters, filters, column }: {
-    setError: Dispatch<SetStateAction<string | undefined>>,
+const ColumnFilter = ({ setFilters, filters, column }: {
     setFilters: (x: { [key: string]: { [fn: string]: string } }) => void,
     filters: { [key: string]: { [fn: string]: string } },
     column: Column<any | unknown>
@@ -42,16 +41,15 @@ const ColumnFilter = ({ setError, setFilters, filters, column }: {
 
     const onSubmit = (selectedFilters: { [fn: string]: string }) => {
         const newFilters = { ...filters };
-        let isError = false;
         Object.entries(selectedFilters).forEach(([key, value]) => {
-            if (value.includes(" ") && !/^(['"])(.*?)\1$/.test(value))
-                isError = true;
+            if (key == ">=" && !Number.isNaN(value))
+                value = `${parseInt(value) - 1}`;
             if (value === "")
                 newFilters[property] = {};
             else {
                 newFilters[property] = {
                     ...newFilters[property],
-                    [key]: value
+                    [key]: (value.startsWith('"') && value.endsWith('"')) ? value : `"${value}"`
                 };
             }
         });
@@ -59,12 +57,7 @@ const ColumnFilter = ({ setError, setFilters, filters, column }: {
         newFilters[property] = Object.fromEntries(
             Object.entries(newFilters[property]).filter(([key]) => selectedKeys.includes(key))
         );
-        if (isError) {
-            setError("Please wrap your filter string with quotes as it contains whitespace characters.");
-            setSelectedFilters(filters[property] ?? {});
-        }
-        else
-            setFilters(newFilters);
+        setFilters(newFilters);
         setOpen(false);
         setChanged(false);
         setNewRow(false);

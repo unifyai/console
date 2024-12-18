@@ -51,13 +51,6 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 	const [pending, setPending] = useState(false);
 	const [summaryPending, setSummaryPending] = useState(false);
 	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState<string>();
-
-	// error message displayed for 5s
-	useEffect(() => {
-		if (error)
-			setTimeout(() => setError(undefined), 3000)
-	}, [error]);
 
 	// get logs selected for comparison/details
 	const [comparisonLogsParam, setComparisonLogsParam] = useQueryState("comparison");
@@ -324,7 +317,6 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 								{loading && <div className="rounded-lg absolute z-20 w-full h-full flex justify-center">
 									<Loader2 className="animate-spin my-36" />
 								</div>}
-								{error && <div className="text-sm text-red-500 m-1">{error}</div>}
 								<DataTable
 									data={logs}
 									columns={columns}
@@ -333,7 +325,6 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 									tableHotkeys={useTableHotkeys}
 									onRowClick={(table, row, event) => onRowClick(state, setState, table, row, event)}
 									ColumnFilters={(column) => <ColumnFilter
-										setError={setError}
 										setFilters={setLogsFilters}
 										filters={logsFilters}
 										column={column}
