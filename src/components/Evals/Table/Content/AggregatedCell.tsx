@@ -18,9 +18,17 @@ const AggregatedCell = ({cell, row, params, metric}: {
 }) => {
     const columnID = cell.column.columnDef.id!;
     const metricTooltip = `${metric} ${cell.column.columnDef.meta?.dataType() === "number" ? "value" : "length"}`;
-    const data = row.subRows.map((subRow) => {
+
+    // Handle multi-level grouping
+    let leafRows;
+    if (row.subRows.some(subRow => subRow.getLeafRows().length > 0))
+      leafRows = row.subRows.map(subRow => subRow.getLeafRows()).flat()
+    else
+      leafRows = row.subRows
+
+    const data = leafRows.map((leafRow) => {
       const parent = cell.column.columnDef.meta?.columnType
-      const original = subRow.original;
+      const original = leafRow.original;
       return parent === "params" ? extractParamsValues(original.params, params) : original.entries
     }) ?? [];
     const statistic = columnStatistic(columnID, metric, data);
