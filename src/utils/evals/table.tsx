@@ -54,7 +54,7 @@ export function handleDragEnd(
 export function columnStatistic(columnID: string, metric: string, data: LogItemProps[]) {
 	const originalID = columnID.replace("entries_", "").replace("params_", "");
 	const values = data.map((entries) => toComputableValue(entries[originalID as keyof typeof entries]));
-	return computeStatistic(metric, values);
+  return computeStatistic(metric, values);
 }
 
 /* 
@@ -209,12 +209,13 @@ export const nestedColumns = (
             let cellValue = cell.getValue();
             if (type === "params") cellValue = data.params[node.path][cellValue as string];
             if (isImage(cellValue)) return <ImageDisplay value={cellValue as string} className="object-scale-down h-5 w-5"/>
-            const displayValue = cellValue != undefined ? JSON.stringify(cellValue).trimStart() : "";
+            if (typeof cellValue === "number") return cellValue.toExponential(2);
+            const displayValue = cellValue != undefined ? JSON.stringify(cellValue).trimStart().replace(/^"|"$/g, '') : "";
             return displayValue.slice(0, 50);
           },
           meta: {
               dataType: () => {
-                  const columnValues = data.logs.map(log => log.entries).flatMap((entry) => entry[node.path]).filter((value) => value != undefined);
+                  const columnValues = data.logs.map(log => type === "params" ? log.params : log.entries).flatMap((entry) => entry[node.path]).filter((value) => value != undefined);
                   const types = columnValues.map((value) => typeof value).map((type) => type === "number" ? type : "string");
                   return dominantType(types);
               },

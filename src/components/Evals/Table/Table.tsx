@@ -338,7 +338,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 										filters={logsFilters}
 										column={column}
 									/>}
-									AggregatedCell={(cell, row) => <AggregatedCell cell={cell} row={row} metric="mean" />}
+									AggregatedCell={(cell, row) => <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />}
 									FooterCell={(column) => column.columnDef.id === "RowNumbering"
 										? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric} />
 										: <SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} />
