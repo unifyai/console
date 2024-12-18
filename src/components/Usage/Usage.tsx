@@ -69,8 +69,6 @@ export default function Usage() {
     return formatDateForPicker(new Date(endDate));
   }, [endDate]);
 
-  console.log("selected models:", selectedModels);
-  console.log("selected providers:", selectedProviders);
 
   const { data: queryData, isLoading: isQueryLoading, fetchNextPage, isFetchingNextPage, hasNextPage } = useUsageHistoryQuery({
     start: formattedStartDate || "",
@@ -80,13 +78,11 @@ export default function Usage() {
     tags: selectedTags || undefined,
   });
 
-  console.log("hasNextPage:", hasNextPage);
 
   const allQueries = useMemo(() => {
     //ts.ignore
     if (!queryData?.pages) return [];
     //ts.ignore
-    console.log("queryData:", queryData);
     return queryData?.pages.flatMap((page) => page.queries);
   }, [queryData]);
 
