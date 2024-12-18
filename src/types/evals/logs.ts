@@ -25,6 +25,10 @@ export interface LogsResponseProps {
     logs: LogProps[]
 }
 
+export interface LogColumnsProps {
+    [name: string]: string
+}
+
 export interface HeaderNode {
     name: string;
     path: string;

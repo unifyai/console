@@ -4,7 +4,7 @@ import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
 import FileDirectory from "@/components/Directory/FileDirectory";
-import { LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { LogColumnsProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import { Row, ColumnDef, ColumnFiltersState, ColumnSort, ColumnPinningState, Updater, ColumnSizingState } from "@tanstack/react-table";
 import React, { useEffect, useState } from "react";
 import { Filter, Loader2 } from 'lucide-react';
@@ -24,7 +24,7 @@ import CreateProject from "./Buttons/CreateProject";
 import ActionButton from "@/components/Common/Buttons/Action";
 import GlobalFilter from "./Buttons/GlobalFilter";
 
-const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, paramsProperties, metrics, logsData, projectActions, logsActions }: {
+const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, paramsProperties, metrics, logsData, logColumns, projectActions, logsActions }: {
 	searchParams: { project?: string, metric?: string, filters?: string, common_filter?: string },
 	projects: string[] | undefined,
 	project: string | undefined,
@@ -33,6 +33,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 	paramsProperties: string[],
 	metrics: { [key: string]: number }
 	logsData: LogsResponseProps,
+	logColumns: LogColumnsProps,
 	projectActions: {
 		get: () => Promise<string[]>,
 		create: (name: string) => Promise<ResponseProps>,
@@ -87,7 +88,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 	// getting columns from the properties
 	const entriesTree = buildTree(entriesProperties);
 	const paramsTree = buildTree(paramsProperties);
-	const columns: ColumnDef<LogProps>[] = !logsData ? [] : [
+	const columns: ColumnDef<LogProps>[] = [
 		{
 			id: "RowNumbering",
 			cell: ({ row }: { row: Row<LogProps> }) => {
@@ -312,39 +313,35 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 				? <SkeletonLoader />
 				: <div className="w-full h-fit overflow-auto tutorial-logs-table">
 					{project                    // If project selected
-						? logs.length > 0       // If logs data found
-							? <div className="relative flex-col gap-2">
-								{loading && <div className="rounded-lg absolute z-20 w-full h-full flex justify-center">
-									<Loader2 className="animate-spin my-36" />
-								</div>}
-								<DataTable
-									data={logs}
-									columns={columns}
-									state={state}
-									setState={setState}
-									tableHotkeys={useTableHotkeys}
-									onRowClick={(table, row, event) => onRowClick(state, setState, table, row, event)}
-									ColumnFilters={(column) => <ColumnFilter
-										setFilters={setLogsFilters}
-										filters={logsFilters}
-										column={column}
-									/>}
-									AggregatedCell={(cell, row) => <AggregatedCell cell={cell} row={row} metric="mean" />}
-									FooterCell={(column) => column.columnDef.id === "RowNumbering"
-										? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric} />
-										: <SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} />
-									}
-									ExtraComponents={(table) => <>
-										<DeleteRows
-											selectedRows={table.getSelectedRowModel().rows}
-											deleteLogs={logsActions.delete}
-										/>
-									</>}
-								/>
-							</div>
-							: <BaseTable items={[
-								{ "Entries": <p>No logs found. Start running local evaluations as shown in this <a href="https://docs.unify.ai/data_flywheel/teaching_assistant" target="_blank" className="font-bold underline text-primary">getting started</a> example.</p> }
-							]} />
+						? <div className="relative flex-col gap-2">
+							{loading && <div className="rounded-lg absolute z-20 w-full h-full flex justify-center">
+								<Loader2 className="animate-spin my-36" />
+							</div>}
+							<DataTable
+								data={logs}
+								columns={columns}
+								state={state}
+								setState={setState}
+								tableHotkeys={useTableHotkeys}
+								onRowClick={(table, row, event) => onRowClick(state, setState, table, row, event)}
+								ColumnFilters={(column) => <ColumnFilter
+									setFilters={setLogsFilters}
+									filters={logsFilters}
+									column={column}
+								/>}
+								AggregatedCell={(cell, row) => <AggregatedCell cell={cell} row={row} metric="mean" />}
+								FooterCell={(column) => column.columnDef.id === "RowNumbering"
+									? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric} />
+									: <SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} />
+								}
+								ExtraComponents={(table) => <>
+									<DeleteRows
+										selectedRows={table.getSelectedRowModel().rows}
+										deleteLogs={logsActions.delete}
+									/>
+								</>}
+							/>
+						</div>
 						: <BaseTable items={[{ "Entries": "Select a project to display your logs." }]} />
 					}
 				</div>}

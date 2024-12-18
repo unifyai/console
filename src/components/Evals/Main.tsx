@@ -1,7 +1,7 @@
 import React from "react";
 import { DoublePanels } from "../Common/Body/DoublePanels";
 import LogsTable from "./Table/Table";
-import { LogsResponseProps } from "@/types/evals/logs";
+import { LogColumnsProps, LogsResponseProps } from "@/types/evals/logs";
 import { extractLogsData } from "@/utils/evals/common";
 import Details from "./Details/Details";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
@@ -18,6 +18,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, datasetsAction
 		delete: (name: string) => Promise<ResponseProps>},
 	logsActions: {
 		get: (project: string, filterExpression: string | null) => Promise<LogsResponseProps>,
+		getColumns: (project: string) => Promise<LogColumnsProps>,
 		getMetrics: (
 			project: string, filterExpression: string | null, metricName: string, keyName: string
 		) => Promise<number>,
@@ -58,13 +59,18 @@ const Main = async ({ searchParams, projectsActions, logsActions, datasetsAction
 		)
 	).flat().join(" and ") : null;
 	let logsData: LogsResponseProps = { params: {}, logs: [] };
-	if (project)
-		logsData = await logsActions.get(project, filterExpression);
+	let logColumns: LogColumnsProps = {}
+	if (project) {
+		[logsData, logColumns] = await Promise.all([
+			logsActions.get(project, filterExpression),
+			logsActions.getColumns(project)
+		]);
+	}
 
 	// process log data for display
-	const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData);
+	const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData, logColumns);
 
-	const allProps = [...entriesProperties, ...paramsProperties];
+	const allProps = logs.length ? [...entriesProperties, ...paramsProperties] : [];
 	const metricValues = await Promise.all(allProps.map(async (key) =>
 		logsActions.getMetrics(
 			project!, filterExpression, searchParams.metric ? searchParams.metric : "mean", key
@@ -84,6 +90,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, datasetsAction
 				projects={projects}
 				project={project}
 				logs={logs}
+				logColumns={logColumns}
 				entriesProperties={entriesProperties}
 				paramsProperties={paramsProperties}
 				metrics={metrics}

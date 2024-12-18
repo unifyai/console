@@ -13,7 +13,8 @@ import {
     getProjects,
     createProject,
     renameDataset,
-    renameProject
+    renameProject,
+    getLogColumns
 } from "./actions";
 
 
@@ -34,7 +35,12 @@ const EvalsPage = async (
         rename: await renameProject(apiKey),
         delete: await deleteProject(apiKey)
     };
-    const logsActions = { get: await getLogs(apiKey), getMetrics: await getLogMetrics(apiKey), delete: await deleteLogs(apiKey) }
+    const logsActions = {
+        get: await getLogs(apiKey),
+        getColumns: await getLogColumns(apiKey),
+        getMetrics: await getLogMetrics(apiKey),
+        delete: await deleteLogs(apiKey)
+    }
     const datasetsActions = {
         getEntries: await getDatasetEntries(apiKey),
         get: await getDatasets(apiKey),
