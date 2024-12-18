@@ -24,10 +24,11 @@ const filterModes = [
     { icon: <FaLessThanEqual />, name: "Lower Or Equal", fn: "<=", description: "Values lower than or equal to the input number" },
 ];
 
-const ColumnFilter = ({ setFilters, filters, column }: {
+const ColumnFilter = ({ setFilters, filters, column, columnTypes }: {
     setFilters: (x: { [key: string]: { [fn: string]: string } }) => void,
     filters: { [key: string]: { [fn: string]: string } },
-    column: Column<any | unknown>
+    column: Column<any | unknown>,
+    columnTypes: { [key: string]: string }
 }) => {
 
     const property = column.columnDef.header?.valueOf() as string;
@@ -42,7 +43,7 @@ const ColumnFilter = ({ setFilters, filters, column }: {
     const onSubmit = (selectedFilters: { [fn: string]: string }) => {
         const newFilters = { ...filters };
         Object.entries(selectedFilters).forEach(([key, value]) => {
-            if (key == ">=" && !Number.isNaN(value))
+            if (key == ">=" && !Number.isNaN(value) && ["int", "float"].includes(columnTypes[property]))
                 value = `${parseInt(value) - 1}`;
             if (value === "")
                 newFilters[property] = {};

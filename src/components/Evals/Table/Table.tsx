@@ -24,7 +24,7 @@ import CreateProject from "./Buttons/CreateProject";
 import ActionButton from "@/components/Common/Buttons/Action";
 import GlobalFilter from "./Buttons/GlobalFilter";
 
-const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, paramsProperties, metrics, logsData, logColumns, projectActions, logsActions }: {
+const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, paramsProperties, metrics, logsData, columnTypes, projectActions, logsActions }: {
 	searchParams: { project?: string, metric?: string, filters?: string, common_filter?: string },
 	projects: string[] | undefined,
 	project: string | undefined,
@@ -33,7 +33,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 	paramsProperties: string[],
 	metrics: { [key: string]: number }
 	logsData: LogsResponseProps,
-	logColumns: LogColumnsProps,
+	columnTypes: { [key: string]: string }
 	projectActions: {
 		get: () => Promise<string[]>,
 		create: (name: string) => Promise<ResponseProps>,
@@ -328,6 +328,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 									setFilters={setLogsFilters}
 									filters={logsFilters}
 									column={column}
+									columnTypes={columnTypes}
 								/>}
 								AggregatedCell={(cell, row) => <AggregatedCell cell={cell} row={row} metric="mean" />}
 								FooterCell={(column) => column.columnDef.id === "RowNumbering"

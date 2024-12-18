@@ -69,6 +69,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, datasetsAction
 
 	// process log data for display
 	const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData, logColumns);
+	const columnTypes = { ...logColumns.entries, ...logColumns.params };
 
 	const allProps = logs.length ? [...entriesProperties, ...paramsProperties] : [];
 	const metricValues = await Promise.all(allProps.map(async (key) =>
@@ -90,7 +91,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, datasetsAction
 				projects={projects}
 				project={project}
 				logs={logs}
-				logColumns={logColumns}
+				columnTypes={columnTypes}
 				entriesProperties={entriesProperties}
 				paramsProperties={paramsProperties}
 				metrics={metrics}

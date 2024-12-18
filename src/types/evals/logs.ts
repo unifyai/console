@@ -26,7 +26,7 @@ export interface LogsResponseProps {
 }
 
 export interface LogColumnsProps {
-    [name: string]: string
+    [name: string]: { [name: string]: string }
 }
 
 export interface HeaderNode {
