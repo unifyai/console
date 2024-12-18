@@ -10,7 +10,17 @@ import {
   Legend,
 } from "recharts";
 
+function convertDataToNumericTimestamps(data: CallsDataProps[]): { ts: number; request_count: number }[] {
+  return data.map((d) => ({
+    ts: new Date(d.ts).getTime(),
+    request_count: d.request_count,
+  }));
+}
+
 export function CallsPlot({ data }: { data: CallsDataProps[] }) {
+  // Convert string timestamps to numeric (ms) timestamps
+  const numericData = convertDataToNumericTimestamps(data);
+
   const renderTooltipContent = (o: any) => {
     const { payload, label } = o;
     if (!payload || payload.length === 0) {
@@ -30,7 +40,8 @@ export function CallsPlot({ data }: { data: CallsDataProps[] }) {
     );
   };
 
-  const formatXAxis = (tickItem: any) => {
+  // Now that ts is numeric, tickItem is a millisecond timestamp
+  const formatXAxis = (tickItem: number) => {
     const date = new Date(tickItem);
     return date.toLocaleString("en-US", {
       month: "short",
@@ -41,7 +52,7 @@ export function CallsPlot({ data }: { data: CallsDataProps[] }) {
     });
   };
 
-  const formatTooltipLabel = (label: any) => {
+  const formatTooltipLabel = (label: number) => {
     const date = new Date(label);
     return date.toLocaleString("en-US", {
       month: "short",
@@ -56,12 +67,13 @@ export function CallsPlot({ data }: { data: CallsDataProps[] }) {
 
   return (
     <ResponsiveContainer width="100%" height={400}>
-      <LineChart
-        data={data}
-      >
+      <LineChart data={numericData}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis
           dataKey="ts"
+          type="number"
+          scale="time"
+          domain={["auto", "auto"]}
           tickFormatter={formatXAxis}
           textAnchor="end"
           angle={-45}

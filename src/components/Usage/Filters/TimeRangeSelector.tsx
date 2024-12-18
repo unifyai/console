@@ -73,6 +73,7 @@ export const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
               day_today: "text-primary font-bold",
             }}
             initialFocus
+            numberOfMonths={2}
           />
         </PopoverContent>
       </Popover>
