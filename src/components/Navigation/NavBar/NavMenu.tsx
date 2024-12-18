@@ -46,9 +46,8 @@ export default function NavMenu() {
     (async () => {
       try {
         const sessionData = await getSession();
-        const userData = await getCurrentUser();
-        const userName = userData?.name || sessionData?.user?.name || "Profile";
-        const imageUrl = userData?.image || sessionData?.user?.image || "";
+        const userName = sessionData?.user?.name || "Profile";
+        const imageUrl = sessionData?.user?.image || "";
 
         setProfileName(userName);
 
