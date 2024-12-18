@@ -32,27 +32,37 @@ import {
   AccordionContent,
 } from "@/components/UI/accordion";
 
+const safeStringify = (value: any): string => {
+  if (typeof value === 'string') return value;
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'object' || Array.isArray(value)) {
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return '[Complex Object]';
+    }
+  }
+  return String(value);
+};
+
 const DatasetsTable = ({
   items,
   searchQuery,
 }: {
-  items: { [key: string]: string }[];
+  items: { [key: string]: any }[];
   searchQuery: string;
 }) => {
-  // State to manage the selected item and sheet visibility
   const [openSheet, setOpenSheet] = useState(false);
   const [selectedItem, setSelectedItem] = useState<{
-    [key: string]: string;
+    [key: string]: any;
   } | null>(null);
 
-  // Function to handle row click
-  const handleRowClick = (item: { [key: string]: string }) => {
+  const handleRowClick = (item: { [key: string]: any }) => {
     setSelectedItem(item);
     setOpenSheet(true);
   };
 
-  // Get columns dynamically from items
-  const columns = useMemo<ColumnDef<{ [key: string]: string }>[]>(
+  const columns = useMemo<ColumnDef<{ [key: string]: any }>[]>(
     () =>
       (items.length ? Object.keys(items[0]) : []).map((key) => ({
         accessorKey: key,
@@ -61,7 +71,6 @@ const DatasetsTable = ({
     [items]
   );
 
-  // Filter the items based on the search query (case-insensitive)
   const filteredItems = useMemo(() => {
     if (!searchQuery) {
       return items;
@@ -69,25 +78,23 @@ const DatasetsTable = ({
     const lowerCaseQuery = searchQuery.toLowerCase();
     return items.filter((item) =>
       Object.values(item).some((value) =>
-        value.toLowerCase().includes(lowerCaseQuery)
+        safeStringify(value).toLowerCase().includes(lowerCaseQuery)
       )
     );
   }, [items, searchQuery]);
 
-  // Initialize table
   const table = useReactTable({
     data: filteredItems,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    // If you have sorting or other plugins, include them here
   });
 
-  // Function to truncate text to a specified length
-  const truncateText = (text: string, maxLength: number) => {
-    if (text.length > maxLength) {
-      return text.substring(0, maxLength) + "...";
+  const truncateText = (text: any, maxLength: number) => {
+    const safeText = safeStringify(text);
+    if (safeText.length > maxLength) {
+      return safeText.substring(0, maxLength) + "...";
     }
-    return text;
+    return safeText;
   };
 
   return (
@@ -123,13 +130,7 @@ const DatasetsTable = ({
                       key={cell.id}
                       className="truncate max-w-[150px]"
                     >
-                      {truncateText(
-                        flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        ) as string,
-                        100
-                      )}
+                      {truncateText(cell.getValue(), 100)}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -148,7 +149,6 @@ const DatasetsTable = ({
         </Table>
       </ScrollArea>
 
-      {/* Sheet Component for Detailed View */}
       {selectedItem && (
         <Sheet open={openSheet} onOpenChange={setOpenSheet}>
           <SheetContent
@@ -163,7 +163,6 @@ const DatasetsTable = ({
             </SheetHeader>
             <Separator />
 
-            {/* Main content scrollable area */}
             <ScrollArea className="flex-1 px-6">
               <div className="py-4 space-y-4">
                 <Accordion type="multiple">
@@ -173,10 +172,9 @@ const DatasetsTable = ({
                         <AccordionTrigger>
                           <strong>{key}</strong>
                         </AccordionTrigger>
-                        {/* Copy Button */}
-                        {value && (
+                        {value !== null && value !== undefined && (
                           <CopyButton
-                            content={value}
+                            content={safeStringify(value)}
                             copyMessage={`${key} copied to clipboard`}
                             tooltipContent={`Copy ${key}`}
                             className="h-5 w-5"
@@ -184,7 +182,7 @@ const DatasetsTable = ({
                         )}
                       </div>
                       <AccordionContent>
-                        <p className="whitespace-pre-wrap">{value}</p>
+                        <p className="whitespace-pre-wrap">{safeStringify(value)}</p>
                       </AccordionContent>
                     </AccordionItem>
                   ))}
