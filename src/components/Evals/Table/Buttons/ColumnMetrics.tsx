@@ -9,16 +9,16 @@ import { metrics } from "@/constants/logs";
 import { ChevronDown } from "lucide-react";
 
 const style: CSSProperties = {
-    cursor: "pointer",
+    cursor: "default",
     position: "sticky",
     transition: "width transform 0.2s ease-in-out",
     whiteSpace: "nowrap",
     zIndex: 1,
 };
 
-const ColumnMetrics = ({metric, setMetric}: {metric: string, setMetric: (x: string) => void}) => {
+const ColumnMetrics = ({metric, setMetric, colSpan = 1}: {metric: string, setMetric: (x: string) => void, colSpan?: number}) => {
     return (
-        <TableCell style={style}>
+        <TableCell style={style} colSpan={colSpan} className="text-left">
             <BaseDropdown button={<ActionButton tooltip="Select metric" text={metric} icon={<ChevronDown />} />} label="Select column reduction metric">
                 {metrics.map((metric_, index) =>
                     <DropdownMenuCheckboxItem checked={metric === metric_} key={index} onClick={() => setMetric(metric_)}>
