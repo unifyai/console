@@ -11,6 +11,8 @@ import {
     createProject,
     renameProject
 } from "./actions";
+import { signOut } from "next-auth/react";
+import { redirect } from "next/navigation";
 
 
 const EvalsPage = async (
@@ -19,7 +21,8 @@ const EvalsPage = async (
     // get user and api key
     const user = await getCurrentUser();
     if (!user) {
-        return null;
+        signOut();
+        redirect('/login');
     }
     const apiKey = user.apiKey;
 

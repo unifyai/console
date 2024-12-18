@@ -4,6 +4,8 @@ import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
 import { Suspense } from 'react';
 import { getCurrentUser } from '@/lib/user/user';
 import { Metadata } from 'next';
+import { signOut } from 'next-auth/react';
+import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
   title: "Usage",
@@ -15,7 +17,8 @@ const UsagePage = async () => {
 
   if (!user) {
     console.error("User not found");
-    return null;
+    signOut();
+    redirect('/login');
   }
 
   return (

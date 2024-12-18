@@ -4,12 +4,15 @@ import { Suspense } from "react";
 import Main from "@/components/Keys/Main";
 import { listProviders, createCustomKey, deleteCustomKey, renameCustomKey, listCustomKeys } from "./actions";
 import { FileProps } from "@/types/common";
+import { signOut } from "next-auth/react";
+import { redirect } from "next/navigation";
 
 const CustomKeysPage = async () => {
     // get user and api key
     const user = await getCurrentUser();
     if (!user) {
-        return null;
+        signOut();
+        redirect('/login');
     }
     const apiKey = user.apiKey;
     const onPrem = process.env.ON_PREM;

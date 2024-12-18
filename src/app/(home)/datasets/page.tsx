@@ -8,6 +8,8 @@ import {
   renameDataset,
   deleteDataset
 } from "./actions";
+import { signOut } from "next-auth/react";
+import { redirect } from "next/navigation";
 
 const DatasetsPage = async (
   { searchParams }: { searchParams: { dataset?: string } }
@@ -15,8 +17,10 @@ const DatasetsPage = async (
   // Get user and API key
   const user = await getCurrentUser();
   if (!user) {
-    return null;
+    signOut();
+    redirect('/login');
   }
+
   const apiKey = user.apiKey;
 
   // Get server actions

@@ -4,6 +4,8 @@ import { getCurrentUser } from "@/lib/user/user";
 
 import Main from "@/components/Profile/Main";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
+import { signOut } from "next-auth/react";
+import { redirect } from "next/navigation";
 
 /**
  * ProfilePage is a Next.js page component that renders the user profile page.
@@ -19,7 +21,8 @@ const ProfilePage = async () => {
   const user = await getCurrentUser();
 
   if (!user) {
-    return null;
+    signOut();
+    redirect('/login');
   }
 
   return (

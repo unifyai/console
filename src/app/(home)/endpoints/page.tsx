@@ -5,12 +5,15 @@ import Main from "@/components/Endpoints/Main";
 import { deleteCustomEndpoint, renameCustomEndpoint, listCustomEndpoints, createCustomEndpoint } from "./actions";
 import { listCustomKeys } from "../keys/actions";
 import { FileProps } from "@/types/common";
+import { signOut } from "next-auth/react";
+import { redirect } from "next/navigation";
 
 const CustomEndpointsPage = async () => {
     // get user and api key
     const user = await getCurrentUser();
     if (!user) {
-        return null;
+        signOut();
+        redirect('/login');
     }
     const apiKey = user.apiKey;
 
