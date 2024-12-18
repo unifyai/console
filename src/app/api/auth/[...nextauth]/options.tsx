@@ -4,6 +4,7 @@ import GoogleProvider from "next-auth/providers/google";
 import GithubProvider from "next-auth/providers/github";
 import { OrchestraAdapter } from "@/lib/orchestra/orchestra-adapter";
 import { getUserByEmail } from "@/lib/user/user";
+import { TokensBreakdownPlot } from "@/components/Usage/Plots/TokensBreakdown";
 
 const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith("https://") ?? false;
 const cookiePrefix = useSecureCookies ? "__Secure-" : "";
@@ -34,8 +35,15 @@ const authOptions: AuthOptions = {
         GoogleProvider({
             clientId: process.env.GOOGLE_ID!,
             clientSecret: process.env.GOOGLE_SECRET!,
-            allowDangerousEmailAccountLinking: true
-        }),
+            authorization: {
+              params: {
+                prompt: "consent",
+                access_type: "offline",
+                response_type: "code",
+                scope: "openid email profile https://www.googleapis.com/auth/userinfo.profile"
+              }
+            }
+          }),
         GithubProvider({
             clientId: process.env.GITHUB_ID!,
             clientSecret: process.env.GITHUB_SECRET!,
@@ -80,14 +88,36 @@ const authOptions: AuthOptions = {
          * additional information should be added to it.
          *
          */
-        async jwt({ token, profile }) {
-            if (profile) {
-                token.email = profile.email;
-                token.name = profile.name;
-                token.picture = profile.image;
+        async jwt({ token, account, profile }) {          
+            if (account?.provider === 'google' && !token.picture) {
+              try {
+                const response = await fetch('https://www.googleapis.com/oauth2/v1/userinfo', {
+                  headers: { Authorization: `Bearer ${account.access_token}` },
+                });
+                const data = await response.json();
+                if (data.picture) {
+                  token.picture = data.picture;
+                } else {
+                  console.log("Google profile picture not found"); 
+                  token.picture = null;
+                }
+              } catch (error) {
+                console.error("Error fetching Google profile picture:", error);
+                token.picture = null;
+              }
+            } else if (account?.provider === 'github') {
+              if (profile && typeof profile === 'object' && 'avatar_url' in profile) {
+                if (typeof profile.avatar_url === 'string') {
+                    token.picture = profile.avatar_url;
+                  } else {
+                    token.picture = null;
+                  }
+              } else {
+                token.picture = null;
+              }
             }
             return token;
-        },
+          },
 
         /**
          * The `session` callback is called when a session is created or updated.
@@ -100,14 +130,14 @@ const authOptions: AuthOptions = {
          *
          */
         async session({ session, token }) {
-            if (session.user && token && token.email) {
-                session.user.email = token.email;
-                session.user.image = token.picture as string;
-                session.user.name = token.name;
+            if (session.user) {
+              session.user.email = token.email;
+              session.user.name = token.name;
+              session.user.image = token.picture || null;
             }
             return session;
-        },
-        }
+          },
+    }
 };
 
 export default authOptions;
