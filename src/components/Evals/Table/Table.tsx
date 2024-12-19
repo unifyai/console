@@ -315,19 +315,19 @@ const LogsTable = ({
 					}
 					<div className="flex flex-row gap-3 LogsTablePreferences">
 						{
-							project && columns.length &&
+							project && columns.length > 0 &&
 							<div className="flex flex-row gap-3">
 								<VisibilityFilter columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility} />
+								<GlobalFilter
+									searchParams={searchParams}
+									columnNames={columnIDs.slice(1)}
+									commonFilterQuery={commonFilter || undefined}
+									setCommonFilterQuery={setCommonFilter}
+									setLogsFilters={setLogsFilters}
+								/>
 							</div>
 						}
 					</div>
-					<GlobalFilter
-						searchParams={searchParams}
-						columnNames={columnIDs.slice(1)}
-						commonFilterQuery={commonFilter || undefined}
-						setCommonFilterQuery={setCommonFilter}
-						setLogsFilters={setLogsFilters}
-					/>
 				</div>
 			</div>
 			{pending
@@ -369,11 +369,13 @@ const LogsTable = ({
 						: <BaseTable items={[{ "Entries": "Select a project to display your logs." }]} />
 					}
 				</div>}
+			{project && 
 			<div className="flex justify-end">
 				<div className="w-fit">
 					<PageController totalPages={totalPages} pageNumber={pageNumber} setPageNumber={setPageNumber} />
 				</div>
 			</div>
+			}
 		</div>
 	);
 };
