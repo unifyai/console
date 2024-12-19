@@ -50,7 +50,9 @@ const ColumnFilter = ({ setFilters, filters, column, columnTypes }: {
                     ...newFilters[property],
                     [key]: (
                         value.startsWith('"') && value.endsWith('"')
-                    ) || (["int", "float"].includes(columnTypes[property])) ? value : `"${value}"`
+                    ) || (["int", "float"].includes(columnTypes[property])) || (
+                        key == "is" && !Number.isNaN(value)
+                    ) ? value : `"${value}"`
                 };
             }
         });
