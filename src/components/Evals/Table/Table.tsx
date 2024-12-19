@@ -22,9 +22,23 @@ import SummaryCell from "./Content/SummaryCell";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import CreateProject from "./Buttons/CreateProject";
 import GlobalFilter from "./Buttons/GlobalFilter";
+import PageController from "@/components/Common/Tables/Data/Buttons/PageController";
 
-const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, paramsProperties, metrics, logsData, columnTypes, projectActions, logsActions }: {
-	searchParams: { project?: string, metric?: string, filters?: string, common_filter?: string },
+const LogsTable = ({
+	searchParams,
+	projects,
+	project,
+	logs,
+	entriesProperties,
+	paramsProperties,
+	metrics,
+	logsData,
+	totalPages,
+	columnTypes,
+	projectActions,
+	logsActions
+}: {
+	searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string },
 	projects: string[] | undefined,
 	project: string | undefined,
 	logs: LogProps[],
@@ -32,6 +46,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 	paramsProperties: string[],
 	metrics: { [key: string]: number }
 	logsData: LogsResponseProps,
+	totalPages: number,
 	columnTypes: { [key: string]: string }
 	projectActions: {
 		get: () => Promise<string[]>,
@@ -40,7 +55,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 		delete: (name: string) => Promise<ResponseProps>
 	}
 	logsActions: {
-		get: (project: string, filterExpression: string | null) => Promise<LogsResponseProps>,
+		get: (project: string, filterExpression: string | null, limit: number, offset: number) => Promise<LogsResponseProps>,
 		getMetrics: (
 			project: string, filterExpression: string | null, metricName: string, keyName: string
 		) => Promise<number>,
@@ -147,6 +162,9 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 		);
 	};
 
+	// pagination
+	const [pageNumber, setPageNumber] = useQueryState("page_number", { shallow: false });
+
 	// column order
 	const [columnOrderStr, setColumnOrderStr] = useQueryState("column_order");
 	const columnOrder = columnOrderStr ? columnOrderStr.split(",") : columnIDs;
@@ -251,11 +269,14 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 			setSummaryPending(false);
 		else
 			setSummaryPending(true);
-		if (searchParams.filters == logsFiltersQuery)
+		if (
+			searchParams.filters == logsFiltersQuery
+			&& searchParams.page_number == (pageNumber || undefined)
+		)
 			setLoading(false);
 		else
 			setLoading(true);
-	}, [project, projectQuery, searchParams, metricQuery, logsFiltersQuery]);
+	}, [project, projectQuery, searchParams, metricQuery, logsFiltersQuery, pageNumber]);
 
 	return (
 		<div className="flex flex-col gap-4 w-full h-full p-3 bg-background rounded-md">
@@ -275,6 +296,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 							setColumnsPinLeft(null);
 							setColumnsPinRight(null);
 							setMetric(null);
+							setPageNumber(null);
 							setProject(projectPath);
 						}}
 						type="Projects"
@@ -345,6 +367,11 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 						: <BaseTable items={[{ "Entries": "Select a project to display your logs." }]} />
 					}
 				</div>}
+			<div className="flex justify-end">
+				<div className="w-fit">
+					<PageController totalPages={totalPages} pageNumber={pageNumber} setPageNumber={setPageNumber} />
+				</div>
+			</div>
 		</div>
 	);
 };

@@ -10,14 +10,14 @@ import { ResponseProps } from "@/types/common";
 import { DatasetProps } from "@/types/evals/datasets";
 
 const Main = async ({ searchParams, projectsActions, logsActions, datasetsActions }: {
-	searchParams: { project?: string, metric?: string, filters?: string, common_filter?: string },
+	searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string },
 	projectsActions: {
 		get: () => Promise<string[]>,
 		create: (name: string) => Promise<ResponseProps>,
 		rename: (name: string, newName: string) => Promise<ResponseProps>,
 		delete: (name: string) => Promise<ResponseProps>},
 	logsActions: {
-		get: (project: string, filterExpression: string | null) => Promise<LogsResponseProps>,
+		get: (project: string, filterExpression: string | null, limit: number, offset: number) => Promise<LogsResponseProps>,
 		getColumns: (project: string) => Promise<LogColumnsProps>,
 		getMetrics: (
 			project: string, filterExpression: string | null, metricName: string, keyName: string
@@ -58,13 +58,17 @@ const Main = async ({ searchParams, projectsActions, logsActions, datasetsAction
 			([fn, val]) => fn === "in" ? `${val} ${fn} ${key}` : `${key} ${fn} ${val}`
 		)
 	).flat().join(" and ") : null;
-	let logsData: LogsResponseProps = { params: {}, logs: [] };
+	const limit = 16;
+	const offset = (searchParams.page_number ? parseInt(searchParams.page_number) : 0) * limit;
+	let totalPages = 1;
+	let logsData: LogsResponseProps = { params: {}, logs: [], count: 0 };
 	let logColumns: LogColumnsProps = {}
 	if (project) {
 		[logsData, logColumns] = await Promise.all([
-			logsActions.get(project, filterExpression),
+			logsActions.get(project, filterExpression, limit, offset),
 			logsActions.getColumns(project)
 		]);
+		totalPages = Math.ceil(logsData.count / limit);
 	}
 
 	// process log data for display
@@ -96,6 +100,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, datasetsAction
 				paramsProperties={paramsProperties}
 				metrics={metrics}
 				logsData={logsData}
+				totalPages={totalPages}
 				projectActions={projectsActions}
 				logsActions={logsActions}
 			/>

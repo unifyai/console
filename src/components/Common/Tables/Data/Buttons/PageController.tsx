@@ -10,23 +10,24 @@ import {
     PaginationPrevious
 } from "@/components/UI/pagination";
 
-const PageController = ({ totalPages, pagination, setPagination }: {
+const PageController = ({ totalPages, pageNumber, setPageNumber }: {
     totalPages: number,
-    pagination: { [key: string]: number },
-    setPagination: (pagination: { [key: string]: number }) => void
+    pageNumber: string | null,
+    setPageNumber: (pageNumber: string | null) => void
 }) => {
+    const pageNum = parseInt(pageNumber || "0");
     totalPages = totalPages != Math.floor(totalPages) ? Math.floor(totalPages) + 1 : totalPages;
     let pageWindow = [
-        pagination.pageIndex - 2,
-        pagination.pageIndex - 1,
-        pagination.pageIndex,
-        pagination.pageIndex + 1,
-        pagination.pageIndex + 2,
+        pageNum - 2,
+        pageNum - 1,
+        pageNum,
+        pageNum + 1,
+        pageNum + 2,
     ].filter(page => page >= 0 && page < totalPages);
     if (pageWindow.length == 4) {
-        if (pageWindow[0] == pagination.pageIndex - 2)
+        if (pageWindow[0] == pageNum - 2)
             pageWindow = pageWindow.slice(1);
-        else if (pageWindow[pageWindow.length - 1] == pagination.pageIndex + 2)
+        else if (pageWindow[pageWindow.length - 1] == pageNum + 2)
             pageWindow = pageWindow.slice(0, pageWindow.length - 1);
     }
     else if (pageWindow.length == 5)
@@ -41,9 +42,7 @@ const PageController = ({ totalPages, pagination, setPagination }: {
                 <PaginationItem>
                     <PaginationPrevious
                         className="cursor-pointer"
-                        onClick={() => pagination.pageIndex > 0 ? setPagination({
-                            pageIndex: pagination.pageIndex - 1, pageSize: pagination.pageSize
-                        }) : null}
+                        onClick={() => pageNum > 0 ? setPageNumber(`${pageNum - 1}`) : null}
                     />
                 </PaginationItem>
                 {startEllipses && <PaginationItem><PaginationEllipsis /></PaginationItem>}
@@ -51,10 +50,8 @@ const PageController = ({ totalPages, pagination, setPagination }: {
                     <PaginationItem key={page}>
                         <PaginationLink
                             className="cursor-pointer"
-                            onClick={() => setPagination({
-                                pageIndex: page, pageSize: pagination.pageSize
-                            })}
-                            isActive={pagination.pageIndex == page}
+                            onClick={() => setPageNumber(`${page}`)}
+                            isActive={pageNum == page}
                         >
                             {page + 1}
                         </PaginationLink>
@@ -64,9 +61,7 @@ const PageController = ({ totalPages, pagination, setPagination }: {
                 <PaginationItem>
                     <PaginationNext
                         className="cursor-pointer"
-                        onClick={() => pagination.pageIndex < totalPages - 1 ? setPagination({
-                            pageIndex: pagination.pageIndex + 1, pageSize: pagination.pageSize
-                        }) : null}
+                        onClick={() => pageNum < totalPages - 1 ? setPageNumber(`${pageNum + 1}`) : null}
                     />
                 </PaginationItem>
             </PaginationContent>
