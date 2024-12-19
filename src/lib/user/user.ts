@@ -96,7 +96,7 @@ export async function getCurrentUser(): Promise<User | null> {
       return getUserByEmail(session.user.email);
     }
     else {
-      console.log("No user found");
+      console.error("No user email found in session");
       return null;
     }
   }

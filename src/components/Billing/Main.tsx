@@ -6,6 +6,7 @@ import AutomaticRefill from "./Refill";
 import { Separator } from "../UI/separator";
 import { Alert, AlertDescription, AlertTitle } from "../UI/alert";
 import { AlertCircle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 const Main = () => {
   const [hasPaymentMethod, setHasPaymentMethod] = useState(false);
@@ -82,7 +83,10 @@ const Main = () => {
       </div>
 
       {!billingSetupChecked ? (
-        <p>Loading...</p>
+        <div className="flex flex-col justify-center items-center h-[50vh]">
+          <Loader2 className="h-8 w-8 animate-spin mb-2 text-primary" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
       ) : (
         <>
           {!hasPaymentMethod && !isNewUser && (

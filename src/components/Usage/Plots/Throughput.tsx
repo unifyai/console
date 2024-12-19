@@ -10,7 +10,17 @@ import {
   Legend,
 } from "recharts";
 
+function convertDataToNumericTimestamps(data: ThroughputDataProps[]) {
+  return data.map((d) => ({
+    ...d,
+    ts: new Date(d.ts).getTime(),
+  }));
+}
+
 export function ThroughputPlot({ data }: { data: ThroughputDataProps[] }) {
+  // Convert string timestamps to numeric (ms) timestamps
+  const numericData = convertDataToNumericTimestamps(data);
+
   const renderTooltipContent = (o: any) => {
     const { payload, label } = o;
     if (!payload || payload.length === 0) {
@@ -35,7 +45,7 @@ export function ThroughputPlot({ data }: { data: ThroughputDataProps[] }) {
     );
   };
 
-  const formatXAxis = (tickItem: any) => {
+  const formatXAxis = (tickItem: number) => {
     const date = new Date(tickItem);
     return date.toLocaleString("en-US", {
       month: "short",
@@ -46,7 +56,7 @@ export function ThroughputPlot({ data }: { data: ThroughputDataProps[] }) {
     });
   };
 
-  const formatTooltipLabel = (label: any) => {
+  const formatTooltipLabel = (label: number) => {
     const date = new Date(label);
     return date.toLocaleString("en-US", {
       month: "short",
@@ -61,12 +71,13 @@ export function ThroughputPlot({ data }: { data: ThroughputDataProps[] }) {
 
   return (
     <ResponsiveContainer width="100%" height={400}>
-      <LineChart
-        data={data}
-      >
+      <LineChart data={numericData}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis
           dataKey="ts"
+          type="number"
+          scale="time"
+          domain={["auto", "auto"]}
           tickFormatter={formatXAxis}
           textAnchor="end"
           angle={-45}

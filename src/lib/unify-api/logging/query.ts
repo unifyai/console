@@ -62,7 +62,6 @@ export async function getQueries(
         params.append('failures', 'only');
     }
 
-    console.log("Fetching queries with params:", params.toString());
     const response = await OrchestraUserClient.get("/queries", { params: params });
     return response.data;
 }

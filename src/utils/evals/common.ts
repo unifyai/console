@@ -1,43 +1,31 @@
 import { LogColumnsProps, LogsResponseProps } from "../../types/evals/logs";
 
 import _ from "lodash";
+import { formatNumber } from "../formatNumber";
 
 /* 
     Convert object / string inputs to their length value and return the value of numeric inputs. 
 */
 export function toComputableValue(value: any) {
-  if (typeof value === "number") {
-    return value;
-  } else if (Array.isArray(value)) {
-    return value.length;
-  } else if (typeof value === "object") {
-    if (value === null) {
-      return 0;
-    }
-    else if (value instanceof Date) {
-      return value.getTime();
-    } else if (value instanceof BigInt) {
+  const type = typeof value;
+  switch (type) {
+    case "number":
+      return value;
+    case "string":
+      return value.length;
+    case "boolean":
       return Number(value);
-    } else if (value instanceof Map || value instanceof Set) {
-      return value.size;
-    } else {
-      return Object.keys(value).length;
-    }
-  } else if (typeof value === "string") {
-    // Remove all whitespaces and count number of characters
-    let numericValue;
-    if (!isNaN(parseFloat(value))) 
-      numericValue = parseFloat(value)
-    else numericValue = value.replace(/\s+/g, "").length;
-    return isNaN(numericValue) ? 0 : numericValue;
-  } else if (typeof value === "boolean") {
-    return value ? 1 : 0;
-  } else if (typeof value === "function") {
-    return value.length;
-  } else if (value instanceof RegExp) {
-    return value.source.match(/(?:$$(?:[^|]+)\|)*/g)?.length;
-  } else {
-    return 0;
+    case "object":
+      if (value === null)
+        return 0;
+      else if (Array.isArray(value))
+        return value.length
+      else if (value instanceof Date)
+        return value.getTime()
+      else
+        return Object.keys(value).length;
+    default:
+      0;
   }
 }
 
@@ -47,15 +35,15 @@ export function toComputableValue(value: any) {
 export function computeStatistic(statistic: string, data: number[]): number | string {
   switch (statistic) {
     case "mean":
-      return _.mean(data).toFixed(5);
+      return formatNumber(_.mean(data));
     case "var": {
       const variance = data.reduce((sum, value, index, array) => sum + Math.pow(value - array.reduce((sum, value) => sum + value, 0) / array.length, 2), 0) / data.length;
-      return variance.toFixed(5);
+      return formatNumber(variance);
     }
     case "std": {
       const squaredDiffs = data.reduce((sum, value, index, array) => sum + Math.pow(value - array.reduce((sum, value) => sum + value, 0) / array.length, 2), 0) / data.length;
       const std = Math.sqrt(squaredDiffs);
-      return std.toFixed(5);
+      return formatNumber(std);
     }
     case "count":
       return data.length;

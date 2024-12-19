@@ -13,8 +13,9 @@
     --light-neutral-grey: #b0bec5;
     --alert-red: #e53935;
     --soft-amber: #F6A623;
-    --deep-teal:  #008080;
+    --english-violet: #5C415D;
     --lavender: #B39DDB;
+    --celeste: #BCF4F5;
 
     /* Light theme variables */
     --background: var(--white-smoke);
@@ -72,8 +73,8 @@
     --primary: var(--lime-green);
     --primary-foreground: var(--eerie-black);
 
-    --secondary: var(--deep-teal);
-    --secondary-foreground: var(--white-smoke);
+    --secondary: var(--celeste);
+    --secondary-foreground: var(--eerie-black);
 
     --accent: var(--lime-green);
     --accent-foreground: var(--eerie-black);

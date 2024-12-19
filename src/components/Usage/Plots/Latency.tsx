@@ -10,7 +10,21 @@ import {
   Legend,
 } from "recharts";
 
+function convertDataToNumericTimestamps(data: LatencyDataProps[]): {
+  ts: number;
+  generation_time_p50: number;
+  generation_time_p95: number;
+}[] {
+  return data.map((d) => ({
+    ...d,
+    ts: new Date(d.ts).getTime(),
+  }));
+}
+
 export function LatencyPlot({ data }: { data: LatencyDataProps[] }) {
+  // Convert string timestamps to numeric (ms) timestamps
+  const numericData = convertDataToNumericTimestamps(data);
+
   const renderTooltipContent = (o: any) => {
     const { payload, label } = o;
     if (!payload || payload.length === 0) {
@@ -35,7 +49,7 @@ export function LatencyPlot({ data }: { data: LatencyDataProps[] }) {
     );
   };
 
-  const formatXAxis = (tickItem: any) => {
+  const formatXAxis = (tickItem: number) => {
     const date = new Date(tickItem);
     return date.toLocaleString("en-US", {
       month: "short",
@@ -46,7 +60,7 @@ export function LatencyPlot({ data }: { data: LatencyDataProps[] }) {
     });
   };
 
-  const formatTooltipLabel = (label: any) => {
+  const formatTooltipLabel = (label: number) => {
     const date = new Date(label);
     return date.toLocaleString("en-US", {
       month: "short",
@@ -61,12 +75,13 @@ export function LatencyPlot({ data }: { data: LatencyDataProps[] }) {
 
   return (
     <ResponsiveContainer width="100%" height={400}>
-      <LineChart
-        data={data}
-      >
+      <LineChart data={numericData}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis
           dataKey="ts"
+          type="number"
+          scale="time"
+          domain={["auto", "auto"]}
           tickFormatter={formatXAxis}
           textAnchor="end"
           angle={-45}

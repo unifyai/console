@@ -1,52 +1,68 @@
 import Image from "next/image";
-import { CircleX, Pin } from "lucide-react";
 import { Endpoint } from "@/types/chat/endpoints";
-import Tooltip from "@/components/Common/Misc/Tooltip";
 import { providers } from "@/constants/endpoints";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/UI/dropdown-menu";
+import Tooltip from "@/components/Common/Misc/Tooltip";
+import { EyeOff } from "lucide-react";
 
-const ChatPinning = ({ endpoints, side, pinTooltipContent, handleClick, handleUnselect }: {
-    endpoints: Endpoint[],
-    side: "left" | "right",
-    pinTooltipContent: string,
-    handleClick: (endpoint: Endpoint) => void,
-    handleUnselect: (endpoint: Endpoint) => void
+const ChatPinning = ({
+  endpoints,
+  handlePinToggle,
+  handleUnselectEndpoint,
+  isEndpointPinned,
+}: {
+  endpoints: Endpoint[];
+  handlePinToggle: (endpoint: Endpoint) => void;
+  handleUnselectEndpoint: (endpoint: Endpoint) => void;
+  isEndpointPinned: (endpoint: Endpoint) => boolean;
 }) => {
-    return (
-        <div className={"w-1/2 flex gap-6" + (side == "right" ? " justify-end" : "")}>
-            {endpoints.map((endpoint, index) => (
-                <div key={index} className="relative my-1">
-                    <Tooltip content={pinTooltipContent}>
-                        <Pin
-                            size={14}
-                            className={
-                                "absolute -top-2 -left-2 rounded-full hover:bg-secondary hover:text-white transition-colors "
-                                + (side == "right" ? "text-primary" : "")
-                            }
-                            onClick={() => handleClick(endpoint)}
-                        />
-                    </Tooltip>
-                    <Tooltip content={"De-select endpoint"}>
-                        <CircleX
-                            size={14}
-                            onClick={() => handleUnselect(endpoint)}
-                            className="absolute -top-2 -right-2 rounded-full text-destructive hover:bg-destructive hover:text-white transition-colors"
-                        />
-                    </Tooltip>
-                    <Tooltip content={`${endpoint.code}@${endpoint.provider}`}>
-                        <div className="p-1 border-1 rounded-lg bg-muted">
-                            <Image
-                                src={providers[endpoint.provider]}
-                                alt={endpoint.provider}
-                                width={20}
-                                height={20}
-                                className="min-w-4 cursor-default"
-                            />
-                        </div>
-                    </Tooltip>
-                </div>
-            ))}
-        </div>
-    )
+  return (
+    <div className="flex gap-6">
+      {endpoints.map((endpoint, index) => (
+        <DropdownMenu key={index}>
+          {/* Wrap the icon with Tooltip */}
+          <Tooltip content={`${endpoint.code}@${endpoint.provider}`}>
+            <DropdownMenuTrigger asChild>
+              <div
+                className={`p-1 border rounded-lg bg-muted cursor-pointer relative ${
+                  !isEndpointPinned(endpoint) ? "opacity-30" : ""
+                }`}
+              >
+                <Image
+                  src={providers[endpoint.provider]}
+                  alt={endpoint.provider}
+                  width={20}
+                  height={20}
+                  className="min-w-4"
+                />
+                {/* Overlay an EyeOff icon if unpinned */}
+                {!isEndpointPinned(endpoint) && (
+                  <EyeOff className="absolute top-1 right-1 w-5 h-5 text-muted-foreground" />
+                )}
+              </div>
+            </DropdownMenuTrigger>
+          </Tooltip>
+          <DropdownMenuContent>
+            <DropdownMenuLabel>{`${endpoint.code}@${endpoint.provider}`}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => handlePinToggle(endpoint)}>
+              {isEndpointPinned(endpoint) ? "Hide" : "Show"}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleUnselectEndpoint(endpoint)}>
+              Deselect
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ))}
+    </div>
+  );
 };
 
 export default ChatPinning;

@@ -27,7 +27,6 @@ export const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
   });
 
   const handleDateChange = (range: DateRange | undefined) => {
-    console.log(range);
     setDate(range);
     if (range?.from && range?.to) {
       const start = format(range.from, 'yyyy-MM-dd');
@@ -73,6 +72,7 @@ export const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
               day_today: "text-primary font-bold",
             }}
             initialFocus
+            numberOfMonths={2}
           />
         </PopoverContent>
       </Popover>

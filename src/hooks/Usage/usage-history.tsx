@@ -87,7 +87,6 @@ export function useUsageHistoryQuery({
 
         if (endpointStrings.length > 0) {
           params.append('endpoints', endpointStrings.join(','));
-          console.log('validCombinations', endpointStrings);
         }
       }
 
@@ -100,7 +99,6 @@ export function useUsageHistoryQuery({
         params.append('failures', 'only');
       }
 
-      console.log('params', params);
       const response = await fetch(`/api/logging/getQueries?${params}`);
 
       if (!response.ok) {
@@ -125,8 +123,6 @@ export function useUsageHistoryQuery({
       
       const nextPage = pages.length + 1;
 
-      console.log('next page', nextPage);
-      console.log('last page total pages', lastPage.total_pages);
       return nextPage <= lastPage.total_pages ? nextPage : undefined;
     },
     staleTime: 300000,

@@ -3,19 +3,17 @@ import { getCurrentUser } from "@/lib/user/user";
 import { Suspense } from "react";
 import Main from "@/components/Evals/Main";
 import {
-    deleteDataset,
     deleteLogs,
     deleteProject,
-    getDatasetEntries,
-    getDatasets,
     getLogMetrics,
     getLogs,
     getProjects,
     createProject,
-    renameDataset,
     renameProject,
     getLogColumns
 } from "./actions";
+import { signOut } from "next-auth/react";
+import { redirect } from "next/navigation";
 
 
 const EvalsPage = async (
@@ -30,7 +28,8 @@ const EvalsPage = async (
     // get user and api key
     const user = await getCurrentUser();
     if (!user) {
-        return null;
+        signOut();
+        redirect('/login');
     }
     const apiKey = user.apiKey;
 
@@ -41,18 +40,13 @@ const EvalsPage = async (
         rename: await renameProject(apiKey),
         delete: await deleteProject(apiKey)
     };
-    const logsActions = {
-        get: await getLogs(apiKey),
-        getColumns: await getLogColumns(apiKey),
-        getMetrics: await getLogMetrics(apiKey),
-        delete: await deleteLogs(apiKey)
-    }
-    const datasetsActions = {
-        getEntries: await getDatasetEntries(apiKey),
-        get: await getDatasets(apiKey),
-        rename: await renameDataset(apiKey),
-        delete: await deleteDataset(apiKey)
-    };
+    
+    const logsActions = { 
+        get: await getLogs(apiKey), 
+        getColumns: await getLogColumns(apiKey), 
+        getMetrics: await getLogMetrics(apiKey), 
+        delete: await deleteLogs(apiKey) 
+      }
 
     return (
         <Suspense fallback={<SkeletonLoader />}>
@@ -60,7 +54,6 @@ const EvalsPage = async (
                 searchParams={searchParams}
                 projectsActions={projectsActions}
                 logsActions={logsActions}
-                datasetsActions={datasetsActions}
             />
         </Suspense>
     );

@@ -1,9 +1,10 @@
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 
 const LoadingScreen: React.FC = () => {
     return (
         <div className="fixed inset-0 flex flex-col items-center justify-center bg-background z-50">
-            <div className="animate-spin rounded-full h-20 w-20 border-t-1 border-b-2 border-primary mb-10"></div>
+            <Loader2 className="animate-spin py-5 text-primary" />
             <p className="text-foreground text-lg font-semibold">Loading...</p>
         </div>  
     );

@@ -8,6 +8,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Column } from "@tanstack/react-table";
 import { StateProps } from "@/types/dataTable";
+import { formatNumber } from "@/utils/formatNumber";
 
 const SummaryCell = ({ column, state, metrics, pending }: {
 	column: Column<any | unknown>,
@@ -35,7 +36,7 @@ const SummaryCell = ({ column, state, metrics, pending }: {
 		<>
 			{<TableCell style={style} ref={setNodeRef}>
 				<Tooltip content={metricTooltip}>
-					{pending ? <Badge>Loading...</Badge> : logEntryMetric?.toFixed(5) ?? 0}
+					{pending ? <Badge>Loading...</Badge> : formatNumber(logEntryMetric) ?? 0}
 				</Tooltip>
 			</TableCell>}
 		</>
