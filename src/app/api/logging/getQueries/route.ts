@@ -43,7 +43,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const queries: Query[] = response.queries.map((item: any) => {
         const queryBody = JSON.parse(item.query_body);
         const responseBody = JSON.parse(item.response_body);
-        const responseMessage = responseBody.choices[0].message?.content || responseBody.choices[0]?.delta.content || "";
+        const responseMessage = responseBody.choices[0].message?.content || responseBody.choices[0]?.delta?.content || "";
         return {
             endpoint: item.endpoint,
             messages: [...queryBody.messages, { "role": "assistant", "content": responseMessage }],

@@ -1,4 +1,4 @@
-import { LogsResponseProps } from "../../types/evals/logs";
+import { LogColumnsProps, LogsResponseProps } from "../../types/evals/logs";
 
 import _ from "lodash";
 import { formatNumber } from "../formatNumber";
@@ -74,13 +74,25 @@ export function computeStatistic(statistic: string, data: number[]): number | st
 /* 
     Sort logs by timestamp and separate logs from parameters.
 */
-export function extractLogsData(logsResponse: LogsResponseProps) {
+export function extractLogsData(logsResponse: LogsResponseProps, logColumns: LogColumnsProps) {
   
     const params = logsResponse.params;
     const rawLogs = logsResponse.logs;
     const logs = rawLogs.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
-    const entriesProperties = Array.from(new Set(rawLogs.flatMap((log) => Object.keys(log.entries))));
-    const paramsProperties = Array.from(new Set(rawLogs.flatMap((log) => Object.keys(log.params!))));
+    const entriesProperties = (
+      logs.length
+        ? Array.from(new Set(rawLogs.flatMap((log) => Object.keys(log.entries))))
+        : "entries" in logColumns
+        ? Object.keys(logColumns.entries)
+        : []
+    );
+    const paramsProperties = (
+      logs.length
+        ? Array.from(new Set(rawLogs.flatMap((log) => Object.keys(log.params!))))
+        : "params" in logColumns
+          ? Object.keys(logColumns.params)
+          : []
+    );
   
     return { entriesProperties, paramsProperties, logs, params };
 }

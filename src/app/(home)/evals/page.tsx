@@ -9,14 +9,21 @@ import {
     getLogs,
     getProjects,
     createProject,
-    renameProject
+    renameProject,
+    getLogColumns
 } from "./actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
 
 
 const EvalsPage = async (
-    { searchParams }: { searchParams: { project?: string, metric?: string, filters?: string, common_filter?: string } }
+    { searchParams }: { searchParams: {
+        project?: string,
+        page_number?: string,
+        metric?: string,
+        filters?: string,
+        common_filter?: string
+    } }
 ) => {
     // get user and api key
     const user = await getCurrentUser();
@@ -33,7 +40,13 @@ const EvalsPage = async (
         rename: await renameProject(apiKey),
         delete: await deleteProject(apiKey)
     };
-    const logsActions = { get: await getLogs(apiKey), getMetrics: await getLogMetrics(apiKey), delete: await deleteLogs(apiKey) }
+    
+    const logsActions = { 
+        get: await getLogs(apiKey), 
+        getColumns: await getLogColumns(apiKey), 
+        getMetrics: await getLogMetrics(apiKey), 
+        delete: await deleteLogs(apiKey) 
+      }
 
     return (
         <Suspense fallback={<SkeletonLoader />}>

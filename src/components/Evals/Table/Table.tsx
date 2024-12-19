@@ -7,7 +7,7 @@ import FileDirectory from "@/components/Directory/FileDirectory";
 import { LogProps, LogsResponseProps } from "@/types/evals/logs";
 import { Row, ColumnDef, ColumnFiltersState, ColumnSort, ColumnPinningState, Updater, ColumnSizingState } from "@tanstack/react-table";
 import React, { useEffect, useState } from "react";
-import { Filter, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { FileProps, ResponseProps } from "@/types/common";
 import { buildTree, nestedColumns, onRowClick } from "@/utils/evals/table";
 import { Badge } from "@/components/UI/badge";
@@ -21,11 +21,24 @@ import ColumnMetrics from "./Buttons/ColumnMetrics";
 import SummaryCell from "./Content/SummaryCell";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import CreateProject from "./Buttons/CreateProject";
-import ActionButton from "@/components/Common/Buttons/Action";
 import GlobalFilter from "./Buttons/GlobalFilter";
+import PageController from "@/components/Common/Tables/Data/Buttons/PageController";
 
-const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, paramsProperties, metrics, logsData, projectActions, logsActions }: {
-	searchParams: { project?: string, metric?: string, filters?: string, common_filter?: string },
+const LogsTable = ({
+	searchParams,
+	projects,
+	project,
+	logs,
+	entriesProperties,
+	paramsProperties,
+	metrics,
+	logsData,
+	totalPages,
+	columnTypes,
+	projectActions,
+	logsActions
+}: {
+	searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string },
 	projects: string[] | undefined,
 	project: string | undefined,
 	logs: LogProps[],
@@ -33,6 +46,8 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 	paramsProperties: string[],
 	metrics: { [key: string]: number }
 	logsData: LogsResponseProps,
+	totalPages: number,
+	columnTypes: { [key: string]: string }
 	projectActions: {
 		get: () => Promise<string[]>,
 		create: (name: string) => Promise<ResponseProps>,
@@ -40,7 +55,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 		delete: (name: string) => Promise<ResponseProps>
 	}
 	logsActions: {
-		get: (project: string, filterExpression: string | null) => Promise<LogsResponseProps>,
+		get: (project: string, filterExpression: string | null, limit: number, offset: number) => Promise<LogsResponseProps>,
 		getMetrics: (
 			project: string, filterExpression: string | null, metricName: string, keyName: string
 		) => Promise<number>,
@@ -51,13 +66,6 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 	const [pending, setPending] = useState(false);
 	const [summaryPending, setSummaryPending] = useState(false);
 	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState<string>();
-
-	// error message displayed for 5s
-	useEffect(() => {
-		if (error)
-			setTimeout(() => setError(undefined), 3000)
-	}, [error]);
 
 	// get logs selected for comparison/details
 	const [comparisonLogsParam, setComparisonLogsParam] = useQueryState("comparison");
@@ -94,7 +102,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 	// getting columns from the properties
 	const entriesTree = buildTree(entriesProperties);
 	const paramsTree = buildTree(paramsProperties);
-	const columns: ColumnDef<LogProps>[] = !logsData ? [] : [
+	const columns: ColumnDef<LogProps>[] = [
 		{
 			id: "RowNumbering",
 			cell: ({ row }: { row: Row<LogProps> }) => {
@@ -153,6 +161,9 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 				: null
 		);
 	};
+
+	// pagination
+	const [pageNumber, setPageNumber] = useQueryState("page_number", { shallow: false });
 
 	// column order
 	const [columnOrderStr, setColumnOrderStr] = useQueryState("column_order");
@@ -258,11 +269,14 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 			setSummaryPending(false);
 		else
 			setSummaryPending(true);
-		if (searchParams.filters == logsFiltersQuery)
+		if (
+			searchParams.filters == logsFiltersQuery
+			&& searchParams.page_number == (pageNumber || undefined)
+		)
 			setLoading(false);
 		else
 			setLoading(true);
-	}, [project, projectQuery, searchParams, metricQuery, logsFiltersQuery]);
+	}, [project, projectQuery, searchParams, metricQuery, logsFiltersQuery, pageNumber]);
 
 	return (
 		<div className="flex flex-col gap-4 w-full h-full p-3 bg-background rounded-md">
@@ -282,6 +296,7 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 							setColumnsPinLeft(null);
 							setColumnsPinRight(null);
 							setMetric(null);
+							setPageNumber(null);
 							setProject(projectPath);
 						}}
 						type="Projects"
@@ -319,46 +334,44 @@ const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, p
 				? <SkeletonLoader />
 				: <div className="w-full h-fit overflow-auto tutorial-logs-table">
 					{project                    // If project selected
-						? logs.length > 0       // If logs data found
-							? <div className="relative flex-col gap-2">
-								{loading && <div className="rounded-lg absolute z-20 w-full h-full flex justify-center">
-									<Loader2 className="animate-spin my-36" />
-								</div>}
-								{error && <div className="text-sm text-red-500 m-1">{error}</div>}
-								<DataTable
-									data={logs}
-									columns={columns}
-									state={state}
-									setState={setState}
-									tableHotkeys={useTableHotkeys}
-									onRowClick={(table, row, event) => onRowClick(state, setState, table, row, event)}
-									ColumnFilters={(column) => <ColumnFilter
-										setError={setError}
-										setFilters={setLogsFilters}
-										filters={logsFilters}
-										column={column}
-									/>}
-									AggregatedCell={(cell, row) => <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />}
-									FooterCell={(column) => column.columnDef.id === "RowNumbering"
-										? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric} colSpan={1 + grouping.length}/>
-										: !column.getIsGrouped()
-											?	<SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} />
-											: 	null
-									}
-									ExtraComponents={(table) => <>
-										<DeleteRows
-											selectedRows={table.getSelectedRowModel().rows}
-											deleteLogs={logsActions.delete}
-										/>
-									</>}
-								/>
-							</div>
-							: <BaseTable items={[
-								{ "Entries": <p>No logs found. Start running local evaluations as shown in this <a href="https://docs.unify.ai/data_flywheel/teaching_assistant" target="_blank" className="font-bold underline text-primary">getting started</a> example.</p> }
-							]} />
+						? <div className="relative flex-col gap-2">
+							{loading && <div className="rounded-lg absolute z-20 w-full h-full flex justify-center">
+								<Loader2 className="animate-spin my-36" />
+							</div>}
+							<DataTable
+								data={logs}
+								columns={columns}
+								state={state}
+								setState={setState}
+								tableHotkeys={useTableHotkeys}
+								onRowClick={(table, row, event) => onRowClick(state, setState, table, row, event)}
+								ColumnFilters={(column) => <ColumnFilter
+									setFilters={setLogsFilters}
+									filters={logsFilters}
+									column={column}
+									columnTypes={columnTypes}
+								/>}
+								AggregatedCell={(cell, row) => <AggregatedCell cell={cell} row={row} params={logsData.params} metric="mean" />}
+								FooterCell={(column) => column.columnDef.id === "RowNumbering"
+									? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric} />
+									: <SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} />
+								}
+								ExtraComponents={(table) => <>
+									<DeleteRows
+										selectedRows={table.getSelectedRowModel().rows}
+										deleteLogs={logsActions.delete}
+									/>
+								</>}
+							/>
+						</div>
 						: <BaseTable items={[{ "Entries": "Select a project to display your logs." }]} />
 					}
 				</div>}
+			<div className="flex justify-end">
+				<div className="w-fit">
+					<PageController totalPages={totalPages} pageNumber={pageNumber} setPageNumber={setPageNumber} />
+				</div>
+			</div>
 		</div>
 	);
 };

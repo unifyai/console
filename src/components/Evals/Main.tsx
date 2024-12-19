@@ -1,7 +1,7 @@
 import React from "react";
 import { DoublePanels } from "../Common/Body/DoublePanels";
 import LogsTable from "./Table/Table";
-import { LogsResponseProps } from "@/types/evals/logs";
+import { LogColumnsProps, LogsResponseProps } from "@/types/evals/logs";
 import { extractLogsData } from "@/utils/evals/common";
 import Details from "./Details/Details";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
@@ -9,14 +9,15 @@ import { Suspense } from "react";
 import { ResponseProps } from "@/types/common";
 
 const Main = async ({ searchParams, projectsActions, logsActions }: {
-	searchParams: { project?: string, metric?: string, filters?: string, common_filter?: string },
+	searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string },
 	projectsActions: {
 		get: () => Promise<string[]>,
 		create: (name: string) => Promise<ResponseProps>,
 		rename: (name: string, newName: string) => Promise<ResponseProps>,
 		delete: (name: string) => Promise<ResponseProps>},
 	logsActions: {
-		get: (project: string, filterExpression: string | null) => Promise<LogsResponseProps>,
+		get: (project: string, filterExpression: string | null, limit: number, offset: number) => Promise<LogsResponseProps>,
+		getColumns: (project: string) => Promise<LogColumnsProps>,
 		getMetrics: (
 			project: string, filterExpression: string | null, metricName: string, keyName: string
 		) => Promise<number>,
@@ -50,14 +51,24 @@ const Main = async ({ searchParams, projectsActions, logsActions }: {
 			([fn, val]) => fn === "in" ? `${val} ${fn} ${key}` : `${key} ${fn} ${val}`
 		)
 	).flat().join(" and ") : null;
-	let logsData: LogsResponseProps = { params: {}, logs: [] };
-	if (project)
-		logsData = await logsActions.get(project, filterExpression);
+	const limit = 16;
+	const offset = (searchParams.page_number ? parseInt(searchParams.page_number) : 0) * limit;
+	let totalPages = 1;
+	let logsData: LogsResponseProps = { params: {}, logs: [], count: 0 };
+	let logColumns: LogColumnsProps = {}
+	if (project) {
+		[logsData, logColumns] = await Promise.all([
+			logsActions.get(project, filterExpression, limit, offset),
+			logsActions.getColumns(project)
+		]);
+		totalPages = Math.ceil(logsData.count / limit);
+	}
 
 	// process log data for display
-	const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData);
+	const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData, logColumns);
+	const columnTypes = { ...logColumns.entries, ...logColumns.params };
 
-	const allProps = [...entriesProperties, ...paramsProperties];
+	const allProps = logs.length ? [...entriesProperties, ...paramsProperties] : [];
 	const metricValues = await Promise.all(allProps.map(async (key) =>
 		logsActions.getMetrics(
 			project!, filterExpression, searchParams.metric ? searchParams.metric : "mean", key
@@ -77,10 +88,12 @@ const Main = async ({ searchParams, projectsActions, logsActions }: {
 				projects={projects}
 				project={project}
 				logs={logs}
+				columnTypes={columnTypes}
 				entriesProperties={entriesProperties}
 				paramsProperties={paramsProperties}
 				metrics={metrics}
 				logsData={logsData}
+				totalPages={totalPages}
 				projectActions={projectsActions}
 				logsActions={logsActions}
 			/>

@@ -23,6 +23,11 @@ export interface LogGroupsProps {
 export interface LogsResponseProps {
     params: LogItemProps,
     logs: LogProps[]
+    count: number
+}
+
+export interface LogColumnsProps {
+    [name: string]: { [name: string]: string }
 }
 
 export interface HeaderNode {
