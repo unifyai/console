@@ -4,10 +4,10 @@ import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
 import FileDirectory from "@/components/Directory/FileDirectory";
-import { LogColumnsProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { LogProps, LogsResponseProps } from "@/types/evals/logs";
 import { Row, ColumnDef, ColumnFiltersState, ColumnSort, ColumnPinningState, Updater, ColumnSizingState } from "@tanstack/react-table";
 import React, { useEffect, useState } from "react";
-import { Filter, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { FileProps, ResponseProps } from "@/types/common";
 import { buildTree, nestedColumns, onRowClick } from "@/utils/evals/table";
 import { Badge } from "@/components/UI/badge";
@@ -21,7 +21,6 @@ import ColumnMetrics from "./Buttons/ColumnMetrics";
 import SummaryCell from "./Content/SummaryCell";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import CreateProject from "./Buttons/CreateProject";
-import ActionButton from "@/components/Common/Buttons/Action";
 import GlobalFilter from "./Buttons/GlobalFilter";
 
 const LogsTable = ({ searchParams, projects, project, logs, entriesProperties, paramsProperties, metrics, logsData, columnTypes, projectActions, logsActions }: {
