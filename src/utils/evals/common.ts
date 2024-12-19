@@ -1,6 +1,7 @@
 import { LogsResponseProps } from "../../types/evals/logs";
 
 import _ from "lodash";
+import { formatNumber } from "../formatNumber";
 
 /* 
     Convert object / string inputs to their length value and return the value of numeric inputs. 
@@ -34,15 +35,15 @@ export function toComputableValue(value: any) {
 export function computeStatistic(statistic: string, data: number[]): number | string {
   switch (statistic) {
     case "mean":
-      return _.mean(data).toExponential(2);
+      return formatNumber(_.mean(data));
     case "var": {
       const variance = data.reduce((sum, value, index, array) => sum + Math.pow(value - array.reduce((sum, value) => sum + value, 0) / array.length, 2), 0) / data.length;
-      return variance.toExponential(2);
+      return formatNumber(variance);
     }
     case "std": {
       const squaredDiffs = data.reduce((sum, value, index, array) => sum + Math.pow(value - array.reduce((sum, value) => sum + value, 0) / array.length, 2), 0) / data.length;
       const std = Math.sqrt(squaredDiffs);
-      return std.toExponential(2);
+      return formatNumber(std);
     }
     case "count":
       return data.length;

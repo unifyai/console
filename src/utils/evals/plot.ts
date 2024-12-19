@@ -7,6 +7,7 @@ import { DataLabel, DataPoint, GroupedDataLabel, GroupedDataPoint, GroupingColor
 import { toComputableValue, computeStatistic } from "./common";
 import { stringToColor } from "../misc/color";
 import { metrics } from "@/constants/logs";
+import { formatNumber } from "../formatNumber";
 
 const foreground = getComputedStyle(document.documentElement).getPropertyValue('--foreground').trim()
 const background = getComputedStyle(document.documentElement).getPropertyValue('--background').trim()
@@ -56,7 +57,7 @@ export const drawAxes = (
               .tickSizeOuter(0)
               .tickFormat(d => 
                 typeof d === "number" 
-                    ? (d as number).toExponential(2) 
+                    ? formatNumber(d) 
                     : JSON.stringify(d).slice(0, 5).replace(/^"|"$/g, '')
             ) as any
         );
@@ -71,7 +72,7 @@ export const drawAxes = (
                     const date = new Date(d as number);
                     return `${date.toLocaleDateString()}`;
                 } else {
-                    return `${(d as number).toExponential(2)}`;
+                    return formatNumber(2);
                 }
             }) as any
         );   
@@ -97,7 +98,7 @@ export const drawAxes = (
                 ? yTicks.length > 1 ? yTicks.slice(1) : yTicks 
                 : yTicks as number[]
             )
-            .tickFormat((d) => parseFloat((d as any)).toExponential(2)) as any
+            .tickFormat((d) => formatNumber(parseFloat((d as any)))) as any
         );
     yAxis.selectAll("text") // Axis labels style
         .attr("stroke", "black") 

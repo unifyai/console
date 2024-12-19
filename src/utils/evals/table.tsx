@@ -10,6 +10,7 @@ import { SetStateProps, StateProps } from "@/types/dataTable";
 import { Table } from "@tanstack/react-table";
 
 import { ImageDisplay, isImage } from "./selection";
+import { formatNumber } from "../formatNumber";
 
 /* 
 	Updates column orders and grouping when dropping a column on top of another
@@ -209,7 +210,7 @@ export const nestedColumns = (
             let cellValue = cell.getValue();
             if (type === "params") cellValue = data.params[node.path][cellValue as string];
             if (isImage(cellValue)) return <ImageDisplay value={cellValue as string} className="object-scale-down h-5 w-5"/>
-            if (typeof cellValue === "number") return cellValue.toExponential(2);
+            if (typeof cellValue === "number") return formatNumber(cellValue);
             const displayValue = cellValue != undefined ? JSON.stringify(cellValue).trimStart().replace(/^"|"$/g, '') : "";
             return displayValue.slice(0, 50);
           },

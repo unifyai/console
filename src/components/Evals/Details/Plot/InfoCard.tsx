@@ -1,4 +1,5 @@
 import { LogProps, LogItemProps } from "@/types/evals/logs";
+import { formatNumber } from "@/utils/formatNumber";
 
 /* TODO: Replace with shadcn hovercard */
 
@@ -30,12 +31,14 @@ const InfoCard = ({position, data, dimensions, selectedXAxisProperty, selectedYA
                       <p className="font-semibold">{selectedXAxisProperty}</p>
                       <p className="truncate ... whitespace-pre-wrap max-w-[400px]">{
                         selectedXAxisProperty === "Log Time" ? data.ts :
-                        data.entries[selectedXAxisProperty as keyof LogItemProps].toExponential(2)
+                        formatNumber(data.entries[selectedXAxisProperty as keyof LogItemProps])
                       }</p>
                   </div>
                   <div className="flex flex-row gap-5 justify-between">
                       <p className="font-semibold">{selectedYAxisProperty}</p>
-                      <p className="truncate ... whitespace-pre-wrap max-w-[400px]">{data.entries[selectedYAxisProperty as keyof LogItemProps].toExponential(2)}</p>
+                      <p className="truncate ... whitespace-pre-wrap max-w-[400px]">
+                        {formatNumber(data.entries[selectedYAxisProperty as keyof LogItemProps])}
+                      </p>
                   </div>
               </div>
           </div>
