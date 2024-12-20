@@ -48,6 +48,11 @@ const NavList = (): NavItem[] => {
       href: "/evals",
     },
     {
+      title: "Evals1",
+      icon: ClipboardPen,
+      href: "/evals1",
+    },
+    {
       title: "Datasets",
       icon: TestTubeDiagonal,
       href: "/datasets",
