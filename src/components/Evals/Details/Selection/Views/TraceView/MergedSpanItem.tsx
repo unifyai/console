@@ -57,12 +57,12 @@ const MergedSpanItem: React.FC<{
         <div className="flex flex-col">
         {baseSpan?.id && (
           <span className="ml-2 text-xs italic text-muted-foreground">
-            Row {rowIndexes[0] + 1} (Base): {baseSpan.id}
+            Row {rowIndexes[0]} (Base): {baseSpan.id}
           </span>
         )}
         {comparableSpans.map((c, index) => (
           <span key={c?.id} className="ml-2 text-xs italic text-muted-foreground">
-            Row {rowIndexes[index + 1] + 1}: {c?.id ?? "N/A"}
+            Row {rowIndexes[index + 1]}: {c?.id ?? "N/A"}
           </span>
         ))}
         </div>
