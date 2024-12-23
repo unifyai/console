@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, ReactNode, MouseEvent } from "react";
+import { useMemo, ReactNode, MouseEvent, JSX } from "react";
 
 import { ColumnFiltersState, GroupingState, Header, SortingState, Updater, useReactTable } from "@tanstack/react-table";
 import { getCoreRowModel, getFilteredRowModel, getExpandedRowModel, getGroupedRowModel, getSortedRowModel } from "@tanstack/react-table";
@@ -21,13 +21,14 @@ import { StateProps } from "@/types/dataTable";
 import { SetStateProps } from "@/types/dataTable";
 import { LogProps } from "@/types/evals/logs";
 
-export default function DataTable<TData, TValue>({ data, columns, state, setState, tableHotkeys, onRowClick, FooterCell, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
+export default function DataTable<TData, TValue>({ data, columns, state, setState, tableHotkeys, onRowClick, TableTop, FooterCell, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
     data: TData[],
     columns: ColumnDef<TData, TValue>[],
     state: StateProps,
     setState: SetStateProps,
     tableHotkeys?: (table: TanstackTable<any | unknown>, logs: LogProps[] | undefined, setState: SetStateProps) => void
     onRowClick?: (table: TanstackTable<any | unknown>, row: TanstackRow<any | unknown>, event: MouseEvent<HTMLTableRowElement, globalThis.MouseEvent>) => void,
+    TableTop?: JSX.Element,
     FooterCell?: (column: TanstackColumn<any | unknown>) => ReactNode,
     ColumnFilters?: (column: TanstackColumn<any | unknown>) => ReactNode;
     AggregatedCell?: (cell: TanstackCell<any, unknown>, row: TanstackRow<any | unknown>) => ReactNode;
@@ -100,7 +101,8 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
     // click status (to avoid resizing from selecting rows)
     let click = false;
 
-    return (<>
+    return (<div className="flex flex-col gap-2 max-w-fit">
+        {TableTop && TableTop}
         <DndContext
             collisionDetection={closestCenter}
             modifiers={[restrictToHorizontalAxis]}
@@ -173,5 +175,5 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
             </Table>
         </DndContext>
         {ExtraComponents && ExtraComponents(table)}
-    </>);
+    </div>);
 }

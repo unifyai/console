@@ -23,6 +23,7 @@ import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import CreateProject from "./Buttons/CreateProject";
 import GlobalFilter from "./Buttons/GlobalFilter";
 import PageController from "@/components/Common/Tables/Data/Buttons/PageController";
+import CloseProject from "./Buttons/CloseProject";
 
 const LogsTable = ({
 	searchParams,
@@ -256,6 +257,19 @@ const LogsTable = ({
 		setBaseLog
 	};
 
+	const resetParamsStates = () => {
+		setBaseLogParam(null);
+		setComparisonLogsParam(null);
+		setColumnOrderStr(null);
+		setHiddenColumns(null);
+		setSortingStr(null);
+		setGroupingStr(null);
+		setColumnsPinLeft(null);
+		setColumnsPinRight(null);
+		setMetric(null);
+		setPageNumber(null);
+	}
+
 	// creating the projects list
 	const data = (projects || []).map(datum => ({ path: datum, type: "file" }));
 
@@ -278,59 +292,60 @@ const LogsTable = ({
 			setLoading(true);
 	}, [project, projectQuery, searchParams, metricQuery, logsFiltersQuery, pageNumber]);
 
+
+	const tableTop = 	<div className="flex flex-row justify-between gap-3 LogsTablePreferences">
+							{
+								project && columns.length > 0 &&
+								<div className="flex flex-row gap-2 items-center">
+									<GlobalFilter
+										searchParams={searchParams}
+										columnNames={columnIDs.slice(1)}
+										commonFilterQuery={commonFilter || undefined}
+										setCommonFilterQuery={setCommonFilter}
+										setLogsFilters={setLogsFilters}
+									/>
+									<VisibilityFilter columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility} />
+								</div>
+							}
+							{project && 
+								<div className="w-fit scale-90">
+									<PageController totalPages={totalPages} pageNumber={pageNumber} setPageNumber={setPageNumber} />
+								</div>
+							}
+						</div>
 	return (
 		<div className="flex flex-col gap-4 w-full h-full p-3 bg-background rounded-md">
-			<div className="flex flex-row justify-between w-full h-fit">
-				<div className="w-fit gap-3 flex flex-row items-center">
+			<div className="flex flex-row gap-8 w-full h-fit">
+				<div className="w-fit gap-2 flex flex-row items-center">
 					<FileDirectory
 						data={data}
 						renamingFunction={projectActions.rename}
 						setterFunction={(project: FileProps | undefined) => {
 							const projectPath = project ? project.path : null;
-							setBaseLogParam(null);
-							setComparisonLogsParam(null);
-							setColumnOrderStr(null);
-							setHiddenColumns(null);
-							setSortingStr(null);
-							setGroupingStr(null);
-							setColumnsPinLeft(null);
-							setColumnsPinRight(null);
-							setMetric(null);
-							setPageNumber(null);
+							resetParamsStates();
 							setProject(projectPath);
 						}}
 						type="Projects"
 						defaultValue={projectQueryVal}
 					/>
 					{project && (
-						<DeleteDialog
-							type="project"
-							resource={project}
-							deletingFunction={projectActions.delete}
-							variant="outline"
-						/>
+						<div className="flex flex-row gap-2">
+							<CloseProject onClick={() => {
+									resetParamsStates()
+									setProject(null);
+								}}
+							/>
+							<DeleteDialog
+								type="project"
+								resource={project}
+								deletingFunction={projectActions.delete}
+								variant="outline"
+							/>
+						</div>
 					)}
 					{projects &&
 						<CreateProject creationFunction={projectActions.create} paths={projects} />
 					}
-					<div className="flex flex-row gap-3 LogsTablePreferences">
-						{
-							project && columns.length > 0 &&
-							<div className="flex flex-row gap-3">
-								<VisibilityFilter columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility} />
-								<GlobalFilter
-									searchParams={searchParams}
-									columnNames={columnIDs.slice(1)}
-									commonFilterQuery={commonFilter || undefined}
-									setCommonFilterQuery={setCommonFilter}
-									setLogsFilters={setLogsFilters}
-								/>
-							</div>
-						}
-					</div>
-					{project && <div className="w-fit">
-						<PageController totalPages={totalPages} pageNumber={pageNumber} setPageNumber={setPageNumber} />
-					</div>}
 				</div>
 			</div>
 			{pending
@@ -348,6 +363,7 @@ const LogsTable = ({
 								setState={setState}
 								tableHotkeys={useTableHotkeys}
 								onRowClick={(table, row, event) => onRowClick(state, setState, table, row, event)}
+								TableTop={tableTop}
 								ColumnFilters={(column) => <ColumnFilter
 									setFilters={setLogsFilters}
 									filters={logsFilters}

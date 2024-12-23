@@ -35,6 +35,7 @@ const GlobalFilter = ({ searchParams, columnNames, commonFilterQuery, setCommonF
                                 setCommonFilterQuery(null);
                         }
                     }}
+                    className="h-8"
                 />
                 {commonFilter?.length ? <div className="absolute right-2 top-[9px]">
                     <X size={18} onClick={() => setCommonFilter("")} className="cursor-pointer" />

@@ -25,7 +25,7 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, clas
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={`h-10 px-3 w-[200px] justify-between truncate ... ${className}`}
+          className={`h-8 px-3 w-[200px] justify-between truncate ... ${className}`}
         >
           {value
             ? items.find((item) => item.value === value)?.label

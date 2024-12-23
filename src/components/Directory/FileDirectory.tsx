@@ -15,6 +15,7 @@ import { Folder } from "lucide-react";
 import { buildDirectoryTree, flattenTree } from "@/utils/misc/tree";
 import { updateNode } from "@/utils/misc/directory";
 import CancelButton from "../Common/Buttons/Cancel";
+import SettingButton from "../Common/Buttons/Setting";
 
 export default function FileDirectory ({ type,  data, defaultValue, setterFunction, renamingFunction } : {
   type: string, 
@@ -68,12 +69,10 @@ export default function FileDirectory ({ type,  data, defaultValue, setterFuncti
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="flex flex-row gap-3 items-center">
+    <div className="flex flex-row gap-2 items-center">
       <BaseDialog
         button={
-          <Tooltip content="Open file directory">
-            <BaseButton variant="outline" icon={<Folder/>} size="icon" />
-          </Tooltip>
+            <SettingButton variant="outline" icon={<Folder/>} tooltip={`Manage ${type}`}/>
         }
         title="File Directory"
         description={`Search and organize your ${type.toLowerCase()} by folder. Double click on a file to select it.`}
