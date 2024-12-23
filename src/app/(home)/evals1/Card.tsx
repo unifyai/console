@@ -73,7 +73,7 @@ const Card = ({
         setCards([...cards]);
     }
     const [hovered, setHovered] = useState(false);
-    return (<div className="relative flex w-full border rounded-lg m-3 p-3" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+    return (<div className="overflow-auto relative flex w-full border rounded-lg m-3 p-3" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
         <div className="h-full w-full flex justify-between">
             <div className={"h-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
                 <TileButtons
@@ -116,9 +116,9 @@ const Card = ({
                             </DropdownMenuItem>)}
                         </BaseDropdown>
                     </div>
-                    {cards[rowIndex][colIndex] == "View" && <div className="flex flex-col"><Selection params={params} logs={logs} /></div>}
+                    {cards[rowIndex][colIndex] == "View" && <Selection params={params} logs={logs} />}
                     {cards[rowIndex][colIndex] == "Plot" && <LogsPlot logs={logs} />}
-                    {/* {cards[rowIndex][colIndex] == "Table" && <div className="h-5/6 overflow-auto"><LogsTable
+                    {cards[rowIndex][colIndex] == "Table" && <LogsTable
                         searchParams={searchParams}
                         projects={projects}
                         project={project}
@@ -131,7 +131,7 @@ const Card = ({
                         totalPages={totalPages}
                         projectActions={projectActions}
                         logsActions={logsActions}
-                    /></div>} */}
+                    />}
                 </div>
                 <div className={"w-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
                     <TileButtons

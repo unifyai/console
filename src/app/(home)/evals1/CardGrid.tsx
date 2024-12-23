@@ -86,7 +86,7 @@ const CardGrid = ({
         <div className="w-full h-full">
             {
                 cards.map((cardList, index) => (
-                    <div className={`flex-col w-full ${cards.length == 1 ? "h-full" : "h-1/2 overflow-auto"}`} key={index}>
+                    <div className={`flex-col w-full ${cards.length == 1 ? "h-full" : "h-1/2"}`} key={index}>
                         <div className="relative flex-1 flex w-full h-full">
                             {cardList.map((_, subIndex) => (
                                 <Card
