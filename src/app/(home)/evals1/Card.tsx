@@ -73,7 +73,7 @@ const Card = ({
         setCards([...cards]);
     }
     const [hovered, setHovered] = useState(false);
-    return (<div className="overflow-auto relative flex w-full border rounded-lg m-3 p-3" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+    return (<div className="overflow-x-auto relative flex w-full border rounded-lg m-2 p-2" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
         <div className="h-full w-full flex justify-between">
             <div className={"h-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
                 <TileButtons
@@ -96,7 +96,7 @@ const Card = ({
                         }
                     />
                 </div>
-                <div className={"w-full flex-1 flex flex-col items-center " + (cards[rowIndex][colIndex] ? "mt-2" : "justify-center")}>
+                <div className={"overflow-auto w-full flex-1 flex flex-col items-center " + (cards[rowIndex][colIndex] ? "mt-1" : "justify-center")}>
                     <div className="w-fit">
                         <BaseDropdown
                             button={<ActionButton

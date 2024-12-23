@@ -47,7 +47,7 @@ const Main = async ({ searchParams, projectsActions, logsActions }: {
             ([fn, val]) => fn === "in" ? `${val} ${fn} ${key}` : `${key} ${fn} ${val}`
         )
     ).flat().join(" and ") : null;
-    const limit = 16;
+    const limit = 14;
     const offset = (searchParams.page_number ? parseInt(searchParams.page_number) : 0) * limit;
     let totalPages = 1;
     let logsData: LogsResponseProps = { params: {}, logs: [], count: 0 };

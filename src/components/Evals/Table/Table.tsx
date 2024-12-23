@@ -328,11 +328,14 @@ const LogsTable = ({
 							</div>
 						}
 					</div>
+					{project && <div className="w-fit">
+						<PageController totalPages={totalPages} pageNumber={pageNumber} setPageNumber={setPageNumber} />
+					</div>}
 				</div>
 			</div>
 			{pending
 				? <SkeletonLoader />
-				: <div className="w-full h-fit overflow-auto tutorial-logs-table">
+				: <div className="w-full tutorial-logs-table">
 					{project                    // If project selected
 						? <div className="relative flex-col gap-2">
 							{loading && <div className="rounded-lg absolute z-20 w-full h-full flex justify-center">
@@ -369,13 +372,6 @@ const LogsTable = ({
 						: <BaseTable items={[{ "Entries": "Select a project to display your logs." }]} />
 					}
 				</div>}
-			{project && 
-			<div className="flex justify-end">
-				<div className="w-fit">
-					<PageController totalPages={totalPages} pageNumber={pageNumber} setPageNumber={setPageNumber} />
-				</div>
-			</div>
-			}
 		</div>
 	);
 };
