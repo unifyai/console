@@ -2,7 +2,7 @@
 
 import { Dispatch, SetStateAction, CSSProperties, ReactNode } from "react";
 
-import { flexRender, Header, Column } from "@tanstack/react-table";
+import { flexRender, Header, Column, Table } from "@tanstack/react-table";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -12,7 +12,8 @@ import ColumnGroupBy from "../Buttons/ColumnGroupBy";
 import ColumnHide from "../Buttons/ColumnHide";
 import ColumnShow from "../Buttons/ColumnShow";
 
-const DataTableHeader = ({header, columnVisibility, setColumnVisibility, ColumnFilters}: {
+const DataTableHeader = ({table, header, columnVisibility, setColumnVisibility, ColumnFilters}: {
+  table: Table<any | unknown>,
   header: Header<any, unknown>,
   columnVisibility: { [key: string]: boolean },
   setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void,
@@ -67,7 +68,7 @@ const DataTableHeader = ({header, columnVisibility, setColumnVisibility, ColumnF
         </div>
 
         {!header.isPlaceholder && header.subHeaders.length === 0 && header.column.columnDef.meta?.columnType != "util" &&
-          <ColumnShow header={header} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility}  />
+          <ColumnShow table={table} header={header} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility}  />
         }
 
     </TableHead>

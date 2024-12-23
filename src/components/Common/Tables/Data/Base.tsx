@@ -67,6 +67,12 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
         getExpandedRowModel: getExpandedRowModel(),
         getGroupedRowModel: getGroupedRowModel(),
         getSortedRowModel: getSortedRowModel(),
+        meta: {
+            createColumn: () => {
+                // updateLogs(...).then(...)
+                // window.location.reload();
+            },
+        }
     });
 
     // Set up drag-and-drop
@@ -110,6 +116,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
                                     <DataTableHeader
                                         key={header.id}
                                         header={header}
+                                        table={table}
                                         columnVisibility={state.columnVisibility}
                                         setColumnVisibility={setState.setColumnVisibility}
                                         ColumnFilters={ColumnFilters}
@@ -168,5 +175,3 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
         {ExtraComponents && ExtraComponents(table)}
     </>);
 }
-
-/* TODO: Add back Pagination*/
