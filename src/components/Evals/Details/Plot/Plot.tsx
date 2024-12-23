@@ -16,7 +16,7 @@ import PlotAxis from "./Buttons/PlotAxis";
 import InfoCard from "./InfoCard";
 import GroupingKey from "./GroupingKey";
 import { useQueryState } from "nuqs";
-import { GroupingColors } from "@/types/evals/plot";
+import { GroupingColors, InfoCardData, InfoCardPosition } from "@/types/evals/plot";
 
 const LogsPlot = ({ logs }: {
     logs: LogProps[] | undefined,
@@ -35,8 +35,8 @@ const LogsPlot = ({ logs }: {
     const axisProperties = useMemo(() => logs ? Array.from(new Set(logs.map((log) => log.entries).flatMap((entry) => Object.keys(entry)))) : [], [logs]);
 
     // Track hover card state
-    const [infoCardData, setInfoCardData] = useState<LogProps | null>(null);
-    const [infoCardPosition, setInfoCardPosition] = useState({x: 0, y:0});
+    const [infoCardData, setInfoCardData] = useState<InfoCardData | null>(null);
+    const [infoCardPosition, setInfoCardPosition] = useState<InfoCardPosition>({x: 0, y:0});
 
     // Plot settings
     let [plotType, setPlotType] = useQueryState("plot_type");
@@ -62,7 +62,7 @@ const LogsPlot = ({ logs }: {
         if (plotType === "Line Chart") {
             drawLineChart(svg, scale, dimensions, margins, axisPadding, selectedXAxisProperty, selectedYAxisProperty, groupByProperty, setGroupByColors, numericLogs, numericAxisProperties);
         } else if (plotType  === "Bar Chart") {
-            drawBarChart(svg, scale, dimensions, margins, axisPadding, selectedXAxisProperty, selectedYAxisProperty, groupByProperty, setGroupByColors, logs ?? [], axisProperties);
+            drawBarChart(svg, scale, setInfoCardData, setInfoCardPosition, dimensions, margins, axisPadding, selectedXAxisProperty, selectedYAxisProperty, logs ?? [], axisProperties);
         } else {
             drawScatterPlot(svg, logs, scale, setInfoCardData, setInfoCardPosition, dimensions, margins, axisPadding, selectedXAxisProperty, selectedYAxisProperty, groupByProperty, setGroupByColors, numericLogs, numericAxisProperties);
         }
@@ -107,7 +107,7 @@ const LogsPlot = ({ logs }: {
             <PlotAxis properties={numericAxisProperties} setAxisProperty={setSelectedYAxisProperty} axis="Y" axisProperty={selectedYAxisProperty} plotType={plotType}/>
         </div>
         <div className="absolute top-0.5 right-1 z-10">
-            <PlotType plotType={plotType} setPlotType={setPlotType}/>
+            <PlotType plotType={plotType} setPlotType={setPlotType} numericAxisProperties={numericAxisProperties} setSelectedYAxisProperty={setSelectedYAxisProperty}/>
         </div>
         
         {/* Customization */}
@@ -116,12 +116,14 @@ const LogsPlot = ({ logs }: {
             <div className="absolute top-12 right-3 z-10 PlotReset">
                 <PlotReset setSelectedXAxisProperty={setSelectedXAxisProperty} setSelectedYAxisProperty={setSelectedYAxisProperty} setGroupByProperty={setGroupByProperty}/>
             </div>
-            <div className="absolute top-24 right-3 z-10 PlotGroupBy">
-                <PlotGroupBy properties={numericAxisProperties} groupBy={groupByProperty} setGroupBy={setGroupByProperty} setGroupByColors={setGroupByColors}/>
-            </div>
-            <div className="absolute top-36 right-3 z-10 PlotScale">
+            <div className="absolute top-24 right-3 z-10 PlotScale">
                 <PlotScale scale={scale} setScale={setScale}/>
             </div>
+            { plotType != "Bar Chart" &&
+            <div className="absolute top-36 right-3 z-10 PlotGroupBy">
+                <PlotGroupBy properties={numericAxisProperties} groupBy={groupByProperty} setGroupBy={setGroupByProperty} setGroupByColors={setGroupByColors}/>
+            </div>
+            }
         </>
         }
 
@@ -136,14 +138,12 @@ const LogsPlot = ({ logs }: {
         </svg>
         {groupByProperty && groupByProperty != "None" && groupByColors.length > 0 && <GroupingKey groupBy={groupByProperty} groupByColors={groupByColors}/>}
 
-        {/* Hover card for scatter plot */}
+        {/* Hover card for scatter plot and bar chart */}
         {infoCardData && 
             <InfoCard 
                 data={infoCardData} 
                 position={infoCardPosition} 
                 dimensions={dimensions}
-                selectedXAxisProperty={selectedXAxisProperty!} 
-                selectedYAxisProperty={selectedYAxisProperty!}
                 margins={margins}
             />
         }

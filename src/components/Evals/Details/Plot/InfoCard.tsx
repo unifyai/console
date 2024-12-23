@@ -1,13 +1,9 @@
-import { LogProps, LogItemProps } from "@/types/evals/logs";
 import { formatNumber } from "@/utils/formatNumber";
+import { InfoCardData, InfoCardPosition } from "@/types/evals/plot";
 
-/* TODO: Replace with shadcn hovercard */
-
-const InfoCard = ({position, data, dimensions, selectedXAxisProperty, selectedYAxisProperty, margins}:{
-    position:{x: number, y:number}, 
-    data: LogProps,
-    selectedXAxisProperty: string,
-    selectedYAxisProperty: string,
+const InfoCard = ({position, data, dimensions, margins}:{
+    position: InfoCardPosition, 
+    data: InfoCardData,
     dimensions: {width: number, height: number},
     margins: number[]
   }) => {
@@ -28,16 +24,15 @@ const InfoCard = ({position, data, dimensions, selectedXAxisProperty, selectedYA
           >
               <div className="flex flex-col">
                   <div className="flex flex-row gap-5 justify-between">
-                      <p className="font-semibold">{selectedXAxisProperty}</p>
-                      <p className="truncate ... whitespace-pre-wrap max-w-[400px]">{
-                        selectedXAxisProperty === "Log Time" ? data.ts :
-                        formatNumber(data.entries[selectedXAxisProperty as keyof LogItemProps])
-                      }</p>
+                      <p className="font-semibold">{data.x.name}</p>
+                      <p className="truncate ... whitespace-pre-wrap max-w-[400px]">
+                        {typeof data.x.value === "number" ? formatNumber(data.x.value) : data.x.value}
+                      </p>
                   </div>
                   <div className="flex flex-row gap-5 justify-between">
-                      <p className="font-semibold">{selectedYAxisProperty}</p>
+                      <p className="font-semibold">{data.y.name}</p>
                       <p className="truncate ... whitespace-pre-wrap max-w-[400px]">
-                        {formatNumber(data.entries[selectedYAxisProperty as keyof LogItemProps])}
+                        {formatNumber(data.y.value)}
                       </p>
                   </div>
               </div>

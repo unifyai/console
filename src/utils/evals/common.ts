@@ -32,7 +32,7 @@ export function toComputableValue(value: any) {
 /* 
     Compute reduction metrics from an array of numbers.
 */
-export function computeStatistic(statistic: string, data: number[]): number | string {
+export function computeStatistic(statistic: string, data: number[]): string {
   switch (statistic) {
     case "mean":
       return formatNumber(_.mean(data));
@@ -46,25 +46,26 @@ export function computeStatistic(statistic: string, data: number[]): number | st
       return formatNumber(std);
     }
     case "count":
-      return data.length;
+      return formatNumber(data.length);
     case "sum":
-      return _.sum(data);
+      return formatNumber(_.sum(data));
     case "min":
-      return Math.min(...data);
+      return formatNumber(Math.min(...data));
     case "max":
-      return Math.max(...data);
+      return formatNumber(Math.max(...data));
     case "median": {
       const sortedArray = data.slice().sort((a: number, b: number) => a - b);
       const middleIndex = Math.floor(sortedArray.length / 2);
-      return sortedArray.length % 2 === 0
-        ? (sortedArray[middleIndex - 1] + sortedArray[middleIndex]) / 2
-        : sortedArray[middleIndex];
+      const median = sortedArray.length % 2 === 0
+      ? (sortedArray[middleIndex - 1] + sortedArray[middleIndex]) / 2
+      : sortedArray[middleIndex]; 
+      return formatNumber(median)
     }
     case "mode": {
       const counts: { [key: number]: number } = data.reduce((a: { [key: number]: number }, b) => (a[b] = (a[b] || 0) + 1, a), {});
       const maxCount = Math.max(...Object.values(counts));
-      const modes = Object.keys(counts).filter(k => counts[+k] === maxCount);
-      return modes.length > 1 ? modes.join(", ") : modes[0];
+      const modes = Object.keys(counts).filter(k => counts[+k] === maxCount).map(value => parseFloat(value));
+      return modes.map((mode) => formatNumber(mode)).join(",");
     }
     default:
       throw new Error(`Unsupported statistic: ${statistic}`);

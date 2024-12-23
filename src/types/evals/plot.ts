@@ -7,3 +7,10 @@ export type GroupedDataPoint = [string, DataPoint[]];
 export type GroupedDataLabel = [string, DataLabel[]];
 
 export type GroupingColors = {key: string, color: string}[];
+
+export type InfoCardData = {
+    "x" : {"name": string, "value": string | number},
+    "y" : {"name": string, "value": number}
+} 
+
+export type InfoCardPosition = { x: number, y: number}

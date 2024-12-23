@@ -8,7 +8,9 @@ import { toComputableValue, computeStatistic } from "./common";
 import { stringToColor } from "../misc/color";
 import { metrics } from "@/constants/logs";
 import { formatNumber } from "../formatNumber";
+import { InfoCardData, InfoCardPosition } from "@/types/evals/plot";
 
+const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
 const foreground = getComputedStyle(document.documentElement).getPropertyValue('--foreground').trim()
 const background = getComputedStyle(document.documentElement).getPropertyValue('--background').trim()
 
@@ -189,13 +191,13 @@ export const calculateTicks = (length: number, scale: string, minY: number, maxY
 export const drawBarChart = (
   svg: d3.Selection<null, unknown, null, undefined>,
   scale: string,
+  setInfoCardData: Dispatch<SetStateAction<InfoCardData | null>>,
+  setInfoCardPosition:Dispatch<SetStateAction<InfoCardPosition>>,
   dimensions: {width: number, height: number},
   margins: number[],
   axisPadding: number,
   selectedXAxisProperty: string | null,
   selectedYAxisProperty: string | null,
-  groupBy: string | null,
-  setGroupByColors: Dispatch<SetStateAction<GroupingColors>>,
   filteredLogs: LogProps[],
   axisProperties: string[]
 ) => {
@@ -220,43 +222,30 @@ export const drawBarChart = (
 
       // Filter for entries with all necessary values
       const filteredData = filteredLogs.filter((log) => {
-          const hasGroup = groupBy ? log.entries[groupBy] : true;
           const hasX = log.entries[xAxis];
-          return hasGroup && hasX;
+          return hasX;
       });
 
-      // Group data once or twice
-      data = groupBy
-          ?  d3.groups(filteredData, d => d.entries[groupBy])
-              .map(([groupKey, groupData]) => {
-                  const group = groupKey.toString();
-                  const values = axisProperties.filter(property => property === xAxis)
-                  .map(property => {
-                      const propertyData = groupData.map(data => toComputableValue(data.entries[property]));
-                      const metric = computeStatistic(yAxis, propertyData);
-                      return [property, metric];
-                  });
-                  return [group, values];
-              }) as GroupedDataLabel[]
-          :  d3.groups(filteredData, d => d.entries[xAxis])
+      // Group data
+      data = d3.groups(filteredData, d => d.entries[xAxis])
               .map(([groupKey, groupData]) => {
                   const label = groupKey.toString();
                   const value = d3.rollups(
                       groupData,
                       v => computeStatistic(yAxis, v.map(d => toComputableValue(d.entries[xAxis])))
                   );
-                  return [label, value];
+                  return [label, parseFloat(value)];
               }) as DataLabel[];
 
   }
-  
+  console.log(data);
   // Define scales
   const xDomain = data.map(d => d[0]);
   const xRange = [marginLeft, width - marginRight];
   const xAxisScale = d3.scaleBand;
   const x = xAxisScale().domain(xDomain).range(xRange).padding(0.2);
-
-  const yValues = groupBy ? (data as GroupedDataLabel[]).flatMap((group) => group[1].map((d) => d[1])) : (data as DataLabel[]).map((d) => d[1]);
+  
+  const yValues = (data as DataLabel[]).map((d) => d[1]);
   const [minY = 0, maxY = 0] = d3.extent(yValues);
   const yRange = [height - marginBottom, marginTop + 2 * axisPadding];
   const yAxisScale = scale === "log" ? d3.scaleLog : d3.scaleLinear;
@@ -268,61 +257,85 @@ export const drawBarChart = (
   drawBorders(svg, height, width, marginBottom, marginLeft, marginTop, marginRight);
 
   // Draw rectangles
-  if (groupBy) {
-      // let domain = (data as GroupedDataLabel[]).flatMap(d => d[1].map(sd => sd[0] as string))
-      let domain = (data as GroupedDataLabel[]).map(d => d[0])
-      domain = Array.from(new Set(domain))
-      const color = d3.scaleOrdinal(d3.schemeCategory10).domain(domain);      
-      setGroupByColors(
-        // domain.map((key) => ({key: key, color: color(key)}))
-        []
-      )
+  svg.selectAll("g.rect-group")
+    .data(data as DataLabel[])
+        .join("g")
+        .attr("class", "rect-group")
+        .attr("transform", d => `translate(${x(d[0])},0)`)
+        .selectAll("rect")
+        .data(d => 
+            [d], // create a new array with the single data point
+            (d) => `${(d as DataLabel)[0]}-${(d as DataLabel)[1]}` // Setting a unique identifier
+        ) 
+            .join("rect")
+            .on("mouseover", (event, data) => hoverOnBar(event, data))
+            .on("mousemove", (event, data) => moveOnBar(event, data))
+            .on("mouseout", (event, data) => leaveBar(event, data))
+            .transition()
+            .duration(500)
+            .attr("x", 0) // x.bandwidth below handles the horizontal positioning
+            .attr("y", d => y((d as DataLabel)[1]))
+            .attr("height", (d) => y(minY) - y((d as DataLabel)[1]))
+            .attr("width", x.bandwidth())
+            .attr("bar-id", d => `bar-${d[0]}-${d[1]}`)                    
+            .attr("fill", primary);
 
-      const subX = xAxisScale()
-          .domain(axisProperties.filter(property => property != xAxis))
-          .range([0, x.bandwidth()]);
-      
-      svg.selectAll("g.rect-group")
-          .data(
-              data as GroupedDataLabel[],
-              (d) => `${(d as GroupedDataLabel)[0]}-${(d as GroupedDataLabel)[1]}` // Setting a unique identifier
-          )
-          .join("g")
-          .attr("class", "rect-group")
-          .attr("transform", d => `translate(${x(d[0])! + x.bandwidth() / 2},0)`)
-          .selectAll("rect")
-          .data(d => 
-              d[1],
-              (d) => `${(d as DataLabel)[0]}-${(d as DataLabel)[1]}` // Setting a unique identifier
-          )
-          .join("rect")
-          .transition()
-          .duration(500)
-          .attr("x", d => subX(d[0])! - x.bandwidth() / 2)
-          .attr("y", d => y(d[1]))
-          .attr("height", (d) => y(minY) - y(d[1]))
-          .attr("width", subX.bandwidth())
-          .attr("fill", d => color(d[0]) as string);
-  } else {            
-      svg.selectAll("g.rect-group")
-          .data(data as DataLabel[])
-          .join("g")
-          .attr("class", "rect-group")
-          .attr("transform", d => `translate(${x(d[0])},0)`)
-          .selectAll("rect")
-          .data(d => 
-              [d], // create a new array with the single data point
-              (d) => `${(d as DataLabel)[0]}-${(d as DataLabel)[1]}` // Setting a unique identifier
-          ) 
-          .join("rect")
-          .transition()
-          .duration(500)
-          .attr("x", 0) // x.bandwidth below handles the horizontal positioning
-          .attr("y", d => y((d as DataLabel)[1]))
-          .attr("height", (d) => y(minY) - y((d as DataLabel)[1]))
-          .attr("width", x.bandwidth())
-          .attr("fill", "green");
-  }
+  // Bar interaction functions
+  function hoverOnBar (event: any, data: DataLabel) {
+    
+    // Set card data
+    const hoverData = {
+      "x" : {
+          "name": selectedXAxisProperty as string,
+          "value": data[0]
+      },
+      "y" : {
+          "name": selectedYAxisProperty as string, 
+          "value": data[1]
+      }
+    }
+    setInfoCardData(hoverData);
+
+    // Set card position
+    const position = {
+        x: x(data[0]) as number,
+        y: y(data[1]) as number
+    }
+    setInfoCardPosition(position); 
+    
+    // Add dashed stroke contour on hovered bar
+    svg.selectAll(`[bar-id="bar-${data[0]}-${data[1]}"]`)
+        .each(function() {
+            d3.select(this)
+                .style("stroke", foreground)
+                .style("stroke-width", "5px")
+                .style("stroke-dasharray", "5, 5");
+        });
+    }
+
+    function moveOnBar (event: any, data: DataLabel) {
+        
+        // Update card position
+        const position = {
+            x: x(data[0]) as number,
+            y: y(data[1])
+        }
+        setInfoCardPosition(position); 
+
+    }
+
+    function leaveBar (event: any, data: DataLabel) {
+
+        // Reset card data and position
+        setInfoCardData(null);
+        svg.selectAll(`[bar-id="bar-${data[0]}-${data[1]}"]`)
+            .each(function() {
+                d3.select(this)
+                .style("stroke", "none")
+                .style("stroke-dasharray", "none");
+            });
+
+    }
 
 };
 
@@ -528,8 +541,8 @@ export const drawScatterPlot = (
   svg: d3.Selection<null, unknown, null, undefined>,
   logs: LogProps[] | undefined,
   scale: string,
-  setInfoCardData: Dispatch<SetStateAction<LogProps | null>>,
-  setInfoCardPosition:Dispatch<SetStateAction<{x: number, y: number}>>,
+  setInfoCardData: Dispatch<SetStateAction<InfoCardData | null>>,
+  setInfoCardPosition:Dispatch<SetStateAction<InfoCardPosition>>,
   dimensions: {width: number, height: number},
   margins: number[],
   axisPadding: number,
@@ -636,7 +649,20 @@ export const drawScatterPlot = (
 
   // Point interaction functions
   function hoverOnPoint (event: any, data: LogProps) {
-      setInfoCardData(logs ? logs.find((log)=>log.id === data.id)! : data);
+      const logData = logs ? logs.find((log)=>log.id === data.id)! : data;
+      const hoverData = {
+        "x" : {
+            "name": selectedXAxisProperty as string,
+            "value": selectedXAxisProperty === "Log Time" 
+                ?   data.ts
+                :   logData.entries[selectedXAxisProperty as keyof LogItemProps]
+        },
+        "y" : {
+            "name": selectedYAxisProperty as string, 
+            "value": logData.entries[selectedYAxisProperty as keyof LogItemProps]
+        }
+      }
+      setInfoCardData(hoverData);
       const [x, y] = d3.pointer(event);
       setInfoCardPosition({x, y});
       svg.selectAll(`[log-hover-id="${data.id}-hover-area"]`)
