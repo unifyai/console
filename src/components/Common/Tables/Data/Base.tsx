@@ -103,6 +103,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
 
     return (<div className="flex flex-col gap-2 max-w-fit">
         {TableTop && TableTop}
+        <div className="h-fit overflow-auto w-full">
         <DndContext
             collisionDetection={closestCenter}
             modifiers={[restrictToHorizontalAxis]}
@@ -175,5 +176,6 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
             </Table>
         </DndContext>
         {ExtraComponents && ExtraComponents(table)}
+        </div>
     </div>);
 }
