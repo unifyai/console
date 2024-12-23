@@ -1,10 +1,10 @@
+"use client";
 import React from "react";
 import { LogProps } from "@/types/evals/logs";
 import {
-  Accordion,
   AccordionItem,
   AccordionTrigger,
-  AccordionContent,
+  AccordionContent
 } from "@/components/UI/accordion";
 
 import DictionaryView from "./Views/DictionaryView";
@@ -12,17 +12,15 @@ import ListView from "./Views/ListView";
 import ImageView from "./Views/ImageView";
 import MatrixView from "./Views/MatrixView";
 import StringView from "./Views/StringView";
-import TraceView from "./Views/TraceView/index";
+import TraceView from "./Views/TraceView";
 
 import {
   isDict,
   isList,
   isMatrix,
   isImage,
-  isSpan,
+  isSpan
 } from "@/utils/evals/selection";
-import { Span } from "@/types/evals/traces";
-
 import {
   Waypoints,
   CurlyBraces,
@@ -31,30 +29,23 @@ import {
   Grid,
   Text
 } from "lucide-react";
+import { Span } from "@/types/evals/traces";
 
 type SelectionEntryProps = {
   property: string;
   value: any;
-  key: number; // React uses the special "key" prop internally, but we'll keep it in the type signature
   baseLog: LogProps;
   baseLogIndex: number;
   comparisonLogs?: LogProps[];
   comparisonLogsIndex: number[];
 };
 
-/**
- * Helper to check if value is a trace
- */
 function isTrace(x: any): x is Span | Span[] {
   if (!x) return false;
   if (isSpan(x)) return true;
-  if (Array.isArray(x) && x.every((item) => isSpan(item))) {
-    return true;
-  }
-  return false;
+  return Array.isArray(x) && x.every((item) => isSpan(item));
 }
 
-/** Determine string label for an item’s type. */
 function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix" | "string" {
   if (isTrace(value)) return "trace";
   if (isDict(value)) return "dict";
@@ -64,7 +55,6 @@ function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix
   return "string";
 }
 
-/** Return the appropriate icon for the type. */
 function getTypeIcon(valueType: string) {
   switch (valueType) {
     case "trace":
@@ -83,20 +73,21 @@ function getTypeIcon(valueType: string) {
 }
 
 /**
- * Decide which specialized component to render, based on an item’s type.
+ * Decide which specialized component to display based on the data type.
+ * Each specialized "View" (DictionaryView, ListView, etc.) returns an array
+ * of <AccordionItem> elements (instead of creating a new Accordion),
+ * so the single top-level Accordion in Selection.tsx can manage expansion.
  */
-function getSelectionComponent(
-  key: number,
+function getSelectionView(
   value: any,
   comparables: any[],
   baseLogIndex: number,
   comparisonLogsIndex: number[]
-): React.ReactNode {
-  // If recognized as a trace
+) {
+  // If it's a trace
   if (isTrace(value)) {
-    // Always let TraceView handle single vs multi internally
+    // Wrap single or multi traces
     const baseArr = Array.isArray(value) ? value : [value];
-    // Convert each comparable to an array of spans as well
     const compArrs = comparables.map((c) => (Array.isArray(c) ? c : c ? [c] : []));
     return (
       <TraceView
@@ -108,11 +99,10 @@ function getSelectionComponent(
     );
   }
 
-  // DICTIONARY
+  // Dictionary
   if (isDict(value)) {
     return (
       <DictionaryView
-        key={key}
         value={value}
         comparables={comparables}
         baseLogIndex={baseLogIndex}
@@ -121,11 +111,10 @@ function getSelectionComponent(
     );
   }
 
-  // LIST
+  // List
   if (isList(value)) {
     return (
       <ListView
-        key={key}
         value={value}
         comparables={comparables}
         baseLogIndex={baseLogIndex}
@@ -134,11 +123,10 @@ function getSelectionComponent(
     );
   }
 
-  // IMAGE
+  // Image
   if (isImage(value)) {
     return (
       <ImageView
-        key={key}
         value={value}
         comparables={comparables}
         baseLogIndex={baseLogIndex}
@@ -147,11 +135,10 @@ function getSelectionComponent(
     );
   }
 
-  // MATRIX
+  // Matrix
   if (isMatrix(value)) {
     return (
       <MatrixView
-        key={key}
         value={value}
         comparables={comparables}
         baseLogIndex={baseLogIndex}
@@ -160,10 +147,9 @@ function getSelectionComponent(
     );
   }
 
-  // FALLBACK => STRING
+  // Fallback => string
   return (
     <StringView
-      key={key}
       value={value}
       comparables={comparables}
       baseLogIndex={baseLogIndex}
@@ -173,29 +159,27 @@ function getSelectionComponent(
 }
 
 /**
- * SelectionEntry renders one property/value (plus optional comparisons)
- * in an AccordionItem, choosing the specialized "View" based on the data type.
+ * SelectionEntry:
+ * - Renders an <AccordionItem> for the property.
+ * - The specialized content (DictionaryView, ListView, TraceView, etc.)
+ *   returns more <AccordionItem> elements if nested, letting the top-level 
+ *   Accordion in Selection.tsx handle expansions at all levels.
  */
 const SelectionEntry: React.FC<SelectionEntryProps> = ({
   property,
   value,
-  key,
   baseLog,
   baseLogIndex,
   comparisonLogs,
-  comparisonLogsIndex,
+  comparisonLogsIndex
 }) => {
-  // Gather parallel values from each comparison log for this property
-  const comparables = comparisonLogs
-    ? comparisonLogs.map((log) => log.entries[property])
-    : [];
+  // Gather parallel values for this property from each comparison log
+  const comparables = comparisonLogs?.map((cl) => cl.entries[property]) ?? [];
 
   const valueType = getValueType(value);
   const icon = getTypeIcon(valueType);
 
-  // Decide which specialized component to render
-  const renderedSelection = getSelectionComponent(
-    key,
+  const renderedContent = getSelectionView(
     value,
     comparables,
     baseLogIndex,
@@ -210,7 +194,10 @@ const SelectionEntry: React.FC<SelectionEntryProps> = ({
           {property}
         </span>
       </AccordionTrigger>
-      <AccordionContent>{renderedSelection}</AccordionContent>
+
+      <AccordionContent>
+        {renderedContent}
+      </AccordionContent>
     </AccordionItem>
   );
 };

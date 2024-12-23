@@ -1,102 +1,111 @@
-import React, { useEffect, useState } from "react";
+"use client";
+import React from "react";
+import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/UI/accordion";
 import { ChevronsLeftRightEllipsis } from "lucide-react";
-import { AccordionItem, AccordionTrigger, AccordionContent, Accordion } from "@/components/UI/accordion";
-import { Span } from "@/types/evals/traces";
-import { useExpandAllContext } from "./ExpandAllContext";
+import type { Span } from "@/types/evals/traces";
 import FieldDiffAccordion from "./diff/FieldDiffAccordion";
 
-interface MergedSpan {
+/**
+ * A merged span has:
+ *  - a canonical “baseSpan”
+ *  - an array of comparableSpans
+ *  - child merges
+ */
+export interface MergedSpan {
   spanName: string;
   baseSpan?: Span;
   comparableSpans: Array<Span | undefined>;
   children: MergedSpan[];
 }
 
-const MergedSpanItem: React.FC<{
+interface MergedSpanItemProps {
   merged: MergedSpan;
   rowIndexes: number[];
   diffMode: "lines" | "words" | "characters";
   splitView: boolean;
-}> = ({ merged, rowIndexes, diffMode, splitView }) => {
+  depth: number;  // For visual indentation
+}
+
+/**
+ * MergedSpanItem:
+ * - Returns a single <AccordionItem> for the mergedSpan itself.
+ * - Sub-fields are also <AccordionItem> items (FieldDiffAccordion) sharing the same top-level context.
+ * - Children are rendered recursively, also as <AccordionItem> sets, so everything belongs
+ *   to that single, top-level Accordion in MultiTraceView.
+ */
+const MergedSpanItem: React.FC<MergedSpanItemProps> = ({
+  merged,
+  rowIndexes,
+  diffMode,
+  splitView,
+  depth
+}) => {
   const { spanName, baseSpan, comparableSpans, children } = merged;
-  const baseErrors = baseSpan?.errors || "";
-  const hasComparisonErrors = comparableSpans.some((c) => c?.errors);
-  const showErrors = baseErrors || hasComparisonErrors;
+  const hasErrors = baseSpan?.errors || comparableSpans.some(c => c?.errors);
 
-  // local sub-accordion state
-  const [openItems, setOpenItems] = useState<string[]>([]);
-
-  // React to "expand/collapse all" context
-  const { expandAll, toggleCounter } = useExpandAllContext();
-  useEffect(() => {
-    if (expandAll) {
-      const itemsToOpen: string[] = [
-        `offset-${spanName}`,
-        `execTime-${spanName}`,
-      ];
-      if (showErrors) {
-        itemsToOpen.push(`errors-${spanName}`);
-      }
-      itemsToOpen.push(`inputs-${spanName}`);
-      itemsToOpen.push(`outputs-${spanName}`);
-      setOpenItems(itemsToOpen);
-    } else {
-      setOpenItems([]);
-    }
-  }, [expandAll, toggleCounter, showErrors, spanName]);
+  // This is the ID for the main item (e.g. "spanName-baseSpanId")
+  const itemId = `${spanName}-${baseSpan?.id ?? "no-base"}`;
 
   return (
-    <AccordionItem value={`${spanName}-${baseSpan?.id || Math.random()}`}>
+    <AccordionItem value={itemId}>
+      {/* Primary trigger for this entire merged span */}
       <AccordionTrigger>
-        <div className="flex items-center gap-3 w-full">
+        <div
+          className="flex items-center gap-3"
+          style={{ marginLeft: depth * 16 }}
+        >
           <ChevronsLeftRightEllipsis className="h-4 w-4 text-primary" />
           <span className="font-semibold">{spanName}</span>
         </div>
       </AccordionTrigger>
-      <AccordionContent>
-        <div className="flex flex-col">
-        {baseSpan?.id && (
-          <span className="ml-2 text-xs italic text-muted-foreground">
-            Row {rowIndexes[0]} (Base): {baseSpan.id}
-          </span>
-        )}
-        {comparableSpans.map((c, index) => (
-          <span key={c?.id} className="ml-2 text-xs italic text-muted-foreground">
-            Row {rowIndexes[index + 1]}: {c?.id ?? "N/A"}
-          </span>
-        ))}
-        </div>
 
-        <Accordion
-          type="multiple"
-          className="border-l pl-3 my-2 space-y-1"
-          value={openItems}
-          onValueChange={setOpenItems}
+      <AccordionContent>
+        {/* Nested visual indent + border */}
+        <div
+          className="border-l pl-4 space-y-2"
+          style={{ marginLeft: depth * 16 }}
         >
+          {/* Basic row references */}
+          {baseSpan?.id && (
+            <p className="ml-2 text-xs italic text-muted-foreground">
+              Row {rowIndexes[0]} (Base): {baseSpan.id}
+            </p>
+          )}
+          {comparableSpans.map((c, index) => (
+            <p
+              key={index}
+              className="ml-2 text-xs italic text-muted-foreground"
+            >
+              Row {rowIndexes[index + 1]}: {c?.id ?? "N/A"}
+            </p>
+          ))}
+
+          {/* Sub-fields: offset, execTime, errors (optional), inputs, outputs */}
           <FieldDiffAccordion
-            uniqueKey={`offset-${spanName}`}
+            uniqueKey={`offset-${itemId}`}
             title="Offset"
             baseVal={baseSpan}
             comparables={comparableSpans}
             rowIndexes={rowIndexes}
-            getValue={(s) => (s?.offset ?? 0).toString()}
-            diffMode={diffMode}
-            splitView={splitView}
-          />
-          <FieldDiffAccordion
-            uniqueKey={`execTime-${spanName}`}
-            title="Exec Time"
-            baseVal={baseSpan}
-            comparables={comparableSpans}
-            rowIndexes={rowIndexes}
-            getValue={(s) => (s?.exec_time ?? 0).toString()}
+            getValue={(s) => String(s?.offset ?? 0)}
             diffMode={diffMode}
             splitView={splitView}
           />
 
-          {showErrors && (
+          <FieldDiffAccordion
+            uniqueKey={`execTime-${itemId}`}
+            title="Exec Time"
+            baseVal={baseSpan}
+            comparables={comparableSpans}
+            rowIndexes={rowIndexes}
+            getValue={(s) => String(s?.exec_time ?? 0)}
+            diffMode={diffMode}
+            splitView={splitView}
+          />
+
+          {hasErrors && (
             <FieldDiffAccordion
-              uniqueKey={`errors-${spanName}`}
+              uniqueKey={`errors-${itemId}`}
               title="Errors"
               baseVal={baseSpan}
               comparables={comparableSpans}
@@ -106,8 +115,9 @@ const MergedSpanItem: React.FC<{
               splitView={splitView}
             />
           )}
+
           <FieldDiffAccordion
-            uniqueKey={`inputs-${spanName}`}
+            uniqueKey={`inputs-${itemId}`}
             title="Inputs"
             baseVal={baseSpan}
             comparables={comparableSpans}
@@ -116,8 +126,9 @@ const MergedSpanItem: React.FC<{
             diffMode={diffMode}
             splitView={splitView}
           />
+
           <FieldDiffAccordion
-            uniqueKey={`outputs-${spanName}`}
+            uniqueKey={`outputs-${itemId}`}
             title="Outputs"
             baseVal={baseSpan}
             comparables={comparableSpans}
@@ -126,24 +137,19 @@ const MergedSpanItem: React.FC<{
             diffMode={diffMode}
             splitView={splitView}
           />
-        </Accordion>
 
-        {/* Child merges */}
-        {children.length > 0 && (
-          <div className="ml-4 mt-4 border-l pl-4">
-            <Accordion type="multiple">
-              {children.map((child, i) => (
-                <MergedSpanItem
-                  key={i}
-                  merged={child}
-                  rowIndexes={rowIndexes}
-                  diffMode={diffMode}
-                  splitView={splitView}
-                />
-              ))}
-            </Accordion>
-          </div>
-        )}
+          {/* Recursively render children in the same top-level Accordion context */}
+          {children.map((child, i) => (
+            <MergedSpanItem
+              key={i}
+              merged={child}
+              rowIndexes={rowIndexes}
+              diffMode={diffMode}
+              splitView={splitView}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
       </AccordionContent>
     </AccordionItem>
   );

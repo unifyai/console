@@ -6,9 +6,8 @@ import SelectionHints from "./Hints";
 import SelectionEntry from "./SelectionEntry";
 import { useQueryState } from "nuqs";
 import { Accordion } from "@/components/UI/accordion";
-import { Button } from "@/components/UI/button";
-import { FoldVertical, UnfoldVertical } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
+import { FoldVertical, UnfoldVertical } from "lucide-react";
 
 const Selection = ({ params, logs }: { params: LogItemProps; logs: LogProps[] }) => {
   // Pull relevant IDs from query string
@@ -23,56 +22,57 @@ const Selection = ({ params, logs }: { params: LogItemProps; logs: LogProps[] })
   const comparisonLogs = comparisonLogsParam && logs
     ? comparisonLogsParam.split(",").map((value: string) => logs.find((log) => log.id == value)!)
     : [];
-  const comparisonLogsIndex = comparisonLogsParam && logs
-    ? comparisonLogs.map((value: LogProps) => logs.findIndex((log) => log.id == value.id) + 1)
-    : [];
+  const comparisonLogsIndex = comparisonLogs.map(
+    (cl) => logs.findIndex((log) => log.id == cl.id) + 1
+  );
 
-
+  // The top-level Accordion’s expanded items
   const [openItems, setOpenItems] = useState<string[]>([]);
 
-  // If we have a base log, collect all its property keys
+  // If we have a base log, collect all property keys
   const entryKeys = baseLog ? Object.keys(baseLog.entries) : [];
 
-  // Check if all possible items are open
-  const anyOpen = entryKeys.length > 0 && openItems.length == entryKeys.length;
+  // Check if everything is open
+  const everythingOpen = entryKeys.length > 0 && openItems.length === entryKeys.length;
 
-  // Toggle function on button click
+  // Expand/Collapse everything
   const handleToggleAll = () => {
-    if (anyOpen) {
-      // Collapse all
+    if (everythingOpen) {
       setOpenItems([]);
     } else {
-      // Expand all
       setOpenItems(entryKeys);
     }
   };
 
-  // Render the list of SelectionEntry components for each property/value
-  const entriesNodes = (baseLog: LogProps) => (
+  // Renders each property from the base log as a SelectionEntry in the top-level Accordion
+  const entriesNodes = (base: LogProps) => (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <p className="font-bold text-lg">Entries</p>
         <ActionButton
           variant="ghost"
           size="icon"
-          tooltip={anyOpen ? "Collapse all" : "Expand all"}
+          tooltip={everythingOpen ? "Collapse All" : "Expand All"}
           onClick={handleToggleAll}
-          icon={anyOpen ? <FoldVertical className="h-4 w-4"/> : <UnfoldVertical className="h-4 w-4"/>}
+          icon={
+            everythingOpen
+              ? <FoldVertical className="h-4 w-4" />
+              : <UnfoldVertical className="h-4 w-4" />
+          }
         />
       </div>
 
       <Accordion
         type="multiple"
-        className=""
         value={openItems}
         onValueChange={setOpenItems}
       >
-        {Object.entries(baseLog.entries).map(([property, value], index) => (
+        {Object.entries(base.entries).map(([property, value]) => (
           <SelectionEntry
+            key={property}               // unique string key (property name)
             property={property}
             value={value}
-            key={index}
-            baseLog={baseLog}
+            baseLog={base}
             baseLogIndex={baseLogIndex}
             comparisonLogs={comparisonLogs}
             comparisonLogsIndex={comparisonLogsIndex}
@@ -86,7 +86,7 @@ const Selection = ({ params, logs }: { params: LogItemProps; logs: LogProps[] })
     <div className="bg-background rounded-md w-full h-full overflow-y-scroll p-5 flex flex-col">
       {baseLog ? (
         <div className="relative gap-4 flex flex-col">
-          <div>{entriesNodes(baseLog)}</div>
+          {entriesNodes(baseLog)}
         </div>
       ) : (
         <div className="flex items-center justify-center h-full w-full">

@@ -1,3 +1,4 @@
+"use client";
 import React from "react";
 import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/UI/accordion";
 import { Span } from "@/types/evals/traces";
@@ -14,6 +15,12 @@ interface Props {
   splitView: boolean;
 }
 
+/**
+ * FieldDiffAccordion:
+ * Another <AccordionItem> in the same top-level Accordion context.
+ * The "uniqueKey" must match what's collected in collectAllMergedSpanIds
+ * so the "Expand All" logic includes it.
+ */
 const FieldDiffAccordion: React.FC<Props> = ({
   uniqueKey,
   title,
