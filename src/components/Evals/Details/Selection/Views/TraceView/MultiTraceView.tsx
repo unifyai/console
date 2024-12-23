@@ -134,7 +134,7 @@ const MultiTraceView: React.FC<{
               onClick={() => setOpenChart(true)}
             />
           </PopoverTrigger>
-          <PopoverContent className="w-[700px] min-h-[400px] p-4">
+          <PopoverContent className="w-fit min-h-fit p-4">
             <p className="font-medium text-sm mb-2">Combined Timeline</p>
             <ChartContainer config={{}} className="min-h-[300px] w-fit">
               <BarChart

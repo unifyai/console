@@ -76,7 +76,7 @@ export default function SingleTraceView({ spans }: SingleTraceViewProps) {
               onClick={() => setPopoverOpen(true)}
             />
           </PopoverTrigger>
-          <PopoverContent className="w-[700px] min-h-[400px] p-4">
+          <PopoverContent className="w-fit h-fit p-4">
             <p className="font-medium text-sm mb-2">Timeline View</p>
             <ChartContainer config={{}} className="min-h-[300px] w-full">
               <BarChart
