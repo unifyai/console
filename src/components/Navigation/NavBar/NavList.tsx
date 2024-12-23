@@ -16,31 +16,24 @@ const NavList = (): NavItem[] => {
   // Just return your main nav items—do NOT include "Profile" here
   return [
     {
-      title: "Universal API",
-      icon: Globe,
-      href: "/evals",
-      tabs: [
-        {
-          title: "Chat",
-          icon: MessageSquare,
-          href: "/chat",
-        },
-        {
-          title: "Keys",
-          icon: Key,
-          href: "/keys",
-        },
-        {
-          title: "Endpoints",
-          icon: ArrowBigRightDash,
-          href: "/endpoints",
-        },
-        {
-          title: "Usage",
-          icon: ChartLine,
-          href: "/usage",
-        },
-      ],
+      title: "Chat",
+      icon: MessageSquare,
+      href: "/chat",
+    },
+    {
+      title: "Keys",
+      icon: Key,
+      href: "/keys",
+    },
+    {
+      title: "Endpoints",
+      icon: ArrowBigRightDash,
+      href: "/endpoints",
+    },
+    {
+      title: "Usage",
+      icon: ChartLine,
+      href: "/usage",
     },
     {
       title: "Evals",

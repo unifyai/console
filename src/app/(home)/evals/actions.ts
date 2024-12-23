@@ -106,6 +106,12 @@ export const getLogMetrics = async (apiKey: string) => {
             ),
             { method: "GET", headers: { apiKey: apiKey } }
         );
+
+        if (!response.ok) {
+            console.error(response);
+            throw new Error("Network error");
+        }
+
         return await response.json();
     }
 };

@@ -10,9 +10,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarSeparator,
   useSidebar,
 } from "@/components/UI/sidebar";
@@ -21,24 +18,56 @@ import UnifyLogo from "@/components/Common/Misc/UnifyLogo";
 import DarkModeToggle from "./DarkModeToggle";
 import SignOutButton from "./SignOut";
 import { NavItem } from "@/types/navigation";
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from "@/components/UI/collapsible";
-import { ChevronRight, ChevronDown, User } from "lucide-react";
-import { useTheme } from "next-themes";
 import Link from "next/link";
-import { getSession, getCurrentUser } from "@/lib/user/user";
+import { getSession } from "@/lib/user/user";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/UI/avatar";
+import { useTheme } from "next-themes";
+import ivyLogoOnly from "@/public/ivy_logo_only.png";
+import Image from "next/image";
+import { User } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
+
+/** A single nav item with an icon and label. */
+function renderMenuItem(item: NavItem, isActive: boolean) {
+  const Icon = item.icon;
+  return (
+    <SidebarMenuItem key={item.title} className="px-2 py-1 transition-colors">
+      <SidebarMenuButton asChild isActive={isActive}>
+        <Link
+          href={item.href}
+          className={`flex items-center transition-colors ${
+            isActive
+              ? "font-bold text-sidebar-accent-foreground"
+              : "hover:text-sidebar-primary hover:bg-transparent"
+          }`}
+        >
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                  <Icon
+                    className={`w-5 h-5 ${
+                      isActive ? "text-sidebar-accent-foreground" : ""
+                    }`}
+                  />
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>{item.title}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <span className="ml-2 group-data-[collapsible=icon]:hidden">
+            {item.title}
+          </span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
 
 export default function NavMenu() {
-  const currentPath = usePathname();
-  const { state } = useSidebar();
-  const [universalApiOpen, setUniversalApiOpen] = useState(true);
+  const currentPath = usePathname() || "";
+  const { state } = useSidebar(); // "expanded" or "collapsed"
   const { resolvedTheme } = useTheme();
-  const mainNavItems = NavList();
-
   const [profileName, setProfileName] = useState("Profile");
   const [avatarJSX, setAvatarJSX] = useState<JSX.Element | null>(null);
 
@@ -51,129 +80,99 @@ export default function NavMenu() {
 
         setProfileName(userName);
 
-        // Helper to get 1-2 letter fallback text
-        const getInitials = (name: string) => {
-          return name
+        // Generate 1-2 letter fallback text:
+        const getInitials = (name: string) => 
+          name
             .split(" ")
             .map((part) => part[0])
             .join("")
             .toUpperCase()
             .slice(0, 2);
-        };
 
         setAvatarJSX(
           <Avatar className="h-5 w-5">
-            <AvatarImage src={imageUrl} alt="User Avatar" />
+            <AvatarImage src={imageUrl} alt="User Avatar"/>
             <AvatarFallback>{getInitials(userName)}</AvatarFallback>
           </Avatar>
         );
       } catch (err) {
-        console.error("Failed to fetch user", err);
+        console.error("Failed to fetch user info", err);
       }
     })();
   }, []);
 
-  // Build a NavItem for the Profile link
+  const mainNavItems = NavList();
+
+  // The user profile nav item
   const profileItem: NavItem = {
     title: profileName,
     icon: avatarJSX ? () => avatarJSX : User,
     href: "/profile",
   };
 
-  // Keep Universal API expanded if we’re on those routes
-  useEffect(() => {
-    if (currentPath.startsWith("/universal-api")) {
-      setUniversalApiOpen(true);
-    }
-  }, [currentPath]);
+  // Highlight the active item
+  const isActive = (item: NavItem) => 
+    currentPath === item.href || currentPath.startsWith(`${item.href}/`);
 
-  const isActive = (item: NavItem) => {
-    if (item.href === "/universal-api") {
-      return currentPath.startsWith("/universal-api");
-    }
-    return currentPath === item.href;
-  };
-
-  const button = (item: NavItem) => {
-    const active = isActive(item);
-    const Icon = item.icon;
-    return (
-      <SidebarMenuButton asChild isActive={active}>
-        <Link
-          href={item.href}
-          className={`flex items-center transition-colors ${
-            active
-              ? "font-bold text-sidebar-accent-foreground"
-              : "hover:text-sidebar-primary hover:bg-transparent"
-          }`}
-        >
-          <Icon
-            className={`w-5 h-5 ${
-              active ? "text-sidebar-accent-foreground" : ""
-            }`}
-          />
-          <span className="ml-2">{item.title}</span>
-        </Link>
-      </SidebarMenuButton>
-    );
-  };
-
-  const renderMenuItem = (item: NavItem) => (
-    <SidebarMenuItem key={item.title} className="px-2 transition-colors">
-      {button(item)}
-    </SidebarMenuItem>
-  );
-
-  const renderGroup = (item: NavItem) => (
-    <Collapsible
-      key={item.title}
-      className="group/collapsible"
-      open={universalApiOpen}
-      onOpenChange={setUniversalApiOpen}
-    >
-      <SidebarGroup>
-        <CollapsibleTrigger asChild>
-          <SidebarGroupLabel className="flex items-center justify-between cursor-pointer transition-colors hover:text-sidebar-primary">
-            {item.title}
-            <ChevronRight className="w-4 h-4 transition-transform group-data-[state=open]/collapsible:hidden" />
-            <ChevronDown className="w-4 h-4 transition-transform hidden group-data-[state=open]/collapsible:block" />
-          </SidebarGroupLabel>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="transition-all">
-          <SidebarGroupContent className="pl-4 border-l border-sidebar-border">
-            <SidebarMenu>
-              {item.tabs?.map(renderMenuItem)}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </CollapsibleContent>
-      </SidebarGroup>
-    </Collapsible>
-  );
   return (
-    <Sidebar>
-      <SidebarHeader>
-        <UnifyLogo theme={resolvedTheme} />
+    <Sidebar collapsible="icon">
+      {/* SidebarHeader with crossfade logos */}
+      <SidebarHeader className="relative h-12 w-full flex items-center justify-center overflow-hidden">
+        {/* Collapsed logo (ivyLogoOnly) */}
+        <Image
+          src={ivyLogoOnly}
+          alt="Logo (collapsed)"
+          priority
+          className={`
+            absolute h-5 w-5 object-contain 
+            transition-opacity duration-300 
+            ${state === "collapsed" ? "opacity-100" : "opacity-0"}
+          `}
+        />
+        {/* Expanded logo (UnifyLogo) */}
+        <div
+          className={`
+            transition-opacity duration-300 
+            ${state === "collapsed" ? "opacity-0" : "opacity-100"}
+          `}
+        >
+          <UnifyLogo theme={resolvedTheme} />
+        </div>
       </SidebarHeader>
+
       <SidebarSeparator />
 
-      <SidebarContent className="list-none flex flex-col h-full">
-        <div className="flex-grow">
-          {mainNavItems.map((item) =>
-            item.tabs ? renderGroup(item) : renderMenuItem(item)
-          )}
+      <SidebarContent className="list-none flex flex-col h-full mt-5">
+        {/* Main Nav */}
+        <div className="flex-grow space-y-2">
+          <SidebarMenu>
+            {mainNavItems.map((item) =>
+              renderMenuItem(item, isActive(item))
+            )}
+          </SidebarMenu>
         </div>
 
+        {/* Profile at bottom: always visible */}
         <div className="mt-auto mb-2">
-          {renderMenuItem(profileItem)}
+          <SidebarMenu>
+            {renderMenuItem(profileItem, isActive(profileItem))}
+          </SidebarMenu>
         </div>
       </SidebarContent>
 
       <SidebarSeparator />
 
-      <SidebarFooter className="flex flex-row items-center justify-between px-4 py-2">
-        <SignOutButton />
-        <DarkModeToggle />
-      </SidebarFooter>
+      {/* Hide entire footer in collapsed mode */}
+      {state === "collapsed" ? (
+        <SidebarFooter className="flex flex-row items-center justify-between px-2 py-2">
+          <DarkModeToggle />
+        </SidebarFooter>
+      ) : (
+        <SidebarFooter className="flex flex-row items-center justify-between px-4 py-2">
+          <SignOutButton />
+          <DarkModeToggle />
+        </SidebarFooter>
+      )}
     </Sidebar>
   );
 }
