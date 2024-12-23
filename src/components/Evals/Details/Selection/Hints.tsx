@@ -1,12 +1,11 @@
 import { Badge } from "@/components/UI/badge"
-import { ArrowUp, ArrowDown } from "lucide-react"
 import { ReactNode } from "react"
 
 const Hint = ({command, instruction}: {command: string | ReactNode, instruction: string}) => {
     return (
     <div className="grid grid-cols-2 items-start py-2">
         <Badge variant={"outline"} className="w-fit scale-120">{command}</Badge>
-        <p className="text-gray-500">{instruction}</p>
+        <p>{instruction}</p>
     </div>        
     )
 }

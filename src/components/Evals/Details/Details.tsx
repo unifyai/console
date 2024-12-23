@@ -3,14 +3,12 @@ import { Eye, Database, ScatterChart } from "lucide-react";
 import LogsPlot from "./Plot/Plot";
 import Selection from "./Selection/Selection";
 import { LogProps, LogItemProps } from "@/types/evals/logs";
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/UI/tabs"
-import { ResponseProps } from "@/types/common";
 
 const Details = ({ params, logs}: {
     project: string | undefined,
     params: LogItemProps,
-    logs: LogProps[] | undefined,
+    logs: LogProps[],
 }) => {
     return (
         <Tabs defaultValue="View" className="w-full h-full tutorial-details-panel">

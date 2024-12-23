@@ -1,4 +1,5 @@
 import React from "react"
+import { Span } from "@/types/evals/traces"
 
 export const MatrixDisplay = ({value}:{value: number[][]}) => {
     return (
@@ -55,3 +56,17 @@ export const isImage = (value: any) => {
   if (typeof value !== "string") return false;
   return isBase64Image(value) || isURLImage(value);
 }
+
+/**
+   * Quick type‐guard to see if an unknown object looks like a Span.
+   * Returns true if the shape seems correct.
+   */
+  export function isSpan(obj: any): obj is Span {
+    return (
+      obj &&
+      typeof obj === "object" &&
+      typeof obj.id === "string" &&
+      typeof obj.span_name === "string" &&
+      Array.isArray(obj.child_spans)
+    );
+  }
