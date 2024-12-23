@@ -27,7 +27,7 @@ import VisibilityFilter from "./Buttons/VisibilityFilter";
 import DeleteRows from "./Buttons/DeleteRows";
 import ColumnMetrics from "./Buttons/ColumnMetrics";
 import SummaryCell from "./Content/SummaryCell";
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
+import FooterCell from "./Content/FooterCell";
 import CreateProject from "./Buttons/CreateProject";
 import GlobalFilter from "./Buttons/GlobalFilter";
 import PageController from "@/components/Common/Tables/Data/Buttons/PageController";
@@ -398,7 +398,7 @@ const LogsTable = ({
           <Loader2 className="animate-spin my-36" />
         </div>
       ) : (
-        <div className="w-full tutorial-logs-table">
+        <div className="w-full h-fit overflow-y-auto tutorial-logs-table">
           {project ? (
             <div className="relative flex-col gap-2">
               {/* “summaryPending” can optionally show a small loader over the table if you like */}
@@ -449,22 +449,17 @@ const LogsTable = ({
                 AggregatedCell={(cell, row) => (
                   <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />
                 )}
-                FooterCell={(column) =>
-                  column.columnDef.id === "RowNumbering" ? (
-                    <ColumnMetrics
-                      metric={metric}
-                      setMetric={setState.setMetric}
-                      colSpan={1 + grouping.length}
-                    />
-                  ) : !column.getIsGrouped() ? (
-                    <SummaryCell
-                      column={column}
-                      state={state}
-                      metrics={metrics}
-                      pending={summaryPending}
-                    />
-                  ) : null
-                }
+				FooterCell={(column, resizeMap) => 
+					<FooterCell column={column} resizeMap={resizeMap} >
+						{
+							column.columnDef.id === "RowNumbering"
+							? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric}/>
+							: !column.getIsGrouped()
+								?	<SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} />
+								: 	null
+						}
+					</FooterCell>
+				}
                 ExtraComponents={(table) => (
                   <>
                     <DeleteRows

@@ -23,8 +23,10 @@ const DataTableHeader = ({table, header, columnVisibility, setColumnVisibility, 
   const { attributes, isDragging, listeners, setNodeRef, transform } = useSortable({id: header.column.id});
 
   const isPinned = header.column.getIsPinned(); 
+  const isLastLeftPinnedColumn =  isPinned === "left" && header.column.getIsLastColumn('left')
 
   const style: CSSProperties = {
+    boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
     opacity: isDragging ? 0.8 : 1,
     position: isPinned ? "sticky" : "relative",
     left: isPinned === "left" ? `${header.column.getStart("left")}px` : undefined,
@@ -45,7 +47,7 @@ const DataTableHeader = ({table, header, columnVisibility, setColumnVisibility, 
       colSpan={header.colSpan} 
       ref={setNodeRef} 
       style={style} 
-      className="py-2 border-1 border-gray-200 rounded-md relative"
+      className="py-2 border-1 border-gray-200 relative"
     >
         <div className="flex-col items-center">
           {/* Content */}

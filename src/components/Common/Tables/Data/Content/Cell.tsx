@@ -22,9 +22,12 @@ const DataTableCell = ({ cell, row, resizeMap, AggregatedCell, ExtraCellContent 
 
       const columnID = cell.column.columnDef.id!;
       const isPinned = cell.column.getIsPinned();
+      const isLastLeftPinnedColumn =  isPinned === "left" && cell.column.getIsLastColumn('left')
+
       const properties = row.getAllCells().map((cell) => cell.column.id);
   
       const style: CSSProperties = {
+        boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
         opacity: isDragging ? 0.8 : 1,
         position: isPinned ? "sticky" : "relative",
         left: isPinned === "left" ? `${cell.column.getStart("left")}px` : undefined,
@@ -32,6 +35,7 @@ const DataTableCell = ({ cell, row, resizeMap, AggregatedCell, ExtraCellContent 
         transform: CSS.Translate.toString(transform), // translate instead of transform to avoid squishing
         transition: "width transform 0.2s ease-in-out",
         height: "21px",
+        minWidth: columnID === "RowNumbering" ? "120px" : undefined,
         maxWidth: `${Math.round(cell.column.getSize())}px`,
         zIndex: isDragging || isPinned ? 1 : 0,
         borderRight: "1px solid var(--muted)",

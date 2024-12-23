@@ -29,7 +29,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
     tableHotkeys?: (table: TanstackTable<any | unknown>, logs: LogProps[] | undefined, setState: SetStateProps) => void
     onRowClick?: (table: TanstackTable<any | unknown>, row: TanstackRow<any | unknown>, event: MouseEvent<HTMLTableRowElement, globalThis.MouseEvent>) => void,
     TableTop?: JSX.Element,
-    FooterCell?: (column: TanstackColumn<any | unknown>) => ReactNode,
+    FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}) => ReactNode,
     ColumnFilters?: (column: TanstackColumn<any | unknown>) => ReactNode;
     AggregatedCell?: (cell: TanstackCell<any, unknown>, row: TanstackRow<any | unknown>) => ReactNode;
     ExtraCellContent?: (cell: TanstackCell<any, unknown>) => ReactNode;
@@ -103,7 +103,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
 
     return (<div className="flex flex-col gap-2 max-w-fit">
         {TableTop && TableTop}
-        <div className="h-fit overflow-auto w-full">
+        <div className="h-fit overflow-x-auto w-full">
         <DndContext
             collisionDetection={closestCenter}
             modifiers={[restrictToHorizontalAxis]}
@@ -164,11 +164,11 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
                         </TableRow>
                     )}
                 </TableBody>
-                <TableFooter className="sticky -bottom-[1px] z-10 bg-background">
+                <TableFooter className="sticky -bottom-[1px] z-10 bg-background border-t-2 border-foreground">
                     <TableRow>
                         {finalColumns.map((column, index) =>
                             <SortableContext key={index} items={state.columnOrder} strategy={horizontalListSortingStrategy}>
-                                {FooterCell && FooterCell(column)}
+                                {FooterCell && FooterCell(column, resizeMap)}
                             </SortableContext>
                         )}
                     </TableRow>
