@@ -57,7 +57,7 @@ const Selection = ({ params, logs }: { params: LogItemProps; logs: LogProps[] })
           size="icon"
           tooltip={anyOpen ? "Collapse all" : "Expand all"}
           onClick={handleToggleAll}
-          icon={anyOpen ? <UnfoldVertical className="h-4 w-4 "/> : <FoldVertical className="h-4 w-4"/>}
+          icon={anyOpen ? <FoldVertical className="h-4 w-4"/> : <UnfoldVertical className="h-4 w-4"/>}
         />
       </div>
 
