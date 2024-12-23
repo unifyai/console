@@ -327,7 +327,7 @@ const Messaging = ({
                             <ChatBubble
                               variant="received"
                               key={idx}
-                              className="flex-1 min-w-0"
+                              className="flex-1 min-w-[30%]"
                             >
                               <ChatBubbleMessage
                                 variant="received"
@@ -528,7 +528,7 @@ const Messaging = ({
           <Button
             variant="ghost"
             size="icon"
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 z-50"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 z-50 opacity-50 hover:opacity-100 "
           >
             <Settings2 className="w-6 h-6" />
             <span className="sr-only">Select Endpoints</span>
