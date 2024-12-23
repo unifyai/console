@@ -59,14 +59,12 @@ const CardGrid = ({
         type: "add" | "remove"
     ) => {
         const leftOrRight = side == "left" || side == "right";
-        console.log(`${rowIndex} ${colIndex}`);
         if (type == "add") {
             if (leftOrRight && cards[rowIndex].length < 3) {
                 if (side == "left")
                     cards[rowIndex].splice(colIndex, 0, undefined);
                 else
                     cards[rowIndex].splice(colIndex + 1, 0, undefined);
-                console.dir(cards[rowIndex]);
             }
             else if (!leftOrRight) {
                 if (side == "top")
