@@ -3,12 +3,7 @@
 import { useState } from "react";
 import Card from "./Card";
 import { LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
-import { FileProps, ResponseProps } from "@/types/common";
-import DeleteDialog from "@/components/Common/Dialogs/Delete";
-import CreateProject from "@/components/Evals/Table/Buttons/CreateProject";
-import FileDirectory from "@/components/Directory/FileDirectory";
-import VisibilityFilter from "@/components/Evals/Table/Buttons/VisibilityFilter";
-import GlobalFilter from "@/components/Evals/Table/Buttons/GlobalFilter";
+import { ResponseProps } from "@/types/common";
 
 const CardGrid = ({
     searchParams,
