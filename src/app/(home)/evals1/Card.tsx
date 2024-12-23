@@ -96,7 +96,7 @@ const Card = ({
                         }
                     />
                 </div>
-                <div className={"w-full flex-1 flex flex-col gap-4 items-center " + (cards[rowIndex][colIndex] ? "mt-4" : "justify-center")}>
+                <div className={"w-full flex-1 flex flex-col gap-4 items-center " + (cards[rowIndex][colIndex] ? "mt-2" : "justify-center")}>
                     <div className="w-fit">
                         <BaseDropdown
                             button={<ActionButton
