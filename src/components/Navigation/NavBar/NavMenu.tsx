@@ -66,7 +66,7 @@ function renderMenuItem(item: NavItem, isActive: boolean) {
 
 export default function NavMenu() {
   const currentPath = usePathname() || "";
-  const { state } = useSidebar(); // "expanded" or "collapsed"
+  const { state, setOpen } = useSidebar();
   const { resolvedTheme } = useTheme();
   const [profileName, setProfileName] = useState("Profile");
   const [avatarJSX, setAvatarJSX] = useState<JSX.Element | null>(null);
@@ -99,6 +99,11 @@ export default function NavMenu() {
         console.error("Failed to fetch user info", err);
       }
     })();
+  }, []);
+
+  // Set default open state
+  useEffect(() => {
+    setOpen(false);
   }, []);
 
   const mainNavItems = NavList();
