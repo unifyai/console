@@ -6,7 +6,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/UI/popover
 import { GanttChart, FoldVertical, UnfoldVertical, FileText, CaseLower, Pilcrow, Columns, AlignJustify } from "lucide-react";
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Accordion } from "@/components/UI/accordion";
-
+import ActionButton from "@/components/Common/Buttons/Action";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/UI/chart";
 import { ExpandAllProvider } from "./ExpandAllContext";
 import { unifyByName, unifyTracesForChart, colorPalette } from "./unify";
@@ -30,7 +30,7 @@ const MultiTraceView: React.FC<{
   const modeIcons = [<FileText key="lines"/>, <CaseLower key="words"/>, <Pilcrow key="chars"/>];
   const [modeIndex, setModeIndex] = useState(0);
   const diffMode = modes[modeIndex];
-  const [splitView, setSplitView] = useState(true);
+  const [splitView, setSplitView] = useState(false);
 
   const handleCycleMode = () => setModeIndex((prev) => (prev + 1) % modes.length);
   const handleToggleSplit = () => setSplitView((prev) => !prev);
@@ -55,10 +55,14 @@ const MultiTraceView: React.FC<{
         <div className="flex items-center gap-2">
           {/* Combined Timeline popover */}
           <Popover open={openChart} onOpenChange={setOpenChart}>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <GanttChart className="h-4 w-4" />
-              </Button>
+            <PopoverTrigger>
+              <ActionButton
+                tooltip="Combined Timeline"
+                icon={<GanttChart/>}
+                variant="ghost"
+                size="icon"
+                onClick={() => setOpenChart(true)}
+              />
             </PopoverTrigger>
             <PopoverContent className="w-[700px] min-h-[400px] p-4">
               <p className="font-medium text-sm mb-2">Combined Timeline</p>
@@ -91,26 +95,28 @@ const MultiTraceView: React.FC<{
           {/* Diff mode toggles (on right) */}
           <div className="flex items-center gap-2 ml-auto">
             {/* Expand/collapse all */}
-            <Button variant="ghost" size="icon" onClick={handleToggleExpand}>
-              {isExpanded ? <FoldVertical className="h-4 w-4" /> : <UnfoldVertical className="h-4 w-4" />}
-            </Button>
+            <ActionButton
+              tooltip={isExpanded ? "Collapse All" : "Expand All"}
+              icon={isExpanded ? <FoldVertical className="h-4 w-4" /> : <UnfoldVertical className="h-4 w-4" />}
+              onClick={handleToggleExpand}
+              variant="ghost"
+              size="icon"
+            />
 
-            <Button
-              variant="ghost"
-              size="icon"
+            <ActionButton
+              tooltip={`Cycle diff mode (current: ${diffMode})`}
+              icon={modeIcons[modeIndex]}
               onClick={handleCycleMode}
-              title={`Cycle diff mode (current: ${diffMode})`}
-            >
-              {modeIcons[modeIndex]}
-            </Button>
-            <Button
               variant="ghost"
               size="icon"
+            />
+            <ActionButton
+              tooltip={splitView ? "Switch to Inline View" : "Switch to Split View"}
+              icon={splitView ? <Columns className="h-4 w-4" /> : <AlignJustify className="h-4 w-4" />}
               onClick={handleToggleSplit}
-              title={splitView ? "Switch to Inline View" : "Switch to Split View"}
-            >
-              {splitView ? <Columns /> : <AlignJustify />}
-            </Button>
+              variant="ghost"
+              size="icon"
+            />
           </div>
         </div>
 

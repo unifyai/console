@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 import { LogComparisonProps } from "./types";
+import ActionButton from "@/components/Common/Buttons/Action";
 
 /* 
   MatrixDisplay is presumably your custom component that nicely renders 
@@ -46,7 +47,7 @@ const MatrixView: React.FC<LogComparisonProps> = ({
   const [modeIndex, setModeIndex] = useState(0);
   const diffMode = modes[modeIndex];
 
-  const [splitView, setSplitView] = useState(true);
+  const [splitView, setSplitView] = useState(false);
 
   // Handlers:
   const handleCycleMode = () => setModeIndex((prev) => (prev + 1) % modes.length);
@@ -81,22 +82,20 @@ const MatrixView: React.FC<LogComparisonProps> = ({
 
       {/* Minimal toolbar for changing diff mode & split/inline */}
       <div className="flex justify-end gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
+        <ActionButton
+          tooltip={`Cycle diff mode (current: ${diffMode})`}
+          icon={modeIcons[modeIndex]}
           onClick={handleCycleMode}
-          title={`Cycle diff mode (current: ${diffMode})`}
-        >
-          {modeIcons[modeIndex]}
-        </Button>
-        <Button
           variant="ghost"
           size="icon"
+        />
+        <ActionButton
+          tooltip={splitView ? "Switch to Inline View" : "Switch to Split View"}
+          icon={splitView ? <Columns /> : <AlignJustify />}
           onClick={handleToggleSplit}
-          title={splitView ? "Switch to Inline View" : "Switch to Split View"}
-        >
-          {splitView ? <Columns /> : <AlignJustify />}
-        </Button>
+          variant="ghost"
+          size="icon"
+        />
       </div>
 
       {/* Diffs for each comparable */}

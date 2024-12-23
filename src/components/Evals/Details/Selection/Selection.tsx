@@ -8,6 +8,7 @@ import { useQueryState } from "nuqs";
 import { Accordion } from "@/components/UI/accordion";
 import { Button } from "@/components/UI/button";
 import { FoldVertical, UnfoldVertical } from "lucide-react";
+import ActionButton from "@/components/Common/Buttons/Action";
 
 const Selection = ({ params, logs }: { params: LogItemProps; logs: LogProps[] }) => {
   // Pull relevant IDs from query string
@@ -51,9 +52,13 @@ const Selection = ({ params, logs }: { params: LogItemProps; logs: LogProps[] })
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <p className="font-bold text-lg">Entries</p>
-        <Button variant="ghost" size="sm" onClick={handleToggleAll}>
-          {anyOpen ? <UnfoldVertical className="h-4 w-4 "/> : <FoldVertical className="h-4 w-4"/>}
-        </Button>
+        <ActionButton
+          variant="ghost"
+          size="icon"
+          tooltip={anyOpen ? "Collapse all" : "Expand all"}
+          onClick={handleToggleAll}
+          icon={anyOpen ? <UnfoldVertical className="h-4 w-4 "/> : <FoldVertical className="h-4 w-4"/>}
+        />
       </div>
 
       <Accordion

@@ -12,6 +12,7 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/UI/chart";
 import { unifyTracesForChart } from "./unify";
 import SingleSpanItem from "./SingleSpanItem";
+import ActionButton from "@/components/Common/Buttons/Action";
 
 /**
  * SingleTraceView: Renders a single set of spans with a timeline popover and
@@ -28,10 +29,14 @@ const SingleTraceView: React.FC<{ spans: Span[] }> = ({ spans }) => {
       {/* Timeline Popover */}
       <div>
         <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="sm">
-              <GanttChart className="h-4 w-4" />
-            </Button>
+          <PopoverTrigger>
+            <ActionButton
+              variant="ghost"
+              size="icon"
+              tooltip="Show Timeline"
+              icon={<GanttChart />}
+              onClick={() => setOpen(true)}
+            />
           </PopoverTrigger>
           <PopoverContent className="w-[700px] min-h-[400px] p-4">
             <p className="font-medium text-sm mb-2">Timeline View</p>

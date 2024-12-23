@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { CodeBlock } from "@/components/UI/Chat/markdown-renderer";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 import { LogComparisonProps } from "./types";
-import { Button } from "@/components/UI/button";
 import { FileText, CaseLower, Pilcrow, Columns, AlignJustify } from "lucide-react";
+import ActionButton from "@/components/Common/Buttons/Action";
 
 const StringView: React.FC<LogComparisonProps> = ({
   value,
@@ -17,7 +17,7 @@ const StringView: React.FC<LogComparisonProps> = ({
   const modeIcons = [<FileText key="lines" />, <CaseLower key="words" />, <Pilcrow key="chars" />];
 
   const [modeIndex, setModeIndex] = useState(0);
-  const [splitView, setSplitView] = useState(true);
+  const [splitView, setSplitView] = useState(false);
   const diffMode = modes[modeIndex];
 
   // The rest of your logic
@@ -43,22 +43,20 @@ const StringView: React.FC<LogComparisonProps> = ({
     <div className="flex flex-col border-l pl-4 space-y-4">
       {/* Diff toolbar */}
       <div className="flex justify-end gap-2 mb-2">
-        <Button
-          variant="ghost"
-          size="icon"
+        <ActionButton
+          tooltip={`Cycle diff mode (current: ${diffMode})`}
+          icon={modeIcons[modeIndex]}
           onClick={handleCycleMode}
-          title={`Cycle diff mode (current: ${diffMode})`}
-        >
-          {modeIcons[modeIndex]}
-        </Button>
-        <Button
           variant="ghost"
           size="icon"
+        />
+        <ActionButton
+          tooltip={splitView ? "Switch to Inline View" : "Switch to Split View"}
+          icon={splitView ? <Columns /> : <AlignJustify />}
           onClick={handleToggleSplit}
-          title={splitView ? "Switch to Inline View" : "Switch to Split View"}
-        >
-          {splitView ? <Columns /> : <AlignJustify />}
-        </Button>
+          variant="ghost"
+          size="icon"
+        />
       </div>
 
       {/* Render diff(s) */}
