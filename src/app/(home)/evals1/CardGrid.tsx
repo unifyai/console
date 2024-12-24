@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { CSSProperties, useEffect, useState } from "react";
 import Card from "./Card";
 import { LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
@@ -106,14 +106,50 @@ const CardGrid = ({
         setCards([...cards]);
     }
 
+    const heights: { [key: number]: string } = {
+        1: "h-[100vh]",
+        2: "h-[100vh]",
+        3: "h-[150vh]",
+        4: "h-[200vh]",
+        5: "h-[250vh]",
+    };
+
+    const gridRows: { [key: number]: string } = {
+        1: "grid-rows-1",
+        2: "grid-rows-2",
+        3: "grid-rows-3",
+        4: "grid-rows-4",
+        5: "grid-rows-5",
+    };
+
+    const gridCols: { [key: number]: string } = {
+        1: "grid-cols-1",
+        2: "grid-cols-2",
+        3: "grid-cols-3",
+    };
+
+    const rowSpans: { [key: number]: string } = {
+        1: "row-span-1",
+        2: "row-span-2",
+        3: "row-span-3",
+        4: "row-span-4",
+        5: "row-span-5",
+    };
+
+    const colSpans: { [key: number]: string } = {
+        1: "col-span-1",
+        2: "col-span-2",
+        3: "col-span-3",
+    };
+
     return (
-        <div className={`m-1 w-full h-[${cards.length > 1 ? cards.length * 50 : 100}vh] overflow-y-scroll grid grid-rows-${cards.length} grid-cols-${numCols} gap-4`}>
+        <div className={`m-1 w-full ${heights[cards.length]} overflow-y-scroll grid ${gridRows[cards.length]} ${gridCols[numCols]} gap-4`}>
             {
                 cards.map((cardList, index) => {
                     return <>{cardList.map((card, subIndex) => {
                         const [row, col] = card.size;
                         return (<div
-                            className={`${row > 1 ? "row-span-" + row.toString() : ""} ${col > 1 ? "col-span-" + col.toString() : ""}`}
+                            className={`${rowSpans[row]} ${colSpans[col]}`}
                             key={`${index}_${subIndex}`}
                         >
                             <Card
@@ -140,7 +176,7 @@ const CardGrid = ({
                     })}</>
                 })
             }
-        </div >
+        </div>
     )
 };
 
