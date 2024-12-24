@@ -1,11 +1,12 @@
 import ActionButton from "@/components/Common/Buttons/Action";
-import { Minus, Plus } from "lucide-react";
+import { Merge, Minus, Plus } from "lucide-react";
 
-const TileButtons = ({ side, full, empty, onClick }: {
+const TileButtons = ({ side, full, empty, merge, onClick }: {
     side: "right" | "left" | "top" | "bottom",
     full: boolean,
     empty: boolean,
-    onClick: (type: "add" | "remove") => void
+    merge: boolean
+    onClick: (type: "add" | "remove" | "merge") => void
 }) => {
     const leftOrRight = side === "left" || side === "right";
     return (
@@ -24,6 +25,15 @@ const TileButtons = ({ side, full, empty, onClick }: {
                     variant={"destructive"}
                     icon={<Minus />}
                     onClick={() => onClick("remove")}
+                />
+            </div>}
+            {merge && <div className={`${leftOrRight ? "m-2" : "m-1"}`}>
+                <ActionButton
+                    tooltip="Merge Tiles"
+                    variant={"secondary"}
+                    icon={<Merge />}
+                    onClick={() => onClick("merge")}
+                    className="hover:bg-secondary"
                 />
             </div>}
         </div>

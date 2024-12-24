@@ -11,6 +11,7 @@ import { LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import LogsPlot from "@/components/Evals/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Evals/Table/Table";
+import { CardProps } from "./CardGrid";
 
 const Card = ({
     searchParams,
@@ -58,30 +59,34 @@ const Card = ({
     },
     rowIndex: number,
     colIndex: number
-    cards: (string | undefined)[][],
-    setCards: Dispatch<SetStateAction<(string | undefined)[][]>>,
+    cards: CardProps[][],
+    setCards: Dispatch<SetStateAction<CardProps[][]>>,
     updateCards: (
         rowIndex: number,
         colIndex: number,
         side: "left" | "right" | "top" | "bottom",
-        type: "add" | "remove"
+        type: "add" | "remove" | "merge"
     ) => void
 }) => {
     const tabTypes = ["Table", "Plot", "View"]
     const setTab = (tab: string) => {
-        cards[rowIndex][colIndex] = tab
+        cards[rowIndex][colIndex].tab = tab
         setCards([...cards]);
     }
     const [hovered, setHovered] = useState(false);
-    return (<div className="overflow-x-auto relative flex w-full border rounded-lg m-2 p-2" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+    return (<div className="overflow-x-auto relative flex w-full h-full border rounded-lg" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
         <div className="h-full w-full flex justify-between">
             <div className={"h-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
                 <TileButtons
                     side="left"
                     full={cards[rowIndex].length == 3}
                     empty={cards.length == 1 && cards[rowIndex].length == 1}
+                    merge={
+                        colIndex - 1 >= 0 &&
+                        cards[rowIndex][colIndex - 1].size[0] == cards[rowIndex][colIndex].size[0]
+                    }
                     onClick={
-                        (type: "add" | "remove") => updateCards(rowIndex, colIndex, "left", type)
+                        (type: "add" | "remove" | "merge") => updateCards(rowIndex, colIndex, "left", type)
                     }
                 />
             </div>
@@ -91,18 +96,22 @@ const Card = ({
                         side="top"
                         full={false}
                         empty={cards.length == 1 && cards[rowIndex].length == 1}
+                        merge={
+                            rowIndex - 1 >= 0 && colIndex < cards[rowIndex - 1].length &&
+                            cards[rowIndex - 1][colIndex].size[1] == cards[rowIndex][colIndex].size[1]
+                        }
                         onClick={
-                            (type: "add" | "remove") => updateCards(rowIndex, colIndex, "top", type)
+                            (type: "add" | "remove" | "merge") => updateCards(rowIndex, colIndex, "top", type)
                         }
                     />
                 </div>
-                <div className={"overflow-auto w-full flex-1 flex flex-col items-center " + (cards[rowIndex][colIndex] ? "mt-1" : "justify-center")}>
+                <div className={"overflow-auto w-full flex-1 flex flex-col items-center " + (cards[rowIndex][colIndex].tab ? "mt-1" : "justify-center")}>
                     <div className="w-fit">
                         <BaseDropdown
                             button={<ActionButton
                                 tooltip="Add Tab"
-                                text={cards[rowIndex][colIndex] || undefined}
-                                icon={cards[rowIndex][colIndex] ? undefined : <Plus />}
+                                text={cards[rowIndex][colIndex].tab || undefined}
+                                icon={cards[rowIndex][colIndex].tab ? undefined : <Plus />}
                                 variant="outline"
                                 size="default"
                             />}
@@ -116,9 +125,9 @@ const Card = ({
                             </DropdownMenuItem>)}
                         </BaseDropdown>
                     </div>
-                    {cards[rowIndex][colIndex] == "View" && <Selection params={params} logs={logs} />}
-                    {cards[rowIndex][colIndex] == "Plot" && <LogsPlot logs={logs} />}
-                    {cards[rowIndex][colIndex] == "Table" && <LogsTable
+                    {cards[rowIndex][colIndex].tab == "View" && <Selection params={params} logs={logs} />}
+                    {cards[rowIndex][colIndex].tab == "Plot" && <LogsPlot logs={logs} />}
+                    {cards[rowIndex][colIndex].tab == "Table" && <LogsTable
                         searchParams={searchParams}
                         projects={projects}
                         project={project}
@@ -138,8 +147,12 @@ const Card = ({
                         side="bottom"
                         full={false}
                         empty={cards.length == 1 && cards[rowIndex].length == 1}
+                        merge={
+                            rowIndex + 1 < cards.length && colIndex < cards[rowIndex + 1].length &&
+                            cards[rowIndex + 1][colIndex].size[1] == cards[rowIndex][colIndex].size[1]
+                        }
                         onClick={
-                            (type: "add" | "remove") => updateCards(rowIndex, colIndex, "bottom", type)
+                            (type: "add" | "remove" | "merge") => updateCards(rowIndex, colIndex, "bottom", type)
                         }
                     />
                 </div>
@@ -149,8 +162,12 @@ const Card = ({
                     side="right"
                     full={cards[rowIndex].length == 3}
                     empty={cards.length == 1 && cards[rowIndex].length == 1}
+                    merge={
+                        colIndex + 1 < cards[rowIndex].length &&
+                        cards[rowIndex][colIndex + 1].size[0] == cards[rowIndex][colIndex].size[0]
+                    }
                     onClick={
-                        (type: "add" | "remove") => updateCards(rowIndex, colIndex, "right", type)
+                        (type: "add" | "remove" | "merge") => updateCards(rowIndex, colIndex, "right", type)
                     }
                 />
             </div>
