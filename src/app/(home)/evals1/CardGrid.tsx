@@ -7,7 +7,8 @@ import { ResponseProps } from "@/types/common";
 
 export interface CardProps {
     tab: string | undefined,
-    size: [number, number]
+    size: [number, number],
+    visible: boolean,
 }
 
 const CardGrid = ({
@@ -50,7 +51,7 @@ const CardGrid = ({
         delete: (ids: string[]) => Promise<ResponseProps>
     },
 }) => {
-    const [cards, setCards] = useState<CardProps[][]>([[{ tab: undefined, size: [1, 1] }]]);
+    const [cards, setCards] = useState<CardProps[][]>([[{ tab: undefined, size: [1, 1], visible: true }]]);
     let numCols = Math.max(...cards.map((cardList) => cardList.length));
 
     useEffect(() => {
@@ -71,36 +72,40 @@ const CardGrid = ({
                     cards[rowIndex][colIndex] = { ...cards[rowIndex][colIndex], size: [size[0], size[1] - 1] };
                 }
                 if (side == "left")
-                    cards[rowIndex].splice(colIndex, 0, { tab: undefined, size: [1, 1] });
+                    cards[rowIndex].splice(colIndex, 0, { tab: undefined, size: [1, 1], visible: true });
                 else
-                    cards[rowIndex].splice(colIndex + 1, 0, { tab: undefined, size: [1, 1] });
+                    cards[rowIndex].splice(colIndex + 1, 0, { tab: undefined, size: [1, 1], visible: true });
             }
             else if (!leftOrRight) {
                 if (side == "top")
-                    cards.splice(rowIndex, 0, [{ tab: undefined, size: [1, numCols] }]);
+                    cards.splice(rowIndex, 0, [{ tab: undefined, size: [1, numCols], visible: true }]);
                 else
-                    cards.splice(rowIndex + 1, 0, [{ tab: undefined, size: [1, numCols] }]);
+                    cards.splice(rowIndex + 1, 0, [{ tab: undefined, size: [1, numCols], visible: true }]);
             }
         } else if (type == "remove" && (cards.length > 1 || cards[rowIndex].length > 1)) {
             cards[rowIndex].splice(colIndex, 1);
             if (cards[rowIndex].length == 0)
                 cards.splice(rowIndex, 1);
         } else if (type == "merge") {
-            if (side == "left") {
-                cards[rowIndex][colIndex].size[1] += cards[rowIndex][colIndex - 1].size[1];
-                cards[rowIndex].splice(colIndex - 1, 1);
+            if (leftOrRight) {
+                if (side == "left") {
+                    cards[rowIndex][colIndex].size[1] += cards[rowIndex][colIndex - 1].size[1];
+                    cards[rowIndex][colIndex - 1].visible = false;
+                }
+                else if (side == "right") {
+                    cards[rowIndex][colIndex].size[1] += cards[rowIndex][colIndex + 1].size[1];
+                    cards[rowIndex][colIndex + 1].visible = false;
+                }
             }
-            else if (side == "right") {
-                cards[rowIndex][colIndex].size[1] += cards[rowIndex][colIndex + 1].size[1];
-                cards[rowIndex].splice(colIndex + 1, 1);
-            }
-            else if (side == "top") {
-                cards[rowIndex - 1][colIndex].size[0] += cards[rowIndex][colIndex].size[0];
-                cards[rowIndex].splice(colIndex, 1);
-            }
-            else if (side == "bottom") {
-                cards[rowIndex][colIndex].size[0] += cards[rowIndex + 1][colIndex].size[0];
-                cards[rowIndex + 1].splice(colIndex, 1);
+            else if (!leftOrRight) {
+                if (side == "top") {
+                    cards[rowIndex - 1][colIndex].size[0] += cards[rowIndex][colIndex].size[0];
+                    cards[rowIndex][colIndex].visible = false;
+                }
+                else {
+                    cards[rowIndex][colIndex].size[0] += cards[rowIndex + 1][colIndex].size[0];
+                    cards[rowIndex + 1][colIndex].visible = false;
+                }
             }
         }
         setCards([...cards]);
@@ -148,6 +153,8 @@ const CardGrid = ({
                 cards.map((cardList, index) => {
                     return <>{cardList.map((card, subIndex) => {
                         const [row, col] = card.size;
+                        if (!card.visible)
+                            return undefined;
                         return (<div
                             className={`${rowSpans[row]} ${colSpans[col]}`}
                             key={`${index}_${subIndex}`}
