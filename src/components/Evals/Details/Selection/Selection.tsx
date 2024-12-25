@@ -8,24 +8,19 @@ import { useQueryState } from "nuqs";
 import { Accordion } from "@/components/UI/accordion";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { FoldVertical, UnfoldVertical } from "lucide-react";
+import { getDictSubset } from "@/utils/evals/selection";
+import { parseAsArrayOf, parseAsString } from "nuqs";
+import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
 
 const Selection = ({ params, logs }: { params: LogItemProps; logs: LogProps[] }) => {
-  // Pull relevant IDs from query string
-  const [comparisonLogsParam] = useQueryState("comparison");
-  const [baseLogParam] = useQueryState("base");
 
-  // Locate base log and its index
-  const baseLog = logs.find((log) => log.id == baseLogParam);
-  const baseLogIndex = logs.findIndex((log) => log.id == baseLogParam) + 1;
-
-  // Locate comparison logs
-  const comparisonLogs = comparisonLogsParam && logs
-    ? comparisonLogsParam.split(",").map((value: string) => logs.find((log) => log.id == value)!)
-    : [];
-  const comparisonLogsIndex = comparisonLogs.map(
-    (cl) => logs.findIndex((log) => log.id == cl.id) + 1
-  );
-
+  // Pull relevant IDs from query string and reconstruct base and comparison logs based on the cells
+  const [selectedCells, _]  = useQueryState(
+    "selected", 
+    parseAsArrayOf(parseAsString).withDefault([])                    // [logId1_colId1,logId1_colId2,logId2_colId3,...]
+  )
+  const { baseLogIndex, baseLog, comparisonLogsIndex, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, logs)
+  
   // The top-level Accordion’s expanded items
   const [openItems, setOpenItems] = useState<string[]>([]);
 

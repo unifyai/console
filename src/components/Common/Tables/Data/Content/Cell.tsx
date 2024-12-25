@@ -9,9 +9,16 @@ import { TableCell } from "@/components/UI/table";
 import { ChevronRight } from "lucide-react";
 import ColumnResizer from "../Buttons/ColumnResize";
 
-const DataTableCell = ({ cell, row, resizeMap, AggregatedCell, ExtraCellContent }: { 
+const DataTableCell = ({ cell, row, isCellSelected, cellSelection, resizeMap, AggregatedCell, ExtraCellContent }: { 
     cell: Cell<any, unknown>, 
-    row: Row<any | unknown>, 
+    row: Row<any | unknown>,
+    isCellSelected: (cell: Cell<any, any>) => boolean,
+    cellSelection: {
+      handleCellMouseDown: (e: React.MouseEvent<HTMLElement>, cell: Cell<any, any>) => void;
+      handleCellMouseUp: (e: React.MouseEvent<HTMLElement>, _cell: Cell<any, any>) => void;
+      handleCellMouseOver: (e: React.MouseEvent<HTMLElement>, cell: Cell<any, any>) => void;
+      handleCellsKeyDown: (e: React.KeyboardEvent<HTMLElement>) => void;
+    }
     resizeMap: { [x: string]: (event: unknown) => void },
     AggregatedCell?: (cell: Cell<any, unknown>, row: Row<any | unknown>) => ReactNode,
     ExtraCellContent?: (cell: Cell<any, unknown>) => ReactNode
@@ -52,10 +59,19 @@ const DataTableCell = ({ cell, row, resizeMap, AggregatedCell, ExtraCellContent 
 
       return (
         <TableCell 
+          onMouseDown={(e) => cellSelection.handleCellMouseDown(e, cell)}
+          onMouseUp={(e) => cellSelection.handleCellMouseUp(e, cell)}
+          onMouseOver={(e) => cellSelection.handleCellMouseOver(e, cell)}
+          onKeyDown={(e) => cellSelection.handleCellsKeyDown(e)}
           rowSpan={cell.rowSpan}
           style={style}
-          ref={setNodeRef} 
-          className={`group/cell relative select-none overflow-visible ${row.getIsSelected() ? `bg-primary ${isPinned ? "" : "text-primary-foreground"}` : ""}`}
+          tabIndex={0}  // Needed to ensure the table is focusable and the keyboard actions are working
+          ref={setNodeRef}
+          className={`
+            group/cell relative select-none overflow-visible 
+            ${isCellSelected(cell) ? `bg-primary ${isPinned ? "" : "text-primary-foreground"}` : ""}
+            ${!cell.getIsGrouped() && !cell.getIsAggregated() && !cell.getIsPlaceholder() && !isCellSelected(cell) && "hover:bg-muted opacity-[.01]"}
+          `}
         >
           <div className="overflow-hidden text-nowrap text-ellipsis ...">
             {cell.getIsGrouped() 

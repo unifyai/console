@@ -6,7 +6,6 @@ import DataTable from "@/components/Common/Tables/Data/Base";
 import FileDirectory from "@/components/Directory/FileDirectory";
 import { LogProps, LogsResponseProps } from "@/types/evals/logs";
 import {
-  Row,
   ColumnDef,
   ColumnFiltersState,
   ColumnSort,
@@ -17,10 +16,9 @@ import {
 import React, { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { FileProps, ResponseProps } from "@/types/common";
-import { buildTree, nestedColumns, onRowClick } from "@/utils/evals/table";
+import { buildTree, nestedColumns } from "@/utils/evals/table";
 import { Badge } from "@/components/UI/badge";
 import { useQueryState } from "nuqs";
-import { useTableHotkeys } from "@/hooks/Logs/useTableHotkeys";
 import ColumnFilter from "./Buttons/ColumnFilter";
 import AggregatedCell from "./Content/AggregatedCell";
 import VisibilityFilter from "./Buttons/VisibilityFilter";
@@ -32,6 +30,8 @@ import CreateProject from "./Buttons/CreateProject";
 import GlobalFilter from "./Buttons/GlobalFilter";
 import PageController from "@/components/Common/Tables/Data/Buttons/PageController";
 import CloseProject from "./Buttons/CloseProject";
+import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
+import { parseAsArrayOf, parseAsString } from "nuqs";
 
 const LogsTable = ({
   searchParams,
@@ -94,29 +94,12 @@ const LogsTable = ({
   // (for example, remove "loading" if you want). 
   const showSpinner = pending || !logs;
 
-  // Base & compare logs from URL
-  const [comparisonLogsParam, setComparisonLogsParam] = useQueryState("comparison");
-  const [baseLogParam, setBaseLogParam] = useQueryState("base");
-
-  // Convert ID strings → actual logs on this page
-  const baseLog = baseLogParam ? logs.find((l) => l.id === baseLogParam) : undefined;
-  const comparisonLogs: LogProps[] = comparisonLogsParam
-    ? comparisonLogsParam
-        .split(",")
-        .map((id) => logs.find((l) => l.id === id))
-        .filter((x): x is LogProps => !!x)
-    : [];
-
-  // Functions to update base or comparison
-  const setBaseLog = (updater: Updater<LogProps | undefined>) => {
-    const newVal = typeof updater === "function" ? updater(baseLog) : updater;
-    setBaseLogParam(newVal?.id || null);
-  };
-  const setComparisonLogs = (updater: Updater<LogProps[]>) => {
-    const newVal = typeof updater === "function" ? updater(comparisonLogs) : updater;
-    if (!newVal?.length) setComparisonLogsParam(null);
-    else setComparisonLogsParam(newVal.map((l) => l.id).join(","));
-  };
+  // Get base and comparison logs
+  const [selectedCells, setSelectedCells]  = useQueryState(
+    "selected", 
+    parseAsArrayOf(parseAsString).withDefault([])                    // [logId1_colId1,logId1_colId2,logId2_colId3,...]
+  )
+  const { baseLogIndex, baseLog, comparisonLogsIndex, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, logs)
 
   // Column definitions
   const entriesTree = buildTree(entriesProperties);
@@ -221,9 +204,7 @@ const LogsTable = ({
       .reduce((acc, curr) => ({ ...acc, ...curr }), {})
   );
 
-  const [lastSelectedRow, setLastSelectedRow] = useState<Row<any> | undefined>();
   const state = {
-    lastSelectedRow,
     metric,
     sorting,
     columnVisibility,
@@ -231,12 +212,9 @@ const LogsTable = ({
     columnFilters,
     grouping,
     columnPinning,
-    columnSizing,
-    comparisonLogs,
-    baseLog,
+    columnSizing
   };
   const setState = {
-    setLastSelectedRow,
     setMetric,
     setSorting,
     setColumnVisibility,
@@ -244,9 +222,7 @@ const LogsTable = ({
     setColumnFilters,
     setGrouping,
     setColumnPinning,
-    setColumnSizing,
-    setComparisonLogs,
-    setBaseLog,
+    setColumnSizing
   };
 
   // If the project changes, we treat it as pending until data arrives
@@ -269,17 +245,17 @@ const LogsTable = ({
 
     if (pageChanged || filtersChanged || commonChanged) {
       // If base no longer valid, remove it
-      if (baseLogParam && !logs.some((l) => l.id === baseLogParam)) {
-        setBaseLogParam(null);
+      if (baseLog && !logs.some((l) => l.id === baseLog.id)) {
+        setSelectedCells(cells => cells.slice(1));
       }
       // If compare logs not valid, prune them
-      if (comparisonLogsParam) {
-        const ids = comparisonLogsParam.split(",");
+      if (comparisonLogs) {
+        const ids = comparisonLogs.map(cl => cl.id);
         const validIds = ids.filter((id) => logs.some((l) => l.id === id));
         if (!validIds.length) {
-          setComparisonLogsParam(null);
+          setSelectedCells(cells => cells.at(0) ? [cells.at(0) as string] : []);
         } else if (validIds.length < ids.length) {
-          setComparisonLogsParam(validIds.join(","));
+          setSelectedCells(cells => cells.filter(cell => validIds.includes(cell.split("_").at(0)!)));
         }
       }
     }
@@ -292,15 +268,11 @@ const LogsTable = ({
     pageNumber,
     logsFiltersQuery,
     commonFilter,
-    baseLogParam,
-    comparisonLogsParam,
-    setBaseLogParam,
-    setComparisonLogsParam,
+    selectedCells
   ]);
 
   const resetParamsStates = () => {
-    setBaseLogParam(null);
-    setComparisonLogsParam(null);
+    setSelectedCells([])
     setColumnOrderStr(null);
     setHiddenColumns(null);
     setSortingStr(null);
@@ -356,8 +328,15 @@ const LogsTable = ({
     </div>
   );
 
+  // Handle clicking outside of the table
+  const containerRef = useRef<HTMLDivElement>(null)
+  const onContainerClick = (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    if (containerRef.current && containerRef.current === event.target) {
+      setSelectedCells([])
+    }
+  }
   return (
-    <div className="flex flex-col gap-4 w-full h-full p-3 bg-background rounded-md">
+    <div className="flex flex-col gap-4 w-full h-full p-3 bg-background rounded-md" ref={containerRef} onClick={onContainerClick}>
       {/* Project selection row */}
       <div className="flex flex-row gap-8 w-full h-fit">
         <div className="w-fit gap-2 flex flex-row items-center">
@@ -407,8 +386,6 @@ const LogsTable = ({
                 columns={columns}
                 state={state}
                 setState={setState}
-                tableHotkeys={useTableHotkeys}
-                onRowClick={(table, row, event) => onRowClick(state, setState, table, row, event)}
                 TableTop={tableTop}
                 ColumnFilters={(column) => (
                   <ColumnFilter
@@ -449,25 +426,17 @@ const LogsTable = ({
                 AggregatedCell={(cell, row) => (
                   <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />
                 )}
-				FooterCell={(column, resizeMap) => 
-					<FooterCell column={column} resizeMap={resizeMap} >
-						{
-							column.columnDef.id === "RowNumbering"
-							? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric}/>
-							: !column.getIsGrouped()
-								?	<SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} />
-								: 	null
-						}
-					</FooterCell>
-				}
-                ExtraComponents={(table) => (
-                  <>
-                    <DeleteRows
-                      selectedRows={table.getSelectedRowModel().rows}
-                      deleteLogs={logsActions.delete}
-                    />
-                  </>
-                )}
+                FooterCell={(column, resizeMap) => 
+                  <FooterCell column={column} resizeMap={resizeMap} >
+                    {
+                      column.columnDef.id === "RowNumbering"
+                      ? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric}/>
+                      : !column.getIsGrouped()
+                        ?	<SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} />
+                        : 	null
+                    }
+                  </FooterCell>
+                }
               />
             </div>
           ) : (

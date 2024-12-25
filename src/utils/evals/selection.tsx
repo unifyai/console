@@ -1,5 +1,6 @@
 import React from "react"
 import { Span } from "@/types/evals/traces"
+import { LogProps } from "@/types/evals/logs"
 
 export const MatrixDisplay = ({value}:{value: number[][]}) => {
     return (
@@ -70,3 +71,74 @@ export const isImage = (value: any) => {
       Array.isArray(obj.child_spans)
     );
   }
+
+/**
+  * Given a list of keys, returns the subset of a dictionary 
+  * for which the keys are included in the list
+*/
+export function getDictSubset(obj: any, keys: string[]) {
+  return Object.keys(obj)
+  .filter(key => keys.includes(key))
+  .reduce((acc: any, key: string) => {
+    acc[key] = obj[key];
+    return acc;
+  }, {});
+}
+
+/**
+  * Given a string with multiple underscores, returns the full part that follows the first underscore
+*/
+export function getPartAfterFirstUnderscore (str: string) {
+  return str.split("_").slice(1).join("_");
+}
+
+/**
+  * Assuming an array of selected cells of the format logId_columnId:
+  * - Sets the base log as the log corresponding to the first cell, based on the logId
+  * - Sets comparison logs as the logs corresponding to the remaining cells, based on the logId
+  * - Reduces the base and comparison logs values down to the values in the selected cells corresponding to each log
+  * - Returns the base log with its index in the table, and the comparison logs with their indices
+*/
+export function extractBaseAndComparisonLogs (selectedCells: string[], logs:LogProps[]) {
+
+  // Locate base log and its row index in the table, then filter values for selected cells that pertain to the base log
+  const baseLogParam = selectedCells.at(0)                                    // logId1_columnId1
+  const baseLogParamId = baseLogParam?.split("_").at(0)                         // logId1
+  const baseLogIndex = logs.findIndex((log) => log.id == baseLogParamId) + 1;
+  let baseLog = logs.find((log) => log.id == baseLogParamId);
+  if (baseLog)  {
+    const columnIds = selectedCells
+      .filter(id => id.split("_").at(0) === baseLogParamId)                     // Find all selected cells from base
+      .map(cell => getPartAfterFirstUnderscore(cell))                           // Handle underscores in column id
+    baseLog = {
+      ...baseLog, 
+      params: getDictSubset(baseLog.params, columnIds),
+      entries: getDictSubset(baseLog.entries, columnIds) 
+    }
+  }
+
+  // Locate comparison logs and their row indices in the table, then filter values for selected cells that pertain to each log
+  const comparisonLogsParam = selectedCells.slice(1)                                  // [logId1_colId2, logId2_colId3, ...]
+  const comparisonLogsIndex = comparisonLogsParam 
+    ? comparisonLogsParam.map((cl) => logs.findIndex((log) => log.id == cl.split("_").at(0)) + 1) 
+    : [];
+  let comparisonLogs = comparisonLogsParam && logs
+    ? comparisonLogsParam.map((cl: string) => logs.find((log) => log.id == cl.split("_").at(0))!)
+    : [];
+  if (comparisonLogs.length) {
+    comparisonLogs = comparisonLogs.map((cl, index) => {
+      const clParam = comparisonLogsParam![index]
+      const clParamId = clParam.split("_").at(0)
+      const columnIds = selectedCells
+        .filter(id => id.split("_").at(0) === clParamId)                            // Find all selected cells from comparison
+        .map(cell => getPartAfterFirstUnderscore(cell))                           // Handle underscores in column id
+      return {
+        ...cl,
+        params: getDictSubset(cl.params, columnIds),
+        entries: getDictSubset(cl.entries, columnIds)
+      }
+    })
+  }
+
+  return { baseLogIndex, baseLog, comparisonLogsIndex, comparisonLogs }
+};

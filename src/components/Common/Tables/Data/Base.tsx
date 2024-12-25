@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, ReactNode, MouseEvent, JSX } from "react";
+import { useMemo, ReactNode, MouseEvent, JSX, Ref } from "react";
 
 import { ColumnFiltersState, GroupingState, Header, SortingState, Updater, useReactTable } from "@tanstack/react-table";
 import { getCoreRowModel, getFilteredRowModel, getExpandedRowModel, getGroupedRowModel, getSortedRowModel } from "@tanstack/react-table";
@@ -21,13 +21,13 @@ import { StateProps } from "@/types/dataTable";
 import { SetStateProps } from "@/types/dataTable";
 import { LogProps } from "@/types/evals/logs";
 
-export default function DataTable<TData, TValue>({ data, columns, state, setState, tableHotkeys, onRowClick, TableTop, FooterCell, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
+import { useCellSelection } from "@/hooks/Logs/useCellSelection";
+
+export default function DataTable<TData, TValue>({ data, columns, state, setState, TableTop, FooterCell, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
     data: TData[],
     columns: ColumnDef<TData, TValue>[],
     state: StateProps,
     setState: SetStateProps,
-    tableHotkeys?: (table: TanstackTable<any | unknown>, logs: LogProps[] | undefined, setState: SetStateProps) => void
-    onRowClick?: (table: TanstackTable<any | unknown>, row: TanstackRow<any | unknown>, event: MouseEvent<HTMLTableRowElement, globalThis.MouseEvent>) => void,
     TableTop?: JSX.Element,
     FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}) => ReactNode,
     ColumnFilters?: (column: TanstackColumn<any | unknown>) => ReactNode;
@@ -35,6 +35,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
     ExtraCellContent?: (cell: TanstackCell<any, unknown>) => ReactNode;
     ExtraComponents?: (table: TanstackTable<any | unknown>) => ReactNode
 }) {
+
     const setUpdatedState = (
         state: any, setterFunction: (x: any) => void, updater: Updater<any>
     ) => {
@@ -68,6 +69,9 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
         getExpandedRowModel: getExpandedRowModel(),
         getGroupedRowModel: getGroupedRowModel(),
         getSortedRowModel: getSortedRowModel(),
+        getRowId(originalRow, index, parent) {
+            return (originalRow as LogProps).id.toString()
+        },
         meta: {
             createColumn: () => {
                 // updateLogs(...).then(...)
@@ -83,8 +87,6 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
         useSensor(KeyboardSensor, {})
     );
 
-    if (tableHotkeys) tableHotkeys(table, data as LogProps[], setState);
-
     const visibleColumns = table.getVisibleLeafColumns();
     const finalColumns = (
         visibleColumns.length > 1
@@ -98,8 +100,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
         (header: Header<TData, unknown>) => ({[header.id]: header.getResizeHandler()})
     ).reduce((acc, curr) => ({...acc, ...curr}), {});
 
-    // click status (to avoid resizing from selecting rows)
-    let click = false;
+    const { isCellSelected, isRowSelected, ...cellSelection } = useCellSelection({table});
 
     return (<div className="flex flex-col gap-2 max-w-fit">
         {TableTop && TableTop}
@@ -133,19 +134,15 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
                     {table.getRowModel().rows?.length ? (
                         <>
                             {table.getRowModel().rows.map((row, index) => (
-                                <TableRow
-                                    key={row.id}
-                                    onClick={(event) => click &&onRowClick && onRowClick(table, row, event)}
-                                    onMouseDown={() => {
-                                        click = true;
-                                    }}
-                                >
+                                <TableRow key={row.id}>
                                     {row.getVisibleCells().map(cell => {
                                         return (
                                             <SortableContext key={cell.id} items={state.columnOrder} strategy={horizontalListSortingStrategy}>
                                                 <DataTableCell
                                                     cell={cell}
                                                     row={row}
+                                                    isCellSelected={isCellSelected}
+                                                    cellSelection={cellSelection}
                                                     resizeMap={resizeMap}
                                                     ExtraCellContent={ExtraCellContent}
                                                     AggregatedCell={AggregatedCell}
