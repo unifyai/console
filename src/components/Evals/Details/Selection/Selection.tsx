@@ -20,7 +20,7 @@ const Selection = ({ params, logs }: { params: LogItemProps; logs: LogProps[] })
     parseAsArrayOf(parseAsString).withDefault([])                    // [logId1_colId1,logId1_colId2,logId2_colId3,...]
   )
   const { baseLogIndex, baseLog, comparisonLogsIndex, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, logs)
-  
+
   // The top-level Accordion’s expanded items
   const [openItems, setOpenItems] = useState<string[]>([]);
 

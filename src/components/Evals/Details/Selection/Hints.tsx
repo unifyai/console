@@ -25,10 +25,10 @@ const SelectionHints = () => {
                     <Hint 
                         command={
                             <div className="flex flex-row gap-1">
-                                <ArrowUp/>
-                                <ArrowDown/>
-                                <ArrowLeft/>
-                                <ArrowRight/>
+                                <ArrowUp    size={15}/>
+                                <ArrowDown  size={15}/>
+                                <ArrowLeft  size={15}/>
+                                <ArrowRight size={15}/>
                             </div>
                         } 
                         instruction="Press arrow keys on a selected cell to select an adjacent cell."

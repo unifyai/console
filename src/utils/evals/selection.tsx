@@ -102,14 +102,15 @@ export function getPartAfterFirstUnderscore (str: string) {
 export function extractBaseAndComparisonLogs (selectedCells: string[], logs:LogProps[]) {
 
   // Locate base log and its row index in the table, then filter values for selected cells that pertain to the base log
-  const baseLogParam = selectedCells.at(0)                                    // logId1_columnId1
+  const baseLogParam = selectedCells.at(0)                                      // logId1_columnId1
   const baseLogParamId = baseLogParam?.split("_").at(0)                         // logId1
   const baseLogIndex = logs.findIndex((log) => log.id == baseLogParamId) + 1;
   let baseLog = logs.find((log) => log.id == baseLogParamId);
   if (baseLog)  {
-    const columnIds = selectedCells
+    let columnIds = selectedCells
       .filter(id => id.split("_").at(0) === baseLogParamId)                     // Find all selected cells from base
       .map(cell => getPartAfterFirstUnderscore(cell))                           // Handle underscores in column id
+    columnIds = Array.from(new Set(columnIds))                                  // Handle duplication in column id
     baseLog = {
       ...baseLog, 
       params: getDictSubset(baseLog.params, columnIds),
@@ -118,20 +119,22 @@ export function extractBaseAndComparisonLogs (selectedCells: string[], logs:LogP
   }
 
   // Locate comparison logs and their row indices in the table, then filter values for selected cells that pertain to each log
-  const comparisonLogsParam = selectedCells.slice(1)                                  // [logId1_colId2, logId2_colId3, ...]
+  const comparisonLogsParam = selectedCells.slice(1)                                // [logId1_colId2, logId2_colId3, ...]
   const comparisonLogsIndex = comparisonLogsParam 
     ? comparisonLogsParam.map((cl) => logs.findIndex((log) => log.id == cl.split("_").at(0)) + 1) 
     : [];
   let comparisonLogs = comparisonLogsParam && logs
     ? comparisonLogsParam.map((cl: string) => logs.find((log) => log.id == cl.split("_").at(0))!)
     : [];
+  comparisonLogs = Array.from(new Set(comparisonLogs))                              // Handle duplication in comparison logs
   if (comparisonLogs.length) {
     comparisonLogs = comparisonLogs.map((cl, index) => {
       const clParam = comparisonLogsParam![index]
       const clParamId = clParam.split("_").at(0)
-      const columnIds = selectedCells
+      let columnIds = selectedCells
         .filter(id => id.split("_").at(0) === clParamId)                            // Find all selected cells from comparison
-        .map(cell => getPartAfterFirstUnderscore(cell))                           // Handle underscores in column id
+        .map(cell => getPartAfterFirstUnderscore(cell))                             // Handle underscores in column id
+        columnIds = Array.from(new Set(columnIds))                                  // Handle duplication in column id
       return {
         ...cl,
         params: getDictSubset(cl.params, columnIds),
