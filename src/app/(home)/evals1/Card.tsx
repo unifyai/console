@@ -29,6 +29,8 @@ const Card = ({
     logsActions,
     rowIndex,
     colIndex,
+    rowSize,
+    colSize,
     rowBound,
     colBound,
     cards,
@@ -63,6 +65,8 @@ const Card = ({
     },
     rowIndex: number,
     colIndex: number,
+    rowSize: number,
+    colSize: number,
     rowBound: number,
     colBound: number,
     cards: (string | undefined)[][],
@@ -73,7 +77,7 @@ const Card = ({
         rowIndex: number,
         colIndex: number,
         side: "left" | "right" | "top" | "bottom",
-        type: "add" | "remove" | "merge"
+        type: "add" | "reset" | "merge"
     ) => void
 }) => {
     const tabTypes = ["Table", "Plot", "View"]
@@ -109,7 +113,7 @@ const Card = ({
                         )?.size[0] == cardData.size[0]
                     }
                     onClick={
-                        (type: "add" | "remove" | "merge") => updateCards(rowIndex, colIndex, "left", type)
+                        (type: "add" | "reset" | "merge") => updateCards(rowIndex, colIndex, "left", type)
                     }
                 />
             </div>
@@ -126,7 +130,7 @@ const Card = ({
                             )?.size[1] == cardData.size[1]
                         }
                         onClick={
-                            (type: "add" | "remove" | "merge") => updateCards(rowIndex, colIndex, "top", type)
+                            (type: "add" | "reset" | "merge") => updateCards(rowIndex, colIndex, "top", type)
                         }
                     />
                 </div>
@@ -170,7 +174,7 @@ const Card = ({
                 <div className={"w-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
                     <TileButtons
                         side="bottom"
-                        full={false}
+                        full={!(rowIndex + rowSize == rowBound)}
                         empty={rowBound == 1 && colBound == 1}
                         merge={
                             rowIndex + 1 < cards.length && colIndex < cards[rowIndex + 1].length &&
@@ -179,7 +183,7 @@ const Card = ({
                             )?.size[1] == cardData.size[1]
                         }
                         onClick={
-                            (type: "add" | "remove" | "merge") => updateCards(rowIndex, colIndex, "bottom", type)
+                            (type: "add" | "reset" | "merge") => updateCards(rowIndex, colIndex, "bottom", type)
                         }
                     />
                 </div>
@@ -187,7 +191,7 @@ const Card = ({
             <div className={"h-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
                 <TileButtons
                     side="right"
-                    full={colBound == 3}
+                    full={colBound == 3 || !(colIndex + colSize == colBound)}
                     empty={rowBound == 1 && colBound == 1}
                     merge={
                         colIndex + 1 < cards[rowIndex].length &&
@@ -196,7 +200,7 @@ const Card = ({
                         )?.size[0] == cardData.size[0]
                     }
                     onClick={
-                        (type: "add" | "remove" | "merge") => updateCards(rowIndex, colIndex, "right", type)
+                        (type: "add" | "reset" | "merge") => updateCards(rowIndex, colIndex, "right", type)
                     }
                 />
             </div>

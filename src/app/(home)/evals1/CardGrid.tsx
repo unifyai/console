@@ -60,19 +60,61 @@ const CardGrid = ({
     let rowBound = cards.findIndex(row => row.every(card => card == undefined));
     let colBound = [0, 1, 2].findIndex(index => cards.every(row => row[index] == undefined));
     colBound = colBound == -1 ? 3 : colBound;
+    let cardList = allTabs.filter(
+        tab => cards.find(cl => cl.find(card => card == tab))
+    ).map(tab => {
+        const rowIndex = cards.findIndex(cl => cl.find(card => card == tab));
+        const colIndex = cards[rowIndex].findIndex(card => card == tab);
+        let rowSpan = 1, colSpan = 1;
+        while (cards[rowIndex + rowSpan] && cards[rowIndex + rowSpan][colIndex] == tab)
+            rowSpan++;
+        while (cards[rowIndex][colIndex + colSpan] == tab)
+            colSpan++;
+        return {
+            tab: tab,
+            size: [rowSpan, colSpan],
+            index: [rowIndex, colIndex],
+        }
+    });
 
     useEffect(() => {
         allTabs = Array.from(new Set(cards.reduce((row, col) => [...row, ...col], []).filter(tab => tab != undefined)));
-        rowBound = cards.findIndex(row => row.every(card => card == undefined));
-        colBound = [0, 1, 2].findIndex(index => cards.every(row => row[index] == undefined));
-        colBound = colBound == -1 ? 3 : colBound;
+        cardList = allTabs.filter(
+            tab => cards.find(cl => cl.find(card => card == tab))
+        ).map(tab => {
+            const rowIndex = cards.findIndex(cl => cl.find(card => card == tab));
+            const colIndex = cards[rowIndex].findIndex(card => card == tab);
+            let rowSpan = 1, colSpan = 1;
+            while (cards[rowIndex + rowSpan] && cards[rowIndex + rowSpan][colIndex] == tab)
+                rowSpan++;
+            while (cards[rowIndex][colIndex + colSpan] == tab)
+                colSpan++;
+            return {
+                tab: tab,
+                size: [rowSpan, colSpan],
+                index: [rowIndex, colIndex],
+            }
+        });
+        if (cardList.length == 1 && (cardList[0].size[0] != 1 || cardList[0].size[1] != 1)) {
+            const card = cardList[0];
+            setCards(
+                Array.from({ length: 10 }, (_, index: number) => (
+                    index == 0 ? [card.tab, ...Array(2).fill(undefined)] : Array(3).fill(undefined)
+                ))
+            );
+        }
+        else {
+            rowBound = cards.findIndex(row => row.every(card => card == undefined));
+            colBound = [0, 1, 2].findIndex(index => cards.every(row => row[index] == undefined));
+            colBound = colBound == -1 ? 3 : colBound;
+        }
     }, [cards]);
 
     const updateCards = (
         rowIndex: number,
         colIndex: number,
         side: "left" | "right" | "top" | "bottom",
-        type: "add" | "remove" | "merge"
+        type: "add" | "reset" | "merge"
     ) => {
         const initialValue = cards[rowIndex][colIndex];
         let newRowIndex = rowIndex, newColIndex = colIndex;
@@ -91,30 +133,35 @@ const CardGrid = ({
         let emptyIndex = lastTab ? parseInt(lastTab?.split("_")[1]) + 1 : 1;
 
         if (type == "add") {
-            cards[newRowIndex][newColIndex] = `Empty_${emptyIndex}`;
+            let finalRowIndex = newRowIndex, finalColIndex = newColIndex;
+            while (cards[finalRowIndex][finalColIndex] == initialValue)
+                finalRowIndex++;
+            while (cards[finalRowIndex][finalColIndex] == initialValue)
+                finalColIndex++;
+            cards[finalRowIndex][finalColIndex] = `Empty_${emptyIndex}`;
             allTabs.push(`Empty_${emptyIndex}`);
             emptyIndex++;
-            if (rowIndex != newRowIndex && newRowIndex == rowBound) {
+            if (rowIndex != finalRowIndex && finalRowIndex == rowBound) {
                 for (let i = 0; i < colBound; i++) {
-                    if (cards[newRowIndex][i] == undefined) {
-                        cards[newRowIndex][i] = `Empty_${emptyIndex}`;
+                    if (cards[finalRowIndex][i] == undefined) {
+                        cards[finalRowIndex][i] = `Empty_${emptyIndex}`;
                         allTabs.push(`Empty_${emptyIndex}`);
                         emptyIndex++;
                     }
                 }
             }
-            if (colIndex != newColIndex && newColIndex == colBound) {
+            if (colIndex != finalColIndex && finalColIndex == colBound) {
                 for (let i = 0; i < rowBound; i++) {
-                    console.log(`${i}, ${newColIndex}`);
-                    if (cards[i][newColIndex] == undefined) {
-                        cards[i][newColIndex] = `Empty_${emptyIndex}`;
+                    console.log(`${i}, ${finalColIndex}`);
+                    if (cards[i][finalColIndex] == undefined) {
+                        cards[i][finalColIndex] = `Empty_${emptyIndex}`;
                         allTabs.push(`Empty_${emptyIndex}`);
                         emptyIndex++;
                     }
                 }
             }
         }
-        else if (type == "remove" && !cards[rowIndex][colIndex]?.includes("Empty")) {
+        else if (type == "reset" && !cards[rowIndex][colIndex]?.includes("Empty")) {
             cards[rowIndex][colIndex] = `Empty_${emptyIndex}`;
             allTabs.push(`Empty_${emptyIndex}`);
         }
@@ -129,24 +176,6 @@ const CardGrid = ({
         }
         setCards([...cards]);
     }
-
-    const cardList = allTabs.filter(
-        tab => cards.find(cl => cl.find(card => card == tab))
-    ).map(tab => {
-        const rowIndex = cards.findIndex(cl => cl.find(card => card == tab));
-        const colIndex = cards[rowIndex].findIndex(card => card == tab);
-        console.log(`data ${tab} ${rowIndex} ${colIndex}`);
-        let rowSpan = 1, colSpan = 1;
-        while (cards[rowIndex + rowSpan] && cards[rowIndex + rowSpan][colIndex] == tab)
-            rowSpan++;
-        while (cards[rowIndex][colIndex + colSpan] == tab)
-            colSpan++;
-        return {
-            tab: tab,
-            size: [rowSpan, colSpan],
-            index: [rowIndex, colIndex],
-        }
-    });
 
     const heights: { [key: number]: string } = {
         1: "h-[100vh]",
@@ -210,6 +239,8 @@ const CardGrid = ({
                             logsActions={logsActions}
                             rowIndex={rowIndex}
                             colIndex={colIndex}
+                            rowSize={row}
+                            colSize={col}
                             rowBound={rowBound}
                             colBound={colBound}
                             cards={cards}
