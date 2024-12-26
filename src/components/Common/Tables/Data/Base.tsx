@@ -120,6 +120,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
                                     <DataTableHeader
                                         key={header.id}
                                         header={header}
+                                        cellSelection={cellSelection}
                                         table={table}
                                         columnVisibility={state.columnVisibility}
                                         setColumnVisibility={setState.setColumnVisibility}

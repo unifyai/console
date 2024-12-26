@@ -2,7 +2,7 @@
 
 import { Dispatch, SetStateAction, CSSProperties, ReactNode } from "react";
 
-import { flexRender, Header, Column, Table } from "@tanstack/react-table";
+import { flexRender, Header, Column, Table, Cell } from "@tanstack/react-table";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -12,9 +12,15 @@ import ColumnGroupBy from "../Buttons/ColumnGroupBy";
 import ColumnHide from "../Buttons/ColumnHide";
 import ColumnShow from "../Buttons/ColumnShow";
 
-const DataTableHeader = ({table, header, columnVisibility, setColumnVisibility, ColumnFilters}: {
+const DataTableHeader = ({table, header, cellSelection, columnVisibility, setColumnVisibility, ColumnFilters}: {
   table: Table<any | unknown>,
   header: Header<any, unknown>,
+  cellSelection: {
+    handleCellMouseDown: (e: React.MouseEvent<HTMLElement>, target: Cell<any, any> | Header<any, any>) => void;
+    handleCellMouseUp: (e: React.MouseEvent<HTMLElement>, target: Cell<any, any> | Header<any, any>) => void;
+    handleCellMouseOver: (e: React.MouseEvent<HTMLElement>, target: Cell<any, any> | Header<any, any>) => void;
+    handleCellsKeyDown: (e: React.KeyboardEvent<HTMLElement>) => void;
+  },
   columnVisibility: { [key: string]: boolean },
   setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void,
   ColumnFilters?: (column: Column<any | unknown>) => ReactNode;
@@ -41,7 +47,7 @@ const DataTableHeader = ({table, header, columnVisibility, setColumnVisibility, 
     borderTop: "1px solid var(--muted)",
     backgroundColor: isPinned ? "var(--background)" : ""
   };
-
+  
   return (
     <TableHead 
       colSpan={header.colSpan} 
@@ -51,7 +57,13 @@ const DataTableHeader = ({table, header, columnVisibility, setColumnVisibility, 
     >
         <div className="flex-col items-center">
           {/* Content */}
-          <div {...attributes} {...listeners} className={`cursor-grabbing select-none`}>
+          <div 
+            {...attributes} {...listeners} 
+            className={`cursor-grabbing select-none`}
+            onMouseDown={(e) => cellSelection.handleCellMouseDown(e, header)}
+            onMouseUp={(e) => cellSelection.handleCellMouseUp(e, header)}
+            onMouseOver={(e) => cellSelection.handleCellMouseOver(e, header)}      
+          >
             {header.isPlaceholder
               ? null
               : flexRender(header.column.columnDef.header, header.getContext())

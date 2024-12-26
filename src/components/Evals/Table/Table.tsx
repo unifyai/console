@@ -329,16 +329,17 @@ const LogsTable = ({
   );
 
   // Handle clicking outside of the table
-  const containerRef = useRef<HTMLDivElement>(null)
-  const onContainerClick = (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-    if (containerRef.current && containerRef.current === event.target) {
+  const onContainerClick = (event: React.MouseEvent<HTMLElement, MouseEvent>) => {
+    const target = event.target as HTMLElement
+    const className = target.className
+    if (className.includes("flex")) {
       setSelectedCells([])
     }
   }
   return (
-    <div className="flex flex-col gap-4 w-full h-full p-3 bg-background rounded-md" ref={containerRef} onClick={onContainerClick}>
+    <div className="flex flex-col gap-4 w-full h-full p-3 bg-background rounded-md" onClick={onContainerClick}>
       {/* Project selection row */}
-      <div className="flex flex-row gap-8 w-full h-fit">
+      <div className="flex flex-row gap-8 w-fit h-fit">
         <div className="w-fit gap-2 flex flex-row items-center">
           <FileDirectory
             data={data}
