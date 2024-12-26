@@ -98,7 +98,7 @@ const Card = ({
         setCards([...cards]);
     }
     const [hovered, setHovered] = useState(false);
-    const cardData = cardList.find((card) => card.tab == cards[rowIndex][colIndex]) as CardProps;
+
     return (<div className="overflow-x-auto relative flex w-full h-full border rounded-lg" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
         <div className="h-full w-full flex justify-between">
             <div className={"h-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
@@ -111,7 +111,7 @@ const Card = ({
                         cardList.find(
                             (card) => card.tab == cards[rowIndex][colIndex - 1] &&
                                 card.index[0] == rowIndex
-                        )?.size[0] == cardData.size[0]
+                        )?.size[0] == rowSize
                     }
                     onClick={
                         (type: "add" | "reset" | "merge") => updateCards(rowIndex, colIndex, "left", type)
@@ -129,7 +129,7 @@ const Card = ({
                             cardList.find(
                                 (card) => card.tab == cards[rowIndex - 1][colIndex] &&
                                     card.index[1] == colIndex
-                            )?.size[1] == cardData.size[1]
+                            )?.size[1] == colSize
                         }
                         onClick={
                             (type: "add" | "reset" | "merge") => updateCards(rowIndex, colIndex, "top", type)
@@ -181,9 +181,9 @@ const Card = ({
                         merge={
                             rowIndex + rowSize < rowBound &&
                             cardList.find(
-                                (card) => card.tab == cards[rowIndex + 1][colIndex] &&
+                                (card) => card.tab == cards[rowIndex + rowSize][colIndex] &&
                                     card.index[1] == colIndex
-                            )?.size[1] == cardData.size[1]
+                            )?.size[1] == colSize
                         }
                         onClick={
                             (type: "add" | "reset" | "merge") => updateCards(rowIndex, colIndex, "bottom", type)
@@ -199,9 +199,9 @@ const Card = ({
                     merge={
                         colIndex + colSize < colBound &&
                         cardList.find(
-                            (card) => card.tab == cards[rowIndex][colIndex + 1] &&
+                            (card) => card.tab == cards[rowIndex][colIndex + colSize] &&
                                 card.index[0] == rowIndex
-                        )?.size[0] == cardData.size[0]
+                        )?.size[0] == rowSize
                     }
                     onClick={
                         (type: "add" | "reset" | "merge") => updateCards(rowIndex, colIndex, "right", type)
