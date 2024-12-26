@@ -52,7 +52,7 @@ const CardGrid = ({
     },
 }) => {
     const [cards, setCards] = useState<(string | undefined)[][]>(
-        Array.from({ length: 10 }, (_, index: number) => (
+        Array.from({ length: 5 }, (_, index: number) => (
             index == 0 ? ["Empty_1", ...Array(2).fill(undefined)] : Array(3).fill(undefined)
         ))
     );
@@ -98,7 +98,7 @@ const CardGrid = ({
         if (cardList.length == 1 && (cardList[0].size[0] != 1 || cardList[0].size[1] != 1)) {
             const card = cardList[0];
             setCards(
-                Array.from({ length: 10 }, (_, index: number) => (
+                Array.from({ length: 5 }, (_, index: number) => (
                     index == 0 ? [card.tab, ...Array(2).fill(undefined)] : Array(3).fill(undefined)
                 ))
             );
