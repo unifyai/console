@@ -109,7 +109,8 @@ const Card = ({
                     merge={
                         colIndex - 1 >= 0 &&
                         cardList.find(
-                            (card) => card.tab == cards[rowIndex][colIndex - 1]
+                            (card) => card.tab == cards[rowIndex][colIndex - 1] &&
+                                card.index[0] == rowIndex
                         )?.size[0] == cardData.size[0]
                     }
                     onClick={
@@ -126,7 +127,8 @@ const Card = ({
                         merge={
                             rowIndex - 1 >= 0 && colIndex < cards[rowIndex - 1].length &&
                             cardList.find(
-                                (card) => card.tab == cards[rowIndex - 1][colIndex]
+                                (card) => card.tab == cards[rowIndex - 1][colIndex] &&
+                                    card.index[1] == colIndex
                             )?.size[1] == cardData.size[1]
                         }
                         onClick={
@@ -179,7 +181,8 @@ const Card = ({
                         merge={
                             rowIndex + rowSize < rowBound &&
                             cardList.find(
-                                (card) => card.tab == cards[rowIndex + 1][colIndex]
+                                (card) => card.tab == cards[rowIndex + 1][colIndex] &&
+                                    card.index[1] == colIndex
                             )?.size[1] == cardData.size[1]
                         }
                         onClick={
@@ -196,7 +199,8 @@ const Card = ({
                     merge={
                         colIndex + colSize < colBound &&
                         cardList.find(
-                            (card) => card.tab == cards[rowIndex][colIndex + 1]
+                            (card) => card.tab == cards[rowIndex][colIndex + 1] &&
+                                card.index[0] == rowIndex
                         )?.size[0] == cardData.size[0]
                     }
                     onClick={
