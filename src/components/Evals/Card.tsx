@@ -11,7 +11,8 @@ import { LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import LogsPlot from "@/components/Evals/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Evals/Table/Table";
-import { CardProps } from "./CardGrid";
+import { replaceCards, getMerge, performOperation } from "@/utils/evals/grid";
+import { CardProps } from "@/types/evals/grid";
 
 const Card = ({
     searchParams,
@@ -27,17 +28,13 @@ const Card = ({
     columnTypes,
     projectActions,
     logsActions,
-    rowIndex,
-    colIndex,
-    rowSize,
-    colSize,
-    rowBound,
-    colBound,
+    index,
+    size,
+    bound,
     cards,
     cardList,
     allTabs,
     setCards,
-    updateCards
 }: {
     searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string },
     projects: string[] | undefined,
@@ -63,23 +60,18 @@ const Card = ({
         ) => Promise<number>,
         delete: (ids: string[]) => Promise<ResponseProps>
     },
-    rowIndex: number,
-    colIndex: number,
-    rowSize: number,
-    colSize: number,
-    rowBound: number,
-    colBound: number,
+    index: [number, number],
+    size: [number, number],
+    bound: [number, number],
     cards: (string | undefined)[][],
     cardList: CardProps[],
     allTabs: string[],
     setCards: Dispatch<SetStateAction<(string | undefined)[][]>>,
-    updateCards: (
-        rowIndex: number,
-        colIndex: number,
-        side: "left" | "right" | "top" | "bottom",
-        type: "add" | "reset" | "merge"
-    ) => void
 }) => {
+    const [rowIndex, colIndex] = index;
+    const [rowSize, colSize] = size;
+    const [rowBound, colBound] = bound;
+    const undefinedCard = cards[rowIndex][colIndex] == undefined;
     const tabTypes = ["Table", "Plot", "View"]
     const setTab = (tabString: string) => {
         const initialValue = cards[rowIndex][colIndex];
@@ -87,52 +79,34 @@ const Card = ({
             (a, b) => parseInt(a.split("_")[1]) - parseInt(b.split("_")[1])
         ).findLast((tab) => tab.includes(tabString));
         const tabIndex = lastTab ? parseInt(lastTab?.split("_")[1]) + 1 : 1;
-        for (let i = 0; i < cards.length; i++) {
-            for (let j = 0; j < cards[i].length; j++) {
-                if (cards[i][j] == initialValue) {
-                    cards[i][j] = `${tabString}_${tabIndex}`;
-                }
-            }
-        }
+        cards = replaceCards(cards, initialValue, `${tabString}_${tabIndex}`);
         setCards([...cards]);
     }
     const [hovered, setHovered] = useState(false);
+    const onClick = (side: "left" | "right" | "top" | "bottom", type: "add" | "reset" | "merge") => setCards(
+        [...performOperation(allTabs, cards, rowBound, colBound, rowIndex, colIndex, side, type)]
+    );
+    const mergable = (side: "left" | "right" | "top" | "bottom") => getMerge(
+        side, cards, cardList, rowIndex, colIndex, rowSize, colSize, rowBound, colBound
+    );
 
     return (<div className="overflow-x-auto relative flex w-full h-full border rounded-lg" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
         <div className="h-full w-full flex justify-between">
             <div className={"h-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
                 <TileButtons
                     side="left"
-                    full={colBound == 3}
-                    empty={rowBound == 1 && colBound == 1}
-                    merge={
-                        colIndex - 1 >= 0 &&
-                        cardList.find(
-                            (card) => card.tab == cards[rowIndex][colIndex - 1] &&
-                                card.index[0] == rowIndex
-                        )?.size[0] == rowSize
-                    }
-                    onClick={
-                        (type: "add" | "reset" | "merge") => updateCards(rowIndex, colIndex, "left", type)
-                    }
+                    empty={undefinedCard}
+                    mergable={mergable}
+                    onClick={onClick}
                 />
             </div>
             <div className="flex-1 h-full flex flex-col justify-between">
                 <div className={"w-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
                     <TileButtons
                         side="top"
-                        full={false}
-                        empty={rowBound == 1 && colBound == 1}
-                        merge={
-                            rowIndex - 1 >= 0 && colIndex < cards[rowIndex - 1].length &&
-                            cardList.find(
-                                (card) => card.tab == cards[rowIndex - 1][colIndex] &&
-                                    card.index[1] == colIndex
-                            )?.size[1] == colSize
-                        }
-                        onClick={
-                            (type: "add" | "reset" | "merge") => updateCards(rowIndex, colIndex, "top", type)
-                        }
+                        empty={undefinedCard}
+                        mergable={mergable}
+                        onClick={onClick}
                     />
                 </div>
                 <div className={"overflow-auto w-full flex-1 flex flex-col items-center " + (cards[rowIndex][colIndex]?.includes("Empty") ? "justify-center" : "mt-1")}>
@@ -176,17 +150,9 @@ const Card = ({
                     <TileButtons
                         side="bottom"
                         full={!(rowIndex + rowSize == rowBound)}
-                        empty={rowBound == 1 && colBound == 1}
-                        merge={
-                            rowIndex + rowSize < rowBound &&
-                            cardList.find(
-                                (card) => card.tab == cards[rowIndex + rowSize][colIndex] &&
-                                    card.index[1] == colIndex
-                            )?.size[1] == colSize
-                        }
-                        onClick={
-                            (type: "add" | "reset" | "merge") => updateCards(rowIndex, colIndex, "bottom", type)
-                        }
+                        empty={undefinedCard}
+                        mergable={mergable}
+                        onClick={onClick}
                     />
                 </div>
             </div>
@@ -194,17 +160,9 @@ const Card = ({
                 <TileButtons
                     side="right"
                     full={colBound == 3 || !(colIndex + colSize == colBound)}
-                    empty={rowBound == 1 && colBound == 1}
-                    merge={
-                        colIndex + colSize < colBound &&
-                        cardList.find(
-                            (card) => card.tab == cards[rowIndex][colIndex + colSize] &&
-                                card.index[0] == rowIndex
-                        )?.size[0] == rowSize
-                    }
-                    onClick={
-                        (type: "add" | "reset" | "merge") => updateCards(rowIndex, colIndex, "right", type)
-                    }
+                    empty={undefinedCard}
+                    mergable={mergable}
+                    onClick={onClick}
                 />
             </div>
         </div>

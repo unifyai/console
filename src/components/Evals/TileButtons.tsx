@@ -1,22 +1,24 @@
+"use client";
+
 import ActionButton from "@/components/Common/Buttons/Action";
 import { Merge, Minus, Plus } from "lucide-react";
 
-const TileButtons = ({ side, full, empty, merge, onClick }: {
+const TileButtons = ({ side, full, empty, mergable, onClick }: {
     side: "right" | "left" | "top" | "bottom",
-    full: boolean,
+    full?: boolean,
     empty: boolean,
-    merge: boolean
-    onClick: (type: "add" | "reset" | "merge") => void
+    mergable: (side: "left" | "right" | "top" | "bottom") => boolean,
+    onClick: (side: "left" | "right" | "top" | "bottom", type: "add" | "reset" | "merge") => void
 }) => {
     const leftOrRight = side === "left" || side === "right";
     return (
         <div className={`mx-auto ${leftOrRight ? "" : "flex"}`}>
-            {!full && (side == "right" || side == "bottom") &&<div className={`${leftOrRight ? "m-2" : "m-1"}`}>
+            {!full && (side == "right" || side == "bottom") && <div className={`${leftOrRight ? "m-2" : "m-1"}`}>
                 <ActionButton
                     tooltip={`Add New (${side})`}
                     variant={"primary"}
                     icon={<Plus />}
-                    onClick={() => onClick("add")}
+                    onClick={() => onClick(side, "add")}
                 />
             </div>}
             {!empty && <div className={`${leftOrRight ? "m-2" : "m-1"}`}>
@@ -24,15 +26,15 @@ const TileButtons = ({ side, full, empty, merge, onClick }: {
                     tooltip="Reset Tile"
                     variant={"destructive"}
                     icon={<Minus />}
-                    onClick={() => onClick("reset")}
+                    onClick={() => onClick(side, "reset")}
                 />
             </div>}
-            {merge && <div className={`${leftOrRight ? "m-2" : "m-1"}`}>
+            {mergable(side) && <div className={`${leftOrRight ? "m-2" : "m-1"}`}>
                 <ActionButton
                     tooltip="Merge Tiles"
                     variant={"secondary"}
                     icon={<Merge />}
-                    onClick={() => onClick("merge")}
+                    onClick={() => onClick(side, "merge")}
                     className="hover:bg-secondary"
                 />
             </div>}

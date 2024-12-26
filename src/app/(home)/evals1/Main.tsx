@@ -1,5 +1,5 @@
 import { ResponseProps } from "@/types/common";
-import CardGrid from "./CardGrid";
+import CardGrid from "@/components/Evals/CardGrid";
 import { LogColumnsProps, LogsResponseProps } from "@/types/evals/logs";
 import { extractLogsData } from "@/utils/evals/common";
 
@@ -75,6 +75,7 @@ const Main = async ({ searchParams, projectsActions, logsActions }: {
     ).reduce(
         (acc, curr) => ({ ...acc, ...curr })
     ) : {};
+
     return <CardGrid
         searchParams={searchParams}
 		projects={projects}
