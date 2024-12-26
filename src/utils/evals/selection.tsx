@@ -111,18 +111,18 @@ export function extractBaseAndComparisonLogs (selectedCells: string[], logs:LogP
       .filter(id => id.split("_").at(0) === baseLogParamId)                     // Find all selected cells from base
       .map(cell => getPartAfterFirstUnderscore(cell))                           // Handle underscores in column id
     columnIds = Array.from(new Set(columnIds))                                  // Handle duplication in column id
-    baseLog = {
-      ...baseLog, 
-      params: getDictSubset(baseLog.params, columnIds),
-      entries: getDictSubset(baseLog.entries, columnIds) 
-    }
+    baseLog = {...baseLog, entries: getDictSubset(baseLog.entries, columnIds)}
+    if (baseLog.params)
+      baseLog.params = getDictSubset(baseLog.params, columnIds)
+
   }
 
   // Locate comparison logs and their row indices in the table, then filter values for selected cells that pertain to each log
   const comparisonLogsParam = selectedCells.slice(1)                                // [logId1_colId2, logId2_colId3, ...]
-  const comparisonLogsIndex = comparisonLogsParam 
+  let comparisonLogsIndex = comparisonLogsParam 
     ? comparisonLogsParam.map((cl) => logs.findIndex((log) => log.id == cl.split("_").at(0)) + 1) 
     : [];
+  comparisonLogsIndex = Array.from(new Set(comparisonLogsIndex))                    // Handle index duplication
   let comparisonLogs = comparisonLogsParam && logs
     ? comparisonLogsParam.map((cl: string) => logs.find((log) => log.id == cl.split("_").at(0))!)
     : [];
@@ -135,11 +135,10 @@ export function extractBaseAndComparisonLogs (selectedCells: string[], logs:LogP
         .filter(id => id.split("_").at(0) === clParamId)                            // Find all selected cells from comparison
         .map(cell => getPartAfterFirstUnderscore(cell))                             // Handle underscores in column id
         columnIds = Array.from(new Set(columnIds))                                  // Handle duplication in column id
-      return {
-        ...cl,
-        params: getDictSubset(cl.params, columnIds),
-        entries: getDictSubset(cl.entries, columnIds)
-      }
+      const comparisonLog = {...cl, entries: getDictSubset(cl.entries, columnIds)}
+      if (cl.params)
+        comparisonLog.params = getDictSubset(cl.params, columnIds)
+      return comparisonLog
     })
   }
 

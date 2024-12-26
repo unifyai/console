@@ -1,6 +1,6 @@
 import { CSSProperties, ReactNode } from "react";
 
-import { Cell, Row, flexRender } from "@tanstack/react-table";
+import { Header, Cell, Row, flexRender } from "@tanstack/react-table";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -14,9 +14,9 @@ const DataTableCell = ({ cell, row, isCellSelected, cellSelection, resizeMap, Ag
     row: Row<any | unknown>,
     isCellSelected: (cell: Cell<any, any>) => boolean,
     cellSelection: {
-      handleCellMouseDown: (e: React.MouseEvent<HTMLElement>, cell: Cell<any, any>) => void;
-      handleCellMouseUp: (e: React.MouseEvent<HTMLElement>, _cell: Cell<any, any>) => void;
-      handleCellMouseOver: (e: React.MouseEvent<HTMLElement>, cell: Cell<any, any>) => void;
+      handleCellMouseDown: (e: React.MouseEvent<HTMLElement>, target: Cell<any, any> | Header<any, any>) => void;
+      handleCellMouseUp: (e: React.MouseEvent<HTMLElement>, target: Cell<any, any> | Header<any, any>) => void;
+      handleCellMouseOver: (e: React.MouseEvent<HTMLElement>, target: Cell<any, any> | Header<any, any>) => void;
       handleCellsKeyDown: (e: React.KeyboardEvent<HTMLElement>) => void;
     }
     resizeMap: { [x: string]: (event: unknown) => void },
