@@ -50,9 +50,6 @@ const DataTableHeader = ({table, header, cellSelection, columnVisibility, setCol
   
   return (
     <TableHead 
-      onMouseDown={(e) => cellSelection.handleCellMouseDown(e, header)}
-      onMouseUp={(e) => cellSelection.handleCellMouseUp(e, header)}
-      onMouseOver={(e) => cellSelection.handleCellMouseOver(e, header)}
       colSpan={header.colSpan} 
       ref={setNodeRef} 
       style={style} 
@@ -60,7 +57,13 @@ const DataTableHeader = ({table, header, cellSelection, columnVisibility, setCol
     >
         <div className="flex-col items-center">
           {/* Content */}
-          <div {...attributes} {...listeners} className={`cursor-grabbing select-none`}>
+          <div 
+            {...attributes} {...listeners} 
+            className={`cursor-grabbing select-none`}
+            onMouseDown={(e) => cellSelection.handleCellMouseDown(e, header)}
+            onMouseUp={(e) => cellSelection.handleCellMouseUp(e, header)}
+            onMouseOver={(e) => cellSelection.handleCellMouseOver(e, header)}      
+          >
             {header.isPlaceholder
               ? null
               : flexRender(header.column.columnDef.header, header.getContext())
