@@ -1,6 +1,6 @@
 "use client";
 
-import { CSSProperties, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Card from "./Card";
 import { LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
