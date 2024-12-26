@@ -29,7 +29,11 @@ const Card = ({
     logsActions,
     rowIndex,
     colIndex,
+    rowBound,
+    colBound,
     cards,
+    cardList,
+    allTabs,
     setCards,
     updateCards
 }: {
@@ -43,13 +47,13 @@ const Card = ({
     metrics: { [key: string]: number }
     logsData: LogsResponseProps,
     totalPages: number,
-    columnTypes: { [key: string]: string }
+    columnTypes: { [key: string]: string },
     projectActions: {
         get: () => Promise<string[]>,
         create: (name: string) => Promise<ResponseProps>,
         rename: (oldName: string, newName: string) => Promise<ResponseProps>,
         delete: (name: string) => Promise<ResponseProps>
-    }
+    },
     logsActions: {
         get: (project: string, filterExpression: string | null, limit: number, offset: number) => Promise<LogsResponseProps>,
         getMetrics: (
@@ -58,9 +62,13 @@ const Card = ({
         delete: (ids: string[]) => Promise<ResponseProps>
     },
     rowIndex: number,
-    colIndex: number
-    cards: CardProps[][],
-    setCards: Dispatch<SetStateAction<CardProps[][]>>,
+    colIndex: number,
+    rowBound: number,
+    colBound: number,
+    cards: (string | undefined)[][],
+    cardList: CardProps[],
+    allTabs: string[],
+    setCards: Dispatch<SetStateAction<(string | undefined)[][]>>,
     updateCards: (
         rowIndex: number,
         colIndex: number,
@@ -69,21 +77,36 @@ const Card = ({
     ) => void
 }) => {
     const tabTypes = ["Table", "Plot", "View"]
-    const setTab = (tab: string) => {
-        cards[rowIndex][colIndex].tab = tab
+    const setTab = (tabString: string) => {
+        const initialValue = cards[rowIndex][colIndex];
+        console.log(`indices: ${rowIndex} ${colIndex} ${cards[rowIndex][colIndex]} ${allTabs} ${tabString}`);
+        const lastTab = allTabs.sort(
+            (a, b) => parseInt(a.split("_")[1]) - parseInt(b.split("_")[1])
+        ).findLast((tab) => tab.includes(tabString));
+        const tabIndex = lastTab ? parseInt(lastTab?.split("_")[1]) + 1 : 1;
+        for (let i = 0; i < cards.length; i++) {
+            for (let j = 0; j < cards[i].length; j++) {
+                if (cards[i][j] == initialValue) {
+                    cards[i][j] = `${tabString}_${tabIndex}`;
+                }
+            }
+        }
         setCards([...cards]);
     }
     const [hovered, setHovered] = useState(false);
+    const cardData = cardList.find((card) => card.tab == cards[rowIndex][colIndex]) as CardProps;
     return (<div className="overflow-x-auto relative flex w-full h-full border rounded-lg" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
         <div className="h-full w-full flex justify-between">
             <div className={"h-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
                 <TileButtons
                     side="left"
-                    full={cards[rowIndex].length == 3}
-                    empty={cards.length == 1 && cards[rowIndex].length == 1}
+                    full={colBound == 3}
+                    empty={rowBound == 1 && colBound == 1}
                     merge={
                         colIndex - 1 >= 0 &&
-                        cards[rowIndex][colIndex - 1].size[0] == cards[rowIndex][colIndex].size[0]
+                        cardList.find(
+                            (card) => card.tab == cards[rowIndex][colIndex - 1]
+                        )?.size[0] == cardData.size[0]
                     }
                     onClick={
                         (type: "add" | "remove" | "merge") => updateCards(rowIndex, colIndex, "left", type)
@@ -95,23 +118,25 @@ const Card = ({
                     <TileButtons
                         side="top"
                         full={false}
-                        empty={cards.length == 1 && cards[rowIndex].length == 1}
+                        empty={rowBound == 1 && colBound == 1}
                         merge={
                             rowIndex - 1 >= 0 && colIndex < cards[rowIndex - 1].length &&
-                            cards[rowIndex - 1][colIndex].size[1] == cards[rowIndex][colIndex].size[1]
+                            cardList.find(
+                                (card) => card.tab == cards[rowIndex - 1][colIndex]
+                            )?.size[1] == cardData.size[1]
                         }
                         onClick={
                             (type: "add" | "remove" | "merge") => updateCards(rowIndex, colIndex, "top", type)
                         }
                     />
                 </div>
-                <div className={"overflow-auto w-full flex-1 flex flex-col items-center " + (cards[rowIndex][colIndex].tab ? "mt-1" : "justify-center")}>
+                <div className={"overflow-auto w-full flex-1 flex flex-col items-center " + (cards[rowIndex][colIndex]?.includes("Empty") ? "justify-center" : "mt-1")}>
                     <div className="w-fit">
                         <BaseDropdown
                             button={<ActionButton
                                 tooltip="Add Tab"
-                                text={cards[rowIndex][colIndex].tab || undefined}
-                                icon={cards[rowIndex][colIndex].tab ? undefined : <Plus />}
+                                text={cards[rowIndex][colIndex]?.includes("Empty") ? undefined : cards[rowIndex][colIndex]}
+                                icon={cards[rowIndex][colIndex]?.includes("Empty") ? <Plus /> : undefined}
                                 variant="outline"
                                 size="default"
                             />}
@@ -125,9 +150,9 @@ const Card = ({
                             </DropdownMenuItem>)}
                         </BaseDropdown>
                     </div>
-                    {cards[rowIndex][colIndex].tab == "View" && <Selection params={params} logs={logs} />}
-                    {cards[rowIndex][colIndex].tab == "Plot" && <LogsPlot logs={logs} />}
-                    {cards[rowIndex][colIndex].tab == "Table" && <LogsTable
+                    {cards[rowIndex][colIndex]?.includes("View") && <Selection params={params} logs={logs} />}
+                    {cards[rowIndex][colIndex]?.includes("Plot") && <LogsPlot logs={logs} />}
+                    {cards[rowIndex][colIndex]?.includes("Table") && <LogsTable
                         searchParams={searchParams}
                         projects={projects}
                         project={project}
@@ -146,10 +171,12 @@ const Card = ({
                     <TileButtons
                         side="bottom"
                         full={false}
-                        empty={cards.length == 1 && cards[rowIndex].length == 1}
+                        empty={rowBound == 1 && colBound == 1}
                         merge={
                             rowIndex + 1 < cards.length && colIndex < cards[rowIndex + 1].length &&
-                            cards[rowIndex + 1][colIndex].size[1] == cards[rowIndex][colIndex].size[1]
+                            cardList.find(
+                                (card) => card.tab == cards[rowIndex + 1][colIndex]
+                            )?.size[1] == cardData.size[1]
                         }
                         onClick={
                             (type: "add" | "remove" | "merge") => updateCards(rowIndex, colIndex, "bottom", type)
@@ -160,11 +187,13 @@ const Card = ({
             <div className={"h-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
                 <TileButtons
                     side="right"
-                    full={cards[rowIndex].length == 3}
-                    empty={cards.length == 1 && cards[rowIndex].length == 1}
+                    full={colBound == 3}
+                    empty={rowBound == 1 && colBound == 1}
                     merge={
                         colIndex + 1 < cards[rowIndex].length &&
-                        cards[rowIndex][colIndex + 1].size[0] == cards[rowIndex][colIndex].size[0]
+                        cardList.find(
+                            (card) => card.tab == cards[rowIndex][colIndex + 1]
+                        )?.size[0] == cardData.size[0]
                     }
                     onClick={
                         (type: "add" | "remove" | "merge") => updateCards(rowIndex, colIndex, "right", type)

@@ -6,9 +6,9 @@ import { LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
 
 export interface CardProps {
-    tab: string | undefined,
-    size: [number, number],
-    visible: boolean,
+    tab: string;
+    size: number[];
+    index: number[];
 }
 
 const CardGrid = ({
@@ -51,11 +51,21 @@ const CardGrid = ({
         delete: (ids: string[]) => Promise<ResponseProps>
     },
 }) => {
-    const [cards, setCards] = useState<CardProps[][]>([[{ tab: undefined, size: [1, 1], visible: true }]]);
-    let numCols = Math.max(...cards.map((cardList) => cardList.length));
+    const [cards, setCards] = useState<(string | undefined)[][]>(
+        Array.from({ length: 10 }, (_, index: number) => (
+            index == 0 ? ["Empty_1", ...Array(2).fill(undefined)] : Array(3).fill(undefined)
+        ))
+    );
+    let allTabs = Array.from(new Set(cards.reduce((row, col) => [...row, ...col], []).filter(tab => tab != undefined)));
+    let rowBound = cards.findIndex(row => row.every(card => card == undefined));
+    let colBound = [0, 1, 2].findIndex(index => cards.every(row => row[index] == undefined));
+    colBound = colBound == -1 ? 3 : colBound;
 
     useEffect(() => {
-        numCols = Math.max(...cards.map((cardList) => cardList.length));
+        allTabs = Array.from(new Set(cards.reduce((row, col) => [...row, ...col], []).filter(tab => tab != undefined)));
+        rowBound = cards.findIndex(row => row.every(card => card == undefined));
+        colBound = [0, 1, 2].findIndex(index => cards.every(row => row[index] == undefined));
+        colBound = colBound == -1 ? 3 : colBound;
     }, [cards]);
 
     const updateCards = (
@@ -64,52 +74,79 @@ const CardGrid = ({
         side: "left" | "right" | "top" | "bottom",
         type: "add" | "remove" | "merge"
     ) => {
-        const leftOrRight = side == "left" || side == "right";
+        const initialValue = cards[rowIndex][colIndex];
+        let newRowIndex = rowIndex, newColIndex = colIndex;
+        if (side == "left")
+            newColIndex--;
+        else if (side == "right")
+            newColIndex++;
+        else if (side == "top")
+            newRowIndex--;
+        else
+            newRowIndex++;
+
+        const lastTab = allTabs.sort(
+            (a, b) => parseInt(a.split("_")[1]) - parseInt(b.split("_")[1])
+        ).findLast((tab) => tab.includes("Empty"));
+        let emptyIndex = lastTab ? parseInt(lastTab?.split("_")[1]) + 1 : 1;
+
         if (type == "add") {
-            if (leftOrRight && cards[rowIndex].length < 3) {
-                if (cards[rowIndex][colIndex].size[1] > 1) {
-                    const size = cards[rowIndex][colIndex].size;
-                    cards[rowIndex][colIndex] = { ...cards[rowIndex][colIndex], size: [size[0], size[1] - 1] };
-                }
-                if (side == "left")
-                    cards[rowIndex].splice(colIndex, 0, { tab: undefined, size: [1, 1], visible: true });
-                else
-                    cards[rowIndex].splice(colIndex + 1, 0, { tab: undefined, size: [1, 1], visible: true });
-            }
-            else if (!leftOrRight) {
-                if (side == "top")
-                    cards.splice(rowIndex, 0, [{ tab: undefined, size: [1, numCols], visible: true }]);
-                else
-                    cards.splice(rowIndex + 1, 0, [{ tab: undefined, size: [1, numCols], visible: true }]);
-            }
-        } else if (type == "remove" && (cards.length > 1 || cards[rowIndex].length > 1)) {
-            cards[rowIndex].splice(colIndex, 1);
-            if (cards[rowIndex].length == 0)
-                cards.splice(rowIndex, 1);
-        } else if (type == "merge") {
-            if (leftOrRight) {
-                if (side == "left") {
-                    cards[rowIndex][colIndex].size[1] += cards[rowIndex][colIndex - 1].size[1];
-                    cards[rowIndex][colIndex - 1].visible = false;
-                }
-                else if (side == "right") {
-                    cards[rowIndex][colIndex].size[1] += cards[rowIndex][colIndex + 1].size[1];
-                    cards[rowIndex][colIndex + 1].visible = false;
+            cards[newRowIndex][newColIndex] = `Empty_${emptyIndex}`;
+            allTabs.push(`Empty_${emptyIndex}`);
+            emptyIndex++;
+            if (rowIndex != newRowIndex && newRowIndex == rowBound) {
+                for (let i = 0; i < colBound; i++) {
+                    if (cards[newRowIndex][i] == undefined) {
+                        cards[newRowIndex][i] = `Empty_${emptyIndex}`;
+                        allTabs.push(`Empty_${emptyIndex}`);
+                        emptyIndex++;
+                    }
                 }
             }
-            else if (!leftOrRight) {
-                if (side == "top") {
-                    cards[rowIndex - 1][colIndex].size[0] += cards[rowIndex][colIndex].size[0];
-                    cards[rowIndex][colIndex].visible = false;
+            if (colIndex != newColIndex && newColIndex == colBound) {
+                for (let i = 0; i < rowBound; i++) {
+                    console.log(`${i}, ${newColIndex}`);
+                    if (cards[i][newColIndex] == undefined) {
+                        cards[i][newColIndex] = `Empty_${emptyIndex}`;
+                        allTabs.push(`Empty_${emptyIndex}`);
+                        emptyIndex++;
+                    }
                 }
-                else {
-                    cards[rowIndex][colIndex].size[0] += cards[rowIndex + 1][colIndex].size[0];
-                    cards[rowIndex + 1][colIndex].visible = false;
+            }
+        }
+        else if (type == "remove" && !cards[rowIndex][colIndex]?.includes("Empty")) {
+            cards[rowIndex][colIndex] = `Empty_${emptyIndex}`;
+            allTabs.push(`Empty_${emptyIndex}`);
+        }
+        else if (type == "merge") {
+            for (let i = 0; i < cards.length; i++) {
+                for (let j = 0; j < cards[i].length; j++) {
+                    if (cards[i][j] == initialValue) {
+                        cards[i][j] = cards[newRowIndex][newColIndex];
+                    }
                 }
             }
         }
         setCards([...cards]);
     }
+
+    const cardList = allTabs.filter(
+        tab => cards.find(cl => cl.find(card => card == tab))
+    ).map(tab => {
+        const rowIndex = cards.findIndex(cl => cl.find(card => card == tab));
+        const colIndex = cards[rowIndex].findIndex(card => card == tab);
+        console.log(`data ${tab} ${rowIndex} ${colIndex}`);
+        let rowSpan = 1, colSpan = 1;
+        while (cards[rowIndex + rowSpan] && cards[rowIndex + rowSpan][colIndex] == tab)
+            rowSpan++;
+        while (cards[rowIndex][colIndex + colSpan] == tab)
+            colSpan++;
+        return {
+            tab: tab,
+            size: [rowSpan, colSpan],
+            index: [rowIndex, colIndex],
+        }
+    });
 
     const heights: { [key: number]: string } = {
         1: "h-[100vh]",
@@ -148,39 +185,40 @@ const CardGrid = ({
     };
 
     return (
-        <div className={`m-1 w-full ${heights[cards.length]} overflow-y-scroll grid ${gridRows[cards.length]} ${gridCols[numCols]} gap-4`}>
+        <div className={`m-1 w-full ${heights[rowBound]} overflow-y-scroll grid ${gridRows[rowBound]} ${gridCols[colBound]} gap-4`}>
             {
-                cards.map((cardList, index) => {
-                    return <>{cardList.map((card, subIndex) => {
-                        const [row, col] = card.size;
-                        if (!card.visible)
-                            return undefined;
-                        return (<div
-                            className={`${rowSpans[row]} ${colSpans[col]}`}
-                            key={`${index}_${subIndex}`}
-                        >
-                            <Card
-                                searchParams={searchParams}
-                                projects={projects}
-                                project={project}
-                                logs={logs}
-                                params={params}
-                                entriesProperties={entriesProperties}
-                                paramsProperties={paramsProperties}
-                                metrics={metrics}
-                                logsData={logsData}
-                                totalPages={totalPages}
-                                columnTypes={columnTypes}
-                                projectActions={projectActions}
-                                logsActions={logsActions}
-                                rowIndex={index}
-                                colIndex={subIndex}
-                                cards={cards}
-                                setCards={setCards}
-                                updateCards={updateCards}
-                            />
-                        </div>);
-                    })}</>
+                cardList.map(card => {
+                    const [row, col] = card.size;
+                    const [rowIndex, colIndex] = card.index;
+                    return (<div
+                        className={`${rowSpans[row]} ${colSpans[col]}`}
+                        key={`${rowIndex}_${colIndex}`}
+                    >
+                        <Card
+                            searchParams={searchParams}
+                            projects={projects}
+                            project={project}
+                            logs={logs}
+                            params={params}
+                            entriesProperties={entriesProperties}
+                            paramsProperties={paramsProperties}
+                            metrics={metrics}
+                            logsData={logsData}
+                            totalPages={totalPages}
+                            columnTypes={columnTypes}
+                            projectActions={projectActions}
+                            logsActions={logsActions}
+                            rowIndex={rowIndex}
+                            colIndex={colIndex}
+                            rowBound={rowBound}
+                            colBound={colBound}
+                            cards={cards}
+                            cardList={cardList}
+                            allTabs={allTabs}
+                            setCards={setCards}
+                            updateCards={updateCards}
+                        />
+                    </div>);
                 })
             }
         </div>
