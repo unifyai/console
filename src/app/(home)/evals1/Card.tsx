@@ -177,7 +177,7 @@ const Card = ({
                         full={!(rowIndex + rowSize == rowBound)}
                         empty={rowBound == 1 && colBound == 1}
                         merge={
-                            rowIndex + 1 < cards.length && colIndex < cards[rowIndex + 1].length &&
+                            rowIndex + rowSize < rowBound &&
                             cardList.find(
                                 (card) => card.tab == cards[rowIndex + 1][colIndex]
                             )?.size[1] == cardData.size[1]
@@ -194,7 +194,7 @@ const Card = ({
                     full={colBound == 3 || !(colIndex + colSize == colBound)}
                     empty={rowBound == 1 && colBound == 1}
                     merge={
-                        colIndex + 1 < cards[rowIndex].length &&
+                        colIndex + colSize < colBound &&
                         cardList.find(
                             (card) => card.tab == cards[rowIndex][colIndex + 1]
                         )?.size[0] == cardData.size[0]

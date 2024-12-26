@@ -132,12 +132,13 @@ const CardGrid = ({
         ).findLast((tab) => tab.includes("Empty"));
         let emptyIndex = lastTab ? parseInt(lastTab?.split("_")[1]) + 1 : 1;
 
+        let finalRowIndex = newRowIndex, finalColIndex = newColIndex;
+        while (cards[finalRowIndex][finalColIndex] == initialValue)
+            finalRowIndex++;
+        while (cards[finalRowIndex][finalColIndex] == initialValue)
+            finalColIndex++;
+
         if (type == "add") {
-            let finalRowIndex = newRowIndex, finalColIndex = newColIndex;
-            while (cards[finalRowIndex][finalColIndex] == initialValue)
-                finalRowIndex++;
-            while (cards[finalRowIndex][finalColIndex] == initialValue)
-                finalColIndex++;
             cards[finalRowIndex][finalColIndex] = `Empty_${emptyIndex}`;
             allTabs.push(`Empty_${emptyIndex}`);
             emptyIndex++;
@@ -169,7 +170,7 @@ const CardGrid = ({
             for (let i = 0; i < cards.length; i++) {
                 for (let j = 0; j < cards[i].length; j++) {
                     if (cards[i][j] == initialValue) {
-                        cards[i][j] = cards[newRowIndex][newColIndex];
+                        cards[i][j] = cards[finalRowIndex][finalColIndex];
                     }
                 }
             }
