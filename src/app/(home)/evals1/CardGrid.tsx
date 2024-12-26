@@ -118,14 +118,6 @@ const CardGrid = ({
     ) => {
         const initialValue = cards[rowIndex][colIndex];
         let newRowIndex = rowIndex, newColIndex = colIndex;
-        if (side == "left")
-            newColIndex--;
-        else if (side == "right")
-            newColIndex++;
-        else if (side == "top")
-            newRowIndex--;
-        else
-            newRowIndex++;
 
         const lastTab = allTabs.sort(
             (a, b) => parseInt(a.split("_")[1]) - parseInt(b.split("_")[1])
@@ -134,9 +126,22 @@ const CardGrid = ({
 
         let finalRowIndex = newRowIndex, finalColIndex = newColIndex;
         while (cards[finalRowIndex][finalColIndex] == initialValue)
-            finalRowIndex++;
+            side == "top" ? finalRowIndex-- : finalRowIndex++;
+        if (finalRowIndex != newRowIndex)
+            side == "top" ? finalRowIndex++ : finalRowIndex--;
         while (cards[finalRowIndex][finalColIndex] == initialValue)
+            side == "left" ? finalColIndex-- : finalColIndex++;
+        if (finalColIndex != newColIndex)
+            side == "left" ? finalColIndex++ : finalColIndex--;
+
+        if (side == "left")
+            finalColIndex--;
+        else if (side == "right")
             finalColIndex++;
+        else if (side == "top")
+            finalRowIndex--;
+        else
+            finalRowIndex++;
 
         if (type == "add") {
             cards[finalRowIndex][finalColIndex] = `Empty_${emptyIndex}`;
@@ -167,11 +172,11 @@ const CardGrid = ({
             allTabs.push(`Empty_${emptyIndex}`);
         }
         else if (type == "merge") {
+            const finalValue = cards[finalRowIndex][finalColIndex];
             for (let i = 0; i < cards.length; i++) {
                 for (let j = 0; j < cards[i].length; j++) {
-                    if (cards[i][j] == initialValue) {
-                        cards[i][j] = cards[finalRowIndex][finalColIndex];
-                    }
+                    if (cards[i][j] == finalValue)
+                        cards[i][j] = initialValue;
                 }
             }
         }

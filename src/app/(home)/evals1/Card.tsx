@@ -83,7 +83,6 @@ const Card = ({
     const tabTypes = ["Table", "Plot", "View"]
     const setTab = (tabString: string) => {
         const initialValue = cards[rowIndex][colIndex];
-        console.log(`indices: ${rowIndex} ${colIndex} ${cards[rowIndex][colIndex]} ${allTabs} ${tabString}`);
         const lastTab = allTabs.sort(
             (a, b) => parseInt(a.split("_")[1]) - parseInt(b.split("_")[1])
         ).findLast((tab) => tab.includes(tabString));
