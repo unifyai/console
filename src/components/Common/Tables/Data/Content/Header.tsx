@@ -11,7 +11,7 @@ import ColumnSort from "../Buttons/ColumnSort";
 import ColumnGroupBy from "../Buttons/ColumnGroupBy";
 import ColumnHide from "../Buttons/ColumnHide";
 import ColumnShow from "../Buttons/ColumnShow";
-import { getCellsFromHeader } from "@/hooks/Logs/useCellSelection";
+import { getCellsFromHeader, getSelectableTableCells } from "@/hooks/Logs/useCellSelection";
 
 const DataTableHeader = ({table, header, isCellSelected, cellSelection, columnVisibility, setColumnVisibility, ColumnFilters}: {
   table: Table<any | unknown>,
@@ -40,9 +40,7 @@ const DataTableHeader = ({table, header, isCellSelected, cellSelection, columnVi
   const isAllColumnSelected = (header: Header<any, unknown>) =>
     getCellsFromHeader(header).every(cell => isCellSelected(cell))
   const isAllTableSelected = () => 
-    table.getLeafHeaders()
-         .filter(header => !header.column.getIsGrouped() && header.column.id != "Row Numbering")
-         .every(header => isAllColumnSelected(header))
+    getSelectableTableCells(table).every(cell => isCellSelected(cell))
 
   const style: CSSProperties = {
     boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
@@ -70,17 +68,17 @@ const DataTableHeader = ({table, header, isCellSelected, cellSelection, columnVi
       ref={setNodeRef} 
       style={style} 
       className={`py-2 border-1 border-gray-200 relative`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onMouseDown={(e) => cellSelection.handleCellMouseDown(e, header)}
+      onMouseUp={(e) => cellSelection.handleCellMouseUp(e, header)}
+      onMouseOver={(e) => cellSelection.handleCellMouseOver(e, header)}      
     >
         <div className="flex-col items-center">
           {/* Content */}
           <div 
             {...attributes} {...listeners} 
             className={`cursor-grabbing select-none`}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-            onMouseDown={(e) => cellSelection.handleCellMouseDown(e, header)}
-            onMouseUp={(e) => cellSelection.handleCellMouseUp(e, header)}
-            onMouseOver={(e) => cellSelection.handleCellMouseOver(e, header)}      
           >
             {header.isPlaceholder
               ? null

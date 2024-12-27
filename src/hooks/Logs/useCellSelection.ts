@@ -278,7 +278,9 @@ export const useCellSelection = ({
     else if ("depth" in target) {
 
       const header = target as Header<any, any>
-      const columnCells = getCellsFromHeader(header)
+
+      // Sets valid cells for selection. Applies to all columns if clicking on index column header
+      const columnCells = header.column.id === "RowNumbering" ? getSelectableTableCells(table) : getCellsFromHeader(header)
       const validCells = columnCells.filter(c => isValidSelectionTarget(c))
 
       // Select cells if the column has any, otherwise do nothing
@@ -288,7 +290,7 @@ export const useCellSelection = ({
 
         // Simple click: Select all leaf columns cells when clicking
         if (!e.ctrlKey && !e.shiftKey) {
-          setSelectedCells((prev) =>
+          setSelectedCells((prev) => 
             validCells.every(c => prev.includes(c.id))
               ? null
               : validCells.map(c => getCellSelectionData(c))
@@ -405,6 +407,12 @@ export const getCellsFromHeader = (header: Header<any, any>) => {
   const tableCells = header.getContext().table.getRowModel().rows.flatMap(row => row.getAllCells())
   const columnCells = tableCells.filter(cell => leafColumns.includes(cell.column.id))
   return columnCells
+}
+
+export const getSelectableTableCells = (table: Table<any | unknown>) => {
+  const headers = table.getLeafHeaders().filter(h => !h.column.getIsGrouped() && h.column.id != "RowNumbering")
+  const columnCells = headers.flatMap(h => getCellsFromHeader(h))
+  return Array.from(new Set(columnCells))
 }
 
 /* 
