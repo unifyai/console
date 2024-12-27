@@ -1,6 +1,6 @@
 "use client";
 
-import { Dispatch, SetStateAction, CSSProperties, ReactNode } from "react";
+import { useState, CSSProperties, ReactNode } from "react";
 
 import { flexRender, Header, Column, Table, Cell } from "@tanstack/react-table";
 import { useSortable } from "@dnd-kit/sortable";
@@ -11,10 +11,12 @@ import ColumnSort from "../Buttons/ColumnSort";
 import ColumnGroupBy from "../Buttons/ColumnGroupBy";
 import ColumnHide from "../Buttons/ColumnHide";
 import ColumnShow from "../Buttons/ColumnShow";
+import { getCellsFromHeader } from "@/hooks/Logs/useCellSelection";
 
-const DataTableHeader = ({table, header, cellSelection, columnVisibility, setColumnVisibility, ColumnFilters}: {
+const DataTableHeader = ({table, header, isCellSelected, cellSelection, columnVisibility, setColumnVisibility, ColumnFilters}: {
   table: Table<any | unknown>,
   header: Header<any, unknown>,
+  isCellSelected: (cell: Cell<any, any>) => boolean,
   cellSelection: {
     handleCellMouseDown: (e: React.MouseEvent<HTMLElement>, target: Cell<any, any> | Header<any, any>) => void;
     handleCellMouseUp: (e: React.MouseEvent<HTMLElement>, target: Cell<any, any> | Header<any, any>) => void;
@@ -31,6 +33,17 @@ const DataTableHeader = ({table, header, cellSelection, columnVisibility, setCol
   const isPinned = header.column.getIsPinned(); 
   const isLastLeftPinnedColumn =  isPinned === "left" && header.column.getIsLastColumn('left')
 
+  // Handle header coloring.
+  // - Applies selection (hover) background color on any column header for which all (some) cells are selected
+  // - Applied selection (hover) background color index column header if all (some) table cells are selected
+  const [hovered, setHovered] = useState(false);
+  const isAllColumnSelected = (header: Header<any, unknown>) =>
+    getCellsFromHeader(header).every(cell => isCellSelected(cell))
+  const isAllTableSelected = () => 
+    table.getLeafHeaders()
+         .filter(header => !header.column.getIsGrouped() && header.column.id != "Row Numbering")
+         .every(header => isAllColumnSelected(header))
+
   const style: CSSProperties = {
     boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
     opacity: isDragging ? 0.8 : 1,
@@ -45,7 +58,10 @@ const DataTableHeader = ({table, header, cellSelection, columnVisibility, setCol
     borderRight: "1px solid var(--muted)",
     borderBottom: "1px solid var(--muted)",
     borderTop: "1px solid var(--muted)",
-    backgroundColor: isPinned ? "var(--background)" : ""
+    color: isAllColumnSelected(header) ? "var(--primary-foreground)" : "",
+    backgroundColor: header.column.id != "RowNumbering"
+      ? isAllColumnSelected(header) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
+      : isAllTableSelected() ? `var(--primary)` : hovered ? "var(--muted)" : "var(--background)"
   };
   
   return (
@@ -53,13 +69,15 @@ const DataTableHeader = ({table, header, cellSelection, columnVisibility, setCol
       colSpan={header.colSpan} 
       ref={setNodeRef} 
       style={style} 
-      className="py-2 border-1 border-gray-200 relative"
+      className={`py-2 border-1 border-gray-200 relative`}
     >
         <div className="flex-col items-center">
           {/* Content */}
           <div 
             {...attributes} {...listeners} 
             className={`cursor-grabbing select-none`}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
             onMouseDown={(e) => cellSelection.handleCellMouseDown(e, header)}
             onMouseUp={(e) => cellSelection.handleCellMouseUp(e, header)}
             onMouseOver={(e) => cellSelection.handleCellMouseOver(e, header)}      

@@ -1,4 +1,6 @@
-import { CSSProperties, ReactNode } from "react";
+"use client";
+
+import { useState, CSSProperties, ReactNode } from "react";
 
 import { Header, Cell, Row, flexRender } from "@tanstack/react-table";
 import { useSortable } from "@dnd-kit/sortable";
@@ -33,6 +35,17 @@ const DataTableCell = ({ cell, row, isCellSelected, cellSelection, resizeMap, Ag
 
       const properties = row.getAllCells().map((cell) => cell.column.id);
   
+      // Handle cell coloring.
+      // - Applies background color on any non aggregated, non placeholder, non grouped cell when hovered / selected
+      // - Applied background color on any index cell if all non aggregated, non placeholder, non grouped cells in the same row are selected
+      const [hovered, setHovered] = useState(false);
+      const isSelectableCell = (cell: Cell<any, unknown>) =>
+        !cell.getIsGrouped() && !cell.getIsAggregated() && !cell.getIsPlaceholder()
+      const isAllRowSelected = (cell: Cell<any, unknown>) => 
+        cell.getContext().row.getAllCells()
+            .filter(c => isSelectableCell(c) && c.column.id != "RowNumbering")
+            .every(c => isCellSelected(c))
+
       const style: CSSProperties = {
         boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
         opacity: isDragging ? 0.8 : 1,
@@ -46,7 +59,12 @@ const DataTableCell = ({ cell, row, isCellSelected, cellSelection, resizeMap, Ag
         maxWidth: `${Math.round(cell.column.getSize())}px`,
         zIndex: isDragging || isPinned ? 1 : 0,
         borderRight: "1px solid var(--muted)",
-        backgroundColor: isPinned ? "var(--background)" : "",
+        color: cell.column.id != "RowNumbering"
+          ? isCellSelected(cell) ? "var(--primary-foreground)" : ""
+          : isSelectableCell(cell) && isAllRowSelected(cell) ? "var(--primary-foreground)" : "",
+        backgroundColor: cell.column.id != "RowNumbering"
+          ? isCellSelected(cell) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
+          : isSelectableCell(cell) && isAllRowSelected(cell) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
       };
 
       if (cell.isRowSpanned) return null;
@@ -59,6 +77,8 @@ const DataTableCell = ({ cell, row, isCellSelected, cellSelection, resizeMap, Ag
 
       return (
         <TableCell 
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
           onMouseDown={(e) => cellSelection.handleCellMouseDown(e, cell)}
           onMouseUp={(e) => cellSelection.handleCellMouseUp(e, cell)}
           onMouseOver={(e) => cellSelection.handleCellMouseOver(e, cell)}
@@ -67,11 +87,7 @@ const DataTableCell = ({ cell, row, isCellSelected, cellSelection, resizeMap, Ag
           style={style}
           tabIndex={0}  // Needed to ensure the table is focusable and the keyboard actions are working
           ref={setNodeRef}
-          className={`
-            group/cell relative select-none overflow-visible 
-            ${isCellSelected(cell) ? `bg-primary ${isPinned ? "" : "text-primary-foreground"}` : ""}
-            ${!cell.getIsGrouped() && !cell.getIsAggregated() && !cell.getIsPlaceholder() && !isCellSelected(cell) && "hover:bg-muted opacity-[.01]"}
-          `}
+          className={`group/cell relative select-none overflow-visible `}
         >
           <div className="overflow-hidden text-nowrap text-ellipsis ...">
             {cell.getIsGrouped() 

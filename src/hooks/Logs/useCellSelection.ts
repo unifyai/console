@@ -211,7 +211,7 @@ export const useCellSelection = ({
       if (!isValidAdjacentTarget(cell)) return;
 
       // Simple click:
-      // - Select all row cells when clicking on index cell, if the row has any cell, or
+      // - Select / deselect all row cells when clicking on index cell, if the row has any cell, or
       // - Select single cell, or deselect all if clicking on a selected cell
       if (!e.ctrlKey && !e.shiftKey) {
         let selectedStartCell = getCellSelectionData(cell)
@@ -221,7 +221,11 @@ export const useCellSelection = ({
           const firstCell = validCells.at(0);
           if (firstCell) {
             selectedStartCell = getCellSelectionData(firstCell)
-            setSelectedCells(validCells.map(c => getCellSelectionData(c)))
+            setSelectedCells((prev) =>
+              validCells.every(c => prev.includes(c.id))
+                ? null
+                : validCells.map(c => getCellSelectionData(c))
+            )
           } 
         } else {
           setSelectedCells((prev) => prev.find((c) => c === cell.id) !== undefined
@@ -235,7 +239,7 @@ export const useCellSelection = ({
       }
   
       // Ctrl click:
-      // - Append all row cells when clicking on index cell, if row has any cell, or
+      // - Append /remove all row cells when clicking on index cell, if row has any cell, or
       // - Append single cell, or desect it if already selected
       if (e.ctrlKey) {
         let selectedStartCell = getCellSelectionData(cell)
@@ -246,7 +250,9 @@ export const useCellSelection = ({
           if (firstCell) {
             selectedStartCell = getCellSelectionData(firstCell)
             setSelectedCells((prev) => 
-              [...prev, ...validCells.map(c => getCellSelectionData(c))]
+              validCells.every(c => prev.includes(c.id))
+                ? prev.filter(c => !validCells.map(c => c.id).includes(c))
+                : [...prev, ...validCells.map(c => getCellSelectionData(c))]
             )
           }
         } else {
@@ -282,7 +288,11 @@ export const useCellSelection = ({
 
         // Simple click: Select all leaf columns cells when clicking
         if (!e.ctrlKey && !e.shiftKey) {
-          setSelectedCells(validCells.map(c => getCellSelectionData(c)))
+          setSelectedCells((prev) =>
+            validCells.every(c => prev.includes(c.id))
+              ? null
+              : validCells.map(c => getCellSelectionData(c))
+          )
           if (!isMouseDown) {
             setSelectedStartCell(getCellSelectionData(firstCell));
           }
@@ -291,7 +301,9 @@ export const useCellSelection = ({
         // Ctrl click: Append all column leaf cells when clicking on index cell
         if (e.ctrlKey) {
           setSelectedCells((prev) => 
-            [...prev, ...validCells.map(c => getCellSelectionData(c))]
+            validCells.every(c => prev.includes(c.id))
+              ? prev.filter(c => !validCells.map(c => c.id).includes(c))
+              : [...prev, ...validCells.map(c => getCellSelectionData(c))]
           )
           if (!isMouseDown) {
             setSelectedStartCell(getCellSelectionData(firstCell));
@@ -388,7 +400,7 @@ const getCellsBetween = (
   );
 };
 
-const getCellsFromHeader = (header: Header<any, any>) => {
+export const getCellsFromHeader = (header: Header<any, any>) => {
   const leafColumns = header.column.getLeafColumns().map(col => col.id)
   const tableCells = header.getContext().table.getRowModel().rows.flatMap(row => row.getAllCells())
   const columnCells = tableCells.filter(cell => leafColumns.includes(cell.column.id))
