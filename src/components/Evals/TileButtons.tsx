@@ -21,14 +21,6 @@ const TileButtons = ({ side, full, empty, mergable, onClick }: {
                     onClick={() => onClick(side, "add")}
                 />
             </div>}
-            {!empty && <div className={`${leftOrRight ? "m-2" : "m-1"}`}>
-                <ActionButton
-                    tooltip="Reset Tile"
-                    variant={"destructive"}
-                    icon={<Minus />}
-                    onClick={() => onClick(side, "reset")}
-                />
-            </div>}
             {mergable(side) && <div className={`${leftOrRight ? "m-2" : "m-1"}`}>
                 <ActionButton
                     tooltip="Merge Tiles"
