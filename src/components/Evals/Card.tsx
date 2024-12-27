@@ -28,6 +28,7 @@ const Card = ({
     columnTypes,
     projectActions,
     logsActions,
+    editable,
     index,
     size,
     bound,
@@ -60,6 +61,7 @@ const Card = ({
         ) => Promise<number>,
         delete: (ids: string[]) => Promise<ResponseProps>
     },
+    editable: boolean,
     index: [number, number],
     size: [number, number],
     bound: [number, number],
@@ -92,23 +94,23 @@ const Card = ({
 
     return (<div className="overflow-x-auto relative flex w-full h-full border rounded-lg" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
         <div className="h-full w-full flex justify-between">
-            <div className={"h-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
+            {editable && <div className={"h-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
                 <TileButtons
                     side="left"
                     empty={undefinedCard}
                     mergable={mergable}
                     onClick={onClick}
                 />
-            </div>
+            </div>}
             <div className="flex-1 h-full flex flex-col justify-between">
-                <div className={"w-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
+                {editable && <div className={"w-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
                     <TileButtons
                         side="top"
                         empty={undefinedCard}
                         mergable={mergable}
                         onClick={onClick}
                     />
-                </div>
+                </div>}
                 <div className={"overflow-auto w-full flex-1 flex flex-col items-center " + (cards[rowIndex][colIndex]?.includes("Empty") ? "justify-center" : "mt-1")}>
                     <div className="w-fit">
                         <BaseDropdown
@@ -146,7 +148,7 @@ const Card = ({
                         logsActions={logsActions}
                     />}
                 </div>
-                <div className={"w-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
+                {editable && <div className={"w-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
                     <TileButtons
                         side="bottom"
                         full={!(rowIndex + rowSize == rowBound)}
@@ -154,9 +156,9 @@ const Card = ({
                         mergable={mergable}
                         onClick={onClick}
                     />
-                </div>
+                </div>}
             </div>
-            <div className={"h-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
+            {editable && <div className={"h-full flex gap-3 items-center transition-all hover:opacity-100 " + (hovered ? "opacity-50" : "opacity-0")}>
                 <TileButtons
                     side="right"
                     full={colBound == 3 || !(colIndex + colSize == colBound)}
@@ -164,7 +166,7 @@ const Card = ({
                     mergable={mergable}
                     onClick={onClick}
                 />
-            </div>
+            </div>}
         </div>
     </div>)
 };

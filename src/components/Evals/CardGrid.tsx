@@ -5,6 +5,8 @@ import Card from "./Card";
 import { LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
 import { getInitialCards, getTabsAndBounds } from "@/utils/evals/grid";
+import { Switch } from "../UI/switch";
+import { Label } from "../UI/label";
 
 export const heights: { [key: number]: string } = {
     1: "h-[100vh]",
@@ -82,6 +84,7 @@ const CardGrid = ({
         delete: (ids: string[]) => Promise<ResponseProps>
     },
 }) => {
+    const [editable, setEditable] = useState(true);
     const [cards, setCards] = useState<(string | undefined)[][]>(getInitialCards("Empty_1"));
     let { allTabs, cardList, rowBound, colBound } = getTabsAndBounds(cards);
 
@@ -96,41 +99,48 @@ const CardGrid = ({
     }, [cards]);
 
     return (
-        <div className={`m-1 w-full ${heights[rowBound]} overflow-y-scroll grid ${gridRows[rowBound]} ${gridCols[colBound]} gap-4`}>
-            {
-                cardList.map(card => {
-                    const [row, col] = card.size;
-                    const [rowIndex, colIndex] = card.index;
-                    return (<div
-                        className={`${rowSpans[row]} ${colSpans[col]}`}
-                        key={`${rowIndex}_${colIndex}`}
-                    >
-                        <Card
-                            searchParams={searchParams}
-                            projects={projects}
-                            project={project}
-                            logs={logs}
-                            params={params}
-                            entriesProperties={entriesProperties}
-                            paramsProperties={paramsProperties}
-                            metrics={metrics}
-                            logsData={logsData}
-                            totalPages={totalPages}
-                            columnTypes={columnTypes}
-                            projectActions={projectActions}
-                            logsActions={logsActions}
-                            index={[rowIndex, colIndex]}
-                            size={[row, col]}
-                            bound={[rowBound, colBound]}
-                            cards={cards}
-                            cardList={cardList}
-                            allTabs={allTabs}
-                            setCards={setCards}
-                        />
-                    </div>);
-                })
-            }
-        </div>
+        <>
+            <div className="my-2 pr-8 flex gap-2 items-center">
+                <Switch checked={editable} onCheckedChange={setEditable} className="ml-auto" id="editable" />
+                <Label htmlFor="airplane-mode">Editable</Label>
+            </div>
+            <div className={`m-1 w-full ${heights[rowBound]} overflow-y-scroll grid ${gridRows[rowBound]} ${gridCols[colBound]} gap-4`}>
+                {
+                    cardList.map(card => {
+                        const [row, col] = card.size;
+                        const [rowIndex, colIndex] = card.index;
+                        return (<div
+                            className={`${rowSpans[row]} ${colSpans[col]}`}
+                            key={`${rowIndex}_${colIndex}`}
+                        >
+                            <Card
+                                searchParams={searchParams}
+                                projects={projects}
+                                project={project}
+                                logs={logs}
+                                params={params}
+                                entriesProperties={entriesProperties}
+                                paramsProperties={paramsProperties}
+                                metrics={metrics}
+                                logsData={logsData}
+                                totalPages={totalPages}
+                                columnTypes={columnTypes}
+                                projectActions={projectActions}
+                                logsActions={logsActions}
+                                editable={editable}
+                                index={[rowIndex, colIndex]}
+                                size={[row, col]}
+                                bound={[rowBound, colBound]}
+                                cards={cards}
+                                cardList={cardList}
+                                allTabs={allTabs}
+                                setCards={setCards}
+                            />
+                        </div>);
+                    })
+                }
+            </div>
+        </>
     )
 };
 
