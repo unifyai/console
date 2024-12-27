@@ -7,6 +7,8 @@ import { ResponseProps } from "@/types/common";
 import { getInitialCards, getTabsAndBounds } from "@/utils/evals/grid";
 import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
+import ActionButton from "../Common/Buttons/Action";
+import { Save } from "lucide-react";
 
 export const heights: { [key: number]: string } = {
     1: "h-[100vh]",
@@ -100,9 +102,12 @@ const CardGrid = ({
 
     return (
         <>
-            <div className="my-2 pr-8 flex gap-2 items-center">
-                <Switch checked={editable} onCheckedChange={setEditable} className="ml-auto" id="editable" />
-                <Label htmlFor="airplane-mode">Editable</Label>
+            <div className="my-2 mr-10 flex flex-row-reverse gap-4 items-center">
+                <div className="flex items-center gap-2">
+                    <Switch checked={editable} onCheckedChange={setEditable} id="editable" />
+                    <Label htmlFor="airplane-mode">Editable</Label>
+                </div>
+                <ActionButton icon={<Save />} tooltip="Save Layout" variant="outline" />
             </div>
             <div className={`m-1 w-full ${heights[rowBound]} overflow-y-scroll grid ${gridRows[rowBound]} ${gridCols[colBound]} gap-4`}>
                 {
