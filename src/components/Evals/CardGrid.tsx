@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Card from "./Card";
-import { LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { LogFieldsResponseProps, LogFieldsProps, LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
 import { getInitialCards, getTabsAndBounds } from "@/utils/evals/grid";
 import { Switch } from "../UI/switch";
@@ -60,6 +60,7 @@ const CardGrid = ({
     columnTypes,
     projectActions,
     logsActions,
+    fieldsActions
 }: {
     searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string },
     projects: string[] | undefined,
@@ -85,6 +86,10 @@ const CardGrid = ({
         ) => Promise<number>,
         delete: (ids: string[]) => Promise<ResponseProps>
     },
+    fieldsActions: {
+        get: (project: string) => Promise<LogFieldsResponseProps>,
+        delete: (fields: LogFieldsProps) => Promise<ResponseProps>
+    }
 }) => {
     const [editable, setEditable] = useState(true);
     const [cards, setCards] = useState<(string | undefined)[][]>(getInitialCards("Empty_1"));
@@ -132,6 +137,7 @@ const CardGrid = ({
                                 columnTypes={columnTypes}
                                 projectActions={projectActions}
                                 logsActions={logsActions}
+                                fieldsActions={fieldsActions}
                                 editable={editable}
                                 index={[rowIndex, colIndex]}
                                 size={[row, col]}

@@ -1,5 +1,7 @@
 "use server";
 
+import { LogFieldsProps } from "@/types/evals/logs";
+
 // create project
 export const createProject = async (apiKey: string) => {
     return async (name: string) => {
@@ -90,6 +92,19 @@ export const getLogColumns = async (apiKey: string) => {
     };
 };
 
+// get log fields
+export const getLogFields = async (apiKey: string) => {
+    return async (project: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/logs/fields?project=${project}`,
+            { method: "GET", headers: { apiKey: apiKey } }
+        );
+        return await response.json();
+    };
+};
+
 export const getLogMetrics = async (apiKey: string) => {
     return async (
         project: string,
@@ -127,6 +142,23 @@ export const deleteLogs = async (apiKey: string) => {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
                 body: JSON.stringify({ ids })
+            }
+        );
+        return await response.json();
+    };
+};
+
+// delete log fields
+export const deleteLogFields = async (apiKey: string) => {
+    return async (fields: LogFieldsProps) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/logs/fields`,
+            {
+                method: "DELETE",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({ fields })
             }
         );
         return await response.json();

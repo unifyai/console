@@ -3,14 +3,15 @@ import { getCurrentUser } from "@/lib/user/user";
 import { Suspense } from "react";
 import Main from "./Main";
 import {
+    getLogFields,
+    deleteLogFields,
     deleteLogs,
     deleteProject,
     getLogMetrics,
     getLogs,
     getProjects,
     createProject,
-    renameProject,
-    getLogColumns
+    renameProject
 } from "../evals/actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -41,11 +42,15 @@ const Evals1Page = async (
     };
     
     const logsActions = { 
-        get: await getLogs(apiKey), 
-        getColumns: await getLogColumns(apiKey), 
+        get: await getLogs(apiKey),  
         getMetrics: await getLogMetrics(apiKey), 
         delete: await deleteLogs(apiKey) 
       }
+
+    const fieldsActions = {
+        get: await getLogFields(apiKey),
+        delete: await deleteLogFields(apiKey)
+    } 
 
     return (
         <Suspense fallback={<SkeletonLoader />}>
@@ -53,6 +58,7 @@ const Evals1Page = async (
                 searchParams={searchParams}
                 projectsActions={projectsActions}
                 logsActions={logsActions}
+                fieldsActions={fieldsActions}
             />
         </Suspense>
     );
