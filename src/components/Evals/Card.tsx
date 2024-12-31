@@ -5,7 +5,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import Selection from "@/components/Evals/Details/Selection/Selection";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { Plus } from "lucide-react";
-import { LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { LogFieldsResponseProps, LogFieldsProps, LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import LogsPlot from "@/components/Evals/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Evals/Table/Table";
@@ -25,6 +25,7 @@ const Card = ({
     columnTypes,
     projectActions,
     logsActions,
+    fieldsActions,
     index,
     items,
     setItems,
@@ -55,7 +56,11 @@ const Card = ({
     },
     index: string,
     items: TileProps[],
-    setItems: (items: TileProps[]) => void
+    setItems: (items: TileProps[]) => void,
+    fieldsActions: {
+        get: (project: string) => Promise<LogFieldsResponseProps>,
+        delete: (fields: LogFieldsProps) => Promise<ResponseProps>
+    },
 }) => {
     const tab = items.find(item => item.i == index)?.tab
     const tabTypes = ["Table", "Plot", "View"]
@@ -98,6 +103,7 @@ const Card = ({
                 totalPages={totalPages}
                 projectActions={projectActions}
                 logsActions={logsActions}
+                fieldsActions={fieldsActions}
             />}
         </div>
     </div>)

@@ -4,7 +4,7 @@ import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
 import FileDirectory from "@/components/Directory/FileDirectory";
-import { LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -22,7 +22,7 @@ import { useQueryState } from "nuqs";
 import ColumnFilter from "./Buttons/ColumnFilter";
 import AggregatedCell from "./Content/AggregatedCell";
 import VisibilityFilter from "./Buttons/VisibilityFilter";
-import DeleteRows from "./Buttons/DeleteRows";
+import DeleteCells from "./Buttons/DeleteCells";
 import ColumnMetrics from "./Buttons/ColumnMetrics";
 import SummaryCell from "./Content/SummaryCell";
 import FooterCell from "./Content/FooterCell";
@@ -30,7 +30,7 @@ import CreateProject from "./Buttons/CreateProject";
 import GlobalFilter from "./Buttons/GlobalFilter";
 import PageController from "@/components/Common/Tables/Data/Buttons/PageController";
 import CloseProject from "./Buttons/CloseProject";
-import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
+import { extractBaseAndComparisonLogs, getPartAfterFirstUnderscore } from "@/utils/evals/selection";
 import { parseAsArrayOf, parseAsString } from "nuqs";
 
 const LogsTable = ({
@@ -46,6 +46,7 @@ const LogsTable = ({
   columnTypes,
   projectActions,
   logsActions,
+  fieldsActions
 }: {
   searchParams: {
     project?: string;
@@ -84,6 +85,10 @@ const LogsTable = ({
     ) => Promise<number>;
     delete: (ids: string[]) => Promise<ResponseProps>;
   };
+  fieldsActions: {
+    get: (project: string) => Promise<LogFieldsResponseProps>,
+    delete: (fields: LogFieldsProps) => Promise<ResponseProps>
+  }
 }) => {
   // Basic states for quick feedback
   const [pending, setPending] = useState(false);        // if the project is invalid
@@ -438,6 +443,9 @@ const LogsTable = ({
                     }
                   </FooterCell>
                 }
+                ExtraComponents={(table) => {
+                  return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={fieldsActions.delete}/>
+                }}
               />
             </div>
           ) : (

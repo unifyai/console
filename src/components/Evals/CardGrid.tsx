@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Card from "./Card";
-import { LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { LogFieldsResponseProps, LogFieldsProps, LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
 import { TileProps } from "@/types/evals/grid";
 import { Switch } from "../UI/switch";
@@ -28,6 +28,7 @@ const CardGrid = ({
     columnTypes,
     projectActions,
     logsActions,
+    fieldsActions
 }: {
     searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string },
     projects: string[] | undefined,
@@ -53,6 +54,10 @@ const CardGrid = ({
         ) => Promise<number>,
         delete: (ids: string[]) => Promise<ResponseProps>
     },
+    fieldsActions: {
+        get: (project: string) => Promise<LogFieldsResponseProps>,
+        delete: (fields: LogFieldsProps) => Promise<ResponseProps>
+    }
 }) => {
     const [layout, setLayout] = useState<{ items: TileProps[], newCounter: number, cols?: number, breakpoint?: string }>({
         items: [{ i: "n0", x: 0, y: 0, w: 3, h: 3, tab: undefined }],
@@ -134,6 +139,7 @@ const CardGrid = ({
                                 index={el.i}
                                 items={layout.items}
                                 setItems={(items: TileProps[]) => setLayout({ ...layout, items: items })}
+                                fieldsActions={fieldsActions}
                             />
                             {editable && <ActionButton
                                 className="remove absolute top-3 right-3 cursor-pointer"

@@ -1,9 +1,9 @@
 import { ResponseProps } from "@/types/common";
 import CardGrid from "@/components/Evals/CardGrid";
-import { LogColumnsProps, LogsResponseProps } from "@/types/evals/logs";
+import { LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { extractLogsData } from "@/utils/evals/common";
 
-const Main = async ({ searchParams, projectsActions, logsActions }: {
+const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions }: {
     searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string },
     projectsActions: {
         get: () => Promise<string[]>,
@@ -13,11 +13,14 @@ const Main = async ({ searchParams, projectsActions, logsActions }: {
     },
     logsActions: {
         get: (project: string, filterExpression: string | null, limit: number, offset: number) => Promise<LogsResponseProps>,
-        getColumns: (project: string) => Promise<LogColumnsProps>,
         getMetrics: (
             project: string, filterExpression: string | null, metricName: string, keyName: string
         ) => Promise<number>,
         delete: (ids: string[]) => Promise<ResponseProps>
+    },
+    fieldsActions: {
+        get: (project: string) => Promise<LogFieldsResponseProps>,
+        delete: (fields: LogFieldsProps) => Promise<ResponseProps>
     }
 }) => {
     // get projects
@@ -51,11 +54,11 @@ const Main = async ({ searchParams, projectsActions, logsActions }: {
     const offset = (searchParams.page_number ? parseInt(searchParams.page_number) : 0) * limit;
     let totalPages = 1;
     let logsData: LogsResponseProps = { params: {}, logs: [], count: 0 };
-    let logColumns: LogColumnsProps = {};
+    let logColumns: LogFieldsResponseProps = {};
     if (project) {
         [logsData, logColumns] = await Promise.all([
             logsActions.get(project, filterExpression, limit, offset),
-            logsActions.getColumns(project)
+            fieldsActions.get(project)
         ]);
         totalPages = Math.ceil(logsData.count / limit);
     }
@@ -89,6 +92,7 @@ const Main = async ({ searchParams, projectsActions, logsActions }: {
 		totalPages={totalPages}
 		projectActions={projectsActions}
 		logsActions={logsActions}
+        fieldsActions={fieldsActions}
         params={params}
     />;
 };

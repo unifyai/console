@@ -1,4 +1,4 @@
-import { LogColumnsProps, LogsResponseProps } from "../../types/evals/logs";
+import { LogFieldsResponseProps, LogsResponseProps } from "../../types/evals/logs";
 
 import _ from "lodash";
 import { formatNumber } from "../formatNumber";
@@ -75,7 +75,7 @@ export function computeStatistic(statistic: string, data: number[]): string {
 /* 
     Sort logs by timestamp and separate logs from parameters.
 */
-export function extractLogsData(logsResponse: LogsResponseProps, logColumns: LogColumnsProps) {
+export function extractLogsData(logsResponse: LogsResponseProps, logColumns: LogFieldsResponseProps) {
   
     const params = logsResponse.params;
     const rawLogs = logsResponse.logs;

@@ -26,7 +26,9 @@ export interface LogsResponseProps {
     count: number
 }
 
-export interface LogColumnsProps {
+export type LogFieldsProps = [number, string][]
+
+export interface LogFieldsResponseProps {
     [name: string]: { [name: string]: string }
 }
 
