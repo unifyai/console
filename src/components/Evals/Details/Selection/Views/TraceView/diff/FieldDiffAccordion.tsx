@@ -13,13 +13,23 @@ interface Props {
   getValue: (s: Span | undefined) => string;
   diffMode: "lines" | "words" | "characters";
   splitView: boolean;
+  // ────────── NEW ──────────
+  hideIdentical?: boolean;
+}
+
+/** If everything is the same across baseVal & comparables, return true. */
+function allIdentical(
+  baseVal: Span | undefined,
+  comparables: Array<Span | undefined>,
+  getValue: (s: Span | undefined) => string
+): boolean {
+  const baseText = getValue(baseVal);
+  return comparables.every((c) => getValue(c) === baseText);
 }
 
 /**
  * FieldDiffAccordion:
- * Another <AccordionItem> in the same top-level Accordion context.
- * The "uniqueKey" must match what's collected in collectAllMergedSpanIds
- * so the "Expand All" logic includes it.
+ * Another <AccordionItem> in the same parent Accordion.
  */
 const FieldDiffAccordion: React.FC<Props> = ({
   uniqueKey,
@@ -30,7 +40,16 @@ const FieldDiffAccordion: React.FC<Props> = ({
   getValue,
   diffMode,
   splitView,
+  hideIdentical = false,
 }) => {
+  // Skip rendering if “hideIdentical” is on AND absolutely everything is the same:
+  if (
+    hideIdentical &&
+    allIdentical(baseVal, comparables, getValue)
+  ) {
+    return null; // entire sub‐field is identical, so skip
+  }
+
   return (
     <AccordionItem value={uniqueKey}>
       <AccordionTrigger>
