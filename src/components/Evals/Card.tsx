@@ -25,10 +25,10 @@ const Card = ({
     columnTypes,
     projectActions,
     logsActions,
-    fieldsActions,
     index,
     items,
     setItems,
+    fieldsActions,
 }: {
     searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string },
     projects: string[] | undefined,
