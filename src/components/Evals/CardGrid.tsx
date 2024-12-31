@@ -10,6 +10,7 @@ import { Label } from "../UI/label";
 import ActionButton from "../Common/Buttons/Action";
 import { Plus, Save, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
+import { useQueryState } from "nuqs";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -63,7 +64,8 @@ const CardGrid = ({
         items: [{ i: "n0", x: 0, y: 0, w: 3, h: 3, tab: undefined }],
         newCounter: 1
     });
-    const [editable, setEditable] = useState(true);
+    const [editableParam, setEditableParam] = useQueryState("editable", { defaultValue: "true" });
+    const editable = editableParam == "true";
 
     return (<>
         <div className="my-2 ml-6 mr-8 flex gap-4 items-center">
@@ -91,7 +93,11 @@ const CardGrid = ({
                 })}
             />
             <div className="flex items-center gap-2">
-                <Switch checked={editable} onCheckedChange={setEditable} id="editable" />
+                <Switch
+                    checked={editable}
+                    onCheckedChange={(editable: boolean) => setEditableParam(String(editable))}
+                    id="editable"
+                />
                 <Label htmlFor="airplane-mode">Editing Mode</Label>
             </div>
         </div>
