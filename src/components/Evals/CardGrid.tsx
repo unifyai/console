@@ -1,50 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Card from "./Card";
 import { LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
-import { getInitialCards, getTabsAndBounds } from "@/utils/evals/grid";
+import { TileProps } from "@/types/evals/grid";
 import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import ActionButton from "../Common/Buttons/Action";
-import { Save } from "lucide-react";
+import { Plus, Save, X } from "lucide-react";
+import { WidthProvider, Responsive } from "react-grid-layout";
 
-export const heights: { [key: number]: string } = {
-    1: "h-[100vh]",
-    2: "h-[100vh]",
-    3: "h-[150vh]",
-    4: "h-[200vh]",
-    5: "h-[250vh]",
-};
+const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
-export const gridRows: { [key: number]: string } = {
-    1: "grid-rows-1",
-    2: "grid-rows-2",
-    3: "grid-rows-3",
-    4: "grid-rows-4",
-    5: "grid-rows-5",
-};
-
-export const gridCols: { [key: number]: string } = {
-    1: "grid-cols-1",
-    2: "grid-cols-2",
-    3: "grid-cols-3",
-};
-
-export const rowSpans: { [key: number]: string } = {
-    1: "row-span-1",
-    2: "row-span-2",
-    3: "row-span-3",
-    4: "row-span-4",
-    5: "row-span-5",
-};
-
-export const colSpans: { [key: number]: string } = {
-    1: "col-span-1",
-    2: "col-span-2",
-    3: "col-span-3",
-};
 
 const CardGrid = ({
     searchParams,
@@ -86,37 +54,68 @@ const CardGrid = ({
         delete: (ids: string[]) => Promise<ResponseProps>
     },
 }) => {
+    const [layout, setLayout] = useState<{ items: TileProps[], newCounter: number, cols?: number, breakpoint?: string }>({
+        items: [{ i: "n0", x: 0, y: 0, w: 3, h: 3, tab: undefined }],
+        newCounter: 1
+    });
     const [editable, setEditable] = useState(true);
-    const [cards, setCards] = useState<(string | undefined)[][]>(getInitialCards("Empty_1"));
-    let { allTabs, cardList, rowBound, colBound } = getTabsAndBounds(cards);
 
-    useEffect(() => {
-        const tabsAndBounds = getTabsAndBounds(cards);
-        allTabs = tabsAndBounds.allTabs;
-        cardList = tabsAndBounds.cardList;
-        rowBound = tabsAndBounds.rowBound;
-        colBound = tabsAndBounds.colBound;
-        if (cardList.length == 1 && (cardList[0].size[0] != 1 || cardList[0].size[1] != 1))
-            setCards(getInitialCards(cardList[0].tab));
-    }, [cards]);
-
-    return (
-        <>
-            <div className="my-2 mr-10 flex flex-row-reverse gap-4 items-center">
-                <div className="flex items-center gap-2">
-                    <Switch checked={editable} onCheckedChange={setEditable} id="editable" />
-                    <Label htmlFor="airplane-mode">Editable</Label>
-                </div>
-                <ActionButton icon={<Save />} tooltip="Save Layout" variant="outline" />
+    return (<>
+        <div className="my-2 ml-6 mr-8 flex gap-4 items-center">
+            <ActionButton icon={<Save />} tooltip="Save Layout" variant="outline" />
+            <ActionButton
+                variant="outline"
+                icon={<Plus />}
+                text="Add Tile"
+                tooltip="Add new tile"
+                disabled={!editable}
+                onClick={() => setLayout({
+                    ...layout,
+                    items: [
+                        ...layout.items,
+                        {
+                            i: "n" + layout.newCounter,
+                            x: (layout.items.length * 2) % (layout.cols || 12),
+                            y: Math.floor((layout.items.length * 2) / (layout.cols || 12)),
+                            w: 3,
+                            h: 3,
+                            tab: undefined
+                        }
+                    ],
+                    newCounter: layout.newCounter + 1
+                })}
+            />
+            <div className="flex items-center gap-2">
+                <Switch checked={editable} onCheckedChange={setEditable} id="editable" />
+                <Label htmlFor="airplane-mode">Editing Mode</Label>
             </div>
-            <div className={`m-1 w-full ${heights[rowBound]} overflow-y-scroll grid ${gridRows[rowBound]} ${gridCols[colBound]} gap-4`}>
-                {
-                    cardList.map(card => {
-                        const [row, col] = card.size;
-                        const [rowIndex, colIndex] = card.index;
-                        return (<div
-                            className={`${rowSpans[row]} ${colSpans[col]}`}
-                            key={`${rowIndex}_${colIndex}`}
+        </div>
+        <div className="h-full flex flex-col gap-2 m-3 rounded-lg">
+            <ResponsiveReactGridLayout
+                onLayoutChange={(newLayout) => {
+                    const updatedItems = newLayout.map((item) => {
+                        const originalItem = layout.items.find(i => i.i === item.i);
+                        return { ...originalItem, ...item };
+                    });
+                    setLayout({ ...layout, items: updatedItems });
+                }}
+                onBreakpointChange={(breakpoint: string, cols: number) => setLayout({
+                    ...layout,
+                    breakpoint: breakpoint,
+                    cols: cols
+                })}
+                className="layout interactive-grid flex-1"
+                cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+                rowHeight={100}
+                isDraggable={editable}
+                isResizable={editable}
+            >
+                {layout.items.map((el: { i: string, x: number, y: number, w: number, h: number, add?: boolean }) => {
+                    return (
+                        <div
+                            key={el.i}
+                            data-grid={el}
+                            className="relative m-1 p-1 rounded-lg"
                         >
                             <Card
                                 searchParams={searchParams}
@@ -132,21 +131,25 @@ const CardGrid = ({
                                 columnTypes={columnTypes}
                                 projectActions={projectActions}
                                 logsActions={logsActions}
-                                editable={editable}
-                                index={[rowIndex, colIndex]}
-                                size={[row, col]}
-                                bound={[rowBound, colBound]}
-                                cards={cards}
-                                cardList={cardList}
-                                allTabs={allTabs}
-                                setCards={setCards}
+                                index={el.i}
+                                items={layout.items}
+                                setItems={(items: TileProps[]) => setLayout({ ...layout, items: items })}
                             />
-                        </div>);
-                    })
-                }
-            </div>
-        </>
-    )
+                            {editable && <ActionButton
+                                className="remove absolute top-3 right-3 cursor-pointer"
+                                onClick={() => setLayout(
+                                    { ...layout, items: layout.items.filter(item => item.i != el.i) }
+                                )}
+                                icon={<X />}
+                                tooltip="Remove"
+                                variant="destructive"
+                            />}
+                        </div>
+                    );
+                })}
+            </ResponsiveReactGridLayout>
+        </div>
+    </>);
 };
 
 export default CardGrid;

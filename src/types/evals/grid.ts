@@ -1,5 +1,8 @@
-export interface CardProps {
-    tab: string;
-    size: number[];
-    index: number[];
+export interface TileProps {
+    i: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    tab?: string;
 }

@@ -51,7 +51,7 @@ const Main = async ({ searchParams, projectsActions, logsActions }: {
     const offset = (searchParams.page_number ? parseInt(searchParams.page_number) : 0) * limit;
     let totalPages = 1;
     let logsData: LogsResponseProps = { params: {}, logs: [], count: 0 };
-    let logColumns: LogColumnsProps = {}
+    let logColumns: LogColumnsProps = {};
     if (project) {
         [logsData, logColumns] = await Promise.all([
             logsActions.get(project, filterExpression, limit, offset),
