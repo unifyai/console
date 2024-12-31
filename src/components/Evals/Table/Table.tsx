@@ -32,6 +32,7 @@ import PageController from "@/components/Common/Tables/Data/Buttons/PageControll
 import CloseProject from "./Buttons/CloseProject";
 import { extractBaseAndComparisonLogs, getPartAfterFirstUnderscore } from "@/utils/evals/selection";
 import { parseAsArrayOf, parseAsString } from "nuqs";
+import RefreshLogs from "./Buttons/RefreshLogs";
 
 const LogsTable = ({
   searchParams,
@@ -344,7 +345,7 @@ const LogsTable = ({
   return (
     <div className="flex flex-col gap-4 w-full h-full p-3 bg-background rounded-md" onClick={onContainerClick}>
       {/* Project selection row */}
-      <div className="flex flex-row gap-8 w-fit h-fit">
+      <div className="flex flex-row justify-between gap-8 w-full h-fit">
         <div className="w-fit gap-2 flex flex-row items-center">
           <FileDirectory
             data={data}
@@ -375,6 +376,7 @@ const LogsTable = ({
           )}
           {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
         </div>
+        {project && <RefreshLogs/>}
       </div>
 
       {/* If truly pending or logs not present, show a spinner */}
