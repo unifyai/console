@@ -293,10 +293,9 @@ export const drawBarChart = (
         yScale().domain([minY, maxY]).range(yRange)
     ];
 
-    // Draw axes and borders
+    // Draw axes
     const {xTicks, yTicks} = calculateTicks(data.length, scale, minY, maxY);
     drawAxes("Bar Chart", svg, dimensions, margins, x, y, [], yTicks, false);
-    drawBorders(svg, height, width, margins);
 
     // Draw rectangles
     svg
@@ -449,10 +448,9 @@ export const drawLineChart = (
         yAxisScale().domain([minY, maxY]).range([height - margins.bottom - axisPadding, margins.top + axisPadding])
     ];
 
-    // Draw axes and borders
+    // Draw axes
     const {xTicks, yTicks} = calculateTicks(xValues.length, scale, minY, maxY, minX, maxX);
     drawAxes("Line Chart", svg, dimensions, margins, x, y, xTicks, yTicks, xTime);
-    drawBorders(svg, height, width, margins);
 
     // Add grouping key and hide tooltip
     const key = d3.select(".groupingKey").style("opacity", 0)
@@ -540,7 +538,7 @@ export const drawScatterPlot = (
   
     // Remove drawings from previous plots
     svg.selectAll("path.line").remove();
-    svg.selectAll("rect").remove();
+    svg.selectAll("rect.bar").remove();
 
     // Prepare data
     let data : LogProps[] = [];
@@ -569,10 +567,9 @@ export const drawScatterPlot = (
         yScale().domain([minY, maxY]).range([height - margins.bottom - axisPadding, margins.top + axisPadding])
     ]
 
-    // Draw axes and borders
+    // Draw axes
     const {xTicks, yTicks} = calculateTicks(data.length, scale, minY, maxY, minX, maxX);
     const {xAxis, yAxis} = drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, false);
-    drawBorders(svg, height, width, margins);
 
     // Add data points
     const points = svg

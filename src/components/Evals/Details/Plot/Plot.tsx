@@ -10,7 +10,7 @@ import PlotReset from "./Buttons/PlotReset";
 
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { LogProps } from "@/types/evals/logs";
-import { drawBarChart, drawLineChart, drawScatterPlot, filterNumericLogs } from "@/utils/evals/plot";
+import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, filterNumericLogs } from "@/utils/evals/plot";
 
 import PlotAxis from "./Buttons/PlotAxis";
 import { useQueryState } from "nuqs";
@@ -58,9 +58,11 @@ const LogsPlot = ({ logs }: {
            .attr("y", margins.top)
            .attr("width", dimensions.width - margins.left - margins.bottom)
            .attr("height", dimensions.height - margins.top - margins.bottom)
-                                     
+        
+        // Draw plot borders
+        drawBorders(svg, dimensions.height, dimensions.width, margins);
         // Draw selected plot type 
-        if (logs) {
+        if (logs && selectedXAxisProperty && selectedYAxisProperty) {
             if (plotType === "Line Chart") {
                 drawLineChart(
                     svg, 
@@ -182,8 +184,14 @@ const LogsPlot = ({ logs }: {
             <g className="xAxis"/>
             <g className="yAxis"/>
         </svg>
-        <div className="plotTooltip absolute py-4 px-6 z-10 shadow-md rounded-lg bg-white grid grid-cols-2 gap-2 overflow-hidden max-w-[500px] max-h-[300px]"/>
-        <div className="groupingKey absolute bottom-20 right-2 z-10 py-2 px-3 flex flex-col gap-1 overflow-auto w-[100px] h-[150px] rounded-md border-2 border-muted"/>
+        <div
+            style={{opacity: 0, left: 50, top: 50}} // Set initial opacity and positioning
+            className="plotTooltip absolute py-4 px-6 z-10 shadow-md rounded-lg bg-white grid grid-cols-2 gap-2 overflow-hidden max-w-[500px] max-h-[300px]"
+        />
+        <div
+            style={{opacity: 0}} 
+            className="groupingKey absolute bottom-20 right-2 z-10 py-2 px-3 flex flex-col gap-1 overflow-auto w-[100px] h-[150px] rounded-md border-2 border-muted"
+        />
     </div>
     );
 };
