@@ -81,7 +81,7 @@ const CardGrid = ({
                         {
                             i: "n" + layout.newCounter,
                             x: (layout.items.length * 2) % (layout.cols || 12),
-                            y: Math.floor((layout.items.length * 2) / (layout.cols || 12)),
+                            y: (layout.items.length * 2) / (layout.cols || 12),
                             w: 3,
                             h: 3,
                             tab: undefined
