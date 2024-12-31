@@ -67,40 +67,52 @@ const DataTableHeader = ({table, header, isCellSelected, cellSelection, columnVi
       colSpan={header.colSpan} 
       ref={setNodeRef} 
       style={style} 
-      className={`py-2 border-1 border-gray-200 relative`}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onMouseDown={(e) => cellSelection.handleCellMouseDown(e, header)}
-      onMouseUp={(e) => cellSelection.handleCellMouseUp(e, header)}
-      onMouseOver={(e) => cellSelection.handleCellMouseOver(e, header)}      
+      className={`relative px-0 py-0`} // Reset padding to let the grabbing area span the entire width       
     >
-        <div className="flex-col items-center">
-          {/* Content */}
-          <div 
-            {...attributes} {...listeners} 
-            className={`cursor-grabbing select-none`}
-          >
-            {header.isPlaceholder
-              ? null
-              : flexRender(header.column.columnDef.header, header.getContext())
-            }
-          </div>
 
-          {/* Column actions */}
-          {!header.isPlaceholder && header.subHeaders.length === 0 && header.column.columnDef.meta?.columnType != "util" &&
-            <div className="items-center">
-              <ColumnGroupBy column={header.column}/>
-              <ColumnSort column={header.column}/>
-              {ColumnFilters && ColumnFilters(header.column)}
-              <ColumnHide column={header.column}/>
-            </div>
+      {/* Grab area */}
+      {header.column.id != "RowNumbering" && 
+        <div 
+          className="cursor-grabbing h-3 w-full absolute" 
+          {...attributes} 
+          {...listeners}
+        />
+      }
+
+      {/* Header content */}
+      <div className={`px-2 py-2 ${header.column.id === "RowNumbering" ? "h-10" : ""}`}>
+
+        {/* Header name with column selection */}
+        <div
+          className={`select-none ${header.column.id === "RowNumbering" ? "h-10" : ""}`}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          onMouseDown={(e) => cellSelection.handleCellMouseDown(e, header)}
+          onMouseUp={(e) => cellSelection.handleCellMouseUp(e, header)}
+          onMouseOver={(e) => cellSelection.handleCellMouseOver(e, header)}
+        >
+          {header.isPlaceholder
+            ? null
+            : flexRender(header.column.columnDef.header, header.getContext())
           }
         </div>
 
+        {/* Column actions */}
+        {!header.isPlaceholder && header.subHeaders.length === 0 && header.column.columnDef.meta?.columnType != "util" &&
+          <div className="items-center">
+            <ColumnGroupBy column={header.column}/>
+            <ColumnSort column={header.column}/>
+            {ColumnFilters && ColumnFilters(header.column)}
+            <ColumnHide column={header.column}/>
+          </div>
+        }
+
+        {/* New columns */}
         {!header.isPlaceholder && header.subHeaders.length === 0 && header.column.columnDef.meta?.columnType != "util" &&
           <ColumnShow table={table} header={header} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility}  />
         }
 
+      </div>
     </TableHead>
   );
 };
