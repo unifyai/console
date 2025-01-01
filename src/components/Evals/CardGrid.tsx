@@ -64,7 +64,6 @@ const CardGrid = ({
     const [newCounter, setNewCounter] = useState(1);
     const [editableParam, setEditableParam] = useQueryState("editable", { defaultValue: "true" });
     const editable = editableParam == "true";
-
     const gridRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
