@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Card from "./Card";
 import { LogFieldsResponseProps, LogFieldsProps, LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
@@ -67,6 +67,15 @@ const CardGrid = ({
     const [editableParam, setEditableParam] = useQueryState("editable", { defaultValue: "true" });
     const editable = editableParam == "true";
 
+    const gridRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        gridRef.current?.scrollTo({
+            top: gridRef.current?.scrollHeight,
+            behavior: "smooth",
+        });
+    }, [layout]);
+
     return (<>
         <div className="my-2 ml-6 mr-8 flex gap-4 items-center">
             <ActionButton icon={<Save />} tooltip="Save Layout" variant="outline" />
@@ -77,19 +86,19 @@ const CardGrid = ({
                 tooltip="Add new tile"
                 disabled={!editable}
                 onClick={() => setLayout({
-                    ...layout,
-                    items: [
-                        ...layout.items,
-                        {
-                            i: "n" + layout.newCounter,
-                            x: (layout.items.length * 2) % (layout.cols || 12),
-                            y: (layout.items.length * 2) / (layout.cols || 12),
-                            w: 3,
-                            h: 3,
-                            tab: undefined
-                        }
-                    ],
-                    newCounter: layout.newCounter + 1
+                        ...layout,
+                        items: [
+                            ...layout.items,
+                            {
+                                i: "n" + layout.newCounter,
+                                x: (layout.items.length * 2) % (layout.cols || 12),
+                                y: (layout.items.length * 2) / (layout.cols || 12),
+                                w: 3,
+                                h: 3,
+                                tab: undefined
+                            }
+                        ],
+                        newCounter: layout.newCounter + 1
                 })}
             />
             <div className="flex items-center gap-2">
@@ -101,7 +110,7 @@ const CardGrid = ({
                 <Label htmlFor="airplane-mode">Editing Mode</Label>
             </div>
         </div>
-        <div className="h-full flex flex-col gap-2 m-3 rounded-lg">
+        <div className="h-[90vh] overflow-auto flex flex-col gap-2 m-3 rounded-lg" ref={gridRef}>
             <ResponsiveReactGridLayout
                 onLayoutChange={(newLayout) => {
                     const updatedItems = newLayout.map((item) => {
