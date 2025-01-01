@@ -106,7 +106,7 @@ const CardGrid = ({
                 <Label htmlFor="airplane-mode">Editing Mode</Label>
             </div>
         </div>
-        <div className="h-[90vh] overflow-auto flex flex-col gap-2 m-3 rounded-lg" ref={gridRef}>
+        <div className="h-full overflow-auto flex-1 flex-col gap-2 m-3 rounded-lg" ref={gridRef}>
             <ResponsiveReactGridLayout
                 onLayoutChange={(newLayout) => {
                     const updatedItems = newLayout.map((item) => {
