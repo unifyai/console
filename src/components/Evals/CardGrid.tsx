@@ -60,10 +60,11 @@ const CardGrid = ({
         delete: (fields: LogFieldsProps) => Promise<ResponseProps>
     }
 }) => {
-    const [layout, setLayout] = useState<{ items: TileProps[], newCounter: number, cols?: number, breakpoint?: string }>({
-        items: [{ i: "n0", x: 0, y: 0, w: 3, h: 3, tab: undefined }],
-        newCounter: 1
-    });
+    const [items, setItems] = useState<TileProps[]>([{ i: "n0", x: 0, y: 0, w: 3, h: 3, tab: undefined }]);
+    const [newCounter, setNewCounter] = useState(1);
+    const [cols, setCols] = useState<number>();
+    const [breakpoint, setBreakpoint] = useState<string>();
+
     const [editableParam, setEditableParam] = useQueryState("editable", { defaultValue: "true" });
     const editable = editableParam == "true";
 
@@ -74,7 +75,7 @@ const CardGrid = ({
             top: gridRef.current?.scrollHeight,
             behavior: "smooth",
         });
-    }, [layout]);
+    }, [newCounter]);
 
     return (<>
         <div className="my-2 ml-6 mr-8 flex gap-4 items-center">
@@ -85,21 +86,20 @@ const CardGrid = ({
                 text="Add Tile"
                 tooltip="Add new tile"
                 disabled={!editable}
-                onClick={() => setLayout({
-                        ...layout,
-                        items: [
-                            ...layout.items,
-                            {
-                                i: "n" + layout.newCounter,
-                                x: (layout.items.length * 2) % (layout.cols || 12),
-                                y: (layout.items.length * 2) / (layout.cols || 12),
-                                w: 3,
-                                h: 3,
-                                tab: undefined
-                            }
-                        ],
-                        newCounter: layout.newCounter + 1
-                })}
+                onClick={() => {
+                    setItems([
+                        ...items,
+                        {
+                            i: "n" + newCounter,
+                            x: (items.length * 2) % (cols || 12),
+                            y: (items.length * 2) / (cols || 12),
+                            w: 3,
+                            h: 3,
+                            tab: undefined
+                        }
+                    ]);
+                    setNewCounter(newCounter + 1);
+                }}
             />
             <div className="flex items-center gap-2">
                 <Switch
@@ -114,23 +114,22 @@ const CardGrid = ({
             <ResponsiveReactGridLayout
                 onLayoutChange={(newLayout) => {
                     const updatedItems = newLayout.map((item) => {
-                        const originalItem = layout.items.find(i => i.i === item.i);
+                        const originalItem = items.find(i => i.i === item.i);
                         return { ...originalItem, ...item };
                     });
-                    setLayout({ ...layout, items: updatedItems });
+                    setItems([...updatedItems]);
                 }}
-                onBreakpointChange={(breakpoint: string, cols: number) => setLayout({
-                    ...layout,
-                    breakpoint: breakpoint,
-                    cols: cols
-                })}
+                onBreakpointChange={(breakpoint: string, cols: number) => {
+                    setBreakpoint(breakpoint);
+                    setCols(cols);
+                }}
                 className="layout interactive-grid flex-1"
                 cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
                 rowHeight={100}
                 isDraggable={editable}
                 isResizable={editable}
             >
-                {layout.items.map((el: { i: string, x: number, y: number, w: number, h: number, add?: boolean }) => {
+                {items.map((el: { i: string, x: number, y: number, w: number, h: number, add?: boolean }) => {
                     return (
                         <div
                             key={el.i}
@@ -152,15 +151,13 @@ const CardGrid = ({
                                 projectActions={projectActions}
                                 logsActions={logsActions}
                                 index={el.i}
-                                items={layout.items}
-                                setItems={(items: TileProps[]) => setLayout({ ...layout, items: items })}
+                                items={items}
+                                setItems={(items: TileProps[]) => setItems(items)}
                                 fieldsActions={fieldsActions}
                             />
                             {editable && <ActionButton
                                 className="remove absolute top-3 right-3 cursor-pointer"
-                                onClick={() => setLayout(
-                                    { ...layout, items: layout.items.filter(item => item.i != el.i) }
-                                )}
+                                onClick={() => setItems([...items.filter(item => item.i != el.i)])}
                                 icon={<X />}
                                 tooltip="Remove"
                                 variant="destructive"
