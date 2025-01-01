@@ -62,9 +62,6 @@ const CardGrid = ({
 }) => {
     const [items, setItems] = useState<TileProps[]>([{ i: "n0", x: 0, y: 0, w: 3, h: 3, tab: undefined }]);
     const [newCounter, setNewCounter] = useState(1);
-    const [cols, setCols] = useState<number>();
-    const [breakpoint, setBreakpoint] = useState<string>();
-
     const [editableParam, setEditableParam] = useQueryState("editable", { defaultValue: "true" });
     const editable = editableParam == "true";
 
@@ -91,8 +88,8 @@ const CardGrid = ({
                         ...items,
                         {
                             i: "n" + newCounter,
-                            x: (items.length * 2) % (cols || 12),
-                            y: (items.length * 2) / (cols || 12),
+                            x: (items.length * 2) % 12,
+                            y: (items.length * 2) / 12,
                             w: 3,
                             h: 3,
                             tab: undefined
@@ -118,10 +115,6 @@ const CardGrid = ({
                         return { ...originalItem, ...item };
                     });
                     setItems([...updatedItems]);
-                }}
-                onBreakpointChange={(breakpoint: string, cols: number) => {
-                    setBreakpoint(breakpoint);
-                    setCols(cols);
                 }}
                 className="layout interactive-grid flex-1"
                 cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
