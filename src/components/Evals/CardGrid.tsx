@@ -93,7 +93,7 @@ const CardGrid = ({
     const icon = success ? <Check /> : success == false ? <TriangleAlert /> : <Save />;
     const variant = success ? "primary" : success == false ? "destructive" : "outline";
 
-    return (<>
+    return (<div className="w-full h-full overflow-auto m-2" ref={gridRef}>
         <div className="my-2 ml-6 mr-8 flex gap-4 items-center">
             <ActionButton
                 className="transition-all"
@@ -144,60 +144,58 @@ const CardGrid = ({
                 <Label htmlFor="airplane-mode">Editing Mode</Label>
             </div>
         </div>
-        <div className="h-full overflow-auto flex-1 flex-col gap-2 m-3 rounded-lg" ref={gridRef}>
-            <ResponsiveReactGridLayout
-                onLayoutChange={(newLayout) => {
-                    const updatedItems = newLayout.map((item) => {
-                        const originalItem = items.find(i => i.i === item.i);
-                        return { ...originalItem, ...item };
-                    });
-                    setItems([...updatedItems]);
-                }}
-                className="layout interactive-grid flex-1"
-                cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-                rowHeight={100}
-                isDraggable={editable}
-                isResizable={editable}
-            >
-                {items.map(el => {
-                    return (
-                        <div
-                            key={el.i}
-                            data-grid={el}
-                            className="relative m-1 p-1 rounded-lg"
-                        >
-                            <Card
-                                searchParams={searchParams}
-                                projects={projects}
-                                project={project}
-                                logs={logs}
-                                params={params}
-                                entriesProperties={entriesProperties}
-                                paramsProperties={paramsProperties}
-                                metrics={metrics}
-                                logsData={logsData}
-                                totalPages={totalPages}
-                                columnTypes={columnTypes}
-                                projectActions={projectActions}
-                                logsActions={logsActions}
-                                index={el.i}
-                                items={items}
-                                setItems={(items: TileProps[]) => setItems(items)}
-                                fieldsActions={fieldsActions}
-                            />
-                            {editable && <ActionButton
-                                className="remove absolute top-3 right-3 cursor-pointer"
-                                onClick={() => setItems([...items.filter(item => item.i != el.i)])}
-                                icon={<X />}
-                                tooltip="Remove"
-                                variant="destructive"
-                            />}
-                        </div>
-                    );
-                })}
-            </ResponsiveReactGridLayout>
-        </div>
-    </>);
+        <ResponsiveReactGridLayout
+            onLayoutChange={(newLayout) => {
+                const updatedItems = newLayout.map((item) => {
+                    const originalItem = items.find(i => i.i === item.i);
+                    return { ...originalItem, ...item };
+                });
+                setItems([...updatedItems]);
+            }}
+            className="layout interactive-grid flex-1"
+            cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+            rowHeight={100}
+            isDraggable={editable}
+            isResizable={editable}
+        >
+            {items.map(el => {
+                return (
+                    <div
+                        key={el.i}
+                        data-grid={el}
+                        className="relative m-1 p-1 rounded-lg"
+                    >
+                        <Card
+                            searchParams={searchParams}
+                            projects={projects}
+                            project={project}
+                            logs={logs}
+                            params={params}
+                            entriesProperties={entriesProperties}
+                            paramsProperties={paramsProperties}
+                            metrics={metrics}
+                            logsData={logsData}
+                            totalPages={totalPages}
+                            columnTypes={columnTypes}
+                            projectActions={projectActions}
+                            logsActions={logsActions}
+                            index={el.i}
+                            items={items}
+                            setItems={(items: TileProps[]) => setItems(items)}
+                            fieldsActions={fieldsActions}
+                        />
+                        {editable && <ActionButton
+                            className="remove absolute top-3 right-3 cursor-pointer"
+                            onClick={() => setItems([...items.filter(item => item.i != el.i)])}
+                            icon={<X />}
+                            tooltip="Remove"
+                            variant="destructive"
+                        />}
+                    </div>
+                );
+            })}
+        </ResponsiveReactGridLayout>
+    </div>);
 };
 
 export default CardGrid;
