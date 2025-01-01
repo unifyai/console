@@ -1,5 +1,6 @@
 "use server";
 
+import { TileProps } from "@/types/evals/grid";
 import { LogFieldsProps } from "@/types/evals/logs";
 
 // create project
@@ -173,6 +174,55 @@ export const deleteLogFields = async (apiKey: string) => {
                 headers: { apiKey: apiKey },
                 body: JSON.stringify({ fields })
             }
+        );
+        return await response.json();
+    };
+};
+
+// create interface
+export const createInterface = async (apiKey: string) => {
+    return async (items: TileProps[], new_counter: number) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/interface`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({ items, new_counter })
+            }
+        );
+        return await response.json();
+    };
+};
+
+// get interface
+export const getInterface = async (apiKey: string) => {
+    return async () => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/interface`,
+            { method: "GET", headers: { apiKey: apiKey } }
+        );
+        if (!response.ok)
+            return null;
+        return await response.json();
+    };
+};
+
+// update interface
+export const updateInterface = async (apiKey: string) => {
+    return async (items: TileProps[], new_counter: number) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/interface`,
+            {
+                method: "PUT",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({ items, new_counter })
+            },
         );
         return await response.json();
     };

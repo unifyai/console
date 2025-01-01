@@ -5,4 +5,6 @@ export interface TileProps {
     w: number;
     h: number;
     tab?: string;
+    moved?: boolean;
+    static?: boolean;
 }

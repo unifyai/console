@@ -8,7 +8,7 @@ import { TileProps } from "@/types/evals/grid";
 import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import ActionButton from "../Common/Buttons/Action";
-import { Plus, Save, X } from "lucide-react";
+import { Check, Plus, Save, TriangleAlert, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { useQueryState } from "nuqs";
 
@@ -27,9 +27,13 @@ const CardGrid = ({
     logsData,
     totalPages,
     columnTypes,
+    items_,
+    newCounter_,
+    interfaceCreated,
     projectActions,
     logsActions,
-    fieldsActions
+    fieldsActions,
+    interfaceActions,
 }: {
     searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string },
     projects: string[] | undefined,
@@ -41,7 +45,10 @@ const CardGrid = ({
     metrics: { [key: string]: number }
     logsData: LogsResponseProps,
     totalPages: number,
-    columnTypes: { [key: string]: string }
+    columnTypes: { [key: string]: string },
+    items_: TileProps[],
+    newCounter_: number,
+    interfaceCreated: boolean,
     projectActions: {
         get: () => Promise<string[]>,
         create: (name: string) => Promise<ResponseProps>,
@@ -58,10 +65,16 @@ const CardGrid = ({
     fieldsActions: {
         get: (project: string) => Promise<LogFieldsResponseProps>,
         delete: (fields: LogFieldsProps) => Promise<ResponseProps>
+    },
+    interfaceActions: {
+        get: () => Promise<{ items: TileProps[], new_counter: number } | null>,
+        create: (items: TileProps[], new_counter: number) => Promise<ResponseProps>,
+        update: (items: TileProps[], new_counter: number) => Promise<ResponseProps>,
     }
 }) => {
-    const [items, setItems] = useState<TileProps[]>([{ i: "n0", x: 0, y: 0, w: 3, h: 3, tab: undefined }]);
-    const [newCounter, setNewCounter] = useState(1);
+    const [items, setItems] = useState<TileProps[]>([...items_]);
+    const [newCounter, setNewCounter] = useState(newCounter_);
+    const [success, setSuccess] = useState<boolean>();
     const [editableParam, setEditableParam] = useQueryState("editable", { defaultValue: "true" });
     const editable = editableParam == "true";
     const gridRef = useRef<HTMLDivElement>(null);
@@ -73,9 +86,34 @@ const CardGrid = ({
         });
     }, [newCounter]);
 
+    useEffect(() => {
+        setTimeout(() => setSuccess(undefined), 3000);
+    }, [success]);
+
+    const icon = success ? <Check /> : success == false ? <TriangleAlert /> : <Save />;
+    const variant = success ? "primary" : success == false ? "destructive" : "outline";
+
     return (<>
         <div className="my-2 ml-6 mr-8 flex gap-4 items-center">
-            <ActionButton icon={<Save />} tooltip="Save Layout" variant="outline" />
+            <ActionButton
+                className="transition-all"
+                tooltip="Save Interface"
+                icon={icon}
+                variant={variant}
+                onClick={async () => {
+                    if (success == undefined) {
+                        let response: ResponseProps | undefined = undefined;
+                        if (interfaceCreated)
+                            response = await interfaceActions.update(items, newCounter);
+                        else
+                            response = await interfaceActions.create(items, newCounter);
+                        if (response && "info" in response)
+                            setSuccess(true);
+                        else
+                            setSuccess(false);
+                    }
+                }}
+            />
             <ActionButton
                 variant="outline"
                 icon={<Plus />}
@@ -91,7 +129,7 @@ const CardGrid = ({
                             y: (items.length * 2) / 12,
                             w: 3,
                             h: 3,
-                            tab: undefined
+                            tab: undefined,
                         }
                     ]);
                     setNewCounter(newCounter + 1);
@@ -121,7 +159,7 @@ const CardGrid = ({
                 isDraggable={editable}
                 isResizable={editable}
             >
-                {items.map((el: { i: string, x: number, y: number, w: number, h: number, add?: boolean }) => {
+                {items.map(el => {
                     return (
                         <div
                             key={el.i}

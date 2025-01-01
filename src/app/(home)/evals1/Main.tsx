@@ -2,8 +2,9 @@ import { ResponseProps } from "@/types/common";
 import CardGrid from "@/components/Evals/CardGrid";
 import { LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { extractLogsData } from "@/utils/evals/common";
+import { TileProps } from "@/types/evals/grid";
 
-const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions }: {
+const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions, interfaceActions }: {
     searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string },
     projectsActions: {
         get: () => Promise<string[]>,
@@ -21,11 +22,27 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
     fieldsActions: {
         get: (project: string) => Promise<LogFieldsResponseProps>,
         delete: (fields: LogFieldsProps) => Promise<ResponseProps>
+    },
+    interfaceActions: {
+        get: () => Promise<{ items: TileProps[], new_counter: number } | null>,
+        create: (items: TileProps[], new_counter: number) => Promise<ResponseProps>,
+        update: (items: TileProps[], new_counter: number) => Promise<ResponseProps>,
     }
 }) => {
     // get projects
     const projects: string[] = await projectsActions.get();
     const project: string | undefined = projects.find(project => project == searchParams.project);
+
+    // get interface
+    let interface_: { items: TileProps[], new_counter: number } | null = await interfaceActions.get();
+    let interfaceCreated = true;
+    if (!interface_) {
+        interfaceCreated = false;
+        interface_ = {
+            items: [{ i: "n0", x: 0, y: 0, w: 3, h: 3, tab: undefined, moved: false, static: false }],
+            new_counter: 1
+        };
+    }
 
     // get logs
     const logsFilters = searchParams.filters ? searchParams.filters.split(",").map((filter => {
@@ -81,18 +98,22 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 
     return <CardGrid
         searchParams={searchParams}
-		projects={projects}
-		project={project}
-		logs={logs}
-		columnTypes={columnTypes}
-		entriesProperties={entriesProperties}
-		paramsProperties={paramsProperties}
-		metrics={metrics}
-		logsData={logsData}
-		totalPages={totalPages}
-		projectActions={projectsActions}
-		logsActions={logsActions}
+        projects={projects}
+        project={project}
+        logs={logs}
+        columnTypes={columnTypes}
+        entriesProperties={entriesProperties}
+        paramsProperties={paramsProperties}
+        metrics={metrics}
+        logsData={logsData}
+        totalPages={totalPages}
+        items_={interface_.items}
+        newCounter_={interface_.new_counter}
+        interfaceCreated={interfaceCreated}
+        projectActions={projectsActions}
+        logsActions={logsActions}
         fieldsActions={fieldsActions}
+        interfaceActions={interfaceActions}
         params={params}
     />;
 };
