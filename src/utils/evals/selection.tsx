@@ -117,6 +117,14 @@ export function extractBaseAndComparisonLogs (selectedCells: string[], logs:LogP
 
   }
 
+  // Fix for case where on row is selected
+  const uniqueLogIds = Array.from(new Set(selectedCells.map(cell => cell.split("_")[0])));
+  
+  // If there's only one unique log ID, there should be no comparison logs
+  if (uniqueLogIds.length === 1) {
+    return { baseLogIndex, baseLog, comparisonLogsIndex: [], comparisonLogs: [] };
+  }
+
   // Locate comparison logs and their row indices in the table, then filter values for selected cells that pertain to each log
   const comparisonLogsParam = selectedCells.slice(1)                                // [logId1_colId2, logId2_colId3, ...]
   let comparisonLogsIndex = comparisonLogsParam 
