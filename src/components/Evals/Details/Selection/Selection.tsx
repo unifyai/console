@@ -13,22 +13,60 @@ import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
 
 const Selection = ({ params, logs }: { params: LogItemProps; logs: LogProps[] }) => {
 
+  // Get column ordering if specified
+  const columnOrdering = useQueryState("column_order")[0]?.split(",") || [];
+
   // Get hidden columns to remove from the details view
   const hiddenColumns = useQueryState("hidden_columns")[0]?.split(",") || [];
-  console.log(hiddenColumns)
 
-  // Filter out hidden columns from entries and params
-  const filteredLogs = logs.map((log) => {
+  const sortedLogs = [...logs].sort((a, b) => {
+    for (const column of columnOrdering) {
+      // Prefer `entries[column]` if it exists, otherwise fallback to `params[column]`
+      const aValue = a.entries[column] ?? a.params[column];
+      const bValue = b.entries[column] ?? b.params[column];
+  
+      // If both are undefined, just skip this column (continue to next)
+      if (aValue === undefined && bValue === undefined) {
+        continue;
+      }
+  
+      // Optionally, if you want items with an actual value to come before those with no value:
+      // if (aValue !== undefined && bValue === undefined) return -1;
+      // if (aValue === undefined && bValue !== undefined) return 1;
+  
+      // Only compare if both values exist
+      if (aValue < bValue) return -1;
+      if (aValue > bValue) return 1;
+    }
+  
+    // If everything in columnOrdering is equal (or not set), consider them "equal"
+    return 0;
+  });
+
+  // Filter out hidden columns from entries
+  // Build each log's entries explicitly in the columnOrdering sequence,
+  // skipping columns in hiddenColumns.
+  const filteredLogs = sortedLogs.map(log => {
+    const newEntries = columnOrdering.reduce((acc, col) => {
+      // If this column is "hidden," skip it.
+      if (hiddenColumns.includes(col)) {
+        return acc;
+      }
+      // Prefer entry from log.entries if available, else fallback to log.params
+      if (log.entries.hasOwnProperty(col)) {
+        acc[col] = log.entries[col];
+      } 
+     return acc;
+    }, {} as Record<string, unknown>);
+
     return {
       ...log,
-      entries: Object.fromEntries(
-        Object.entries(log.entries).filter(([key]) => !hiddenColumns.includes(key))
-      ),
-      params: Object.fromEntries(
-        Object.entries(log.params).filter(([key]) => !hiddenColumns.includes(key))
-      ),
-    }
-  })
+      entries: newEntries,
+    };
+  });
+
+  console.log(filteredLogs)
+
 
   // Pull relevant IDs from query string and reconstruct base and comparison logs based on the cells
   const [selectedCells, _]  = useQueryState(
