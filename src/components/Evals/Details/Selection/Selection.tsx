@@ -8,18 +8,36 @@ import { useQueryState } from "nuqs";
 import { Accordion } from "@/components/UI/accordion";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { FoldVertical, UnfoldVertical } from "lucide-react";
-import { getDictSubset } from "@/utils/evals/selection";
 import { parseAsArrayOf, parseAsString } from "nuqs";
 import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
 
 const Selection = ({ params, logs }: { params: LogItemProps; logs: LogProps[] }) => {
+
+  // Get hidden columns to remove from the details view
+  const hiddenColumns = useQueryState("hidden_columns")[0]?.split(",") || [];
+  console.log(hiddenColumns)
+
+  // Filter out hidden columns from entries and params
+  const filteredLogs = logs.map((log) => {
+    return {
+      ...log,
+      entries: Object.fromEntries(
+        Object.entries(log.entries).filter(([key]) => !hiddenColumns.includes(key))
+      ),
+      params: Object.fromEntries(
+        Object.entries(log.params).filter(([key]) => !hiddenColumns.includes(key))
+      ),
+    }
+  })
 
   // Pull relevant IDs from query string and reconstruct base and comparison logs based on the cells
   const [selectedCells, _]  = useQueryState(
     "selected", 
     parseAsArrayOf(parseAsString).withDefault([])                    // [logId1_colId1,logId1_colId2,logId2_colId3,...]
   )
-  const { baseLogIndex, baseLog, comparisonLogsIndex, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, logs)
+  const { baseLogIndex, baseLog, comparisonLogsIndex, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, filteredLogs)
+
+  console.log({baseLogIndex, baseLog, comparisonLogsIndex, comparisonLogs})
 
   // The top-level Accordion’s expanded items
   const [openItems, setOpenItems] = useState<string[]>([]);
