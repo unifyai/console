@@ -34,6 +34,7 @@ const CardGrid = ({
     logsActions,
     fieldsActions,
     interfaceActions,
+    boundaries
 }: {
     searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string },
     projects: string[] | undefined,
@@ -70,7 +71,8 @@ const CardGrid = ({
         get: () => Promise<{ items: TileProps[], new_counter: number } | null>,
         create: (items: TileProps[], new_counter: number) => Promise<ResponseProps>,
         update: (items: TileProps[], new_counter: number) => Promise<ResponseProps>,
-    }
+    },
+    boundaries: {minimums: {[key: string]: number}, maximums: {[key: string]: number}}
 }) => {
     const [items, setItems] = useState<TileProps[]>([...items_]);
     const [newCounter, setNewCounter] = useState(newCounter_);
@@ -183,6 +185,7 @@ const CardGrid = ({
                             items={items}
                             setItems={(items: TileProps[]) => setItems(items)}
                             fieldsActions={fieldsActions}
+                            boundaries={boundaries}
                         />
                         {editable && <ActionButton
                             className="remove absolute top-3 right-3 cursor-pointer"

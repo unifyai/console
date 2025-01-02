@@ -19,7 +19,7 @@ import { FileProps, ResponseProps } from "@/types/common";
 import { buildTree, nestedColumns } from "@/utils/evals/table";
 import { Badge } from "@/components/UI/badge";
 import { useQueryState } from "nuqs";
-import ColumnFilter from "./Buttons/ColumnFilter";
+import ColumnFilter from "./Buttons/Filters/Main";
 import AggregatedCell from "./Content/AggregatedCell";
 import VisibilityFilter from "./Buttons/VisibilityFilter";
 import DeleteCells from "./Buttons/DeleteCells";
@@ -33,6 +33,7 @@ import CloseProject from "./Buttons/CloseProject";
 import { extractBaseAndComparisonLogs, getPartAfterFirstUnderscore } from "@/utils/evals/selection";
 import { parseAsArrayOf, parseAsString } from "nuqs";
 import RefreshLogs from "./Buttons/RefreshLogs";
+import { searchParamToFilters } from "@/utils/evals/filters";
 
 const LogsTable = ({
   searchParams,
@@ -47,7 +48,8 @@ const LogsTable = ({
   columnTypes,
   projectActions,
   logsActions,
-  fieldsActions
+  fieldsActions,
+  boundaries
 }: {
   searchParams: {
     project?: string;
@@ -89,7 +91,8 @@ const LogsTable = ({
   fieldsActions: {
     get: (project: string) => Promise<LogFieldsResponseProps>,
     delete: (fields: LogFieldsProps) => Promise<ResponseProps>
-  }
+  },
+  boundaries: {minimums: {[key: string]: number}, maximums: {[key: string]: number}}
 }) => {
   // Basic states for quick feedback
   const [pending, setPending] = useState(false);        // if the project is invalid
@@ -397,7 +400,7 @@ const LogsTable = ({
                 TableTop={tableTop}
                 ColumnFilters={(column) => (
                   <ColumnFilter
-                    setFilters={(filtersObj) => {
+                    setColumnFilterQuery={(filtersObj) => {
                       const keys = Object.keys(filtersObj);
                       setLogsFiltersQuery(
                         keys.length
@@ -410,24 +413,9 @@ const LogsTable = ({
                           : null
                       );
                     }}
-                    filters={
-                      logsFiltersQuery
-                        ? logsFiltersQuery
-                            .split(",")
-                            .map((f) => {
-                              const [k, fn, v] = f.split("@");
-                              return { [k]: { [fn]: v } };
-                            })
-                            .reduce((acc, curr) => {
-                              for (const cKey in curr) {
-                                if (acc[cKey]) acc[cKey] = { ...acc[cKey], ...curr[cKey] };
-                                else acc[cKey] = curr[cKey];
-                              }
-                              return acc;
-                            }, {})
-                        : {}
-                    }
-                    column={column}
+                    boundaries={boundaries}
+                    columnFilters={searchParamToFilters(logsFiltersQuery ?? undefined)}
+                    column={column.id}
                     columnTypes={columnTypes}
                   />
                 )}

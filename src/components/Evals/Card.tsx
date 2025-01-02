@@ -29,6 +29,7 @@ const Card = ({
     items,
     setItems,
     fieldsActions,
+    boundaries
 }: {
     searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string },
     projects: string[] | undefined,
@@ -61,6 +62,7 @@ const Card = ({
         get: (project: string) => Promise<LogFieldsResponseProps>,
         delete: (fields: LogFieldsProps) => Promise<ResponseProps>
     },
+    boundaries: {minimums: {[key: string]: number}, maximums: {[key: string]: number}}
 }) => {
     const tab = items.find(item => item.i == index)?.tab
     const tabTypes = ["Table", "Plot", "View"]
@@ -104,6 +106,7 @@ const Card = ({
                 projectActions={projectActions}
                 logsActions={logsActions}
                 fieldsActions={fieldsActions}
+                boundaries={boundaries}
             />}
         </div>
     </div>)

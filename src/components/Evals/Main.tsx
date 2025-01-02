@@ -7,6 +7,7 @@ import Details from "./Details/Details";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { Suspense } from "react";
 import { ResponseProps } from "@/types/common";
+import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 
 const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions }: {
 	searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string },
@@ -27,62 +28,68 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 		delete: (fields: LogFieldsProps) => Promise<ResponseProps>
 	}
 }) => {
-	// get projects
+
+	/* Get projects list, selected project and its column types */
 	const projects: string[] = await projectsActions.get();
 	const project: string | undefined = projects.find(project => project == searchParams.project);
+	let fields: LogFieldsResponseProps = {}
+	let types: {[column: string] : string}= {};
+	if (project) {
+		fields = await fieldsActions.get(project)
+		types = { ...fields.entries, ...fields.params }
+	}
 
-	// get logs
-	const logsFilters = searchParams.filters ? searchParams.filters.split(",").map((filter => {
-		const [key, fn, value] = filter.split("@");
-		return { [key]: { [fn]: value } };
-	})).reduce((acc, curr) => {
-		for (const key in curr) {
-			if (acc.hasOwnProperty(key))
-                acc[key] = { ...acc[key], ...curr[key] };
-            else
-                acc[key] = curr[key];
-        }
-		return acc;
-	}, {}) : null;
-	let filterStr: string = "", filterParams: string[] = [];
-	if (searchParams.common_filter)
-		[filterStr, ...filterParams] = searchParams.common_filter.split(",");
-	const filterExpression = searchParams.common_filter ? filterParams.map(
-		filter => `${filterStr} in ${filter}`
-	).join(" or ") : logsFilters ? Object.entries(logsFilters).map(
-		([key, value]) => Object.entries(value).map(
-			([fn, val]) => fn === "in" ? `${val} ${fn} ${key}` : `${key} ${fn} ${val}`
-		)
-	).flat().join(" and ") : null;
+	/* Handle filters */
+	// 1- Convert filters search param value to a nested dictionary representation of column, function and values
+	// 2- Join column filters with the corresponding filter functions and values using "and"
+	// 3- Join common filters with the "in" filter function and common filter value using "or"
+	// 4- Join common and column filters into a single filter expression
+	const logsFilters : {[column: string]: {[fn: string]: string}} = searchParamToFilters(searchParams.filters) 
+	const columnFiltersExpression = filtersToExpression(logsFilters) 
+	const commonFiltersExpression = searchParams.common_filter && types
+		? Object.keys(types)
+			.map(column => `${searchParams.common_filter} in ${column}`)
+			.join(" or ")
+		: ""
+	let filterExpression = null
+	if (columnFiltersExpression) filterExpression = columnFiltersExpression
+	if (commonFiltersExpression) filterExpression = filterExpression ? `${commonFiltersExpression} and ${filterExpression}` : commonFiltersExpression;
+
+	/* Get logs, handle pagination and unpack log data */
+	let logsData: LogsResponseProps = { params: {}, logs: [], count: 0 };
 	const limit = 16;
 	const offset = (searchParams.page_number ? parseInt(searchParams.page_number) : 0) * limit;
 	let totalPages = 1;
-	let logsData: LogsResponseProps = { params: {}, logs: [], count: 0 };
-	let logColumns: LogFieldsResponseProps = {}
 	if (project) {
-		[logsData, logColumns] = await Promise.all([
-			logsActions.get(project, filterExpression, limit, offset),
-			fieldsActions.get(project)
-		]);
+		logsData = await logsActions.get(project, filterExpression, limit, offset)
 		totalPages = Math.ceil(logsData.count / limit);
 	}
+	const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData, fields);
 
-	// process log data for display
-	const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData, logColumns);
-	const columnTypes = { ...logColumns.entries, ...logColumns.params };
-
-	const allProps = logs.length ? [...entriesProperties, ...paramsProperties] : [];
-	const metricValues = await Promise.all(allProps.map(async (key) =>
-		logsActions.getMetrics(
-			project!, filterExpression, searchParams.metric ? searchParams.metric : "mean", key
-		)
-	));
-	const metrics: { [key: string]: number } = allProps.length ? allProps.map(
-		(key, index) => ({ [key]: metricValues[index] })
-	).reduce(
-		(acc, curr) => ({...acc, ...curr})
-	) : {};
-
+	/* Handle column metrics */
+	// Getting metrics for filtered logs, and min / max values for full logs. 
+	// Min / max bounds are used to set the filtering range for numeric columns 
+	const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
+	const getColumnMetrics = async (expression: string | null, metric: string | undefined) => {
+		const metricValues = await Promise.all(
+			columns.map(async (key) => logsActions.getMetrics(
+				project!, expression, metric ? metric : "mean", key
+			)
+		));
+		const metrics: { [key: string]: number } = columns.length 
+			? columns
+				.map((key, index) => ({ [key]: metricValues[index] }))
+				.reduce((acc, curr) => ({...acc, ...curr})) 
+			: {};
+		return metrics
+	}
+	const metrics = await getColumnMetrics(filterExpression, searchParams.metric)
+	const [minimums, maximums] = await Promise.all([
+		getColumnMetrics(null, "min"),
+		getColumnMetrics(null, "max")
+	])
+	const boundaries = { minimums, maximums }
+	
 	return <DoublePanels
 		isLoading={false}
 		first={
@@ -91,7 +98,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 				projects={projects}
 				project={project}
 				logs={logs}
-				columnTypes={columnTypes}
+				columnTypes={types}
 				entriesProperties={entriesProperties}
 				paramsProperties={paramsProperties}
 				metrics={metrics}
@@ -100,6 +107,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 				projectActions={projectsActions}
 				logsActions={logsActions}
 				fieldsActions={fieldsActions}
+				boundaries={boundaries}
 			/>
 		}
 		second={

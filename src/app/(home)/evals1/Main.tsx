@@ -84,17 +84,29 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
     const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData, logColumns);
     const columnTypes = { ...logColumns.entries, ...logColumns.params };
 
-    const allProps = logs.length ? [...entriesProperties, ...paramsProperties] : [];
-    const metricValues = await Promise.all(allProps.map(async (key) =>
-        logsActions.getMetrics(
-            project!, filterExpression, searchParams.metric ? searchParams.metric : "mean", key
-        )
-    ));
-    const metrics: { [key: string]: number } = allProps.length ? allProps.map(
-        (key, index) => ({ [key]: metricValues[index] })
-    ).reduce(
-        (acc, curr) => ({ ...acc, ...curr })
-    ) : {};
+	/* Handle column metrics */
+	// Getting metrics for filtered logs, and min / max values for full logs. 
+	// Min / max bounds are used to set the filtering range for numeric columns 
+	const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
+	const getColumnMetrics = async (expression: string | null, metric: string | undefined) => {
+		const metricValues = await Promise.all(
+			columns.map(async (key) => logsActions.getMetrics(
+				project!, expression, metric ? metric : "mean", key
+			)
+		));
+		const metrics: { [key: string]: number } = columns.length 
+			? columns
+				.map((key, index) => ({ [key]: metricValues[index] }))
+				.reduce((acc, curr) => ({...acc, ...curr})) 
+			: {};
+		return metrics
+	}
+	const metrics = await getColumnMetrics(filterExpression, searchParams.metric)
+	const [minimums, maximums] = await Promise.all([
+		getColumnMetrics(null, "min"),
+		getColumnMetrics(null, "max")
+	])
+	const boundaries = { minimums, maximums }
 
     return <CardGrid
         searchParams={searchParams}
@@ -115,6 +127,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
         fieldsActions={fieldsActions}
         interfaceActions={interfaceActions}
         params={params}
+        boundaries={boundaries}
     />;
 };
 

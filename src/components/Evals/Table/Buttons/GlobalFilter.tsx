@@ -26,10 +26,10 @@ const GlobalFilter = ({ searchParams, columnNames, commonFilterQuery, setCommonF
                     onKeyDown={(e) => {
                         if (e.key === "Enter") {
                             if (commonFilter) {
-                                setCommonFilterQuery([
-                                    (commonFilter.startsWith('"') && commonFilter.endsWith('"')) ? commonFilter : `"${commonFilter}"`,
-                                    ...columnNames
-                                ].join(","));
+                                setCommonFilterQuery((commonFilter.startsWith('"') && commonFilter.endsWith('"')) 
+                                    ? commonFilter 
+                                    : `"${commonFilter}"`
+                                );
                             }
                             else
                                 setCommonFilterQuery(null);
