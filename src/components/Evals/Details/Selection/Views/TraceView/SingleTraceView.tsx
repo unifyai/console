@@ -22,13 +22,11 @@ import {
 } from "lucide-react";
 
 // Charts for timeline
-import { BarChart, Bar, CartesianGrid, XAxis, YAxis } from "recharts";
+import { BarChart, Bar, CartesianGrid, XAxis, YAxis, LabelList } from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent
 } from "@/components/UI/chart";
 
 // ReactFlow
@@ -189,32 +187,81 @@ export default function SingleTraceView({ spans, baseLogIndex = 0 }: SingleTrace
                   <BarChart
                     data={chartData}
                     layout="vertical"
-                    margin={{ left: 100, right: 20, top: 20, bottom: 20 }}
+                    margin={{ left: 140, right: 40, top: 20, bottom: 20 }}
+                    barSize={24} // adjust as you see fit
                   >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    {/* Light vertical grid lines only */}
+                    <CartesianGrid
+                      stroke="#E5E7EB" 
+                      strokeDasharray="3 3"
+                      horizontal={false}
+                    />
+
                     <YAxis
                       dataKey="label"
                       type="category"
                       tickLine={false}
                       axisLine={false}
-                      width={120}
+                      width={130}
+                      stroke="#4B5563" // optional—darken the tick labels a bit
                     />
+
                     <XAxis
                       type="number"
                       tickLine={false}
                       axisLine={false}
-                      domain={[0, "dataMax+1"]}
+                      stroke="#4B5563"
+                      tickFormatter={(val) => `${val.toFixed(1)}s`} 
+                      domain={[0, "dataMax+0.5"]} // small buffer at the max end
                     />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <ChartLegend content={<ChartLegendContent />} />
 
+                    <ChartTooltip
+                        content={<ChartTooltipContent />}
+                        separator=": "
+                        offset={10}
+                        filterNull
+                        cursor={{ stroke: "#ccc", strokeDasharray: "3 3" }}
+                        wrapperStyle={{
+                          backgroundColor: "#fff",
+                          border: "1px solid #ccc",
+                          borderRadius: "0.25rem",
+                          boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                          padding: "0.5rem"
+                        }}
+                        labelStyle={{
+                          fontWeight: 600,
+                          marginBottom: "0.25rem"
+                        }}
+                        itemStyle={{
+                          fontSize: "0.85rem",
+                          padding: "2px 0"
+                        }}
+                      />
+
+                    {/* Stack the 'start' as an invisible bar, then the 'length' as the actual bar */}
                     <Bar dataKey="start-0" stackId="range-0" fill="transparent" />
-                    <Bar dataKey="length-0" stackId="range-0" fill="#9333ea" name="Single Trace" />
+                    <Bar
+                      dataKey="length-0"
+                      stackId="range-0"
+                      fill="var(--primary)"                // pale-blue fill
+                      radius={[4, 4, 4, 4]}         // rounded corners
+                      name="Duration"
+                    >
+                      {/* Show the total duration at the right edge of the bar */}
+                      <LabelList
+                        dataKey="length-0"
+                        position="right"
+                        formatter={(value: number) => `${value.toFixed(2)}s`}
+                        fill="#4B5563"
+                        style={{ fontSize: "0.75rem" }}
+                      />
+                    </Bar>
                   </BarChart>
                 </ChartContainer>
               </div>
             </DialogContent>
           </Dialog>
+
 
           {/* Horizontal Flow Button */}
           <ActionButton

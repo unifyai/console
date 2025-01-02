@@ -10,7 +10,7 @@ import {
 import ActionButton from "@/components/Common/Buttons/Action";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 
-import { BarChart, Bar, CartesianGrid, XAxis, YAxis } from "recharts";
+import { BarChart, Bar, CartesianGrid, XAxis, YAxis, LabelList } from "recharts"; // <-- Imported LabelList
 import {
   GanttChart,
   FoldVertical,
@@ -30,8 +30,7 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent
+
 } from "@/components/UI/chart";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/UI/dialog";
@@ -339,43 +338,90 @@ export default function MultiTraceView({
               </DialogHeader>
               <div className="mt-4 h-full overflow-auto">
                 <ChartContainer config={{}} className="w-full h-full">
+                  {/* 
+                      Updated styling starts below:
+                      - We add barSize, round corners
+                      - We show vertical-grid lines only (CartesianGrid with horizontal={false})
+                      - We label the X-axis in seconds
+                      - We add a LabelList for each bar to display duration at the bar's end
+                  */}
                   <BarChart
                     data={combinedData}
                     layout="vertical"
-                    margin={{ left: 100, right: 30, top: 10, bottom: 10 }}
+                    barSize={24}
+                    margin={{ left: 140, right: 60, top: 20, bottom: 20 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <CartesianGrid
+                      stroke="#E5E7EB"
+                      strokeDasharray="3 3"
+                      horizontal={false}
+                    />
                     <YAxis
                       dataKey="label"
                       type="category"
+                      width={130}
                       tickLine={false}
                       axisLine={false}
-                      width={100}
+                      stroke="#4B5563"
                     />
                     <XAxis
                       type="number"
                       tickLine={false}
                       axisLine={false}
-                      domain={[0, "dataMax+1"]}
+                      stroke="#4B5563"
+                      tickFormatter={(val) => `${val.toFixed(1)}s`}
+                      domain={[0, "dataMax+0.5"]}
                     />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <ChartLegend content={<ChartLegendContent />} />
+                    <ChartTooltip
+                      content={<ChartTooltipContent />}
+                      separator=": "
+                      offset={10}
+                      filterNull
+                      cursor={{ stroke: "#ccc", strokeDasharray: "3 3" }}
+                      wrapperStyle={{
+                        backgroundColor: "#fff",
+                        border: "1px solid #ccc",
+                        borderRadius: "0.25rem",
+                        boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                        padding: "0.5rem"
+                      }}
+                      labelStyle={{
+                        fontWeight: 600,
+                        marginBottom: "0.25rem",
+                        marginRight: "0.25rem"
+                      }}
+                      itemStyle={{
+                        fontSize: "0.85rem",
+                        padding: "2px 0"
+                      }}
+                    />
+
                     {allTraces.map((_, i) => {
                       const color = colorPalette[i % colorPalette.length];
                       return (
                         <React.Fragment key={i}>
+                          {/* Invisible offset bar */}
                           <Bar
                             dataKey={`start-${i}`}
                             stackId={`range-${i}`}
                             fill="transparent"
-                            radius={[8, 8, 8, 8]}
                           />
+                          {/* Actual duration bar with labels */}
                           <Bar
                             dataKey={`length-${i}`}
                             stackId={`range-${i}`}
                             fill={color}
+                            radius={[4, 4, 4, 4]}
                             name={`Trace row ${rowIndexes[i]}`}
-                          />
+                          >
+                            <LabelList
+                              dataKey={`length-${i}`}
+                              position="right"
+                              formatter={(value: number) => `${value.toFixed(2)}s`}
+                              fill="#4B5563"
+                              style={{ fontSize: "0.75rem" }}
+                            />
+                          </Bar>
                         </React.Fragment>
                       );
                     })}
