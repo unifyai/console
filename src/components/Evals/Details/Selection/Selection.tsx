@@ -65,17 +65,12 @@ const Selection = ({ params, logs }: { params: LogItemProps; logs: LogProps[] })
     };
   });
 
-  console.log(filteredLogs)
-
-
   // Pull relevant IDs from query string and reconstruct base and comparison logs based on the cells
   const [selectedCells, _]  = useQueryState(
     "selected", 
     parseAsArrayOf(parseAsString).withDefault([])                    // [logId1_colId1,logId1_colId2,logId2_colId3,...]
   )
   const { baseLogIndex, baseLog, comparisonLogsIndex, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, filteredLogs)
-
-  console.log({baseLogIndex, baseLog, comparisonLogsIndex, comparisonLogs})
 
   // The top-level Accordion’s expanded items
   const [openItems, setOpenItems] = useState<string[]>([]);
