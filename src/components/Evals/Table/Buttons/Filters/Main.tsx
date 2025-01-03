@@ -37,6 +37,7 @@ export default ColumnFilter;
 /* 
     TODO: 
         - Add support for timestamp type (not yet expressed in the endpoint)
+                - Fix updating filters when transitioning from equal / not equal to gt/lt in numeric filters
         - Not in with dictionary keys throws an error (issue)
         - != with numeric values throws an error (issue)
 */

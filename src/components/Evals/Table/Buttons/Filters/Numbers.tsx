@@ -74,8 +74,8 @@ const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boun
     }
 
     /* Inputs */
-    const minOptions = [ {name: ">", label: "greater than"}, {name: "=>", label: "greater or equal to"}, {name: "==", label: "equal to"}, {name: "!=", label: "not equal to"} ]
-    const maxOptions = [ {name: "<", label: "lower than"}, {name: "<=", label: "lower or equal to"}, {name: "==", label: "equal to"}, {name: "!=", label: "not equal to"} ]
+    const minOptions = [ {name: ">", label: "greater than"}, {name: ">=", label: "greater or equal to"}, {name: "==", label: "equal to"}, {name: "!=", label: "not equal to"} ]
+    const maxOptions = [ {name: "<", label: "lower than"}, {name: "=<", label: "lower or equal to"}, {name: "==", label: "equal to"}, {name: "!=", label: "not equal to"} ]
     const initialOptions = [
         (columnFilters[column] && columnFilters[column][">"]) ? minOptions[0] : (columnFilters[column] && columnFilters[column][">="]) ? minOptions[1] : (columnFilters[column] && columnFilters[column]["=="]) ? minOptions[2] : (columnFilters[column] && columnFilters[column]["!="]) ? minOptions[3] : minOptions[0],
         (columnFilters[column] && columnFilters[column]["<"]) ? maxOptions[0] : (columnFilters[column] && columnFilters[column]["=<"]) ? maxOptions[1] : (columnFilters[column] && columnFilters[column]["=="]) ? maxOptions[2] : (columnFilters[column] && columnFilters[column]["!="]) ? maxOptions[3] : maxOptions[0]
