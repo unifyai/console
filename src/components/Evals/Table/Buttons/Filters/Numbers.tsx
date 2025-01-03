@@ -39,12 +39,12 @@ const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boun
         if (inputValues[0] || inputValues[1]) { // Combine both conditions
             newColumnFilters[column] = { ...(newColumnFilters[column] || {}) };
     
-            if (inputValues[0]) {
+            if (inputValues[0] && !isSingleValueFilter(maxOption)) {
                 const minFunctionName = minOption.name;
                 newColumnFilters[column][minFunctionName] = inputValues[0];
             }
     
-            if (inputValues[1]) {
+            if (inputValues[1] && !isSingleValueFilter(minOption)) {
                 const maxFunctionName = maxOption.name;
                 newColumnFilters[column][maxFunctionName] = inputValues[1];
             }
@@ -55,15 +55,16 @@ const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boun
             validateAndUpdateValue(minValue.toString(), 0);
             validateAndUpdateValue(maxValue.toString(), 1);
         }
-    
         setColumnFilterQuery(newColumnFilters);
     };
     const onReset = () => {
         const newColumnFilters = Object.fromEntries(
             Object.entries(columnFilters).filter(([key, _]) => key != column)
-        )
-        validateAndUpdateValue(minValue.toString(), 0)
-        validateAndUpdateValue(maxValue.toString(), 1)
+        );
+        validateAndUpdateValue(minValue.toString(), 0);
+        validateAndUpdateValue(maxValue.toString(), 1);
+        setMinOption(minOptions[0])
+        setMaxOption(maxOptions[0])
         setColumnFilterQuery(newColumnFilters)
     }
     const onEnter : KeyboardEventHandler = (event) => {
@@ -73,48 +74,55 @@ const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boun
     }
 
     /* Inputs */
-    const minOptions = [ {name: ">", label: "Greater than"}, {name: "=>", label: "Greater or equal to"} ]
-    const maxOptions = [ {name: "<", label: "Lower than"}, {name: "<=", label: "Lower or equal to"} ]
+    const minOptions = [ {name: ">", label: "greater than"}, {name: "=>", label: "greater or equal to"}, {name: "==", label: "equal to"}, {name: "!=", label: "not equal to"} ]
+    const maxOptions = [ {name: "<", label: "lower than"}, {name: "<=", label: "lower or equal to"}, {name: "==", label: "equal to"}, {name: "!=", label: "not equal to"} ]
     const initialOptions = [
-        (columnFilters[column] && columnFilters[column][">"]) ? minOptions[0] : (columnFilters[column] && columnFilters[column][">="]) ? minOptions[1] : minOptions[0],
-        (columnFilters[column] && columnFilters[column]["<"]) ? maxOptions[0] : (columnFilters[column] && columnFilters[column]["=<"]) ? maxOptions[1] : maxOptions[0],
+        (columnFilters[column] && columnFilters[column][">"]) ? minOptions[0] : (columnFilters[column] && columnFilters[column][">="]) ? minOptions[1] : (columnFilters[column] && columnFilters[column]["=="]) ? minOptions[2] : (columnFilters[column] && columnFilters[column]["!="]) ? minOptions[3] : minOptions[0],
+        (columnFilters[column] && columnFilters[column]["<"]) ? maxOptions[0] : (columnFilters[column] && columnFilters[column]["=<"]) ? maxOptions[1] : (columnFilters[column] && columnFilters[column]["=="]) ? maxOptions[2] : (columnFilters[column] && columnFilters[column]["!="]) ? maxOptions[3] : maxOptions[0]
     ] 
     const [minOption, setMinOption] = useState<Option>(initialOptions[0])
     const [maxOption, setMaxOption] = useState<Option>(initialOptions[1])
+    const isSingleValueFilter = (option: Option) => ["==", "!="].includes(option.name)
     const sliderStep = (maxValue - minValue) / 100
     const filterInput = 
     <div className="items-center">
-        <DualRangeSlider
-            className="grow"
-            value={sliderValue}
-            onValueChange={handleSliderChange}
-            min={minValue}
-            max={maxValue}
-            step={sliderStep}
-        />
+        {!isSingleValueFilter(minOption) && !isSingleValueFilter(maxOption) && 
+            <DualRangeSlider
+                className="grow"
+                value={sliderValue}
+                onValueChange={handleSliderChange}
+                min={minValue}
+                max={maxValue}
+                step={sliderStep}
+            />
+        }
         <div className="flex flex-row gap-5 justify-between pt-4">
-            <InputWithStartSelect
-                options={minOptions}
-                option={minOption}
-                placeholder={`Filter for entries ${minOption.name === ">" ? "greater than" : "greater or equal to"}..`}
-                inputValue={inputValues[0]}
-                onChange={(e) => handleInputChange(e, 0)}
-                onInput={() => validateAndUpdateValue(inputValues[0], 0)}
-                onKeyDown={onEnter}
-                onOptionChange={setMinOption}
-                inputMode="decimal"
-            />
-            <InputWithStartSelect
-                options={maxOptions}
-                option={maxOption}
-                placeholder={`Filter for entries ${maxOption.name === "<" ? "lower than" : "lower or equal to"}..`}
-                inputValue={inputValues[1]}
-                onChange={(e) => handleInputChange(e, 1)}
-                onInput={() => validateAndUpdateValue(inputValues[1], 1)}
-                onKeyDown={onEnter}
-                onOptionChange={setMaxOption}
-                inputMode="decimal"
-            />
+            {!isSingleValueFilter(maxOption) &&
+                <InputWithStartSelect
+                    options={minOptions}
+                    option={minOption}
+                    placeholder={`Filter for entries ${minOption.label}..`}
+                    inputValue={inputValues[0]}
+                    onChange={(e) => handleInputChange(e, 0)}
+                    onInput={() => validateAndUpdateValue(inputValues[0], 0)}
+                    onKeyDown={onEnter}
+                    onOptionChange={setMinOption}
+                    inputMode="decimal"
+                />
+            }
+            {!isSingleValueFilter(minOption) && 
+                <InputWithStartSelect
+                    options={maxOptions}
+                    option={maxOption}
+                    placeholder={`Filter for entries ${maxOption.label}..`}
+                    inputValue={inputValues[1]}
+                    onChange={(e) => handleInputChange(e, 1)}
+                    onInput={() => validateAndUpdateValue(inputValues[1], 1)}
+                    onKeyDown={onEnter}
+                    onOptionChange={setMaxOption}
+                    inputMode="decimal"
+                />
+            }
         </div>
     </div>
     const button = <ActionButton icon={<Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} />
@@ -124,7 +132,7 @@ const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boun
         <BaseDropdown button={button} label={`Filter logs by ${column} value`}>
             <div className="flex flex-col gap-2 p-2">
                 {filterInput}
-                {changed && 
+                {([maxOption, minOption].some(option => isSingleValueFilter(option)) || changed) &&
                     <div className="flex flex-row gap-2 justify-end">
                         {reset}
                         {submit}

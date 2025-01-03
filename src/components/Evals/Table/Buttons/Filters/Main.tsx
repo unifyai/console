@@ -38,4 +38,5 @@ export default ColumnFilter;
     TODO: 
         - Add support for timestamp type (not yet expressed in the endpoint)
         - Not in with dictionary keys throws an error (issue)
+        - != with numeric values throws an error (issue)
 */
