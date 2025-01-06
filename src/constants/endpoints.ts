@@ -13,5 +13,7 @@ export const providers = {
     "anthropic": "https://storage.googleapis.com/hub-provider-images/anthropic-logo.png",
     "groq": "https://storage.googleapis.com/hub-provider-images/groq-logo.png",
     "vertex-ai": "https://storage.googleapis.com/hub-provider-images/vertex-ai-logo.png",
-    "azure-ai": "https://storage.googleapis.com/hub-provider-images/azure-ai-logo.png"
+    "azure-ai": "https://storage.googleapis.com/hub-provider-images/azure-ai-logo.png",
+    "xai": "https://storage.googleapis.com/hub-provider-images/xai-logo.png",
+    "deepseek": "https://storage.googleapis.com/hub-provider-images/deepseek-logo.png",
 } as { [key: string]: string }
