@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, ReactNode, MouseEvent, JSX, Ref } from "react";
+import { useMemo, ReactNode, MouseEvent, JSX, Ref, Dispatch, SetStateAction } from "react";
 
 import { ColumnFiltersState, GroupingState, Header, SortingState, Updater, useReactTable } from "@tanstack/react-table";
 import { getCoreRowModel, getFilteredRowModel, getExpandedRowModel, getGroupedRowModel, getSortedRowModel } from "@tanstack/react-table";
@@ -32,7 +32,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
     FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}) => ReactNode,
     ColumnFilters?: (column: TanstackColumn<any | unknown>) => ReactNode;
     AggregatedCell?: (cell: TanstackCell<any, unknown>, row: TanstackRow<any | unknown>) => ReactNode;
-    ExtraCellContent?: (cell: TanstackCell<any, unknown>) => ReactNode;
+    ExtraCellContent?: (cell: TanstackCell<any, unknown>, isCellExpanded: (cell: TanstackCell<any, unknown>) => boolean, setExpandedCells: Dispatch<SetStateAction<{[k: string]: boolean}>>) => ReactNode;
     ExtraComponents?: (table: TanstackTable<any | unknown>) => ReactNode
 }) {
 
@@ -100,7 +100,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
         (header: Header<TData, unknown>) => ({[header.id]: header.getResizeHandler()})
     ).reduce((acc, curr) => ({...acc, ...curr}), {});
 
-    const { isCellSelected, isRowSelected, ...cellSelection } = useCellSelection({table});
+    const { isCellSelected, isRowSelected, isCellExpanded, setExpandedCells, ...cellSelection } = useCellSelection({table});
 
     return (<div className="flex flex-col gap-2 max-w-fit">
         {TableTop && TableTop}
@@ -148,6 +148,8 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
                                                     resizeMap={resizeMap}
                                                     ExtraCellContent={ExtraCellContent}
                                                     AggregatedCell={AggregatedCell}
+                                                    isCellExpanded={isCellExpanded}
+                                                    setExpandedCells={setExpandedCells}
                                                 />
                                             </SortableContext>
                                         );

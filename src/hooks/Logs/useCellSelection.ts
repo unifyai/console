@@ -16,9 +16,18 @@ export const useCellSelection = ({
   scrollToRow,
 }: UseCellSelectionProps) => {
 
+  
   const [selectedCells, setSelectedCells]  = useQueryState("selected", parseAsArrayOf(parseAsString).withDefault([]))
   const [selectedStartCell, setSelectedStartCell] = useState<string | null>(null);
   const [isMouseDown, setIsMouseDown] = useState(false);
+  
+  const allCells = table.getRowModel().rows.flatMap(row => row.getAllCells())
+  const [expandedCells, setExpandedCells] = useState(
+    Object.fromEntries(
+      allCells.map(cell => [cell.id, false])
+    )
+  );
+  const isCellExpanded = (cell: Cell<any, unknown>) => expandedCells[cell.id as keyof typeof expandedCells] === true
 
   /* Handle keyboard navigation */
   const handleCellsKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
@@ -48,12 +57,26 @@ export const useCellSelection = ({
         deselectAll();
         break;
       }
+      case "Enter": {
+        e.preventDefault();
+        expandCellContent();
+        break;
+      }
     }
   };
 
   const deselectAll = () => setSelectedCells([])
 
+  const toggleExpansion = (selectedCell: string) => {
+    let newExpandedCells = { ...expandedCells }
+    newExpandedCells = {...newExpandedCells, [selectedCell]: true}
+    setExpandedCells(newExpandedCells)
+  }
+
+  const getCellFromID = (cellID: string) => allCells.find(c => c.id === cellID)!
+  
   const navigateUp = () => {
+
     const selectedCell = selectedCells[selectedCells.length - 1];
     if (!selectedCell) {
       return;
@@ -64,19 +87,22 @@ export const useCellSelection = ({
       .rows.findIndex((row) => row.id === selectedCell.split("_").at(0));
     const nextRowIndex = selectedRowIndex - 1;
     const previousRow = table.getRowModel().rows[nextRowIndex];
-    if (previousRow) {
-      setSelectedCells([
-        getCellSelectionData(
-          previousRow
-            .getAllCells()
-            .find((c) => c.column.id === getPartAfterFirstUnderscore(selectedCell))!,
-        ),
-      ]);
+    const previousCellId = getCellSelectionData(
+      previousRow
+        .getAllCells()
+        .find((c) => c.column.id === getPartAfterFirstUnderscore(selectedCell))!
+    )
+    if (previousRow && isValidAdjacentTarget(getCellFromID(previousCellId))) {
+      setSelectedCells([previousCellId]);
       scrollToRow?.(nextRowIndex);
+      if (isCellExpanded(getCellFromID(selectedCell)))
+        toggleExpansion(previousCellId);
     }
+
   };
 
   const navigateDown = () => {
+
     const selectedCell = selectedCells[selectedCells.length - 1];
     if (!selectedCell) {
       return;
@@ -87,19 +113,22 @@ export const useCellSelection = ({
       .rows.findIndex((row) => row.id === selectedCell.split("_").at(0));
     const nextRowIndex = selectedRowIndex + 1;
     const nextRow = table.getRowModel().rows[nextRowIndex];
-    if (nextRow) {
-      setSelectedCells([
-        getCellSelectionData(
-          nextRow
-            .getAllCells()
-            .find((c) => c.column.id === getPartAfterFirstUnderscore(selectedCell))!,
-        ),
-      ]);
+    const nextCellId = getCellSelectionData(
+      nextRow
+        .getAllCells()
+        .find((c) => c.column.id === getPartAfterFirstUnderscore(selectedCell))!,
+    );
+    if (nextRow && isValidAdjacentTarget(getCellFromID(nextCellId))) {
+      setSelectedCells([nextCellId]);
       scrollToRow?.(nextRowIndex);
+      if (isCellExpanded(getCellFromID(selectedCell)))
+        toggleExpansion(nextCellId);
     }
+
   };
 
   const navigateLeft = () => {
+
     const selectedCell = selectedCells[selectedCells.length - 1];
     if (!selectedCell) {
       return;
@@ -111,11 +140,16 @@ export const useCellSelection = ({
       .findIndex((c) => c.id === selectedCell);
     const previousCell = selectedRow.getAllCells()[selectedColumnIndex - 1];
     if (previousCell && isValidSelectionTarget(previousCell)) {
-      setSelectedCells([getCellSelectionData(previousCell)]);
+      const previousCellId = getCellSelectionData(previousCell)
+      setSelectedCells([previousCellId]);
+      if (isCellExpanded(getCellFromID(selectedCell)))
+        toggleExpansion(previousCellId);
     }
+
   };
 
   const navigateRight = () => {
+
     const selectedCell = selectedCells[selectedCells.length - 1];
     if (!selectedCell) {
       return;
@@ -127,9 +161,28 @@ export const useCellSelection = ({
       .findIndex((c) => c.id === selectedCell);
     const nextCell = selectedRow.getAllCells()[selectedColumnIndex + 1];
     if (nextCell) {
-      setSelectedCells([getCellSelectionData(nextCell)]);
+      const nextCellId = getCellSelectionData(nextCell)
+      setSelectedCells([nextCellId]);
+      if (isCellExpanded(getCellFromID(selectedCell)))
+        toggleExpansion(nextCellId);
     }
+
   };
+
+  const expandCellContent = () => {
+
+    const selectedCell = selectedCells[selectedCells.length - 1];
+    if (!selectedCell) {
+      return;
+    }
+
+    const cell = allCells.find(c => 
+      c.column.id === selectedCell.split("_")[1] && 
+      c.row.id === selectedCell.split("_")[0]
+    )!;
+    if (isValidSelectionTarget(cell)) 
+      toggleExpansion(selectedCell);
+  }
 
   /* Handle click selection */
   const isRowSelected = (rowId: string) =>
@@ -352,6 +405,8 @@ export const useCellSelection = ({
     handleCellsKeyDown,
     isCellSelected,
     isRowSelected,
+    isCellExpanded,
+    setExpandedCells
   };
 };
 
@@ -418,9 +473,4 @@ export const getSelectableTableCells = (table: Table<any | unknown>) => {
 /* 
   Original Hook: 
   https://gist.github.com/joshkay/fc8bab0561583dd48fecce93022fc7a2#file-usecellselection-ts-L343
-*/
-
-/* 
-ToDo:
-    - Handle entry deletion: delete entries or delete all row if all entries of a row selected
 */

@@ -212,7 +212,7 @@ export const nestedColumns = (
             if (isImage(cellValue)) return <ImageDisplay value={cellValue as string} className="object-scale-down h-5 w-5"/>
             if (typeof cellValue === "number") return formatNumber(cellValue);
             const displayValue = cellValue != undefined ? JSON.stringify(cellValue).trimStart().replace(/^"|"$/g, '') : "";
-            return displayValue.slice(0, 50);
+            return displayValue;
           },
           meta: {
               dataType: () => {

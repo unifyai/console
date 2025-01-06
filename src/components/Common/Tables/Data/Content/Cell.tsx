@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, CSSProperties, ReactNode } from "react";
+import { useState, CSSProperties, ReactNode, Dispatch, SetStateAction } from "react";
 
 import { Header, Cell, Row, flexRender } from "@tanstack/react-table";
 import { useSortable } from "@dnd-kit/sortable";
@@ -11,7 +11,7 @@ import { TableCell } from "@/components/UI/table";
 import { ChevronRight } from "lucide-react";
 import ColumnResizer from "../Buttons/ColumnResize";
 
-const DataTableCell = ({ cell, row, isCellSelected, cellSelection, resizeMap, AggregatedCell, ExtraCellContent }: { 
+const DataTableCell = ({ cell, row, isCellSelected, cellSelection, resizeMap, isCellExpanded, setExpandedCells, AggregatedCell, ExtraCellContent }: { 
     cell: Cell<any, unknown>, 
     row: Row<any | unknown>,
     isCellSelected: (cell: Cell<any, any>) => boolean,
@@ -22,8 +22,10 @@ const DataTableCell = ({ cell, row, isCellSelected, cellSelection, resizeMap, Ag
       handleCellsKeyDown: (e: React.KeyboardEvent<HTMLElement>) => void;
     }
     resizeMap: { [x: string]: (event: unknown) => void },
+    isCellExpanded: (cell: Cell<any, unknown>) => boolean,
+    setExpandedCells: Dispatch<SetStateAction<{[k: string]: boolean}>>,
     AggregatedCell?: (cell: Cell<any, unknown>, row: Row<any | unknown>) => ReactNode,
-    ExtraCellContent?: (cell: Cell<any, unknown>) => ReactNode
+    ExtraCellContent?: (cell: Cell<any, unknown>, isCellExpanded: (cell: Cell<any, unknown>) => boolean, setExpandedCells: Dispatch<SetStateAction<{[k: string]: boolean}>>) => ReactNode
   }) => {
       const { isDragging, setNodeRef, transform } = useSortable({
         id: cell.column.id,
@@ -87,7 +89,7 @@ const DataTableCell = ({ cell, row, isCellSelected, cellSelection, resizeMap, Ag
           style={style}
           tabIndex={0}  // Needed to ensure the table is focusable and the keyboard actions are working
           ref={setNodeRef}
-          className={`group/cell relative select-none overflow-visible `}
+          className={`group/cell relative select-none`}
         >
           <div className="overflow-hidden text-nowrap text-ellipsis ...">
             {cell.getIsGrouped() 
@@ -111,7 +113,7 @@ const DataTableCell = ({ cell, row, isCellSelected, cellSelection, resizeMap, Ag
 
           <ColumnResizer column={cell.column} resizeHandler={resizeMap[cell.column.id]}/>
 
-          {ExtraCellContent && ExtraCellContent(cell)}
+          {ExtraCellContent && isSelectableCell(cell) && ExtraCellContent(cell, isCellExpanded, setExpandedCells)}
 
         </TableCell>
       );

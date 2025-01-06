@@ -34,6 +34,7 @@ import { extractBaseAndComparisonLogs, getPartAfterFirstUnderscore } from "@/uti
 import { parseAsArrayOf, parseAsString } from "nuqs";
 import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
+import CellPopover from "./Content/CellPopover";
 
 const LogsTable = ({
   searchParams,
@@ -436,6 +437,9 @@ const LogsTable = ({
                 ExtraComponents={(table) => {
                   return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={fieldsActions.delete}/>
                 }}
+                ExtraCellContent={(cell, isCellExpanded, setExpandedCells) => 
+                  <CellPopover cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells}/>
+                }
               />
             </div>
           ) : (
