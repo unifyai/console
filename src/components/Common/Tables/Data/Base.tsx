@@ -143,6 +143,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
                                                 <DataTableCell
                                                     cell={cell}
                                                     row={row}
+                                                    selectedCells={state.selectedCells}
                                                     isCellSelected={isCellSelected}
                                                     cellSelection={cellSelection}
                                                     resizeMap={resizeMap}

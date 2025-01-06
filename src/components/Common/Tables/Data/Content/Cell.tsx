@@ -8,12 +8,13 @@ import { CSS } from "@dnd-kit/utilities";
 
 import { TableCell } from "@/components/UI/table";
 
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, CornerDownLeft } from "lucide-react";
 import ColumnResizer from "../Buttons/ColumnResize";
 
-const DataTableCell = ({ cell, row, isCellSelected, cellSelection, resizeMap, isCellExpanded, setExpandedCells, AggregatedCell, ExtraCellContent }: { 
+const DataTableCell = ({ cell, row, selectedCells, isCellSelected, cellSelection, resizeMap, isCellExpanded, setExpandedCells, AggregatedCell, ExtraCellContent }: { 
     cell: Cell<any, unknown>, 
     row: Row<any | unknown>,
+    selectedCells: string[],
     isCellSelected: (cell: Cell<any, any>) => boolean,
     cellSelection: {
       handleCellMouseDown: (e: React.MouseEvent<HTMLElement>, target: Cell<any, any> | Header<any, any>) => void;
@@ -114,6 +115,10 @@ const DataTableCell = ({ cell, row, isCellSelected, cellSelection, resizeMap, is
           <ColumnResizer column={cell.column} resizeHandler={resizeMap[cell.column.id]}/>
 
           {ExtraCellContent && isSelectableCell(cell) && ExtraCellContent(cell, isCellExpanded, setExpandedCells)}
+
+          {selectedCells.indexOf(cell.id) === selectedCells.length - 1 &&
+            <CornerDownLeft className="absolute z-20 text-white bottom-1 right-0.5 w-5 h-3 font-bold"/>
+          }
 
         </TableCell>
       );

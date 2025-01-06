@@ -215,6 +215,7 @@ const LogsTable = ({
   );
 
   const state = {
+    selectedCells,
     metric,
     sorting,
     columnVisibility,
@@ -225,6 +226,7 @@ const LogsTable = ({
     columnSizing
   };
   const setState = {
+    setSelectedCells,
     setMetric,
     setSorting,
     setColumnVisibility,
