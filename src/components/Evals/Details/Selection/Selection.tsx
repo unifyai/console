@@ -19,6 +19,7 @@ const Selection = ({ params, logs }: { params: LogItemProps; logs: LogProps[] })
   // Get hidden columns to remove from the details view
   const hiddenColumns = useQueryState("hidden_columns")[0]?.split(",") || [];
 
+  // Sort logs based on the column ordering if any
   const sortedLogs = [...logs].sort((a, b) => {
     for (const column of columnOrdering) {
       // Prefer `entries[column]` if it exists, otherwise fallback to `params[column]`
@@ -30,33 +31,30 @@ const Selection = ({ params, logs }: { params: LogItemProps; logs: LogProps[] })
         continue;
       }
   
-      // Optionally, if you want items with an actual value to come before those with no value:
-      // if (aValue !== undefined && bValue === undefined) return -1;
-      // if (aValue === undefined && bValue !== undefined) return 1;
-  
       // Only compare if both values exist
       if (aValue < bValue) return -1;
       if (aValue > bValue) return 1;
     }
-  
     // If everything in columnOrdering is equal (or not set), consider them "equal"
     return 0;
   });
 
-  // Filter out hidden columns from entries
-  // Build each log's entries explicitly in the columnOrdering sequence,
-  // skipping columns in hiddenColumns.
+  // Filter out hidden columns from each log
+  // If no column order was given, default to the log's own columns
   const filteredLogs = sortedLogs.map(log => {
-    const newEntries = columnOrdering.reduce((acc, col) => {
-      // If this column is "hidden," skip it.
+    const columnsToUse = columnOrdering.length > 0
+      ? columnOrdering // Use the order from URL, if present
+      : Object.keys(log.entries); // Otherwise, show all columns
+
+    const newEntries = columnsToUse.reduce((acc, col) => {
       if (hiddenColumns.includes(col)) {
-        return acc;
+        return acc; // skip hidden columns
       }
-      // Prefer entry from log.entries if available, else fallback to log.params
+      // Prefer entry from log.entries if available
       if (log.entries.hasOwnProperty(col)) {
         acc[col] = log.entries[col];
-      } 
-     return acc;
+      }
+      return acc;
     }, {} as Record<string, unknown>);
 
     return {
@@ -65,12 +63,12 @@ const Selection = ({ params, logs }: { params: LogItemProps; logs: LogProps[] })
     };
   });
 
-  // Pull relevant IDs from query string and reconstruct base and comparison logs based on the cells
+  // Pull relevant IDs from query string and rebuild base/comparison logs 
   const [selectedCells, _]  = useQueryState(
     "selected", 
-    parseAsArrayOf(parseAsString).withDefault([])                    // [logId1_colId1,logId1_colId2,logId2_colId3,...]
-  )
-  const { baseLogIndex, baseLog, comparisonLogsIndex, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, filteredLogs)
+    parseAsArrayOf(parseAsString).withDefault([])
+  );
+  const { baseLogIndex, baseLog, comparisonLogsIndex, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, filteredLogs);
 
   // The top-level Accordion’s expanded items
   const [openItems, setOpenItems] = useState<string[]>([]);
@@ -115,7 +113,7 @@ const Selection = ({ params, logs }: { params: LogItemProps; logs: LogProps[] })
       >
         {Object.entries(base.entries).map(([property, value]) => (
           <SelectionEntry
-            key={property}               // unique string key (property name)
+            key={property}
             property={property}
             value={value}
             baseLog={base}
