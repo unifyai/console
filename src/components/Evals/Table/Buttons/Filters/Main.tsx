@@ -24,8 +24,6 @@ const ColumnFilter = ({ column, columnFilters, setColumnFilterQuery, columnTypes
         filter = <StringColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery}/>
     if (["float", "int"].includes(columnTypes[column]))
         filter = <NumericColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} boundaries={boundaries} />
-    // if (columnTypes[column] === "bool")
-    //     filter = <BooleanColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery}/>
     // if (columnTypes[column] === "timestamp")
     //     filter = <TimeColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery}/> 
     return filter;
@@ -37,7 +35,4 @@ export default ColumnFilter;
 /* 
     TODO: 
         - Add support for timestamp type (not yet expressed in the endpoint)
-                - Fix updating filters when transitioning from equal / not equal to gt/lt in numeric filters
-        - Not in with dictionary keys throws an error (issue)
-        - != with numeric values throws an error (issue)
 */

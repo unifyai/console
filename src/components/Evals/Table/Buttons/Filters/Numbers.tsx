@@ -27,7 +27,8 @@ const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boun
         columnFilters[column] && columnFilters[column][">"] ? parseFloat(columnFilters[column][">"]) : minValue ? minValue : 0,
         columnFilters[column] && columnFilters[column]["<"] ? parseFloat(columnFilters[column]["<"]) : maxValue ? maxValue : 0
     ]
-    const { sliderValue, inputValues, validateAndUpdateValue, handleInputChange, handleSliderChange } = useSliderWithInput({ minValue, maxValue, initialValue });
+    const defaultValue = initialValue;
+    const { sliderValue, inputValues, validateAndUpdateValue, handleInputChange, handleSliderChange, resetToDefault } = useSliderWithInput({ minValue, maxValue, initialValue, defaultValue });
     const changed = 
         parseFloat(inputValues[0]) != initialValue[0] || 
         parseFloat(inputValues[1]) != initialValue[1]
@@ -36,33 +37,55 @@ const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boun
     const onSubmit = () => {
         let newColumnFilters = { ...columnFilters };
     
-        if (inputValues[0] || inputValues[1]) { // Combine both conditions
+        if (inputValues[0] || inputValues[1]) {
+            
             newColumnFilters[column] = { ...(newColumnFilters[column] || {}) };
     
-            if (inputValues[0] && !isSingleValueFilter(maxOption)) {
+            // Set the filter value to == or !=, or
+            // Remove any == or != filter and append the > or >= filter
+            if (inputValues[0]) {
                 const minFunctionName = minOption.name;
-                newColumnFilters[column][minFunctionName] = inputValues[0];
+                if (isSingleValueFilter(minOption)) {
+                    newColumnFilters[column] = {[minFunctionName]: inputValues[0]};
+                    setColumnFilterQuery(newColumnFilters);
+                    return;
+                } else {
+                    delete newColumnFilters[column]["=="]
+                    delete newColumnFilters[column]["!="]
+                    newColumnFilters[column][minFunctionName] = inputValues[0];
+                }
             }
-    
-            if (inputValues[1] && !isSingleValueFilter(minOption)) {
+
+            // Set the filter value to == or !=, or
+            // Remove any == or != filter and append the < or =< filter
+            if (inputValues[1]) {
                 const maxFunctionName = maxOption.name;
-                newColumnFilters[column][maxFunctionName] = inputValues[1];
+                if (isSingleValueFilter(maxOption)) {
+                    newColumnFilters[column] = {[maxFunctionName]: inputValues[1]};
+                    setColumnFilterQuery(newColumnFilters);
+                    return;
+                } else {
+                    delete newColumnFilters[column]["=="]
+                    delete newColumnFilters[column]["!="]
+                    newColumnFilters[column][maxFunctionName] = inputValues[1];
+                }
             }
+
         } else {  // No filters applied
             newColumnFilters = Object.fromEntries(
                 Object.entries(columnFilters).filter(([key, _]) => key != column)
             );
-            validateAndUpdateValue(minValue.toString(), 0);
-            validateAndUpdateValue(maxValue.toString(), 1);
+            resetToDefault();    
         }
+
         setColumnFilterQuery(newColumnFilters);
+
     };
     const onReset = () => {
         const newColumnFilters = Object.fromEntries(
             Object.entries(columnFilters).filter(([key, _]) => key != column)
         );
-        validateAndUpdateValue(minValue.toString(), 0);
-        validateAndUpdateValue(maxValue.toString(), 1);
+        resetToDefault();
         setMinOption(minOptions[0])
         setMaxOption(maxOptions[0])
         setColumnFilterQuery(newColumnFilters)
