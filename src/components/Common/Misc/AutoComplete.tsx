@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useEffect } from "react"
 import { Check, ChevronsUpDown } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -17,7 +18,7 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, clas
 }) {
   const [open, setOpen] = React.useState(false)
   const [value, setValue] = React.useState(defaultValue || "")
-
+  useEffect(() => {setValue(defaultValue || "")}, [defaultValue])
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
