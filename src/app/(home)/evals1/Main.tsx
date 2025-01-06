@@ -45,10 +45,8 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
         };
     }
     let fields: LogFieldsResponseProps = {}
-    let types: { [column: string]: string } = {};
     if (project) {
         fields = await fieldsActions.get(project)
-        types = { ...fields.entries, ...fields.params }
     }
 
     /* Handle filters */
@@ -58,8 +56,8 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
     // 4- Join common and column filters into a single filter expression
     const logsFilters: { [column: string]: { [fn: string]: string } } = searchParamToFilters(searchParams.filters)
     const columnFiltersExpression = filtersToExpression(logsFilters)
-    const commonFiltersExpression = searchParams.common_filter && types
-        ? Object.keys(types)
+    const commonFiltersExpression = searchParams.common_filter && fields
+        ? Object.keys(fields)
             .map(column => `${searchParams.common_filter} in ${column}`)
             .join(" or ")
         : ""
@@ -106,7 +104,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
         projects={projects}
         project={project}
         logs={logs}
-        columnTypes={types}
+        columnTypes={fields}
         entriesProperties={entriesProperties}
         paramsProperties={paramsProperties}
         metrics={metrics}
