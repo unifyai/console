@@ -17,11 +17,11 @@ import ListView from "./ListView";
 import ImageView from "./ImageView";
 import MatrixView from "./MatrixView";
 import StringView from "./StringView";
-import TraceView from "./TraceView/index";
+import TraceView from "./TraceView";
 import { Span } from "@/types/evals/traces";
 import { LogComparisonProps } from "./types";
 
-/** Detect if a value is a single Span or an array of Spans (i.e., a trace). */
+/** Check if a value is a single Span or an array of Spans (i.e., a trace). */
 function isTrace(x: any): x is Span | Span[] {
   if (!x) return false;
   if (isSpan(x)) return true;
@@ -30,7 +30,8 @@ function isTrace(x: any): x is Span | Span[] {
 
 /**
  * pickView: chooses which specialized component to render (DictionaryView,
- * ListView, TraceView, etc.) given a base “value” + “comparables.” 
+ * ListView, TraceView, etc.) for a base “value” + “comparables.”
+ * We preserve the “merge” logic in each sub-view.
  */
 function pickView(props: LogComparisonProps): JSX.Element {
   const { value } = props;
@@ -66,8 +67,9 @@ function pickView(props: LogComparisonProps): JSX.Element {
 }
 
 /** 
- * Render a single dictionary key (SINGLE mode): 
- * creates an <AccordionItem> for [propertyName, val]. 
+ * renderDictPropertySingle (SINGLE mode):
+ * Creates an <AccordionItem> for [propertyName, val].
+ * Property label is colored red (base).
  */
 function renderDictPropertySingle(
   propertyName: string,
@@ -75,7 +77,6 @@ function renderDictPropertySingle(
   props: Omit<LogComparisonProps, "value" | "comparables" | "propertyName">
 ): JSX.Element {
   const { baseLogIndex, comparisonLogsIndex, nestingLevel = 0 } = props;
-
   const indentClass = `pl-${nestingLevel * 4}`;
 
   const childProps: LogComparisonProps = {
@@ -88,7 +89,10 @@ function renderDictPropertySingle(
 
   return (
     <AccordionItem key={propertyName} value={propertyName}>
-      <AccordionTrigger className={indentClass}>{propertyName}</AccordionTrigger>
+      {/* Single mode -> red label for base property */}
+      <AccordionTrigger className={`${indentClass} text-red-600`}>
+        {propertyName}
+      </AccordionTrigger>
       <AccordionContent>
         <div className={`border-l ml-4 ${indentClass}`}>
           {pickView(childProps)}
@@ -99,19 +103,21 @@ function renderDictPropertySingle(
 }
 
 /** 
- * Render a single dictionary key (MULTI mode):  
- * creates an <AccordionItem> that merges values from [base, ...comparables]. 
+ * renderDictPropertyMulti (MULTI mode):
+ *  - merges keys across base + comparables
+ *  - subValues => [baseVal, compVal1, compVal2, ...]
+ *  - label is red if baseVal != undefined, else green (only comparables).
  */
 function renderDictPropertyMulti(
   propertyName: string,
-  dicts: any[],           // [baseDict, ...comparableDicts]
-  dictIndexes: number[],  // [baseLogIndex, ...comparisonLogsIndex]
+  dicts: any[],          // [baseDict, ...comparableDicts]
+  dictIndexes: number[], // [baseLogIndex, ...comparisonLogsIndex]
   nestingLevel: number
-) {
+): JSX.Element {
   // Gather sub-values for each dict for this key
   const subValues = dicts.map((d) => (d && isDict(d) ? d[propertyName] : undefined));
 
-  // The first item is the "value," the rest are "comparables"
+  // The first item is “baseVal,” the rest are “comparables”
   const childProps: LogComparisonProps = {
     value: subValues[0],
     comparables: subValues.slice(1),
@@ -121,9 +127,15 @@ function renderDictPropertyMulti(
   };
   const indentClass = `pl-${nestingLevel * 4}`;
 
+  // If baseVal exists => label is red, otherwise green
+  const baseVal = subValues[0];
+  const labelColorClass = baseVal !== undefined ? "text-red-600" : "text-green-600";
+
   return (
     <AccordionItem key={propertyName} value={propertyName}>
-      <AccordionTrigger className={indentClass}>{propertyName}</AccordionTrigger>
+      <AccordionTrigger className={`${indentClass} ${labelColorClass}`}>
+        {propertyName}
+      </AccordionTrigger>
       <AccordionContent>
         <div className={`border-l ml-4 ${indentClass}`}>
           {pickView(childProps)}
@@ -137,12 +149,9 @@ type DictionaryViewProps = LogComparisonProps;
 
 /**
  * DictionaryView:
- * - SINGLE mode => renders each key in the base dictionary as <AccordionItem>.  
- * - MULTI mode => merges keys across [base, ...comparables], and for each key
- *                 creates an <AccordionItem> with sub-values side by side.
- * Importantly, we do NOT create another <Accordion>; we simply return a list
- * of <AccordionItem>. This lets a parent or root component use a single,
- * top-level <Accordion> to control expansions (making “expand all” possible).
+ * - SINGLE mode => renders each key in the base dictionary as <AccordionItem> (label in red).
+ * - MULTI mode => merges keys across [base, ...comparables], each key -> union of sub-values.
+ *   Label color is red if the base dict has the key, otherwise green if it's only in comparables.
  */
 const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
   const {
@@ -171,17 +180,13 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
       })
     );
 
-    return (
-      <>
-        {items}
-      </>
-    );
+    return <>{items}</>;
   }
 
   // MULTI MODE
-  // 1) Combine base + comparables as array of dicts
+  // 1) Combine [baseDict, ...comparableDicts]
   const allDicts = [value, ...comparables];
-  // 2) Combine row indexes as array
+  // 2) Combine row indexes
   const allIndexes = [baseLogIndex, ...comparisonLogsIndex];
   // 3) Gather union of keys
   const allKeys = new Set<string>();
@@ -190,17 +195,13 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
       Object.keys(d).forEach((k) => allKeys.add(k));
     }
   });
-  const keyArray = Array.from(allKeys).sort(); // optional alphabetical sort
 
-  const items = keyArray.map((k) =>
-    renderDictPropertyMulti(k, allDicts, allIndexes, nestingLevel)
+  const keyArray = Array.from(allKeys).sort();
+  const items = keyArray.map((key) =>
+    renderDictPropertyMulti(key, allDicts, allIndexes, nestingLevel)
   );
 
-  return (
-    <>
-      {items}
-    </>
-  );
+  return <>{items}</>;
 };
 
 export default DictionaryView;

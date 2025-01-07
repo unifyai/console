@@ -1,21 +1,14 @@
+"use client";
 import React, { useState } from "react";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 import { LogComparisonProps } from "./types";
 import ActionButton from "@/components/Common/Buttons/Action";
-
-/* 
-  MatrixDisplay is presumably your custom component that nicely renders 
-  a 2D array as a table or grid. 
-*/
 import { MatrixDisplay } from "@/utils/evals/selection";
-import { Button } from "@/components/UI/button";
-
-// Example icons from lucide-react
 import { FileText, CaseLower, Pilcrow, Columns, AlignJustify } from "lucide-react";
 
 /**
- * A helper that converts a 2D array matrix into a plain string,
- * suitable for line/word/character-based comparison in a DiffViewer.
+ * A helper that converts a 2D array matrix into a plain string
+ * so we can do (line/word/char) diffs.
  */
 function matrixToString(matrix: any[]): string {
   if (!Array.isArray(matrix)) {
@@ -32,34 +25,100 @@ function matrixToString(matrix: any[]): string {
     .join("\n");
 }
 
+/**
+ * compressRowNumbers:
+ * Converts something like [2,3,4,6,7,10] -> "2-4,6-7,10"
+ */
+function compressRowNumbers(rows: number[]): string {
+  if (!rows.length) return "";
+  const sorted = [...rows].sort((a, b) => a - b);
+
+  const ranges: string[] = [];
+  let start = sorted[0];
+  let end = start;
+
+  for (let i = 1; i < sorted.length; i++) {
+    const cur = sorted[i];
+    if (cur === end + 1) {
+      end = cur;
+    } else {
+      if (start === end) {
+        ranges.push(String(start));
+      } else {
+        ranges.push(`${start}-${end}`);
+      }
+      start = cur;
+      end = cur;
+    }
+  }
+  if (start === end) {
+    ranges.push(String(start));
+  } else {
+    ranges.push(`${start}-${end}`);
+  }
+  return ranges.join(",");
+}
+
+/**
+ * groupMatricesByString:
+ * For each comparable, convert it to a string with matrixToString.
+ * Then group identical strings so they share one entry { str, rows, rawMatrix }.
+ */
+function groupMatricesByString(
+  matrices: any[],
+  rowIndexes: number[]
+): { str: string; rows: number[]; rawMatrix: any }[] {
+  const map = new Map<string, { rows: number[]; rawMatrix: any }>();
+
+  matrices.forEach((mat, i) => {
+    // Keep the original matrix so we can display it if desired
+    const str = Array.isArray(mat) ? matrixToString(mat) : "Not a valid matrix";
+    const existing = map.get(str);
+    if (existing) {
+      existing.rows.push(rowIndexes[i]);
+    } else {
+      map.set(str, {
+        rows: [rowIndexes[i]],
+        rawMatrix: mat,
+      });
+    }
+  });
+
+  return Array.from(map.entries()).map(([str, data]) => ({
+    str,
+    rows: data.rows,
+    rawMatrix: data.rawMatrix,
+  }));
+}
+
 const MatrixView: React.FC<LogComparisonProps> = ({
   value,
   comparables,
   baseLogIndex,
   comparisonLogsIndex
 }) => {
-  // Hooks must be declared unconditionally at the top:
+  // Let the user cycle diff modes and toggle split view
   type DiffMode = "lines" | "words" | "characters";
   const modes: DiffMode[] = ["lines", "words", "characters"];
-  const modeIcons = [<FileText key="lines" />, <CaseLower key="words" />, <Pilcrow key="chars" />];
+  const modeIcons = [
+    <FileText key="lines" />,
+    <CaseLower key="words" />,
+    <Pilcrow key="chars" />,
+  ];
 
-  // Let the user cycle among diff modes & toggle split/inline.
   const [modeIndex, setModeIndex] = useState(0);
+  const [splitView, setSplitView] = useState(false);
   const diffMode = modes[modeIndex];
 
-  const [splitView, setSplitView] = useState(false);
-
-  // Handlers:
   const handleCycleMode = () => setModeIndex((prev) => (prev + 1) % modes.length);
   const handleToggleSplit = () => setSplitView((prev) => !prev);
 
-  // Now do your condition-based returns:
-  // 1) If base is not a valid array:
+  // Validate the base matrix
   if (!Array.isArray(value)) {
     return <p className="text-red-500">MatrixView: not a valid matrix.</p>;
   }
 
-  // 2) SINGLE MODE (no comparables):
+  // SINGLE MODE
   if (!comparables || comparables.length === 0) {
     return (
       <div className="space-y-2">
@@ -69,18 +128,18 @@ const MatrixView: React.FC<LogComparisonProps> = ({
     );
   }
 
-  // 3) MULTI MODE
+  // MULTI MODE
   const baseStr = matrixToString(value);
 
+  // 1) Show the base matrix
   return (
     <div className="space-y-4">
-      {/* BASE matrix display */}
       <div>
         <h4 className="font-bold mb-2">Base Matrix (Row {baseLogIndex})</h4>
         <MatrixDisplay value={value} />
       </div>
 
-      {/* Minimal toolbar for changing diff mode & split/inline */}
+      {/* A small toolbar for changing diff mode & split/inline */}
       <div className="flex justify-end gap-2">
         <ActionButton
           tooltip={`Cycle diff mode (current: ${diffMode})`}
@@ -98,28 +157,36 @@ const MatrixView: React.FC<LogComparisonProps> = ({
         />
       </div>
 
-      {/* Diffs for each comparable */}
+      {/* 2) Group comparables by identical matrix strings */}
       <div className="flex flex-col space-y-4 border-l pl-4 mt-2">
-        {comparables.map((comp, idx) => {
-          const compIndex = comparisonLogsIndex[idx];
-          const compStr = Array.isArray(comp)
-            ? matrixToString(comp)
-            : "Not a valid matrix";
-
+        {groupMatricesByString(comparables, comparisonLogsIndex ?? []).map((group, idx) => {
+          const rowSet = compressRowNumbers(group.rows);
           return (
-            <div key={idx} className="diff-viewer-container">
+            <div key={idx} className="diff-viewer-container space-y-2">
               <h4 className="font-bold mb-2">
-                Diff: Row {baseLogIndex} vs. Row {compIndex}
+                Diff: Row {baseLogIndex} vs. Rows {rowSet}
               </h4>
+
+              {/* The text-based diff of base vs. comparable group */}
               <DiffViewer
                 oldValue={baseStr}
-                newValue={compStr}
+                newValue={group.str}
                 hideLineNumbers
                 hideMarkers
                 splitView={splitView}
                 showDiffOnly={false}
                 mode={diffMode}
               />
+
+              {/* Optionally display the "group" matrix. You may remove if you only want diffs. */}
+              {Array.isArray(group.rawMatrix) ? (
+                <div className="border p-2 rounded mt-2 bg-card">
+                  <p className="text-sm font-bold mb-1">Rows {rowSet} Matrix:</p>
+                  <MatrixDisplay value={group.rawMatrix} />
+                </div>
+              ) : (
+                <p className="text-sm text-destructive">Not a valid matrix</p>
+              )}
             </div>
           );
         })}
