@@ -31,7 +31,7 @@ const Card = ({
     fieldsActions,
     boundaries
 }: {
-    searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string },
+    searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string, sorting?: string },
     projects: string[] | undefined,
     project: string | undefined,
     logs: LogProps[],
@@ -49,7 +49,7 @@ const Card = ({
         delete: (name: string) => Promise<ResponseProps>
     },
     logsActions: {
-        get: (project: string, filterExpression: string | null, limit: number, offset: number) => Promise<LogsResponseProps>,
+        get: (project: string, filterExpression: string | null, sortingExpression: string | null, limit: number, offset: number) => Promise<LogsResponseProps>,
         getMetrics: (
             project: string, filterExpression: string | null, metricName: string, keyName: string
         ) => Promise<number>,

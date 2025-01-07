@@ -68,7 +68,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
         getFilteredRowModel: getFilteredRowModel(),
         getExpandedRowModel: getExpandedRowModel(),
         getGroupedRowModel: getGroupedRowModel(),
-        getSortedRowModel: getSortedRowModel(),
+        manualSorting: true,
         getRowId(originalRow, index, parent) {
             return (originalRow as LogProps).id.toString()
         },

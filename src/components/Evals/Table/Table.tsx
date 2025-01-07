@@ -78,6 +78,7 @@ const LogsTable = ({
     get: (
       project: string,
       filterExpression: string | null,
+      sortingExpression: string | null,
       limit: number,
       offset: number
     ) => Promise<LogsResponseProps>;
@@ -160,10 +161,12 @@ const LogsTable = ({
   const [pageNumber, setPageNumber] = useQueryState("page_number", {
     shallow: false,
   });
+  const [sortingStr, setSortingStr] = useQueryState("sorting", {
+    shallow: false,
+  });
 
   const [columnOrderStr, setColumnOrderStr] = useQueryState("column_order");
   const [hiddenColumns, setHiddenColumns] = useQueryState("hidden_columns");
-  const [sortingStr, setSortingStr] = useQueryState("sorting");
   const [groupingStr, setGroupingStr] = useQueryState("grouping");
   const [columnsPinLeft, setColumnsPinLeft] = useQueryState("columns_pin_left");
   const [columnsPinRight, setColumnsPinRight] = useQueryState("columns_pin_right");
@@ -192,9 +195,8 @@ const LogsTable = ({
         return { id, desc: desc === "true" };
       })
     : [];
-  const setSorting = (s: ColumnSort[]) =>
+  const setSorting = (s: ColumnSort[]) => 
     setSortingStr(s.map((item) => `${item.id}@${item.desc}`).join(","));
-
   const grouping = groupingStr ? groupingStr.split(",") : [];
   const setGrouping = (g: string[]) =>
     setGroupingStr(g.length ? g.join(",") : null);
@@ -248,14 +250,16 @@ const LogsTable = ({
   const prevPageRef = useRef(pageNumber);
   const prevFiltersRef = useRef(logsFiltersQuery);
   const prevCommonFilterRef = useRef(commonFilter);
+  const prevSortingRef = useRef(sortingStr);
 
   // Prune base/comparison IDs if user REALLY changes page or filters
   useEffect(() => {
     const pageChanged = prevPageRef.current !== pageNumber;
     const filtersChanged = prevFiltersRef.current !== logsFiltersQuery;
     const commonChanged = prevCommonFilterRef.current !== commonFilter;
+    const sortingChanged = prevSortingRef.current !== sortingStr;
 
-    if (pageChanged || filtersChanged || commonChanged) {
+    if (pageChanged || filtersChanged || commonChanged || sortingChanged) {
       // If base no longer valid, remove it
       if (baseLog && !logs.some((l) => l.id === baseLog.id)) {
         setSelectedCells(cells => cells.slice(1));
@@ -275,11 +279,13 @@ const LogsTable = ({
     prevPageRef.current = pageNumber;
     prevFiltersRef.current = logsFiltersQuery;
     prevCommonFilterRef.current = commonFilter;
+    prevSortingRef.current = sortingStr
   }, [
     logs,
     pageNumber,
     logsFiltersQuery,
     commonFilter,
+    sortingStr,
     selectedCells
   ]);
 

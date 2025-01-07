@@ -66,12 +66,13 @@ export const deleteProject = async (apiKey: string) => {
 
 // get logs
 export const getLogs = async (apiKey: string) => {
-    return async (project: string, filterExpression: string | null, limit: number | null, offset: number | null) => {
+    return async (project: string, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number | null) => {
         "use server";
 
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/logs?project=${project}`
             + (filterExpression ? `&filter_expr=${filterExpression}` : "")
+            + (sortingExpression ? `&sorting=${sortingExpression.replace("{", "%7B").replace(":", "%3A%20").replace("}", "%7D")}` : "")
             + (limit ? `&limit=${limit}` : "")
             + (offset ? `&offset=${offset}` : ""),
             { method: "GET", headers: { apiKey: apiKey } }

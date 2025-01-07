@@ -6,7 +6,7 @@ import { TileProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 
 const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions, interfaceActions }: {
-    searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string },
+    searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string, sorting?: string },
     projectsActions: {
         get: () => Promise<string[]>,
         create: (name: string) => Promise<ResponseProps>,
@@ -14,7 +14,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
         delete: (name: string) => Promise<ResponseProps>
     },
     logsActions: {
-        get: (project: string, filterExpression: string | null, limit: number, offset: number) => Promise<LogsResponseProps>,
+        get: (project: string, filterExpression: string | null, sortingExpression: string | null, limit: number, offset: number) => Promise<LogsResponseProps>,
         getMetrics: (
             project: string, filterExpression: string | null, metricName: string, keyName: string
         ) => Promise<number>,
@@ -64,13 +64,27 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
     let filterExpression = null
     if (columnFiltersExpression) filterExpression = columnFiltersExpression
     if (commonFiltersExpression) filterExpression = filterExpression ? `${commonFiltersExpression} and ${filterExpression}` : commonFiltersExpression;
+    
+    /* Handle sorting */
+	const sortingObject = searchParams.sorting 
+    ? Object.fromEntries(
+        searchParams.sorting
+                    .split(",")
+                    .map(value => [
+                        value.split("@")[0], 
+                        value.split("@")[1].replace("true", "descending").replace("false", "ascending")
+                    ])
+        ) 
+    : ""
+    const sortingExpression = sortingObject ? JSON.stringify(sortingObject) : null
+
     /* Get logs, handle pagination and unpack log data */
     let logsData: LogsResponseProps = { params: {}, logs: [], count: 0 };
     const limit = 16;
     const offset = (searchParams.page_number ? parseInt(searchParams.page_number) : 0) * limit;
     let totalPages = 1;
     if (project) {
-        logsData = await logsActions.get(project, filterExpression, limit, offset)
+        logsData = await logsActions.get(project, filterExpression, sortingExpression, limit, offset)
         totalPages = Math.ceil(logsData.count / limit);
     }
     const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData, fields);

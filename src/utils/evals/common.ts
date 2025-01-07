@@ -75,25 +75,15 @@ export function computeStatistic(statistic: string, data: number[]): string {
 /* 
     Sort logs by timestamp and separate logs from parameters.
 */
-export function extractLogsData(logsResponse: LogsResponseProps, logColumns: LogFieldsResponseProps) {
+export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFieldsResponseProps) {
   
     const params = logsResponse.params;
-    const rawLogs = logsResponse.logs;
-    const logs = rawLogs.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
-    const entriesProperties = (
-      logs.length
-        ? Array.from(new Set(rawLogs.flatMap((log) => Object.keys(log.entries))))
-        : "entries" in logColumns
-        ? Object.keys(logColumns.entries)
-        : []
-    );
-    const paramsProperties = (
-      logs.length
-        ? Array.from(new Set(rawLogs.flatMap((log) => Object.keys(log.params!))))
-        : "params" in logColumns
-          ? Object.keys(logColumns.params)
-          : []
-    );
-  
+    const logs = logsResponse.logs;
+    const properties = Object.keys(fields)
+    const unsortedEntriesProperties = Array.from(new Set(logs.flatMap((log) => Object.keys(log.entries))))
+    const entriesProperties = properties.filter(property => unsortedEntriesProperties.includes(property));
+    const unsortedParamsProperties = Object.keys(params)
+    const paramsProperties = properties.filter(property => unsortedParamsProperties.includes(property));
+
     return { entriesProperties, paramsProperties, logs, params };
 }
