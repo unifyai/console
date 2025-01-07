@@ -20,6 +20,7 @@ const CardGrid = ({
     projects,
     project,
     logs,
+    fullLogs,
     params,
     entriesProperties,
     paramsProperties,
@@ -40,6 +41,7 @@ const CardGrid = ({
     projects: string[] | undefined,
     project: string | undefined,
     logs: LogProps[],
+    fullLogs: LogProps[],
     params: LogItemProps,
     entriesProperties: string[],
     paramsProperties: string[],
@@ -57,7 +59,7 @@ const CardGrid = ({
         delete: (name: string) => Promise<ResponseProps>
     }
     logsActions: {
-        get: (project: string, filterExpression: string | null, sortingExpression: string | null, limit: number, offset: number) => Promise<LogsResponseProps>,
+        get: (project: string, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
         getMetrics: (
             project: string, filterExpression: string | null, metricName: string, keyName: string
         ) => Promise<number>,
@@ -172,6 +174,7 @@ const CardGrid = ({
                             projects={projects}
                             project={project}
                             logs={logs}
+                            fullLogs={fullLogs}
                             params={params}
                             entriesProperties={entriesProperties}
                             paramsProperties={paramsProperties}

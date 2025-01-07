@@ -17,7 +17,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 		rename: (name: string, newName: string) => Promise<ResponseProps>,
 		delete: (name: string) => Promise<ResponseProps>},
 	logsActions: {
-		get: (project: string, filterExpression: string | null, sortingExpression: string | null, limit: number, offset: number) => Promise<LogsResponseProps>,
+		get: (project: string, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
 		getMetrics: (
 			project: string, filterExpression: string | null, metricName: string, keyName: string
 		) => Promise<number>,
@@ -68,11 +68,13 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 
 	/* Get logs, handle pagination and unpack log data */
 	let logsData: LogsResponseProps = { params: {}, logs: [], count: 0 };
+	let fullData: LogsResponseProps = { params: {}, logs: [], count: 0 };
 	const limit = 16;
 	const offset = (searchParams.page_number ? parseInt(searchParams.page_number) : 0) * limit;
 	let totalPages = 1;
 	if (project) {
 		logsData = await logsActions.get(project, filterExpression, sortingExpression, limit, offset)
+		fullData = await logsActions.get(project, null, null, null, 0)
 		totalPages = Math.ceil(logsData.count / limit);
 	}
 	const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData, fields);
@@ -129,6 +131,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 							project={project}
 							params={params}
 							logs={logs}
+							fullLogs={fullData.logs}
 						/>
 					</Suspense>
 				}
@@ -138,6 +141,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 							project={project}
 							params={params}
 							logs={logs}
+							fullLogs={fullData.logs}
 						/>
 					</Suspense>
 				}

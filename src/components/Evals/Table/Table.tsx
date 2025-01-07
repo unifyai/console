@@ -79,7 +79,7 @@ const LogsTable = ({
       project: string,
       filterExpression: string | null,
       sortingExpression: string | null,
-      limit: number,
+      limit: number | null,
       offset: number
     ) => Promise<LogsResponseProps>;
     getMetrics: (

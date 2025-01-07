@@ -5,10 +5,11 @@ import Selection from "./Selection/Selection";
 import { LogProps, LogItemProps } from "@/types/evals/logs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/UI/tabs"
 
-const Details = ({ params, logs}: {
+const Details = ({ params, logs, fullLogs}: {
     project: string | undefined,
     params: LogItemProps,
     logs: LogProps[],
+    fullLogs: LogProps[]
 }) => {
     return (
         <Tabs defaultValue="View" className="w-full h-full tutorial-details-panel">
@@ -34,7 +35,7 @@ const Details = ({ params, logs}: {
                 <Selection params={params} logs={logs} />
             </TabsContent>
             <TabsContent value="Plot" className="w-full h-[calc(100%-50px)] tutorial-plot-pane">
-                <LogsPlot logs={logs} />
+                <LogsPlot logs={fullLogs} />
             </TabsContent>
         </Tabs>
     );
