@@ -8,7 +8,7 @@ export async function GET(
 ) {
     const url = new URL(request.url);
     return await fetch(
-        `${baseUrl}/logs/metric/${params.metricName}/${params.keyName}${url.search}`,
+        `${baseUrl}/logs/metric/${params.metricName}${url.search}`,
         {
             method: "GET",
             headers: {
