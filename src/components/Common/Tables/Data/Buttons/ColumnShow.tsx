@@ -1,4 +1,5 @@
 import ActionButton from "@/components/Common/Buttons/Action";
+import BaseButton from "@/components/Common/Buttons/Base";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuGroup } from "@/components/UI/dropdown-menu";
 import { Table, Header } from "@tanstack/react-table";
@@ -25,7 +26,6 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility }: {
     // Sub components
     const columnButton = <ActionButton tooltip="New column" icon={<CirclePlus />} />
     const hidden =  <DropdownMenuGroup>
-                        <DropdownMenuLabel>Hidden Columns</DropdownMenuLabel>
                         {hiddenColumns.map((column, index) =>
                             <DropdownMenuItem key={index} onClick={() => {
                                 displayColumn(column);
@@ -33,13 +33,11 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility }: {
                                 {column}
                             </DropdownMenuItem>
                         )}
-                        <DropdownMenuSeparator/>
                     </DropdownMenuGroup>
-    const derivedButton = <ActionButton className="h-4 pt-2" tooltip={"Create new column from operations"} text="Create column" icon={<Plus />} />
+    const derivedButton = <BaseButton variant="ghost" icon={<Plus/>} text={"Create column"} className={"h-4 pt-2"}/>
     const derived = <DropdownMenuGroup>
-                        <DropdownMenuLabel>Derived Column</DropdownMenuLabel>
                         <DropdownMenuItem className="flex flex-row justify-between">
-                            <BaseDropdown button={derivedButton} label="Create new column">
+                            <BaseDropdown button={derivedButton}>
                                 <ColumnCreate table={table} header={header}/>
                             </BaseDropdown>
                         </DropdownMenuItem>
@@ -47,7 +45,7 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility }: {
 
     return (
         <div className="absolute top-5 -right-4 z-10 hover:opacity-100 opacity-0 transition-all">
-            <BaseDropdown button={columnButton} label="Add a column">
+            <BaseDropdown button={columnButton}>
                 {hiddenColumns.length > 0 && hidden}
                 {header.column.columnDef.meta?.columnType === "entries" && derived}
             </BaseDropdown>
