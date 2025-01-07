@@ -86,7 +86,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
     let totalPages = 1;
     if (project) {
         logsData = await logsActions.get(project, filterExpression, sortingExpression, limit, offset)
-        fullData = await logsActions.get(project, null, null, null, 0)
+        fullData = await logsActions.get(project, filterExpression, null, null, 0)
         totalPages = Math.ceil(logsData.count / limit);
     }
     const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData, fields);
