@@ -20,7 +20,7 @@ const TraceView: React.FC<LogComparisonProps> = ({
 
   // Single trace
   if (!comparables || comparables.length === 0) {
-    return <SingleTraceView spans={value as Span[]} />
+    return <SingleTraceView spans={value as Span[]} baseLogIndex={baseLogIndex} />
   }
 
   // Multi-trace
