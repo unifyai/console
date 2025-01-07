@@ -62,6 +62,7 @@ const DataTableCell = ({ cell, row, selectedCells, isCellSelected, cellSelection
         maxWidth: `${Math.round(cell.column.getSize())}px`,
         zIndex: isDragging || isPinned ? 1 : 0,
         borderRight: "1px solid var(--muted)",
+        outline: "none",
         color: cell.column.id != "RowNumbering"
           ? isCellSelected(cell) ? "var(--primary-foreground)" : ""
           : isSelectableCell(cell) && isAllRowSelected(cell) ? "var(--primary-foreground)" : "",
@@ -116,7 +117,7 @@ const DataTableCell = ({ cell, row, selectedCells, isCellSelected, cellSelection
 
           {ExtraCellContent && isSelectableCell(cell) && ExtraCellContent(cell, isCellExpanded, setExpandedCells)}
 
-          {selectedCells.indexOf(cell.id) === selectedCells.length - 1 &&
+          {selectedCells.length > 0 && selectedCells.indexOf(cell.id) === selectedCells.length - 1 &&
             <CornerDownLeft className="absolute z-20 text-white bottom-1 right-0.5 w-5 h-3 font-bold"/>
           }
 
