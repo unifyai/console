@@ -1,12 +1,12 @@
 import { ResponseProps } from "@/types/common";
-import CardGrid from "@/components/Evals/CardGrid";
+import CardGrid from "@/components/Evals1/CardGrid";
 import { LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { extractLogsData } from "@/utils/evals/common";
-import { TileProps } from "@/types/evals/grid";
+import { TableDataProps, TileProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 
-const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions, interfaceActions }: {
-    searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string, sorting?: string },
+const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, interfaceActions }: {
+    temporary: boolean,
     projectsActions: {
         get: () => Promise<string[]>,
         create: (name: string) => Promise<ResponseProps>,
@@ -25,117 +25,174 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
         delete: (fields: LogFieldsProps) => Promise<ResponseProps>
     },
     interfaceActions: {
-        get: () => Promise<{ items: TileProps[], new_counter: number } | null>,
-        create: (items: TileProps[], new_counter: number) => Promise<ResponseProps>,
-        update: (items: TileProps[], new_counter: number) => Promise<ResponseProps>,
+        get: (temporary: boolean) => Promise<{ items: TileProps[], new_counter: number, project: string | null } | null>,
+        create: (items: TileProps[], new_counter: number, project: string | null, temporary: boolean) => Promise<ResponseProps>,
+        update: (items: TileProps[], new_counter: number, project: string | null, temporary: boolean) => Promise<ResponseProps>,
     }
 }) => {
-    // get projects
-    const projects: string[] = await projectsActions.get();
-    const project: string | undefined = projects.find(project => project == searchParams.project);
-
-    // get interface
-    let interface_: { items: TileProps[], new_counter: number } | null = await interfaceActions.get();
-    let interfaceCreated = true;
-    if (!interface_) {
-        interfaceCreated = false;
-        interface_ = {
-            items: [{ i: "n0", x: 0, y: 0, w: 3, h: 3, tab: undefined, moved: false, static: false }],
-            new_counter: 1
+    // Get interface
+    let interface_: { items: TileProps[], new_counter: number, project: string | null } | null = await interfaceActions.get(false);
+    let interfaceTemp_: { items: TileProps[], new_counter: number, project: string | null } | null = await interfaceActions.get(true);
+    let interfaceCreated = temporary ? Boolean(interfaceTemp_) : Boolean(interface_);
+    let currentInterface = temporary ? interfaceTemp_ : interface_;
+    if (!currentInterface) {
+        currentInterface = {
+            items: [{ i: "tile-0", x: 0, y: 0, w: 3, h: 3, tab: undefined, moved: false, static: false }],
+            new_counter: 1,
+            project: null
         };
     }
-    let fields: LogFieldsResponseProps = {}
-    if (project) {
-        fields = await fieldsActions.get(project)
-    }
+
+    // Get projects
+    const projects: string[] = await projectsActions.get();
+    const project = currentInterface.project || undefined;
+
+    // Get fields
+    let fields: LogFieldsResponseProps = {};
+    if (project)
+        fields = await fieldsActions.get(project);
 
     /* Handle filters */
     // 1- Convert filters search param value to a nested dictionary representation of column, function and values
     // 2- Join column filters with the corresponding filter functions and values using "and"
     // 3- Join common filters with the "in" filter function and common filter value using "or"
     // 4- Join common and column filters into a single filter expression
-    const logsFilters: { [column: string]: { [fn: string]: string } } = searchParamToFilters(searchParams.filters)
-    const columnFiltersExpression = filtersToExpression(logsFilters)
-    const commonFiltersExpression = searchParams.common_filter && fields
-        ? Object.keys(fields)
-            .map(column => `${searchParams.common_filter} in ${column}`)
-            .join(" or ")
-        : ""
-    let filterExpression = null
-    if (columnFiltersExpression) filterExpression = columnFiltersExpression
-    if (commonFiltersExpression) filterExpression = filterExpression ? `${commonFiltersExpression} and ${filterExpression}` : commonFiltersExpression;
-    
-    /* Handle sorting */
-	const sortingObject = searchParams.sorting 
-    ? Object.fromEntries(
-        searchParams.sorting
-                    .split(",")
-                    .map(value => [
-                        value.split("@")[0], 
-                        value.split("@")[1].replace("true", "descending").replace("false", "ascending")
-                    ])
-        ) 
-    : ""
-    const sortingExpression = sortingObject ? JSON.stringify(sortingObject) : null
-
-    /* Get logs, handle pagination and unpack log data */
-    let logsData: LogsResponseProps = { params: {}, logs: [], count: 0 };
-    let fullData: LogsResponseProps = { params: {}, logs: [], count: 0 };
-    const limit = 16;
-    const offset = (searchParams.page_number ? parseInt(searchParams.page_number) : 0) * limit;
-    let totalPages = 1;
-    if (project) {
-        logsData = await logsActions.get(project, filterExpression, sortingExpression, limit, offset)
-        fullData = await logsActions.get(project, filterExpression, null, null, 0)
-        totalPages = Math.ceil(logsData.count / limit);
-    }
-    const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData, fields);
-
-    /* Handle column metrics */
-    // Getting metrics for filtered logs, and min / max values for full logs.
-    // Min / max bounds are used to set the filtering range for numeric columns
-    const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
-    const getColumnMetrics = async (expression: string | null, metric: string | undefined) => {
-        const metricValues = await Promise.all(
-            columns.map(async (key) => logsActions.getMetrics(
-                project!, expression, metric ? metric : "mean", key
+    let tableItems = currentInterface.items.filter(item => item.tab?.includes("Table"));
+    const logsFilters: { [column: string]: { [fn: string]: string } }[] = tableItems.map(
+        item => searchParamToFilters(item.filters)
+    );
+    const columnFiltersExpressions = logsFilters.map(filter => filtersToExpression(filter));
+    const commonFiltersExpressions = tableItems.map(
+        item => item.common_filter && fields
+            ? Object.keys(fields)
+                .map(column => `${item.common_filter} in ${column}`)
+                .join(" or ")
+            : ""
+    );
+    let filterExpressions: string[] | null = null;
+    if (columnFiltersExpressions) filterExpressions = columnFiltersExpressions;
+    if (commonFiltersExpressions) {
+        filterExpressions = commonFiltersExpressions.map(
+            (commonFiltersExpression, idx) => (
+                filterExpressions && filterExpressions[idx]
+                    ? `${commonFiltersExpression} and ${filterExpressions[idx]}`
+                    : commonFiltersExpression
             )
-            ));
-        const metrics: { [key: string]: number } = columns.length
-            ? columns
-                .map((key, index) => ({ [key]: metricValues[index] }))
-                .reduce((acc, curr) => ({ ...acc, ...curr }))
-            : {};
-        return metrics
+        );
     }
-    const metrics = await getColumnMetrics(filterExpression, searchParams.metric)
-    const [minimums, maximums] = await Promise.all([
-        getColumnMetrics(null, "min"),
-        getColumnMetrics(null, "max")
-    ])
-    const boundaries = { minimums, maximums }
+
+    /* Handle sorting */
+	const sortingObjects = tableItems.map(item => item.sorting ? Object.fromEntries(
+        item.sorting.split(",").map(value => [
+            value.split("@")[0], 
+            value.split("@")[1].replace("true", "descending").replace("false", "ascending")
+        ])) 
+    : "");
+    const sortingExpressions = sortingObjects.map(
+        sortingObject => sortingObject ? JSON.stringify(sortingObject) : null
+    );
+
+    // Get logs for all tables
+    let allLogsData: {
+        [key: string]: { logsData: LogsResponseProps, fullData: LogsResponseProps, totalPages: number }
+    } = tableItems.reduce(
+        (acc, item) => ({ ...acc, [item.i]: {
+            logsData: { params: {}, logs: [], count: 0 },
+            totalPages: 0,
+        } }), {}
+    );
+    const limit = 16;
+    if (project) {
+        allLogsData = (await Promise.all(
+            tableItems.map(async (item, idx) => {
+                const offset = (item.page_number ? parseInt(item.page_number) : 0) * limit;
+                const filterExpression = filterExpressions ? filterExpressions[idx] : null;
+                const sortingExpression = sortingExpressions[idx];
+                const logsData = await logsActions.get(project, filterExpression, sortingExpression, limit, offset);
+                const fullData = await logsActions.get(project, filterExpression, null, null, 0);
+                const totalPages = Math.ceil(logsData.count / limit);
+                return { [item.i]: { logsData, fullData, totalPages } };
+            })
+        )).reduce((acc, curr) => ({ ...acc, ...curr }), {});
+    }
+
+    const tableData: TableDataProps = (await Promise.all(
+        tableItems.map(async (item, idx) => {
+            const logsData = allLogsData[item.i].logsData;
+            const fullData = allLogsData[item.i].fullData;
+            const totalPages = allLogsData[item.i].totalPages;
+
+            // Unpack log data
+            const { entriesProperties, paramsProperties, logs, params } = extractLogsData(
+                logsData, fields
+            );
+
+            /* Handle column metrics */
+            // Getting metrics for filtered logs, and min / max values for full logs.
+            // Min / max bounds are used to set the filtering range for numeric columns
+            const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
+            const getColumnMetrics = async (expression: string | null, metric: string | undefined) => {
+                const metricValues = await Promise.all(
+                    columns.map(async (key) => logsActions.getMetrics(
+                        project!, expression, metric ? metric : "mean", key
+                    )
+                    ));
+                const metrics: { [key: string]: number } = columns.length
+                    ? columns
+                        .map((key, index) => ({ [key]: metricValues[index] }))
+                        .reduce((acc, curr) => ({ ...acc, ...curr }))
+                    : {};
+                return metrics
+            }
+            const metrics = await getColumnMetrics(
+                filterExpressions ? filterExpressions[idx] : null,
+                item.metric
+            );
+            const [minimums, maximums] = await Promise.all([
+                getColumnMetrics(null, "min"),
+                getColumnMetrics(null, "max")
+            ]);
+            const boundaries = { minimums, maximums };
+
+            // Get other attributes shared across tables and corresponding views
+            const hiddenColumns = item.hidden_columns;
+            const columnOrdering = item.column_order;
+            const selection = item.selected;
+            const baseIndex = item.base_index;
+            const fullLogs = fullData?.logs || [];
+
+            return {
+                [item.i]: {
+                    hiddenColumns,
+                    columnOrdering,
+                    selection,
+                    baseIndex, 
+                    logsData,
+                    fullLogs,
+                    totalPages,
+                    entriesProperties,
+                    paramsProperties,
+                    logs,
+                    params,
+                    metrics,
+                    boundaries,
+                }
+            }
+    }))).reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
     return <CardGrid
-        searchParams={searchParams}
         projects={projects}
-        project={project}
-        logs={logs}
-        fullLogs={fullData.logs}
+        project_={project}
+        tableData={tableData}
         columnTypes={fields}
-        entriesProperties={entriesProperties}
-        paramsProperties={paramsProperties}
-        metrics={metrics}
-        logsData={logsData}
-        totalPages={totalPages}
-        items_={interface_.items}
-        newCounter_={interface_.new_counter}
+        items_={currentInterface.items}
+        newCounter_={currentInterface.new_counter}
         interfaceCreated={interfaceCreated}
+        tempInterfaceCreated={Boolean(interfaceTemp_)}
         projectActions={projectsActions}
         logsActions={logsActions}
         fieldsActions={fieldsActions}
         interfaceActions={interfaceActions}
-        params={params}
-        boundaries={boundaries}
     />;
 };
 

@@ -19,17 +19,7 @@ import {
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
 
-const Evals1Page = async (
-    { searchParams }: {
-        searchParams: {
-            project?: string,
-            page_number?: string,
-            metric?: string,
-            filters?: string,
-            common_filter?: string
-        }
-    }
-) => {
+const Evals1Page = async ({ searchParams }: { searchParams: { temporary?: string } }) => {
     // get user and api key
     const user = await getCurrentUser();
     if (!user) {
@@ -66,7 +56,7 @@ const Evals1Page = async (
     return (
         <Suspense fallback={<SkeletonLoader />}>
             <Main
-                searchParams={searchParams}
+                temporary={Boolean(searchParams.temporary)}
                 projectsActions={projectsActions}
                 logsActions={logsActions}
                 fieldsActions={fieldsActions}

@@ -12,8 +12,8 @@ import {
 
 const PageController = ({ totalPages, pageNumber, setPageNumber }: {
     totalPages: number,
-    pageNumber: string | null,
-    setPageNumber: (pageNumber: string | null) => void
+    pageNumber: string | undefined,
+    setPageNumber: (pageNumber: string | undefined) => void
 }) => {
     const pageNum = parseInt(pageNumber || "0");
     totalPages = totalPages != Math.floor(totalPages) ? Math.floor(totalPages) + 1 : totalPages;

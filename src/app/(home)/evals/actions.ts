@@ -182,7 +182,7 @@ export const deleteLogFields = async (apiKey: string) => {
 
 // create interface
 export const createInterface = async (apiKey: string) => {
-    return async (items: TileProps[], new_counter: number) => {
+    return async (items: TileProps[], new_counter: number, project: string | null, temporary: boolean = false) => {
         "use server";
 
         const response = await fetch(
@@ -190,7 +190,7 @@ export const createInterface = async (apiKey: string) => {
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ items, new_counter })
+                body: JSON.stringify({ items, new_counter, project, temporary })
             }
         );
         return await response.json();
@@ -199,11 +199,11 @@ export const createInterface = async (apiKey: string) => {
 
 // get interface
 export const getInterface = async (apiKey: string) => {
-    return async () => {
+    return async (temporary: boolean = false) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interface`,
+            `${process.env.NEXTAUTH_URL}/api/interface?temporary=${temporary}`,
             { method: "GET", headers: { apiKey: apiKey } }
         );
         if (!response.ok)
@@ -214,7 +214,7 @@ export const getInterface = async (apiKey: string) => {
 
 // update interface
 export const updateInterface = async (apiKey: string) => {
-    return async (items: TileProps[], new_counter: number) => {
+    return async (items: TileProps[], new_counter: number, project: string | null, temporary: boolean = false) => {
         "use server";
 
         const response = await fetch(
@@ -222,7 +222,7 @@ export const updateInterface = async (apiKey: string) => {
             {
                 method: "PUT",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ items, new_counter })
+                body: JSON.stringify({ items, new_counter, project, temporary })
             },
         );
         return await response.json();

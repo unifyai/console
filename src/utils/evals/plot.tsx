@@ -233,9 +233,9 @@ export const drawBarChart = (
   dimensions: {width: number, height: number},
   margins: {[key: string]: number},
   axisPadding: number,
-  selectedXAxisProperty: string | null,
-  selectedYAxisProperty: string | null,
-  isAggregated: string | null,
+  selectedXAxisProperty: string | undefined,
+  selectedYAxisProperty: string | undefined,
+  isAggregated: string | undefined,
   logs: LogProps[],
   axisProperties: string[]
 ) => {
@@ -372,9 +372,9 @@ export const drawLineChart = (
   dimensions: {width: number, height: number},
   margins: {[key: string]: number},
   axisPadding: number,
-  selectedXAxisProperty: string | null,
-  selectedYAxisProperty: string | null,
-  groupBy: string | null,
+  selectedXAxisProperty: string | undefined,
+  selectedYAxisProperty: string | undefined,
+  groupBy: string | undefined,
   logs: LogProps[],
   axisProperties: string[]
 ) => {
@@ -529,9 +529,9 @@ export const drawScatterPlot = (
   dimensions: {width: number, height: number},
   margins: {[key: string]: number},
   axisPadding: number,
-  selectedXAxisProperty: string | null,
-  selectedYAxisProperty: string | null,
-  groupBy: string | null,
+  selectedXAxisProperty: string | undefined,
+  selectedYAxisProperty: string | undefined,
+  groupBy: string | undefined,
   logs: LogProps[],
   axisProperties: string[]
 ) => {
