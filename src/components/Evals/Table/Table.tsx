@@ -158,9 +158,10 @@ const LogsTable = ({
   const [commonFilter, setCommonFilter] = useQueryState("common_filter", {
     shallow: false,
   });
-  const [pageNumber, setPageNumber] = useQueryState("page_number", {
+  const [pageNumber, setPageNumber_] = useQueryState("page_number", {
     shallow: false,
   });
+  const setPageNumber = (pageNumber: string | undefined) => setPageNumber_(pageNumber || null);
   const [sortingStr, setSortingStr] = useQueryState("sorting", {
     shallow: false,
   });
@@ -298,7 +299,7 @@ const LogsTable = ({
     setColumnsPinLeft(null);
     setColumnsPinRight(null);
     setMetric(null);
-    setPageNumber(null);
+    setPageNumber_(null);
   };
 
   // Build directory data
@@ -338,7 +339,7 @@ const LogsTable = ({
         <div className="w-fit scale-90">
           <PageController
             totalPages={totalPages}
-            pageNumber={pageNumber}
+            pageNumber={pageNumber || undefined}
             setPageNumber={setPageNumber}
           />
         </div>
