@@ -72,7 +72,7 @@ const LogsPlot = ({ logs }: {
                     axisPadding, 
                     selectedXAxisProperty, 
                     selectedYAxisProperty, 
-                    groupByProperty, 
+                    groupByProperty || undefined,
                     logs, 
                     numericAxisProperties
                 );
@@ -85,7 +85,7 @@ const LogsPlot = ({ logs }: {
                     axisPadding, 
                     selectedXAxisProperty, 
                     selectedYAxisProperty, 
-                    isAggregated,
+                    isAggregated || undefined,
                     logs, 
                     axisProperties
                 );
@@ -98,7 +98,7 @@ const LogsPlot = ({ logs }: {
                     axisPadding, 
                     selectedXAxisProperty, 
                     selectedYAxisProperty, 
-                    groupByProperty, 
+                    groupByProperty || undefined,
                     logs, 
                     numericAxisProperties
                 );
