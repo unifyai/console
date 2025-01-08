@@ -200,7 +200,15 @@ export const nestedColumns = (
   return nodes.map(node => {
       if (node.nodes) {
           const columns = nestedColumns(node.nodes, type, data, false, dataTypes);
-          return {id: node.path, header: node.name, columns: columns};
+          return {
+              id: node.path, 
+              header: node.name, 
+              columns: columns,
+              meta: {
+                  columnType: type,
+                  enableRowSpan: enableRowSpan
+              }
+          };
       }
       return {
           id: node.path,
