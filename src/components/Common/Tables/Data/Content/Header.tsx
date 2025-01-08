@@ -13,7 +13,17 @@ import ColumnHide from "../Buttons/ColumnHide";
 import ColumnShow from "../Buttons/ColumnShow";
 import { getCellsFromHeader, getSelectableTableCells } from "@/hooks/Logs/useCellSelection";
 
-const DataTableHeader = ({table, header, isCellSelected, cellSelection, columnVisibility, setColumnVisibility, ColumnFilters}: {
+const DataTableHeader = ({
+  table,
+  header,
+  isCellSelected,
+  cellSelection,
+  columnVisibility,
+  setColumnVisibility,
+  grouping,
+  setGrouping,
+  ColumnFilters
+}: {
   table: Table<any | unknown>,
   header: Header<any, unknown>,
   isCellSelected: (cell: Cell<any, any>) => boolean,
@@ -25,6 +35,8 @@ const DataTableHeader = ({table, header, isCellSelected, cellSelection, columnVi
   },
   columnVisibility: { [key: string]: boolean },
   setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void,
+  grouping: string[],
+  setGrouping: (grouping: string[]) => void,
   ColumnFilters?: (column: Column<any | unknown>) => ReactNode;
 }) => {
   
@@ -62,6 +74,8 @@ const DataTableHeader = ({table, header, isCellSelected, cellSelection, columnVi
       : isAllTableSelected() ? `var(--primary)` : hovered ? "var(--muted)" : "var(--background)"
   };
   
+  const isParentColumn = header.subHeaders.length > 0;
+  
   return (
     <TableHead 
       colSpan={header.colSpan} 
@@ -98,17 +112,17 @@ const DataTableHeader = ({table, header, isCellSelected, cellSelection, columnVi
         </div>
 
         {/* Column actions */}
-        {!header.isPlaceholder && header.subHeaders.length === 0 && header.column.columnDef.meta?.columnType != "util" &&
+        {!header.isPlaceholder && header.column.columnDef.meta?.columnType != "util" &&
           <div className="items-center">
-            <ColumnGroupBy column={header.column}/>
-            <ColumnSort column={header.column}/>
+            <ColumnGroupBy table={table} column={header.column} grouping={grouping} setGrouping={setGrouping}/>
+            {!isParentColumn && <ColumnSort column={header.column}/>}
             {ColumnFilters && ColumnFilters(header.column)}
-            <ColumnHide column={header.column}/>
+            <ColumnHide table={table} column={header.column} />
           </div>
         }
 
         {/* New columns */}
-        {!header.isPlaceholder && header.subHeaders.length === 0 && header.column.columnDef.meta?.columnType != "util" &&
+        {!header.isPlaceholder && header.column.columnDef.meta?.columnType != "util" &&
           <ColumnShow table={table} header={header} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility}  />
         }
 
