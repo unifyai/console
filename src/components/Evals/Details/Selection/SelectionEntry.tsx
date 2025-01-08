@@ -19,7 +19,7 @@ import {
   isList,
   isMatrix,
   isImage,
-  isSpan
+  isTrace
 } from "@/utils/evals/selection";
 import {
   Waypoints,
@@ -29,7 +29,6 @@ import {
   Grid,
   Text
 } from "lucide-react";
-import { Span } from "@/types/evals/traces";
 
 type SelectionEntryProps = {
   property: string;
@@ -39,12 +38,6 @@ type SelectionEntryProps = {
   comparisonLogs?: LogProps[];
   comparisonLogsIndex: number[];
 };
-
-function isTrace(x: any): x is Span | Span[] {
-  if (!x) return false;
-  if (isSpan(x)) return true;
-  return Array.isArray(x) && x.every((item) => isSpan(item));
-}
 
 function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix" | "string" {
   if (isTrace(value)) return "trace";
@@ -84,9 +77,8 @@ function getSelectionView(
   baseLogIndex: number,
   comparisonLogsIndex: number[]
 ) {
-  // If it's a trace
+  // Spans or array of spans
   if (isTrace(value)) {
-    // Wrap single or multi traces
     const baseArr = Array.isArray(value) ? value : [value];
     const compArrs = comparables.map((c) => (Array.isArray(c) ? c : c ? [c] : []));
     return (

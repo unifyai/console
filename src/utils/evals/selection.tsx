@@ -59,18 +59,34 @@ export const isImage = (value: any) => {
 }
 
 /**
-   * Quick type‐guard to see if an unknown object looks like a Span.
-   * Returns true if the shape seems correct.
-   */
-  export function isSpan(obj: any): obj is Span {
-    return (
-      obj &&
-      typeof obj === "object" &&
-      typeof obj.id === "string" &&
-      typeof obj.span_name === "string" &&
-      Array.isArray(obj.child_spans)
-    );
+ * Quick type‐guard to see if an unknown object looks like a Span.
+ * Returns true if the shape seems correct.
+ */
+export function isSpan(obj: any): obj is Span {
+  return (
+    obj &&
+    typeof obj === "object" &&
+    typeof obj.id === "string" &&
+    typeof obj.span_name === "string" &&
+    Array.isArray(obj.child_spans)
+  );
+}
+
+/**
+ * Checks if a value is a single Span or an array of Spans (i.e., a trace).
+ * Returns true if the value is either a single Span or an array of Spans,
+ * and false otherwise.
+ */
+export function isTrace(x: any): x is Span | Span[] {
+  if (!x) return false;
+  // If it's just one Span
+  if (isSpan(x)) return true;
+  // If it's an array of spans
+  if (Array.isArray(x) && x.every(item => isSpan(item))) {
+    return true;
   }
+  return false;
+}
 
 /**
   * Given a list of keys, returns the subset of a dictionary 
