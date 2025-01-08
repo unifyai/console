@@ -118,7 +118,7 @@ function renderListItemSingle(
     comparables: [],
     baseLogIndex,
     comparisonLogsIndex,
-    nestingLevel: nestingLevel + 1,
+    nestingLevel: nestingLevel,
   };
 
   return (
@@ -173,7 +173,7 @@ function renderListItemMulti(
     comparables: subValues.slice(1),
     baseLogIndex: rowIndexes[0],
     comparisonLogsIndex: rowIndexes.slice(1),
-    nestingLevel: nestingLevel + 1,
+    nestingLevel: nestingLevel,
   };
 
   return (

@@ -111,7 +111,7 @@ function renderDictPropertySingle(
     comparables: [],
     baseLogIndex,
     comparisonLogsIndex,
-    nestingLevel: nestingLevel + 1
+    nestingLevel: nestingLevel
   };
 
   return (
@@ -159,7 +159,7 @@ function renderDictPropertyMulti(
     comparables: subValues.slice(1),
     baseLogIndex: dictIndexes[0],
     comparisonLogsIndex: dictIndexes.slice(1),
-    nestingLevel: nestingLevel + 1
+    nestingLevel: nestingLevel
   };
 
   const indentClass = `pl-${nestingLevel * 4}`;

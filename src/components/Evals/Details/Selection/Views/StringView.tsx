@@ -107,7 +107,7 @@ const StringView: React.FC<LogComparisonProps> = ({
   const groups = groupComparablesByValue(compStrings, comparisonLogsIndex ?? []);
 
   return (
-    <div className="flex flex-col border-l pl-4 space-y-4">
+    <div className="flex flex-col space-y-4">
       {/* Diff toolbar */}
       <div className="flex justify-end gap-2 mb-2">
         <ActionButton
