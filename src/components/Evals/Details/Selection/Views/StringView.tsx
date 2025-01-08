@@ -137,10 +137,10 @@ const StringView: React.FC<LogComparisonProps> = ({
             <DiffViewer
               oldValue={baseStr}
               newValue={group.text}
-              hideLineNumbers
+              hideLineNumbers={false}
               hideMarkers
               splitView={splitView}
-              showDiffOnly={false}
+              showDiffOnly={true}
               mode={diffMode}
             />
           </div>

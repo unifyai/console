@@ -21,63 +21,90 @@ import TraceView from "./TraceView";
 import { Span } from "@/types/evals/traces";
 import { LogComparisonProps } from "./types";
 
-/** Check if a value is a single Span or an array of Spans (i.e., a trace). */
+import { 
+  Text as TextIcon,
+  Pilcrow,
+  CurlyBraces,
+  Brackets,
+  ImageIcon,
+  Grid
+} from "lucide-react";
+
 function isTrace(x: any): x is Span | Span[] {
   if (!x) return false;
   if (isSpan(x)) return true;
-  return Array.isArray(x) && x.every((item) => isSpan(item));
+  return Array.isArray(x) && x.every(isSpan);
 }
 
-/**
- * pickView: chooses which specialized component to render (DictionaryView,
- * ListView, TraceView, etc.) for a base “value” + “comparables.”
- * We preserve the “merge” logic in each sub-view.
- */
+function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix" | "string" {
+  if (isTrace(value))   return "trace";
+  if (isDict(value))    return "dict";
+  if (isList(value))    return "list";
+  if (isImage(value))   return "image";
+  if (isMatrix(value))  return "matrix";
+  return "string";
+}
+
+function getTypeIcon(valueType: string) {
+  switch (valueType) {
+    case "trace":
+      return <Pilcrow className="h-4 w-4 text-primary" />;
+    case "dict":
+      return <CurlyBraces className="h-4 w-4 text-primary" />;
+    case "list":
+      return <Brackets className="h-4 w-4 text-primary" />;
+    case "image":
+      return <ImageIcon className="h-4 w-4 text-primary" />;
+    case "matrix":
+      return <Grid className="h-4 w-4 text-primary" />;
+    default:
+      return <TextIcon className="h-4 w-4 text-primary" />;
+  }
+}
+
 function pickView(props: LogComparisonProps): JSX.Element {
   const { value } = props;
 
-  // Single or multi trace?
   if (isTrace(value)) {
     const traceArr = Array.isArray(value) ? value : [value];
     return <TraceView {...props} value={traceArr} />;
   }
 
-  // Dictionary?
   if (isDict(value)) {
     return <DictionaryView {...props} />;
   }
 
-  // List?
   if (isList(value)) {
     return <ListView {...props} />;
   }
 
-  // Image?
   if (isImage(value)) {
     return <ImageView {...props} />;
   }
 
-  // Matrix?
   if (isMatrix(value)) {
     return <MatrixView {...props} />;
   }
 
-  // Fallback => String
   return <StringView {...props} />;
 }
 
-/** 
- * renderDictPropertySingle (SINGLE mode):
- * Creates an <AccordionItem> for [propertyName, val].
- * Property label is colored red (base).
+/**
+ * Render a single dictionary property in SINGLE mode.
  */
 function renderDictPropertySingle(
   propertyName: string,
   val: any,
-  props: Omit<LogComparisonProps, "value" | "comparables" | "propertyName">
+  props: Omit<LogComparisonProps, "value" | "comparables" | "propertyName"> & { nestingLevel: number }
 ): JSX.Element {
-  const { baseLogIndex, comparisonLogsIndex, nestingLevel = 0 } = props;
+  const { baseLogIndex, comparisonLogsIndex, nestingLevel } = props;
+
+  // Compute indentation class based on nestingLevel
   const indentClass = `pl-${nestingLevel * 4}`;
+
+  // Infer child type => icon
+  const valType = getValueType(val);
+  const icon = getTypeIcon(valType);
 
   const childProps: LogComparisonProps = {
     value: val,
@@ -89,9 +116,11 @@ function renderDictPropertySingle(
 
   return (
     <AccordionItem key={propertyName} value={propertyName}>
-      {/* Single mode -> red label for base property */}
-      <AccordionTrigger className={`${indentClass} text-red-600`}>
-        {propertyName}
+      <AccordionTrigger className={`${indentClass}`}>
+        <span className="inline-flex items-center gap-2">
+          {icon}
+          {propertyName}
+        </span>
       </AccordionTrigger>
       <AccordionContent>
         <div className={`border-l ml-4 ${indentClass}`}>
@@ -102,22 +131,29 @@ function renderDictPropertySingle(
   );
 }
 
-/** 
- * renderDictPropertyMulti (MULTI mode):
- *  - merges keys across base + comparables
- *  - subValues => [baseVal, compVal1, compVal2, ...]
- *  - label is red if baseVal != undefined, else green (only comparables).
+/**
+ * Render a dictionary property in MULTI mode.
  */
 function renderDictPropertyMulti(
   propertyName: string,
-  dicts: any[],          // [baseDict, ...comparableDicts]
-  dictIndexes: number[], // [baseLogIndex, ...comparisonLogsIndex]
+  dicts: any[],
+  dictIndexes: number[],
   nestingLevel: number
 ): JSX.Element {
-  // Gather sub-values for each dict for this key
+  // Gather sub-values => [baseVal, compVal1, compVal2...]
   const subValues = dicts.map((d) => (d && isDict(d) ? d[propertyName] : undefined));
 
-  // The first item is “baseVal,” the rest are “comparables”
+  const baseVal = subValues[0];
+  const labelColorClass = baseVal !== undefined ? "text-red-600" : "text-green-600";
+
+  // For child type icon => pick the first non-undefined sample
+  let sample = baseVal;
+  if (sample === undefined) {
+    sample = subValues.find((v) => v !== undefined);
+  }
+  const valType = sample ? getValueType(sample) : "string";
+  const icon = getTypeIcon(valType);
+
   const childProps: LogComparisonProps = {
     value: subValues[0],
     comparables: subValues.slice(1),
@@ -125,16 +161,16 @@ function renderDictPropertyMulti(
     comparisonLogsIndex: dictIndexes.slice(1),
     nestingLevel: nestingLevel + 1
   };
-  const indentClass = `pl-${nestingLevel * 4}`;
 
-  // If baseVal exists => label is red, otherwise green
-  const baseVal = subValues[0];
-  const labelColorClass = baseVal !== undefined ? "text-red-600" : "text-green-600";
+  const indentClass = `pl-${nestingLevel * 4}`;
 
   return (
     <AccordionItem key={propertyName} value={propertyName}>
       <AccordionTrigger className={`${indentClass} ${labelColorClass}`}>
-        {propertyName}
+        <span className="inline-flex items-center gap-2">
+          {icon}
+          {propertyName}
+        </span>
       </AccordionTrigger>
       <AccordionContent>
         <div className={`border-l ml-4 ${indentClass}`}>
@@ -147,12 +183,6 @@ function renderDictPropertyMulti(
 
 type DictionaryViewProps = LogComparisonProps;
 
-/**
- * DictionaryView:
- * - SINGLE mode => renders each key in the base dictionary as <AccordionItem> (label in red).
- * - MULTI mode => merges keys across [base, ...comparables], each key -> union of sub-values.
- *   Label color is red if the base dict has the key, otherwise green if it's only in comparables.
- */
 const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
   const {
     value,
@@ -170,25 +200,21 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
     );
   }
 
-  // SINGLE MODE
+  // SINGLE mode (no comparables)
   if (!comparables || comparables.length === 0) {
     const items = Object.entries(value).map(([k, v]) =>
       renderDictPropertySingle(k, v, {
         baseLogIndex,
         comparisonLogsIndex,
-        nestingLevel
+        nestingLevel: nestingLevel + 1
       })
     );
-
     return <>{items}</>;
   }
 
-  // MULTI MODE
-  // 1) Combine [baseDict, ...comparableDicts]
+  // MULTI mode => union of keys
   const allDicts = [value, ...comparables];
-  // 2) Combine row indexes
   const allIndexes = [baseLogIndex, ...comparisonLogsIndex];
-  // 3) Gather union of keys
   const allKeys = new Set<string>();
   allDicts.forEach((d) => {
     if (isDict(d)) {
@@ -197,8 +223,9 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
   });
 
   const keyArray = Array.from(allKeys).sort();
+  // Also do nestingLevel+1 for multi
   const items = keyArray.map((key) =>
-    renderDictPropertyMulti(key, allDicts, allIndexes, nestingLevel)
+    renderDictPropertyMulti(key, allDicts, allIndexes, nestingLevel + 1)
   );
 
   return <>{items}</>;
