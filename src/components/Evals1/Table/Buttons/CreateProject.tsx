@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import FormEntry from "@/components/Common/Forms/Entry";
 import { ResponseProps } from "@/types/common";
-import { useQueryState } from "nuqs";
 
 const CreateProject = ({paths, creationFunction}: {
     paths: string[],

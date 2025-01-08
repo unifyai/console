@@ -6,7 +6,6 @@ import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { useEffect } from "react";
 import { useQueryState, parseAsFloat } from "nuqs";
-import { LogProps, LogsResponseProps } from "@/types/evals/logs";
 
 const RefreshLogs = () => {
     
