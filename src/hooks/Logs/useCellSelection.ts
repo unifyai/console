@@ -9,18 +9,20 @@ import { getPartAfterFirstUnderscore } from "@/utils/evals/selection";
 export type UseCellSelectionProps = {
   table: Table<any>;
   scrollToRow?: (index: number) => void;
+  selectedCells: string[],
+  setSelectedCells: (selectedCells: string[]) => void,
 };
 
 export const useCellSelection = ({
   table,
   scrollToRow,
+  selectedCells,
+  setSelectedCells
 }: UseCellSelectionProps) => {
 
-  
-  const [selectedCells, setSelectedCells]  = useQueryState("selected", parseAsArrayOf(parseAsString).withDefault([]))
   const [selectedStartCell, setSelectedStartCell] = useState<string | null>(null);
   const [isMouseDown, setIsMouseDown] = useState(false);
-  
+
   const allCells = table.getRowModel().rows.flatMap(row => row.getAllCells())
   const [expandedCells, setExpandedCells] = useState(
     Object.fromEntries(
@@ -69,12 +71,12 @@ export const useCellSelection = ({
 
   const toggleExpansion = (selectedCell: string) => {
     let newExpandedCells = { ...expandedCells }
-    newExpandedCells = {...newExpandedCells, [selectedCell]: true}
+    newExpandedCells = { ...newExpandedCells, [selectedCell]: true }
     setExpandedCells(newExpandedCells)
   }
 
   const getCellFromID = (cellID: string) => allCells.find(c => c.id === cellID)!
-  
+
   const navigateUp = () => {
 
     const selectedCell = selectedCells[selectedCells.length - 1];
@@ -176,11 +178,11 @@ export const useCellSelection = ({
       return;
     }
 
-    const cell = allCells.find(c => 
-      c.column.id === selectedCell.split("_")[1] && 
+    const cell = allCells.find(c =>
+      c.column.id === selectedCell.split("_")[1] &&
       c.row.id === selectedCell.split("_")[0]
     )!;
-    if (isValidSelectionTarget(cell)) 
+    if (isValidSelectionTarget(cell))
       toggleExpansion(selectedCell);
   }
 
@@ -192,7 +194,7 @@ export const useCellSelection = ({
     selectedCells.find((c) => c === cell.id) !== undefined;
 
   const updateRangeSelection = (target: Cell<any, any> | Header<any, any>) => {
-    
+
     if (!selectedStartCell) {
       return;
     }
@@ -213,11 +215,11 @@ export const useCellSelection = ({
       }
       else if (isValidSelectionTarget(cell))
         selectedEndCell = getCellSelectionData(cell)
-    } 
+    }
     else if ("depth" in target) {
       const header = target as Header<any, any>
       const columnCells = getCellsFromHeader(header);
-      const validCells = columnCells.filter(c => isValidSelectionTarget(c)); 
+      const validCells = columnCells.filter(c => isValidSelectionTarget(c));
       const lastCell = validCells.at(-1);
       if (lastCell)
         selectedEndCell = getCellSelectionData(lastCell);
@@ -225,26 +227,23 @@ export const useCellSelection = ({
 
     // Compute selection range and update selected cells, filtering out non-valid selection targets
     const selectedCellsInRange = getCellsBetween(table, selectedStartCell, selectedEndCell) as string[];
-    const validTableCellsIds = table.getRowModel().rows.flatMap(row => 
-      row.getAllCells().filter(c => 
+    const validTableCellsIds = table.getRowModel().rows.flatMap(row =>
+      row.getAllCells().filter(c =>
         isValidSelectionTarget(c)).map(c => c.id)
     )
-    setSelectedCells((prev) => {
-      const startIndex = prev.findIndex(
-        (c) => c === selectedStartCell,
-      );
-      const prevSelectedCells = prev.slice(0, startIndex);
-      const newCellSelection = selectedCellsInRange.filter((c) => 
-        c !== selectedStartCell && validTableCellsIds.includes(c),
-      );
-      
-      return [...prevSelectedCells, selectedStartCell, ...newCellSelection];
-    });
+    const startIndex = selectedCells.findIndex(
+      (c) => c === selectedStartCell,
+    );
+    const prevSelectedCells = selectedCells.slice(0, startIndex);
+    const newCellSelection = selectedCellsInRange.filter((c) =>
+      c !== selectedStartCell && validTableCellsIds.includes(c),
+    );
+    setSelectedCells([...prevSelectedCells, selectedStartCell, ...newCellSelection]);
   };
 
-  const isValidAdjacentTarget = (cell: Cell<any, any>) => 
-    !cell.getIsPlaceholder() && 
-    !cell.getIsAggregated() && 
+  const isValidAdjacentTarget = (cell: Cell<any, any>) =>
+    !cell.getIsPlaceholder() &&
+    !cell.getIsAggregated() &&
     !cell.getIsGrouped()
   const isValidSelectionTarget = (cell: Cell<any, any>) => isValidAdjacentTarget(cell) && cell.column.id != "RowNumbering";
 
@@ -254,7 +253,7 @@ export const useCellSelection = ({
     e: React.MouseEvent<HTMLElement>,
     target: Cell<any, any> | Header<any, any>
   ) => {
-    
+
     /* Handle cell click */
     if ("row" in target) {
 
@@ -274,15 +273,15 @@ export const useCellSelection = ({
           const firstCell = validCells.at(0);
           if (firstCell) {
             selectedStartCell = getCellSelectionData(firstCell)
-            setSelectedCells((prev) =>
-              validCells.every(c => prev.includes(c.id))
-                ? null
+            setSelectedCells(
+              validCells.every(c => selectedCells.includes(c.id))
+                ? []
                 : validCells.map(c => getCellSelectionData(c))
             )
-          } 
+          }
         } else {
-          setSelectedCells((prev) => prev.find((c) => c === cell.id) !== undefined
-            ? null
+          setSelectedCells(selectedCells.find((c) => c === cell.id) !== undefined
+            ? []
             : [getCellSelectionData(cell)]
           );
         }
@@ -290,7 +289,7 @@ export const useCellSelection = ({
           setSelectedStartCell(selectedStartCell);
         }
       }
-  
+
       // Ctrl click:
       // - Append /remove all row cells when clicking on index cell, if row has any cell, or
       // - Append single cell, or desect it if already selected
@@ -302,30 +301,30 @@ export const useCellSelection = ({
           const firstCell = validCells.at(0);
           if (firstCell) {
             selectedStartCell = getCellSelectionData(firstCell)
-            setSelectedCells((prev) => 
-              validCells.every(c => prev.includes(c.id))
-                ? prev.filter(c => !validCells.map(c => c.id).includes(c))
-                : [...prev, ...validCells.map(c => getCellSelectionData(c))]
+            setSelectedCells(
+              validCells.every(c => selectedCells.includes(c.id))
+                ? selectedCells.filter(c => !validCells.map(c => c.id).includes(c))
+                : [...selectedCells, ...validCells.map(c => getCellSelectionData(c))]
             )
           }
         } else {
-          setSelectedCells((prev) =>
-            prev.find((c) => c === cell.id) !== undefined
-              ? prev.filter(( cellId ) => cellId !== cell.id)
-              : [...prev, getCellSelectionData(cell)],
-          );  
+          setSelectedCells(
+            selectedCells.find((c) => c === cell.id) !== undefined
+              ? selectedCells.filter((cellId) => cellId !== cell.id)
+              : [...selectedCells, getCellSelectionData(cell)],
+          );
         }
         if (!isMouseDown) {
           setSelectedStartCell(selectedStartCell);
         }
       }
-  
+
       // Shift click: Select a cell range
       if (e.shiftKey) {
         updateRangeSelection(cell);
       }
 
-    } 
+    }
 
     /* Handle header click */
     else if ("depth" in target) {
@@ -343,22 +342,22 @@ export const useCellSelection = ({
 
         // Simple click: Select all leaf columns cells when clicking
         if (!e.ctrlKey && !e.shiftKey) {
-          setSelectedCells((prev) => 
-            validCells.every(c => prev.includes(c.id))
-              ? null
+          setSelectedCells(
+            validCells.every(c => selectedCells.includes(c.id))
+              ? []
               : validCells.map(c => getCellSelectionData(c))
           )
           if (!isMouseDown) {
             setSelectedStartCell(getCellSelectionData(firstCell));
           }
         }
-        
+
         // Ctrl click: Append all column leaf cells when clicking on index cell
         if (e.ctrlKey) {
-          setSelectedCells((prev) => 
-            validCells.every(c => prev.includes(c.id))
-              ? prev.filter(c => !validCells.map(c => c.id).includes(c))
-              : [...prev, ...validCells.map(c => getCellSelectionData(c))]
+          setSelectedCells(
+            validCells.every(c => selectedCells.includes(c.id))
+              ? selectedCells.filter(c => !validCells.map(c => c.id).includes(c))
+              : [...selectedCells, ...validCells.map(c => getCellSelectionData(c))]
           )
           if (!isMouseDown) {
             setSelectedStartCell(getCellSelectionData(firstCell));
@@ -371,7 +370,7 @@ export const useCellSelection = ({
         }
       }
 
-    } 
+    }
 
     setIsMouseDown(true);
 

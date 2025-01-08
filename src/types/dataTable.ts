@@ -10,6 +10,7 @@ export interface StateProps {
     grouping: GroupingState,
     columnPinning: ColumnPinningState,
     columnSizing: ColumnSizingState,
+    selectedCells: string[],
     [key: string]: any
 }
 
@@ -21,6 +22,7 @@ export interface SetStateProps {
     setGrouping: (grouping: string[]) => void,
     setColumnPinning: (columnPinning: ColumnPinningState) => void,
     setColumnSizing: Dispatch<SetStateAction<ColumnSizingState>>,
+    setSelectedCells: (selectedCells: string[]) => void,
     [key:string]: Dispatch<SetStateAction<any>>
 }
 

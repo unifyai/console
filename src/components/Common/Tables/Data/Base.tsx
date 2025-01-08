@@ -100,7 +100,11 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
         (header: Header<TData, unknown>) => ({[header.id]: header.getResizeHandler()})
     ).reduce((acc, curr) => ({...acc, ...curr}), {});
 
-    const { isCellSelected, isRowSelected, isCellExpanded, setExpandedCells, ...cellSelection } = useCellSelection({table});
+    const { isCellSelected, isRowSelected, isCellExpanded, setExpandedCells, ...cellSelection } = useCellSelection({
+        table,
+        selectedCells: state.selectedCells,
+        setSelectedCells: setState.setSelectedCells
+    });
 
     return (<div className="flex flex-col gap-2 max-w-fit">
         {TableTop && TableTop}
