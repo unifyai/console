@@ -10,14 +10,14 @@ import { ResponseProps } from "@/types/common";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 
 const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions }: {
-	searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string, sorting?: string },
+	searchParams: { project?: string, page_number?: string, metric?: string, context?: string, filters?: string, common_filter?: string, sorting?: string },
 	projectsActions: {
 		get: () => Promise<string[]>,
 		create: (name: string) => Promise<ResponseProps>,
 		rename: (name: string, newName: string) => Promise<ResponseProps>,
 		delete: (name: string) => Promise<ResponseProps>},
 	logsActions: {
-		get: (project: string, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
+		get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
 		getMetrics: (
 			project: string, filterExpression: string | null, metricName: string, keyName: string
 		) => Promise<number>,
@@ -32,6 +32,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 	/* Get projects list, selected project and its column types */
 	const projects: string[] = await projectsActions.get();
 	const project: string | undefined = projects.find(project => project == searchParams.project);
+	const context = searchParams.context;
 	let fields: LogFieldsResponseProps = {}
 	if (project) {
 		fields = await fieldsActions.get(project)
@@ -42,11 +43,11 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 	// 2- Join column filters with the corresponding filter functions and values using "and"
 	// 3- Join common filters with the "in" filter function and common filter value using "or"
 	// 4- Join common and column filters into a single filter expression
-	const logsFilters : {[column: string]: {[fn: string]: string}} = searchParamToFilters(searchParams.filters) 
+	const logsFilters : {[column: string]: {[fn: string]: string}} = searchParamToFilters(searchParams.filters, context) 
 	const columnFiltersExpression = filtersToExpression(logsFilters) 
 	const commonFiltersExpression = searchParams.common_filter && fields
 		? Object.keys(fields)
-			.map(column => `${searchParams.common_filter} in ${column}`)
+			.map(column => `${searchParams.common_filter} in ${context ? context + column : column}`)
 			.join(" or ")
 		: ""
 	let filterExpression = null
@@ -59,7 +60,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 			searchParams.sorting
 						.split(",")
 						.map(value => [
-							value.split("@")[0], 
+							context ? context + value.split("@")[0] : value.split("@")[0], 
 							value.split("@")[1].replace("true", "descending").replace("false", "ascending")
 						])
 			) 
@@ -73,18 +74,21 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 	const offset = (searchParams.page_number ? parseInt(searchParams.page_number) : 0) * limit;
 	let totalPages = 1;
 	if (project) {
-		logsData = await logsActions.get(project, filterExpression, sortingExpression, limit, offset)
-		fullData = await logsActions.get(project, filterExpression, null, null, 0)
+		logsData = await logsActions.get(project, context ?? null, filterExpression, sortingExpression, limit, offset)
+		fullData = await logsActions.get(project, context ?? null, filterExpression, null, null, 0)
 		totalPages = Math.ceil(logsData.count / limit);
 	}
-	const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData, fields);
+	const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData, fields, searchParams.context ?? null);
 	/* Handle column metrics */
 	// Getting metrics for filtered logs, and min / max values for full logs. 
 	// Min / max bounds are used to set the filtering range for numeric columns 
 	const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
 	const getColumnMetrics = async (expression: string | null, metric: string | undefined) => {
+		let fullColumns = columns
+		if (context)
+			fullColumns = fullColumns.map(column => context + column)
 		const metricValues = await Promise.all(
-			columns.map(async (key) => logsActions.getMetrics(
+			fullColumns.map(async (key) => logsActions.getMetrics(
 				project!, expression, metric ? metric : "mean", key
 			)
 		));
@@ -101,7 +105,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 		getColumnMetrics(null, "max")
 	])
 	const boundaries = { minimums, maximums }
-	
+
 	return <DoublePanels
 		isLoading={false}
 		first={

@@ -51,7 +51,7 @@ const Card = ({
         delete: (name: string) => Promise<ResponseProps>
     },
     logsActions: {
-        get: (project: string, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
+        get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
         getMetrics: (
             project: string, filterExpression: string | null, metricName: string, keyName: string
         ) => Promise<number>,

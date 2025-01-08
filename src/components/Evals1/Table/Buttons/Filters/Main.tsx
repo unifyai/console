@@ -20,10 +20,10 @@ const ColumnFilter = ({ column, columnFilters, setColumnFilterQuery, columnTypes
 }) => {
 
     let filter;
-    if (["dict", "list", "tuple", "str", "bool"].includes(columnTypes[column]))
-        filter = <StringColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery}/>
     if (["float", "int"].includes(columnTypes[column]))
         filter = <NumericColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} boundaries={boundaries} />
+    else (["dict", "list", "tuple", "str", "bool"].includes(columnTypes[column]))
+        filter = <StringColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery}/>
     // if (columnTypes[column] === "timestamp")
     //     filter = <TimeColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery}/> 
     return filter;

@@ -14,7 +14,7 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
         delete: (name: string) => Promise<ResponseProps>
     },
     logsActions: {
-        get: (project: string, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
+        get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
         getMetrics: (
             project: string, filterExpression: string | null, metricName: string, keyName: string
         ) => Promise<number>,
@@ -59,13 +59,13 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
     // 4- Join common and column filters into a single filter expression
     let tableItems = currentInterface.items.filter(item => item.tab?.includes("Table"));
     const logsFilters: { [column: string]: { [fn: string]: string } }[] = tableItems.map(
-        item => searchParamToFilters(item.filters)
+        item => searchParamToFilters(item.filters, item.context)
     );
     const columnFiltersExpressions = logsFilters.map(filter => filtersToExpression(filter));
     const commonFiltersExpressions = tableItems.map(
         item => item.common_filter && fields
             ? Object.keys(fields)
-                .map(column => `${item.common_filter} in ${column}`)
+                .map(column => `${item.common_filter} in ${item.context ? item.context + column : column}`)
                 .join(" or ")
             : ""
     );
@@ -84,7 +84,7 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
     /* Handle sorting */
 	const sortingObjects = tableItems.map(item => item.sorting ? Object.fromEntries(
         item.sorting.split(",").map(value => [
-            value.split("@")[0], 
+            item.context ? item.context + value.split("@")[0] : value.split("@")[0],
             value.split("@")[1].replace("true", "descending").replace("false", "ascending")
         ])) 
     : "");
@@ -108,8 +108,9 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
                 const offset = (item.page_number ? parseInt(item.page_number) : 0) * limit;
                 const filterExpression = filterExpressions ? filterExpressions[idx] : null;
                 const sortingExpression = sortingExpressions[idx];
-                const logsData = await logsActions.get(project, filterExpression, sortingExpression, limit, offset);
-                const fullData = await logsActions.get(project, filterExpression, null, null, 0);
+                const context = item.context ?? null
+                const logsData = await logsActions.get(project, context, filterExpression, sortingExpression, limit, offset);
+                const fullData = await logsActions.get(project, context, filterExpression, null, null, 0);
                 const totalPages = Math.ceil(logsData.count / limit);
                 return { [item.i]: { logsData, fullData, totalPages } };
             })
@@ -121,10 +122,11 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
             const logsData = allLogsData[item.i].logsData;
             const fullData = allLogsData[item.i].fullData;
             const totalPages = allLogsData[item.i].totalPages;
+            const context = item.context ?? null
 
             // Unpack log data
             const { entriesProperties, paramsProperties, logs, params } = extractLogsData(
-                logsData, fields
+                logsData, fields, context
             );
 
             /* Handle column metrics */
@@ -132,11 +134,14 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
             // Min / max bounds are used to set the filtering range for numeric columns
             const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
             const getColumnMetrics = async (expression: string | null, metric: string | undefined) => {
+                let fullColumns = columns
+                if (context)
+                    fullColumns = fullColumns.map(column => context + column)
                 const metricValues = await Promise.all(
-                    columns.map(async (key) => logsActions.getMetrics(
+                    fullColumns.map(async (key) => logsActions.getMetrics(
                         project!, expression, metric ? metric : "mean", key
                     )
-                    ));
+                ));
                 const metrics: { [key: string]: number } = columns.length
                     ? columns
                         .map((key, index) => ({ [key]: metricValues[index] }))

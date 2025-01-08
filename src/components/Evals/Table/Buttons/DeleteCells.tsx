@@ -7,13 +7,14 @@ import { ResponseProps } from "@/types/common";
 import { LogFieldsProps, LogProps } from "@/types/evals/logs";
 import { getPartAfterFirstUnderscore } from "@/utils/evals/selection";
 
-const DeleteRows = ({ selectedCells, logs, deleteLogFields }: {
+const DeleteRows = ({ selectedCells, logs, deleteLogFields, context }: {
 	selectedCells: string[],
 	logs: LogProps[],
 	deleteLogFields: (fields: LogFieldsProps) => Promise<ResponseProps>,
+	context: string | undefined
 }) => {
 	const [showDialog, setShowDialog] = useState(false);
-
+	
 	const deletableCells = selectedCells.filter(cell => {
 		const id = cell.split("_").at(0) as string
 		const column = getPartAfterFirstUnderscore(cell)
@@ -36,7 +37,7 @@ const DeleteRows = ({ selectedCells, logs, deleteLogFields }: {
 
 	const fieldsToDelete = deletableCells.map(cell => [
 		parseInt(cell.split("_").at(0) as string), 
-		getPartAfterFirstUnderscore(cell)
+		context ? context + getPartAfterFirstUnderscore(cell) : getPartAfterFirstUnderscore(cell) 
 	])
 
 	return (showDialog &&

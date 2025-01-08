@@ -10,6 +10,7 @@ export interface TileProps {
     static?: boolean;
     tab?: string;
     table?: string;
+    context?: string;
     filters?: string;
     common_filter?: string;
     page_number?: string;
@@ -67,4 +68,5 @@ export type ItemType =
     | "grouping"
     | "columns_pin_left"
     | "columns_pin_right"
-    | "table";
+    | "table"
+    | "context";

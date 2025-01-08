@@ -3,7 +3,7 @@
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
-import FileDirectory from "@/components/Directory/FileDirectory";
+import FileDirectory from "@/components/Tree/Directory/FileDirectory";
 import { LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import {
   ColumnDef,
@@ -33,6 +33,7 @@ import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
 import { ItemType, TileProps } from "@/types/evals/grid";
+import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 
 const LogsTable = ({
   projects,
@@ -74,6 +75,7 @@ const LogsTable = ({
   logsActions: {
     get: (
       project: string,
+      context: string | null,
       filterExpression: string | null,
       sortingExpression: string | null,
       limit: number | null,
@@ -287,6 +289,11 @@ const LogsTable = ({
     <div className="flex flex-row justify-between gap-3 LogsTablePreferences">
       {project && columns.length > 0 && (
         <div className="flex flex-row gap-2 items-center">
+          <SelectionMenu
+            type="Contexts"
+            data={Object.keys(columnTypes).map(property => ({path: property, type:"file"}))}
+            onClick={updateItem(item, "context")}
+          />
           <GlobalFilter
             logsFilters={logsFilters}
             commonFilter_={commonFilter}
@@ -400,7 +407,7 @@ const LogsTable = ({
                       );
                     }}
                     boundaries={boundaries}
-                    columnFilters={searchParamToFilters(logsFilters)}
+                    columnFilters={searchParamToFilters(logsFilters, item.context)}
                     column={column.id}
                     columnTypes={columnTypes}
                   />
@@ -420,7 +427,7 @@ const LogsTable = ({
                   </FooterCell>
                 }
                 ExtraComponents={(table) => {
-                  return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={fieldsActions.delete}/>
+                  return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={fieldsActions.delete} context={item.context}/>
                 }}
                 ExtraCellContent={(cell, isCellExpanded, setExpandedCells) => 
                   <CellPopover cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells}/>
