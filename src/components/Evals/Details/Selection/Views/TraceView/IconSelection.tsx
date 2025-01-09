@@ -1,4 +1,4 @@
-import { ChevronsLeftRightEllipsis, Cpu, Cloud, Database, Code2, Radio, Send, FileCode } from "lucide-react";
+import { ChevronsLeftRightEllipsis, FileCode, BotMessageSquare, Wrench, Cable, CloudCog } from "lucide-react";
 
 
 /**
@@ -8,20 +8,16 @@ import { ChevronsLeftRightEllipsis, Cpu, Cloud, Database, Code2, Radio, Send, Fi
 export default function getIconForSpanType(type?: string) {
     if (!type) return ChevronsLeftRightEllipsis;
     switch (type.toLowerCase()) {
-      case "model":
-        return Cpu;
-      case "api":
-        return Cloud;
-      case "db":
-        return Database;
-      case "code":
-        return Code2;
-      case "radio":
-        return Radio;
-      case "send":
-        return Send;
-      case "file":
+      case "llm":
+        return BotMessageSquare;
+      case "retrieval":
         return FileCode;
+      case "tool call":
+        return Wrench;
+      case "io":
+        return Cable;
+      case "api":
+        return CloudCog;
       default:
         return ChevronsLeftRightEllipsis; // fallback
     }
