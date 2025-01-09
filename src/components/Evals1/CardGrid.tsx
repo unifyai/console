@@ -9,9 +9,8 @@ import { ItemType, TableDataProps, TileProps } from "@/types/evals/grid";
 import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import ActionButton from "../Common/Buttons/Action";
-import { Check, Plus, Save, TriangleAlert, X } from "lucide-react";
+import { Check, ListRestart, Plus, Save, TriangleAlert, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
-import Chip from "../Common/Misc/Chip";
 import { Badge } from "../UI/badge";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
@@ -22,10 +21,12 @@ const CardGrid = ({
     project_,
     tableData,
     columnTypes,
+    savedInterface,
     items_,
     newCounter_,
     interfaceCreated,
     tempInterfaceCreated,
+    temporary,
     projectActions,
     logsActions,
     fieldsActions,
@@ -35,10 +36,12 @@ const CardGrid = ({
     project_: string | undefined,
     tableData: TableDataProps,
     columnTypes: { [key: string]: string },
+    savedInterface: { items: TileProps[], new_counter: number, project: string | null } | null,
     items_: TileProps[],
     newCounter_: number,
     interfaceCreated: boolean,
     tempInterfaceCreated: boolean,
+    temporary: boolean,
     projectActions: {
         get: () => Promise<string[]>,
         create: (name: string) => Promise<ResponseProps>,
@@ -77,23 +80,41 @@ const CardGrid = ({
         }
     }
 
-    const updateInterface = () => {
+    const updateInterface = (
+        savedInterface: { items: TileProps[], new_counter: number, project: string | null } | null = null
+    ) => {
+        if (JSON.stringify(items) == JSON.stringify(items_))
+            return Promise.reject();
+        const items_1 = savedInterface?.items || items;
+        const newCounter_1 = savedInterface?.new_counter || newCounter;
+        const project_1 = savedInterface?.project || project;
         if (tempInterfaceCreated)
-            return interfaceActions.update(items, newCounter, project || null, true);
+            return interfaceActions.update(items_1, newCounter_1, project_1 || null, true);
         else
-            return interfaceActions.create(items, newCounter, project || null, true);
+            return interfaceActions.create(items_1, newCounter_1, project_1 || null, true);
     }
 
     useEffect(() => {
-        updateInterface().then(() => {
-            router.replace("?temporary=true", { scroll: false });
-            router.refresh();
-        });
+        if (project != project_) {
+            updateInterface().then(() => {
+                router.replace("?temporary=true", { scroll: false });
+                router.refresh();
+            }).catch(() => {});
+        }
     }, [project]);
 
     useEffect(() => {
-        updateInterface();
+        updateInterface().then(() => {
+            if (!temporary) {
+                router.replace("?temporary=true", { scroll: false });
+                router.refresh();
+            }
+        }).catch(() => {});
     }, [items]);
+
+    useEffect(() => {
+        setItems([...items_]);
+    }, [items_])
 
     useEffect(() => {
         gridRef.current?.scrollTo({
@@ -105,7 +126,7 @@ const CardGrid = ({
     useEffect(() => { setTimeout(() => setSuccess(undefined), 3000); }, [success]);
 
     const icon = success ? <Check /> : success == false ? <TriangleAlert /> : <Save />;
-    const variant = success ? "primary" : success == false ? "destructive" : "outline";
+    const variant = success == false ? "destructive" : "primary";
 
     return (<div className="w-full h-full overflow-auto m-2" ref={gridRef}>
         <div className="my-2 ml-6 mr-8 flex gap-4 items-center">
@@ -128,6 +149,21 @@ const CardGrid = ({
                     }
                 }}
             />
+            {temporary && <ActionButton
+                className="transition-all"
+                tooltip="Return to last saved interface"
+                icon={<ListRestart />}
+                variant={"destructive"}
+                onClick={async () => {
+                    updateInterface(savedInterface).then(() => {
+                        router.replace("?temporary=");
+                        router.refresh();
+                    }).catch(() => {
+                        router.replace("?temporary=");
+                        router.refresh();
+                    });
+                }}
+            />}
             <ActionButton
                 variant="outline"
                 icon={<Plus />}

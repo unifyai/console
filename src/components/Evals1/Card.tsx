@@ -67,7 +67,7 @@ const Card = ({
         updateInterface().then(() => {
             router.replace("?temporary=true", { scroll: false });
             router.refresh();
-        })
+        }).catch(() => {});
     }, [item.filters, item.common_filter, item.sorting, item.page_number, item.metric])
 
     return (<div className="overflow-x-auto relative flex w-full h-full border rounded-lg">
