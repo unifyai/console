@@ -5,11 +5,12 @@ import { RefreshCw, Power } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQueryState, parseAsFloat, parseAsBoolean } from "nuqs";
 import { BasePopover } from "@/components/Common/Popovers/Base";
+import { inplaceRefreshUsingContext } from "@/utils/evals/common";
 
 const RefreshLogs = ({auto, setAuto, context, setContext, project, filterExpression, sortingExpression, getLatest}: {
     auto: string | undefined,
     setAuto: (auto: string | undefined) => void,
-    context: string | null,
+    context: string | undefined,
     setContext: (context: string | undefined) => void,
     project: string,
     filterExpression: string | null,
@@ -21,19 +22,9 @@ const RefreshLogs = ({auto, setAuto, context, setContext, project, filterExpress
     // We use the context argument to trigger a refresh of the logs.
     // A context that ends with "/" is equivalent to the same context without the final "/"
     // Likewise, a null context is equivalent to an empty string context
-    const updateContext = () => {
-        if (context === undefined)
-            setContext("")
-        else if (context === "")
-            setContext(undefined)
-        else if (context![-1] === "/")
-            setContext(context!.slice(0, -1))
-        else 
-            setContext(context + "/")
-    }
     useEffect(() => {
         if ([undefined, "false"].includes(auto)) return;
-        const interval = setInterval(() => updateContext(), 100) // Refresh every 100ms
+        const interval = setInterval(() => inplaceRefreshUsingContext(context, setContext), 100) // Refresh every 100ms
         return () => clearInterval(interval)
     }, [auto])
     const onAutoClick = () => setAuto(auto === "true" ? "false" : "true")
@@ -58,15 +49,15 @@ const RefreshLogs = ({auto, setAuto, context, setContext, project, filterExpress
     // with the timestamp saved last time the refresh button was used, except the first
     // time where we compare with the timestamp set on loading the component
 
-    useEffect(() => {getLatest(project, context, filterExpression, sortingExpression, null, 0).then(latest => setLastUpdated(latest))}, [])
+    useEffect(() => {getLatest(project, context ?? null, filterExpression, sortingExpression, null, 0).then(latest => setLastUpdated(latest))}, [])
     
     const onManualClick = () => {
         setIsChecking(true)
-        getLatest(project, context, filterExpression, sortingExpression, null, 0).then(latest => {
+        getLatest(project, context ?? null, filterExpression, sortingExpression, null, 0).then(latest => {
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime()
             if (latestTs > lastCheckTs) {
-                updateContext()
+                inplaceRefreshUsingContext(context, setContext)
                 setLastUpdated(latest)
                 setMessage(messages.updated)
             } else {

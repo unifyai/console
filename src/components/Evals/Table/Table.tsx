@@ -36,6 +36,7 @@ import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
+import { inplaceRefreshUsingContextURLParam } from "@/utils/evals/common";
 
 const LogsTable = ({
   searchParams,
@@ -391,6 +392,7 @@ const LogsTable = ({
             }}
             type="Projects"
             defaultValue={projectQueryVal}
+            onOpen={() => inplaceRefreshUsingContextURLParam(context, setContext)}
           />
           {project && (
             <div className="flex flex-row gap-2">

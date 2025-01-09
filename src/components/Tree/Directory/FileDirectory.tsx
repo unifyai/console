@@ -17,12 +17,13 @@ import { updateNode } from "@/utils/misc/directory";
 import CancelButton from "../../Common/Buttons/Cancel";
 import SettingButton from "../../Common/Buttons/Setting";
 
-export default function FileDirectory ({ type,  data, defaultValue, setterFunction, renamingFunction } : {
+export default function FileDirectory ({ type,  data, defaultValue, setterFunction, renamingFunction, onOpen } : {
   type: string, 
   data: FileProps[],
   defaultValue?: string | undefined,
   setterFunction: (x: FileProps | undefined) => void,
   renamingFunction: (name: string, newName: string) => Promise<ResponseProps>,
+  onOpen?: () => void
 }) {
   
   // Initialize tree and keep a backup of the original for reference
@@ -99,12 +100,14 @@ export default function FileDirectory ({ type,  data, defaultValue, setterFuncti
           <SubmitButton text="Save" onClick={onSubmit}/>
           </>
         }
+        onOpen={onOpen}
       />  
       <AutoComplete 
         type={type}
         items={files.map((file) => ({label: file.name, value: file.path}))}
         defaultValue={defaultValue}
         onSelect={(currentValue: string) => handleSelection(currentValue, files)}
+        onOpen={onOpen}
       />
     </div>
   );
