@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { CodeBlock } from "@/components/UI/Chat/markdown-renderer";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 import { LogComparisonProps } from "./types";
 import { FileText, CaseLower, Pilcrow, Columns, AlignJustify } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
+import MarkdownRenderer from "@/components/UI/Chat/markdown-renderer";
 
 /**
  * compressRowNumbers:
@@ -82,20 +82,15 @@ const StringView: React.FC<LogComparisonProps> = ({
   const handleToggleSplit = () => setSplitView((prev) => !prev);
 
   // -------------------------------------------------------------------------
-  // Render base string (no comparables)
+  // If there's no comparables, just render the single string as Markdown
   // -------------------------------------------------------------------------
   const baseStr = (value ?? "").toString();
   if (!comparables || comparables.length === 0) {
-    // If it looks like triple-backtick code, render in a code block
-    if (baseStr.startsWith("```") && baseStr.endsWith("```")) {
-      return (
-        <CodeBlock language="python" className="whitespace-pre-wrap ml-4">
-          {baseStr.slice(3, -3)}
-        </CodeBlock>
-      );
-    }
-    // Otherwise, just render plain text
-    return <pre className="whitespace-pre-wrap ml-4">{baseStr}</pre>;
+    return (
+      <div className="ml-2">
+        <MarkdownRenderer>{baseStr}</MarkdownRenderer>
+      </div>
+    );
   }
 
   // -------------------------------------------------------------------------
