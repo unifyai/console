@@ -129,6 +129,8 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
                                         table={table}
                                         columnVisibility={state.columnVisibility}
                                         setColumnVisibility={setState.setColumnVisibility}
+                                        grouping={state.grouping}
+                                        setGrouping={setState.setGrouping}
                                         ColumnFilters={ColumnFilters}
                                     />
                                 ))}

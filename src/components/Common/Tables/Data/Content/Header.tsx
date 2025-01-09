@@ -114,7 +114,7 @@ const DataTableHeader = ({
         {/* Column actions */}
         {!header.isPlaceholder && header.column.columnDef.meta?.columnType != "util" &&
           <div className="items-center">
-            <ColumnGroupBy table={table} column={header.column} grouping={grouping} setGrouping={setGrouping}/>
+            <ColumnGroupBy column={header.column} grouping={grouping} setGrouping={setGrouping}/>
             {!isParentColumn && <ColumnSort column={header.column}/>}
             {ColumnFilters && ColumnFilters(header.column)}
             <ColumnHide table={table} column={header.column} />
