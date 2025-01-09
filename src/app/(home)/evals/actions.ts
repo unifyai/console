@@ -72,7 +72,7 @@ export const getLogs = async (apiKey: string) => {
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/logs?project=${project}`
             + (context ? `&context=${context}` : "")
-            + (filterExpression ? `&filter_expr=${filterExpression}` : "")
+            + (filterExpression ? `&filter_expr=${filterExpression.replace("=", "%3D").replace(">", "%3E").replace("<", "%3C")}` : "")
             + (sortingExpression ? `&sorting=${sortingExpression.replace("{", "%7B").replace(":", "%3A%20").replace("}", "%7D")}` : "")
             + (limit ? `&limit=${limit}` : "")
             + (offset ? `&offset=${offset}` : ""),

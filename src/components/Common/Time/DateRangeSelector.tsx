@@ -8,14 +8,14 @@ import { Button } from '@/components/UI/button';
 import { Calendar } from '@/components/UI/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 
-interface TimeRangeSelectorProps {
+interface DateRangeSelectorProps {
   startDate: string | undefined;
   endDate: string | undefined;
   onDateRangeChange: (startDate: string, endDate: string) => void;
   className?: string;
 }
 
-export const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
+export const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
   startDate,
   endDate,
   onDateRangeChange,

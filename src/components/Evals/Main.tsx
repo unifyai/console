@@ -106,7 +106,12 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 		getColumnMetrics(null, "min"),
 		getColumnMetrics(null, "max")
 	])
-	const boundaries = { minimums, maximums }
+
+	// Min-max boundaries for numeric and time-like column filters
+	const timeSortedLogs = logs.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+	let boundaries = { minimums, maximums }
+	boundaries.minimums["ts"] = timeSortedLogs.length ? timeSortedLogs.at(0)!.ts : undefined
+	boundaries.maximums["ts"] = timeSortedLogs.length ? timeSortedLogs.at(-1)!.ts : undefined
 
 	return <DoublePanels
 		isLoading={false}

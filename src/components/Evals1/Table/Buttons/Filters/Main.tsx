@@ -16,23 +16,21 @@ const ColumnFilter = ({ column, columnFilters, setColumnFilterQuery, columnTypes
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
     columnTypes: {[key: string]: string},
-    boundaries: {minimums: {[key: string]: number;}, maximums: {[key: string]: number}}
+    boundaries: {minimums: {[key: string]: any}, maximums: {[key: string]: any}}
 }) => {
-
+    
     let filter;
-    if (["float", "int"].includes(columnTypes[column]))
+    if (["float", "int"].includes(columnTypes[column])) {
         filter = <NumericColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} boundaries={boundaries} />
-    else (["dict", "list", "tuple", "str", "bool"].includes(columnTypes[column]))
+    }
+    else if (columnTypes[column] === "timestamp") {
+        filter = <TimeColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} boundaries={boundaries}/>         
+    }
+    else {
         filter = <StringColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery}/>
-    // if (columnTypes[column] === "timestamp")
-    //     filter = <TimeColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery}/> 
+    }
+
     return filter;
 }
 
 export default ColumnFilter;
-
-
-/* 
-    TODO: 
-        - Add support for timestamp type (not yet expressed in the endpoint)
-*/

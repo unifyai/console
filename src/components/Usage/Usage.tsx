@@ -5,8 +5,8 @@ import {
   ModelSelector,
   ProviderSelector,
   TagSelector,
-  TimeRangeSelector,
 } from './Filters';
+import { DateRangeSelector } from './Filters';
 import QueryHistoryTable from './QueryHistoryTable';
 import { CallsPlot } from './Plots/Calls';
 import { TokensBreakdownPlot } from './Plots/TokensBreakdown';
@@ -152,7 +152,7 @@ export default function Usage() {
             onTagChange={setSelectedTags}
             className="flex-1 min-w-[200px]"
           />
-          <TimeRangeSelector
+          <DateRangeSelector
             startDate={startDate}
             endDate={endDate}
             onDateRangeChange={(start: string, end: string) => {
