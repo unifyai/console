@@ -30,7 +30,10 @@ import {
   Text
 } from "lucide-react";
 
+type SourceType = "entries" | "params";
+
 type SelectionEntryProps = {
+  source?: SourceType;
   property: string;
   value: any;
   baseLog: LogProps;
@@ -77,7 +80,7 @@ function getSelectionView(
   baseLogIndex: number,
   comparisonLogsIndex: number[]
 ) {
-  // Spans or array of spans
+  // Spans or array of spans => trace
   if (isTrace(value)) {
     const baseArr = Array.isArray(value) ? value : [value];
     const compArrs = comparables.map((c) => (Array.isArray(c) ? c : c ? [c] : []));
@@ -158,6 +161,7 @@ function getSelectionView(
  *   Accordion in Selection.tsx handle expansions at all levels.
  */
 const SelectionEntry: React.FC<SelectionEntryProps> = ({
+  source = "entries",
   property,
   value,
   baseLog,
@@ -165,8 +169,12 @@ const SelectionEntry: React.FC<SelectionEntryProps> = ({
   comparisonLogs,
   comparisonLogsIndex
 }) => {
-  // Gather parallel values for this property from each comparison log
-  const comparables = comparisonLogs?.map((cl) => cl.entries[property]) ?? [];
+  // Gather parallel values for this property from each comparison log,
+  // using either cl.entries or cl.params depending on source
+  const comparables = comparisonLogs?.map((cl) => {
+    const container = source === "params" ? cl.params ?? {} : cl.entries ?? {};
+    return container[property];
+  }) ?? [];
 
   const valueType = getValueType(value);
   const icon = getTypeIcon(valueType);

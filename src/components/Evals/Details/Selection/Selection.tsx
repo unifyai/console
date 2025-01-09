@@ -47,21 +47,22 @@ export default function Selection({
   params,
   logs,
 }: {
-  params: LogItemProps;
+  params: Record<string, unknown>;
   logs: LogProps[];
 }) {
+
+  console.log(logs);
+  console.log(params);
 
   const [columnOrderStr] = useQueryState("column_order");
   const [hiddenColumnsStr] = useQueryState("hidden_columns");
   const columnOrdering = columnOrderStr ? columnOrderStr.split(",") : [];
   const hiddenColumns = hiddenColumnsStr ? hiddenColumnsStr.split(",") : [];
 
-
   const sortedLogs = useMemo(() => {
     // Insert your own logic if you do a custom sort
     return [...logs];
   }, [logs]);
-
 
   const [selectedCells] = useQueryState(
     "selected",
@@ -79,7 +80,6 @@ export default function Selection({
       .sort((a, b) => a - b);
   }, [indexToColumns]);
 
-
   const [baseIndexParamStr, setBaseIndexParamStr] = useQueryState("base_idx", parseAsString);
   let baseIndexParam = baseIndexParamStr ? parseInt(baseIndexParamStr, 10) : 0;
   if (isNaN(baseIndexParam) || baseIndexParam < 0 || baseIndexParam >= selectedRowIndices.length) {
@@ -90,7 +90,6 @@ export default function Selection({
   const baseRowIndex = selectedRowIndices[baseIndexParam] ?? -1;
   // The other row indices => comparisons
   const comparisonRowIndices = selectedRowIndices.filter((_, i) => i !== baseIndexParam);
-
 
   function buildLogWithChosenColumns(originalLog: LogProps, rowIndex: number): LogProps {
     const chosenCols = indexToColumns[rowIndex] ?? new Set<string>();
@@ -112,7 +111,11 @@ export default function Selection({
         newEntries[c] = safeEntries[c];
       }
     }
-    return { ...originalLog, entries: newEntries };
+    // Keep params as-is or you might filter them as well
+    // For demonstration, keep them all:
+    const newParams = originalLog.params ?? {};
+
+    return { ...originalLog, entries: newEntries, params: newParams };
   }
 
   // Build final base log
@@ -135,7 +138,7 @@ export default function Selection({
       .filter((x): x is LogProps => x !== null);
   }, [comparisonRowIndices, sortedLogs, indexToColumns, columnOrdering, hiddenColumns]);
 
-
+  // For the base selection combobox
   const comboItems = useMemo(() => {
     return selectedRowIndices.map((rowIndex, i) => {
       const displayLabel = rowLabel(rowIndex); // e.g. "Row 5"
@@ -147,19 +150,39 @@ export default function Selection({
     });
   }, [selectedRowIndices]);
 
-  // The current displayed “value” for the combobox
   const currentBaseLabel = comboItems[baseIndexParam]?.value || "";
 
+  const handleBaseChange = (newLabel: string) => {
+    const found = comboItems.find((x) => x.value === newLabel);
+    if (found) {
+      setBaseIndexParamStr(String(found.dataIndex));
+    } else {
+      setBaseIndexParamStr("0");
+    }
+  };
+
+  // Accordion expansions for Entries
   const [openItems, setOpenItems] = useState<string[]>([]);
-  const entryKeys = (baseLog && baseLog.entries) ? Object.keys(baseLog.entries) : [];
+  const entryKeys = baseLog?.entries ? Object.keys(baseLog.entries) : [];
   const everythingOpen = entryKeys.length > 0 && openItems.length === entryKeys.length;
   const handleToggleAll = () => {
     if (everythingOpen) setOpenItems([]);
     else setOpenItems(entryKeys);
   };
 
+  // Accordion expansions for Params
+  const [openParamItems, setOpenParamItems] = useState<string[]>([]);
+  const paramKeys = baseLog?.params ? Object.keys(baseLog.params) : [];
+  const everythingOpenParams =
+    paramKeys.length > 0 && openParamItems.length === paramKeys.length;
+  const handleToggleAllParams = () => {
+    if (everythingOpenParams) setOpenParamItems([]);
+    else setOpenParamItems(paramKeys);
+  };
+
   const canPickBase = selectedRowIndices.length > 1;
 
+  // If no base log, show hints
   let content;
   if (!baseLog) {
     content = (
@@ -168,64 +191,106 @@ export default function Selection({
       </div>
     );
   } else {
-    // We have a base log => show the details pane
+    // We have a base log => show both “Entries” and “Params”
     content = (
-      <div className="flex flex-col gap-2">
-        {/* Title row => combobox if multi-rows, plus "Expand All" */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <p className="font-bold text-lg">Entries</p>
+      <div className="flex flex-col gap-4">
+        {/* Title row => combobox if multi-rows, plus "Expand All" (for entries) */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <p className="font-bold text-lg">Entries</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {canPickBase && (
+                  <>
+                    <span className="text-sm text-muted-foreground">Base:</span>
+                    <Combobox
+                      items={comboItems.map((item) => ({
+                        value: item.value,
+                        label: item.label,
+                      }))}
+                      value={currentBaseLabel}
+                      onValueChange={handleBaseChange}
+                      placeholder="Pick base row"
+                      className="w-[110px]"
+                    />
+                  </>
+                )}
+              <ActionButton
+                variant="ghost"
+                size="icon"
+                tooltip={everythingOpen ? "Collapse All" : "Expand All"}
+                onClick={handleToggleAll}
+                icon={
+                  everythingOpen
+                    ? <FoldVertical className="h-4 w-4" />
+                    : <UnfoldVertical className="h-4 w-4" />
+                }
+              />
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {canPickBase && (
-                <>
-                  <span className="text-sm text-muted-foreground">Base:</span>
-                  <Combobox
-                    items={comboItems.map((item) => ({
-                      value: item.value, // "Row 5"
-                      label: item.label, // "Row 5"
-                    }))}
-                    value={currentBaseLabel} // e.g. "Row 5"
-                    onValueChange={(newLabel) => {
-                      const found = comboItems.find((x) => x.value === newLabel);
-                      if (found) {
-                        setBaseIndexParamStr(String(found.dataIndex));
-                      } else {
-                        setBaseIndexParamStr("0");
-                      }
-                    }}
-                    placeholder="Pick base row"
-                    className="w-[110px]"
-                  />
-                </>
-              )}
-            <ActionButton
-              variant="ghost"
-              size="icon"
-              tooltip={everythingOpen ? "Collapse All" : "Expand All"}
-              onClick={handleToggleAll}
-              icon={
-                everythingOpen
-                  ? <FoldVertical className="h-4 w-4" />
-                  : <UnfoldVertical className="h-4 w-4" />
-              }
-            />
-          </div>
+
+          {/* Accordion for “Entries” */}
+          <Accordion
+            type="multiple"
+            value={openItems}
+            onValueChange={setOpenItems}
+          >
+            {entryKeys.map((col) => (
+              <SelectionEntry
+                key={col}
+                source="entries"
+                property={col}
+                value={baseLog.entries[col]}
+                baseLog={baseLog}
+                baseLogIndex={baseRowIndex + 1}
+                comparisonLogs={comparisonLogs}
+                comparisonLogsIndex={comparisonRowIndices.map(x => x + 1)}
+              />
+            ))}
+          </Accordion>
         </div>
 
-        <Accordion type="multiple" value={openItems} onValueChange={setOpenItems}>
-          {entryKeys.map((col) => (
-            <SelectionEntry
-              key={col}
-              property={col}
-              value={baseLog.entries[col]}
-              baseLog={baseLog}
-              baseLogIndex={baseRowIndex + 1}
-              comparisonLogs={comparisonLogs}
-              comparisonLogsIndex={comparisonRowIndices.map(x => x + 1)}
-            />
-          ))}
-        </Accordion>
+        {/* If “Params” exist, render them below Entries in a separate section */}
+        {paramKeys.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <p className="font-bold text-lg">Params</p>
+              </div>
+              <ActionButton
+                variant="ghost"
+                size="icon"
+                tooltip={everythingOpenParams ? "Collapse All" : "Expand All"}
+                onClick={handleToggleAllParams}
+                icon={
+                  everythingOpenParams
+                    ? <FoldVertical className="h-4 w-4" />
+                    : <UnfoldVertical className="h-4 w-4" />
+                }
+              />
+            </div>
+
+            <Accordion
+              type="multiple"
+              value={openParamItems}
+              onValueChange={setOpenParamItems}
+            >
+              {paramKeys.map((col) => (
+                <SelectionEntry
+                  key={col}
+                  source="params"
+                  property={col}
+                  value={baseLog.params[col]}
+                  baseLog={baseLog}
+                  baseLogIndex={baseRowIndex + 1}
+                  comparisonLogs={comparisonLogs}
+                  comparisonLogsIndex={comparisonRowIndices.map(x => x + 1)}
+                />
+              ))}
+            </Accordion>
+          </div>
+        )}
       </div>
     );
   }
