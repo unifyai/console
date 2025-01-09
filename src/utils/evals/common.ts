@@ -91,3 +91,31 @@ export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFiel
     const paramsProperties = properties.filter(property => unsortedParamsProperties.includes(property));
     return { entriesProperties, paramsProperties, logs, params };
 }
+
+/* 
+  Using the context argument of getLogs to update logs without refreshing the page.
+  Note: The URLParam version should be used with URL-based state management and the 
+        standard version should be used with the state management used with the 
+        composable interfaces UI
+*/
+export const inplaceRefreshUsingContextURLParam = (context : string | null, setContext: (context: string | null) => void) => {
+  if (context === null)
+      setContext("")
+  else if (context === "")
+      setContext(null)
+  else if (context[-1] === "/")
+      setContext(context.slice(0, -1))
+  else 
+      setContext(context + "/")
+}
+
+export const inplaceRefreshUsingContext = (context : string | undefined, setContext: (context: string | undefined) => void) => {
+  if (context === undefined)
+      setContext("")
+  else if (context === "")
+      setContext(undefined)
+  else if (context[-1] === "/")
+      setContext(context.slice(0, -1))
+  else 
+      setContext(context + "/")
+}

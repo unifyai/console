@@ -9,18 +9,23 @@ import { Button } from "@/components/UI/button"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/UI/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/UI/popover"
 
-export default function AutoComplete ({items, type, defaultValue, onSelect, className}: {
+export default function AutoComplete ({items, type, defaultValue, onSelect, onOpen, className}: {
     items: {value:string, label: string}[],
     type: string,
     defaultValue?: string,
     onSelect: (currentValue: string) => void,
+    onOpen?: () => void,
     className?: string
 }) {
   const [open, setOpen] = React.useState(false)
   const [value, setValue] = React.useState(defaultValue || "")
   useEffect(() => {setValue(defaultValue || "")}, [defaultValue])
+  const onOpenChange = (o: boolean) => {
+    if (onOpen && o) onOpen();
+    setOpen(o);
+  }
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(o) => onOpenChange(o)}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"

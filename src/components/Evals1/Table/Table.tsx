@@ -34,6 +34,7 @@ import { searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
 import { ItemType, TileProps } from "@/types/evals/grid";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
+import { inplaceRefreshUsingContext } from "@/utils/evals/common";
 
 const LogsTable = ({
   projects,
@@ -364,6 +365,7 @@ const LogsTable = ({
             }}
             type="Projects"
             defaultValue={project}
+            onOpen={() => inplaceRefreshUsingContext(item.context, updateItem(item, "context"))}
           />
           {project && (
             <div className="flex flex-row gap-2">
@@ -387,7 +389,7 @@ const LogsTable = ({
           <RefreshLogs
             auto={item.auto_update}
             setAuto={updateItem(item, "auto_update")}
-            context={item.context ?? null}
+            context={item.context}
             setContext={updateItem(item, "context")}
             project={project}
             filterExpression={filterExpression}

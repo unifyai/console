@@ -5,6 +5,7 @@ import { RefreshCw, Power } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQueryState, parseAsFloat, parseAsBoolean } from "nuqs";
 import { BasePopover } from "@/components/Common/Popovers/Base";
+import { inplaceRefreshUsingContextURLParam } from "@/utils/evals/common";
 
 const RefreshLogs = ({context, setContext, project, filterExpression, sortingExpression, getLatest}: {
     context: string | null,
@@ -22,19 +23,9 @@ const RefreshLogs = ({context, setContext, project, filterExpression, sortingExp
     // We use the context argument to trigger a refresh of the logs.
     // A context that ends with "/" is equivalent to the same context without the final "/"
     // Likewise, a null context is equivalent to an empty string context
-    const updateContext = () => {
-        if (context === null)
-            setContext("")
-        else if (context === "")
-            setContext(null)
-        else if (context[-1] === "/")
-            setContext(context.slice(0, -1))
-        else 
-            setContext(context + "/")
-    }
     useEffect(() => {
         if (!auto) return;
-        const interval = setInterval(() => updateContext(), 100) // Refresh every 100ms
+        const interval = setInterval(() => inplaceRefreshUsingContextURLParam(context, setContext), 100) // Refresh every 100ms
         return () => clearInterval(interval)
     }, [auto])
     const onAutoClick = () => setAuto(!auto)
@@ -67,7 +58,7 @@ const RefreshLogs = ({context, setContext, project, filterExpression, sortingExp
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime()
             if (latestTs > lastCheckTs) {
-                updateContext()
+                inplaceRefreshUsingContextURLParam(context, setContext)
                 setLastUpdated(latest)
                 setMessage(messages.updated)
             } else {
