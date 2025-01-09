@@ -58,6 +58,7 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
     // 3- Join common filters with the "in" filter function and common filter value using "or"
     // 4- Join common and column filters into a single filter expression
     let tableItems = currentInterface.items.filter(item => item.tab?.includes("Table"));
+    const tableNames = tableItems.map(item => item.i);
     const logsFilters: { [column: string]: { [fn: string]: string } }[] = tableItems.map(
         item => searchParamToFilters(item.filters, item.context)
     );
@@ -188,6 +189,7 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
     return <CardGrid
         projects={projects}
         project_={project}
+        tableNames={tableNames}
         tableData={tableData}
         columnTypes={fields}
         savedInterface={interface_}

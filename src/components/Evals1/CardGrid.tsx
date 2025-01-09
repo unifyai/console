@@ -19,6 +19,7 @@ const ResponsiveReactGridLayout = WidthProvider(Responsive);
 const CardGrid = ({
     projects,
     project_,
+    tableNames,
     tableData,
     columnTypes,
     savedInterface,
@@ -34,6 +35,7 @@ const CardGrid = ({
 }: {
     projects: string[] | undefined,
     project_: string | undefined,
+    tableNames: string[]
     tableData: TableDataProps,
     columnTypes: { [key: string]: string },
     savedInterface: { items: TileProps[], new_counter: number, project: string | null } | null,
@@ -219,6 +221,7 @@ const CardGrid = ({
                             projects={projects}
                             project={project}
                             columnTypes={columnTypes}
+                            tableNames={tableNames}
                             tableData={tableData}
                             projectActions={projectActions}
                             logsActions={logsActions}

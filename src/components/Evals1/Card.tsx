@@ -17,6 +17,7 @@ const Card = ({
     projects,
     project,
     columnTypes,
+    tableNames,
     tableData,
     projectActions,
     logsActions,
@@ -32,6 +33,7 @@ const Card = ({
     projects: string[] | undefined,
     project: string | undefined,
     columnTypes: { [key: string]: string },
+    tableNames: string[],
     tableData: TableDataProps,
     projectActions: {
         get: () => Promise<string[]>,
@@ -68,7 +70,7 @@ const Card = ({
             router.replace("?temporary=true", { scroll: false });
             router.refresh();
         }).catch(() => {});
-    }, [item.filters, item.common_filter, item.sorting, item.page_number, item.metric])
+    }, [item.tab, item.filters, item.common_filter, item.sorting, item.page_number, item.metric]);
 
     return (<div className="overflow-x-auto relative flex w-full h-full border rounded-lg">
         <div className={"overflow-auto w-full flex-1 flex flex-col items-center " + (tab ? "mt-2" : "justify-center")}>
@@ -103,10 +105,11 @@ const Card = ({
                             size="default"
                         />}
                     >
-                        {Object.keys(tableData).map((tile, idx) => <DropdownMenuItem
+                        {tableNames.map((tile, idx) => <DropdownMenuItem
                             key={idx}
                             onSelect={() => updateItem(item, "table")(tile)}
                             className="w-64"
+                            disabled={tableData[tile].logs.length == 0}
                         >
                             {tile}
                         </DropdownMenuItem>)}
