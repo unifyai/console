@@ -50,10 +50,6 @@ export default function Selection({
   params: Record<string, unknown>;
   logs: LogProps[];
 }) {
-
-  console.log(logs);
-  console.log(params);
-
   const [columnOrderStr] = useQueryState("column_order");
   const [hiddenColumnsStr] = useQueryState("hidden_columns");
   const columnOrdering = columnOrderStr ? columnOrderStr.split(",") : [];
