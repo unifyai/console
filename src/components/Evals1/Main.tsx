@@ -49,9 +49,11 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
 
     // Get fields
     let fields: LogFieldsResponseProps = {};
-    if (project)
+    let types: {[key: string] : string} = {}
+    if (project) {
         fields = await fieldsActions.get(project);
-
+        types = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].type]));
+    }
     /* Handle filters */
     // 1- Convert filters search param value to a nested dictionary representation of column, function and values
     // 2- Join column filters with the corresponding filter functions and values using "and"
@@ -192,7 +194,7 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
         project_={project}
         tableNames={tableNames}
         tableData={tableData}
-        columnTypes={fields}
+        columnTypes={types}
         savedInterface={interface_}
         items_={currentInterface.items}
         newCounter_={currentInterface.new_counter}

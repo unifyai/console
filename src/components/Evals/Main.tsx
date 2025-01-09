@@ -34,8 +34,10 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 	const project: string | undefined = projects.find(project => project == searchParams.project);
 	const context = searchParams.context;
 	let fields: LogFieldsResponseProps = {}
+	let types: {[key: string] : string} = {}
 	if (project) {
 		fields = await fieldsActions.get(project)
+		types = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].type]))
 	}
 
 	/* Handle filters */
@@ -114,7 +116,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 				projects={projects}
 				project={project}
 				logs={logs}
-				columnTypes={fields}
+				columnTypes={types}
 				entriesProperties={entriesProperties}
 				paramsProperties={paramsProperties}
 				metrics={metrics}
