@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from 'next/navigation';
+import { useRouter } from "next/navigation";
 import Card from "./Card";
 import { LogFieldsResponseProps, LogFieldsProps, LogsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
@@ -75,20 +75,23 @@ const CardGrid = ({
         }
     }
 
+    const updateInterface = () => {
+        if (tempInterfaceCreated)
+            return interfaceActions.update(items, newCounter, project || null, true);
+        else
+            return interfaceActions.create(items, newCounter, project || null, true);
+    }
+
     useEffect(() => {
-        if (tempInterfaceCreated) {
-            interfaceActions.update(items, newCounter, project || null, true).then(() => {
-                router.replace("?temporary=true", { scroll: false });
-                router.refresh();
-            });
-        }
-        else {
-            interfaceActions.create(items, newCounter, project || null, true).then(() => {
-                router.replace("?temporary=true", { scroll: false });
-                router.refresh();
-            });
-        }
-    }, [project, items]);
+        updateInterface().then(() => {
+            router.replace("?temporary=true", { scroll: false });
+            router.refresh();
+        });
+    }, [project]);
+
+    useEffect(() => {
+        updateInterface();
+    }, [items]);
 
     useEffect(() => {
         gridRef.current?.scrollTo({
@@ -97,9 +100,7 @@ const CardGrid = ({
         });
     }, [newCounter]);
 
-    useEffect(() => {
-        setTimeout(() => setSuccess(undefined), 3000);
-    }, [success]);
+    useEffect(() => { setTimeout(() => setSuccess(undefined), 3000); }, [success]);
 
     const icon = success ? <Check /> : success == false ? <TriangleAlert /> : <Save />;
     const variant = success ? "primary" : success == false ? "destructive" : "outline";
@@ -135,7 +136,7 @@ const CardGrid = ({
                     setItems([
                         ...items,
                         {
-                            i: "tile-" + newCounter,
+                            i: "tile_" + newCounter,
                             x: (items.length * 2) % 12,
                             y: (items.length * 2) / 12,
                             w: 3,
@@ -190,6 +191,7 @@ const CardGrid = ({
                             setItems={(items: TileProps[]) => setItems(items)}
                             updateItem={updateItem}
                             fieldsActions={fieldsActions}
+                            updateInterface={updateInterface}
                         />
                         {editable && <ActionButton
                             className="remove absolute top-3 right-3 cursor-pointer"

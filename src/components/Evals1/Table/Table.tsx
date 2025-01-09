@@ -45,12 +45,12 @@ const LogsTable = ({
   logsData,
   totalPages,
   columnTypes,
+  boundaries,
   setProject,
   updateItem,
   projectActions,
   logsActions,
   fieldsActions,
-  boundaries
 }: {
   projects: string[] | undefined;
   project: string | undefined;
@@ -63,6 +63,7 @@ const LogsTable = ({
   logsData: LogsResponseProps;
   totalPages: number;
   columnTypes: { [key: string]: string };
+  boundaries: {minimums: {[key: string]: number}, maximums: {[key: string]: number}};
   setProject: Dispatch<SetStateAction<string | undefined>>;
   updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
   projectActions: {
@@ -91,7 +92,6 @@ const LogsTable = ({
     get: (project: string) => Promise<LogFieldsResponseProps>,
     delete: (fields: LogFieldsProps) => Promise<ResponseProps>
   },
-  boundaries: {minimums: {[key: string]: number}, maximums: {[key: string]: number}}
 }) => {
   // Basic states for quick feedback
   const [pending, setPending] = useState(false);        // if the project is invalid

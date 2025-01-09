@@ -1,5 +1,7 @@
 "use client";
 
+import { Dispatch, SetStateAction, useEffect } from "react";
+import { useRouter } from 'next/navigation';
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import Selection from "@/components/Evals1/Details/Selection/Selection";
@@ -10,7 +12,6 @@ import LogsPlot from "@/components/Evals1/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Evals1/Table/Table";
 import { ItemType, TableDataProps, TileProps } from "@/types/evals/grid";
-import { Dispatch, SetStateAction } from "react";
 
 const Card = ({
     projects,
@@ -25,6 +26,7 @@ const Card = ({
     setProject,
     setItems,
     updateItem,
+    updateInterface,
     fieldsActions,
 }: {
     projects: string[] | undefined,
@@ -50,13 +52,23 @@ const Card = ({
     setProject: Dispatch<SetStateAction<string | undefined>>,
     setItems: (items: TileProps[]) => void,
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void
+    updateInterface: () => Promise<ResponseProps>,
     fieldsActions: {
         get: (project: string) => Promise<LogFieldsResponseProps>,
         delete: (fields: LogFieldsProps) => Promise<ResponseProps>
     },
 }) => {
+    const router = useRouter();
     const tab = items.find(item => item.i == index)?.tab
     const tabTypes = ["Table", "Plot", "View"];
+    const relevantItem = item.table ? items.find(it => it.i == item.table) : undefined
+
+    useEffect(() => {
+        updateInterface().then(() => {
+            router.replace("?temporary=true", { scroll: false });
+            router.refresh();
+        })
+    }, [item.filters, item.common_filter, item.sorting, item.page_number, item.metric])
 
     return (<div className="overflow-x-auto relative flex w-full h-full border rounded-lg">
         <div className={"overflow-auto w-full flex-1 flex flex-col items-center " + (tab ? "mt-2" : "justify-center")}>
@@ -103,10 +115,10 @@ const Card = ({
             </div>
             {tab?.includes("View") && <Selection
                 logs={item.table ? tableData[item.table].logs : []}
-                selection_={item.table ? tableData[item.table].selection : undefined}
-                baseIndex_={item.table ? tableData[item.table].baseIndex : undefined}
-                columnOrdering_={item.table ? tableData[item.table].columnOrdering : undefined}
-                hiddenColumns_={item.table ? tableData[item.table].hiddenColumns : undefined}
+                selection_={relevantItem?.selected}
+                baseIndex_={relevantItem?.base_index}
+                columnOrdering_={relevantItem?.column_order}
+                hiddenColumns_={relevantItem?.hidden_columns}
                 item={item}
                 updateItem={updateItem}
             />}

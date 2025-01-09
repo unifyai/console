@@ -37,7 +37,7 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
     let currentInterface = temporary ? interfaceTemp_ : interface_;
     if (!currentInterface) {
         currentInterface = {
-            items: [{ i: "tile-0", x: 0, y: 0, w: 3, h: 3, tab: undefined, moved: false, static: false }],
+            items: [{ i: "tile_0", x: 0, y: 0, w: 3, h: 3, tab: undefined, moved: false, static: false }],
             new_counter: 1,
             project: null
         };
