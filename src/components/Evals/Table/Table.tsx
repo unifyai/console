@@ -3,7 +3,7 @@
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
-import FileDirectory from "@/components/Directory/FileDirectory";
+import FileDirectory from "@/components/Tree/Directory/FileDirectory";
 import { LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import {
   ColumnDef,
@@ -35,6 +35,7 @@ import { parseAsArrayOf, parseAsString } from "nuqs";
 import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
+import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 
 const LogsTable = ({
   searchParams,
@@ -77,6 +78,7 @@ const LogsTable = ({
   logsActions: {
     get: (
       project: string,
+      context: string | null,
       filterExpression: string | null,
       sortingExpression: string | null,
       limit: number | null,
@@ -111,6 +113,7 @@ const LogsTable = ({
     parseAsArrayOf(parseAsString).withDefault([])                    // [logId1_colId1,logId1_colId2,logId2_colId3,...]
   )
   const { baseLogIndex, baseLog, comparisonLogsIndex, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, logs)
+  const [context, setContext] = useQueryState("context", {shallow: false})
 
   // Column definitions
   const entriesTree = buildTree(entriesProperties);
@@ -291,6 +294,7 @@ const LogsTable = ({
   ]);
 
   const resetParamsStates = () => {
+    setContext(null);
     setSelectedCells([])
     setColumnOrderStr(null);
     setHiddenColumns(null);
@@ -310,6 +314,11 @@ const LogsTable = ({
     <div className="flex flex-row justify-between gap-3 LogsTablePreferences">
       {project && columns.length > 0 && (
         <div className="flex flex-row gap-2 items-center">
+          <SelectionMenu
+            type="Contexts"
+            data={Object.keys(columnTypes).map(property => ({path: property, type:"file"}))}
+            onClick={setContext}
+          />
           <GlobalFilter
             searchParams={searchParams}
             columnNames={columnIDs.slice(1)}
@@ -424,7 +433,7 @@ const LogsTable = ({
                       );
                     }}
                     boundaries={boundaries}
-                    columnFilters={searchParamToFilters(logsFiltersQuery ?? undefined)}
+                    columnFilters={searchParamToFilters(logsFiltersQuery ?? undefined, context ?? undefined)}
                     column={column.id}
                     columnTypes={columnTypes}
                   />
@@ -444,7 +453,7 @@ const LogsTable = ({
                   </FooterCell>
                 }
                 ExtraComponents={(table) => {
-                  return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={fieldsActions.delete}/>
+                  return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={fieldsActions.delete} context={context ?? undefined}/>
                 }}
                 ExtraCellContent={(cell, isCellExpanded, setExpandedCells) => 
                   <CellPopover cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells}/>

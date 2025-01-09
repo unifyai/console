@@ -11,19 +11,28 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import {
   GanttChart,
   GitBranch,
-  ChevronsLeftRightEllipsis,
   ChevronDown,
   ChevronRight,
-  FileText,
-  CaseLower,
+  Text as TextIcon,
   Pilcrow,
-  Columns,
-  AlignJustify,
   Eye,
   EyeOff,
+  FoldVertical,
+  UnfoldVertical,
+  CurlyBraces,
+  Brackets,
+  ImageIcon,
+  Grid,
 } from "lucide-react";
 
-import { BarChart, Bar, CartesianGrid, XAxis, YAxis, LabelList } from "recharts";
+import {
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  LabelList,
+} from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
@@ -40,54 +49,87 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-import DiffViewer from "@/components/Common/Misc/DiffViewer";
-import MultiSpanNode from "./nodes/MultiSpanNode"; 
-import { unifyByName, unifyTracesForChart, colorPalette } from "./unify";
-import type { Span } from "@/types/evals/traces";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/UI/accordion";
 
+import { Span } from "@/types/evals/traces";
+import {
+  unifyByName,
+  unifyTracesForChart,
+  colorPalette,
+} from "./unify";
+import MultiSpanNode from "./nodes/MultiSpanNode";
+import getIconForSpanType from "./IconSelection";
 
-interface MergedSpan {
+import { isDict, isList, isMatrix, isImage, isTrace } from "@/utils/evals/selection";
+import DictionaryView from "../DictionaryView";
+import ListView from "../ListView";
+import ImageView from "../ImageView";
+import MatrixView from "../MatrixView";
+import StringView from "../StringView";
+
+export interface MergedSpan {
   spanName: string;
-  baseSpan?: Span;
+  baseSpan?: Span;                 // if present => in base
   comparableSpans: (Span | undefined)[];
   children: MergedSpan[];
 }
 
-interface MultiTraceViewProps {
-  allTraces: Span[][]; 
+/** Use the same logic as SingleTraceView to pick a type. */
+function getValueType(value: any):
+  | "dict"
+  | "list"
+  | "image"
+  | "matrix"
+  | "string"
+  | "trace" {
+  if (isTrace(value))   return "trace";
+  if (isDict(value))    return "dict";
+  if (isList(value))    return "list";
+  if (isImage(value))   return "image";
+  if (isMatrix(value))  return "matrix";
+  return "string";
+}
+
+/** For field-level icons in the Accordion. */
+function getTypeIcon(valueType: string) {
+  switch (valueType) {
+    case "trace":
+      return <Pilcrow className="h-4 w-4 text-primary" />;
+    case "dict":
+      return <CurlyBraces className="h-4 w-4 text-primary" />;
+    case "list":
+      return <Brackets className="h-4 w-4 text-primary" />;
+    case "image":
+      return <ImageIcon className="h-4 w-4 text-primary" />;
+    case "matrix":
+      return <Grid className="h-4 w-4 text-primary" />;
+    default:
+      return <TextIcon className="h-4 w-4 text-primary" />;
+  }
+}
+
+interface CollapsibleMergedNodeProps {
+  node: MergedSpan;
+  depth: number;
+  expansions: Record<string, boolean>;
+  setExpansions: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  onSelectNode: (n: MergedSpan) => void;
+  selectedNode?: MergedSpan | null;
   rowIndexes: number[];
 }
 
-function compressRowNumbers(rows: number[]): string {
-  if (!rows.length) return "";
-  const sorted = [...rows].sort((a, b) => a - b);
-
-  const ranges: string[] = [];
-  let start = sorted[0];
-  let end = start;
-
-  for (let i = 1; i < sorted.length; i++) {
-    const cur = sorted[i];
-    if (cur === end + 1) {
-      end = cur;
-    } else {
-      if (start === end) {
-        ranges.push(String(start));
-      } else {
-        ranges.push(`${start}-${end}`);
-      }
-      start = cur;
-      end = cur;
-    }
+function getAnySpanType(ms: MergedSpan): string | undefined {
+  if (ms.baseSpan?.type) return ms.baseSpan.type;
+  for (const c of ms.comparableSpans) {
+    if (c?.type) return c.type;
   }
-  if (start === end) {
-    ranges.push(String(start));
-  } else {
-    ranges.push(`${start}-${end}`);
-  }
-  return ranges.join(",");
+  return undefined;
 }
-
 
 function CollapsibleMergedNode({
   node,
@@ -97,39 +139,21 @@ function CollapsibleMergedNode({
   onSelectNode,
   selectedNode,
   rowIndexes,
-}: {
-  node: MergedSpan;
-  depth: number;
-  expansions: Record<string, boolean>;
-  setExpansions: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-  onSelectNode: (n: MergedSpan) => void;
-  selectedNode?: MergedSpan;
-  rowIndexes: number[];
-}) {
+}: CollapsibleMergedNodeProps) {
   const { spanName, baseSpan, comparableSpans, children } = node;
-  const hasChildren = children && children.length > 0;
+  const hasChildren = children.length > 0;
 
-  // We'll build a stable ID for expansions
-  const nodeId = `${spanName}-${baseSpan?.id ?? "no-base"}`;
+  const nodeId = `${spanName}-${baseSpan?.id ?? "none"}`;
   const isExpanded = expansions[nodeId] ?? true;
   const canCollapse = depth >= 1 && hasChildren;
 
-  // color-coded text
+  // Red if baseSpan present; else green
   const inBase = !!baseSpan;
-  const textColor = inBase ? "text-red-600" : "text-green-600";
+  const textColorClass = inBase ? "text-red-600" : "text-green-600";
 
-  // gather row indexes
-  const rowList: number[] = [];
-  if (baseSpan) rowList.push(rowIndexes[0]);
-  comparableSpans.forEach((c, i) => {
-    if (c) {
-      rowList.push(rowIndexes[i + 1]);
-    }
-  });
-  const rowString = compressRowNumbers(rowList);
-
-  // check if selected in the tree
   const isSelected = selectedNode === node;
+  const iconType = getAnySpanType(node);
+  const IconComponent = getIconForSpanType(iconType);
 
   return (
     <div className="relative pl-4 border-l border-muted">
@@ -141,24 +165,15 @@ function CollapsibleMergedNode({
         style={{ marginLeft: depth ? "0.5rem" : 0 }}
         onClick={() => onSelectNode(node)}
       >
-        {isSelected ? <ChevronsLeftRightEllipsis className="w-4 h-4 text-primary-foreground" /> : <ChevronsLeftRightEllipsis className="w-4 h-4 text-primary" />}
-        <span className={`font-medium text-sm ${textColor}`}>
-          {spanName}
-        </span>
-        {rowString && (
-          <span className="text-xs text-muted-foreground ml-2">
-            Rows: {rowString}
-          </span>
-        )}
+        <IconComponent className="w-4 h-4" />
+        <span className={`font-medium text-sm ${textColorClass}`}>{spanName}</span>
+
         {canCollapse && (
           <button
             className="ml-auto text-muted-foreground hover:text-foreground p-0.5"
             onClick={(e) => {
               e.stopPropagation();
-              setExpansions((prev) => ({
-                ...prev,
-                [nodeId]: !prev[nodeId],
-              }));
+              setExpansions((prev) => ({ ...prev, [nodeId]: !prev[nodeId] }));
             }}
           >
             {isExpanded ? (
@@ -186,7 +201,6 @@ function CollapsibleMergedNode({
           ))}
         </div>
       )}
-
       {canCollapse && isExpanded && (
         <div className="ml-4">
           {children.map((child, i) => (
@@ -208,247 +222,268 @@ function CollapsibleMergedNode({
 }
 
 
-function groupComparablesByValue(
-  comparables: (Span | undefined)[],
-  rowIndexes: number[],
-  getValue: (s: Span | undefined) => string
-) {
-  const map = new Map<string, number[]>();
-  comparables.forEach((comp, i) => {
-    const txt = getValue(comp);
-    const compRow = rowIndexes[i + 1];
-    const arr = map.get(txt) || [];
-    arr.push(compRow);
-    map.set(txt, arr);
-  });
-  return Array.from(map.entries()).map(([text, rows]) => ({ text, rows }));
+function isAllIdentical(
+  baseVal: unknown,
+  compareVals: unknown[],
+): boolean {
+  const baseJSON = JSON.stringify(baseVal);
+  return compareVals.every((v) => JSON.stringify(v) === baseJSON);
 }
 
 
-function MergedFieldDiff({
-  label,
-  baseVal,
-  comparables,
-  rowIndexes,
-  diffMode,
-  splitView,
-  hideIdentical,
-  getValue,
-}: {
-  label: string;
-  baseVal: Span | undefined;
-  comparables: (Span | undefined)[];
-  rowIndexes: number[];
-  diffMode: "lines" | "words" | "characters";
-  splitView: boolean;
-  hideIdentical: boolean;
-  getValue: (s: Span | undefined) => string;
-}) {
-  const baseText = getValue(baseVal);
+function fixUndefinedIfNeeded(val: any, sample: any) {
+  if (val !== undefined && val !== null) return val;
+  // If sample is a dict => use {}
+  if (isDict(sample)) return {};
+  // If sample is list => []
+  if (isList(sample)) return [];
+  if (isMatrix(sample)) return [];   // treat as empty array
+  if (isImage(sample)) return "";    // treat as empty string
+  // fallback => undefined is fine for string or "trace"
+  return val;
+}
 
-  // if base + comps are all empty => skip entirely
-  const allEmpty = !baseText && comparables.every((c) => !getValue(c));
-  if (allEmpty) return null;
-
-  // group comps by identical text
-  const groups = groupComparablesByValue(comparables, rowIndexes, getValue);
-  // if hideIdentical and everything matches base => skip
-  if (hideIdentical && groups.length === 1 && groups[0].text === baseText) {
-    return null;
+function getMultiValueView(
+  baseVal: any,
+  compareVals: any[],
+  baseIndex: number,
+  compareIndexes: number[]
+) {
+  // If literally everything is undefined => skip
+  const allUndefined = baseVal === undefined && compareVals.every((v) => v === undefined);
+  if (allUndefined) {
+    return <p className="italic text-sm text-muted-foreground">No data</p>;
   }
 
-  return (
-    <div className="bg-secondary/10 border p-2 rounded space-y-2 mb-4">
-      <p className="font-medium text-sm">{label}</p>
-      {comparables.length === 0 ? (
-        <pre className="ml-2 text-sm">{baseText}</pre>
-      ) : (
-        groups.map((g, i) => {
-          const rowSet = compressRowNumbers(g.rows);
-          return (
-            <div key={i} className="ml-2 border-l pl-2 mb-2">
-              <p className="text-xs text-muted-foreground mb-1">
-                Diff row {rowIndexes[0]} with row(s) {rowSet}
-              </p>
-              <DiffViewer
-                oldValue={baseText}
-                newValue={g.text}
-                splitView={splitView}
-                mode={diffMode}
-                hideLineNumbers
-                hideMarkers
-                showDiffOnly={false}
-              />
-            </div>
-          );
-        })
-      )}
-    </div>
-  );
+  // Figure out a sample for type detection
+  let sample = baseVal;
+  if (sample === undefined) {
+    sample = compareVals.find((x) => x !== undefined);
+  }
+  // If still nothing => fallback to "string"
+  if (!sample) sample = "";
+
+  // Now we have a sample => detect type
+  const vtype = getValueType(sample);
+
+  // If baseVal is undefined but sample is dict/list => fix it
+  let fixedBase = fixUndefinedIfNeeded(baseVal, sample);
+  // Also fix each comparable
+  let fixedCompares = compareVals.map((c) => fixUndefinedIfNeeded(c, sample));
+
+  // Dispatch to the specialized multi-view
+  switch (vtype) {
+    case "trace":
+      // If we want to handle nested spans, do so. For now => fallback:
+      return (
+        <p className="italic text-sm">
+          (Span data detected - no specialized multi-trace view)
+        </p>
+      );
+    case "dict":
+      return (
+        <DictionaryView
+          value={fixedBase}
+          comparables={fixedCompares}
+          baseLogIndex={baseIndex}
+          comparisonLogsIndex={compareIndexes}
+        />
+      );
+    case "list":
+      return (
+        <ListView
+          value={fixedBase}
+          comparables={fixedCompares}
+          baseLogIndex={baseIndex}
+          comparisonLogsIndex={compareIndexes}
+        />
+      );
+    case "image":
+      return (
+        <ImageView
+          value={fixedBase}
+          comparables={fixedCompares}
+          baseLogIndex={baseIndex}
+          comparisonLogsIndex={compareIndexes}
+        />
+      );
+    case "matrix":
+      return (
+        <MatrixView
+          value={fixedBase}
+          comparables={fixedCompares}
+          baseLogIndex={baseIndex}
+          comparisonLogsIndex={compareIndexes}
+        />
+      );
+    default: // "string"
+      return (
+        <StringView
+          value={fixedBase ?? ""}
+          comparables={fixedCompares}
+          baseLogIndex={baseIndex}
+          comparisonLogsIndex={compareIndexes}
+        />
+      );
+  }
 }
 
-
-function MultiDetailPanel({
-  node,
-  rowIndexes,
-}: {
+interface MultiDetailPanelProps {
   node: MergedSpan;
   rowIndexes: number[];
-}) {
-  const [modeIndex, setModeIndex] = useState(0);
-  const diffModes = ["lines", "words", "characters"] as const;
-  const modeIcons = [<FileText key="f"/>, <CaseLower key="c"/>, <Pilcrow key="p"/>];
-  const diffMode = diffModes[modeIndex];
+}
 
-  const [splitView, setSplitView] = useState(false);
+function MultiDetailPanel({ node, rowIndexes }: MultiDetailPanelProps) {
   const [hideIdentical, setHideIdentical] = useState(false);
-
-  const handleCycleMode = () => setModeIndex((prev) => (prev + 1) % diffModes.length);
-  const handleToggleSplit = () => setSplitView((p) => !p);
   const handleToggleHide = () => setHideIdentical((p) => !p);
 
+  // Expand All
+  const [openItems, setOpenItems] = useState<string[]>([]);
+  const fields = [
+    { id: "offset",    label: "Offset" },
+    { id: "exec_time", label: "Exec Time" },
+    { id: "code",      label: "Code" },
+    { id: "errors",    label: "Errors" },
+    { id: "inputs",    label: "Inputs" },
+    { id: "outputs",   label: "Outputs" },
+  ];
+  const allFieldIds = fields.map((f) => f.id);
+  const everythingOpen = allFieldIds.length > 0 && openItems.length === allFieldIds.length;
+  const handleToggleAll = () => {
+    if (everythingOpen) setOpenItems([]);
+    else setOpenItems(allFieldIds);
+  };
+
+  // Node => name + base/comparables
   const { spanName, baseSpan, comparableSpans } = node;
-  if (!baseSpan && comparableSpans.every((c) => !c)) {
-    return <p className="p-2 italic text-sm">No data in this node</p>;
-  }
+  const firstSpan = baseSpan || comparableSpans.find((s) => s);
+  const IconComponent = getIconForSpanType(firstSpan?.type);
+
+  // Indices
+  const baseRowIndex = rowIndexes[0];
+  const compareIndexes = rowIndexes.slice(1);
 
   return (
     <div className="w-full h-full flex flex-col">
-      {/* Name + toggles */}
+      {/* top bar => icon + spanName, then toggles on the right */}
       <div className="flex items-center justify-between mb-2 border-b pb-2">
-        <p className="text-base font-semibold text-foreground">
-          {spanName}
-        </p>
         <div className="flex items-center gap-2">
-          <ActionButton
-            tooltip={`Diff mode (${diffMode})`}
-            variant="ghost"
-            size="icon"
-            icon={modeIcons[modeIndex]}
-            onClick={handleCycleMode}
-          />
-          <ActionButton
-            tooltip={splitView ? "Inline diffs" : "Split diffs"}
-            icon={splitView ? <Columns/> : <AlignJustify/>}
-            variant="ghost"
-            size="icon"
-            onClick={handleToggleSplit}
-          />
-          <ActionButton
+          {IconComponent && <IconComponent className="h-5 w-5 text-primary" />}
+          <p className="text-base font-semibold text-foreground">{spanName}</p>
+        </div>
+        <div className="flex items-center gap-2">          <ActionButton
             tooltip={hideIdentical ? "Show identical" : "Hide identical"}
-            icon={hideIdentical ? <EyeOff/> : <Eye/>}
             variant="ghost"
             size="icon"
+            icon={hideIdentical ? <EyeOff /> : <Eye />}
             onClick={handleToggleHide}
+          />
+          <ActionButton
+            variant="ghost"
+            size="icon"
+            tooltip={everythingOpen ? "Collapse All" : "Expand All"}
+            onClick={handleToggleAll}
+            icon={
+              everythingOpen ? (
+                <FoldVertical className="h-4 w-4" />
+              ) : (
+                <UnfoldVertical className="h-4 w-4" />
+              )
+            }
           />
         </div>
       </div>
 
-      {/* diffs */}
       <div className="overflow-auto flex-1 p-2">
-        <MergedFieldDiff
-          label="Offset"
-          baseVal={baseSpan}
-          comparables={comparableSpans}
-          rowIndexes={rowIndexes}
-          diffMode={diffMode}
-          splitView={splitView}
-          hideIdentical={hideIdentical}
-          getValue={(s) => s?.offset != null ? String(s.offset) : ""}
-        />
+        <Accordion
+          type="multiple"
+          value={openItems}
+          onValueChange={setOpenItems}
+        >
+          {fields.map(({ id, label }) => {
+            // Gather base + comps
+            const baseVal = baseSpan ? (baseSpan as any)[id] : undefined;
+            const compVals = comparableSpans.map((s) => s ? (s as any)[id] : undefined);
 
-        <MergedFieldDiff
-          label="Exec Time"
-          baseVal={baseSpan}
-          comparables={comparableSpans}
-          rowIndexes={rowIndexes}
-          diffMode={diffMode}
-          splitView={splitView}
-          hideIdentical={hideIdentical}
-          getValue={(s) => s?.exec_time != null ? String(s.exec_time) : ""}
-        />
+            // Hide identical => skip if all match top-level
+            if (hideIdentical && isAllIdentical(baseVal, compVals)) {
+              return null;
+            }
 
-        {(baseSpan?.errors || comparableSpans.some(c => c?.errors)) && (
-          <MergedFieldDiff
-            label="Errors"
-            baseVal={baseSpan}
-            comparables={comparableSpans}
-            rowIndexes={rowIndexes}
-            diffMode={diffMode}
-            splitView={splitView}
-            hideIdentical={hideIdentical}
-            getValue={(s) => s?.errors ?? ""}
-          />
-        )}
+            // Determine an icon from the sample
+            let sample = baseVal ?? compVals.find((v) => v !== undefined);
+            if (!sample) sample = ""; // fallback
+            const type = getValueType(sample);
+            const icon = getTypeIcon(type);
 
-        <MergedFieldDiff
-          label="Inputs"
-          baseVal={baseSpan}
-          comparables={comparableSpans}
-          rowIndexes={rowIndexes}
-          diffMode={diffMode}
-          splitView={splitView}
-          hideIdentical={hideIdentical}
-          getValue={(s) => JSON.stringify(s?.inputs ?? {}, null, 2)}
-        />
+            // Actually render the specialized multi-value view
+            const content = getMultiValueView(
+              baseVal,
+              compVals,
+              baseRowIndex,
+              compareIndexes
+            );
 
-        <MergedFieldDiff
-          label="Outputs"
-          baseVal={baseSpan}
-          comparables={comparableSpans}
-          rowIndexes={rowIndexes}
-          diffMode={diffMode}
-          splitView={splitView}
-          hideIdentical={hideIdentical}
-          getValue={(s) => JSON.stringify(s?.outputs ?? {}, null, 2)}
-        />
+            return (
+              <AccordionItem key={id} value={id}>
+                <AccordionTrigger>
+                  <span className="inline-flex items-center gap-2">
+                    {icon}
+                    {label}
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  {content}
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
       </div>
     </div>
   );
 }
 
-// -----------------------------------------------------------------------------
-// buildMergedFlow => single merged flow from MergedSpan[] + rowIndexes
-// -----------------------------------------------------------------------------
+function getMergedSpanType(ms: MergedSpan): string | undefined {
+  if (ms.baseSpan?.type) return ms.baseSpan.type;
+  for (const c of ms.comparableSpans) {
+    if (c?.type) return c.type;
+  }
+  return undefined;
+}
+
 function buildMergedFlow(
   merges: MergedSpan[],
   rowIndexes: number[],
-  depth=0,
-  row=0,
+  depth = 0,
+  row = 0,
   parentId?: string
 ): { nodes: Node[]; edges: Edge[]; usedRows: number } {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
   let localUsedRows = 0;
 
-  function layoutSpan(
-    merge: MergedSpan,
-    depth: number,
-    row: number,
-    rowIndexes: number[],
-    parentId?: string
-  ): number {
-    // Is it in base?
-    const inBase = !!merge.baseSpan;
+  function layoutSpan(merge: MergedSpan, depth: number, row: number, parentId?: string): number {
+    const nodeId = `${merge.spanName}-d${depth}-r${row}`;
+    const theType = getMergedSpanType(merge);
+    const IconComponent = getIconForSpanType(theType);
 
-    // gather the actual row indexes for display
-    const actualRows: number[] = [];
-    if (merge.baseSpan) actualRows.push(rowIndexes[0]);
+    const usedRows: number[] = [];
+    if (merge.baseSpan) usedRows.push(rowIndexes[0]);
     merge.comparableSpans.forEach((c, i) => {
-      if (c) actualRows.push(rowIndexes[i + 1]);
+      if (c) usedRows.push(rowIndexes[i + 1]);
     });
-    const rowString = compressRowNumbers(actualRows);
+    const rowString = usedRows.sort((a, b) => a - b).join(", ");
 
-    // node id
-    const nodeId = `${merge.spanName}-d${depth}-r${row}-b${inBase?"1":"0"}`;
     nodes.push({
       id: nodeId,
-      position: { x: depth*320, y: row*120 },
+      position: { x: depth * 320, y: row * 120 },
       type: "multiSpan",
       data: {
         spanName: merge.spanName,
-        inBase,
+        inBase: !!merge.baseSpan,
         rowString,
+        icon: IconComponent,
       },
       draggable: false,
       connectable: false,
@@ -468,7 +503,7 @@ function buildMergedFlow(
     let childRow = row;
     if (merge.children?.length) {
       for (const child of merge.children) {
-        const subUsed = layoutSpan(child, depth+1, childRow, rowIndexes, nodeId);
+        const subUsed = layoutSpan(child, depth + 1, childRow, nodeId);
         childRow += subUsed;
         used += subUsed;
       }
@@ -476,41 +511,38 @@ function buildMergedFlow(
     return used;
   }
 
-  let currentRow = row;
   merges.forEach((m) => {
-    const subUsed = layoutSpan(m, depth, currentRow, rowIndexes, parentId);
-    currentRow += subUsed;
+    const subUsed = layoutSpan(m, depth, row, parentId);
+    row += subUsed;
     localUsedRows += subUsed;
   });
 
   return { nodes, edges, usedRows: localUsedRows };
 }
 
-// -----------------------------------------------------------------------------
-// The main MultiTraceView
-// -----------------------------------------------------------------------------
-export default function MultiTraceView({
-  allTraces,
-  rowIndexes
-}: MultiTraceViewProps) {
+export interface MultiTraceViewProps {
+  allTraces: Span[][];
+  rowIndexes: number[];
+}
 
-  // 1) unify => array of MergedSpan roots
+export default function MultiTraceView({ allTraces, rowIndexes }: MultiTraceViewProps) {
+  // unify => MergedSpan[] root nodes
   const mergedData = useMemo(() => unifyByName(allTraces), [allTraces]);
 
-  // 2) expansions for left collapsible
+  // expansions for left collapsible
   const [expansions, setExpansions] = useState<Record<string, boolean>>({});
 
-  // 3) selected node => detail
+  // selected node => detail on right
   const [selectedNode, setSelectedNode] = useState<MergedSpan | null>(null);
 
-  // 4) sub-dialog states
+  // timeline & flow
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [flowOpen, setFlowOpen] = useState(false);
 
-  // 5) timeline data
+  // timeline data
   const timelineData = useMemo(() => unifyTracesForChart(allTraces), [allTraces]);
 
-  // 6) single merged flow from MergedSpan[]
+  // flow
   const { nodes, edges } = useMemo(
     () => buildMergedFlow(mergedData, rowIndexes),
     [mergedData, rowIndexes]
@@ -518,11 +550,9 @@ export default function MultiTraceView({
 
   return (
     <div className="border rounded-md bg-background p-4 space-y-4 w-full">
-      {/* Header row: timeline + flow */}
+      {/* Header => Title + Timeline & Flow */}
       <div className="flex items-center justify-between">
-        <p className="text-lg font-bold">
-          Trace View
-        </p>
+        <p className="text-lg font-bold">Trace View</p>
         <div className="flex gap-2">
           <ActionButton
             variant="outline"
@@ -541,9 +571,9 @@ export default function MultiTraceView({
         </div>
       </div>
 
-      {/* Main layout => left collapsible, right detail diffs */}
+      {/* Main layout => left collapsible, right detail */}
       <div style={{ display: "flex", flexDirection: "row", height: "600px", gap: "1rem" }}>
-        {/* Left => collapsible tree */}
+        {/* Left => merges */}
         <div
           style={{
             flex: "0 0 auto",
@@ -562,27 +592,24 @@ export default function MultiTraceView({
               expansions={expansions}
               setExpansions={setExpansions}
               onSelectNode={setSelectedNode}
-              selectedNode={selectedNode || undefined}
+              selectedNode={selectedNode}
               rowIndexes={rowIndexes}
             />
           ))}
         </div>
 
-        {/* Right => detail diff panel */}
+        {/* Right => detail panel => specialized multi-value views */}
         <div
           style={{
-            flex:"1 1 auto",
-            overflowY:"auto",
-            border:"1px solid var(--muted)",
-            borderRadius:"0.25rem",
-            padding:"0.5rem",
+            flex: "1 1 auto",
+            overflowY: "auto",
+            border: "1px solid var(--muted)",
+            borderRadius: "0.25rem",
+            padding: "0.5rem",
           }}
         >
           {selectedNode ? (
-            <MultiDetailPanel
-              node={selectedNode}
-              rowIndexes={rowIndexes}
-            />
+            <MultiDetailPanel node={selectedNode} rowIndexes={rowIndexes} />
           ) : (
             <p className="text-sm italic text-muted-foreground">
               Select a node from the left
@@ -606,9 +633,9 @@ export default function MultiTraceView({
                 data={timelineData}
                 layout="vertical"
                 barSize={24}
-                margin={{ left:140, right:40, top:20, bottom:20 }}
+                margin={{ left: 140, right: 40, top: 20, bottom: 20 }}
               >
-                <CartesianGrid stroke="#E5E7EB" strokeDasharray="3 3" horizontal={false}/>
+                <CartesianGrid stroke="#E5E7EB" strokeDasharray="3 3" horizontal={false} />
                 <YAxis
                   dataKey="label"
                   type="category"
@@ -622,43 +649,48 @@ export default function MultiTraceView({
                   tickLine={false}
                   axisLine={false}
                   stroke="#4B5563"
-                  tickFormatter={(v)=> `${v.toFixed(1)}s`}
-                  domain={[0,"dataMax+0.5"]}
+                  tickFormatter={(v) => `${v.toFixed(1)}s`}
+                  domain={[0, "dataMax+0.5"]}
                 />
                 <ChartTooltip
-                  content={<ChartTooltipContent/>}
+                  content={<ChartTooltipContent />}
                   separator=": "
                   offset={10}
                   filterNull
-                  cursor={{ stroke:"#ccc", strokeDasharray:"3 3"}}
+                  cursor={{ stroke: "#ccc", strokeDasharray: "3 3" }}
                   wrapperStyle={{
-                    backgroundColor:"#fff",
-                    border:"1px solid #ccc",
-                    borderRadius:"0.25rem",
-                    boxShadow:"0 2px 6px rgba(0,0,0,0.15)",
-                    padding:"0.5rem",
+                    backgroundColor: "#fff",
+                    border: "1px solid #ccc",
+                    borderRadius: "0.25rem",
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                    padding: "0.5rem",
                   }}
                   labelStyle={{
-                    fontWeight:600,
-                    marginBottom:"0.25rem",
+                    fontWeight: 600,
+                    marginBottom: "0.25rem",
                   }}
                   itemStyle={{
-                    fontSize:"0.85rem",
-                    padding:"2px 0",
+                    fontSize: "0.85rem",
+                    padding: "2px 0",
                   }}
                 />
                 {allTraces.map((_, i) => {
-                  const fillColor= colorPalette[i % colorPalette.length];
+                  const fillColor = colorPalette[i % colorPalette.length];
                   return (
                     <React.Fragment key={i}>
-                      <Bar dataKey={`start-${i}`} stackId={`range-${i}`} fill="transparent"/>
-                      <Bar dataKey={`length-${i}`} stackId={`range-${i}`} fill={fillColor} radius={[4,4,4,4]}>
+                      <Bar dataKey={`start-${i}`} stackId={`range-${i}`} fill="transparent" />
+                      <Bar
+                        dataKey={`length-${i}`}
+                        stackId={`range-${i}`}
+                        fill={fillColor}
+                        radius={[4, 4, 4, 4]}
+                      >
                         <LabelList
                           dataKey={`length-${i}`}
                           position="right"
-                          formatter={(val:number)=> `${val.toFixed(2)}s`}
+                          formatter={(val: number) => `${val.toFixed(2)}s`}
                           fill="#4B5563"
-                          style={{ fontSize:"0.75rem"}}
+                          style={{ fontSize: "0.75rem" }}
                         />
                       </Bar>
                     </React.Fragment>
@@ -686,11 +718,11 @@ export default function MultiTraceView({
                 edges={edges}
                 nodeTypes={{ multiSpan: MultiSpanNode }}
                 fitView
-                proOptions={{ hideAttribution:true }}
+                proOptions={{ hideAttribution: true }}
               >
                 <Background />
                 <Controls />
-                <MiniMap 
+                <MiniMap
                   pannable
                   nodeColor="var(--primary)"
                   nodeStrokeColor="var(--foreground)"

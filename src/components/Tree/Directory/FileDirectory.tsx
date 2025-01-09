@@ -2,11 +2,11 @@
 
 import React, { useState, useMemo, useCallback, useEffect, } from "react";
 
-import Tooltip from "../Common/Misc/Tooltip";
-import BaseDialog from "../Common/Dialogs/Base";
-import BaseButton from "../Common/Buttons/Base";
-import AutoComplete from "../Common/Misc/AutoComplete";
-import SubmitButton from "../Common/Buttons/Submit";
+import Tooltip from "../../Common/Misc/Tooltip";
+import BaseDialog from "../../Common/Dialogs/Base";
+import BaseButton from "../../Common/Buttons/Base";
+import AutoComplete from "../../Common/Misc/AutoComplete";
+import SubmitButton from "../../Common/Buttons/Submit";
 import SubDirectory from "./SubDirectory";
 
 import { FileProps, NodeProps } from "@/types/common";
@@ -14,8 +14,8 @@ import { ResponseProps } from "@/types/common";
 import { Folder } from "lucide-react";
 import { buildDirectoryTree, flattenTree } from "@/utils/misc/tree";
 import { updateNode } from "@/utils/misc/directory";
-import CancelButton from "../Common/Buttons/Cancel";
-import SettingButton from "../Common/Buttons/Setting";
+import CancelButton from "../../Common/Buttons/Cancel";
+import SettingButton from "../../Common/Buttons/Setting";
 
 export default function FileDirectory ({ type,  data, defaultValue, setterFunction, renamingFunction } : {
   type: string, 

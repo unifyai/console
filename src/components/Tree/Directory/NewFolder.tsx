@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef } from "react";
-import Tooltip from "../Common/Misc/Tooltip";
+import Tooltip from "../../Common/Misc/Tooltip";
 import { FaPlus } from "react-icons/fa";
 import { NodeProps } from "@/types/common";
 import * as path from "path";
