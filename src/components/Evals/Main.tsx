@@ -74,7 +74,7 @@ const Main = async ({ searchParams, projectsActions, logsActions }: {
 			project!, filterExpression, searchParams.metric ? searchParams.metric : "mean", key
 		)
 	));
-	const metrics: { [key: string]: number } = allProps.length ? allProps.map(
+	const metrics: { [key: string]: any } = allProps.length ? allProps.map(
 		(key, index) => ({ [key]: metricValues[index] })
 	).reduce(
 		(acc, curr) => ({...acc, ...curr})
