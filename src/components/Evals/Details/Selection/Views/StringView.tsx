@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { CodeBlock } from "@/components/UI/Chat/markdown-renderer";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
+import { CodeBlock, atomOneDark, atomOneLight } from "react-code-blocks";
 import { LogComparisonProps } from "./types";
 import { FileText, CaseLower, Pilcrow, Columns, AlignJustify } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
+import { useTheme } from "next-themes";
 
 /**
  * compressRowNumbers:
@@ -61,6 +62,50 @@ function groupComparablesByValue(comparables: string[], rowIndexes: number[]) {
   return Array.from(map.entries()).map(([text, rows]) => ({ text, rows }));
 }
 
+/**
+ * parseTripleBacktickLanguage:
+ * Given a string that starts with a triple backtick line such as:
+ *   ```python
+ *   (some code)
+ *   ```
+ * This will return { language: "python", code: "(some code)" } 
+ * If no language is detected, returns language = "plaintext".
+ * If the format is not well-formed, returns null.
+ */
+function parseTripleBacktickLanguage(str: string) {
+  // Trim once to remove accidental leading/trailing newlines
+  const trimmed = str.trim();
+  if (!trimmed.startsWith("```") || !trimmed.endsWith("```")) {
+    return null;
+  }
+
+  // Split lines
+  const lines = trimmed.split("\n");
+  // first line e.g. ```python
+  const firstLine = lines[0];
+  // last line should be ```
+  const lastLine = lines[lines.length - 1];
+  if (!lastLine.trim().startsWith("```")) {
+    return null;
+  }
+
+  // Attempt to extract language from the first line
+  // If the line is exactly "```", no language is specified
+  let language = "plaintext";
+  const r = /^```([\w#-]+)\s*/.exec(firstLine.trim());
+  if (r && r[1]) {
+    language = r[1];
+  }
+
+  // The remainder of lines (excluding first and last) is the code
+  const middle = lines.slice(1, -1).join("\n");
+
+  return {
+    language,
+    code: middle,
+  };
+}
+
 const StringView: React.FC<LogComparisonProps> = ({
   value,
   comparables,
@@ -86,14 +131,24 @@ const StringView: React.FC<LogComparisonProps> = ({
   // -------------------------------------------------------------------------
   const baseStr = (value ?? "").toString();
   if (!comparables || comparables.length === 0) {
-    // If it looks like triple-backtick code, render in a code block
-    if (baseStr.startsWith("```") && baseStr.endsWith("```")) {
+    // If enclosed in tripled-backticks, parse out code + language
+    const tripleParsed = parseTripleBacktickLanguage(baseStr);
+    if (tripleParsed) {
+      console.log("tripleParsed", tripleParsed);
+      //check light/dark mode
+      const { theme } = useTheme();
       return (
-        <CodeBlock language="python" className="whitespace-pre-wrap ml-4">
-          {baseStr.slice(3, -3)}
-        </CodeBlock>
+        <div className="ml-4">
+          <CodeBlock
+            text={tripleParsed.code}
+            language={tripleParsed.language}
+            showLineNumbers
+            theme={theme === "dark" ? atomOneDark : atomOneLight}
+          />
+        </div>
       );
     }
+
     // Otherwise, just render plain text
     return <pre className="whitespace-pre-wrap ml-4">{baseStr}</pre>;
   }
