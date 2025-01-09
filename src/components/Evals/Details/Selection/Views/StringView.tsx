@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
+import { CodeBlock, atomOneDark, atomOneLight } from "react-code-blocks";
 import { LogComparisonProps } from "./types";
 import { FileText, CaseLower, Pilcrow, Columns, AlignJustify } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -59,6 +60,50 @@ function groupComparablesByValue(comparables: string[], rowIndexes: number[]) {
 
   // Convert each map entry -> { text, rows: number[] }
   return Array.from(map.entries()).map(([text, rows]) => ({ text, rows }));
+}
+
+/**
+ * parseTripleBacktickLanguage:
+ * Given a string that starts with a triple backtick line such as:
+ *   ```python
+ *   (some code)
+ *   ```
+ * This will return { language: "python", code: "(some code)" } 
+ * If no language is detected, returns language = "plaintext".
+ * If the format is not well-formed, returns null.
+ */
+function parseTripleBacktickLanguage(str: string) {
+  // Trim once to remove accidental leading/trailing newlines
+  const trimmed = str.trim();
+  if (!trimmed.startsWith("```") || !trimmed.endsWith("```")) {
+    return null;
+  }
+
+  // Split lines
+  const lines = trimmed.split("\n");
+  // first line e.g. ```python
+  const firstLine = lines[0];
+  // last line should be ```
+  const lastLine = lines[lines.length - 1];
+  if (!lastLine.trim().startsWith("```")) {
+    return null;
+  }
+
+  // Attempt to extract language from the first line
+  // If the line is exactly "```", no language is specified
+  let language = "plaintext";
+  const r = /^```([\w#-]+)\s*/.exec(firstLine.trim());
+  if (r && r[1]) {
+    language = r[1];
+  }
+
+  // The remainder of lines (excluding first and last) is the code
+  const middle = lines.slice(1, -1).join("\n");
+
+  return {
+    language,
+    code: middle,
+  };
 }
 
 const StringView: React.FC<LogComparisonProps> = ({

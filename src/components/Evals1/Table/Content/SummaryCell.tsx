@@ -13,7 +13,7 @@ import { formatNumber } from "@/utils/formatNumber";
 const SummaryCell = ({ column, state, metrics, pending }: {
 	column: Column<any | unknown>,
 	state: StateProps,
-	metrics: { [key: string]: number }
+	metrics: { [key: string]: any }
 	pending: boolean
 }) => {
 	const { isDragging, setNodeRef, transform } = useSortable({ id: column.id });

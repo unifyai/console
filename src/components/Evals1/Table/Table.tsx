@@ -63,7 +63,7 @@ const LogsTable = ({
   logs: LogProps[];
   entriesProperties: string[];
   paramsProperties: string[];
-  metrics: { [key: string]: number };
+  metrics: { [key: string]: any };
   logsData: LogsResponseProps;
   totalPages: number;
   columnTypes: { [key: string]: string };
@@ -271,7 +271,7 @@ const LogsTable = ({
     prevPageRef.current = pageNumber;
     prevFiltersRef.current = logsFilters;
     prevCommonFilterRef.current = commonFilter;
-    prevSortingRef.current = sortingStr
+    prevSortingRef.current = sortingStr;
   }, [
     logs,
     pageNumber,
