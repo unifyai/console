@@ -121,7 +121,7 @@ const Card = ({
                 </div>}
             </div>
             {tab?.includes("View") && <Selection
-                logs={item.table ? tableData[item.table].logs : []}
+                logs={item.table ? tableData[item.table]?.logs || [] : []}
                 selection_={relevantItem?.selected}
                 baseIndex_={relevantItem?.base_index}
                 columnOrdering_={relevantItem?.column_order}
@@ -130,7 +130,7 @@ const Card = ({
                 updateItem={updateItem}
             />}
             {tab?.includes("Plot") && <LogsPlot
-                logs={item.table ? tableData[item.table].fullLogs : []}
+                logs={item.table ? tableData[item.table]?.fullLogs || [] : []}
                 item={item}
                 updateItem={updateItem}
             />}

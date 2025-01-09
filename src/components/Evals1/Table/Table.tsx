@@ -270,7 +270,7 @@ const LogsTable = ({
     prevPageRef.current = pageNumber;
     prevFiltersRef.current = logsFilters;
     prevCommonFilterRef.current = commonFilter;
-    prevSortingRef.current = sortingStr
+    prevSortingRef.current = sortingStr;
   }, [
     logs,
     pageNumber,
