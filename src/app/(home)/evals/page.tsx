@@ -9,6 +9,7 @@ import {
     deleteProject,
     getLogMetrics,
     getLogs,
+    getLatestTimestamp,
     getProjects,
     createProject,
     renameProject
@@ -45,7 +46,8 @@ const EvalsPage = async (
     const logsActions = { 
         get: await getLogs(apiKey), 
         getMetrics: await getLogMetrics(apiKey), 
-        delete: await deleteLogs(apiKey) 
+        delete: await deleteLogs(apiKey),
+        getLatest: await getLatestTimestamp(apiKey)
     }
 
     const fieldsActions = {

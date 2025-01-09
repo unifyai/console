@@ -9,6 +9,7 @@ import {
     deleteProject,
     getLogMetrics,
     getLogs,
+    getLatestTimestamp,
     getProjects,
     createProject,
     renameProject,
@@ -39,7 +40,8 @@ const Evals1Page = async ({ searchParams }: { searchParams: { temporary?: string
     const logsActions = {
         get: await getLogs(apiKey),
         getMetrics: await getLogMetrics(apiKey),
-        delete: await deleteLogs(apiKey)
+        delete: await deleteLogs(apiKey),
+        getLatest: await getLatestTimestamp(apiKey)
     }
 
     const fieldsActions = {

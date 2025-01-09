@@ -15,6 +15,7 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
     },
     logsActions: {
         get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
+        getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<string>,
         getMetrics: (
             project: string, filterExpression: string | null, metricName: string, keyName: string
         ) => Promise<number>,
@@ -123,10 +124,11 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
             const fullData = allLogsData[item.i].fullData;
             const totalPages = allLogsData[item.i].totalPages;
             const context = item.context ?? null
+            const sorting = item.sorting ?? null
 
             // Unpack log data
             const { entriesProperties, paramsProperties, logs, params } = extractLogsData(
-                logsData, fields, context
+                logsData, fields, context, sorting
             );
 
             /* Handle column metrics */
@@ -200,6 +202,8 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
         logsActions={logsActions}
         fieldsActions={fieldsActions}
         interfaceActions={interfaceActions}
+        filterExpressions={filterExpressions}
+        sortingExpressions={sortingExpressions}
     />;
 };
 

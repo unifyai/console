@@ -11,6 +11,7 @@ export interface TileProps {
     tab?: string;
     table?: string;
     context?: string;
+    auto_update?: string;
     filters?: string;
     common_filter?: string;
     page_number?: string;
@@ -69,4 +70,5 @@ export type ItemType =
     | "columns_pin_left"
     | "columns_pin_right"
     | "table"
-    | "context";
+    | "context"
+    | "auto_update";

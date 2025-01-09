@@ -28,6 +28,8 @@ const Card = ({
     updateItem,
     updateInterface,
     fieldsActions,
+    filterExpressions,
+    sortingExpressions,
 }: {
     projects: string[] | undefined,
     project: string | undefined,
@@ -41,6 +43,7 @@ const Card = ({
     },
     logsActions: {
         get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
+        getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<string>,
         getMetrics: (
             project: string, filterExpression: string | null, metricName: string, keyName: string
         ) => Promise<number>,
@@ -57,6 +60,8 @@ const Card = ({
         get: (project: string) => Promise<LogFieldsResponseProps>,
         delete: (fields: LogFieldsProps) => Promise<ResponseProps>
     },
+    filterExpressions: string[] | null,
+    sortingExpressions: (string | null)[],
 }) => {
     const router = useRouter();
     const tab = items.find(item => item.i == index)?.tab
@@ -145,6 +150,8 @@ const Card = ({
                 projectActions={projectActions}
                 logsActions={logsActions}
                 fieldsActions={fieldsActions}
+                filterExpression={filterExpressions ? filterExpressions[items.findIndex(it => it.i === item.i)] : null}
+                sortingExpression={sortingExpressions ? sortingExpressions[items.findIndex(it => it.i === item.i)] : null}
             />}
         </div>
     </div>)

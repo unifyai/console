@@ -52,6 +52,8 @@ const LogsTable = ({
   projectActions,
   logsActions,
   fieldsActions,
+  filterExpression,
+  sortingExpression,
 }: {
   projects: string[] | undefined;
   project: string | undefined;
@@ -82,6 +84,14 @@ const LogsTable = ({
       limit: number | null,
       offset: number
     ) => Promise<LogsResponseProps>,
+    getLatest: (
+      project: string, 
+      context: string | null, 
+      filterExpression: string | null, 
+      sortingExpression: string | null, 
+      limit: number | null, 
+      offset: number
+    ) => Promise<string>,
     getMetrics: (
       project: string,
       filterExpression: string | null,
@@ -94,6 +104,8 @@ const LogsTable = ({
     get: (project: string) => Promise<LogFieldsResponseProps>,
     delete: (fields: LogFieldsProps) => Promise<ResponseProps>
   },
+  filterExpression: string | null,
+  sortingExpression: string | null,
 }) => {
   // Basic states for quick feedback
   const [pending, setPending] = useState(false);        // if the project is invalid
@@ -372,7 +384,18 @@ const LogsTable = ({
           )}
           {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
         </div>
-        {project && <RefreshLogs/>}
+        {project && 
+          <RefreshLogs
+            auto={item.auto_update}
+            setAuto={updateItem(item, "auto_update")}
+            context={item.context ?? null}
+            setContext={updateItem(item, "context")}
+            project={project}
+            filterExpression={filterExpression}
+            sortingExpression={sortingExpression}
+            getLatest={logsActions.getLatest}
+          />
+        }
       </div>
 
       {/* If truly pending or logs not present, show a spinner */}
