@@ -17,15 +17,16 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+    const body = await request.json();
     return await fetch(
-        `${baseUrl}/logs`,
+        `${baseUrl}/logs?delete_empty_logs=True`,
         {
             method: "DELETE",
             headers: {
                 "Authorization": `Bearer ${request.headers.get("apiKey")}`,
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify(request.body)
+            body: JSON.stringify(body)
         },
     );
 }

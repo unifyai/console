@@ -15,14 +15,14 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
     },
     logsActions: {
         get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
+        getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<string>,
         getMetrics: (
             project: string, filterExpression: string | null, metricName: string, keyName: string
         ) => Promise<number>,
-        delete: (ids: string[]) => Promise<ResponseProps>
+        delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
     },
     fieldsActions: {
         get: (project: string) => Promise<LogFieldsResponseProps>,
-        delete: (fields: LogFieldsProps) => Promise<ResponseProps>
     },
     interfaceActions: {
         get: (temporary: boolean) => Promise<{ items: TileProps[], new_counter: number, project: string | null } | null>,
@@ -124,10 +124,11 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
             const fullData = allLogsData[item.i].fullData;
             const totalPages = allLogsData[item.i].totalPages;
             const context = item.context ?? null
+            const sorting = item.sorting ?? null
 
             // Unpack log data
             const { entriesProperties, paramsProperties, logs, params } = extractLogsData(
-                logsData, fields, context
+                logsData, fields, context, sorting
             );
 
             /* Handle column metrics */
@@ -202,6 +203,8 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
         logsActions={logsActions}
         fieldsActions={fieldsActions}
         interfaceActions={interfaceActions}
+        filterExpressions={filterExpressions}
+        sortingExpressions={sortingExpressions}
     />;
 };
 

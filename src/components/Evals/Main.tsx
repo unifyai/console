@@ -18,14 +18,14 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 		delete: (name: string) => Promise<ResponseProps>},
 	logsActions: {
 		get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
+		getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<string>,
 		getMetrics: (
 			project: string, filterExpression: string | null, metricName: string, keyName: string
 		) => Promise<number>,
-		delete: (ids: string[]) => Promise<ResponseProps>
+		delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
 	},
 	fieldsActions: {
 		get: (project: string) => Promise<LogFieldsResponseProps>,
-		delete: (fields: LogFieldsProps) => Promise<ResponseProps>
 	}
 }) => {
 
@@ -78,7 +78,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 		fullData = await logsActions.get(project, context ?? null, filterExpression, null, null, 0)
 		totalPages = Math.ceil(logsData.count / limit);
 	}
-	const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData, fields, searchParams.context ?? null);
+	const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData, fields, searchParams.context ?? null, searchParams.sorting ?? null);
 	/* Handle column metrics */
 	// Getting metrics for filtered logs, and min / max values for full logs. 
 	// Min / max bounds are used to set the filtering range for numeric columns 
@@ -124,6 +124,8 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 				logsActions={logsActions}
 				fieldsActions={fieldsActions}
 				boundaries={boundaries}
+				filterExpression={filterExpression}
+				sortingExpression={sortingExpression}
 			/>
 		}
 		second={

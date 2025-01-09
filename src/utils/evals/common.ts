@@ -75,11 +75,13 @@ export function computeStatistic(statistic: string, data: number[]): string {
 /* 
     Sort logs by timestamp and separate logs from parameters.
 */
-export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFieldsResponseProps, context: string | null) {
+export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFieldsResponseProps, context: string | null, sorting: string | null) {
   
     const params = logsResponse.params;
-    const logs = logsResponse.logs;
-    
+    let logs = logsResponse.logs;
+    if (!sorting)
+      logs = logs.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+
     let properties = Object.keys(fields)
     if (context)
       properties = properties.map(property => property.replace(context, ""))

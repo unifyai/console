@@ -136,11 +136,16 @@ export const getLogMetrics = async (apiKey: string) => {
 
 // get latest timestamp
 export const getLatestTimestamp = async (apiKey: string) => {
-    return async (project: string, filterExpression: string | null) => {
+    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number | null) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/logs/latest_timestamp?project=${project}` + (filterExpression ? `&filter_expr=${filterExpression}` : ""),
+            `${process.env.NEXTAUTH_URL}/api/logs/latest_timestamp?project=${project}`
+            + (context ? `&context=${context}` : "")
+            + (filterExpression ? `&filter_expr=${filterExpression}` : "")
+            + (sortingExpression ? `&sorting=${sortingExpression.replace("{", "%7B").replace(":", "%3A%20").replace("}", "%7D")}` : "")
+            + (limit ? `&limit=${limit}` : "")
+            + (offset ? `&offset=${offset}` : ""),
             { method: "GET", headers: { apiKey: apiKey } }
         );
         return await response.json();
@@ -149,7 +154,7 @@ export const getLatestTimestamp = async (apiKey: string) => {
 
 // delete logs
 export const deleteLogs = async (apiKey: string) => {
-    return async (ids: string[]) => {
+    return async (ids_and_fields: LogFieldsProps) => {
         "use server";
 
         const response = await fetch(
@@ -157,24 +162,7 @@ export const deleteLogs = async (apiKey: string) => {
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ ids })
-            }
-        );
-        return await response.json();
-    };
-};
-
-// delete log fields
-export const deleteLogFields = async (apiKey: string) => {
-    return async (fields: LogFieldsProps) => {
-        "use server";
-
-        const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/logs/fields`,
-            {
-                method: "DELETE",
-                headers: { apiKey: apiKey },
-                body: JSON.stringify({ fields })
+                body: JSON.stringify({ ids_and_fields })
             }
         );
         return await response.json();

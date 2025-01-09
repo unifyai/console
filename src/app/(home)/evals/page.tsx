@@ -4,11 +4,11 @@ import { Suspense } from "react";
 import Main from "@/components/Evals/Main";
 import {
     getLogFields,
-    deleteLogFields,
     deleteLogs,
     deleteProject,
     getLogMetrics,
     getLogs,
+    getLatestTimestamp,
     getProjects,
     createProject,
     renameProject
@@ -45,12 +45,12 @@ const EvalsPage = async (
     const logsActions = { 
         get: await getLogs(apiKey), 
         getMetrics: await getLogMetrics(apiKey), 
-        delete: await deleteLogs(apiKey) 
+        delete: await deleteLogs(apiKey),
+        getLatest: await getLatestTimestamp(apiKey)
     }
 
     const fieldsActions = {
         get: await getLogFields(apiKey),
-        delete: await deleteLogFields(apiKey)
     } 
     return (
         <Suspense fallback={<SkeletonLoader />}>

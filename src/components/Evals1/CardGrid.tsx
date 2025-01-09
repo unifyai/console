@@ -32,6 +32,8 @@ const CardGrid = ({
     logsActions,
     fieldsActions,
     interfaceActions,
+    filterExpressions,
+    sortingExpressions,
 }: {
     projects: string[] | undefined,
     project_: string | undefined,
@@ -52,20 +54,22 @@ const CardGrid = ({
     }
     logsActions: {
         get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
+        getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<string>,
         getMetrics: (
             project: string, filterExpression: string | null, metricName: string, keyName: string
         ) => Promise<number>,
-        delete: (ids: string[]) => Promise<ResponseProps>
+        delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
     },
     fieldsActions: {
         get: (project: string) => Promise<LogFieldsResponseProps>,
-        delete: (fields: LogFieldsProps) => Promise<ResponseProps>
     },
     interfaceActions: {
         get: (temporary: boolean) => Promise<{ items: TileProps[], new_counter: number, project: string | null } | null>,
         create: (items: TileProps[], new_counter: number, project: string | null, temporary: boolean) => Promise<ResponseProps>,
         update: (items: TileProps[], new_counter: number, project: string | null, temporary: boolean) => Promise<ResponseProps>,
     },
+    filterExpressions: string[] | null,
+    sortingExpressions: (string | null)[],
 }) => {
     const router = useRouter();
     const [items, setItems] = useState<TileProps[]>([...items_]);
@@ -233,6 +237,8 @@ const CardGrid = ({
                             updateItem={updateItem}
                             fieldsActions={fieldsActions}
                             updateInterface={updateInterface}
+                            filterExpressions={filterExpressions}
+                            sortingExpressions={sortingExpressions}
                         />
                         {editable && <ActionButton
                             className="remove absolute top-3 right-3 cursor-pointer"
