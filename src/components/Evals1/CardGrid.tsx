@@ -11,6 +11,8 @@ import { Label } from "../UI/label";
 import ActionButton from "../Common/Buttons/Action";
 import { Check, Plus, Save, TriangleAlert, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
+import Chip from "../Common/Misc/Chip";
+import { Badge } from "../UI/badge";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -136,7 +138,7 @@ const CardGrid = ({
                     setItems([
                         ...items,
                         {
-                            i: "tile_" + newCounter,
+                            i: "Tile_" + newCounter,
                             x: (items.length * 2) % 12,
                             y: (items.length * 2) / 12,
                             w: 3,
@@ -200,6 +202,9 @@ const CardGrid = ({
                             tooltip="Remove"
                             variant="destructive"
                         />}
+                        <Badge className="absolute top-3 left-3" variant="primary">
+                            {el.i}
+                        </Badge>
                     </div>
                 );
             })}
