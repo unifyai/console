@@ -88,8 +88,8 @@ export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFiel
     ]
     if (context){
       [paramsProperties, entriesProperties] = [
-        paramsProperties.map(property => property.replace(context, "")),
-        entriesProperties.map(property => property.replace(context, ""))
+        paramsProperties.filter(property => property.includes(context)).map(property => property.replace(context, "")),
+        entriesProperties.filter(property => property.includes(context)).map(property => property.replace(context, ""))
       ]
     }
 
