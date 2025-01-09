@@ -56,11 +56,10 @@ const CardGrid = ({
         getMetrics: (
             project: string, filterExpression: string | null, metricName: string, keyName: string
         ) => Promise<number>,
-        delete: (ids: string[]) => Promise<ResponseProps>
+        delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
     },
     fieldsActions: {
         get: (project: string) => Promise<LogFieldsResponseProps>,
-        delete: (fields: LogFieldsProps) => Promise<ResponseProps>
     },
     interfaceActions: {
         get: (temporary: boolean) => Promise<{ items: TileProps[], new_counter: number, project: string | null } | null>,

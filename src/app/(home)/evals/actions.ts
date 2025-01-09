@@ -154,7 +154,7 @@ export const getLatestTimestamp = async (apiKey: string) => {
 
 // delete logs
 export const deleteLogs = async (apiKey: string) => {
-    return async (ids: string[]) => {
+    return async (ids_and_fields: LogFieldsProps) => {
         "use server";
 
         const response = await fetch(
@@ -162,24 +162,7 @@ export const deleteLogs = async (apiKey: string) => {
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ ids })
-            }
-        );
-        return await response.json();
-    };
-};
-
-// delete log fields
-export const deleteLogFields = async (apiKey: string) => {
-    return async (fields: LogFieldsProps) => {
-        "use server";
-
-        const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/logs/fields`,
-            {
-                method: "DELETE",
-                headers: { apiKey: apiKey },
-                body: JSON.stringify({ fields })
+                body: JSON.stringify({ ids_and_fields })
             }
         );
         return await response.json();

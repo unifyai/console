@@ -47,7 +47,7 @@ const Card = ({
         getMetrics: (
             project: string, filterExpression: string | null, metricName: string, keyName: string
         ) => Promise<number>,
-        delete: (ids: string[]) => Promise<ResponseProps>
+        delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
     },
     index: string,
     item: TileProps,
@@ -58,7 +58,6 @@ const Card = ({
     updateInterface: () => Promise<ResponseProps>,
     fieldsActions: {
         get: (project: string) => Promise<LogFieldsResponseProps>,
-        delete: (fields: LogFieldsProps) => Promise<ResponseProps>
     },
     filterExpressions: string[] | null,
     sortingExpressions: (string | null)[],

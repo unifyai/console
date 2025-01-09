@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import Main from "@/components/Evals1/Main";
 import {
     getLogFields,
-    deleteLogFields,
     deleteLogs,
     deleteProject,
     getLogMetrics,
@@ -46,7 +45,6 @@ const Evals1Page = async ({ searchParams }: { searchParams: { temporary?: string
 
     const fieldsActions = {
         get: await getLogFields(apiKey),
-        delete: await deleteLogFields(apiKey)
     }
 
     const interfaceActions = {

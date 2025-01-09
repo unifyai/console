@@ -98,11 +98,10 @@ const LogsTable = ({
       metricName: string,
       keyName: string
     ) => Promise<number>;
-    delete: (ids: string[]) => Promise<ResponseProps>;
+    delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
   };
   fieldsActions: {
     get: (project: string) => Promise<LogFieldsResponseProps>,
-    delete: (fields: LogFieldsProps) => Promise<ResponseProps>
   },
   filterExpression: string | null,
   sortingExpression: string | null,
@@ -450,7 +449,7 @@ const LogsTable = ({
                   </FooterCell>
                 }
                 ExtraComponents={(table) => {
-                  return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={fieldsActions.delete} context={item.context}/>
+                  return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} context={item.context}/>
                 }}
                 ExtraCellContent={(cell, isCellExpanded, setExpandedCells) => 
                   <CellPopover cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells}/>

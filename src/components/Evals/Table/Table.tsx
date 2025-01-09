@@ -101,11 +101,10 @@ const LogsTable = ({
       metricName: string,
       keyName: string
     ) => Promise<number>;
-    delete: (ids: string[]) => Promise<ResponseProps>;
+    delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
   };
   fieldsActions: {
     get: (project: string) => Promise<LogFieldsResponseProps>,
-    delete: (fields: LogFieldsProps) => Promise<ResponseProps>
   },
   boundaries: {minimums: {[key: string]: number}, maximums: {[key: string]: number}}
   filterExpression: string | null,
@@ -475,7 +474,7 @@ const LogsTable = ({
                   </FooterCell>
                 }
                 ExtraComponents={(table) => {
-                  return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={fieldsActions.delete} context={context ?? undefined}/>
+                  return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} context={context ?? undefined}/>
                 }}
                 ExtraCellContent={(cell, isCellExpanded, setExpandedCells) => 
                   <CellPopover cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells}/>
