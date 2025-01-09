@@ -115,7 +115,7 @@ const Card = ({
                             className="w-64"
                             disabled={tableData[tile].logs.length == 0}
                         >
-                            {tile}
+                            {tile}{tableData[tile].logs.length ? "" : " (empty table)"}
                         </DropdownMenuItem>)}
                     </BaseDropdown>
                 </div>}
