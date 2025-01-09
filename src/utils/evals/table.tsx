@@ -194,11 +194,12 @@ export const nestedColumns = (
   nodes: HeaderNode[], 
   type: string, 
   data: LogsResponseProps,
-  enableRowSpan: boolean = false
+  enableRowSpan: boolean = false,
+  dataTypes: {[key: string] : string}
 ) : ColumnDef<LogProps>[] => {
   return nodes.map(node => {
       if (node.nodes) {
-          const columns = nestedColumns(node.nodes, type, data);
+          const columns = nestedColumns(node.nodes, type, data, false, dataTypes);
           return {id: node.path, header: node.name, columns: columns};
       }
       return {
@@ -215,11 +216,7 @@ export const nestedColumns = (
             return displayValue;
           },
           meta: {
-              dataType: () => {
-                  const columnValues = data.logs.map(log => type === "params" ? log.params : log.entries).flatMap((entry) => entry[node.path]).filter((value) => value != undefined);
-                  const types = columnValues.map((value) => typeof value).map((type) => type === "number" ? type : "string");
-                  return dominantType(types);
-              },
+              dataType: dataTypes[node.path],
               columnType: type,
               enableRowSpan: enableRowSpan
           }

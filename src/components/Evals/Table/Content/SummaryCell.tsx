@@ -29,7 +29,7 @@ const SummaryCell = ({ column, state, metrics, pending }: {
 		width: `calc(var(--header-${column.id}-size) * 1px)`,
 		zIndex: isDragging || isPinned ? 1 : 0,
 	};
-	const metricTooltip = `${state.metric} ${column.columnDef.meta?.dataType() === "string" ? "length" : "value"}`;
+    const metricTooltip = `${state.metric} ${["dict", "list", "tuple", "str"].includes(column.columnDef.meta?.dataType!) ? "length" : "value"}`;
 	let logEntryMetric = column.id in metrics ? metrics[column.id] : 0;
 	logEntryMetric = parseFloat(logEntryMetric) ?? logEntryMetric
 	return (

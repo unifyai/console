@@ -128,7 +128,7 @@ const LogsTable = ({
       id: "RowNumbering",
       cell: ({ row }) => <Badge>{row.index + 1}</Badge>,
       meta: {
-        dataType: () => null,
+        dataType: null,
         columnType: "util",
         enableRowSpan: false,
       },
@@ -138,7 +138,7 @@ const LogsTable = ({
           {
             id: "ParametersHeader",
             header: "Parameters",
-            columns: nestedColumns(paramsTree, "params", logsData, true),
+            columns: nestedColumns(paramsTree, "params", logsData, true, columnTypes),
           },
         ]
       : []),
@@ -147,10 +147,10 @@ const LogsTable = ({
           {
             id: "EntriesHeader",
             header: "Entries",
-            columns: nestedColumns(entriesTree, "entries", logsData),
+            columns: nestedColumns(entriesTree, "entries", logsData, false, columnTypes),
           },
         ]
-      : nestedColumns(entriesTree, "entries", logsData)),
+      : nestedColumns(entriesTree, "entries", logsData, false, columnTypes)),
   ];
 
   // Various table states from the URL

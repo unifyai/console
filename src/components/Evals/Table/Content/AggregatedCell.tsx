@@ -17,7 +17,7 @@ const AggregatedCell = ({cell, row, params, metric}: {
   metric: string,
 }) => {
     const columnID = cell.column.columnDef.id!;
-    const metricTooltip = `${metric} ${cell.column.columnDef.meta?.dataType() === "number" ? "value" : "length"}`;
+    const metricTooltip = `${metric} ${["dict", "list", "tuple", "str"].includes(cell.column.columnDef.meta?.dataType!) ? "length" : "value"}`;
 
     // Handle multi-level grouping
     let leafRows;

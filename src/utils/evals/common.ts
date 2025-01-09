@@ -73,7 +73,7 @@ export function computeStatistic(statistic: string, data: number[]): string {
 }
 
 /* 
-    Sort logs by timestamp and separate logs from parameters.
+  Extract logs, parameters, and their respective keys, accounting for context and sorting preferences.
 */
 export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFieldsResponseProps, context: string | null, sorting: string | null) {
   
@@ -82,13 +82,17 @@ export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFiel
     if (!sorting)
       logs = logs.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
 
-    let properties = Object.keys(fields)
-    if (context)
-      properties = properties.map(property => property.replace(context, ""))
-    const unsortedEntriesProperties = Array.from(new Set(logs.flatMap((log) => Object.keys(log.entries))))
-    const entriesProperties = properties.filter(property => unsortedEntriesProperties.includes(property));
-    const unsortedParamsProperties = Object.keys(params)
-    const paramsProperties = properties.filter(property => unsortedParamsProperties.includes(property));
+    let [paramsProperties, entriesProperties] = [
+      Object.entries(fields).filter(entry => entry[1].param === true).map(entry => entry[0]),
+      Object.entries(fields).filter(entry => entry[1].param === false).map(entry => entry[0])
+    ]
+    if (context){
+      [paramsProperties, entriesProperties] = [
+        paramsProperties.map(property => property.replace(context, "")),
+        entriesProperties.map(property => property.replace(context, ""))
+      ]
+    }
+
     return { entriesProperties, paramsProperties, logs, params };
 }
 
