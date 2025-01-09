@@ -144,7 +144,7 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
                         project!, expression, metric ? metric : "mean", key
                     )
                 ));
-                const metrics: { [key: string]: number } = columns.length
+                const metrics: { [key: string]: any } = columns.length
                     ? columns
                         .map((key, index) => ({ [key]: metricValues[index] }))
                         .reduce((acc, curr) => ({ ...acc, ...curr }))

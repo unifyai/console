@@ -13,7 +13,7 @@ import { formatNumber } from "@/utils/formatNumber";
 const SummaryCell = ({ column, state, metrics, pending }: {
 	column: Column<any | unknown>,
 	state: StateProps,
-	metrics: { [key: string]: number }
+	metrics: { [key: string]: any }
 	pending: boolean
 }) => {
 	const { isDragging, setNodeRef, transform } = useSortable({ id: column.id });
@@ -30,8 +30,8 @@ const SummaryCell = ({ column, state, metrics, pending }: {
 		zIndex: isDragging || isPinned ? 1 : 0,
 	};
 	const metricTooltip = `${state.metric} ${column.columnDef.meta?.dataType() === "string" ? "length" : "value"}`;
-	const logEntryMetric = column.id in metrics ? metrics[column.id] : 0;
-
+	let logEntryMetric = column.id in metrics ? metrics[column.id] : 0;
+	logEntryMetric = parseFloat(logEntryMetric) ?? logEntryMetric
 	return (
 		<>
 			{<TableCell style={style} ref={setNodeRef}>
