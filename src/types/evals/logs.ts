@@ -29,7 +29,7 @@ export interface LogsResponseProps {
 export type LogFieldsProps = [number, string][]
 
 export interface LogFieldsResponseProps {
-    [name: string]: {type: string, param: boolean}
+    [name: string]: {data_type: string, field_type: "entry" | "param" | "derived_entry"}
 }
 
 export interface HeaderNode {

@@ -37,7 +37,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 	let types: {[key: string] : string} = {}
 	if (project) {
 		fields = await fieldsActions.get(project)
-		types = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].type]))
+		types = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type]))
 	}
 
 	/* Handle filters */

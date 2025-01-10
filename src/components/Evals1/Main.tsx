@@ -52,7 +52,7 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
     let types: {[key: string] : string} = {}
     if (project) {
         fields = await fieldsActions.get(project);
-        types = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].type]));
+        types = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type]));
     }
     /* Handle filters */
     // 1- Convert filters search param value to a nested dictionary representation of column, function and values
