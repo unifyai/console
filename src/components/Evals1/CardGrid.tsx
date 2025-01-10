@@ -77,6 +77,7 @@ const CardGrid = ({
     const [success, setSuccess] = useState<boolean>();
     const [editable, setEditable] = useState(true);
     const [project, setProject] = useState(project_);
+    const [pending, setPending] = useState(false);
     const gridRef = useRef<HTMLDivElement>(null);
 
     const updateItem = (item: TileProps, attrName: ItemType) => {
@@ -87,9 +88,9 @@ const CardGrid = ({
     }
 
     const updateInterface = (
-        savedInterface: { items: TileProps[], new_counter: number, project: string | null } | null = null
+        savedInterface: { items: TileProps[], new_counter: number, project: string | null } | null = null,
     ) => {
-        if (JSON.stringify(items) == JSON.stringify(items_))
+        if (JSON.stringify(items) == JSON.stringify(items_) && project == project_)
             return Promise.reject();
         const items_1 = savedInterface?.items || items;
         const newCounter_1 = savedInterface?.new_counter || newCounter;
@@ -101,13 +102,14 @@ const CardGrid = ({
     }
 
     useEffect(() => {
-        if (project != project_) {
-            updateInterface().then(() => {
-                router.replace("?temporary=true", { scroll: false });
-                router.refresh();
-            }).catch(() => {});
-        }
+        updateInterface().then(() => {
+            router.replace("?temporary=true", { scroll: false });
+            router.refresh();
+        }).catch(() => { });
+        setPending(true);
     }, [project]);
+
+    useEffect(() => { setPending(false); }, [project_])
 
     useEffect(() => {
         updateInterface().then(() => {
@@ -224,6 +226,7 @@ const CardGrid = ({
                         <Card
                             projects={projects}
                             project={project}
+                            pending={pending}
                             columnTypes={columnTypes}
                             tableNames={tableNames}
                             tableData={tableData}

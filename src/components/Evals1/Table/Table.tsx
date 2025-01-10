@@ -39,6 +39,7 @@ import { inplaceRefreshUsingContext } from "@/utils/evals/common";
 const LogsTable = ({
   projects,
   project,
+  pending,
   item,
   logs,
   entriesProperties,
@@ -58,6 +59,7 @@ const LogsTable = ({
 }: {
   projects: string[] | undefined;
   project: string | undefined;
+  pending: boolean;
   tab: string;
   item: TileProps;
   logs: LogProps[];
@@ -108,7 +110,6 @@ const LogsTable = ({
   sortingExpression: string | null,
 }) => {
   // Basic states for quick feedback
-  const [pending, setPending] = useState(false);        // if the project is invalid
   const [summaryPending, setSummaryPending] = useState(false); // if metric changed
 
   // We skip complicated "loading" checks to avoid the stuck spinner:

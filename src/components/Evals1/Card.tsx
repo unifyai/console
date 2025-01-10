@@ -16,6 +16,7 @@ import { ItemType, TableDataProps, TileProps } from "@/types/evals/grid";
 const Card = ({
     projects,
     project,
+    pending,
     columnTypes,
     tableNames,
     tableData,
@@ -34,6 +35,7 @@ const Card = ({
 }: {
     projects: string[] | undefined,
     project: string | undefined,
+    pending: boolean,
     columnTypes: { [key: string]: string },
     tableNames: string[],
     tableData: TableDataProps,
@@ -137,6 +139,7 @@ const Card = ({
             {tab?.includes("Table") && <LogsTable
                 projects={projects}
                 project={project}
+                pending={pending}
                 tab={tab}
                 item={item}
                 logs={tableData[item.i]?.logs || []}
