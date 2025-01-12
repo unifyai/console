@@ -54,6 +54,9 @@ const DataTableHeader = ({
   const isAllTableSelected = () => 
     getSelectableTableCells(table).every(cell => isCellSelected(cell))
 
+  const isParentColumn = header.column.columnDef.meta?.isParent;
+  const isNotUtilColumn = header.column.columnDef.meta?.columnType != "util";
+
   const style: CSSProperties = {
     boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
     opacity: isDragging ? 0.8 : 1,
@@ -69,12 +72,10 @@ const DataTableHeader = ({
     borderBottom: "1px solid var(--muted)",
     borderTop: "1px solid var(--muted)",
     color: isAllColumnSelected(header) ? "var(--primary-foreground)" : "",
-    backgroundColor: header.column.id != "RowNumbering"
+    backgroundColor: isNotUtilColumn
       ? isAllColumnSelected(header) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
       : isAllTableSelected() ? `var(--primary)` : hovered ? "var(--muted)" : "var(--background)"
   };
-  
-  const isParentColumn = header.subHeaders.length > 0;
   
   return (
     <TableHead 
@@ -85,7 +86,7 @@ const DataTableHeader = ({
     >
 
       {/* Grab area */}
-      {header.column.id != "RowNumbering" && 
+      {isNotUtilColumn && 
         <div 
           className="cursor-grabbing h-3 w-full absolute" 
           {...attributes} 
@@ -94,11 +95,11 @@ const DataTableHeader = ({
       }
 
       {/* Header content */}
-      <div className={`px-2 py-2 ${header.column.id === "RowNumbering" ? "h-10" : ""}`}>
+      <div className={`px-2 py-2 ${!isNotUtilColumn ? "h-10" : ""}`}>
 
         {/* Header name with column selection */}
         <div
-          className={`select-none ${header.column.id === "RowNumbering" ? "h-10" : ""}`}
+          className={`flex items-center justify-center h-full text-center px-2 py-2 select-none ${!isNotUtilColumn ? "h-10" : ""}`}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
           onMouseDown={(e) => cellSelection.handleCellMouseDown(e, header)}
@@ -112,17 +113,17 @@ const DataTableHeader = ({
         </div>
 
         {/* Column actions */}
-        {!header.isPlaceholder && header.column.columnDef.meta?.columnType != "util" &&
-          <div className="items-center">
+        {!header.isPlaceholder && isNotUtilColumn &&
+          <div className="flex items-center justify-center gap-2 mt-2">
             <ColumnGroupBy column={header.column} grouping={grouping} setGrouping={setGrouping}/>
             {!isParentColumn && <ColumnSort column={header.column}/>}
-            {ColumnFilters && ColumnFilters(header.column)}
-            <ColumnHide table={table} column={header.column} />
+            {!isParentColumn && ColumnFilters && ColumnFilters(header.column)}
+            <ColumnHide column={header.column} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility} />
           </div>
         }
 
         {/* New columns */}
-        {!header.isPlaceholder && header.column.columnDef.meta?.columnType != "util" &&
+        {!header.isPlaceholder && isNotUtilColumn &&
           <ColumnShow table={table} header={header} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility}  />
         }
 
