@@ -88,6 +88,11 @@ export const useCellSelection = ({
       .getRowModel()
       .rows.findIndex((row) => row.id === selectedCell.split("_").at(0));
     const nextRowIndex = selectedRowIndex - 1;
+    // Add guard for negative row index
+    if (nextRowIndex < 0) {
+      console.warn("[Navigate] Previous row index is negative. No action taken.");
+      return;
+    }
     const previousRow = table.getRowModel().rows[nextRowIndex];
     const previousCellId = getCellSelectionData(
       previousRow
