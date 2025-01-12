@@ -1,29 +1,22 @@
 import { Column, Table } from "@tanstack/react-table";
 import { CircleMinus, Minus } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
-import { getAllChildColumns } from "@/utils/evals/column-operations";
+import { updateColumnVisibility } from "@/utils/evals/columnOperations";
 
-const ColumnHide = ({table, column}: {
-    table: Table<any | unknown>,
+const ColumnHide = ({column, columnVisibility, setColumnVisibility}: {
     column: Column<any, unknown>,
+    columnVisibility: { [key: string]: boolean },
+    setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void,
 }) => {
     // Check if column has child columns
-    const isParentColumn = column.columns?.length > 0;
+    const isParentColumn = column.columnDef.meta?.isParent;
 
     const hideColumns = () => {
-        if (isParentColumn) {
-            // Hide parent and all child columns at once
-            const allColumns = [column, ...getAllChildColumns(column)];
-            table.setColumnVisibility(prev => {
-                const updates: { [key: string]: boolean } = {};
-                allColumns.forEach(col => {
-                    updates[col.id] = false;
-                });
-                return { ...prev, ...updates };
-            });
-        } else {
-            column.toggleVisibility();
-        }
+        // Use the utility function to hide the column and all its children
+        const newVisibility = updateColumnVisibility(columnVisibility, column.id as string, false);
+
+        // Apply the updated visibility state
+        setColumnVisibility(newVisibility);
     };
 
     return <ActionButton 

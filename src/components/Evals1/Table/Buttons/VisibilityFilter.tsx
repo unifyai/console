@@ -4,6 +4,7 @@ import { BasePopover } from "@/components/Common/Popovers/Base";
 import { Columns3 } from "lucide-react";
 import SettingButton from "@/components/Common/Buttons/Setting";
 import { Switch } from "@/components/UI/switch";
+import { updateColumnVisibility } from "@/utils/evals/columnOperations";
 
 const VisibilityFilter = ({ columnVisibility, setColumnVisibility }: {
     columnVisibility: { [key: string]: boolean },
@@ -14,12 +15,15 @@ const VisibilityFilter = ({ columnVisibility, setColumnVisibility }: {
 
     const handleAllCheck = () => {
         const state = anyHidden ? true : false;
-        const newColumnVisibility = Object.fromEntries(Object.entries(columnVisibility).map(([key,]) => [key, state]));
+        const newColumnVisibility = Object.fromEntries(
+          Object.entries(columnVisibility).map(([key]) => [key, state])
+        );
         setColumnVisibility(newColumnVisibility);
     };
 
-    const hangleSingleCheck = (column: string) => {
-        const newColumnVisibility = { ...columnVisibility, [column]: !columnVisibility[column] };
+    const handleSingleCheck = (column: string) => {
+        const isVisible = !columnVisibility[column];
+        const newColumnVisibility = updateColumnVisibility(columnVisibility, column, isVisible);
         setColumnVisibility(newColumnVisibility);
     };
 
@@ -37,7 +41,7 @@ const VisibilityFilter = ({ columnVisibility, setColumnVisibility }: {
                 </div>
                 {columns.map((column, index) => (
                     <div key={index} className="flex flex-row gap-2 items-center justify-between">
-                        <Switch checked={columnVisibility[column]} onCheckedChange={() => hangleSingleCheck(column)} />
+                        <Switch checked={columnVisibility[column]} onCheckedChange={() => handleSingleCheck(column)} />
                         {column}
                     </div>
                 ))}
