@@ -11,6 +11,7 @@ import { Table } from "@tanstack/react-table";
 
 import { ImageDisplay, isImage } from "./selection";
 import { formatNumber } from "../formatNumber";
+import { sanitizeId } from "./columnOperations";
 
 /* 
 	Updates column orders and grouping when dropping a column on top of another
@@ -26,16 +27,33 @@ export function handleDragEnd(
 	const { active, over } = event;
 	if (active && over && active.id !== over.id) {
 
-		// Cancel if moving params to entries or vice-versa
 		const activeColumn = columns.find(column => column.id === active.id);
-    const overColumn = columns.find(column => column.id === over.id);
-    if (activeColumn?.parent?.id != overColumn?.parent?.id) return;
+		const overColumn = columns.find(column => column.id === over.id);
 
-		// Update columns order
-		const oldIndex = columnOrder.indexOf(active.id as string);
-		const newIndex = columnOrder.indexOf(over.id as string);
-		const newOrder = arrayMove(columnOrder, oldIndex, newIndex);
-		setColumnOrder(newOrder);
+		if (!activeColumn || !overColumn) return;
+
+		// Cancel if moving params to entries or vice-versa
+		if (activeColumn?.parent?.id !== overColumn?.parent?.id) {
+			return;
+		}
+
+			// Get all IDs for the active column group (parent and its children)
+			const activeGroupIDs = getColumnGroupIDs(activeColumn);
+
+			// Get all IDs for the over column group
+			const overGroupIDs = getColumnGroupIDs(overColumn);
+
+			// Find the positions in the current columnOrder
+			const oldIndex = columnOrder.findIndex(id => id === activeGroupIDs[0]);
+			const newIndex = columnOrder.findIndex(id => id === overGroupIDs[0]);
+
+			if (oldIndex === -1 || newIndex === -1) {
+				return;
+			}
+
+			// Update columns order, ensuring parent and child columns are moved together
+			const newOrder = moveGroupInColumnOrder(columnOrder, activeGroupIDs, newIndex);
+			setColumnOrder(newOrder);
 
 		// Update grouping order if both columns are grouped
 		if (grouping.includes(over.id as string) && grouping.includes(active.id as string)) {
@@ -49,12 +67,44 @@ export function handleDragEnd(
 	}
 }
 
+/*
+  Helper to get all IDs in a column group (parent and children)
+*/
+function getColumnGroupIDs(column: Column<any, unknown>): string[] {
+	if (column.columnDef.meta?.isParent) {
+		// Include the parent and recursively flatten child columns
+		return [column.id, ...column.columns.flatMap(getColumnGroupIDs)];
+	}
+	return [column.id as string];
+}
+
+/*
+  Helper to move a group of columns in the columnOrder
+*/
+function moveGroupInColumnOrder(
+	columnOrder: string[],
+	groupIDs: string[],
+	newIndex: number
+): string[] {
+	// Create a new column order, excluding the group being moved
+	const filteredOrder = columnOrder.filter(id => !groupIDs.includes(id));
+
+	// Ensure the new index respects the reduced order
+	const safeNewIndex = Math.max(0, Math.min(filteredOrder.length, newIndex));
+
+	// Insert the group at the new index
+	const result = [...filteredOrder];
+	result.splice(safeNewIndex, 0, ...groupIDs);
+	return result;
+}
+
 /* 
   Computes reduction metrics for a given column
 */
 export function columnStatistic(columnID: string, metric: string, data: LogItemProps[]) {
 	const originalID = columnID.replace("entries_", "").replace("params_", "");
-	const values = data.map((entries) => toComputableValue(entries[originalID as keyof typeof entries]));
+	const santizedID = sanitizeId(originalID);
+	const values = data.map((entries) => toComputableValue(entries[santizedID as keyof typeof entries]));
   return computeStatistic(metric, values);
 }
 
@@ -192,26 +242,29 @@ export function extractParamsValues(entriesParams: LogItemProps, params: LogItem
 */
 export const nestedColumns = (
   nodes: HeaderNode[], 
-  type: string, 
+  type: string,
+  prependPath: string,
   data: LogsResponseProps,
   enableRowSpan: boolean = false,
   dataTypes: {[key: string] : string}
 ) : ColumnDef<LogProps>[] => {
   return nodes.map(node => {
       if (node.nodes) {
-          const columns = nestedColumns(node.nodes, type, data, false, dataTypes);
+          const columns = nestedColumns(node.nodes, type, prependPath, data, false, dataTypes);
           return {
-              id: node.path, 
+              id: `${prependPath}/${node.path}`,  // Needed for grouping, showing, hiding multiple column nests,
               header: node.name, 
               columns: columns,
               meta: {
                   columnType: type,
-                  enableRowSpan: enableRowSpan
+                  enableRowSpan: enableRowSpan,
+				  isParent: true,
+				  renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
               }
           };
       }
       return {
-          id: node.path,
+          id: `${prependPath}/${node.path}`,  // Needed for grouping, showing, hiding multiple column nests,
           accessorFn: (log) => type === "entries" ? log.entries[node.path] : log.params[node.path],
           filterFn: "includesString" as FilterFnOption<LogProps> | undefined,
           header: node.name,
@@ -226,7 +279,9 @@ export const nestedColumns = (
           meta: {
               dataType: dataTypes[node.path],
               columnType: type,
-              enableRowSpan: enableRowSpan
+              enableRowSpan: enableRowSpan,
+			  isParent: false,
+			  renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
           }
       };
   });
@@ -288,3 +343,91 @@ export const mergeCells = (rows: Row<any>[]) => {
 
   return rows;
 };
+
+/* 
+  Helper function to calculate max depth of the column tree
+*/
+function calculateMaxDepth(
+	columns: ColumnDef<LogProps>[],
+	currentDepth = 0,
+	visited = new Set<ColumnDef<LogProps>>()
+): number {
+	return columns.reduce((maxDepth, column) => {
+		if (visited.has(column)) {
+			return maxDepth;
+		}
+  
+		// Mark the column as visited
+		visited.add(column);
+	
+		if (column.meta?.isParent) {
+			// Recursively calculate depth for child columns
+			const childColumns = (column as any).columns || [];
+			const childMaxDepth = calculateMaxDepth(childColumns, currentDepth + 1, visited);
+			return Math.max(maxDepth, childMaxDepth);
+		}
+  
+		// Leaf columns
+		return Math.max(maxDepth, currentDepth);
+	}, currentDepth);
+}
+
+/* 
+  Process columns to encode rendered depth into their meta objects.
+*/
+export function processColumnsForRenderedDepth(
+    columns: ColumnDef<LogProps>[],
+    defaultToDepthZeroTypes: string[],
+    initialDepth: number
+): number {
+	let returningDepth = 0;
+    columns.forEach((column) => {
+
+        // Case 0: Avoid re-processing columns
+        if (column.meta?.renderedDepth !== -1) {
+			return;
+        }
+
+		// Case 1: Parent columns: Go deeper into the nest if possible
+		else if (column.meta?.isParent){
+            // Process child columns first
+			const childColumns = (column as any).columns || [];
+            const runningDepth = processColumnsForRenderedDepth(childColumns, defaultToDepthZeroTypes, initialDepth) - 1;
+
+			// Case 1a: Top-level columns (defaultToDepthZeroType)
+			if (column.meta.columnType && defaultToDepthZeroTypes.includes(column.meta.columnType)) {
+				column.meta.renderedDepth = 0;
+			}
+			// Case 1b: Not top-level parent columns, assign runningDepth
+			else {
+				column.meta.renderedDepth = runningDepth;
+				returningDepth = runningDepth;
+			}
+        }
+		// Case 2: Leaf columns
+        else if (!column.meta?.isParent) {
+			// Case 2a: Top-level columns with no children (defaultToDepthZeroType)
+			if (column.meta.columnType && defaultToDepthZeroTypes.includes(column.meta?.columnType)) {
+				column.meta.renderedDepth = 0;
+			}
+			// Case 2b: Absolute leaf columns
+			else {
+				column.meta.renderedDepth = initialDepth;
+				returningDepth = initialDepth;
+			}
+        }
+    });
+	return returningDepth;
+}
+
+
+/* 
+  Calculate and encode rendered depth for the column tree.
+*/
+export function encodeRenderedDepth(
+    columns: ColumnDef<LogProps>[],
+    defaultToDepthZeroTypes: string[],
+): void {
+	const maxDepth = calculateMaxDepth(columns);
+	processColumnsForRenderedDepth(columns, defaultToDepthZeroTypes, maxDepth);
+}

@@ -15,7 +15,7 @@ import {
 import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { FileProps, ResponseProps } from "@/types/common";
-import { buildTree, nestedColumns } from "@/utils/evals/table";
+import { buildTree, nestedColumns, encodeRenderedDepth } from "@/utils/evals/table";
 import { Badge } from "@/components/UI/badge";
 import ColumnFilter from "./Buttons/Filters/Main";
 import AggregatedCell from "./Content/AggregatedCell";
@@ -35,6 +35,7 @@ import CellPopover from "./Content/CellPopover";
 import { ItemType, TileProps } from "@/types/evals/grid";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { inplaceRefreshUsingContext } from "@/utils/evals/common";
+import { flattenColumnIDs } from "@/utils/evals/columnOperations";
 
 const LogsTable = ({
   projects,
@@ -124,35 +125,57 @@ const LogsTable = ({
   // Column definitions
   const entriesTree = buildTree(entriesProperties);
   const paramsTree = buildTree(paramsProperties);
+
+  const indicesTitle = "RowNumbering";
+  const entriesTitle = "Entries";
+  const paramsTitle = "Parameters";
+
   const columns: ColumnDef<LogProps>[] = [
     {
-      id: "RowNumbering",
+      id: indicesTitle,
       cell: ({ row }) => <Badge>{row.index + 1}</Badge>,
       meta: {
         dataType: null,
         columnType: "util",
         enableRowSpan: false,
+        isParent: false,
+        renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
       },
     },
     ...(paramsProperties.length
       ? [
           {
-            id: "ParametersHeader",
-            header: "Parameters",
-            columns: nestedColumns(paramsTree, "params", logsData, true, columnTypes),
+            id: paramsTitle,
+            header: paramsTitle,
+            columns: nestedColumns(paramsTree, "params", paramsTitle, logsData, true, columnTypes),
+            meta: {
+              columnType: "paramsHeader",
+              isParent: true,
+              renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
+            },
           },
         ]
       : []),
     ...(paramsProperties.length
       ? [
           {
-            id: "EntriesHeader",
-            header: "Entries",
-            columns: nestedColumns(entriesTree, "entries", logsData, false, columnTypes),
+            id: entriesTitle,
+            header: entriesTitle,
+            columns: nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, columnTypes),
+            meta: {
+              columnType: "entriesHeader",
+              isParent: true,
+              renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
+            },
           },
         ]
-      : nestedColumns(entriesTree, "entries", logsData, false, columnTypes)),
+      : nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, columnTypes)),
   ];
+
+  // Apply rendered depth encoding to account for depth mismatch for all headers
+  // This is needed for accurate column hiding/showing/grouping to work on all nest levels
+  // Always assign depth = 0 for the meta column types as passed here
+  encodeRenderedDepth(columns, ["util", "paramsHeader", "entriesHeader"]);
 
   // Various table states from the URL
   const metric = item.metric || "mean";
@@ -167,7 +190,7 @@ const LogsTable = ({
   const columnsPinRight = item.columns_pin_right;
 
   // Convert those strings → arrays/objects
-  const columnIDs = ["RowNumbering", ...paramsProperties, ...entriesProperties];
+  const columnIDs = flattenColumnIDs(columns);
   const columnOrder = columnOrderStr ? columnOrderStr.split(",") : columnIDs;
   const allColumnsVisible = Object.fromEntries(columnIDs.map((x) => [x, true]));
   const columnVisibility = hiddenColumns
@@ -198,7 +221,7 @@ const LogsTable = ({
     updateItem(item, "grouping")(g.length ? g.join(",") : undefined);
 
   const columnPinning: ColumnPinningState = {
-    left: columnsPinLeft ? ["RowNumbering"].concat(columnsPinLeft.split(",")) : ["RowNumbering"],
+    left: columnsPinLeft ? [indicesTitle].concat(columnsPinLeft.split(",")) : [indicesTitle],
     right: columnsPinRight ? columnsPinRight.split(",") : [],
   };
   const setColumnPinning = (pin: ColumnPinningState) => {
@@ -208,7 +231,7 @@ const LogsTable = ({
 
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(
     columnIDs
-      .map((id) => ({ [id]: id === "RowNumbering" ? 50 : 150 }))
+      .map((id) => ({ [id]: id === indicesTitle ? 50 : 150 }))
       .reduce((acc, curr) => ({ ...acc, ...curr }), {})
   );
 
@@ -443,7 +466,7 @@ const LogsTable = ({
                 FooterCell={(column, resizeMap) => 
                   <FooterCell column={column} resizeMap={resizeMap} >
                     {
-                      column.columnDef.id === "RowNumbering"
+                      column.columnDef.id === indicesTitle
                       ? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric}/>
                       : !column.getIsGrouped()
                         ?	<SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} />
