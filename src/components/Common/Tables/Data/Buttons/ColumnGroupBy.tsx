@@ -2,7 +2,7 @@ import { Group } from "lucide-react";
 import { Ungroup } from "lucide-react";
 import { Column } from "@tanstack/react-table";
 import ActionButton from "@/components/Common/Buttons/Action";
-import { getAllChildColumns, isAllChildrenGrouped } from "@/utils/evals/column-operations";
+import { getAllChildColumns, isAllChildrenGrouped } from "@/utils/evals/columnOperations";
 
 const ColumnGroupBy = ({
     column,
@@ -14,11 +14,10 @@ const ColumnGroupBy = ({
     setGrouping: (grouping: string[]) => void
 }) => {
     // Check if column has child columns
-    const isParentColumn = column.columns?.length > 0;
-    
+    const isParentColumn = column.columnDef.meta?.isParent;
     const isGrouped = isParentColumn 
         ? isAllChildrenGrouped(column, grouping)
-        : grouping.includes(column.id);
+        : grouping.includes(column.columnDef.id as string);
 
     const states = [
         { 
@@ -40,26 +39,27 @@ const ColumnGroupBy = ({
     const onClick = () => {
         if (isParentColumn) {
             const childColumns = getAllChildColumns(column);
-            
+
             if (isGrouped) {
                 // Remove all child columns from grouping at once
                 const newGrouping = grouping.filter(
-                    id => !childColumns.some(col => col.id === id)
+                    id => !childColumns.some(col => col.columnDef.id === id)
                 );
                 setGrouping(newGrouping);
             } else {
                 // Add all child columns to grouping at once
                 const newGrouping = [
                     ...grouping,
-                    ...childColumns.map(col => col.id).filter(id => !grouping.includes(id))
+                    ...childColumns.map(col => col.columnDef.id).filter(id => !grouping.includes(id as string))
                 ];
-                setGrouping(newGrouping);
+                setGrouping(newGrouping as string[]);
             }
         } else {
-            const newGrouping = grouping.includes(column.id)
-                ? grouping.filter(id => id !== column.id)
-                : [...grouping, column.id];
-            setGrouping(newGrouping);
+            const newGrouping = grouping.includes(column.columnDef.id as string)
+                ? grouping.filter(id => id !== column.columnDef.id)
+                : [...grouping, column.columnDef.id];
+
+            setGrouping(newGrouping as string[]);
         }
     };
 
