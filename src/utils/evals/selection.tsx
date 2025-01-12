@@ -1,6 +1,7 @@
 import React from "react"
 import { Span } from "@/types/evals/traces"
 import { LogProps } from "@/types/evals/logs"
+import { sanitizeId } from "./columnOperations"
 
 export const MatrixDisplay = ({value}:{value: number[][]}) => {
     return (
@@ -126,7 +127,7 @@ export function extractBaseAndComparisonLogs (selectedCells: string[], logs:LogP
     let columnIds = selectedCells
       .filter(id => id.split("_").at(0) === baseLogParamId)                     // Find all selected cells from base
       .map(cell => getPartAfterFirstUnderscore(cell))                           // Handle underscores in column id
-    columnIds = Array.from(new Set(columnIds))                                  // Handle duplication in column id
+    columnIds = Array.from(new Set(columnIds.map(sanitizeId)))                          // Handle duplication in column id
     baseLog = {...baseLog, entries: getDictSubset(baseLog.entries, columnIds)}
     if (baseLog.params)
       baseLog.params = getDictSubset(baseLog.params, columnIds)
@@ -158,8 +159,8 @@ export function extractBaseAndComparisonLogs (selectedCells: string[], logs:LogP
       let columnIds = selectedCells
         .filter(id => id.split("_").at(0) === clParamId)                            // Find all selected cells from comparison
         .map(cell => getPartAfterFirstUnderscore(cell))                             // Handle underscores in column id
-        columnIds = Array.from(new Set(columnIds))                                  // Handle duplication in column id
-      const comparisonLog = {...cl, entries: getDictSubset(cl.entries, columnIds)}
+        columnIds = Array.from(new Set(columnIds.map(sanitizeId)))                                  // Handle duplication in column id
+      const comparisonLog = {...cl, entries: getDictSubset(cl.entries, columnIds)}    
       if (cl.params)
         comparisonLog.params = getDictSubset(cl.params, columnIds)
       return comparisonLog

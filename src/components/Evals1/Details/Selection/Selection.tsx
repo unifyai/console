@@ -9,6 +9,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { FoldVertical, UnfoldVertical } from "lucide-react";
 import { Combobox } from "@/components/UI/Combobox";
 import { ItemType, TileProps } from "@/types/evals/grid";
+import { sanitizeId } from "@/utils/evals/columnOperations";
 
 /**
  * Helper to parse tokens like "116812_call_transcripts" => logId="116812", column="call_transcripts"
@@ -100,9 +101,9 @@ export default function Selection({
     // Respect columnOrdering if any
     let finalCols: string[];
     if (columnOrdering.length > 0) {
-      finalCols = columnOrdering.filter(c => afterHidden.includes(c));
+      finalCols = columnOrdering.filter(c => afterHidden.includes(c)).map(sanitizeId);
     } else {
-      finalCols = afterHidden;
+      finalCols = afterHidden.map(sanitizeId);
     }
 
     const newEntries: Record<string, unknown> = {};

@@ -9,6 +9,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Column } from "@tanstack/react-table";
 import { StateProps } from "@/types/dataTable";
 import { formatNumber } from "@/utils/formatNumber";
+import { sanitizeId } from "@/utils/evals/columnOperations";
 
 const SummaryCell = ({ column, state, metrics, pending }: {
 	column: Column<any | unknown>,
@@ -30,7 +31,7 @@ const SummaryCell = ({ column, state, metrics, pending }: {
 		zIndex: isDragging || isPinned ? 1 : 0,
 	};
     const metricTooltip = `${state.metric} ${["dict", "list", "tuple", "str"].includes(column.columnDef.meta?.dataType!) ? "length" : "value"}`;
-	const logEntryMetric = column.id in metrics ? metrics[column.id] : 0;
+	let logEntryMetric = sanitizeId(column.id) in metrics ? metrics[sanitizeId(column.id)] : 0;
 
 	return (
 		<>

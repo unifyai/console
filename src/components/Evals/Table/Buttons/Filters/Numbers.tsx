@@ -13,6 +13,7 @@ import { KeyboardEventHandler } from "react";
 import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { Option } from "@/components/Common/Input/StartSelect";
 import { DualRangeSlider } from "@/components/Common/Sliders/DualRange";
+import { sanitizeId } from "@/utils/evals/columnOperations";
 
 const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boundaries }: {
     column: string,
@@ -20,7 +21,10 @@ const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boun
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
     boundaries: {minimums: {[key: string]: number;}, maximums: {[key: string]: number}}
 }) => {
-    
+
+    // Sanitize column
+    column = sanitizeId(column);
+
     /* Track states */
     const [minValue, maxValue] = [boundaries.minimums[column], boundaries.maximums[column]]
     const initialValue = [

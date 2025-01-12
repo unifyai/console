@@ -9,6 +9,7 @@ import CancelButton from "@/components/Common/Buttons/Cancel";
 import { Filter } from "lucide-react";
 import { DateTimeRangeSelector } from "@/components/Common/Time/DatetimeRangeSelector";
 import { KeyboardEventHandler } from "react";
+import { sanitizeId } from "@/utils/evals/columnOperations";
 
 const TimeColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boundaries }: {
     column: string,
@@ -16,7 +17,10 @@ const TimeColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boundar
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
     boundaries: {minimums: {[key: string]: any}, maximums: {[key: string]: any}}
 }) => {
-    
+
+    // Sanitize column
+    column = sanitizeId(column);
+
     /* Track states */
     const [initialStartDate, initialEndDate] = [
         columnFilters[column] && columnFilters[column][">"] ? columnFilters[column][">"] : boundaries.minimums["ts"], 

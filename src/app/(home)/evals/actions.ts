@@ -2,6 +2,7 @@
 
 import { TileProps } from "@/types/evals/grid";
 import { LogFieldsProps } from "@/types/evals/logs";
+import { sanitizeKey } from "./utils";
 
 // create project
 export const createProject = async (apiKey: string) => {
@@ -117,9 +118,12 @@ export const getLogMetrics = async (apiKey: string) => {
     ) => {
         "use server";
 
+        // Sanitize the keyName before using it in the request
+        const sanitizedKey = sanitizeKey(keyName);
+
         const response = await fetch(
             (
-                `${process.env.NEXTAUTH_URL}/api/logs/${metricName}?project=${project}&key=${keyName}`
+                `${process.env.NEXTAUTH_URL}/api/logs/${metricName}?project=${project}&key=${sanitizedKey}`
                 +  (filterExpression ? `&filter_expr=${filterExpression}` : "")
             ),
             { method: "GET", headers: { apiKey: apiKey } }
