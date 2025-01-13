@@ -106,7 +106,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
         setSelectedCells: setState.setSelectedCells
     });
 
-    return (<div className="flex flex-col gap-2 max-w-fit">
+    return (<div className="flex flex-col gap-2">
         {TableTop && TableTop}
         <div className="h-fit overflow-x-auto w-full">
         <DndContext
