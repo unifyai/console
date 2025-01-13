@@ -99,7 +99,21 @@ const CardGrid = ({
 
     useEffect(() => {
         if (!project || project != project_) {
-            updateInterface().then(() => { router.refresh(); });
+            const items_1 = items.map(item => ({
+                i: item.i,
+                x: item.x,
+                y: item.y,
+                w: item.w,
+                h: item.h,
+                moved: item.moved,
+                static: item.static,
+                tab: item.tab,
+                table: item.table,
+            }));
+            updateInterface({ items: items_1, new_counter: newCounter, project: project || null }).then(
+                () => { router.refresh(); }
+            );
+            setItems([...items_1]);
             setPending(true);
         }
     }, [project]);
@@ -138,7 +152,7 @@ const CardGrid = ({
                 tooltip="Save Interface"
                 icon={icon}
                 variant={variant}
-                disabled={disabled}
+                disabled={disabled || pending}
                 onClick={async () => {
                     if (success == undefined) {
                         let response: ResponseProps | undefined = undefined;
@@ -158,7 +172,7 @@ const CardGrid = ({
                 tooltip="Return to last saved interface"
                 icon={<ListRestart />}
                 variant={"destructive"}
-                disabled={disabled}
+                disabled={disabled || pending}
                 onClick={async () => updateInterface(savedInterface).then(() => router.refresh())}
             />}
             <ActionButton
@@ -166,7 +180,7 @@ const CardGrid = ({
                 icon={<Plus />}
                 text="Add Tile"
                 tooltip="Add new tile"
-                disabled={!editable}
+                disabled={!editable || pending}
                 onClick={() => {
                     setItems([
                         ...items,
@@ -238,6 +252,7 @@ const CardGrid = ({
                             icon={<X />}
                             tooltip="Remove"
                             variant="destructive"
+                            disabled={pending}
                         />}
                         <Badge className="absolute top-3 left-3" variant="primary">
                             {el.i}
