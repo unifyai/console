@@ -73,7 +73,6 @@ const Card = ({
 
     useEffect(() => {
         updateInterface().then(() => {
-            router.replace("?temporary=true");
             router.refresh();
         }).catch(() => {});
     }, [item]);

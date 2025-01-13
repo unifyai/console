@@ -27,7 +27,6 @@ const CardGrid = ({
     newCounter_,
     interfaceCreated,
     tempInterfaceCreated,
-    temporary,
     projectActions,
     logsActions,
     fieldsActions,
@@ -45,13 +44,12 @@ const CardGrid = ({
     newCounter_: number,
     interfaceCreated: boolean,
     tempInterfaceCreated: boolean,
-    temporary: boolean,
     projectActions: {
         get: () => Promise<string[]>,
         create: (name: string) => Promise<ResponseProps>,
         rename: (oldName: string, newName: string) => Promise<ResponseProps>,
         delete: (name: string) => Promise<ResponseProps>
-    }
+    },
     logsActions: {
         get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
         getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<string>,
@@ -90,7 +88,11 @@ const CardGrid = ({
     const updateInterface = (
         savedInterface: { items: TileProps[], new_counter: number, project: string | null } | null = null,
     ) => {
-        if (JSON.stringify(items) == JSON.stringify(items_) && project == project_)
+        if (
+            savedInterface == null
+            && JSON.stringify(items) == JSON.stringify(items_)
+            && project == project_
+        )
             return Promise.reject();
         const items_1 = savedInterface?.items || items;
         const newCounter_1 = savedInterface?.new_counter || newCounter;
@@ -103,7 +105,6 @@ const CardGrid = ({
 
     useEffect(() => {
         updateInterface().then(() => {
-            router.replace("?temporary=true", { scroll: false });
             router.refresh();
         }).catch(() => { });
         setPending(true);
@@ -113,10 +114,7 @@ const CardGrid = ({
 
     useEffect(() => {
         updateInterface().then(() => {
-            if (!temporary) {
-                router.replace("?temporary=true", { scroll: false });
-                router.refresh();
-            }
+            router.refresh();
         }).catch(() => {});
     }, [items]);
 
@@ -157,19 +155,15 @@ const CardGrid = ({
                     }
                 }}
             />
-            {temporary && <ActionButton
+            {<ActionButton
                 className="transition-all"
                 tooltip="Return to last saved interface"
                 icon={<ListRestart />}
                 variant={"destructive"}
                 onClick={async () => {
-                    updateInterface(savedInterface).then(() => {
-                        router.replace("?temporary=");
-                        router.refresh();
-                    }).catch(() => {
-                        router.replace("?temporary=");
-                        router.refresh();
-                    });
+                    updateInterface(savedInterface).then(
+                        () => router.refresh()
+                    ).catch(() => {});
                 }}
             />}
             <ActionButton

@@ -5,8 +5,7 @@ import { extractLogsData } from "@/utils/evals/common";
 import { TableDataProps, TileProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 
-const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, interfaceActions }: {
-    temporary: boolean,
+const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActions }: {
     projectsActions: {
         get: () => Promise<string[]>,
         create: (name: string) => Promise<ResponseProps>,
@@ -33,8 +32,8 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
     // Get interface
     let interface_: { items: TileProps[], new_counter: number, project: string | null } | null = await interfaceActions.get(false);
     let interfaceTemp_: { items: TileProps[], new_counter: number, project: string | null } | null = await interfaceActions.get(true);
-    let interfaceCreated = temporary ? Boolean(interfaceTemp_) : Boolean(interface_);
-    let currentInterface = temporary ? interfaceTemp_ : interface_;
+    let interfaceCreated = Boolean(interfaceTemp_);
+    let currentInterface = interfaceTemp_;
     if (!currentInterface) {
         currentInterface = {
             items: [{ i: "Tile_0", x: 0, y: 0, w: 3, h: 3, tab: undefined, moved: false, static: false }],
@@ -112,8 +111,10 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
                 const filterExpression = filterExpressions ? filterExpressions[idx] : null;
                 const sortingExpression = sortingExpressions[idx];
                 const context = item.context ?? null
-                const logsData = await logsActions.get(project, context, filterExpression, sortingExpression, limit, offset);
-                const fullData = await logsActions.get(project, context, filterExpression, null, null, 0);
+                const [logsData, fullData] = await Promise.all([
+                    logsActions.get(project, context, filterExpression, sortingExpression, limit, offset),
+                    logsActions.get(project, context, filterExpression, null, null, 0)
+                ]);
                 const totalPages = Math.ceil(logsData.count / limit);
                 return { [item.i]: { logsData, fullData, totalPages } };
             })
@@ -206,7 +207,6 @@ const Main = async ({ temporary, projectsActions, logsActions, fieldsActions, in
         newCounter_={currentInterface.new_counter}
         interfaceCreated={interfaceCreated}
         tempInterfaceCreated={Boolean(interfaceTemp_)}
-        temporary={temporary}
         projectActions={projectsActions}
         logsActions={logsActions}
         fieldsActions={fieldsActions}
