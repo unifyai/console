@@ -72,7 +72,8 @@ const Card = ({
     const relevantItem = item.table ? items.find(it => it.i == item.table) : undefined
 
     useEffect(() => {
-        updateInterface().then(() => { router.refresh(); }).catch(() => {});
+        if (item.tab == "Table")
+            updateInterface().then(() => { router.refresh(); });
     }, [item.tab, item.filters, item.common_filter, item.sorting, item.page_number, item.metric]);
 
     return (<div className="overflow-x-auto relative flex w-full h-full border rounded-lg">

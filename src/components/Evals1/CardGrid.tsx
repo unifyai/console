@@ -88,12 +88,6 @@ const CardGrid = ({
     const updateInterface = (
         savedInterface: { items: TileProps[], new_counter: number, project: string | null } | null = null,
     ) => {
-        if (
-            savedInterface == null
-            && JSON.stringify(items) == JSON.stringify(items_)
-            && project == project_
-        )
-            return Promise.reject();
         const items_1 = savedInterface?.items || items;
         const newCounter_1 = savedInterface?.new_counter || newCounter;
         const project_1 = "project" in (savedInterface || {}) ? savedInterface?.project : project;
@@ -104,11 +98,16 @@ const CardGrid = ({
     }
 
     useEffect(() => {
-        updateInterface().then(() => { router.refresh(); }).catch(() => {});
-        setPending(true);
+        if (!project || project != project_) {
+            updateInterface().then(() => { router.refresh(); });
+            setPending(true);
+        }
     }, [project]);
 
-    useEffect(() => { updateInterface().catch(() => {}); }, [items]);
+    useEffect(() => {
+        if (JSON.stringify(items) != JSON.stringify(items_))
+            updateInterface();
+    }, [items]);
 
     useEffect(() => {
         setItems([...items_]);
@@ -160,11 +159,7 @@ const CardGrid = ({
                 icon={<ListRestart />}
                 variant={"destructive"}
                 disabled={disabled}
-                onClick={async () => {
-                    updateInterface(savedInterface).then(
-                        () => router.refresh()
-                    ).catch(() => {});
-                }}
+                onClick={async () => updateInterface(savedInterface).then(() => router.refresh())}
             />}
             <ActionButton
                 variant="outline"
