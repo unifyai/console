@@ -173,7 +173,10 @@ const CardGrid = ({
                 icon={<ListRestart />}
                 variant={"destructive"}
                 disabled={disabled || pending}
-                onClick={async () => updateInterface(savedInterface).then(() => router.refresh())}
+                onClick={async () => updateInterface(savedInterface).then(() => {
+                    setEditable(true);
+                    router.refresh();
+                })}
             />}
             <ActionButton
                 variant="outline"
