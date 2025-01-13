@@ -9,16 +9,12 @@ import CancelButton from "@/components/Common/Buttons/Cancel";
 import { Filter } from "lucide-react";
 import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { Option } from "@/components/Common/Input/StartSelect";
-import { sanitizeId } from "@/utils/evals/columnOperations";
 
 const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void
 }) => {
-
-    // Sanitize column
-    column = sanitizeId(column);
     
     /* Track states */
     const initialValue = 

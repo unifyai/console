@@ -4,6 +4,7 @@ import { FiltersByColumn } from "@/types/evals/columns";
 import StringColumnFilter from "./Strings";
 import NumericColumnFilter from "./Numbers";
 import TimeColumnFilter from "./Time";
+import { sanitizeId } from "@/utils/evals/columnOperations";
 
 /* 
     Supported operands: "==", "!=", "is", "<", ">", "<=", "=>", "in", "not in"
@@ -20,6 +21,8 @@ const ColumnFilter = ({ column, columnFilters, setColumnFilterQuery, columnTypes
 }) => {
     
     let filter;
+    column = sanitizeId(column);
+
     if (["float", "int"].includes(columnTypes[column])) {
         filter = <NumericColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} boundaries={boundaries} />
     }
