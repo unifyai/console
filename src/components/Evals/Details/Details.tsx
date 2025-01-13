@@ -2,14 +2,15 @@ import { Suspense } from "react";
 import { Eye, Database, ScatterChart } from "lucide-react";
 import LogsPlot from "./Plot/Plot";
 import Selection from "./Selection/Selection";
-import { LogProps, LogItemProps } from "@/types/evals/logs";
+import { LogProps, LogItemProps, LogFieldsResponseProps } from "@/types/evals/logs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/UI/tabs"
 
-const Details = ({ params, logs, fullLogs}: {
+const Details = ({ params, logs, plotLogs, fields}: {
     project: string | undefined,
     params: LogItemProps,
     logs: LogProps[],
-    fullLogs: LogProps[]
+    plotLogs: LogProps[],
+    fields: LogFieldsResponseProps
 }) => {
     return (
         <Tabs defaultValue="View" className="w-full h-full tutorial-details-panel">
@@ -35,7 +36,7 @@ const Details = ({ params, logs, fullLogs}: {
                 <Selection params={params} logs={logs} />
             </TabsContent>
             <TabsContent value="Plot" className="w-full h-[calc(100%-50px)] tutorial-plot-pane">
-                <LogsPlot logs={fullLogs} />
+                <LogsPlot logs={plotLogs} fields={fields}/>
             </TabsContent>
         </Tabs>
     );

@@ -10,15 +10,15 @@ import { ResponseProps } from "@/types/common";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 
 const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions }: {
-	searchParams: { project?: string, page_number?: string, metric?: string, context?: string, filters?: string, common_filter?: string, sorting?: string },
+	searchParams: { project?: string, page_number?: string, metric?: string, context?: string, filters?: string, common_filter?: string, sorting?: string, plot_type?: string, x_axis?: string, y_axis?: string },
 	projectsActions: {
 		get: () => Promise<string[]>,
 		create: (name: string) => Promise<ResponseProps>,
 		rename: (name: string, newName: string) => Promise<ResponseProps>,
 		delete: (name: string) => Promise<ResponseProps>},
 	logsActions: {
-		get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
-		getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<string>,
+		get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
+		getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
 		getMetrics: (
 			project: string, filterExpression: string | null, metricName: string, keyName: string
 		) => Promise<number>,
@@ -69,18 +69,41 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 		: ""
 	const sortingExpression = sortingObject ? JSON.stringify(sortingObject) : null
 
-	/* Get logs, handle pagination and unpack log data */
+	/* Get logs with pagination, and plot logs subset */
+	
 	let logsData: LogsResponseProps = { params: {}, logs: [], count: 0 };
-	let fullData: LogsResponseProps = { params: {}, logs: [], count: 0 };
 	const limit = 16;
 	const offset = (searchParams.page_number ? parseInt(searchParams.page_number) : 0) * limit;
 	let totalPages = 1;
+	let plotData: LogsResponseProps = { params: {}, logs: [], count: 0 };
+	const plotFields = Object.fromEntries(
+		Object
+			.entries(fields)
+			.filter(([name, { data_type, field_type }]) => context ? name.startsWith(context) : name)
+			.map(([name, { data_type, field_type }]) => {
+				const newName = context ? name.replace(context, "") : name;
+				return [newName, { data_type, field_type }];
+			})
+	);
 	if (project) {
-		logsData = await logsActions.get(project, context ?? null, filterExpression, sortingExpression, limit, offset)
-		fullData = await logsActions.get(project, context ?? null, filterExpression, null, null, 0)
+
+		logsData = await logsActions.get(project, context ?? null, filterExpression, sortingExpression, null, limit, offset)
 		totalPages = Math.ceil(logsData.count / limit);
+
+		const xAxis = context ? context + searchParams.x_axis : searchParams.x_axis
+		const yAxis = context ? context + searchParams.y_axis : searchParams.y_axis
+		if (xAxis) {
+			if (searchParams.plot_type === "Bar Chart") 
+				plotData = await logsActions.get(project, context ?? null, filterExpression, null, xAxis, null, 0)
+			else {
+				if (yAxis)
+					plotData = await logsActions.get(project, context ?? null, filterExpression, null, `${xAxis}%26${yAxis}`, null, 0)
+			}
+		}
 	}
+
 	const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData, fields, searchParams.context ?? null, searchParams.sorting ?? null);
+	
 	/* Handle column metrics */
 	// Getting metrics for filtered logs, and min / max values for full logs. 
 	// Min / max bounds are used to set the filtering range for numeric columns 
@@ -144,7 +167,8 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 							project={project}
 							params={params}
 							logs={logs}
-							fullLogs={fullData.logs}
+							plotLogs={plotData.logs}
+							fields={plotFields}
 						/>
 					</Suspense>
 				}
@@ -154,7 +178,8 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 							project={project}
 							params={params}
 							logs={logs}
-							fullLogs={fullData.logs}
+							plotLogs={plotData.logs}
+							fields={plotFields}
 						/>
 					</Suspense>
 				}

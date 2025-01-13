@@ -13,7 +13,7 @@ const RefreshLogs = ({context, setContext, project, filterExpression, sortingExp
     project: string,
     filterExpression: string | null,
     sortingExpression: string | null,
-    getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<string>,
+    getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
 }) => {
 
     /* Auto refresh */
@@ -50,11 +50,11 @@ const RefreshLogs = ({context, setContext, project, filterExpression, sortingExp
     // with the timestamp saved last time the refresh button was used, except the first
     // time where we compare with the timestamp set on loading the component
 
-    useEffect(() => {getLatest(project, context, filterExpression, sortingExpression, null, 0).then(latest => setLastUpdated(latest))}, [])
+    useEffect(() => {getLatest(project, context, filterExpression, sortingExpression, null, null, 0).then(latest => setLastUpdated(latest))}, [])
     
     const onManualClick = () => {
         setIsChecking(true)
-        getLatest(project, context, filterExpression, sortingExpression, null, 0).then(latest => {
+        getLatest(project, context, filterExpression, sortingExpression, null, null, 0).then(latest => {
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime()
             if (latestTs > lastCheckTs) {

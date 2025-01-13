@@ -85,6 +85,7 @@ const LogsTable = ({
       context: string | null,
       filterExpression: string | null,
       sortingExpression: string | null,
+      from_fields: string | null,
       limit: number | null,
       offset: number
     ) => Promise<LogsResponseProps>,
@@ -92,7 +93,8 @@ const LogsTable = ({
       project: string, 
       context: string | null, 
       filterExpression: string | null, 
-      sortingExpression: string | null, 
+      sortingExpression: string | null,
+      from_fields: string | null,
       limit: number | null, 
       offset: number
     ) => Promise<string>,

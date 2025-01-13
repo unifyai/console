@@ -67,7 +67,7 @@ export const deleteProject = async (apiKey: string) => {
 
 // get logs
 export const getLogs = async (apiKey: string) => {
-    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number | null) => {
+    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number | null) => {
         "use server";
 
         const response = await fetch(
@@ -75,6 +75,7 @@ export const getLogs = async (apiKey: string) => {
             + (context ? `&context=${context}` : "")
             + (filterExpression ? `&filter_expr=${filterExpression.replace("=", "%3D").replace(">", "%3E").replace("<", "%3C")}` : "")
             + (sortingExpression ? `&sorting=${sortingExpression.replace("{", "%7B").replace(":", "%3A%20").replace("}", "%7D")}` : "")
+            + (from_fields ? `&from_fields=${from_fields}` : "")
             + (limit ? `&limit=${limit}` : "")
             + (offset ? `&offset=${offset}` : ""),
             { method: "GET", headers: { apiKey: apiKey } }
@@ -140,7 +141,7 @@ export const getLogMetrics = async (apiKey: string) => {
 
 // get latest timestamp
 export const getLatestTimestamp = async (apiKey: string) => {
-    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number | null) => {
+    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number | null) => {
         "use server";
 
         const response = await fetch(
@@ -148,6 +149,7 @@ export const getLatestTimestamp = async (apiKey: string) => {
             + (context ? `&context=${context}` : "")
             + (filterExpression ? `&filter_expr=${filterExpression}` : "")
             + (sortingExpression ? `&sorting=${sortingExpression.replace("{", "%7B").replace(":", "%3A%20").replace("}", "%7D")}` : "")
+            + (from_fields ? `&from_fields=${from_fields}` : "")
             + (limit ? `&limit=${limit}` : "")
             + (offset ? `&offset=${offset}` : ""),
             { method: "GET", headers: { apiKey: apiKey } }

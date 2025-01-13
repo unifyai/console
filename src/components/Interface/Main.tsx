@@ -13,8 +13,8 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
         delete: (name: string) => Promise<ResponseProps>
     },
     logsActions: {
-        get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
-        getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, limit: number | null, offset: number) => Promise<string>,
+        get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
+        getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
         getMetrics: (
             project: string, filterExpression: string | null, metricName: string, keyName: string
         ) => Promise<number>,
@@ -53,6 +53,7 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
         fields = await fieldsActions.get(project);
         types = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type]));
     }
+    
     /* Handle filters */
     // 1- Convert filters search param value to a nested dictionary representation of column, function and values
     // 2- Join column filters with the corresponding filter functions and values using "and"
@@ -96,7 +97,7 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
 
     // Get logs for all tables
     let allLogsData: {
-        [key: string]: { logsData: LogsResponseProps, fullData: LogsResponseProps, totalPages: number }
+        [key: string]: { logsData: LogsResponseProps, plotData: LogsResponseProps, plotFields: LogFieldsResponseProps, totalPages: number }
     } = tableItems.reduce(
         (acc, item) => ({ ...acc, [item.i]: {
             logsData: { params: {}, logs: [], count: 0 },
@@ -111,20 +112,41 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
                 const filterExpression = filterExpressions ? filterExpressions[idx] : null;
                 const sortingExpression = sortingExpressions[idx];
                 const context = item.context ?? null
-                const [logsData, fullData] = await Promise.all([
-                    logsActions.get(project, context, filterExpression, sortingExpression, limit, offset),
-                    logsActions.get(project, context, filterExpression, null, null, 0)
-                ]);
+                const logsData = await logsActions.get(project, context, filterExpression, sortingExpression, null, limit, offset);
+                
+                const plotFields = Object.fromEntries(
+                    Object
+                        .entries(fields)
+                        .filter(([name, { data_type, field_type }]) => context ? name.startsWith(context) : name)
+                        .map(([name, { data_type, field_type }]) => {
+                            const newName = context ? name.replace(context, "") : name;
+                            return [newName, { data_type, field_type }];
+                        })
+                );
+                let plotData: LogsResponseProps = { params: {}, logs: [], count: 0 };
+                const xAxis = context ? context + item.x_axis : item.x_axis
+                const yAxis = context ? context + item.y_axis : item.y_axis
+                if (xAxis) {
+                    if (item.plot_type === "Bar Chart") 
+                        plotData = await logsActions.get(project, context ?? null, filterExpression, null, xAxis, null, 0)
+                    else {
+                        if (yAxis)
+                            plotData = await logsActions.get(project, context ?? null, filterExpression, null, `${xAxis}%26${yAxis}`, null, 0)
+                    }
+                }
+                
                 const totalPages = Math.ceil(logsData.count / limit);
-                return { [item.i]: { logsData, fullData, totalPages } };
+                return { [item.i]: { logsData, plotData, plotFields, totalPages } };
             })
         )).reduce((acc, curr) => ({ ...acc, ...curr }), {});
     }
 
     const tableData: TableDataProps = (await Promise.all(
         tableItems.map(async (item, idx) => {
+            
             const logsData = allLogsData[item.i].logsData;
-            const fullData = allLogsData[item.i].fullData;
+            const plotData = allLogsData[item.i].plotData;
+            const plotFields = allLogsData[item.i].plotFields;
             const totalPages = allLogsData[item.i].totalPages;
             const context = item.context ?? null
             const sorting = item.sorting ?? null
@@ -175,7 +197,7 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
             const columnOrdering = item.column_order;
             const selection = item.selected;
             const baseIndex = item.base_index;
-            const fullLogs = fullData?.logs || [];
+            const plotLogs = plotData?.logs || [];
 
             return {
                 [item.i]: {
@@ -184,7 +206,8 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
                     selection,
                     baseIndex, 
                     logsData,
-                    fullLogs,
+                    plotLogs,
+                    plotFields,
                     totalPages,
                     entriesProperties,
                     paramsProperties,

@@ -9,15 +9,16 @@ import PlotGroupBy from "./Buttons/PlotGroupBy";
 import PlotReset from "./Buttons/PlotReset";
 
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
-import { LogProps } from "@/types/evals/logs";
-import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, filterNumericLogs } from "@/utils/evals/plot";
+import { LogFieldsResponseProps, LogProps } from "@/types/evals/logs";
+import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot } from "@/utils/evals/plot";
 
 import PlotAxis from "./Buttons/PlotAxis";
 import { useQueryState } from "nuqs";
 import PlotAggregate from "./Buttons/PlotAggregate";
 
-const LogsPlot = ({ logs }: {
+const LogsPlot = ({ logs, fields}: {
     logs: LogProps[] | undefined,
+    fields: LogFieldsResponseProps
 }) => {
     // Initialize refs and container dimensions
     let svgRef = useRef(null);
@@ -28,9 +29,18 @@ const LogsPlot = ({ logs }: {
     const placeholderTextRef = useRef(null);
 
     // Define axis ranges
-    const numericLogs = useMemo(() => logs ? filterNumericLogs(logs): [], [logs]);
-    const numericAxisProperties = useMemo(() => Array.from(new Set(numericLogs.map((log) => log.entries).flatMap((entry) => Object.keys(entry)))), [logs]);
-    const axisProperties = useMemo(() => logs ? Array.from(new Set(logs.map((log) => log.entries).flatMap((entry) => Object.keys(entry)))) : [], [logs]);
+    const numericAxisProperties = useMemo(() => 
+        Object
+        .entries(fields)
+        .filter(([name, { data_type, field_type }]) => field_type != "param" && (data_type === "float" || data_type === "int"))
+        .map(([name]) => name)
+    , [fields]);
+    const axisProperties = useMemo(() => 
+        Object
+            .entries(fields)
+            .filter(([name, { data_type, field_type }]) => field_type != "param")
+            .map(([name]) => name)
+    , [fields]);
 
     // Plot settings
     let [plotType, setPlotType] = useQueryState("plot_type");

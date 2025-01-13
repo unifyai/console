@@ -1,4 +1,4 @@
-import { LogItemProps, LogProps, LogsResponseProps } from "./logs";
+import { LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps } from "./logs";
 
 export interface TileProps {
     i: string;
@@ -39,7 +39,8 @@ export interface TableDataProps {
         columnOrdering: string | undefined,
         selection: string | undefined,
         logsData: LogsResponseProps,
-        fullLogs: LogProps[],
+        plotLogs: LogProps[],
+        plotFields: LogFieldsResponseProps,
         totalPages: number,
         entriesProperties: string[],
         paramsProperties: string[],
