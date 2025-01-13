@@ -1,6 +1,59 @@
 import { FiltersByColumn } from "@/types/evals/columns";
 
 /* 
+	Separates string filters that have more than one filter joined with && / ||, for a given function.
+	E.g: 
+		A filter of this format: "first || second && third || fourth"
+		Is transformed into: ["first", "||", "second", "&&", "third", "||", "fourth"]
+*/
+export function separateFunctionFilters (filter: string) {
+
+	const parts = filter.split(/(\s\|\|\s|\s&&\s)/); // Split and keep separators
+	let separated = [];
+	let currentPart = '';
+	
+	// If part is a separator, save the current part and add separator
+	// Otherwise, accumulate the current part
+	// Then, push the final accumulated part if there's any
+	parts.forEach(part => {
+	  if (part === ' || ' || part === ' && ') {
+		separated.push(currentPart);
+		separated.push(part.trim());
+		currentPart = '';
+	  } else {
+		currentPart += part;
+	  }
+	});
+	if (currentPart) separated.push(currentPart);
+
+	return separated
+}
+
+/* 
+	Constructs a filter expression from a list of filters / separators using the same function
+	E.g: 
+		A filter of this format: ["first", "||", "second", "&&", "third", "||", "fourth"]
+		Is transformed into: "first ${fn} ${cKey} or second ${fn} ${cKey} and third ${fn} ${cKey} or fourth ${fn} ${cKey}"
+*/
+export function joinFunctionFilters (filter: string, fn: string,cKey: string) {
+	
+	// Use the resulting list of values / separators 
+	// to construct the final filter expression 
+	let joined = '';
+	const separated = separateFunctionFilters(filter)
+	separated.forEach(item => {
+		if (item != '||' && item != '&&' ) {
+			joined += `${item} ${fn} ${cKey}`
+		} else {
+			const join = item === "&&" ? "and" : "or"
+			joined += ` ${join} `
+		}
+	})
+
+	return joined;
+}
+
+/* 
 	Converts nested filters dict into string filter expression.
 	Join column filters with the corresponding filter functions and values using "and"
 */
@@ -10,8 +63,10 @@ export function filtersToExpression (columnFilters: FiltersByColumn) {
 		.entries(columnFilters)
 		.map(([cKey, filter]) =>
 			Object.entries(filter).map(([fn, value]) => 
-				fn === "in" 
-					? `${value} ${fn} ${cKey}` 
+				["in", "not in"].includes(fn) 
+					? value.includes(" && ") || value.includes(" || ")
+						? joinFunctionFilters(value, fn, cKey)
+						: `${value} ${fn} ${cKey}` 
 					: `${cKey} ${fn} ${value}`
 			)
 		)
