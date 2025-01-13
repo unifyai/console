@@ -35,7 +35,7 @@ import CellPopover from "./Content/CellPopover";
 import { ItemType, TileProps } from "@/types/evals/grid";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { inplaceRefreshUsingContext } from "@/utils/evals/common";
-import { flattenColumnIDs } from "@/utils/evals/columnOperations";
+import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 
 const LogsTable = ({
   projects,
@@ -214,7 +214,7 @@ const LogsTable = ({
       })
     : [];
   const setSorting = (s: ColumnSort[]) =>
-    updateItem(item, "sorting")(s.map((item) => `${item.id}@${item.desc}`).join(","));
+    updateItem(item, "sorting")(s.map((item) => `${sanitizeId(item.id)}@${item.desc}`).join(","));
 
   const grouping = groupingStr ? groupingStr.split(",") : [];
   const setGrouping = (g: string[]) =>
