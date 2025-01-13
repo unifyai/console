@@ -54,14 +54,16 @@ const InterfacePage = async () => {
     }
 
     return (
-        <Suspense fallback={<SkeletonLoader />}>
-            <Main
-                projectsActions={projectsActions}
-                logsActions={logsActions}
-                fieldsActions={fieldsActions}
-                interfaceActions={interfaceActions}
-            />
-        </Suspense>
+        <div className="w-full h-full p-1">
+            <Suspense fallback={<SkeletonLoader />}>
+                <Main
+                    projectsActions={projectsActions}
+                    logsActions={logsActions}
+                    fieldsActions={fieldsActions}
+                    interfaceActions={interfaceActions}
+                />
+            </Suspense>
+        </div>
     );
 };
 

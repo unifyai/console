@@ -26,8 +26,10 @@ const ChatPage = async () => {
             providerImage: image
         };
     });
-    
-    return <Main endpoints={endpoints} apiKey={apiKey}/>;
+
+    return <div className="w-full h-full p-1 overflow-auto">
+        <Main endpoints={endpoints} apiKey={apiKey} />
+    </div>;
 };
 
 export default ChatPage;

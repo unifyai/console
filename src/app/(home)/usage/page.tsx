@@ -22,15 +22,17 @@ const UsagePage = async () => {
   }
 
   return (
-    <Suspense fallback={<SkeletonLoader/>}>
-    <div className="bg-background px-5 pb-12">
-      {onPrem ? (
-        <OnPrem />
-      ) : (
-        <Usage />
-      )}
+    <div className="w-full h-full p-1 overflow-auto">
+      <Suspense fallback={<SkeletonLoader />}>
+        <div className="bg-background px-5 pb-12">
+          {onPrem ? (
+            <OnPrem />
+          ) : (
+            <Usage />
+          )}
+        </div>
+      </Suspense>
     </div>
-    </Suspense>
   );
 };
 

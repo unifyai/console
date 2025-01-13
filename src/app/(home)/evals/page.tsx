@@ -18,13 +18,15 @@ import { redirect } from "next/navigation";
 
 
 const EvalsPage = async (
-    { searchParams }: { searchParams: {
-        project?: string,
-        page_number?: string,
-        metric?: string,
-        filters?: string,
-        common_filter?: string
-    } }
+    { searchParams }: {
+        searchParams: {
+            project?: string,
+            page_number?: string,
+            metric?: string,
+            filters?: string,
+            common_filter?: string
+        }
+    }
 ) => {
     // get user and api key
     const user = await getCurrentUser();
@@ -41,26 +43,28 @@ const EvalsPage = async (
         rename: await renameProject(apiKey),
         delete: await deleteProject(apiKey)
     };
-    
-    const logsActions = { 
-        get: await getLogs(apiKey), 
-        getMetrics: await getLogMetrics(apiKey), 
+
+    const logsActions = {
+        get: await getLogs(apiKey),
+        getMetrics: await getLogMetrics(apiKey),
         delete: await deleteLogs(apiKey),
         getLatest: await getLatestTimestamp(apiKey)
     }
 
     const fieldsActions = {
         get: await getLogFields(apiKey),
-    } 
+    }
     return (
-        <Suspense fallback={<SkeletonLoader />}>
-            <Main
-                searchParams={searchParams}
-                projectsActions={projectsActions}
-                logsActions={logsActions}
-                fieldsActions={fieldsActions}
-            />
-        </Suspense>
+        <div className="w-full h-full p-1 overflow-auto">
+            <Suspense fallback={<SkeletonLoader />}>
+                <Main
+                    searchParams={searchParams}
+                    projectsActions={projectsActions}
+                    logsActions={logsActions}
+                    fieldsActions={fieldsActions}
+                />
+            </Suspense>
+        </div>
     );
 };
 
