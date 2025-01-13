@@ -19,7 +19,7 @@ import {
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
 
-const Evals1Page = async () => {
+const InterfacePage = async () => {
     // get user and api key
     const user = await getCurrentUser();
     if (!user) {
@@ -65,4 +65,4 @@ const Evals1Page = async () => {
     );
 };
 
-export default Evals1Page;
+export default InterfacePage;
