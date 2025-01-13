@@ -4,13 +4,13 @@ import { Dispatch, SetStateAction, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
-import Selection from "@/components/Evals1/Details/Selection/Selection";
+import Selection from "@/components/Interface/Details/Selection/Selection";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { Plus } from "lucide-react";
 import { LogFieldsResponseProps, LogFieldsProps, LogsResponseProps } from "@/types/evals/logs";
-import LogsPlot from "@/components/Evals1/Details/Plot/Plot";
+import LogsPlot from "@/components/Interface/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
-import LogsTable from "@/components/Evals1/Table/Table";
+import LogsTable from "@/components/Interface/Table/Table";
 import { ItemType, TableDataProps, TileProps } from "@/types/evals/grid";
 
 const Card = ({

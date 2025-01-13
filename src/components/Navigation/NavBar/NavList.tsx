@@ -6,7 +6,7 @@ import {
   CreditCard,
   ChartLine,
   ArrowBigRightDash,
-  ClipboardPen,
+  LayoutDashboard,
   TestTubeDiagonal,
   Gauge,
 } from "lucide-react";
@@ -14,6 +14,11 @@ import {
 const NavList = (): NavItem[] => {
   // Just return your main nav items—do NOT include "Profile" here
   return [
+    {
+      title: "Interface",
+      icon: LayoutDashboard,
+      href: "/interface",
+    },
     {
       title: "Chat",
       icon: MessageSquare,
@@ -33,11 +38,6 @@ const NavList = (): NavItem[] => {
       title: "Evals",
       icon: ChartLine,
       href: "/evals",
-    },
-    {
-      title: "Evals1",
-      icon: ClipboardPen,
-      href: "/evals1",
     },
     {
       title: "Datasets",

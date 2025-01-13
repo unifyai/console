@@ -1,5 +1,5 @@
 import { ResponseProps } from "@/types/common";
-import CardGrid from "@/components/Evals1/CardGrid";
+import CardGrid from "@/components/Interface/CardGrid";
 import { LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { extractLogsData } from "@/utils/evals/common";
 import { TableDataProps, TileProps } from "@/types/evals/grid";

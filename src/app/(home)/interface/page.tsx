@@ -1,7 +1,7 @@
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { getCurrentUser } from "@/lib/user/user";
 import { Suspense } from "react";
-import Main from "@/components/Evals1/Main";
+import Main from "@/components/Interface/Main";
 import {
     getLogFields,
     deleteLogs,
