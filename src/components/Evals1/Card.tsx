@@ -72,10 +72,8 @@ const Card = ({
     const relevantItem = item.table ? items.find(it => it.i == item.table) : undefined
 
     useEffect(() => {
-        updateInterface().then(() => {
-            router.refresh();
-        }).catch(() => {});
-    }, [item]);
+        updateInterface().then(() => { router.refresh(); }).catch(() => {});
+    }, [item.tab, item.filters, item.common_filter, item.sorting, item.page_number, item.metric]);
 
     return (<div className="overflow-x-auto relative flex w-full h-full border rounded-lg">
         <div className={"overflow-auto w-full flex-1 flex flex-col items-center " + (tab ? "mt-2" : "justify-center")}>

@@ -35,7 +35,7 @@ const CardGrid = ({
     sortingExpressions,
 }: {
     projects: string[] | undefined,
-    project_: string | undefined,
+    project_: string | null,
     tableNames: string[]
     tableData: TableDataProps,
     columnTypes: { [key: string]: string },
@@ -74,7 +74,7 @@ const CardGrid = ({
     const [newCounter, setNewCounter] = useState(newCounter_);
     const [success, setSuccess] = useState<boolean>();
     const [editable, setEditable] = useState(true);
-    const [project, setProject] = useState(project_);
+    const [project, setProject] = useState(project_ || undefined);
     const [pending, setPending] = useState(false);
     const gridRef = useRef<HTMLDivElement>(null);
 
@@ -96,7 +96,7 @@ const CardGrid = ({
             return Promise.reject();
         const items_1 = savedInterface?.items || items;
         const newCounter_1 = savedInterface?.new_counter || newCounter;
-        const project_1 = savedInterface?.project || project;
+        const project_1 = "project" in (savedInterface || {}) ? savedInterface?.project : project;
         if (tempInterfaceCreated)
             return interfaceActions.update(items_1, newCounter_1, project_1 || null, true);
         else
@@ -104,23 +104,18 @@ const CardGrid = ({
     }
 
     useEffect(() => {
-        updateInterface().then(() => {
-            router.refresh();
-        }).catch(() => { });
+        updateInterface().then(() => { router.refresh(); }).catch(() => {});
         setPending(true);
     }, [project]);
 
-    useEffect(() => { setPending(false); }, [project_])
-
-    useEffect(() => {
-        updateInterface().then(() => {
-            router.refresh();
-        }).catch(() => {});
-    }, [items]);
+    useEffect(() => { updateInterface().catch(() => {}); }, [items]);
 
     useEffect(() => {
         setItems([...items_]);
-    }, [items_])
+        setProject(project_ || undefined);
+        setNewCounter(newCounter_);
+        setPending(false);
+    }, [items_, project_, newCounter_])
 
     useEffect(() => {
         gridRef.current?.scrollTo({
@@ -133,6 +128,9 @@ const CardGrid = ({
 
     const icon = success ? <Check /> : success == false ? <TriangleAlert /> : <Save />;
     const variant = success == false ? "destructive" : "primary";
+    const disabled = JSON.stringify(savedInterface) == JSON.stringify(
+        { items, new_counter: newCounter, project: project_ }
+    );
 
     return (<div className="w-full h-full overflow-auto m-2" ref={gridRef}>
         <div className="my-2 ml-6 mr-8 flex gap-4 items-center">
@@ -141,6 +139,7 @@ const CardGrid = ({
                 tooltip="Save Interface"
                 icon={icon}
                 variant={variant}
+                disabled={disabled}
                 onClick={async () => {
                     if (success == undefined) {
                         let response: ResponseProps | undefined = undefined;
@@ -160,6 +159,7 @@ const CardGrid = ({
                 tooltip="Return to last saved interface"
                 icon={<ListRestart />}
                 variant={"destructive"}
+                disabled={disabled}
                 onClick={async () => {
                     updateInterface(savedInterface).then(
                         () => router.refresh()

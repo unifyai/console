@@ -44,7 +44,7 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
 
     // Get projects
     const projects: string[] = await projectsActions.get();
-    const project = currentInterface.project || undefined;
+    const project = currentInterface.project || null;
 
     // Get fields
     let fields: LogFieldsResponseProps = {};
