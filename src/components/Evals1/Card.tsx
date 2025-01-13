@@ -97,7 +97,7 @@ const Card = ({
                             disabled={pending}
                             className="w-64"
                         >
-                            {tab}
+                            {tab}{pending ? " (loading)" : ""}
                         </DropdownMenuItem>)}
                     </BaseDropdown>
                 </div>
@@ -116,7 +116,9 @@ const Card = ({
                             disabled={tableData[tile].logs.length == 0 || pending}
                             className="w-64"
                         >
-                            {tile}{tableData[tile].logs.length ? "" : " (empty table)"}
+                            {tile}
+                            {tableData[tile].logs.length ? "" : " (empty table)"}
+                            {pending ? " (loading)" : ""}
                         </DropdownMenuItem>)}
                     </BaseDropdown>
                 </div>}
