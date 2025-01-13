@@ -43,15 +43,15 @@ const LogsPlot = ({ logs, fields}: {
     , [fields]);
 
     // Plot settings
-    let [plotType, setPlotType] = useQueryState("plot_type");
+    let [plotType, setPlotType] = useQueryState("plot_type", { shallow: false });
     let [scale, setScale] = useQueryState("plot_scale");
     let [isAggregated, setIsAggregated] = useQueryState("aggregated_data")
     plotType = plotType ? plotType : "Scatter Plot";
     scale = scale ? scale : "log";
 
     // Axes and grouping selected on the plot
-    const [selectedXAxisProperty, setSelectedXAxisProperty] = useQueryState("x_axis");
-    const [selectedYAxisProperty, setSelectedYAxisProperty] = useQueryState("y_axis");
+    const [selectedXAxisProperty, setSelectedXAxisProperty] = useQueryState("x_axis", { shallow: false });
+    const [selectedYAxisProperty, setSelectedYAxisProperty] = useQueryState("y_axis", { shallow: false });
     const [groupByProperty, setGroupByProperty] = useQueryState("plot_group_by");
 
     // Draw plot
