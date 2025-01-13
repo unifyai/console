@@ -9,7 +9,7 @@ import { ItemType, TableDataProps, TileProps } from "@/types/evals/grid";
 import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import ActionButton from "../Common/Buttons/Action";
-import { Check, ListRestart, Plus, Save, TriangleAlert, X } from "lucide-react";
+import { Check, ListRestart, Loader2, Plus, Save, TriangleAlert, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { Badge } from "../UI/badge";
 
@@ -72,7 +72,8 @@ const CardGrid = ({
     const router = useRouter();
     const [items, setItems] = useState<TileProps[]>([...items_]);
     const [newCounter, setNewCounter] = useState(newCounter_);
-    const [success, setSuccess] = useState<boolean>();
+    const [saveSuccess, setSaveSuccess] = useState<boolean>();
+    const [resetting, setResetting] = useState<boolean>();
     const [editable, setEditable] = useState(true);
     const [project, setProject] = useState(project_ || undefined);
     const [pending, setPending] = useState(false);
@@ -128,6 +129,7 @@ const CardGrid = ({
         setProject(project_ || undefined);
         setNewCounter(newCounter_);
         setPending(false);
+        setResetting(false);
     }, [items_, project_, newCounter_])
 
     useEffect(() => {
@@ -137,10 +139,11 @@ const CardGrid = ({
         });
     }, [newCounter]);
 
-    useEffect(() => { setTimeout(() => setSuccess(undefined), 3000); }, [success]);
+    useEffect(() => { setTimeout(() => setSaveSuccess(undefined), 3000); }, [saveSuccess]);
 
-    const icon = success ? <Check /> : success == false ? <TriangleAlert /> : <Save />;
-    const variant = success == false ? "destructive" : "primary";
+    const saveIcon = saveSuccess ? <Check /> : saveSuccess == false ? <TriangleAlert /> : <Save />;
+    const resetIcon = resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
+    const variant = saveSuccess == false ? "destructive" : "primary";
     const disabled = JSON.stringify(savedInterface) == JSON.stringify(
         { items, new_counter: newCounter, project: project_ }
     );
@@ -150,30 +153,31 @@ const CardGrid = ({
             <ActionButton
                 className="transition-all"
                 tooltip="Save Interface"
-                icon={icon}
+                icon={saveIcon}
                 variant={variant}
                 disabled={disabled || pending}
                 onClick={async () => {
-                    if (success == undefined) {
+                    if (saveSuccess == undefined) {
                         let response: ResponseProps | undefined = undefined;
                         if (interfaceCreated)
                             response = await interfaceActions.update(items, newCounter, project || null, false);
                         else
                             response = await interfaceActions.create(items, newCounter, project || null, false);
                         if (response && "info" in response)
-                            setSuccess(true);
+                            setSaveSuccess(true);
                         else
-                            setSuccess(false);
+                            setSaveSuccess(false);
                     }
                 }}
             />
             {<ActionButton
                 className="transition-all"
                 tooltip="Return to last saved interface"
-                icon={<ListRestart />}
+                icon={resetIcon}
                 variant={"destructive"}
                 disabled={disabled || pending}
                 onClick={async () => updateInterface(savedInterface).then(() => {
+                    setResetting(true);
                     setEditable(true);
                     router.refresh();
                 })}
