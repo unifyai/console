@@ -193,7 +193,7 @@ const CardGrid = ({
                 icon={<Plus />}
                 text="Add Tile"
                 tooltip="Add new tile"
-                disabled={!editable || pending}
+                disabled={!editable}
                 onClick={() => {
                     setItems([
                         ...items,
