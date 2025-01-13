@@ -77,6 +77,7 @@ const CardGrid = ({
     const [editable, setEditable] = useState(true);
     const [project, setProject] = useState(project_ || undefined);
     const [pending, setPending] = useState(false);
+    const [changedDuringReload, setChangedDuringReload] = useState(false);
     const gridRef = useRef<HTMLDivElement>(null);
 
     const updateItem = (item: TileProps, attrName: ItemType) => {
@@ -89,6 +90,8 @@ const CardGrid = ({
     const updateInterface = (
         savedInterface: { items: TileProps[], new_counter: number, project: string | null } | null = null,
     ) => {
+        if (pending)
+            setChangedDuringReload(true);
         const items_1 = savedInterface?.items || items;
         const newCounter_1 = savedInterface?.new_counter || newCounter;
         const project_1 = "project" in (savedInterface || {}) ? savedInterface?.project : project;
@@ -125,9 +128,12 @@ const CardGrid = ({
     }, [items]);
 
     useEffect(() => {
-        setItems([...items_]);
+        if (!changedDuringReload) {
+            setItems([...items_]);
+            setNewCounter(newCounter_);
+            setChangedDuringReload(false);
+        }
         setProject(project_ || undefined);
-        setNewCounter(newCounter_);
         setPending(false);
         setResetting(false);
     }, [items_, project_, newCounter_])

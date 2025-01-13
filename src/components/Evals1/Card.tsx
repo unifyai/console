@@ -94,10 +94,9 @@ const Card = ({
                             onSelect={() => setItems(
                                 [...items.map(item => item.i != index ? item : { ...item, tab: tab })]
                             )}
-                            disabled={pending}
                             className="w-64"
                         >
-                            {tab}{pending ? " (loading)" : ""}
+                            {tab}
                         </DropdownMenuItem>)}
                     </BaseDropdown>
                 </div>
@@ -113,12 +112,11 @@ const Card = ({
                         {tableNames.map((tile, idx) => <DropdownMenuItem
                             key={idx}
                             onSelect={() => updateItem(item, "table")(tile)}
-                            disabled={tableData[tile].logs.length == 0 || pending}
+                            disabled={tableData[tile].logs.length == 0}
                             className="w-64"
                         >
                             {tile}
                             {tableData[tile].logs.length ? "" : " (empty table)"}
-                            {pending ? " (loading)" : ""}
                         </DropdownMenuItem>)}
                     </BaseDropdown>
                 </div>}
