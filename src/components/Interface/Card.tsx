@@ -24,8 +24,10 @@ const Card = ({
     logsActions,
     index,
     item,
+    originalItem,
     items,
     setProject,
+    setPending,
     setItems,
     updateItem,
     updateInterface,
@@ -55,8 +57,10 @@ const Card = ({
     },
     index: string,
     item: TileProps,
+    originalItem: TileProps,
     items: TileProps[],
     setProject: Dispatch<SetStateAction<string | undefined>>,
+    setPending: (pending: boolean) => void,
     setItems: (items: TileProps[]) => void,
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void
     updateInterface: () => Promise<ResponseProps>,
@@ -72,8 +76,12 @@ const Card = ({
     const relevantItem = item.table ? items.find(it => it.i == item.table) : undefined
 
     useEffect(() => {
-        if (item.tab == "Table")
-            updateInterface().then(() => { router.refresh(); });
+        if (item.tab == "Table" && JSON.stringify(item) != JSON.stringify(originalItem)) {
+            updateInterface().then(() => {
+                router.refresh();
+                setPending(true);
+            });
+        }
     }, [item.tab, item.filters, item.common_filter, item.sorting, item.page_number, item.metric]);
 
     return (<div className="overflow-auto relative flex w-full h-full border rounded-lg">

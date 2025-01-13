@@ -70,15 +70,18 @@ const CardGrid = ({
     sortingExpressions: (string | null)[],
 }) => {
     const router = useRouter();
-    const [items, setItems] = useState<TileProps[]>([...items_]);
+    const [items, setItems] = useState<TileProps[]>([...items_.map(item => ({...item}))]);
     const [newCounter, setNewCounter] = useState(newCounter_);
     const [saveSuccess, setSaveSuccess] = useState<boolean>();
     const [resetting, setResetting] = useState<boolean>();
     const [editable, setEditable] = useState(true);
     const [project, setProject] = useState(project_ || undefined);
-    const [pending, setPending] = useState(false);
+    const [pending, setPending] = useState<{ [key: string]: boolean }>(
+        Object.fromEntries(Object.keys(tableData).map(k => [k, false]))
+    );
     const [changedDuringReload, setChangedDuringReload] = useState(false);
     const gridRef = useRef<HTMLDivElement>(null);
+    const anyPending = !Object.entries(pending).every(([_, value]) => !value);
 
     const updateItem = (item: TileProps, attrName: ItemType) => {
         return (newValue: string | undefined) => {
@@ -118,7 +121,7 @@ const CardGrid = ({
                 () => { router.refresh(); }
             );
             setItems([...items_1]);
-            setPending(true);
+            setPending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
         }
     }, [project]);
 
@@ -129,12 +132,12 @@ const CardGrid = ({
 
     useEffect(() => {
         if (!changedDuringReload) {
-            setItems([...items_]);
+            setItems([...items_.map(item => ({ ...item }))]);
             setNewCounter(newCounter_);
             setChangedDuringReload(false);
         }
         setProject(project_ || undefined);
-        setPending(false);
+        setPending(Object.fromEntries(Object.keys(tableData).map(k => [k, false])));
         setResetting(false);
     }, [items_, project_, newCounter_])
 
@@ -161,7 +164,7 @@ const CardGrid = ({
                 tooltip="Save Interface"
                 icon={saveIcon}
                 variant={variant}
-                disabled={disabled || pending}
+                disabled={disabled || anyPending}
                 onClick={async () => {
                     if (saveSuccess == undefined) {
                         let response: ResponseProps | undefined = undefined;
@@ -181,7 +184,7 @@ const CardGrid = ({
                 tooltip="Return to last saved interface"
                 icon={resetIcon}
                 variant={"destructive"}
-                disabled={disabled || pending}
+                disabled={disabled || anyPending}
                 onClick={async () => updateInterface(savedInterface).then(() => {
                     setResetting(true);
                     setEditable(true);
@@ -242,7 +245,7 @@ const CardGrid = ({
                         <Card
                             projects={projects}
                             project={project}
-                            pending={pending}
+                            pending={el.tab == "Table" ? pending[el.i] : false}
                             columnTypes={columnTypes}
                             tableNames={tableNames}
                             tableData={tableData}
@@ -250,8 +253,10 @@ const CardGrid = ({
                             logsActions={logsActions}
                             index={el.i}
                             item={el}
+                            originalItem={items_.find(i => i.i === el.i) as TileProps}
                             items={items}
                             setProject={setProject}
+                            setPending={(p: boolean) => setPending({...pending, [el.i]: p})}
                             setItems={(items: TileProps[]) => setItems(items)}
                             updateItem={updateItem}
                             fieldsActions={fieldsActions}
@@ -265,7 +270,7 @@ const CardGrid = ({
                             icon={<X />}
                             tooltip="Remove"
                             variant="destructive"
-                            disabled={pending}
+                            disabled={anyPending}
                         />}
                         <Badge className="absolute top-3 left-3" variant="primary">
                             {el.i}
