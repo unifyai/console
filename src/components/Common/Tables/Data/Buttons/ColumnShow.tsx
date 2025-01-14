@@ -18,32 +18,26 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility }: {
     const currentDepth = header.column.columnDef.meta?.renderedDepth;
 
     const rawHiddenColumns = (() => {
-        // Get all columns at the same depth
-        const siblingColumns = table
-            .getAllFlatColumns()
-            .filter((col) => 
-                col.columnDef.meta?.renderedDepth === currentDepth &&
-                col.columnDef.id !== header.column.columnDef.id
-            );
-    
-        if (isParentColumn) {
-            // Get all child columns of the current column
-            const childColumns = getAllChildColumns(header.column);
-    
-            // Combine child and sibling columns, and filter for hidden columns
-            const hidden = [...childColumns, ...siblingColumns]
-                .filter((col) => !columnVisibility[col.columnDef.id as string]) // Check visibility
-                .map((col) => col.columnDef.id as string);
+        // Get the immediate parent column for the current column
+        const immediateParent = header.column.parent;
 
-            return hidden;
-        } else {
-            // Only check siblings at the same depth for non-parent columns
-            const hidden = siblingColumns
-                .filter((col) => !columnVisibility[col.columnDef.id as string]) // Check visibility
-                .map((col) => col.columnDef.id as string);
-
-            return hidden;
+        if (!immediateParent) {
+            // If there's no parent, there are no siblings
+            return [];
         }
+
+        // Get all sibling columns by finding all immediate children of the immediate parent
+        const siblingColumns = immediateParent.columns;
+
+        // Filter for hidden sibling columns
+        const hidden = siblingColumns
+            .filter((col) => 
+                col.columnDef.meta?.renderedDepth === currentDepth && 
+                !columnVisibility[col.columnDef.id as string]
+            )
+            .map((col) => col.columnDef.id as string);
+
+        return hidden;
     })();
 
     // Remove any duplicates
@@ -105,7 +99,7 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility }: {
                             <DropdownMenuItem key={index} onClick={() => {
                                 displayColumn(column);
                             }}>
-                                {column}
+                                {column.split("/")[column.split("/").length - 1]}
                             </DropdownMenuItem>
                         )}
                     </DropdownMenuGroup>
