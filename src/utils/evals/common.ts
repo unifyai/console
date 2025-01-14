@@ -114,7 +114,7 @@ export const inplaceRefreshUsingContextURLParam = (context : string | null, setC
 }
 
 export const inplaceRefreshUsingContext = (context : string | undefined, setContext: (context: string | undefined) => void) => {
-  if (context === undefined)
+  if (!context)
       setContext("")
   else if (context === "")
       setContext(undefined)
