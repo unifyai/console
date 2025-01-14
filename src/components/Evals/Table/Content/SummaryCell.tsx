@@ -30,14 +30,18 @@ const SummaryCell = ({ column, state, metrics, pending }: {
 		width: `calc(var(--header-${column.id}-size) * 1px)`,
 		zIndex: isDragging || isPinned ? 1 : 0,
 	};
+	
     const metricTooltip = `${state.metric} ${["dict", "list", "tuple", "str"].includes(column.columnDef.meta?.dataType!) ? "length" : "value"}`;
-	let logEntryMetric = sanitizeId(column.id) in metrics ? metrics[sanitizeId(column.id)] : 0;
-	logEntryMetric = parseFloat(logEntryMetric) ?? logEntryMetric
+
+	let logEntryMetric = sanitizeId(column.id) in metrics ? metrics[sanitizeId(column.id)] : null;
+	logEntryMetric = parseFloat(logEntryMetric) ? formatNumber(parseFloat(logEntryMetric)) : logEntryMetric
+	logEntryMetric = logEntryMetric.toString() ?? ""
+
 	return (
 		<>
 			{<TableCell style={style} ref={setNodeRef}>
 				<Tooltip content={metricTooltip}>
-					{formatNumber(logEntryMetric) ?? 0}
+					{logEntryMetric}
 				</Tooltip>
 			</TableCell>}
 		</>

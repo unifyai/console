@@ -187,7 +187,7 @@ const LogsTable = ({
   encodeRenderedDepth(columns, ["util", "paramsHeader", "entriesHeader"]);
 
   // Various table states from the URL
-  const [metricQuery, setMetric] = useQueryState("metric");
+  const [metricQuery, setMetric] = useQueryState("metric", {shallow: false});
   const metric = metricQuery ?? "mean";
 
   const [projectQuery, setProject] = useQueryState("project", { shallow: false });
