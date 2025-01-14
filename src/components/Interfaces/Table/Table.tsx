@@ -34,7 +34,6 @@ import { searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
 import { ItemType, TileProps } from "@/types/evals/grid";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
-import { inplaceRefreshUsingContext } from "@/utils/evals/common";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 
 const LogsTable = ({
@@ -87,7 +86,8 @@ const LogsTable = ({
       sortingExpression: string | null,
       from_fields: string | null,
       limit: number | null,
-      offset: number
+      offset: number,
+      _timestamp: string | null
     ) => Promise<LogsResponseProps>,
     getLatest: (
       project: string, 
@@ -391,7 +391,7 @@ const LogsTable = ({
             }}
             type="Projects"
             defaultValue={project}
-            onOpen={() => inplaceRefreshUsingContext(item.context, updateItem(item, "context"))}
+            onOpen={() => updateItem(item, "_timestamp")}
           />
           {project && (
             <div className="flex flex-row gap-2">
@@ -412,11 +412,12 @@ const LogsTable = ({
           {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
         </div>
         {project && 
-          <RefreshLogs
+          <RefreshLogs 
+            _timestamp={item._timestamp}
+            _setTimestamp={updateItem(item, "_timestamp")}
             auto={item.auto_update}
             setAuto={updateItem(item, "auto_update")}
             context={item.context}
-            setContext={updateItem(item, "context")}
             project={project}
             filterExpression={filterExpression}
             sortingExpression={sortingExpression}

@@ -3,15 +3,14 @@
 import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useQueryState, parseAsFloat, parseAsBoolean } from "nuqs";
 import { BasePopover } from "@/components/Common/Popovers/Base";
-import { inplaceRefreshUsingContext } from "@/utils/evals/common";
 
-const RefreshLogs = ({auto, setAuto, context, setContext, project, filterExpression, sortingExpression, getLatest}: {
+const RefreshLogs = ({_timestamp, _setTimestamp, auto, setAuto, context, project, filterExpression, sortingExpression, getLatest}: {
+    _timestamp: string | undefined,
+    _setTimestamp: (_timestamp: string | undefined) => void,
     auto: string | undefined,
     setAuto: (auto: string | undefined) => void,
     context: string | undefined,
-    setContext: (context: string | undefined) => void,
     project: string,
     filterExpression: string | null,
     sortingExpression: string | null,
@@ -19,14 +18,12 @@ const RefreshLogs = ({auto, setAuto, context, setContext, project, filterExpress
 }) => {
 
     /* Auto refresh */
-    // We use the context argument to trigger a refresh of the logs.
-    // A context that ends with "/" is equivalent to the same context without the final "/"
-    // Likewise, a null context is equivalent to an empty string context
-    // useEffect(() => {
-    //     if ([undefined, "false"].includes(auto)) return;
-    //     const interval = setInterval(() => inplaceRefreshUsingContext(context, setContext), 100) // Refresh every 100ms
-    //     return () => clearInterval(interval)
-    // }, [auto])
+    // We use timestamp to tag fetch api calls to trigger revalidation every two seconds
+    useEffect(() => {
+        if (!auto) return;
+        const interval = setInterval(() => _setTimestamp(Date.now().toString()), 2000) // Refresh every 2000ms
+        return () => clearInterval(interval)
+    }, [auto])
     const onAutoClick = () => setAuto(auto === "true" ? "false" : "true")
     const autoRefresh = 
         <ActionButton
@@ -57,7 +54,7 @@ const RefreshLogs = ({auto, setAuto, context, setContext, project, filterExpress
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime()
             if (latestTs > lastCheckTs) {
-                inplaceRefreshUsingContext(context, setContext)
+                _setTimestamp(Date.now().toString())
                 setLastUpdated(latest)
                 setMessage(messages.updated)
             } else {

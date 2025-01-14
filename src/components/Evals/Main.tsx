@@ -10,14 +10,14 @@ import { ResponseProps } from "@/types/common";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 
 const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions }: {
-	searchParams: { project?: string, page_number?: string, metric?: string, context?: string, filters?: string, common_filter?: string, sorting?: string, plot_type?: string, x_axis?: string, y_axis?: string },
+	searchParams: { project?: string, page_number?: string, metric?: string, context?: string, filters?: string, common_filter?: string, sorting?: string, plot_type?: string, x_axis?: string, y_axis?: string, _timestamp?: string },
 	projectsActions: {
 		get: () => Promise<string[]>,
 		create: (name: string) => Promise<ResponseProps>,
 		rename: (name: string, newName: string) => Promise<ResponseProps>,
 		delete: (name: string) => Promise<ResponseProps>},
 	logsActions: {
-		get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
+		get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
 		getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
 		getMetrics: (
 			project: string, filterExpression: string | null, metricName: string, keyName: string
@@ -28,6 +28,9 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 		get: (project: string) => Promise<LogFieldsResponseProps>,
 	}
 }) => {
+
+	// Timestamp parameter is used to stamp endpoint calls and periodically revalidate cache for streaming / updating purposes
+	const _timestamp = searchParams._timestamp ?? null
 
 	/* Get projects list, selected project and its column types */
 	const projects: string[] = await projectsActions.get();
@@ -87,17 +90,17 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 	);
 	if (project) {
 
-		logsData = await logsActions.get(project, context ?? null, filterExpression, sortingExpression, null, limit, offset)
+		logsData = await logsActions.get(project, context ?? null, filterExpression, sortingExpression, null, limit, offset, _timestamp)
 		totalPages = Math.ceil(logsData.count / limit);
 
 		const xAxis = context ? context + searchParams.x_axis : searchParams.x_axis
 		const yAxis = context ? context + searchParams.y_axis : searchParams.y_axis
 		if (xAxis) {
 			if (searchParams.plot_type === "Bar Chart") 
-				plotData = await logsActions.get(project, context ?? null, filterExpression, null, xAxis, null, 0)
+				plotData = await logsActions.get(project, context ?? null, filterExpression, null, xAxis, null, 0, _timestamp)
 			else {
 				if (yAxis)
-					plotData = await logsActions.get(project, context ?? null, filterExpression, null, `${xAxis}%26${yAxis}`, null, 0)
+					plotData = await logsActions.get(project, context ?? null, filterExpression, null, `${xAxis}%26${yAxis}`, null, 0, _timestamp)
 			}
 		}
 	}

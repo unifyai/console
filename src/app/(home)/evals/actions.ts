@@ -67,7 +67,7 @@ export const deleteProject = async (apiKey: string) => {
 
 // get logs
 export const getLogs = async (apiKey: string) => {
-    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number | null) => {
+    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number | null, _timestamp: string | null) => {
         "use server";
 
         const response = await fetch(
@@ -78,20 +78,7 @@ export const getLogs = async (apiKey: string) => {
             + (from_fields ? `&from_fields=${from_fields}` : "")
             + (limit ? `&limit=${limit}` : "")
             + (offset ? `&offset=${offset}` : ""),
-            { method: "GET", headers: { apiKey: apiKey } }
-        );
-        return await response.json();
-    };
-};
-
-// get log columns
-export const getLogColumns = async (apiKey: string) => {
-    return async (project: string) => {
-        "use server";
-
-        const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/logs/columns?project=${project}`,
-            { method: "GET", headers: { apiKey: apiKey } }
+            { method: "GET", headers: { apiKey: apiKey }, next: { tags: [`logs_${_timestamp}`] } },
         );
         return await response.json();
     };

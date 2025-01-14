@@ -30,6 +30,7 @@ export interface TileProps {
     x_axis?: string;
     y_axis?: string;
     plot_group_by?: string;
+    _timestamp?: string;
 }
 
 export interface TableDataProps {
@@ -77,4 +78,5 @@ export type ItemType =
     | "columns_pin_right"
     | "table"
     | "context"
-    | "auto_update";
+    | "auto_update"
+    | "_timestamp";

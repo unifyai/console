@@ -36,7 +36,6 @@ import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
-import { inplaceRefreshUsingContextURLParam } from "@/utils/evals/common";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 
 const LogsTable = ({
@@ -88,7 +87,8 @@ const LogsTable = ({
       sortingExpression: string | null,
       from_fields: string | null,
       limit: number | null,
-      offset: number
+      offset: number,
+      _timestamp: string | null
     ) => Promise<LogsResponseProps>;
     getLatest: (
       project: string,
@@ -108,7 +108,7 @@ const LogsTable = ({
     delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
   };
   fieldsActions: {
-    get: (project: string) => Promise<LogFieldsResponseProps>,
+    get: (project: string, _timestamp: string | null) => Promise<LogFieldsResponseProps>,
   },
   boundaries: {minimums: {[key: string]: number}, maximums: {[key: string]: number}}
   filterExpression: string | null,
@@ -402,6 +402,9 @@ const LogsTable = ({
       setSelectedCells([])
     }
   }
+
+  const [_timestamp, setTimestamp] = useQueryState("_timestamp", { shallow: false })
+
   return (
     <div className="flex flex-col gap-4 w-full h-full p-3 bg-background rounded-md" onClick={onContainerClick}>
       {/* Project selection row */}
@@ -417,7 +420,7 @@ const LogsTable = ({
             }}
             type="Projects"
             defaultValue={projectQueryVal}
-            onOpen={() => inplaceRefreshUsingContextURLParam(context, setContext)}
+            onOpen={() => setTimestamp(Date.now().toString())}
           />
           {project && (
             <div className="flex flex-row gap-2">
@@ -440,7 +443,6 @@ const LogsTable = ({
         {project && 
           <RefreshLogs 
             context={context}
-            setContext={setContext}
             project={project}
             filterExpression={filterExpression}
             sortingExpression={sortingExpression}

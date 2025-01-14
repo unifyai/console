@@ -13,7 +13,7 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
         delete: (name: string) => Promise<ResponseProps>
     },
     logsActions: {
-        get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<LogsResponseProps>,
+        get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
         getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
         getMetrics: (
             project: string, filterExpression: string | null, metricName: string, keyName: string
@@ -121,7 +121,8 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
                     sortingExpressions[idx],
                     null,
                     limit,
-                    offsets[idx]
+                    offsets[idx],
+                    item._timestamp ?? null
                 );
                 const totalPages = Math.ceil(logsData.count / limit);
 
@@ -135,10 +136,10 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
             let plotData: LogsResponseProps = { params: {}, logs: [], count: 0 };
             if (xAxis) {
                 if (item.plot_type === "Bar Chart")
-                    plotData = await logsActions.get(project, item.context ?? null, filterExpressions[idx], null, xAxis, null, 0)
+                    plotData = await logsActions.get(project, item.context ?? null, filterExpressions[idx], null, xAxis, null, 0, item._timestamp ?? null)
                 else {
                     if (yAxis)
-                        plotData = await logsActions.get(project, item.context ?? null, filterExpressions[idx], null, `${xAxis}%26${yAxis}`, null, 0)
+                        plotData = await logsActions.get(project, item.context ?? null, filterExpressions[idx], null, `${xAxis}%26${yAxis}`, null, 0, item._timestamp ?? null)
                 }
             }
             allPlotData[idx] = plotData;

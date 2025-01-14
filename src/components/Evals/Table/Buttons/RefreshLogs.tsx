@@ -3,13 +3,11 @@
 import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useQueryState, parseAsFloat, parseAsBoolean } from "nuqs";
+import { useQueryState, parseAsBoolean } from "nuqs";
 import { BasePopover } from "@/components/Common/Popovers/Base";
-import { inplaceRefreshUsingContextURLParam } from "@/utils/evals/common";
 
-const RefreshLogs = ({context, setContext, project, filterExpression, sortingExpression, getLatest}: {
+const RefreshLogs = ({context, project, filterExpression, sortingExpression, getLatest}: {
     context: string | null,
-    setContext: (context: string | null) => void,
     project: string,
     filterExpression: string | null,
     sortingExpression: string | null,
@@ -19,13 +17,12 @@ const RefreshLogs = ({context, setContext, project, filterExpression, sortingExp
     /* Auto refresh */
 
     const [auto, setAuto] = useQueryState("auto_refresh", parseAsBoolean.withDefault(false))
+    const [_timestamp, setTimestamp] = useQueryState("_timestamp", { shallow: false })
 
-    // We use the context argument to trigger a refresh of the logs.
-    // A context that ends with "/" is equivalent to the same context without the final "/"
-    // Likewise, a null context is equivalent to an empty string context
+    // We use timestamp to tag fetch api calls to trigger revalidation every two seconds
     useEffect(() => {
         if (!auto) return;
-        const interval = setInterval(() => inplaceRefreshUsingContextURLParam(context, setContext), 100) // Refresh every 100ms
+        const interval = setInterval(() => setTimestamp(Date.now().toString()), 2000) // Refresh every 2000ms
         return () => clearInterval(interval)
     }, [auto])
     const onAutoClick = () => setAuto(!auto)
@@ -34,7 +31,7 @@ const RefreshLogs = ({context, setContext, project, filterExpression, sortingExp
             variant={auto ? "primary" : "outline"}
             className="rounded-none rounded-tr-lg rounded-br-lg"
             icon={<Power/>}
-            tooltip={"Auto refresh every 100ms"}
+            tooltip={"Auto refresh every 2 seconds"}
             onClick={() => onAutoClick()}
         />
 
@@ -58,7 +55,7 @@ const RefreshLogs = ({context, setContext, project, filterExpression, sortingExp
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime()
             if (latestTs > lastCheckTs) {
-                inplaceRefreshUsingContextURLParam(context, setContext)
+                setTimestamp(Date.now().toString())
                 setLastUpdated(latest)
                 setMessage(messages.updated)
             } else {
