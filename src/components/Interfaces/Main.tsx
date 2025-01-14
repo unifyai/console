@@ -59,7 +59,7 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
     // 2- Join column filters with the corresponding filter functions and values using "and"
     // 3- Join common filters with the "in" filter function and common filter value using "or"
     // 4- Join common and column filters into a single filter expression
-    let tableItems = currentInterface.items.filter(item => item.tab?.includes("Table"));
+    let tableItems = (currentInterface.items || []).filter(item => item.tab?.includes("Table"));
     const tableNames = tableItems.map(item => item.i);
     const logsFilters: { [column: string]: { [fn: string]: string } }[] = tableItems.map(
         item => searchParamToFilters(item.filters, item.context)

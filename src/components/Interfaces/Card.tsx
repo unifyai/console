@@ -82,7 +82,7 @@ const Card = ({
                 setPending(true);
             });
         }
-    }, [item.tab, item.filters, item.common_filter, item.sorting, item.page_number, item.metric]);
+    }, [item.tab, item.filters, item.context, item.common_filter, item.sorting, item.page_number, item.metric]);
 
     return (<div className="overflow-auto relative flex w-full h-full border rounded-lg">
         <div className={"w-full flex-1 flex flex-col items-center " + (tab ? "mt-2" : "justify-center")}>
