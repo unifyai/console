@@ -370,14 +370,15 @@ const LogsTable = ({
     </div>
   );
 
+  const tableRef = useRef<HTMLDivElement>(null);
+  
   // Handle clicking outside of the table
   const onContainerClick = (event: React.MouseEvent<HTMLElement, MouseEvent>) => {
-    const target = event.target as HTMLElement
-    const className = target.className
-    if (className.includes("flex")) {
+    if (tableRef.current && !tableRef.current.contains(event.target as Node)) {
       updateItem(item, "selected")("");
     }
   }
+
   return (
     <div className="flex-1 flex flex-col gap-4 w-full p-3 bg-background rounded-md" onClick={onContainerClick}>
       {/* Project selection row */}
@@ -438,7 +439,7 @@ const LogsTable = ({
           <Loader2 className="animate-spin my-36" />
         </div>
       ) : (
-        <div className="w-full h-fit overflow-y-auto tutorial-logs-table">
+        <div ref={tableRef} className="w-full h-fit overflow-y-auto tutorial-logs-table">
           {project ? (
             <div className="relative flex-col gap-2">
               {/* “summaryPending” can optionally show a small loader over the table if you like */}
