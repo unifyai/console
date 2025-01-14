@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Card from "./Card";
 import { LogFieldsResponseProps, LogFieldsProps, LogsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
-import { ItemType, TableDataProps, TileProps } from "@/types/evals/grid";
+import { ItemType, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import ActionButton from "../Common/Buttons/Action";
@@ -21,6 +21,7 @@ const CardGrid = ({
     project_,
     tableNames,
     tableData,
+    plotData,
     columnTypes,
     savedInterface,
     items_,
@@ -38,6 +39,7 @@ const CardGrid = ({
     project_: string | null,
     tableNames: string[]
     tableData: TableDataProps,
+    plotData: PlotDataProps,
     columnTypes: { [key: string]: string },
     savedInterface: { items: TileProps[], new_counter: number, project: string | null } | null,
     items_: TileProps[],
@@ -249,6 +251,7 @@ const CardGrid = ({
                             columnTypes={columnTypes}
                             tableNames={tableNames}
                             tableData={tableData}
+                            plotData={plotData}
                             projectActions={projectActions}
                             logsActions={logsActions}
                             index={el.i}

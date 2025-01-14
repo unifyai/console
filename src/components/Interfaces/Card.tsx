@@ -11,7 +11,7 @@ import { LogFieldsResponseProps, LogFieldsProps, LogsResponseProps } from "@/typ
 import LogsPlot from "@/components/Interfaces/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Interfaces/Table/Table";
-import { ItemType, TableDataProps, TileProps } from "@/types/evals/grid";
+import { ItemType, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 
 const Card = ({
     projects,
@@ -20,6 +20,7 @@ const Card = ({
     columnTypes,
     tableNames,
     tableData,
+    plotData,
     projectActions,
     logsActions,
     index,
@@ -41,6 +42,7 @@ const Card = ({
     columnTypes: { [key: string]: string },
     tableNames: string[],
     tableData: TableDataProps,
+    plotData: PlotDataProps,
     projectActions: {
         get: () => Promise<string[]>,
         create: (name: string) => Promise<ResponseProps>,
@@ -76,7 +78,7 @@ const Card = ({
     const relevantItem = item.table ? items.find(it => it.i == item.table) : undefined
 
     useEffect(() => {
-        if (item.tab == "Table" && JSON.stringify(item) != JSON.stringify(originalItem)) {
+        if (item.tab != "View" && JSON.stringify(item) != JSON.stringify(originalItem)) {
             updateInterface().then(() => {
                 router.refresh();
                 setPending(true);
@@ -139,8 +141,8 @@ const Card = ({
                 updateItem={updateItem}
             />}
             {tab?.includes("Plot") && <LogsPlot
-                logs={item.table ? tableData[item.table]?.plotLogs || [] : []}
-                fields={item.table ? tableData[item.table]?.plotFields || {} : {}}
+                logs={item.table ? plotData[item.i]?.plotLogs || [] : []}
+                fields={item.table ? plotData[item.i]?.plotFields || {} : {}}
                 item={item}
                 updateItem={updateItem}
             />}

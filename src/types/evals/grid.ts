@@ -39,8 +39,6 @@ export interface TableDataProps {
         columnOrdering: string | undefined,
         selection: string | undefined,
         logsData: LogsResponseProps,
-        plotLogs: LogProps[],
-        plotFields: LogFieldsResponseProps,
         totalPages: number,
         entriesProperties: string[],
         paramsProperties: string[],
@@ -48,6 +46,13 @@ export interface TableDataProps {
         params: LogItemProps,
         metrics: { [key: string]: number },
         boundaries: { minimums: { [key: string]: number }, maximums: { [key: string]: number } }
+    }
+}
+
+export interface PlotDataProps {
+    [key: string]: {
+        plotLogs: LogProps[],
+        plotFields: LogFieldsResponseProps,
     }
 }
 
