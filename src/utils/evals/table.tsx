@@ -263,21 +263,38 @@ export const nestedColumns = (
               }
           };
       }
+
+	  const dataType = dataTypes[node.path];
       return {
           id: `${prependPath}/${node.path}`,  // Needed for grouping, showing, hiding multiple column nests,
           accessorFn: (log) => type === "entries" ? log.entries[node.path] : log.params[node.path],
           filterFn: "includesString" as FilterFnOption<LogProps> | undefined,
           header: node.name,
           cell: ({ cell }: {cell: Cell<LogProps, unknown>}) => {
-            let cellValue = cell.getValue();
+            
+			let cellValue = cell.getValue();
+			
             if (type === "params") cellValue = data.params[node.path][cellValue as string];
-            if (isImage(cellValue)) return <ImageDisplay value={cellValue as string} className="object-scale-down h-5 w-5"/>
-            if (typeof cellValue === "number") return formatNumber(cellValue);
-            const displayValue = cellValue != undefined ? JSON.stringify(cellValue).trimStart().replace(/^"|"$/g, '') : "";
-            return displayValue;
+            
+			if (dataType === "image") {
+				let value = cellValue as string;
+				if (value.startsWith('"') && value.endsWith('"'))
+					value = value.slice(1, -1)
+				return <ImageDisplay value={value} className="object-scale-down h-5 w-5"/>
+			}
+            if (dataType === "int" || dataType === "float") 
+				return formatNumber(parseFloat(cellValue as string));
+			if (dataType === "str" || dataType === "timestamp") {
+				let value = cellValue as string;
+				if (value.startsWith('"') && value.endsWith('"'))
+					value = value.slice(1, -1)
+				return (cellValue as string).slice(1, -1)
+			}
+
+            return cellValue as string;
           },
           meta: {
-              dataType: dataTypes[node.path],
+              dataType: dataType,
               columnType: type,
               enableRowSpan: enableRowSpan,
 			  isParent: false,
