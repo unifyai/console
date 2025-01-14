@@ -71,7 +71,7 @@ export const useCellSelection = ({
 
   const toggleExpansion = (selectedCell: string) => {
     let newExpandedCells = { ...expandedCells }
-    newExpandedCells = { ...newExpandedCells, [selectedCell]: true }
+    newExpandedCells = { ...newExpandedCells, [selectedCell]: !newExpandedCells[selectedCell] }
     setExpandedCells(newExpandedCells)
   }
 
@@ -184,7 +184,7 @@ export const useCellSelection = ({
     }
 
     const cell = allCells.find(c =>
-      c.column.id === selectedCell.split("_")[1] &&
+      c.column.id === getPartAfterFirstUnderscore(selectedCell) &&
       c.row.id === selectedCell.split("_")[0]
     )!;
     if (isValidSelectionTarget(cell))

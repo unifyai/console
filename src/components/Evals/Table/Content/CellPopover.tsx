@@ -11,7 +11,7 @@ const CellPopover = ({cell, isCellExpanded, setExpandedCells}: {
 }) => {
     
     const [open, setOpen] = useState(isCellExpanded(cell))
-    
+
     // Transform closing event into state update for expanded cells
     useEffect(() => {
         if (!open)
@@ -23,7 +23,9 @@ const CellPopover = ({cell, isCellExpanded, setExpandedCells}: {
 
     // Transform expand cell event to popover open state
     useEffect(() => {
-        if (isCellExpanded(cell)) setOpen(true)
+        if (isCellExpanded(cell)) 
+            setOpen(true) 
+        else setOpen(false)
     }, [isCellExpanded(cell)])
 
     return (
