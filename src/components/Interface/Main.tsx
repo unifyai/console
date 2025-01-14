@@ -44,7 +44,7 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
 
     // Get projects
     const projects: string[] = await projectsActions.get();
-    const project = currentInterface.project || null;
+    const project = projects.find(project => project == currentInterface.project) || null;
 
     // Get fields
     let fields: LogFieldsResponseProps = {};
@@ -53,7 +53,7 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
         fields = await fieldsActions.get(project);
         types = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type]));
     }
-    
+
     /* Handle filters */
     // 1- Convert filters search param value to a nested dictionary representation of column, function and values
     // 2- Join column filters with the corresponding filter functions and values using "and"
@@ -112,7 +112,7 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
                 const filterExpression = filterExpressions ? filterExpressions[idx] : null;
                 const sortingExpression = sortingExpressions[idx];
                 const context = item.context ?? null
-                const logsData = await logsActions.get(project, context, filterExpression, sortingExpression, null, limit, offset);
+                const logsData = await logsActions.get(project, context ?? null, filterExpression, sortingExpression, null, limit, offset);
                 
                 const plotFields = Object.fromEntries(
                     Object
