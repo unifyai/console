@@ -99,26 +99,37 @@ const DataTableHeader = ({
 
         {/* Header name with column selection */}
         <div
-          className={`flex items-center justify-center h-full text-center px-2 py-2 select-none ${!isNotUtilColumn ? "h-10" : ""}`}
+          className={`flex items-center justify-center h-full text-center px-2 py-1 select-none ${!isNotUtilColumn ? "h-10" : ""}`}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
           onMouseDown={(e) => cellSelection.handleCellMouseDown(e, header)}
           onMouseUp={(e) => cellSelection.handleCellMouseUp(e, header)}
           onMouseOver={(e) => cellSelection.handleCellMouseOver(e, header)}
         >
-          {header.isPlaceholder
-            ? null
-            : flexRender(header.column.columnDef.header, header.getContext())
-          }
+          {header.isPlaceholder ? null : (
+            <>
+              <span className="text-center flex-shrink-0 mr-4">
+                {flexRender(header.column.columnDef.header, header.getContext())}
+              </span>
+
+              {/* Inline Column Actions for Parent Columns */}
+              {isParentColumn && (
+                <div className="flex items-center gap-0.75">
+                  <ColumnGroupBy column={header.column} grouping={grouping} setGrouping={setGrouping} />
+                  <ColumnHide column={header.column} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility} />
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Column actions */}
         {!header.isPlaceholder && isNotUtilColumn &&
           <div className="flex items-center justify-center gap-2 mt-2">
-            <ColumnGroupBy column={header.column} grouping={grouping} setGrouping={setGrouping}/>
+            {!isParentColumn && <ColumnGroupBy column={header.column} grouping={grouping} setGrouping={setGrouping}/>}
             {!isParentColumn && <ColumnSort column={header.column}/>}
             {!isParentColumn && ColumnFilters && ColumnFilters(header.column)}
-            <ColumnHide column={header.column} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility} />
+            {!isParentColumn && <ColumnHide column={header.column} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility} />}
           </div>
         }
 
