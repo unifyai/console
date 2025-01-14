@@ -66,7 +66,7 @@ const CardGrid = ({
         create: (items: TileProps[], new_counter: number, project: string | null, temporary: boolean) => Promise<ResponseProps>,
         update: (items: TileProps[], new_counter: number, project: string | null, temporary: boolean) => Promise<ResponseProps>,
     },
-    filterExpressions: string[] | null,
+    filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
 }) => {
     const router = useRouter();

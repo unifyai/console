@@ -48,7 +48,7 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
 
     // Get fields
     let fields: LogFieldsResponseProps = {};
-    let types: {[key: string] : string} = {}
+    let types: { [key: string]: string } = {}
     if (project) {
         fields = await fieldsActions.get(project);
         types = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type]));
@@ -59,7 +59,7 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
     // 2- Join column filters with the corresponding filter functions and values using "and"
     // 3- Join common filters with the "in" filter function and common filter value using "or"
     // 4- Join common and column filters into a single filter expression
-    let tableItems = (currentInterface.items || []).filter(item => item.tab?.includes("Table"));
+    let tableItems = (currentInterface.items || []).filter(item => item.tab == "Table");
     const tableNames = tableItems.map(item => item.i);
     const logsFilters: { [column: string]: { [fn: string]: string } }[] = tableItems.map(
         item => searchParamToFilters(item.filters, item.context)
@@ -72,82 +72,85 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
                 .join(" or ")
             : ""
     );
-    let filterExpressions: string[] | null = null;
-    if (columnFiltersExpressions) filterExpressions = columnFiltersExpressions;
-    if (commonFiltersExpressions) {
-        filterExpressions = commonFiltersExpressions.map(
-            (commonFiltersExpression, idx) => (
-                filterExpressions && filterExpressions[idx]
-                    ? `${commonFiltersExpression} and ${filterExpressions[idx]}`
-                    : commonFiltersExpression
-            )
-        );
-    }
+    let filterExpressions: (string | null)[] = tableItems.map((_, idx) => {
+        const columnFiltersExpression = columnFiltersExpressions[idx];
+        const commonFiltersExpression = commonFiltersExpressions[idx];
+        let filterExpression = null;
+        if (columnFiltersExpression)
+            filterExpression = columnFiltersExpression;
+        if (commonFiltersExpression)
+            filterExpression = filterExpression = filterExpression ? `${commonFiltersExpression} and ${filterExpression}` : commonFiltersExpression;
+        return filterExpression;
+    });
 
     /* Handle sorting */
-	const sortingObjects = tableItems.map(item => item.sorting ? Object.fromEntries(
+    const sortingObjects = tableItems.map(item => item.sorting ? Object.fromEntries(
         item.sorting.split(",").map(value => [
             item.context ? item.context + value.split("@")[0] : value.split("@")[0],
             value.split("@")[1].replace("true", "descending").replace("false", "ascending")
-        ])) 
-    : "");
+        ]))
+        : "");
     const sortingExpressions = sortingObjects.map(
         sortingObject => sortingObject ? JSON.stringify(sortingObject) : null
     );
 
-    // Get logs for all tables
-    let allLogsData: {
-        [key: string]: { logsData: LogsResponseProps, plotData: LogsResponseProps, plotFields: LogFieldsResponseProps, totalPages: number }
-    } = tableItems.reduce(
-        (acc, item) => ({ ...acc, [item.i]: {
-            logsData: { params: {}, logs: [], count: 0 },
-            totalPages: 0,
-        } }), {}
-    );
+    // Get logs with pagination, and plot logs subset for all tables
+    let allLogsData: LogsResponseProps[] = Array(tableItems.length).fill({ params: {}, logs: [], count: 0 });
     const limit = 16;
+    const offsets: number[] = tableItems.map(item => (item.page_number ? parseInt(item.page_number) : 0) * limit);
+    let allTotalPages: number[] = Array(tableItems.length).fill(1);
+    let allPlotData: LogsResponseProps[] = Array(tableItems.length).fill(({ params: {}, logs: [], count: 0 }));
+    const allPlotFields: LogFieldsResponseProps[] = tableItems.map(
+        item => Object.fromEntries(
+            Object
+                .entries(fields)
+                .filter(([name, { data_type, field_type }]) => item.context ? name.startsWith(item.context) : name)
+                .map(([name, { data_type, field_type }]) => {
+                    const newName = item.context ? name.replace(item.context, "") : name;
+                    return [newName, { data_type, field_type }];
+                })
+        )
+    )
     if (project) {
-        allLogsData = (await Promise.all(
+        [await Promise.all(
             tableItems.map(async (item, idx) => {
-                const offset = (item.page_number ? parseInt(item.page_number) : 0) * limit;
-                const filterExpression = filterExpressions ? filterExpressions[idx] : null;
-                const sortingExpression = sortingExpressions[idx];
-                const context = item.context ?? null
-                const logsData = await logsActions.get(project, context ?? null, filterExpression, sortingExpression, null, limit, offset);
-                
-                const plotFields = Object.fromEntries(
-                    Object
-                        .entries(fields)
-                        .filter(([name, { data_type, field_type }]) => context ? name.startsWith(context) : name)
-                        .map(([name, { data_type, field_type }]) => {
-                            const newName = context ? name.replace(context, "") : name;
-                            return [newName, { data_type, field_type }];
-                        })
+                const logsData = await logsActions.get(
+                    project,
+                    item.context ?? null,
+                    filterExpressions[idx],
+                    sortingExpressions[idx],
+                    null,
+                    limit,
+                    offsets[idx]
                 );
+                const totalPages = Math.ceil(logsData.count / limit);
+
+                const xAxis = item.context ? item.context + item.x_axis : item.x_axis;
+                const yAxis = item.context ? item.context + item.y_axis : item.y_axis;
                 let plotData: LogsResponseProps = { params: {}, logs: [], count: 0 };
-                const xAxis = context ? context + item.x_axis : item.x_axis
-                const yAxis = context ? context + item.y_axis : item.y_axis
                 if (xAxis) {
-                    if (item.plot_type === "Bar Chart") 
-                        plotData = await logsActions.get(project, context ?? null, filterExpression, null, xAxis, null, 0)
+                    if (item.plot_type === "Bar Chart")
+                        plotData = await logsActions.get(project, item.context ?? null, filterExpressions[idx], null, xAxis, null, 0)
                     else {
                         if (yAxis)
-                            plotData = await logsActions.get(project, context ?? null, filterExpression, null, `${xAxis}%26${yAxis}`, null, 0)
+                            plotData = await logsActions.get(project, item.context ?? null, filterExpressions[idx], null, `${xAxis}%26${yAxis}`, null, 0)
                     }
                 }
-                
-                const totalPages = Math.ceil(logsData.count / limit);
-                return { [item.i]: { logsData, plotData, plotFields, totalPages } };
+
+                allLogsData[idx] = logsData;
+                allPlotData[idx] = plotData;
+                allTotalPages[idx] = totalPages;
             })
-        )).reduce((acc, curr) => ({ ...acc, ...curr }), {});
+        )];
     }
 
     const tableData: TableDataProps = (await Promise.all(
         tableItems.map(async (item, idx) => {
-            
-            const logsData = allLogsData[item.i].logsData;
-            const plotData = allLogsData[item.i].plotData;
-            const plotFields = allLogsData[item.i].plotFields;
-            const totalPages = allLogsData[item.i].totalPages;
+
+            const logsData = allLogsData[idx];
+            const plotData = allPlotData[idx];
+            const plotFields = allPlotFields[idx];
+            const totalPages = allTotalPages[idx];
             const context = item.context ?? null
             const sorting = item.sorting ?? null
 
@@ -167,19 +170,16 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
                 const metricValues = await Promise.all(
                     fullColumns.map(async (key) => logsActions.getMetrics(
                         project!, expression, metric ? metric : "mean", key
-                    )
-                ));
-                const metrics: { [key: string]: any } = columns.length
+                    ))
+                );
+                const metrics_: { [key: string]: any } = columns.length
                     ? columns
                         .map((key, index) => ({ [key]: metricValues[index] }))
                         .reduce((acc, curr) => ({ ...acc, ...curr }))
                     : {};
-                return metrics
+                return metrics_;
             }
-            const metrics = await getColumnMetrics(
-                filterExpressions ? filterExpressions[idx] : null,
-                item.metric
-            );
+            const metrics = await getColumnMetrics(filterExpressions[idx], item.metric);
             const [minimums, maximums] = await Promise.all([
                 getColumnMetrics(null, "min"),
                 getColumnMetrics(null, "max")
@@ -204,7 +204,7 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
                     hiddenColumns,
                     columnOrdering,
                     selection,
-                    baseIndex, 
+                    baseIndex,
                     logsData,
                     plotLogs,
                     plotFields,
@@ -217,7 +217,7 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
                     boundaries,
                 }
             }
-    }))).reduce((acc, curr) => ({ ...acc, ...curr }), {});
+        }))).reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
     return <CardGrid
         projects={projects}
