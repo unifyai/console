@@ -22,11 +22,11 @@ const RefreshLogs = ({auto, setAuto, context, setContext, project, filterExpress
     // We use the context argument to trigger a refresh of the logs.
     // A context that ends with "/" is equivalent to the same context without the final "/"
     // Likewise, a null context is equivalent to an empty string context
-    useEffect(() => {
-        if ([undefined, "false"].includes(auto)) return;
-        const interval = setInterval(() => inplaceRefreshUsingContext(context, setContext), 100) // Refresh every 100ms
-        return () => clearInterval(interval)
-    }, [auto])
+    // useEffect(() => {
+    //     if ([undefined, "false"].includes(auto)) return;
+    //     const interval = setInterval(() => inplaceRefreshUsingContext(context, setContext), 100) // Refresh every 100ms
+    //     return () => clearInterval(interval)
+    // }, [auto])
     const onAutoClick = () => setAuto(auto === "true" ? "false" : "true")
     const autoRefresh = 
         <ActionButton
