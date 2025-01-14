@@ -236,6 +236,7 @@ const CardGrid = ({
             rowHeight={100}
             isDraggable={editable}
             isResizable={editable}
+            resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
         >
             {items.map(el => {
                 return (
