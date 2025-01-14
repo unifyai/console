@@ -15,9 +15,9 @@ const NavList = (): NavItem[] => {
   // Just return your main nav items—do NOT include "Profile" here
   return [
     {
-      title: "Interface",
+      title: "Interfaces",
       icon: LayoutDashboard,
-      href: "/interface",
+      href: "/interfaces",
     },
     {
       title: "Chat",

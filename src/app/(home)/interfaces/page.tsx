@@ -1,7 +1,7 @@
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { getCurrentUser } from "@/lib/user/user";
 import { Suspense } from "react";
-import Main from "@/components/Interface/Main";
+import Main from "@/components/Interfaces/Main";
 import {
     getLogFields,
     deleteLogs,
@@ -19,7 +19,7 @@ import {
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
 
-const InterfacePage = async () => {
+const InterfacesPage = async () => {
     // get user and api key
     const user = await getCurrentUser();
     if (!user) {
@@ -67,4 +67,4 @@ const InterfacePage = async () => {
     );
 };
 
-export default InterfacePage;
+export default InterfacesPage;
