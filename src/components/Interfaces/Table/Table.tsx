@@ -317,6 +317,8 @@ const LogsTable = ({
     updateItem(item, "columns_pin_right")(undefined);
     updateItem(item, "metric")("mean");
     updateItem(item, "page_number")(undefined);
+    updateItem(item, "context")(undefined)
+    updateItem(item, "_timestamp")(undefined)
   };
 
   // Build directory data
@@ -406,6 +408,10 @@ const LogsTable = ({
                 resource={project}
                 deletingFunction={projectActions.delete}
                 variant="outline"
+                onDelete={() => {
+                  resetParamsStates();
+                  setProject(undefined);
+                }}
               />
             </div>
           )}

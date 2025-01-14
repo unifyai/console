@@ -258,6 +258,8 @@ const LogsTable = ({
       .reduce((acc, curr) => ({ ...acc, ...curr }), {})
   );
 
+  const [_timestamp, _setTimestamp] = useQueryState("_timestamp", { shallow: false })
+
   const state = {
     selectedCells,
     metric,
@@ -267,7 +269,8 @@ const LogsTable = ({
     columnFilters,
     grouping,
     columnPinning,
-    columnSizing
+    columnSizing,
+    _timestamp
   };
   const setState = {
     setSelectedCells,
@@ -278,7 +281,8 @@ const LogsTable = ({
     setColumnFilters,
     setGrouping,
     setColumnPinning,
-    setColumnSizing
+    setColumnSizing,
+    _setTimestamp
   };
 
   // If the project changes, we treat it as pending until data arrives
@@ -342,6 +346,7 @@ const LogsTable = ({
     setColumnsPinRight(null);
     setMetric(null);
     setPageNumber_(null);
+    _setTimestamp(null)
   };
 
   // Build directory data
@@ -403,8 +408,6 @@ const LogsTable = ({
     }
   }
 
-  const [_timestamp, setTimestamp] = useQueryState("_timestamp", { shallow: false })
-
   return (
     <div className="flex flex-col gap-4 w-full h-full p-3 bg-background rounded-md" onClick={onContainerClick}>
       {/* Project selection row */}
@@ -420,7 +423,7 @@ const LogsTable = ({
             }}
             type="Projects"
             defaultValue={projectQueryVal}
-            onOpen={() => setTimestamp(Date.now().toString())}
+            onOpen={() => _setTimestamp(Date.now().toString())}
           />
           {project && (
             <div className="flex flex-row gap-2">
@@ -435,6 +438,10 @@ const LogsTable = ({
                 resource={project}
                 deletingFunction={projectActions.delete}
                 variant="outline"
+                onDelete={() => {
+                  resetParamsStates()
+                  setProject(null)
+                }}
               />
             </div>
           )}

@@ -8,13 +8,14 @@ import ActionButton from "../Buttons/Action"
 import DeleteButton from "../Buttons/Delete";
 import { useKey } from "react-use";
 
-const DeleteDialog = ({ resource, type, deletingFunction, showDialog, variant, setShowDialog }: {
+const DeleteDialog = ({ resource, type, deletingFunction, showDialog, variant, setShowDialog, onDelete }: {
     resource: any,
     type: string
     deletingFunction: (resource: any) => Promise<ResponseProps>,
     variant?: "secondary" | "destructive" | "outline" | "ghost" | "link",
     showDialog?: boolean,
     setShowDialog?: Dispatch<SetStateAction<boolean>>
+    onDelete?: () => void
 }) => {
     // Define messages
     const messages = {
@@ -34,7 +35,9 @@ const DeleteDialog = ({ resource, type, deletingFunction, showDialog, variant, s
         deletingFunction(resource).then(data => {
             if ("info" in data) {
                 setSuccess(true);
-                window.location.reload();
+                if (onDelete) {onDelete()}
+                else {window.location.reload()};
+                setTimeout(() => setOpen(false), 2000)
             }
             else {
                 setError(true);
