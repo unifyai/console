@@ -14,12 +14,6 @@ export default function BaseDropdown ({button, open, setOpen, label, children}: 
             {button}
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-            {label &&
-            <>
-                <DropdownMenuLabel>{label}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-            </>
-            }
             {children}
         </DropdownMenuContent>
     </DropdownMenu>

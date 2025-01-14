@@ -31,7 +31,6 @@ const PlotAxis = ({properties, axisProperty, setAxisProperty, axis, plotType}: {
                     text={axisProperty ? axisProperty : `${axis}-axis`} 
                 />
             }
-            label="Select an axis property"
         >
             {choices.map((property, index) => {
                 return (

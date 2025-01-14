@@ -45,13 +45,12 @@ const CommonLanguage = ({language, setSelectedLanguage, setSelectedVariant}: {
 
     // Languages with variants
     const button = <SettingButton icon={icon} tooltip={language.label}/>
-    const label = `Select ${language.label} variant`;
     const onClick = (variant: { key: string }) => {
         setSelectedLanguage(language.key);
         setSelectedVariant(variant.key);
     }
     return (
-        <BaseDropdown button={button} label={label}>
+        <BaseDropdown button={button}>
             {language.variants.map((variant, index) => 
                 <DropdownMenuItem key={index} onClick={() => onClick(variant)}>
                     {variant.key}

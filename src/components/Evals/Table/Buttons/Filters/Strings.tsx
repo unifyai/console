@@ -126,7 +126,7 @@ const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
         setFilters(newFilters)
     }}/>
     const append = 
-        <BaseDropdown label="Select joining method" button={<ActionButton tooltip="Add new filter" icon={<Plus/>}/>}>
+        <BaseDropdown button={<ActionButton tooltip="Add new filter" icon={<Plus/>}/>}>
             {["And", "Or"].map((method, index) => 
                 <DropdownMenuItem 
                     key={index}
@@ -185,7 +185,7 @@ const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
         /> 
 
     return (
-        <BaseDropdown button={button} label={`Filter logs by ${column} value`}>
+        <BaseDropdown button={button}>
             <div className="flex flex-col gap-3 p-2">
                 <div className="flex flex-row justify-between items-center gap-5 pl-1 pr-3">
                     <p>Apply one or more filters</p>

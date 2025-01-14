@@ -26,7 +26,6 @@ const PlotType = ({plotType, setPlotType, numericAxisProperties, setSelectedYAxi
                     tooltip="Plot type"
                 />
             }
-            label="Select plot type"
         >
         {
             ["Scatter Plot", "Line Chart", "Bar Chart"].map((property, index) => {

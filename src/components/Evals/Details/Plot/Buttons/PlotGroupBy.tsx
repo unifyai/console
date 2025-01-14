@@ -18,7 +18,6 @@ const PlotGroupBy = ({properties, groupBy, setGroupBy}: {
             button={
                 <SettingButton icon={icon} tooltip={"Group by"} variant={variant}/>
             }
-            label={"Group plot by property"}
         >
             {
             options.map(option => {

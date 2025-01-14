@@ -152,7 +152,7 @@ const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boun
     const reset = <CancelButton text="Reset" onClick={() => onReset()}/>
     const submit = <SubmitButton text="Apply" onClick={() => onSubmit()}/>
     return (
-        <BaseDropdown button={button} label={`Filter logs by ${column} value`}>
+        <BaseDropdown button={button}>
             <div className="flex flex-col gap-2 p-2">
                 {filterInput}
                 {([maxOption, minOption].some(option => isSingleValueFilter(option)) || changed) &&
