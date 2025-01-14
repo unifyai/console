@@ -125,6 +125,7 @@ export async function getStripeFingerprints(customerID : string){
   }
 
   const paymentMethods = await stripe.customers.listPaymentMethods(customerID);
-
+  console.log('Payment methods:', paymentMethods);
+  
   return paymentMethods.data.map((entry:any) => entry.card.fingerprint);
 }
