@@ -114,18 +114,31 @@ export async function createCheckoutSession(userID: string, customerID: string):
   return checkoutSession.url;
 }
 
-/**
- * Retrieves a list of card fingerprints associated with a given Stripe customer ID.
- * @param customerID - The Stripe customer ID of the user.
- * @returns A list of card fingerprints.
- */
-export async function getStripeFingerprints(customerID : string){
+
+  /**
+   * Retrieves the list of card fingerprints associated with a given Stripe customer ID.
+   * @param customerID - The Stripe customer ID of the user.
+   * @returns An array of card fingerprints associated with the user's customer ID.
+   * The response will have a status of 401 if the user is not authenticated,
+   * 404 if the user does not have a Stripe customer ID, or 500 if there was
+   * an error retrieving the user's payment methods.
+   */
+export async function getStripeFingerprints(customerID: string) {
   if (!stripe) {
     throw new Error('Stripe is not initialized. Check your environment variables.');
   }
 
-  const paymentMethods = await stripe.customers.listPaymentMethods(customerID);
-  console.log('Payment methods:', paymentMethods);
-  
-  return paymentMethods.data.map((entry:any) => entry.card.fingerprint);
+  try {
+    const paymentMethods = await stripe.customers.listPaymentMethods(customerID);
+
+    // Filter for card payment methods only
+    const fingerprints = paymentMethods.data
+      .filter((entry: any) => entry.type === 'card' && entry.card) // Ensure it's a card and has the card object
+      .map((entry: any) => entry.card.fingerprint); // Map to fingerprints
+
+    return fingerprints;
+  } catch (error) {
+    console.error('Error retrieving payment methods:', error);
+    throw error;
+  }
 }
