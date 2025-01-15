@@ -9,7 +9,7 @@ import { ItemType, PlotDataProps, TableDataProps, TileProps } from "@/types/eval
 import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import ActionButton from "../Common/Buttons/Action";
-import { Check, Grip, ListRestart, Loader2, Maximize2, Plus, Save, TriangleAlert, X } from "lucide-react";
+import { Check, Clipboard, Copy, Grip, ListRestart, Loader2, Maximize2, Plus, Save, TriangleAlert, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { Badge } from "../UI/badge";
 import {
@@ -93,6 +93,7 @@ const CardGrid = ({
     const [maxTile, setMaxTile] = useState<string>();
     const [editTile, setEditTile] = useState<string>();
     const [newTileName, setNewTileName] = useState<string>();
+    const [copied, setCopied] = useState<string>();
     const gridRef = useRef<HTMLDivElement>(null);
     const anyPending = !Object.entries(pending).every(([_, value]) => !value);
     const maxTileItem = items.find(item => item.i == maxTile) as TileProps;
@@ -243,6 +244,20 @@ const CardGrid = ({
                     setNewCounter(newCounter + 1);
                 }}
             />
+            {copied && <ActionButton
+                variant="outline"
+                icon={<Clipboard />}
+                tooltip="Paste"
+                onClick={() => {
+                    const copiedItem = items.find(item => item.i == copied) as TileProps;
+                    setItems([
+                        ...items,
+                        {...copiedItem, i: "Tile_" + newCounter}
+                    ]);
+                    setNewCounter(newCounter + 1);
+                    setCopied(undefined);
+                }}
+            />}
             <div className="flex items-center gap-2">
                 <Switch
                     checked={editable}
@@ -299,6 +314,13 @@ const CardGrid = ({
                             sortingExpressions={sortingExpressions}
                         />
                         {editable && <div className="flex gap-2 absolute top-3 right-5 z-10">
+                            <ActionButton
+                                className="no-drag cursor-pointer"
+                                onClick={() => setCopied(el.i)}
+                                icon={<Copy />}
+                                tooltip={"Copy"}
+                                variant="outline"
+                            />
                             <ActionButton
                                 className="cursor-grab"
                                 icon={<Grip />}
