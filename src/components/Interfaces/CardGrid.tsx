@@ -159,7 +159,7 @@ const CardGrid = ({
         { items, new_counter: newCounter, project: project_ }
     );
 
-    return (<div className="w-full h-full overflow-auto m-2" ref={gridRef}>
+    return (<div className="w-full h-full overflow-auto p-3" ref={gridRef}>
         <div className="my-2 ml-6 mr-8 flex gap-4 items-center">
             <ActionButton
                 className="transition-all"
@@ -181,7 +181,7 @@ const CardGrid = ({
                     }
                 }}
             />
-            {<ActionButton
+            <ActionButton
                 className="transition-all"
                 tooltip="Return to last saved interface"
                 icon={resetIcon}
@@ -192,7 +192,7 @@ const CardGrid = ({
                     setEditable(true);
                     router.refresh();
                 })}
-            />}
+            />
             <ActionButton
                 variant="outline"
                 icon={<Plus />}

@@ -54,7 +54,7 @@ const InterfacesPage = async () => {
     }
 
     return (
-        <div className="w-full h-full p-1">
+        <div className="w-full h-full">
             <Suspense fallback={<SkeletonLoader />}>
                 <Main
                     projectsActions={projectsActions}
