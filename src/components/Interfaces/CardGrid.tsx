@@ -154,7 +154,7 @@ const CardGrid = ({
 
     const saveIcon = saveSuccess ? <Check /> : saveSuccess == false ? <TriangleAlert /> : <Save />;
     const resetIcon = resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
-    const variant = saveSuccess == false ? "destructive" : "primary";
+    const variant = saveSuccess == false ? "destructive" : "outline";
     const disabled = JSON.stringify(savedInterface) == JSON.stringify(
         { items, new_counter: newCounter, project: project_ }
     );
@@ -185,7 +185,7 @@ const CardGrid = ({
                 className="transition-all"
                 tooltip="Return to last saved interface"
                 icon={resetIcon}
-                variant={"destructive"}
+                variant="outline"
                 disabled={disabled || anyPending}
                 onClick={async () => updateInterface(savedInterface).then(() => {
                     setResetting(true);
@@ -269,11 +269,11 @@ const CardGrid = ({
                             sortingExpressions={sortingExpressions}
                         />
                         {editable && <ActionButton
-                            className="remove absolute top-3 right-3 cursor-pointer"
+                            className="remove absolute top-3 right-5 cursor-pointer"
                             onClick={() => setItems([...items.filter(item => item.i != el.i)])}
                             icon={<X />}
                             tooltip="Remove"
-                            variant="destructive"
+                            variant="outline"
                             disabled={anyPending}
                         />}
                         <Badge className="absolute top-3 left-3" variant="primary">
