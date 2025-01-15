@@ -6,8 +6,9 @@ import { useState } from "react";
 import { ResponseProps } from "@/types/common";
 import { LogFieldsProps, LogProps } from "@/types/evals/logs";
 import { getPartAfterFirstUnderscore } from "@/utils/evals/selection";
+import { processContext, sanitizeId } from "@/utils/evals/columnOperations";
 
-const DeleteRows = ({ selectedCells, logs, deleteLogFields, context }: {
+const DeleteCells = ({ selectedCells, logs, deleteLogFields, context }: {
 	selectedCells: string[],
 	logs: LogProps[],
 	deleteLogFields: (fields: LogFieldsProps) => Promise<ResponseProps>,
@@ -17,7 +18,7 @@ const DeleteRows = ({ selectedCells, logs, deleteLogFields, context }: {
 
 	const deletableCells = selectedCells.filter(cell => {
 		const id = cell.split("_").at(0) as string
-		const column = getPartAfterFirstUnderscore(cell)
+		const column = sanitizeId(getPartAfterFirstUnderscore(cell))
 		const idMatch = (log: LogProps) => parseInt(log.id) === parseInt(id)
 		const valueMatch = (log: LogProps) => log.entries[column] != undefined || log.params[column] != undefined
 		return logs.findIndex(log => idMatch(log) && valueMatch(log)) != -1 
@@ -37,7 +38,7 @@ const DeleteRows = ({ selectedCells, logs, deleteLogFields, context }: {
 
 	const fieldsToDelete = deletableCells.map(cell => [
 		parseInt(cell.split("_").at(0) as string), 
-		context ? context + getPartAfterFirstUnderscore(cell) : getPartAfterFirstUnderscore(cell) 
+		context ? processContext("merge", context, sanitizeId(getPartAfterFirstUnderscore(cell))) : sanitizeId(getPartAfterFirstUnderscore(cell))  
 	])
 
 	return (showDialog &&
@@ -50,4 +51,4 @@ const DeleteRows = ({ selectedCells, logs, deleteLogFields, context }: {
 		/>
 	);
 }
-export default DeleteRows;
+export default DeleteCells;
