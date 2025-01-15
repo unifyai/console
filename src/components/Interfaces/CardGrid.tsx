@@ -82,6 +82,7 @@ const CardGrid = ({
         Object.fromEntries(Object.keys(tableData).map(k => [k, false]))
     );
     const [changedDuringReload, setChangedDuringReload] = useState(false);
+    const [dragging, setDragging] = useState(false);
     const gridRef = useRef<HTMLDivElement>(null);
     const anyPending = !Object.entries(pending).every(([_, value]) => !value);
 
@@ -224,12 +225,16 @@ const CardGrid = ({
             </div>
         </div>
         <ResponsiveReactGridLayout
+            onDragStop={() => setDragging(false)}
+            onDragStart={() => setDragging(true)}
             onLayoutChange={(newLayout) => {
-                const updatedItems = newLayout.map((item) => {
-                    const originalItem = items.find(i => i.i === item.i);
-                    return { ...originalItem, ...item };
-                });
-                setItems([...updatedItems]);
+                if (dragging) {
+                    const updatedItems = newLayout.map((item) => {
+                        const originalItem = items.find(i => i.i === item.i);
+                        return { ...originalItem, ...item };
+                    });
+                    setItems([...updatedItems]);
+                }
             }}
             className="layout interactive-grid flex-1"
             cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
