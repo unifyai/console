@@ -104,7 +104,7 @@ const Card = ({
                             onSelect={() => setItems(
                                 [...items.map(item => item.i != index ? item : { ...item, tab: tab })]
                             )}
-                            className="w-64"
+                            className="w-64 no-drag"
                         >
                             {tab}
                         </DropdownMenuItem>)}
@@ -123,7 +123,7 @@ const Card = ({
                             key={idx}
                             onSelect={() => updateItem(item, "table")(tile)}
                             disabled={tableData[tile].logs.length == 0}
-                            className="w-64"
+                            className="w-64 no-drag"
                         >
                             {tile}
                             {tableData[tile].logs.length ? "" : " (empty table)"}
