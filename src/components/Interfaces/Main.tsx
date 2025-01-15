@@ -101,17 +101,20 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
     const offsets: number[] = tableItems.map(item => (item.page_number ? parseInt(item.page_number) : 0) * limit);
     let allTotalPages: number[] = Array(tableItems.length).fill(1);
     let allPlotData: LogsResponseProps[] = Array(plotItems.length).fill(({ params: {}, logs: [], count: 0 }));
-    const allPlotFields: LogFieldsResponseProps[] = tableItems.map(
-        item => Object.fromEntries(
-            Object
-                .entries(fields)
-                .filter(([name, { data_type, field_type }]) => item.context ? name.startsWith(item.context) : name)
-                .map(([name, { data_type, field_type }]) => {
-                    const newName = item.context ? name.replace(item.context, "") : name;
-                    return [newName, { data_type, field_type }];
-                })
-        )
-    )
+    const allPlotFields: LogFieldsResponseProps[] = plotItems.map(
+        item => {
+            const context = tableItems.find(it => it.i == item.table)?.context;
+            return Object.fromEntries(
+                Object
+                    .entries(fields)
+                    .filter(([name, { data_type, field_type }]) => context ? name.startsWith(context) : name)
+                    .map(([name, { data_type, field_type }]) => {
+                        const newName = context ? name.replace(context, "") : name;
+                        return [newName, { data_type, field_type }];
+                    })
+            )
+        }
+    );
     if (project) {
         await Promise.all(tableItems.map(async (item, idx) => {
                 const logsData = await logsActions.get(
@@ -134,12 +137,14 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
             const xAxis = item.context ? item.context + item.x_axis : item.x_axis;
             const yAxis = item.context ? item.context + item.y_axis : item.y_axis;
             let plotData: LogsResponseProps = { params: {}, logs: [], count: 0 };
+            const filterExpressionIdx = tableItems.findIndex(it => it.i == item.table);
+            const filterExpression = filterExpressionIdx == -1 ? null : filterExpressions[filterExpressionIdx];
             if (xAxis) {
                 if (item.plot_type === "Bar Chart")
-                    plotData = await logsActions.get(project, item.context ?? null, filterExpressions[idx], null, xAxis, null, 0, item._timestamp ?? null)
+                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, xAxis, null, 0, null);
                 else {
                     if (yAxis)
-                        plotData = await logsActions.get(project, item.context ?? null, filterExpressions[idx], null, `${xAxis}%26${yAxis}`, null, 0, item._timestamp ?? null)
+                        plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, `${xAxis}%26${yAxis}`, null, 0, null);
                 }
             }
             allPlotData[idx] = plotData;
