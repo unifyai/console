@@ -309,29 +309,34 @@ const CardGrid = ({
         </ResponsiveReactGridLayout>
         {maxTile && <Dialog open={true} onOpenChange={() => setMaxTile(undefined)}>
             <DialogContent className="min-w-full h-full">
-                <Card
-                    projects={projects}
-                    project={project}
-                    pending={maxTileItem.tab == "Table" ? pending[maxTileItem.i] : false}
-                    columnTypes={columnTypes}
-                    tableNames={tableNames}
-                    tableData={tableData}
-                    plotData={plotData}
-                    projectActions={projectActions}
-                    logsActions={logsActions}
-                    index={maxTileItem.i}
-                    item={maxTileItem}
-                    originalItem={items_.find(i => i.i === maxTileItem.i) as TileProps}
-                    items={items}
-                    setProject={setProject}
-                    setPending={(p: boolean) => setPending({ ...pending, [maxTileItem.i]: p })}
-                    setItems={(items: TileProps[]) => setItems(items)}
-                    updateItem={updateItem}
-                    fieldsActions={fieldsActions}
-                    updateInterface={updateInterface}
-                    filterExpressions={filterExpressions}
-                    sortingExpressions={sortingExpressions}
-                />
+                <div className="p-4 overflow-auto">
+                    <Card
+                        projects={projects}
+                        project={project}
+                        pending={maxTileItem.tab == "Table" ? pending[maxTileItem.i] : false}
+                        columnTypes={columnTypes}
+                        tableNames={tableNames}
+                        tableData={tableData}
+                        plotData={plotData}
+                        projectActions={projectActions}
+                        logsActions={logsActions}
+                        index={maxTileItem.i}
+                        item={maxTileItem}
+                        originalItem={items_.find(i => i.i === maxTileItem.i) as TileProps}
+                        items={items}
+                        setProject={setProject}
+                        setPending={(p: boolean) => setPending({ ...pending, [maxTileItem.i]: p })}
+                        setItems={(items: TileProps[]) => setItems(items)}
+                        updateItem={updateItem}
+                        fieldsActions={fieldsActions}
+                        updateInterface={updateInterface}
+                        filterExpressions={filterExpressions}
+                        sortingExpressions={sortingExpressions}
+                    />
+                </div>
+                <Badge className="no-drag absolute top-3 left-3 z-10" variant="primary">
+                    {maxTileItem.i}
+                </Badge>
             </DialogContent>
         </Dialog>}
     </div>);
