@@ -274,7 +274,6 @@ const CardGrid = ({
                             icon={<X />}
                             tooltip="Remove"
                             variant="outline"
-                            disabled={anyPending}
                         />}
                         <Badge className="absolute top-3 left-3" variant="primary">
                             {el.i}
