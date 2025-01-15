@@ -45,14 +45,15 @@ const LogsPlot = ({ logs, fields}: {
     // Plot settings
     let [plotType, setPlotType] = useQueryState("plot_type", { shallow: false });
     let [scale, setScale] = useQueryState("plot_scale");
+    let [logScaleEnabled, setLogScaleEnabled] = useState(true);
     let [isAggregated, setIsAggregated] = useQueryState("aggregated_data")
     plotType = plotType ? plotType : "Scatter Plot";
-    scale = scale ? scale : "log";
+    scale = scale ? scale : "linear";
 
     // Axes and grouping selected on the plot
     const [selectedXAxisProperty, setSelectedXAxisProperty] = useQueryState("x_axis", { shallow: false });
     const [selectedYAxisProperty, setSelectedYAxisProperty] = useQueryState("y_axis", { shallow: false });
-    const [groupByProperty, setGroupByProperty] = useQueryState("plot_group_by");
+    const [groupByProperty, setGroupByProperty] = useQueryState("plot_group_by", { shallow: false });
 
     // Draw plot
     useEffect (() => {
@@ -71,8 +72,17 @@ const LogsPlot = ({ logs, fields}: {
         
         // Draw plot borders
         drawBorders(svg, dimensions.height, dimensions.width, margins);
-        // Draw selected plot type 
+        
         if (logs && selectedXAxisProperty && selectedYAxisProperty) {
+
+            // Adjust for zero or negative values
+            if (logs.some(log => log.entries[selectedXAxisProperty] <= 0) || logs.some(log => log.entries[selectedYAxisProperty] <= 0)) {
+                setLogScaleEnabled(false)
+                if (scale === "log") setScale("linear")
+            } else {
+                setLogScaleEnabled(true)
+            }
+            // Draw selected plot type 
             if (plotType === "Line Chart") {
                 drawLineChart(
                     svg, 
@@ -156,7 +166,7 @@ const LogsPlot = ({ logs, fields}: {
             <PlotAxis properties={numericAxisProperties} setAxisProperty={setSelectedYAxisProperty} axis="Y" axisProperty={selectedYAxisProperty} plotType={plotType}/>
         </div>
         <div className="absolute top-0.5 right-1 z-10">
-            <PlotType plotType={plotType} setPlotType={setPlotType} numericAxisProperties={numericAxisProperties} setSelectedYAxisProperty={setSelectedYAxisProperty}/>
+            <PlotType plotType={plotType} setPlotType={setPlotType} numericAxisProperties={numericAxisProperties} selectedYAxisProperty={selectedYAxisProperty} setSelectedYAxisProperty={setSelectedYAxisProperty}/>
         </div>
         
         {/* Customization */}
@@ -166,7 +176,7 @@ const LogsPlot = ({ logs, fields}: {
                 <PlotReset setSelectedXAxisProperty={setSelectedXAxisProperty} setSelectedYAxisProperty={setSelectedYAxisProperty} setGroupByProperty={setGroupByProperty}/>
             </div>
             <div className="absolute top-24 right-3 z-10 PlotScale">
-                <PlotScale scale={scale} setScale={setScale}/>
+                <PlotScale scale={scale} setScale={setScale} logScaleEnabled={logScaleEnabled}/>
             </div>
             {plotType != "Bar Chart" 
                 ?   <div className="absolute top-36 right-3 z-10 PlotGroupBy">

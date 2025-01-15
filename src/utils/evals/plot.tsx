@@ -76,7 +76,7 @@ export const drawAxes = (
                         else
                             return date.toLocaleDateString();
                     } else {
-                        return formatNumber(d as number);
+                        return formatNumber(parseFloat(d.toString()));
                     }
                 }) as any
             );   
@@ -194,18 +194,18 @@ export const hoverTooltip = (data: InfoCardData) => {
     let template = `
     <p>${data.x.name}</p>
     <p class="font-bold">
-        ${typeof data.x.value === "number" ? formatNumber(data.x.value) : data.x.value}
+        ${data.x.value}
     </p>
     <p>${data.y.name}</p>
     <p class="font-bold">
-        ${formatNumber(data.y.value)}
+        ${data.y.value}
     </p>
     `
     if (data.group) {
         const groupTemplate = `
         <p>${data.group.name}</p>
         <p class="font-bold">
-            ${typeof data.group.value === "number" ? formatNumber(data.group.value) : data.group.value}
+            ${data.group.value}
         </p>
         `
         template = groupTemplate + template
@@ -403,23 +403,23 @@ export const drawLineChart = (
         });
         const convertedData = filteredData.map((log) => {
             let entries = log.entries;
-            entries[yAxis] = toComputableValue(entries[yAxis]);
-            if (!xTime) entries[xAxis] = toComputableValue(entries[xAxis]); 
+            entries[yAxis] = parseFloat(entries[yAxis]);
+            if (!xTime) entries[xAxis] = parseFloat(entries[xAxis]); 
             return ({...log, entries});
         });
         const sortedData = convertedData.sort((a, b) => {
-            const valueA = xTime ? new Date(a.ts).getTime() : toComputableValue(a.entries[xAxis]);
-            const valueB = xTime ? new Date(b.ts).getTime() : toComputableValue(b.entries[xAxis]);
+            const valueA = xTime ? new Date(a.ts).getTime() : a.entries[xAxis];
+            const valueB = xTime ? new Date(b.ts).getTime() : b.entries[xAxis];
             return valueA - valueB;
         });
         const getData = (logs: LogProps[]) => logs.map(d => [
-            xTime ? new Date(d.ts).getTime() : toComputableValue(d.entries[xAxis]), 
+            xTime ? new Date(d.ts).getTime() : d.entries[xAxis], 
             d.entries[yAxis] as number
         ])  as DataPoint[]
         data = groupBy 
             ?   d3  .groups(sortedData, d => d.entries[groupBy])
                     .map(([groupKey, groupData]) => {
-                        const group = groupKey.toString().slice(0, 10);
+                        const group = groupKey as string;
                         const values = getData(groupData);
                         return [group, values];
                     }) as GroupedDataPoint[]
@@ -461,7 +461,7 @@ export const drawLineChart = (
     // Else plot a single line
     const lineGenerator = d3.line().curve(d3.curveLinear).x(d => x(d[0])).y(d => y(d[1]));
     if (groupBy) {        
-        let domain = (data as GroupedDataPoint[]).map((d) => d[0]);
+        let domain = (data as GroupedDataPoint[]).map((d) => JSON.stringify(d[0]));
         domain = Array.from(new Set(domain))
         const color = d3.scaleOrdinal().domain(domain).range(d3.schemeSet3);
         const colors = domain.map((key) => ({key: key, color: color(key) as string}));
@@ -538,7 +538,7 @@ export const drawScatterPlot = (
   
     // Remove drawings from previous plots
     svg.selectAll("path.line").remove();
-    svg.selectAll("rect.bar").remove();
+    svg.selectAll("rect").remove();
 
     // Prepare data
     let data : LogProps[] = [];
@@ -547,11 +547,12 @@ export const drawScatterPlot = (
 
     if (xAxisProperty && yAxisProperty) {
         const filteredData = logs.filter((log) => log.entries[xAxisProperty as keyof LogItemProps] && log.entries[yAxisProperty as keyof LogItemProps]);
-        data = filteredData.sort((a, b) => {
-            const valueA = a.entries[xAxisProperty];
-            const valueB = b.entries[xAxisProperty];
-            return valueA - valueB;
-        });
+        data = filteredData.map((log) => {
+            let entries = log.entries;
+            entries[yAxisProperty] = parseFloat(entries[yAxisProperty]);
+            entries[xAxisProperty] = parseFloat(entries[xAxisProperty]); 
+            return ({...log, entries});
+        })
     }
 
     // Define scales
@@ -602,7 +603,6 @@ export const drawScatterPlot = (
         domain = Array.from(new Set(domain));
         const color = d3.scaleOrdinal().domain(domain).range(d3.schemeSet3);
         const colors = domain.map((key) => ({key: key, color: color(key) as string}));
-
         key
             .html(keyTemplate(colors))
             .transition()

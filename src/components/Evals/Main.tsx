@@ -11,7 +11,7 @@ import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters
 import { processContext } from "@/utils/evals/columnOperations";
 
 const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions }: {
-	searchParams: { project?: string, page_number?: string, metric?: string, context?: string, filters?: string, common_filter?: string, sorting?: string, plot_type?: string, x_axis?: string, y_axis?: string, _timestamp?: string },
+	searchParams: { project?: string, page_number?: string, metric?: string, context?: string, filters?: string, common_filter?: string, sorting?: string, plot_type?: string, x_axis?: string, y_axis?: string, plot_group_by?: string, _timestamp?: string },
 	projectsActions: {
 		get: () => Promise<string[]>,
 		create: (name: string) => Promise<ResponseProps>,
@@ -96,12 +96,16 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 
 		const xAxis = context ? processContext("merge", context, searchParams.x_axis)  : searchParams.x_axis
 		const yAxis = context ? processContext("merge", context, searchParams.y_axis)  : searchParams.y_axis
+		const group = context ?  processContext("merge", context, searchParams.plot_group_by) : searchParams.plot_group_by
 		if (xAxis) {
+			let subset = xAxis
 			if (searchParams.plot_type === "Bar Chart") 
-				plotData = await logsActions.get(project, context ?? null, filterExpression, null, xAxis, null, 0, _timestamp)
+				plotData = await logsActions.get(project, context ?? null, filterExpression, null, subset, null, 0, _timestamp)
 			else {
 				if (yAxis)
-					plotData = await logsActions.get(project, context ?? null, filterExpression, null, `${xAxis}%26${yAxis}`, null, 0, _timestamp)
+					subset += `%26${yAxis}`
+					if (group) subset += `%26${group}`
+					plotData = await logsActions.get(project, context ?? null, filterExpression, null, subset, null, 0, _timestamp)
 			}
 		}
 	}

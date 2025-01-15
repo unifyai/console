@@ -6,16 +6,22 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { ChevronDown } from "lucide-react";
 import { Dispatch, SetStateAction } from "react";
 
-const PlotType = ({plotType, setPlotType, numericAxisProperties, setSelectedYAxisProperty}: {
+const PlotType = ({plotType, setPlotType, numericAxisProperties, selectedYAxisProperty, setSelectedYAxisProperty}: {
     plotType: string, 
     setPlotType: (x: string | null) => void,
     numericAxisProperties: string[],
+    selectedYAxisProperty: string | null,
     setSelectedYAxisProperty: (x: string | null) => void
 }) => {
     const onClick = (type: string) => {
         setPlotType(type)
-        const selectedYAxisProperty = type === "Bar Chart" ? "count" : numericAxisProperties[0];
-        setSelectedYAxisProperty(selectedYAxisProperty)
+        const yAxis = 
+            type === "Bar Chart" 
+                ? "count" 
+                : selectedYAxisProperty && numericAxisProperties.includes(selectedYAxisProperty)
+                    ? selectedYAxisProperty
+                    : numericAxisProperties[0];
+        setSelectedYAxisProperty(yAxis)
     } 
     return (
         <BaseDropdown

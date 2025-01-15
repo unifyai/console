@@ -4,12 +4,14 @@ import { Dispatch, SetStateAction } from "react";
 import SettingButton from "@/components/Common/Buttons/Setting";
 import { ChartLine } from "lucide-react";
 
-const PlotScale = ({scale, setScale}: {scale: string, setScale: (x: string | null) => void}) => {
+const PlotScale = ({scale, setScale, logScaleEnabled}: {scale: string, setScale: (x: string | null) => void, logScaleEnabled: boolean}) => {
+    const tooltip = logScaleEnabled ? `${scale} scale` : "Log scale invalid for non-positive data"
     return (
         <SettingButton
             icon={<ChartLine/>}
-            tooltip={`${scale} scale`}
+            tooltip={tooltip}
             onClick={() => setScale(scale === "log" ? "linear" : "log")}
+            disabled={!logScaleEnabled}
         />
     );
 }

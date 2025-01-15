@@ -137,15 +137,19 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
         await Promise.all(plotItems.map(async (item, idx) => {
             const xAxis = item.context ? processContext("merge", item.context, item.x_axis) : item.x_axis;
             const yAxis = item.context ? processContext("merge", item.context, item.y_axis) : item.y_axis;
+            const group = item.context ? processContext("merge", item.context, item.plot_group_by) : item.plot_group_by;
             let plotData: LogsResponseProps = { params: {}, logs: [], count: 0 };
             const filterExpressionIdx = tableItems.findIndex(it => it.i == item.table);
             const filterExpression = filterExpressionIdx == -1 ? null : filterExpressions[filterExpressionIdx];
             if (xAxis) {
+                let subset = xAxis
                 if (item.plot_type === "Bar Chart")
-                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, xAxis, null, 0, item._timestamp ?? null);
+                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, 0, item._timestamp ?? null);
                 else {
                     if (yAxis)
-                        plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, `${xAxis}%26${yAxis}`, null, 0, item._timestamp ?? null);
+                        subset += `%26${yAxis}`
+                        if (group) subset += `%26${group}`
+                        plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, 0, item._timestamp ?? null);
                 }
             }
             allPlotData[idx] = plotData;
