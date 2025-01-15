@@ -19,6 +19,7 @@ import {
     DialogTitle,
     DialogDescription,
 } from "../UI/dialog";
+import { Input } from "../UI/input";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -90,6 +91,8 @@ const CardGrid = ({
     );
     const [changedDuringReload, setChangedDuringReload] = useState(false);
     const [maxTile, setMaxTile] = useState<string>();
+    const [editTile, setEditTile] = useState<string>();
+    const [newTileName, setNewTileName] = useState<string>();
     const gridRef = useRef<HTMLDivElement>(null);
     const anyPending = !Object.entries(pending).every(([_, value]) => !value);
     const maxTileItem = items.find(item => item.i == maxTile) as TileProps;
@@ -113,6 +116,23 @@ const CardGrid = ({
             return interfaceActions.update(items_1, newCounter_1, project_1 || null, true);
         else
             return interfaceActions.create(items_1, newCounter_1, project_1 || null, true);
+    }
+
+    const saveTileName = () => {
+        if (newTileName) {
+            const newItems = items.map(
+                item => (
+                    item.i == editTile
+                        ? { ...item, i: newTileName }
+                        : item.table == editTile
+                            ? { ...item, table: newTileName }
+                            : { ...item }
+                )
+            );
+            setItems([...newItems]);
+        }
+        setEditTile(undefined);
+        setNewTileName(undefined);
     }
 
     useEffect(() => {
@@ -300,7 +320,11 @@ const CardGrid = ({
                                 variant="outline"
                             />
                         </div>}
-                        <Badge className="no-drag absolute top-3 left-3 z-10" variant="primary">
+                        <Badge
+                            className="no-drag absolute top-3 left-3 z-10"
+                            variant="primary"
+                            onClick={() => setEditTile(el.i)}
+                        >
                             {el.i}
                         </Badge>
                     </div>
@@ -334,9 +358,39 @@ const CardGrid = ({
                         sortingExpressions={sortingExpressions}
                     />
                 </div>
-                <Badge className="no-drag absolute top-3 left-3 z-10" variant="primary">
+                <Badge
+                    className="no-drag absolute top-3 left-3 z-10"
+                    variant="primary"
+                    onClick={() => setEditTile(maxTileItem.i)}
+                >
                     {maxTileItem.i}
                 </Badge>
+            </DialogContent>
+        </Dialog>}
+        {editTile && <Dialog open={true} onOpenChange={() => {
+            setEditTile(undefined);
+            setNewTileName(undefined);
+        }}>
+            <DialogContent className="w-1/6">
+                <div className="mt-6 flex gap-2">
+                    <Input
+                        placeholder={"Enter new tile name..."}
+                        value={newTileName || ""}
+                        onInput={(input) => setNewTileName(input.currentTarget.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter")
+                                saveTileName();
+                        }}
+                        className="h-8 w-48"
+                    />
+                    <ActionButton
+                        className="no-drag remove cursor-pointer"
+                        onClick={() => saveTileName()}
+                        text="Save"
+                        tooltip="Remove"
+                        variant="primary"
+                    />
+                </div>
             </DialogContent>
         </Dialog>}
     </div>);
