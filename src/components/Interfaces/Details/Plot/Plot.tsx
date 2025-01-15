@@ -142,7 +142,7 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
     ]);
 
     return (
-        <div className="flex w-full h-full bg-background rounded-md relative py-2 LogsPlot" ref={containerRef}>
+        <div className="flex w-full h-full bg-background rounded-md relative my-2 LogsPlot" ref={containerRef}>
 
             {/* Axes and type */}
             <div className="absolute bottom-6 right-1 z-10">
