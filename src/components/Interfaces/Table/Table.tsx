@@ -190,6 +190,7 @@ const LogsTable = ({
   const groupingStr = item.grouping;
   const columnsPinLeft = item.columns_pin_left;
   const columnsPinRight = item.columns_pin_right;
+  const contextStr = item.context;
 
   // Convert those strings → arrays/objects
   const columnIDs = flattenColumnIDs(columns);
@@ -237,6 +238,10 @@ const LogsTable = ({
       .reduce((acc, curr) => ({ ...acc, ...curr }), {})
   );
 
+  const context = contextStr ? contextStr : null;
+  const setContext = (c: string | null) =>
+    updateItem(item, "context")(c ? c : undefined);
+
   const state = {
     selectedCells,
     metric,
@@ -246,7 +251,8 @@ const LogsTable = ({
     columnFilters,
     grouping,
     columnPinning,
-    columnSizing
+    columnSizing,
+    context,
   };
   const setState = {
     setSelectedCells: (cells: string[]) => updateItem(item, "selected")(cells.join(",")),
@@ -257,7 +263,8 @@ const LogsTable = ({
     setColumnFilters,
     setGrouping,
     setColumnPinning,
-    setColumnSizing
+    setColumnSizing,
+    setContext,
   };
 
   // Use refs to detect a *real* page/filter change
@@ -332,7 +339,7 @@ const LogsTable = ({
           <SelectionMenu
             type="Contexts"
             data={Object.keys(columnTypes).map(property => ({path: property, type:"file"}))}
-            onClick={updateItem(item, "context")}
+            onClick={setContext}
           />
           <GlobalFilter
             logsFilters={logsFilters}

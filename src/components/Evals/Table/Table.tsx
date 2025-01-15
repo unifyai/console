@@ -129,7 +129,6 @@ const LogsTable = ({
     parseAsArrayOf(parseAsString).withDefault([])                    // [logId1_colId1,logId1_colId2,logId2_colId3,...]
   )
   const { baseLogIndex, baseLog, comparisonLogsIndex, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, logs)
-  const [context, setContext] = useQueryState("context", {shallow: false})
 
   // Column definitions
   const entriesTree = buildTree(entriesProperties);
@@ -212,6 +211,7 @@ const LogsTable = ({
   const [groupingStr, setGroupingStr] = useQueryState("grouping");
   const [columnsPinLeft, setColumnsPinLeft] = useQueryState("columns_pin_left");
   const [columnsPinRight, setColumnsPinRight] = useQueryState("columns_pin_right");
+  const [context, setContext] = useQueryState("context", {shallow: false})
 
   /// Convert those strings → arrays/objects
   const columnIDs = flattenColumnIDs(columns);
@@ -270,6 +270,7 @@ const LogsTable = ({
     grouping,
     columnPinning,
     columnSizing,
+    context,
     _timestamp
   };
   const setState = {
@@ -282,6 +283,7 @@ const LogsTable = ({
     setGrouping,
     setColumnPinning,
     setColumnSizing,
+    setContext,
     _setTimestamp
   };
 
