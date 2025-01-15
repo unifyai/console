@@ -6,10 +6,10 @@ import NavMenu from "@/components/Navigation/NavBar/NavMenu";
 import Providers from "@/components/Providers/Base";
 import { ThemeProvider } from 'next-themes'
 import { Suspense } from "react";
-import "@/styles/globals.css";
 import "@fortawesome/fontawesome-svg-core/styles.css";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
+import "@/styles/globals.css";
 
 import { SidebarTrigger } from "@/components/UI/sidebar"
 import ThemeLoader from "@/components/ThemeLoader";
