@@ -141,10 +141,10 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
             const filterExpression = filterExpressionIdx == -1 ? null : filterExpressions[filterExpressionIdx];
             if (xAxis) {
                 if (item.plot_type === "Bar Chart")
-                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, xAxis, null, 0, null);
+                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, xAxis, null, 0, item._timestamp ?? null);
                 else {
                     if (yAxis)
-                        plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, `${xAxis}%26${yAxis}`, null, 0, null);
+                        plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, `${xAxis}%26${yAxis}`, null, 0, item._timestamp ?? null);
                 }
             }
             allPlotData[idx] = plotData;
