@@ -16,6 +16,42 @@ import { Column, ColumnDef } from "@tanstack/react-table";
 }
 
 /*
+  Utility function to handle splitting and merging of context and column keys.
+  Respects leading/trailing "/" gracefully and handles null/undefined inputs.
+*/
+export function processContext(
+    operation: "split" | "merge",  // 'split' or 'merge'
+    context: string | null | undefined,  // The context string (e.g., "Academics/STEM/Physics")
+    input: string | null | undefined  // The full path string (e.g., "Academics/STEM/Physics/ans") when splitting or the column key (e.g., "ans") when merging.
+): string {
+    // Handle null or undefined cases gracefully
+    if (!context && !input) {
+        return ""; // Both are null/undefined, return an empty string
+    }
+
+    if (operation === "split") {
+        if (!input) {
+            return ""; // No input, return empty string
+        }
+        if (!context || !input.startsWith(context)) {
+            return input; // If context is null/undefined or doesn't match, return input as-is
+        }
+        // Remove the context and any leading slashes
+        return input.slice(context.length).replace(/^\/+/, "");
+    } else if (operation === "merge") {
+        if (!context) {
+            return input || ""; // If context is null/undefined, return input as-is or empty string
+        }
+        if (!input) {
+            return context; // If input is null/undefined, return context as-is
+        }
+        // Ensure context ends with "/" if not already and concatenate with the column key
+        return context.replace(/\/+$/, "") + "/" + input.replace(/^\/+/, "");
+    }
+    throw new Error("Invalid operation. Use 'split' or 'merge'.");
+}
+
+/*
   Flatten columns recursively to include all parent and child columns
 */
 export const flattenColumnIDs = (columns: ColumnDef<LogProps>[]): string[] =>

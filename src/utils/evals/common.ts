@@ -2,6 +2,7 @@ import { LogFieldsResponseProps, LogsResponseProps } from "../../types/evals/log
 
 import _ from "lodash";
 import { formatNumber } from "../formatNumber";
+import { processContext } from "./columnOperations";
 
 /* 
     Convert object / string inputs to their length value and return the value of numeric inputs. 
@@ -88,8 +89,8 @@ export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFiel
     ]
     if (context){
       [paramsProperties, entriesProperties] = [
-        paramsProperties.filter(property => property.includes(context)).map(property => property.replace(context, "")),
-        entriesProperties.filter(property => property.includes(context)).map(property => property.replace(context, ""))
+        paramsProperties.filter(property => property.includes(context)).map(property => processContext("split", context, property)),
+        entriesProperties.filter(property => property.includes(context)).map(property => processContext("split", context, property))
       ]
     }
 

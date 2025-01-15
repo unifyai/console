@@ -4,6 +4,7 @@ import { LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/typ
 import { extractLogsData } from "@/utils/evals/common";
 import { PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
+import { processContext } from "@/utils/evals/columnOperations";
 
 const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActions }: {
     projectsActions: {
@@ -69,7 +70,7 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
     const commonFiltersExpressions = tableItems.map(
         item => item.common_filter && fields
             ? Object.keys(fields)
-                .map(column => `${item.common_filter} in ${item.context ? item.context + column : column}`)
+                .map(column => `${item.common_filter} in ${item.context ? processContext("merge", item.context, column) : column}`)
                 .join(" or ")
             : ""
     );
@@ -87,7 +88,7 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
     /* Handle sorting */
     const sortingObjects = tableItems.map(item => item.sorting ? Object.fromEntries(
         item.sorting.split(",").map(value => [
-            item.context ? item.context + value.split("@")[0] : value.split("@")[0],
+            item.context ? processContext("merge", item.context, value.split("@")[0]) : value.split("@")[0],
             value.split("@")[1].replace("true", "descending").replace("false", "ascending")
         ]))
         : "");
@@ -134,8 +135,8 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
             })
         );
         await Promise.all(plotItems.map(async (item, idx) => {
-            const xAxis = item.context ? item.context + item.x_axis : item.x_axis;
-            const yAxis = item.context ? item.context + item.y_axis : item.y_axis;
+            const xAxis = item.context ? processContext("merge", item.context, item.x_axis) : item.x_axis;
+            const yAxis = item.context ? processContext("merge", item.context, item.y_axis) : item.y_axis;
             let plotData: LogsResponseProps = { params: {}, logs: [], count: 0 };
             const filterExpressionIdx = tableItems.findIndex(it => it.i == item.table);
             const filterExpression = filterExpressionIdx == -1 ? null : filterExpressions[filterExpressionIdx];
@@ -170,7 +171,7 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
             const getColumnMetrics = async (expression: string | null, metric: string | undefined) => {
                 let fullColumns = columns
                 if (context)
-                    fullColumns = fullColumns.map(column => context + column)
+                    fullColumns = fullColumns.map(column => processContext("merge", context, column))
                 const metricValues = await Promise.all(
                     fullColumns.map(async (key) => logsActions.getMetrics(
                         project!, expression, metric ? metric : "mean", key

@@ -8,6 +8,7 @@ import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { Suspense } from "react";
 import { ResponseProps } from "@/types/common";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
+import { processContext } from "@/utils/evals/columnOperations";
 
 const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions }: {
 	searchParams: { project?: string, page_number?: string, metric?: string, context?: string, filters?: string, common_filter?: string, sorting?: string, plot_type?: string, x_axis?: string, y_axis?: string, _timestamp?: string },
@@ -52,7 +53,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 	const columnFiltersExpression = filtersToExpression(logsFilters) 
 	const commonFiltersExpression = searchParams.common_filter && fields
 		? Object.keys(fields)
-			.map(column => `${searchParams.common_filter} in ${context ? context + column : column}`)
+			.map(column => `${searchParams.common_filter} in ${context ? processContext("merge", context, column) : column}`)
 			.join(" or ")
 		: ""
 	let filterExpression = null
@@ -65,7 +66,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 			searchParams.sorting
 						.split(",")
 						.map(value => [
-							context ? context + value.split("@")[0] : value.split("@")[0], 
+							context ? processContext("merge", context, value.split("@")[0]) : value.split("@")[0], 
 							value.split("@")[1].replace("true", "descending").replace("false", "ascending")
 						])
 			) 
@@ -84,7 +85,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 			.entries(fields)
 			.filter(([name, { data_type, field_type }]) => context ? name.startsWith(context) : name)
 			.map(([name, { data_type, field_type }]) => {
-				const newName = context ? name.replace(context, "") : name;
+				const newName = context ? processContext("split", context, name) : name;
 				return [newName, { data_type, field_type }];
 			})
 	);
@@ -93,8 +94,8 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 		logsData = await logsActions.get(project, context ?? null, filterExpression, sortingExpression, null, limit, offset, _timestamp)
 		totalPages = Math.ceil(logsData.count / limit);
 
-		const xAxis = context ? context + searchParams.x_axis : searchParams.x_axis
-		const yAxis = context ? context + searchParams.y_axis : searchParams.y_axis
+		const xAxis = context ? processContext("merge", context, searchParams.x_axis)  : searchParams.x_axis
+		const yAxis = context ? processContext("merge", context, searchParams.y_axis)  : searchParams.y_axis
 		if (xAxis) {
 			if (searchParams.plot_type === "Bar Chart") 
 				plotData = await logsActions.get(project, context ?? null, filterExpression, null, xAxis, null, 0, _timestamp)
@@ -114,7 +115,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 	const getColumnMetrics = async (expression: string | null, metric: string | undefined) => {
 		let fullColumns = columns
 		if (context)
-			fullColumns = fullColumns.map(column => context + column)
+			fullColumns = fullColumns.map(column => processContext("merge", context, column))
 		const metricValues = await Promise.all(
 			fullColumns.map(async (key) => logsActions.getMetrics(
 				project!, expression, metric ? metric : "mean", key

@@ -1,4 +1,5 @@
 import { FiltersByColumn } from "@/types/evals/columns";
+import { processContext } from "./columnOperations";
 
 /* 
 	Separates string filters that have more than one filter joined with && / ||, for a given function.
@@ -86,7 +87,7 @@ export function searchParamToFilters (searchExpression: string | undefined, cont
 		.map(filter => {
 				let [column, fn, value] = filter.split("@");
 				if (context)
-					column = context + column
+					column = processContext("merge", context, column)
 				return { [column]: { [fn]: value } };
 		})
 		.reduce((acc, curr) => {
