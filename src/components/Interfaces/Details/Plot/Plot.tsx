@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import * as d3 from "d3";
 
 import PlotType from "./Buttons/PlotType";
@@ -47,9 +47,10 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
     // Plot settings
     let plotType = item.plot_type;
     let scale = item.plot_scale;
+    let [logScaleEnabled, setLogScaleEnabled] = useState(true);
     let isAggregated = item.is_aggregated;
     plotType = plotType ? plotType : "Scatter Plot";
-    scale = scale ? scale : "log";
+    scale = scale ? scale : "linear";
 
     // Axes and grouping selected on the plot
     const selectedXAxisProperty = item.x_axis;
@@ -73,8 +74,18 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
 
         // Draw plot borders
         drawBorders(svg, dimensions.height, dimensions.width, margins);
-        // Draw selected plot type 
+
         if (logs && selectedXAxisProperty && selectedYAxisProperty) {
+
+            // Adjust for zero or negative values
+            if (logs.some(log => log.entries[selectedXAxisProperty] <= 0) || logs.some(log => log.entries[selectedYAxisProperty] <= 0)) {
+                setLogScaleEnabled(false)
+                if (scale === "log") updateItem(item, "plot_scale")("linear")
+            } else {
+                setLogScaleEnabled(true)
+            }
+
+            // Draw selected plot type 
             if (plotType === "Line Chart") {
                 drawLineChart(
                     svg,
@@ -168,6 +179,7 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
                     plotType={plotType}
                     setPlotType={updateItem(item, "plot_type")}
                     numericAxisProperties={numericAxisProperties}
+                    selectedYAxisProperty={selectedYAxisProperty}
                     setSelectedYAxisProperty={updateItem(item, "y_axis")}
                 />
             </div>
@@ -183,7 +195,11 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
                         />
                     </div>
                     <div className="absolute top-24 right-3 z-10 PlotScale">
-                        <PlotScale scale={scale} setScale={updateItem(item, "plot_scale")} />
+                        <PlotScale 
+                            scale={scale} 
+                            setScale={updateItem(item, "plot_scale")}
+                            logScaleEnabled={logScaleEnabled}
+                        />
                     </div>
                     {plotType != "Bar Chart"
                         ? <div className="absolute top-36 right-3 z-10 PlotGroupBy">
