@@ -9,9 +9,16 @@ import { ItemType, PlotDataProps, TableDataProps, TileProps } from "@/types/eval
 import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import ActionButton from "../Common/Buttons/Action";
-import { Check, Grip, ListRestart, Loader2, Plus, Save, TriangleAlert, X } from "lucide-react";
+import { Check, Grip, ListRestart, Loader2, Maximize2, Plus, Save, TriangleAlert, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { Badge } from "../UI/badge";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "../UI/dialog";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -82,8 +89,10 @@ const CardGrid = ({
         Object.fromEntries(Object.keys(tableData).map(k => [k, false]))
     );
     const [changedDuringReload, setChangedDuringReload] = useState(false);
+    const [maxTile, setMaxTile] = useState<string>();
     const gridRef = useRef<HTMLDivElement>(null);
     const anyPending = !Object.entries(pending).every(([_, value]) => !value);
+    const maxTileItem = items.find(item => item.i == maxTile) as TileProps;
 
     const updateItem = (item: TileProps, attrName: ItemType) => {
         return (newValue: string | undefined) => {
@@ -277,6 +286,13 @@ const CardGrid = ({
                                 variant="outline"
                             />
                             <ActionButton
+                                className="no-drag cursor-pointer"
+                                onClick={() => setMaxTile(el.i)}
+                                icon={<Maximize2 />}
+                                tooltip="Maximize"
+                                variant="outline"
+                            />
+                            <ActionButton
                                 className="no-drag remove cursor-pointer"
                                 onClick={() => setItems([...items.filter(item => item.i != el.i)])}
                                 icon={<X />}
@@ -291,6 +307,33 @@ const CardGrid = ({
                 );
             })}
         </ResponsiveReactGridLayout>
+        {maxTile && <Dialog open={true} onOpenChange={() => setMaxTile(undefined)}>
+            <DialogContent className="min-w-full h-full">
+                <Card
+                    projects={projects}
+                    project={project}
+                    pending={maxTileItem.tab == "Table" ? pending[maxTileItem.i] : false}
+                    columnTypes={columnTypes}
+                    tableNames={tableNames}
+                    tableData={tableData}
+                    plotData={plotData}
+                    projectActions={projectActions}
+                    logsActions={logsActions}
+                    index={maxTileItem.i}
+                    item={maxTileItem}
+                    originalItem={items_.find(i => i.i === maxTileItem.i) as TileProps}
+                    items={items}
+                    setProject={setProject}
+                    setPending={(p: boolean) => setPending({ ...pending, [maxTileItem.i]: p })}
+                    setItems={(items: TileProps[]) => setItems(items)}
+                    updateItem={updateItem}
+                    fieldsActions={fieldsActions}
+                    updateInterface={updateInterface}
+                    filterExpressions={filterExpressions}
+                    sortingExpressions={sortingExpressions}
+                />
+            </DialogContent>
+        </Dialog>}
     </div>);
 };
 
