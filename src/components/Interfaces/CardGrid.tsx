@@ -9,7 +9,7 @@ import { ItemType, PlotDataProps, TableDataProps, TileProps } from "@/types/eval
 import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import ActionButton from "../Common/Buttons/Action";
-import { Check, ListRestart, Loader2, Plus, Save, TriangleAlert, X } from "lucide-react";
+import { Check, Grip, ListRestart, Loader2, Plus, Save, TriangleAlert, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { Badge } from "../UI/badge";
 
@@ -72,7 +72,7 @@ const CardGrid = ({
     sortingExpressions: (string | null)[],
 }) => {
     const router = useRouter();
-    const [items, setItems] = useState<TileProps[]>([...items_.map(item => ({...item}))]);
+    const [items, setItems] = useState<TileProps[]>([...items_.map(item => ({ ...item }))]);
     const [newCounter, setNewCounter] = useState(newCounter_);
     const [saveSuccess, setSaveSuccess] = useState<boolean>();
     const [resetting, setResetting] = useState<boolean>();
@@ -82,7 +82,6 @@ const CardGrid = ({
         Object.fromEntries(Object.keys(tableData).map(k => [k, false]))
     );
     const [changedDuringReload, setChangedDuringReload] = useState(false);
-    const [dragging, setDragging] = useState(false);
     const gridRef = useRef<HTMLDivElement>(null);
     const anyPending = !Object.entries(pending).every(([_, value]) => !value);
 
@@ -225,22 +224,19 @@ const CardGrid = ({
             </div>
         </div>
         <ResponsiveReactGridLayout
-            onDragStop={() => setDragging(false)}
-            onDragStart={() => setDragging(true)}
             onLayoutChange={(newLayout) => {
-                if (dragging) {
-                    const updatedItems = newLayout.map((item) => {
-                        const originalItem = items.find(i => i.i === item.i);
-                        return { ...originalItem, ...item };
-                    });
-                    setItems([...updatedItems]);
-                }
+                const updatedItems = newLayout.map((item) => {
+                    const originalItem = items.find(i => i.i === item.i);
+                    return { ...originalItem, ...item };
+                });
+                setItems([...updatedItems]);
             }}
             className="layout interactive-grid flex-1"
             cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
             rowHeight={100}
             isDraggable={editable}
             isResizable={editable}
+            draggableCancel=".no-drag"
             resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
         >
             {items.map(el => {
@@ -265,7 +261,7 @@ const CardGrid = ({
                             originalItem={items_.find(i => i.i === el.i) as TileProps}
                             items={items}
                             setProject={setProject}
-                            setPending={(p: boolean) => setPending({...pending, [el.i]: p})}
+                            setPending={(p: boolean) => setPending({ ...pending, [el.i]: p })}
                             setItems={(items: TileProps[]) => setItems(items)}
                             updateItem={updateItem}
                             fieldsActions={fieldsActions}
@@ -273,14 +269,22 @@ const CardGrid = ({
                             filterExpressions={filterExpressions}
                             sortingExpressions={sortingExpressions}
                         />
-                        {editable && <ActionButton
-                            className="remove absolute top-3 right-5 cursor-pointer"
-                            onClick={() => setItems([...items.filter(item => item.i != el.i)])}
-                            icon={<X />}
-                            tooltip="Remove"
-                            variant="outline"
-                        />}
-                        <Badge className="absolute top-3 left-3" variant="primary">
+                        {editable && <div className="flex gap-2 absolute top-3 right-5 z-10">
+                            <ActionButton
+                                className="cursor-grab"
+                                icon={<Grip />}
+                                tooltip="Drag"
+                                variant="outline"
+                            />
+                            <ActionButton
+                                className="no-drag remove cursor-pointer"
+                                onClick={() => setItems([...items.filter(item => item.i != el.i)])}
+                                icon={<X />}
+                                tooltip="Remove"
+                                variant="outline"
+                            />
+                        </div>}
+                        <Badge className="no-drag absolute top-3 left-3 z-10" variant="primary">
                             {el.i}
                         </Badge>
                     </div>
