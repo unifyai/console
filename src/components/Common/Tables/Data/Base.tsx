@@ -132,6 +132,8 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
                                         grouping={state.grouping}
                                         setGrouping={setState.setGrouping}
                                         ColumnFilters={ColumnFilters}
+                                        context={state.context}
+                                        setContext={setState.setContext}
                                     />
                                 ))}
                             </SortableContext>

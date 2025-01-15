@@ -11,6 +11,7 @@ import ColumnSort from "../Buttons/ColumnSort";
 import ColumnGroupBy from "../Buttons/ColumnGroupBy";
 import ColumnHide from "../Buttons/ColumnHide";
 import ColumnShow from "../Buttons/ColumnShow";
+import ColumnContext from "../Buttons/ColumnContext";
 import { getCellsFromHeader, getSelectableTableCells } from "@/hooks/Logs/useCellSelection";
 
 const DataTableHeader = ({
@@ -22,7 +23,9 @@ const DataTableHeader = ({
   setColumnVisibility,
   grouping,
   setGrouping,
-  ColumnFilters
+  ColumnFilters,
+  context,
+  setContext,
 }: {
   table: Table<any | unknown>,
   header: Header<any, unknown>,
@@ -37,9 +40,11 @@ const DataTableHeader = ({
   setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void,
   grouping: string[],
   setGrouping: (grouping: string[]) => void,
-  ColumnFilters?: (column: Column<any | unknown>) => ReactNode;
+  ColumnFilters?: (column: Column<any | unknown>) => ReactNode,
+  context: string,
+  setContext: (context: string | null) => void,
 }) => {
-  
+
   const { attributes, isDragging, listeners, setNodeRef, transform } = useSortable({id: header.column.id});
 
   const isPinned = header.column.getIsPinned(); 
@@ -114,9 +119,14 @@ const DataTableHeader = ({
 
               {/* Inline Column Actions for Parent Columns */}
               {isParentColumn && (
-                <div className="flex items-center gap-0.75">
+                <div
+                  className="flex items-center gap-0.75"
+                  onMouseDown={(e) => e.stopPropagation()} // Prevent event bubbling for action buttons
+                  onMouseUp={(e) => e.stopPropagation()}   // Prevent event bubbling for action buttons
+                >
                   <ColumnGroupBy column={header.column} grouping={grouping} setGrouping={setGrouping} />
                   <ColumnHide column={header.column} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility} />
+                  <ColumnContext column={header.column} context={context} setContext={setContext} />
                 </div>
               )}
             </>
