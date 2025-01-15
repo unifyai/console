@@ -321,7 +321,7 @@ const CardGrid = ({
                             />
                         </div>}
                         <Badge
-                            className="no-drag absolute top-3 left-3 z-10"
+                            className="no-drag absolute top-3 left-3 z-10 cursor-pointer"
                             variant="primary"
                             onClick={() => setEditTile(el.i)}
                         >
@@ -359,7 +359,7 @@ const CardGrid = ({
                     />
                 </div>
                 <Badge
-                    className="no-drag absolute top-3 left-3 z-10"
+                    className="no-drag absolute top-3 left-3 z-10 cursor-pointer"
                     variant="primary"
                     onClick={() => setEditTile(maxTileItem.i)}
                 >
