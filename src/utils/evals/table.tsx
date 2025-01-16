@@ -238,70 +238,131 @@ export function extractParamsValues(entriesParams: LogItemProps, params: LogItem
 }
 
 /* 
-  Build column structure including handling nested column headers, and define cell content.
-*/
+  Build column structure including handling nested column headers, and define cell content more robustly.
+  This version gracefully handles:
+    - Undefined values
+    - Missing dataTypes
+    - Unrecognized dataTypes
+    - Safe checks before using string methods
+ */
 export const nestedColumns = (
-  nodes: HeaderNode[], 
-  type: string,
-  prependPath: string,
-  data: LogsResponseProps,
-  enableRowSpan: boolean = false,
-  dataTypes: {[key: string] : string}
-) : ColumnDef<LogProps>[] => {
-  return nodes.map(node => {
-      if (node.nodes) {
-          const columns = nestedColumns(node.nodes, type, prependPath, data, false, dataTypes);
-          return {
-              id: `${prependPath}/${node.path}`,  // Needed for grouping, showing, hiding multiple column nests,
-              header: node.name, 
-              columns: columns,
-              meta: {
-                  columnType: type,
-                  enableRowSpan: enableRowSpan,
-				  isParent: true,
-				  renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
-              }
-          };
-      }
-
-	  const dataType = dataTypes[node.path];
-      return {
-          id: `${prependPath}/${node.path}`,  // Needed for grouping, showing, hiding multiple column nests,
-          accessorFn: (log) => type === "entries" ? log.entries[node.path] : log.params[node.path],
-          filterFn: "includesString" as FilterFnOption<LogProps> | undefined,
-          header: node.name,
-          cell: ({ cell }: {cell: Cell<LogProps, unknown>}) => {
-            
+	nodes: HeaderNode[], 
+	type: string,
+	prependPath: string,
+	data: LogsResponseProps,
+	enableRowSpan: boolean = false,
+	dataTypes: { [key: string]: string }
+	): ColumnDef<LogProps>[] => {
+	return nodes.map(node => {
+		// If this node has children (nested columns), recursively build columns
+		if (node.nodes) {
+		const columns = nestedColumns(node.nodes, type, prependPath, data, false, dataTypes);
+		return {
+			id: `${prependPath}/${node.path}`,  // needed for grouping, showing, hiding multiple column nests
+			header: node.name,
+			columns,
+			meta: {
+			columnType: type,
+			enableRowSpan: enableRowSpan,
+			isParent: true,
+			renderedDepth: -1
+			}
+		};
+		}
+	
+		// Determine the dataType (default to 'str' if not found or unrecognized)
+		const dataType = dataTypes[node.path] || "str";
+	
+		return {
+		id: `${prependPath}/${node.path}`,  // needed for grouping, showing, hiding multiple column nests
+		accessorFn: (log) => {
+			// Safely extract the value from either entries or params
+			if (type === "entries") {
+			return log.entries?.[node.path];
+			} else {
+			return log.params?.[node.path];
+			}
+		},
+		filterFn: "includesString" as FilterFnOption<LogProps> | undefined,
+		header: node.name,
+		cell: ({ cell }: { cell: Cell<LogProps, unknown> }) => {
 			let cellValue = cell.getValue();
-			
-            if (type === "params") cellValue = data.params[node.path][cellValue as string];
-            
-			if (dataType === "image") {
-				let value = cellValue as string;
-				if (value.startsWith('"') && value.endsWith('"'))
-					value = value.slice(1, -1)
-				return <ImageDisplay value={value} className="object-scale-down h-5 w-5"/>
+	
+			// Attempt to map param-based lookups if needed
+			if (type === "params" && cellValue !== undefined && cellValue !== null) {
+			// If data.params[node.path] does not exist or is undefined, handle gracefully
+			cellValue = data.params?.[node.path]?.[cellValue as string] ?? cellValue;
 			}
-            if (dataType === "int" || dataType === "float") 
-				return formatNumber(parseFloat(cellValue as string));
-			if (dataType === "str" || dataType === "timestamp") {
-				let value = cellValue as string;
-				if (value.startsWith('"') && value.endsWith('"'))
-					value = value.slice(1, -1)
-				return (cellValue as string).slice(1, -1)
+	
+			// If cellValue itself is undefined or null, display a fallback
+			if (cellValue === undefined || cellValue === null) {
+			return "–"; // or "N/A", or any other fallback string
 			}
-
-            return cellValue as string;
-          },
-          meta: {
-              dataType: dataType,
-              columnType: type,
-              enableRowSpan: enableRowSpan,
-			  isParent: false,
-			  renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
-          }
-      };
-  });
+	
+			// Depending on the dataType, format the incoming value
+			switch (dataType) {
+			case "image": {
+				if (typeof cellValue === "string") {
+				let value = cellValue.trim();
+				if (value.startsWith('"') && value.endsWith('"')) {
+					// Trim the outer quotes if they exist
+					value = value.slice(1, -1);
+				}
+				return <ImageDisplay value={value} className="object-scale-down h-5 w-5" />;
+				}
+				// If not a string, fallback
+				return "Invalid Image";
+			}
+	
+			case "int":
+			case "float": {
+				// Safely parse to float, if invalid or NaN display fallback
+				const numericValue = parseFloat(String(cellValue));
+				if (isNaN(numericValue)) {
+				return "–";
+				}
+				// Use a numeric formatting function if desired
+				return formatNumber(numericValue);
+			}
+	
+			case "timestamp":
+			case "str": {
+				// For timestamps or generally string data, handle leading/trailing quotes
+				if (typeof cellValue === "string") {
+				let value = cellValue.trim();
+				if (value.startsWith('"') && value.endsWith('"')) {
+					value = value.slice(1, -1);
+				}
+				return value;
+				}
+				// If not a string, at least convert to string
+				return String(cellValue);
+			}
+	
+			default: {
+				// Fallback for unrecognized data types
+				// If it's an object, try JSON stringify or just display as string
+				if (typeof cellValue === "object") {
+				try {
+					return JSON.stringify(cellValue);
+				} catch {
+					return String(cellValue);
+				}
+				}
+				// If it's anything else, just convert to string
+				return String(cellValue);
+			}
+			}
+		},
+		meta: {
+			dataType,
+			columnType: type,
+			enableRowSpan: enableRowSpan,
+			isParent: false,
+			renderedDepth: -1
+		}
+		};
+	});
 };
 
 /* 
