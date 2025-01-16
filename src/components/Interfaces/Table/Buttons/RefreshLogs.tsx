@@ -9,9 +9,10 @@ import { LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/typ
 import { getLogsDetails } from "@/utils/evals/common";
 import { ResponseProps } from "@/types/common";
 
-const RefreshLogs = ({ item, project, fields, filterExpression, sortingExpression, updateItem, setTableDataItem, logsActions }: {
+const RefreshLogs = ({ item, project, pending, fields, filterExpression, sortingExpression, updateItem, setTableDataItem, logsActions }: {
     item: TileProps,
     project: string,
+    pending: boolean,
     fields: LogFieldsResponseProps,
     filterExpression: string | null,
     sortingExpression: string | null,
@@ -49,33 +50,42 @@ const RefreshLogs = ({ item, project, fields, filterExpression, sortingExpressio
 
     /* Auto refresh */
     // We use timestamp to tag fetch api calls to trigger revalidation every eight seconds
+    let running = false;
     useEffect(() => {
         if (!item.auto_update || item.auto_update == "false") return;
-        const interval = setInterval(() => logsActions.get(
-            project, item.context ?? null, filterExpression, sortingExpression, null, null, 0, Date.now().toString()
-        ).then(async (logsData: LogsResponseProps) => {
-            const totalPages = Math.ceil(logsData.count / 16);
-            const context = item.context ?? null;
-            const sorting = item.sorting ?? null;
-            const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
-                item, logsData, fields, context, project, filterExpression, sorting, logsActions
-            )
-            setTableDataItem((tableDataItem: TableDataItem) => {
-                return {
-                    ...tableDataItem,
-                    logsData,
-                    totalPages,
-                    entriesProperties,
-                    paramsProperties,
-                    logs,
-                    params,
-                    metrics,
-                    boundaries
-                };
-            })
-        }), 8000); // Refresh every 8000ms
+        const interval = setInterval(() => {
+            console.log("REACHED INSIDE");
+            if (!running && !pending) {
+                console.log("REACHED HERE");
+                running = true;
+                logsActions.get(
+                    project, item.context ?? null, filterExpression, sortingExpression, null, null, 0, Date.now().toString()
+                ).then(async (logsData: LogsResponseProps) => {
+                    const totalPages = Math.ceil(logsData.count / 16);
+                    const context = item.context ?? null;
+                    const sorting = item.sorting ?? null;
+                    const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
+                        item, logsData, fields, context, project, filterExpression, sorting, logsActions
+                    )
+                    setTableDataItem((tableDataItem: TableDataItem) => {
+                        return {
+                            ...tableDataItem,
+                            logsData,
+                            totalPages,
+                            entriesProperties,
+                            paramsProperties,
+                            logs,
+                            params,
+                            metrics,
+                            boundaries
+                        };
+                    });
+                    running = false;
+                });
+            }
+        }, 2000); // Refresh every 2000ms
         return () => clearInterval(interval)
-    }, [item.auto_update])
+    }, [item])
     const onAutoClick = () => updateItem(item, "auto_update")(item.auto_update === "true" ? "false" : "true")
     const autoRefresh =
         <ActionButton

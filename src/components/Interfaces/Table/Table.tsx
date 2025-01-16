@@ -421,6 +421,7 @@ const LogsTable = ({
           <RefreshLogs 
             item={item}
             project={project}
+            pending={showSpinner}
             fields={fields}
             filterExpression={filterExpression}
             sortingExpression={sortingExpression}
