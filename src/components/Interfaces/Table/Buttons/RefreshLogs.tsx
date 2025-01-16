@@ -2,43 +2,95 @@
 
 import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { BasePopover } from "@/components/Common/Popovers/Base";
+import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
+import { LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
+import { getLogsDetails } from "@/utils/evals/common";
+import { ResponseProps } from "@/types/common";
 
-const RefreshLogs = ({_timestamp, _setTimestamp, auto, setAuto, context, project, filterExpression, sortingExpression, getLatest}: {
-    _timestamp: string | undefined,
-    _setTimestamp: (_timestamp: string | undefined) => void,
-    auto: string | undefined,
-    setAuto: (auto: string | undefined) => void,
-    context: string | undefined,
+const RefreshLogs = ({ item, project, fields, filterExpression, sortingExpression, updateItem, setTableDataItem, logsActions }: {
+    item: TileProps,
     project: string,
+    fields: LogFieldsResponseProps,
     filterExpression: string | null,
     sortingExpression: string | null,
-    getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
+    updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
+    setTableDataItem: Dispatch<SetStateAction<TableDataItem>>,
+    logsActions: {
+        get: (
+            project: string,
+            context: string | null,
+            filterExpression: string | null,
+            sortingExpression: string | null,
+            from_fields: string | null,
+            limit: number | null,
+            offset: number,
+            _timestamp: string | null
+        ) => Promise<LogsResponseProps>,
+        getLatest: (
+            project: string,
+            context: string | null,
+            filterExpression: string | null,
+            sortingExpression: string | null,
+            from_fields: string | null,
+            limit: number | null,
+            offset: number
+        ) => Promise<string>,
+        getMetrics: (
+            project: string,
+            filterExpression: string | null,
+            metricName: string,
+            keyName: string
+        ) => Promise<number>;
+        delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
+    },
 }) => {
 
     /* Auto refresh */
-    // We use timestamp to tag fetch api calls to trigger revalidation every two seconds
+    // We use timestamp to tag fetch api calls to trigger revalidation every eight seconds
     useEffect(() => {
-        if (!auto) return;
-        const interval = setInterval(() => _setTimestamp(Date.now().toString()), 2000) // Refresh every 2000ms
+        if (!item.auto_update || item.auto_update == "false") return;
+        const interval = setInterval(() => logsActions.get(
+            project, item.context ?? null, filterExpression, sortingExpression, null, null, 0, Date.now().toString()
+        ).then(async (logsData: LogsResponseProps) => {
+            const totalPages = Math.ceil(logsData.count / 16);
+            const context = item.context ?? null;
+            const sorting = item.sorting ?? null;
+            const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
+                item, logsData, fields, context, project, filterExpression, sorting, logsActions
+            )
+            setTableDataItem((tableDataItem: TableDataItem) => {
+                return {
+                    ...tableDataItem,
+                    logsData,
+                    totalPages,
+                    entriesProperties,
+                    paramsProperties,
+                    logs,
+                    params,
+                    metrics,
+                    boundaries
+                };
+            })
+        }), 8000); // Refresh every 8000ms
         return () => clearInterval(interval)
-    }, [auto])
-    const onAutoClick = () => setAuto(auto === "true" ? "false" : "true")
-    const autoRefresh = 
+    }, [item.auto_update])
+    const onAutoClick = () => updateItem(item, "auto_update")(item.auto_update === "true" ? "false" : "true")
+    const autoRefresh =
         <ActionButton
-            variant={auto === "true" ? "primary" : "outline"}
+            variant={item.auto_update === "true" ? "primary" : "outline"}
             className="rounded-none rounded-tr-lg rounded-br-lg"
-            icon={<Power/>}
-            tooltip={"Auto refresh every 100ms"}
+            icon={<Power />}
+            tooltip={"Auto refresh every 8000ms"}
             onClick={() => onAutoClick()}
         />
 
     /* Manual refresh */
-    
+
     const [lastUpdated, setLastUpdated] = useState<string>("")
     const [isChecking, setIsChecking] = useState(true);
-    const messages = { updated: "New logs were added to the table!", stale: "Table logs are already up to date" } 
+    const messages = { updated: "New logs were added to the table!", stale: "Table logs are already up to date" }
     const [message, setMessage] = useState("")
 
 
@@ -46,29 +98,28 @@ const RefreshLogs = ({_timestamp, _setTimestamp, auto, setAuto, context, project
     // with the timestamp saved last time the refresh button was used, except the first
     // time where we compare with the timestamp set on loading the component
 
-    useEffect(() => {getLatest(project, context ?? null, filterExpression, sortingExpression, null, null, 0).then(latest => setLastUpdated(latest))}, [])
-    
+    useEffect(() => { logsActions.getLatest(project, item.context ?? null, filterExpression, sortingExpression, null, null, 0).then(latest => setLastUpdated(latest)) }, [])
+
     const onManualClick = () => {
         setIsChecking(true)
-        getLatest(project, context ?? null, filterExpression, sortingExpression, null, null, 0).then(latest => {
+        logsActions.getLatest(project, item.context ?? null, filterExpression, sortingExpression, null, null, 0).then(latest => {
             const latestTs = new Date(latest).getTime();
-            const lastCheckTs = new Date(lastUpdated).getTime()
+            const lastCheckTs = new Date(lastUpdated).getTime();
             if (latestTs > lastCheckTs) {
-                _setTimestamp(Date.now().toString())
                 setLastUpdated(latest)
                 setMessage(messages.updated)
             } else {
                 setMessage(messages.stale)
             }
             setIsChecking(false)
-        }
-    )}
-    
-    const button = 
-        <ActionButton 
+        });
+    }
+
+    const button =
+        <ActionButton
             variant="outline"
             className="rounded-none rounded-tl-lg rounded-bl-lg h-8"
-            icon={<RefreshCw/>}
+            icon={<RefreshCw />}
             tooltip="Refresh logs"
             onClick={() => onManualClick()}
         />
@@ -76,7 +127,7 @@ const RefreshLogs = ({_timestamp, _setTimestamp, auto, setAuto, context, project
 
     return (
         <div className="flex flex-row">
-            {manualRefresh}        
+            {manualRefresh}
             {autoRefresh}
         </div>
     );

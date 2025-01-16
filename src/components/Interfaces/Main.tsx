@@ -1,7 +1,7 @@
 import { ResponseProps } from "@/types/common";
 import CardGrid from "@/components/Interfaces/CardGrid";
 import { LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
-import { extractLogsData } from "@/utils/evals/common";
+import { getLogsDetails } from "@/utils/evals/common";
 import { PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
@@ -118,21 +118,21 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
     );
     if (project) {
         await Promise.all(tableItems.map(async (item, idx) => {
-                const logsData = await logsActions.get(
-                    project,
-                    item.context ?? null,
-                    filterExpressions[idx],
-                    sortingExpressions[idx],
-                    null,
-                    limit,
-                    offsets[idx],
-                    item._timestamp ?? null
-                );
-                const totalPages = Math.ceil(logsData.count / limit);
+            const logsData = await logsActions.get(
+                project,
+                item.context ?? null,
+                filterExpressions[idx],
+                sortingExpressions[idx],
+                null,
+                limit,
+                offsets[idx],
+                null
+            );
+            const totalPages = Math.ceil(logsData.count / limit);
 
-                allLogsData[idx] = logsData;
-                allTotalPages[idx] = totalPages;
-            })
+            allLogsData[idx] = logsData;
+            allTotalPages[idx] = totalPages;
+        })
         );
         await Promise.all(plotItems.map(async (item, idx) => {
             const xAxis = item.context ? processContext("merge", item.context, item.x_axis) : item.x_axis;
@@ -144,12 +144,12 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
             if (xAxis) {
                 let subset = xAxis
                 if (item.plot_type === "Bar Chart")
-                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, 0, item._timestamp ?? null);
+                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, 0, null);
                 else {
                     if (yAxis)
                         subset += `%26${yAxis}`
-                        if (group) subset += `%26${group}`
-                        plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, 0, item._timestamp ?? null);
+                    if (group) subset += `%26${group}`
+                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, 0, null);
                 }
             }
             allPlotData[idx] = plotData;
@@ -163,43 +163,9 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
             const context = item.context ?? null
             const sorting = item.sorting ?? null
 
-            // Unpack log data
-            const { entriesProperties, paramsProperties, logs, params } = extractLogsData(
-                logsData, fields, context, sorting
-            );
-
-            /* Handle column metrics */
-            // Getting metrics for filtered logs, and min / max values for full logs.
-            // Min / max bounds are used to set the filtering range for numeric columns
-            const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
-            const getColumnMetrics = async (expression: string | null, metric: string | undefined) => {
-                let fullColumns = columns
-                if (context)
-                    fullColumns = fullColumns.map(column => processContext("merge", context, column))
-                const metricValues = await Promise.all(
-                    fullColumns.map(async (key) => logsActions.getMetrics(
-                        project!, expression, metric ? metric : "mean", key
-                    ))
-                );
-                const metrics_: { [key: string]: any } = columns.length
-                    ? columns
-                        .map((key, index) => ({ [key]: metricValues[index] }))
-                        .reduce((acc, curr) => ({ ...acc, ...curr }))
-                    : {};
-                return metrics_;
-            }
-            const metrics = await getColumnMetrics(filterExpressions[idx], item.metric);
-            const [minimums, maximums] = await Promise.all([
-                getColumnMetrics(null, "min"),
-                getColumnMetrics(null, "max")
-            ]);
-
-            // Min-max boundaries for numeric and time-like column filters
-            const timeSortedLogs = logs.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
-            let boundaries = { minimums, maximums }
-            boundaries.minimums["ts"] = timeSortedLogs.length ? timeSortedLogs.at(0)!.ts : undefined
-            boundaries.maximums["ts"] = timeSortedLogs.length ? timeSortedLogs.at(-1)!.ts : undefined
-
+            const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
+                item, logsData, fields, context, project, filterExpressions[idx], sorting, logsActions
+            )
 
             // Get other attributes shared across tables and corresponding views
             const hiddenColumns = item.hidden_columns;
@@ -245,6 +211,7 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
         project_={project}
         tableNames={tableNames}
         tableData={tableData}
+        fields={fields}
         plotData={plotData}
         columnTypes={types}
         savedInterface={interface_}

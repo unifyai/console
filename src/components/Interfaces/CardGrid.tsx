@@ -29,6 +29,7 @@ const CardGrid = ({
     project_,
     tableNames,
     tableData,
+    fields,
     plotData,
     columnTypes,
     savedInterface,
@@ -47,6 +48,7 @@ const CardGrid = ({
     project_: string | null,
     tableNames: string[]
     tableData: TableDataProps,
+    fields: LogFieldsResponseProps,
     plotData: PlotDataProps,
     columnTypes: { [key: string]: string },
     savedInterface: { items: TileProps[], new_counter: number, project: string | null } | null,
@@ -294,6 +296,7 @@ const CardGrid = ({
                             projects={projects}
                             project={project}
                             pending={el.tab == "Table" ? pending[el.i] : false}
+                            fields={fields}
                             columnTypes={columnTypes}
                             tableNames={tableNames}
                             tableData={tableData}
@@ -363,6 +366,7 @@ const CardGrid = ({
                         columnTypes={columnTypes}
                         tableNames={tableNames}
                         tableData={tableData}
+                        fields={fields}
                         plotData={plotData}
                         projectActions={projectActions}
                         logsActions={logsActions}

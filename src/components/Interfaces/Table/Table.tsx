@@ -32,7 +32,7 @@ import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
 import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
-import { ItemType, TileProps } from "@/types/evals/grid";
+import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 
@@ -41,14 +41,9 @@ const LogsTable = ({
   project,
   pending,
   item,
-  logs,
-  entriesProperties,
-  paramsProperties,
-  metrics,
-  logsData,
-  totalPages,
+  fields,
   columnTypes,
-  boundaries,
+  tableDataItem_,
   setProject,
   updateItem,
   projectActions,
@@ -62,14 +57,9 @@ const LogsTable = ({
   pending: boolean;
   tab: string;
   item: TileProps;
-  logs: LogProps[];
-  entriesProperties: string[];
-  paramsProperties: string[];
-  metrics: { [key: string]: any };
-  logsData: LogsResponseProps;
-  totalPages: number;
+  fields: LogFieldsResponseProps;
   columnTypes: { [key: string]: string };
-  boundaries: {minimums: {[key: string]: number}, maximums: {[key: string]: number}};
+  tableDataItem_: TableDataItem;
   setProject: Dispatch<SetStateAction<string | undefined>>;
   updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
   projectActions: {
@@ -112,6 +102,10 @@ const LogsTable = ({
   filterExpression: string | null,
   sortingExpression: string | null,
 }) => {
+  // extract necessary fields
+  const [tableDataItem, setTableDataItem] = useState(tableDataItem_);
+  const { logs, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
+
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false); // if metric changed
 
@@ -325,7 +319,6 @@ const LogsTable = ({
     updateItem(item, "metric")("mean");
     updateItem(item, "page_number")(undefined);
     updateItem(item, "context")(undefined)
-    updateItem(item, "_timestamp")(undefined)
   };
 
   // Build directory data
@@ -401,7 +394,6 @@ const LogsTable = ({
             }}
             type="Projects"
             defaultValue={project}
-            onOpen={() => updateItem(item, "_timestamp")}
           />
           {project && (
             <div className="flex flex-row gap-2">
@@ -427,15 +419,14 @@ const LogsTable = ({
         </div>
         {project && 
           <RefreshLogs 
-            _timestamp={item._timestamp}
-            _setTimestamp={updateItem(item, "_timestamp")}
-            auto={item.auto_update}
-            setAuto={updateItem(item, "auto_update")}
-            context={item.context}
+            item={item}
             project={project}
+            fields={fields}
             filterExpression={filterExpression}
             sortingExpression={sortingExpression}
-            getLatest={logsActions.getLatest}
+            updateItem={updateItem}
+            setTableDataItem={setTableDataItem}
+            logsActions={logsActions}
           />
         }
       </div>

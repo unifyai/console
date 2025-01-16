@@ -17,6 +17,7 @@ const Card = ({
     projects,
     project,
     pending,
+    fields,
     columnTypes,
     tableNames,
     tableData,
@@ -39,6 +40,7 @@ const Card = ({
     projects: string[] | undefined,
     project: string | undefined,
     pending: boolean,
+    fields: LogFieldsResponseProps,
     columnTypes: { [key: string]: string },
     tableNames: string[],
     tableData: TableDataProps,
@@ -152,14 +154,18 @@ const Card = ({
                 pending={pending}
                 tab={tab}
                 item={item}
-                logs={tableData[item.i]?.logs || []}
+                fields={fields}
                 columnTypes={columnTypes}
-                entriesProperties={tableData[item.i]?.entriesProperties || []}
-                paramsProperties={tableData[item.i]?.paramsProperties || []}
-                metrics={tableData[item.i]?.metrics || {}}
-                logsData={tableData[item.i]?.logsData || { params: {}, logs: [], count: 0 }}
-                totalPages={tableData[item.i]?.totalPages || 0}
-                boundaries={tableData[item.i]?.boundaries || { minimus: {}, maximums: {} }}
+                tableDataItem_={{
+                    ...tableData[item.i],
+                    logs: tableData[item.i]?.logs || [],
+                    entriesProperties: tableData[item.i]?.entriesProperties || [],
+                    paramsProperties: tableData[item.i]?.paramsProperties || [],
+                    metrics: tableData[item.i]?.metrics || {},
+                    logsData: tableData[item.i]?.logsData || { params: {}, logs: [], count: 0 },
+                    totalPages: tableData[item.i]?.totalPages || 0,
+                    boundaries: tableData[item.i]?.boundaries || { minimus: {}, maximums: {} }
+                }}
                 setProject={setProject}
                 updateItem={updateItem}
                 projectActions={projectActions}

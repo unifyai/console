@@ -30,24 +30,25 @@ export interface TileProps {
     x_axis?: string;
     y_axis?: string;
     plot_group_by?: string;
-    _timestamp?: string;
+}
+
+export interface TableDataItem {
+    baseIndex: string | undefined,
+    hiddenColumns: string | undefined,
+    columnOrdering: string | undefined,
+    selection: string | undefined,
+    logsData: LogsResponseProps,
+    totalPages: number,
+    entriesProperties: string[],
+    paramsProperties: string[],
+    logs: LogProps[],
+    params: LogItemProps,
+    metrics: { [key: string]: number },
+    boundaries: { minimums: { [key: string]: number }, maximums: { [key: string]: number } }
 }
 
 export interface TableDataProps {
-    [key: string]: {
-        baseIndex: string | undefined,
-        hiddenColumns: string | undefined,
-        columnOrdering: string | undefined,
-        selection: string | undefined,
-        logsData: LogsResponseProps,
-        totalPages: number,
-        entriesProperties: string[],
-        paramsProperties: string[],
-        logs: LogProps[],
-        params: LogItemProps,
-        metrics: { [key: string]: number },
-        boundaries: { minimums: { [key: string]: number }, maximums: { [key: string]: number } }
-    }
+    [key: string]: TableDataItem
 }
 
 export interface PlotDataProps {
@@ -78,5 +79,4 @@ export type ItemType =
     | "columns_pin_right"
     | "table"
     | "context"
-    | "auto_update"
-    | "_timestamp";
+    | "auto_update";

@@ -1,8 +1,10 @@
-import { LogFieldsResponseProps, LogsResponseProps } from "../../types/evals/logs";
+import { LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "../../types/evals/logs";
 
 import _ from "lodash";
 import { formatNumber } from "../formatNumber";
 import { processContext } from "./columnOperations";
+import { TileProps } from "@/types/evals/grid";
+import { ResponseProps } from "@/types/common";
 
 /* 
     Convert object / string inputs to their length value and return the value of numeric inputs. 
@@ -95,4 +97,68 @@ export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFiel
     }
 
     return { entriesProperties, paramsProperties, logs, params };
+}
+
+export const getLogsDetails = async (
+    item: TileProps,
+    logsData: LogsResponseProps,
+    fields: LogFieldsResponseProps,
+    context: string | null,
+    project: string | null,
+    filterExpression: string | null,
+    sorting: string | null,
+    logsActions: {
+        get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
+        getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
+        getMetrics: (
+            project: string, filterExpression: string | null, metricName: string, keyName: string
+        ) => Promise<number>,
+        delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
+    }
+) => {
+    // Unpack log data
+    const { entriesProperties, paramsProperties, logs, params } = extractLogsData(
+        logsData, fields, context, sorting
+    );
+
+    /* Handle column metrics */
+    // Getting metrics for filtered logs, and min / max values for full logs.
+    // Min / max bounds are used to set the filtering range for numeric columns
+    const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
+    const getColumnMetrics = async (expression: string | null, metric: string | undefined) => {
+        let fullColumns = columns
+        if (context)
+            fullColumns = fullColumns.map(column => processContext("merge", context, column))
+        const metricValues = await Promise.all(
+            fullColumns.map(async (key) => logsActions.getMetrics(
+                project!, expression, metric ? metric : "mean", key
+            ))
+        );
+        const metrics_: { [key: string]: any } = columns.length
+            ? columns
+                .map((key, index) => ({ [key]: metricValues[index] }))
+                .reduce((acc, curr) => ({ ...acc, ...curr }))
+            : {};
+        return metrics_;
+    }
+    const [metrics, minimums, maximums] = await Promise.all([
+        getColumnMetrics(filterExpression, item.metric),
+        getColumnMetrics(null, "min"),
+        getColumnMetrics(null, "max")
+    ]);
+
+    // Min-max boundaries for numeric and time-like column filters
+    const timeSortedLogs = logs.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+    let boundaries = { minimums, maximums }
+    boundaries.minimums["ts"] = timeSortedLogs.length ? timeSortedLogs.at(0)!.ts : undefined
+    boundaries.maximums["ts"] = timeSortedLogs.length ? timeSortedLogs.at(-1)!.ts : undefined
+
+    return {
+        entriesProperties,
+        paramsProperties,
+        logs,
+        params,
+        metrics,
+        boundaries
+    }
 }
