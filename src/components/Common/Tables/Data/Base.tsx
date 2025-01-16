@@ -11,7 +11,7 @@ import { DndContext, closestCenter } from "@dnd-kit/core";
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 
-import { handleDragEnd } from "@/utils/evals/table";
+import { handleDragCancel, handleDragEnd, handleDragMove, handleDragOver, handleDragStart } from "@/utils/evals/table";
 import { Table, TableHeader, TableRow, TableBody, TableCell, TableFooter } from "@/components/UI/table";
 
 import DataTableHeader from "./Content/Header";
@@ -112,7 +112,11 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
         <DndContext
             collisionDetection={closestCenter}
             modifiers={[restrictToHorizontalAxis]}
-            onDragEnd={(event) => handleDragEnd(event, state.columnOrder, setState.setColumnOrder, state.grouping, setState.setGrouping, table.getAllFlatColumns())}
+            onDragStart={(event) => handleDragStart(event, state.draggingColumns, setState.setDraggingColumns, table.getAllFlatColumns())}
+            onDragMove={(event) => handleDragMove(event, state.draggingColumns, setState.setDraggingColumns, table.getAllFlatColumns())}
+            onDragOver={(event) => handleDragOver(event, state.draggingColumns, setState.setDraggingColumns, table.getAllFlatColumns())}
+            onDragEnd={(event) => handleDragEnd(event, state.columnOrder, setState.setColumnOrder, state.grouping, setState.setGrouping, setState.setDraggingColumns, table.getAllFlatColumns())}
+            onDragCancel={(event) => handleDragCancel(setState.setDraggingColumns)}
             sensors={sensors}
         >
             <Table className="sticky top-0 z-10 max-h-[90vh] w-full" style={{ width: table.getTotalSize() }}>
@@ -134,6 +138,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
                                         ColumnFilters={ColumnFilters}
                                         context={state.context}
                                         setContext={setState.setContext}
+                                        draggingColumns={state.draggingColumns}
                                     />
                                 ))}
                             </SortableContext>
@@ -159,6 +164,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
                                                     AggregatedCell={AggregatedCell}
                                                     isCellExpanded={isCellExpanded}
                                                     setExpandedCells={setExpandedCells}
+                                                    draggingColumns={state.draggingColumns}
                                                 />
                                             </SortableContext>
                                         );

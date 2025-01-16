@@ -1,7 +1,8 @@
 import { CSSProperties, Dispatch, SetStateAction, MouseEvent } from "react";
 import { Column, Row, Cell, ColumnDef, GroupingState, FilterFnOption, RowSelectionState } from "@tanstack/react-table";
-import { type DragEndEvent } from "@dnd-kit/core";
+import { DragMoveEvent, DragOverEvent, DragStartEvent, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
+import { Transform } from "@dnd-kit/utilities";
 import _ from "lodash";
 
 import { toComputableValue, computeStatistic } from "./common";
@@ -12,9 +13,133 @@ import { Table } from "@tanstack/react-table";
 import { ImageDisplay, isImage } from "./selection";
 import { formatNumber } from "../formatNumber";
 import { sanitizeId } from "./columnOperations";
+import { DraggingColumnsState } from "@/types/evals/columns";
 
 /* 
-	Updates column orders and grouping when dropping a column on top of another
+  Updates the dragging columns state when starting to drag a column/column group on top of another
+*/
+export function handleDragStart(
+	event: DragStartEvent,
+	draggingColumns: DraggingColumnsState,
+	setDraggingColumns: (draggingColumns: DraggingColumnsState) => void,
+	columns: Column<any, unknown>[],
+) {
+	const { active } = event;
+  
+	if (!active) return;
+  
+	const activeColumn = columns.find((col) => col.id === active.id);
+
+	if (activeColumn?.columnDef.meta?.isParent) {
+		// Initialize the dragging state for the active column group
+		const newDraggingState: DraggingColumnsState = {
+			active: {
+				ids: active.data.current?.group ?? getColumnGroupIDs(activeColumn),
+				transform: null,
+			},
+			over: {
+				...draggingColumns.over,
+			}
+	  	};
+	  	
+		setDraggingColumns(newDraggingState);
+	}
+}
+
+/* 
+  Updates the dragging columns state when dragging a column/column group on top of another
+*/
+export function handleDragMove(
+	event: DragMoveEvent,
+	draggingColumns: DraggingColumnsState,
+	setDraggingColumns: (draggingColumns: DraggingColumnsState) => void,
+	columns: Column<any, unknown>[],
+) {
+	const { active, delta } = event;
+
+	if (!active) return;
+
+	// Find the active column
+	const activeColumn = columns.find((col) => col.id === active.id);
+
+	if (activeColumn?.columnDef.meta?.isParent) {
+		// Propagate the transform values
+		const transform: Transform = { x: delta.x, y: delta.y, scaleX: 1.0, scaleY: 1.0 };
+
+		// Construct the new state object
+		const newDraggingState: DraggingColumnsState = {
+			active: {
+			  ids: draggingColumns.active.ids,
+			  transform: transform, // Use the delta for the transform
+			},
+			over: {
+				...draggingColumns.over,
+			}
+		};
+
+		setDraggingColumns(newDraggingState);
+	}
+}
+
+/* 
+  Updates the droppable columns state when dragging a column/column group on top of another
+*/
+export function handleDragOver(
+	event: DragOverEvent,
+	draggingColumns: DraggingColumnsState,
+	setDraggingColumns: (draggingColumns: DraggingColumnsState) => void,
+	columns: Column<any, unknown>[],
+) {
+	const { active, over, delta } = event;
+
+	if (active && over && active.id === over.id) return;
+
+	const activeColumn = columns.find((col) => col.id === active.id);
+	const overColumn = columns.find((col) => col.id === over?.id && !draggingColumns.active.ids?.includes(col.id));
+	const atSameDepth = activeColumn?.columnDef.meta?.renderedDepth === overColumn?.columnDef.meta?.renderedDepth;
+	const bothParents = activeColumn?.columnDef.meta?.isParent && overColumn?.columnDef.meta?.isParent
+
+	// Propagate the transform values
+	const activeTransform: Transform = { x: delta.x, y: delta.y, scaleX: 1.0, scaleY: 1.0 };
+	const overTransform: Transform = { x: -delta.x, y: delta.y, scaleX: 1.0, scaleY: 1.0 };
+
+	if (!atSameDepth){
+		// Construct the new state object
+		const newDraggingState: DraggingColumnsState = {
+			active: {
+			  ids: draggingColumns.active.ids,
+			  transform: activeTransform,
+			},
+			over: {
+				ids: [],
+        		transform: null,
+			}
+		};
+
+		setDraggingColumns(newDraggingState);
+	}
+
+	else if (atSameDepth && bothParents) {
+
+		// Construct the new state object
+		const newDraggingState: DraggingColumnsState = {
+			active: {
+			  ids: draggingColumns.active.ids,
+			  transform: activeTransform,
+			},
+			over: {
+				ids: over?.data.current?.group,
+        		transform: overTransform,
+			}
+		};
+
+		// Update the state
+		setDraggingColumns(newDraggingState);
+	}
+}
+
+/* 
+  Updates column orders and grouping when dropping a column/column group on top of another
 */
 export function handleDragEnd(
   event: DragEndEvent,
@@ -22,38 +147,47 @@ export function handleDragEnd(
   setColumnOrder: (columnOrder: string[]) => void,
   grouping: GroupingState,
   setGrouping: (grouping: string[]) => void,
-  columns: Column<any, unknown>[]
+  setDraggingColumns: (draggingColumns: DraggingColumnsState) => void,
+  columns: Column<any, unknown>[],
 ) {
 	const { active, over } = event;
+
+	// Reset draggingColumns state
+	setDraggingColumns({
+		active: { ids: [], transform: null },
+		over: { ids: [], transform: null },
+	});
+
 	if (active && over && active.id !== over.id) {
 
 		const activeColumn = columns.find(column => column.id === active.id);
 		const overColumn = columns.find(column => column.id === over.id);
+		const atSameDepth = activeColumn?.columnDef.meta?.renderedDepth === overColumn?.columnDef.meta?.renderedDepth;
 
-		if (!activeColumn || !overColumn) return;
+		if (!activeColumn || !overColumn || !atSameDepth) return;
 
 		// Cancel if moving params to entries or vice-versa
 		if (activeColumn?.parent?.id !== overColumn?.parent?.id) {
 			return;
 		}
 
-			// Get all IDs for the active column group (parent and its children)
-			const activeGroupIDs = getColumnGroupIDs(activeColumn);
+		// Get all IDs for the active column group (parent and its children)
+		const activeGroupIDs = active.data.current?.group ?? getColumnGroupIDs(activeColumn)
 
-			// Get all IDs for the over column group
-			const overGroupIDs = getColumnGroupIDs(overColumn);
+		// Get all IDs for the over column group
+		const overGroupIDs = over.data.current?.group ?? getColumnGroupIDs(overColumn)
 
-			// Find the positions in the current columnOrder
-			const oldIndex = columnOrder.findIndex(id => id === activeGroupIDs[0]);
-			const newIndex = columnOrder.findIndex(id => id === overGroupIDs[0]);
+		// Find the positions in the current columnOrder
+		const oldIndex = columnOrder.findIndex(id => id === activeGroupIDs[0]);
+		const newIndex = columnOrder.findIndex(id => id === overGroupIDs[0]);
 
-			if (oldIndex === -1 || newIndex === -1) {
-				return;
-			}
+		if (oldIndex === -1 || newIndex === -1) {
+			return;
+		}
 
-			// Update columns order, ensuring parent and child columns are moved together
-			const newOrder = moveGroupInColumnOrder(columnOrder, activeGroupIDs, newIndex);
-			setColumnOrder(newOrder);
+		// Update columns order, ensuring parent and child columns are moved together
+		const newOrder = moveGroupInColumnOrder(columnOrder, activeGroupIDs, newIndex);
+		setColumnOrder(newOrder);
 
 		// Update grouping order if both columns are grouped
 		if (grouping.includes(over.id as string) && grouping.includes(active.id as string)) {
@@ -67,10 +201,18 @@ export function handleDragEnd(
 	}
 }
 
+export function handleDragCancel(setDraggingColumns: (draggingColumns: DraggingColumnsState) => void) {
+	// Reset draggingColumns state
+	setDraggingColumns({
+		active: { ids: [], transform: null },
+		over: { ids: [], transform: null },
+	});
+}
+
 /*
   Helper to get all IDs in a column group (parent and children)
 */
-function getColumnGroupIDs(column: Column<any, unknown>): string[] {
+export function getColumnGroupIDs(column: Column<any, unknown>): string[] {
 	if (column.columnDef.meta?.isParent) {
 		// Include the parent and recursively flatten child columns
 		return [column.id, ...column.columns.flatMap(getColumnGroupIDs)];
@@ -422,90 +564,119 @@ export const mergeCells = (rows: Row<any>[]) => {
   return rows;
 };
 
-/* 
-  Helper function to calculate max depth of the column tree
+/*
+  Find the maximum depth in any branch of the column tree
 */
-function calculateMaxDepth(
-	columns: ColumnDef<LogProps>[],
-	currentDepth = 0,
-	visited = new Set<ColumnDef<LogProps>>()
+function findMaxDepth(
+  columns: ColumnDef<LogProps>[]
 ): number {
-	return columns.reduce((maxDepth, column) => {
-		if (visited.has(column)) {
-			return maxDepth;
-		}
+  let maxDepth = 0;
   
-		// Mark the column as visited
-		visited.add(column);
-	
-		if (column.meta?.isParent) {
-			// Recursively calculate depth for child columns
-			const childColumns = (column as any).columns || [];
-			const childMaxDepth = calculateMaxDepth(childColumns, currentDepth + 1, visited);
-			return Math.max(maxDepth, childMaxDepth);
-		}
+  for (const column of columns) {
+    const currentDepth = (column.id as string).split('/').length - 1;
+    if ((column as any).columns?.length > 0) {
+      const childMaxDepth = findMaxDepth((column as any).columns);
+      maxDepth = Math.max(maxDepth, childMaxDepth);
+    } else {
+      maxDepth = Math.max(maxDepth, currentDepth);
+    }
+  }
   
-		// Leaf columns
-		return Math.max(maxDepth, currentDepth);
-	}, currentDepth);
+  return maxDepth;
 }
 
-/* 
-  Process columns to encode rendered depth into their meta objects.
+/*
+  Find if a column has any leaf nodes as immediate children
 */
-export function processColumnsForRenderedDepth(
-    columns: ColumnDef<LogProps>[],
-    defaultToDepthZeroTypes: string[],
-    initialDepth: number
-): number {
-	let returningDepth = 0;
-    columns.forEach((column) => {
-
-        // Case 0: Avoid re-processing columns
-        if (column.meta?.renderedDepth !== -1) {
-			return;
-        }
-
-		// Case 1: Parent columns: Go deeper into the nest if possible
-		else if (column.meta?.isParent){
-            // Process child columns first
-			const childColumns = (column as any).columns || [];
-            const runningDepth = processColumnsForRenderedDepth(childColumns, defaultToDepthZeroTypes, initialDepth) - 1;
-
-			// Case 1a: Top-level columns (defaultToDepthZeroType)
-			if (column.meta.columnType && defaultToDepthZeroTypes.includes(column.meta.columnType)) {
-				column.meta.renderedDepth = 0;
-			}
-			// Case 1b: Not top-level parent columns, assign runningDepth
-			else {
-				column.meta.renderedDepth = runningDepth;
-				returningDepth = runningDepth;
-			}
-        }
-		// Case 2: Leaf columns
-        else if (!column.meta?.isParent) {
-			// Case 2a: Top-level columns with no children (defaultToDepthZeroType)
-			if (column.meta.columnType && defaultToDepthZeroTypes.includes(column.meta?.columnType)) {
-				column.meta.renderedDepth = 0;
-			}
-			// Case 2b: Absolute leaf columns
-			else {
-				column.meta.renderedDepth = initialDepth;
-				returningDepth = initialDepth;
-			}
-        }
-    });
-	return returningDepth;
+function hasImmediateLeafNodes(
+  column: ColumnDef<LogProps>
+): boolean {
+  return (column as any).columns?.some((child: ColumnDef<LogProps>) => 
+    !(child as any).columns?.length
+  ) ?? false;
 }
 
-
-/* 
-  Calculate and encode rendered depth for the column tree.
+/*
+  Main function to encode rendered depths for the column tree
 */
 export function encodeRenderedDepth(
-    columns: ColumnDef<LogProps>[],
-    defaultToDepthZeroTypes: string[],
+  columns: ColumnDef<LogProps>[],
+  defaultToDepthZeroTypes: string[]
 ): void {
-	const maxDepth = calculateMaxDepth(columns);
-	processColumnsForRenderedDepth(columns, defaultToDepthZeroTypes, maxDepth);
+  // First find the maximum depth in the entire tree
+  const absoluteMaxDepth = findMaxDepth(columns);
+
+  // Helper function to process each column
+  function processColumn(
+    column: ColumnDef<LogProps>
+  ): void {
+    // Handle defaultToDepthZeroTypes first
+    if (column.meta?.columnType && defaultToDepthZeroTypes.includes(column.meta.columnType)) {
+      column.meta.renderedDepth = 0;
+      
+      // Process children if any
+      if ((column as any).columns?.length > 0) {
+        (column as any).columns.forEach((childColumn: ColumnDef<LogProps>) => {
+          processColumn(childColumn);
+        });
+      }
+      return;
+    }
+    
+    // Calculate natural depth based on path segments
+    const pathDepth = (column.id as string).split('/').length - 1;
+    
+    // For leaf nodes (no children)
+    if (!(column as any).columns?.length) {
+      column.meta!.renderedDepth = absoluteMaxDepth;
+    } 
+    // For parent nodes
+    else {
+      // If this node has immediate leaf children, insert placeholders before them
+      if (hasImmediateLeafNodes(column)) {
+        column.meta!.renderedDepth = pathDepth;
+        
+        // Process children, ensuring leaves get max depth and others are processed normally
+        (column as any).columns.forEach((childColumn: ColumnDef<LogProps>) => {
+          if (!(childColumn as any).columns?.length) {
+            childColumn.meta!.renderedDepth = absoluteMaxDepth;
+          } else {
+            processColumn(childColumn);
+          }
+        });
+      }
+      // For other parent nodes, just use their natural path depth
+      else {
+        column.meta!.renderedDepth = pathDepth;
+        
+        // Process children normally
+        (column as any).columns.forEach((childColumn: ColumnDef<LogProps>) => {
+          processColumn(childColumn);
+        });
+      }
+    }
+  }
+
+  // Process all columns
+  columns.forEach(processColumn);
+}
+
+// Helper function to validate the results (useful for debugging)
+export function validateRuntimeColumns(
+  columns: any[],
+  indent = ''
+): void {
+  columns.forEach((column) => {
+    console.log(`${indent}Column ID: ${column.columnDef.id}`);
+    console.log(`${indent}Actual Depth: ${column.columnDef.depth}`);
+    console.log(`${indent}Rendered Depth: ${column.columnDef.meta?.renderedDepth}`);
+    console.log(`${indent}Is Parent: ${column.columnDef.meta?.isParent}`);
+    console.log(`${indent}Column Type: ${column.columnDef.meta?.columnType}`);
+    console.log(`${indent}Has Children: ${!!(column.columns && column.columns.length)}`);
+    console.log(`${indent}---`);
+    
+    if (column.columns && column.columns.length > 0) {
+      validateRuntimeColumns(column.columns, indent + '  ');
+    }
+  });
 }
