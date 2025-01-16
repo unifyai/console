@@ -308,6 +308,10 @@ const LogsTable = ({
     selectedCells
   ]);
 
+  useEffect(() => {
+    setTableDataItem(tableDataItem_);
+  }, [tableDataItem_]);
+
   const resetParamsStates = () => {
     updateItem(item, "selected")("");
     updateItem(item, "column_order")(undefined);
