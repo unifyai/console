@@ -1,11 +1,11 @@
 import { DropdownMenu, DropdownMenuContent,  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/UI/dropdown-menu"  
 import { Dispatch, ReactNode, SetStateAction } from "react";
 
-export default function BaseDropdown ({button, open, setOpen, label, children}: {
+export default function BaseDropdown ({button, open, setOpen, side = "bottom", children}: {
     button: ReactNode,
     open?: boolean,
     setOpen?: Dispatch<SetStateAction<boolean>>
-    label?: string,
+    side?: "top" | "bottom" | "left" | "right",
     children: ReactNode
 }) {
     return (    
@@ -13,7 +13,7 @@ export default function BaseDropdown ({button, open, setOpen, label, children}: 
         <DropdownMenuTrigger>
             {button}
         </DropdownMenuTrigger>
-        <DropdownMenuContent>
+        <DropdownMenuContent side={side}>
             {children}
         </DropdownMenuContent>
     </DropdownMenu>

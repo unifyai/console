@@ -12,23 +12,6 @@ const primary = getComputedStyle(document.documentElement).getPropertyValue('--p
 const foreground = getComputedStyle(document.documentElement).getPropertyValue('--foreground').trim()
 
 /* 
-    Filter log entries to keep non numeric items only
-*/
-export function filterNumericLogs(logs: LogProps[]): LogProps[] { 
-    return logs.map(log => {
-        const entries = log.entries;
-        const filteredEntries: LogItemProps = {};
-        for (const key in entries) {
-            const entry = entries[key];
-            if (typeof entry === "number") {
-                filteredEntries[key] = entries[key];
-            }
-        }
-        return {id: log.id, ts: log.ts, entries: filteredEntries, params: log.params};
-    });
-  }
-
-/* 
   Draw plot axes lines
 */
 export const drawAxes = (
@@ -99,7 +82,7 @@ export const drawAxes = (
         .attr("transform", `translate(${margins.left},0)`)
         .call(
             d3.axisLeft(y as d3.ScaleLinear<number, number, never> | d3.ScaleLinear<number, number, never>)
-            .tickValues(plotType === "Bar Chart" 
+            .tickValues(plotType === "Bar Chart" || plotType === "Histogram"
                 ? yTicks.length > 1 ? yTicks.slice(1) : yTicks 
                 : yTicks as number[]
             )
@@ -242,9 +225,9 @@ export const drawBarChart = (
 
     // Remove drawings from other plots:
     svg.selectAll("circle.data-point").remove();
-    svg.selectAll("path.line").remove();
-    svg.selectAll("rect").remove();
-    
+    svg.selectAll("path.line-item").remove();
+    svg.selectAll("rect.hist-item").remove();
+
     // Prepare data
     let data : DataLabel[] = [];
     const xAxis = selectedXAxisProperty === "Log Time" ? axisProperties.at(0)! : selectedXAxisProperty;
@@ -299,7 +282,7 @@ export const drawBarChart = (
 
     // Draw rectangles
     svg
-        .selectAll("rect.bar")
+        .selectAll("rect.bar-item")
         .data(data, (d) => `${(d as DataLabel)[0]}-${(d as DataLabel)[1]}`)
         .join("rect") 
         .on("mouseover", (event, data) => hoverOnBar(event, data))
@@ -311,7 +294,8 @@ export const drawBarChart = (
         .attr("height", (d) => y(minY) - y((d as DataLabel)[1]))
         .attr("width", x.bandwidth())
         .attr("bar-id", d => `bar-${d[0]}-${d[1]}`)
-        .attr("fill", primary);
+        .attr("fill", primary)
+        .attr("class", "bar-item");;
 
     // Add tooltip and hide key
     const tooltip = d3.select(".plotTooltip").style("opacity", 0)
@@ -380,9 +364,10 @@ export const drawLineChart = (
 ) => {
     
     // Remove drawings from previous plots
-    svg.selectAll("circle.data-point").remove();
-    svg.selectAll("path.line").remove();
-    svg.selectAll("rect").remove();
+    const g = svg.select(".plotData")
+    g.selectAll("circle.data-point").remove();
+    g.selectAll("rect.bar-item").remove();
+    g.selectAll("rect.hist-item").remove();
 
     // Prepare data:
     // 1- Auto set y axis property to the first property if changing plots from bar chart to line chart 
@@ -465,7 +450,7 @@ export const drawLineChart = (
         domain = Array.from(new Set(domain))
         const color = d3.scaleOrdinal().domain(domain).range(d3.schemeSet3);
         const colors = domain.map((key) => ({key: key, color: color(key) as string}));
-        svg.selectAll("path.line")
+        g.selectAll("path.line-item")
             .data(
                 data as GroupedDataPoint[], 
                 (d) => `${(d as GroupedDataPoint)[0]}-${(d as GroupedDataPoint)[1]}` // Setting a unique identifier)
@@ -477,13 +462,15 @@ export const drawLineChart = (
             .attr("fill", "none")
             .attr("stroke", d => color(d[0]) as string)
             .attr("stroke-width", 2)
-            .attr("d", d => lineGenerator(d[1]));
+            .attr("d", d => lineGenerator(d[1]))
+            .attr("class", "line-item");
+            
         key
             .html(keyTemplate(colors))
             .transition()
             .style("opacity", 1)
     } else {
-        svg.selectAll("path.line")
+        g.selectAll("path.line-item")
             .data(
                 [data as DataPoint[]],
                 (d) => `${(d as DataPoint)[0]}-${(d as DataPoint)[1]}` // Setting a unique identifier)
@@ -493,12 +480,13 @@ export const drawLineChart = (
             .attr("fill", "none")
             .attr("stroke", primary)
             .attr("stroke-width", 2)
-            .attr("d", lineGenerator);
+            .attr("d", lineGenerator)
+            .attr("class", "line-item")
     }
 
     // When hovering on a line, lower opacity of other line groups and their corresponding key
     function hoverOnLine (groupValue: string) {
-        svg.selectAll("path.line")
+        g.selectAll("path.line-item")
             .transition()
             .duration(500)
             .style("opacity", d => (d as GroupedDataPoint)[0] === groupValue ? 1 : 0.5);
@@ -515,7 +503,7 @@ export const drawLineChart = (
 
     // When leaving a line, restore opacity of all line groups and their corresponding key
     function leaveLine () {
-        svg.selectAll("path.line").transition().duration(500).style("opacity", 1)
+        g.selectAll("path.line-item").transition().duration(500).style("opacity", 1)
         key.selectAll(".key").transition().duration(500).style("opacity", 1)
     }
 };
@@ -537,8 +525,10 @@ export const drawScatterPlot = (
 ) => {
   
     // Remove drawings from previous plots
-    svg.selectAll("path.line").remove();
-    svg.selectAll("rect").remove();
+    const g = svg.select(".plotData")
+    g.selectAll("path.line-item").remove();
+    g.selectAll("rect.bar-item").remove();
+    g.selectAll("rect.hist-item").remove();
 
     // Prepare data
     let data : LogProps[] = [];
@@ -570,10 +560,10 @@ export const drawScatterPlot = (
 
     // Draw axes
     const {xTicks, yTicks} = calculateTicks(data.length, scale, minY, maxY, minX, maxX);
-    const {xAxis, yAxis} = drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, false);
+    drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, false);
 
     // Add data points
-    const points = svg
+    const points = g
         .selectAll("circle.data-point")
         .data(data)
         .join("circle")
@@ -645,7 +635,7 @@ export const drawScatterPlot = (
             .style("opacity", 1)
 
         if (groupBy) {
-            svg.selectAll("circle.data-point")
+            g.selectAll("circle.data-point")
                 .transition()
                 .duration(500)
                 .attr("r", d => (d as LogProps).entries[groupBy] === data.entries[groupBy] ? 4 : 2)
@@ -677,12 +667,12 @@ export const drawScatterPlot = (
     function leavePoint (event: any, data: LogProps) {
         tooltip.transition().style("opacity", 0)
         if (groupBy) {
-            svg.selectAll("circle.data-point")
+            g.selectAll("circle.data-point")
                 .transition()
                 .duration(500)
                 .attr("r", 3)
                 .style("opacity", 1)
-            key.selectAll(".key")
+            g.selectAll(".key")
                .transition()
                .duration(500)
                .style("opacity", 1)
@@ -691,6 +681,80 @@ export const drawScatterPlot = (
 
 };
 
+
+/* 
+  Draw scatter plot
+*/
+export const drawHistogram = (
+    svg: d3.Selection<null, unknown, null, undefined>,
+    scale: string,
+    dimensions: {width: number, height: number},
+    margins: {[key: string]: number},
+    axisPadding: number,
+    selectedXAxisProperty: string | undefined,
+    binSize: number,
+    setBinSizes: (binSizes: number[]) => void,
+    logs: LogProps[],
+    axisProperties: string[]
+) => {
+
+    // Remove drawings from previous plots
+    const g = svg.select(".plotData")
+    g.selectAll("circle.data-point").remove();
+    g.selectAll("path.line-item").remove();
+    g.selectAll("rect.bar-item").remove();
+
+    // Prepare data
+    let data : number[] = [];
+    const xAxisProperty = selectedXAxisProperty === "Log Time" ? axisProperties.at(0) : selectedXAxisProperty;
+    if (xAxisProperty) {
+        const filteredData = logs.filter((log) => log.entries[xAxisProperty as keyof LogItemProps]);
+        data = filteredData.map((log) => {
+            let entries = log.entries;
+            return parseFloat(entries[xAxisProperty]);
+        })
+    }
+    
+    // Define scales
+    const [width, height] = [dimensions.width, dimensions.height];
+    const [xRange, yRange] = [
+        [margins.left, width - margins.right],
+        [height - margins.bottom, margins.top + 2 * axisPadding]
+    ];
+    const [minX = 0, maxX = 0] = d3.extent(data);
+    const [xScale, yScale] = [
+        scale === "log" ? d3.scaleLog : d3.scaleLinear,
+        scale === "log" ? d3.scaleLog : d3.scaleLinear
+    ]
+    const x = xScale().domain([minX, maxX]).range(xRange)
+    
+    // Set bins
+    const bins = d3.bin().thresholds(binSize)
+    const buckets = bins(data)
+    setBinSizes([1, data.length])
+
+    const [minY, maxY] = [0, d3.max(buckets, d => d.length) ?? 0]
+    const y = yScale().domain([minY, maxY]).range(yRange)
+
+    // Draw axes
+    const {xTicks, yTicks} = calculateTicks(data.length, scale, minY, maxY, minX, maxX);
+    drawAxes("Histogram", svg, dimensions, margins, x, y, xTicks, yTicks, false);
+    
+    // Add histogram
+    g
+        .selectAll("rect.hist-item")
+        .data(buckets)
+        .join("rect")
+        .transition()
+        .duration(500)
+        .attr("x", d => x(d.x0 as number))
+        .attr("y", d => y(d.length))
+        .attr("height", d => y(minY) - y(d.length))
+        .attr("width", d => Math.max(0, x(d.x1 as number) - x(d.x0 as number) - 1))
+        .attr("fill", primary)
+        .attr("class", "hist-item");
+};
+  
 /* 
     ToDo:
         Scatter:
@@ -702,4 +766,6 @@ export const drawScatterPlot = (
         Bar: 
             - Better enter / exit / updating of bars
             - Add vertical scolling
+        Historgram:
+            - Better enter / exit / updating of bars
 */

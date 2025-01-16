@@ -15,7 +15,6 @@ const PlotType = ({plotType, setPlotType, numericAxisProperties, selectedYAxisPr
 }) => {
     const onClick = (type: string) => {
         setPlotType(type)
-        const selectedYAxisProperty = type === "Bar Chart" ? "count" : numericAxisProperties[0];
         const yAxis = type === "Bar Chart" 
             ? "count" 
             : selectedYAxisProperty && numericAxisProperties.includes(selectedYAxisProperty)
@@ -34,7 +33,7 @@ const PlotType = ({plotType, setPlotType, numericAxisProperties, selectedYAxisPr
             }
         >
         {
-            ["Scatter Plot", "Line Chart", "Bar Chart"].map((property, index) => {
+            ["Scatter Plot", "Line Chart", "Bar Chart", "Histogram"].map((property, index) => {
                 return (
                     <DropdownMenuItem key={index} onClick={() => onClick(property)}>
                         {property}

@@ -7,10 +7,11 @@ import PlotType from "./Buttons/PlotType";
 import PlotScale from "./Buttons/PlotScale";
 import PlotGroupBy from "./Buttons/PlotGroupBy";
 import PlotReset from "./Buttons/PlotReset";
+import PlotBins from "./Buttons/PlotBins";
 
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { LogFieldsResponseProps, LogProps } from "@/types/evals/logs";
-import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, filterNumericLogs } from "@/utils/evals/plot";
+import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram } from "@/utils/evals/plot";
 
 import PlotAxis from "./Buttons/PlotAxis";
 import PlotAggregate from "./Buttons/PlotAggregate";
@@ -49,6 +50,8 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
     let scale = item.plot_scale;
     let [logScaleEnabled, setLogScaleEnabled] = useState(true);
     let isAggregated = item.is_aggregated;
+    let binSize = item.bin_size ? parseFloat(item.bin_size) : 1;
+    let [binSizes, setBinSizes] = useState([1])
     plotType = plotType ? plotType : "Scatter Plot";
     scale = scale ? scale : "linear";
 
@@ -112,6 +115,19 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
                     logs,
                     axisProperties
                 );
+            } else if (plotType === "Histogram") {
+                drawHistogram(
+                    svg, 
+                    scale, 
+                    dimensions, 
+                    margins, 
+                    axisPadding, 
+                    selectedXAxisProperty, 
+                    binSize,
+                    setBinSizes,
+                    logs, 
+                    numericAxisProperties                    
+                )
             } else {
                 drawScatterPlot(
                     svg,
@@ -149,7 +165,8 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
         selectedYAxisProperty,
         plotType,
         groupByProperty,
-        isAggregated
+        isAggregated,
+        binSize
     ]);
 
     return (
@@ -165,15 +182,17 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
                     plotType={plotType}
                 />
             </div>
-            <div className="absolute top-0.5 left-1 z-10">
-                <PlotAxis
-                    properties={numericAxisProperties}
-                    setAxisProperty={updateItem(item, "y_axis")}
-                    axis="Y"
-                    axisProperty={selectedYAxisProperty}
-                    plotType={plotType}
-                />
-            </div>
+            {plotType != "Histogram" && 
+                <div className="absolute top-0.5 left-1 z-10">
+                    <PlotAxis
+                        properties={numericAxisProperties}
+                        setAxisProperty={updateItem(item, "y_axis")}
+                        axis="Y"
+                        axisProperty={selectedYAxisProperty}
+                        plotType={plotType}
+                    />
+                </div>            
+            }
             <div className="absolute top-0.5 right-1 z-10">
                 <PlotType
                     plotType={plotType}
@@ -194,29 +213,38 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
                             setGroupByProperty={updateItem(item, "plot_group_by")}
                         />
                     </div>
-                    <div className="absolute top-24 right-3 z-10 PlotScale">
-                        <PlotScale 
-                            scale={scale} 
-                            setScale={updateItem(item, "plot_scale")}
-                            logScaleEnabled={logScaleEnabled}
-                        />
-                    </div>
-                    {plotType != "Bar Chart"
-                        ? <div className="absolute top-36 right-3 z-10 PlotGroupBy">
-                            <PlotGroupBy
-                                properties={axisProperties}
-                                groupBy={groupByProperty}
-                                setGroupBy={updateItem(item, "plot_group_by")}
-                            />
-                        </div>
-                        : <div className="absolute top-36 right-3 z-10 PlotAggregated">
-                            <PlotAggregate
-                                isAggregated={isAggregated}
-                                setIsAggregated={updateItem(item, "is_aggregated")}
+                    {plotType === "Bar Chart"
+                        ?   <div className="absolute top-24 right-3 z-10 PlotAggregated">
+                                <PlotAggregate
+                                    isAggregated={isAggregated}
+                                    setIsAggregated={updateItem(item, "is_aggregated")}
+                                />
+                            </div>
+                        : plotType === "Histogram"
+                            ? <div className="absolute top-24 right-3 z-10 PlotAggregated">
+                                <PlotBins
+                                    binSize={binSize}
+                                    binSizes={binSizes}
+                                    setBinSize={updateItem(item, "bin_size")}
+                                />
+                            </div>
+                            : <div className="absolute top-24 right-3 z-10 PlotGroupBy">
+                                <PlotGroupBy
+                                    properties={axisProperties}
+                                    groupBy={groupByProperty}
+                                    setGroupBy={updateItem(item, "plot_group_by")}
+                                />
+                            </div>
+                    }
+                    {plotType != "Histogram" &&
+                        <div className="absolute top-36 right-3 z-10 PlotScale">
+                            <PlotScale 
+                                scale={scale} 
+                                setScale={updateItem(item, "plot_scale")}
+                                logScaleEnabled={logScaleEnabled}
                             />
                         </div>
                     }
-
                 </>
             }
 
@@ -224,9 +252,10 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
             <svg ref={svgRef} className="flex w-full h-full absolute z-0">
                 <defs>
                     <clipPath id="clip">
-                        <rect id={"clip-rect"} x={margins.left} y={margins.top} />
+                        <rect id={"clip-rect"} x={margins.left} y={margins.top} width={dimensions.width - margins.left - margins.right} height={dimensions.height - margins.top - margins.bottom}/>
                     </clipPath>
                 </defs>
+                <g className="plotData" clipPath="url(#clip)"/>
                 <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="placeholderText" ref={placeholderTextRef} />
                 <line className="bottomLine" />
                 <line className="leftLine" />

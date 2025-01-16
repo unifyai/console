@@ -30,6 +30,7 @@ export interface TileProps {
     x_axis?: string;
     y_axis?: string;
     plot_group_by?: string;
+    bin_size?: string;
 }
 
 export interface TableDataItem {
@@ -59,6 +60,7 @@ export interface PlotDataProps {
 }
 
 export type ItemType = 
+    | "bin_size"
     | "plot_type"
     | "plot_scale"
     | "is_aggregated"

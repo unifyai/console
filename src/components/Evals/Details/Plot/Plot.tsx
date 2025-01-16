@@ -7,13 +7,14 @@ import PlotType from "./Buttons/PlotType";
 import PlotScale from "./Buttons/PlotScale";
 import PlotGroupBy from "./Buttons/PlotGroupBy";
 import PlotReset from "./Buttons/PlotReset";
+import PlotBins from "./Buttons/PlotBins";
 
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { LogFieldsResponseProps, LogProps } from "@/types/evals/logs";
-import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot } from "@/utils/evals/plot";
+import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram } from "@/utils/evals/plot";
 
 import PlotAxis from "./Buttons/PlotAxis";
-import { useQueryState } from "nuqs";
+import { useQueryState, parseAsFloat } from "nuqs";
 import PlotAggregate from "./Buttons/PlotAggregate";
 
 const LogsPlot = ({ logs, fields}: {
@@ -47,6 +48,8 @@ const LogsPlot = ({ logs, fields}: {
     let [scale, setScale] = useQueryState("plot_scale");
     let [logScaleEnabled, setLogScaleEnabled] = useState(true);
     let [isAggregated, setIsAggregated] = useQueryState("aggregated_data")
+    let [binSize, setBinSize] = useQueryState("bin_size", parseAsFloat.withDefault(1))
+    let [binSizes, setBinSizes] = useState([1])
     plotType = plotType ? plotType : "Scatter Plot";
     scale = scale ? scale : "linear";
 
@@ -109,6 +112,19 @@ const LogsPlot = ({ logs, fields}: {
                     logs, 
                     axisProperties
                 );
+            } else if (plotType === "Histogram") {
+                drawHistogram(
+                    svg, 
+                    scale, 
+                    dimensions, 
+                    margins, 
+                    axisPadding, 
+                    selectedXAxisProperty, 
+                    binSize,
+                    setBinSizes,
+                    logs, 
+                    numericAxisProperties                    
+                )
             } else {
                 drawScatterPlot(
                     svg, 
@@ -146,7 +162,8 @@ const LogsPlot = ({ logs, fields}: {
         selectedYAxisProperty,
         plotType,
         groupByProperty,
-        isAggregated
+        isAggregated,
+        binSize
     ]);
 
     return (
@@ -162,9 +179,11 @@ const LogsPlot = ({ logs, fields}: {
                 plotType={plotType}
             />
         </div>
-        <div className="absolute top-0.5 left-1 z-10">
-            <PlotAxis properties={numericAxisProperties} setAxisProperty={setSelectedYAxisProperty} axis="Y" axisProperty={selectedYAxisProperty} plotType={plotType}/>
-        </div>
+        {plotType != "Histogram" &&
+            <div className="absolute top-0.5 left-1 z-10">
+                <PlotAxis properties={numericAxisProperties} setAxisProperty={setSelectedYAxisProperty} axis="Y" axisProperty={selectedYAxisProperty} plotType={plotType}/>
+            </div>
+        }
         <div className="absolute top-0.5 right-1 z-10">
             <PlotType plotType={plotType} setPlotType={setPlotType} numericAxisProperties={numericAxisProperties} selectedYAxisProperty={selectedYAxisProperty} setSelectedYAxisProperty={setSelectedYAxisProperty}/>
         </div>
@@ -175,18 +194,23 @@ const LogsPlot = ({ logs, fields}: {
             <div className="absolute top-12 right-3 z-10 PlotReset">
                 <PlotReset setSelectedXAxisProperty={setSelectedXAxisProperty} setSelectedYAxisProperty={setSelectedYAxisProperty} setGroupByProperty={setGroupByProperty}/>
             </div>
-            <div className="absolute top-24 right-3 z-10 PlotScale">
-                <PlotScale scale={scale} setScale={setScale} logScaleEnabled={logScaleEnabled}/>
-            </div>
-            {plotType != "Bar Chart" 
-                ?   <div className="absolute top-36 right-3 z-10 PlotGroupBy">
-                        <PlotGroupBy properties={axisProperties} groupBy={groupByProperty} setGroupBy={setGroupByProperty}/>
-                    </div>
-                :   <div className="absolute top-36 right-3 z-10 PlotAggregated">
+            {plotType === "Bar Chart" 
+                ?   <div className="absolute top-24 right-3 z-10 PlotAggregated">
                         <PlotAggregate isAggregated={isAggregated} setIsAggregated={setIsAggregated}/>
                     </div>
+                :   plotType === "Histogram"
+                    ?   <div className="absolute top-24 right-3 z-10 PlotBins">
+                            <PlotBins binSize={binSize} binSizes={binSizes} setBinSize={setBinSize}/>
+                        </div>
+                    :   <div className="absolute top-24 right-3 z-10 PlotGroupBy">
+                            <PlotGroupBy properties={axisProperties} groupBy={groupByProperty} setGroupBy={setGroupByProperty}/>
+                        </div>
             }
-
+            {plotType != "Histogram" &&
+                <div className="absolute top-36 right-3 z-10 PlotScale">
+                    <PlotScale scale={scale} setScale={setScale} logScaleEnabled={logScaleEnabled}/>
+                </div>
+            }
         </>
         }
 
@@ -194,9 +218,10 @@ const LogsPlot = ({ logs, fields}: {
         <svg ref={svgRef} className="flex w-full h-full absolute z-0">
             <defs>
                 <clipPath id="clip">
-                    <rect id={"clip-rect"} x={margins.left} y={margins.top}/>
+                    <rect id={"clip-rect"} x={margins.left} y={margins.top} width={dimensions.width - margins.left - margins.right} height={dimensions.height - margins.top - margins.bottom}/>
                 </clipPath>
             </defs>
+            <g className="plotData" clipPath="url(#clip)"/>
             <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="placeholderText" ref={placeholderTextRef}/>
             <line className="bottomLine"/>
             <line className="leftLine"/>
