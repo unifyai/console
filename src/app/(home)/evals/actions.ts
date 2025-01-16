@@ -73,8 +73,8 @@ export const getLogs = async (apiKey: string) => {
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/logs?project=${project}`
             + (context ? `&context=${context}` : "")
-            + (filterExpression ? `&filter_expr=${filterExpression.replace("=", "%3D").replace(">", "%3E").replace("<", "%3C")}` : "")
-            + (sortingExpression ? `&sorting=${sortingExpression.replace("{", "%7B").replace(":", "%3A%20").replace("}", "%7D")}` : "")
+            + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
+            + (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : "")
             + (from_fields ? `&from_fields=${from_fields}` : "")
             + (limit ? `&limit=${limit}` : "")
             + (offset ? `&offset=${offset}` : ""),
@@ -135,7 +135,7 @@ export const getLatestTimestamp = async (apiKey: string) => {
             `${process.env.NEXTAUTH_URL}/api/logs/latest_timestamp?project=${project}`
             + (context ? `&context=${context}` : "")
             + (filterExpression ? `&filter_expr=${filterExpression}` : "")
-            + (sortingExpression ? `&sorting=${sortingExpression.replace("{", "%7B").replace(":", "%3A%20").replace("}", "%7D")}` : "")
+            + (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : "")
             + (from_fields ? `&from_fields=${from_fields}` : "")
             + (limit ? `&limit=${limit}` : "")
             + (offset ? `&offset=${offset}` : ""),

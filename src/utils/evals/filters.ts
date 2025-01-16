@@ -1,4 +1,4 @@
-import { FiltersByColumn } from "@/types/evals/columns";
+import { Filters, FiltersByColumn } from "@/types/evals/columns";
 import { processContext } from "./columnOperations";
 
 /* 
@@ -99,4 +99,48 @@ export function searchParamToFilters (searchExpression: string | undefined, cont
 			return acc;
 		}, {})
 	return filters
+}
+
+/* 
+	Extract array of filter inputs from column filters
+*/
+export function initFilters (
+	column: string,
+	columnFilters: FiltersByColumn,
+	initialValues: {key: number, mode: string, join: "&&" | "||", value: string}[],
+	modes: string[]
+) {
+	modes.forEach(mode => {
+		const filters = columnFilters[column][mode]
+		if (filters) {
+			const array = ["&&"].concat(separateFunctionFilters(filters))
+			for (let i = 0; i < array.length; i += 2) {
+				const key = i
+				const join = array[i] as "&&" || "||"
+				const value = array[i + 1].startsWith('"') && array[i + 1].endsWith('"') ? array[i + 1].slice(1, -1) : array[i + 1]
+				initialValues.push({key, mode, join, value});
+			}
+		}
+	})
+}
+
+/* 
+	Combine filter inputs using the same filter mode
+*/
+export function combineFilters (
+	newFilters: {key: number, mode: string, join: "&&" | "||", value: string}[],
+	modes: string[]
+) {
+	const filter : Filters = {}
+	modes.forEach(mode => {
+		const filters = newFilters.filter(f => f.mode === mode)
+		if (filters.length) {
+			let value = filters[0].value
+			for (let i = 1; i < filters.length; i++) {
+				value += " " + filters[i].join + " " + filters[i].value;
+			}
+			filter[mode] = value
+		}
+	})
+	return filter;
 }

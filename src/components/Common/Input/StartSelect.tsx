@@ -2,7 +2,7 @@ import { Input } from "@/components/UI/input";
 import { ChevronDown } from "lucide-react";
 import { FormEvent, ChangeEvent, ReactNode, KeyboardEventHandler } from "react";
 
-export interface Option {name: string, label: string | ReactNode}
+export interface Option {name: string, description?: string, label: string | ReactNode}
 
 const InputWithStartSelect = ({ options, inputValue, option, onOptionChange, onKeyDown, onChange, onInput, placeholder, inputMode }:{
     options: Option[],
@@ -27,7 +27,7 @@ const InputWithStartSelect = ({ options, inputValue, option, onOptionChange, onK
               )
             }
           >
-            {options.map((option, index) => <option key={index} value={option.name}>{option.label}</option>)}
+            {options.map((option, index) => <option key={index} value={option.name} className="text-center">{option.label}</option>)}
           </select>
           <span className="pointer-events-none absolute inset-y-0 end-0 z-10 flex h-full w-9 items-center justify-center text-muted-foreground/80 peer-disabled:opacity-50">
             <ChevronDown size={16} strokeWidth={2} aria-hidden="true" role="img" />

@@ -1,18 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { FiltersByColumn } from "@/types/evals/columns";
+import { Filters, FiltersByColumn } from "@/types/evals/columns";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import CancelButton from "@/components/Common/Buttons/Cancel";
+import BaseButton from "@/components/Common/Buttons/Base";
 import { Filter } from "lucide-react";
-import { useSliderWithInput } from "@/hooks/useSliderWithInput";
-import { Slider } from "@/components/UI/slider";
 import { KeyboardEventHandler } from "react";
 import InputWithStartSelect from "@/components/Common/Input/StartSelect";
-import { Option } from "@/components/Common/Input/StartSelect";
-import { DualRangeSlider } from "@/components/Common/Sliders/DualRange";
+import { Slider } from "@/components/UI/slider";
+import { initFilters, combineFilters } from "@/utils/evals/filters";
+import { Trash, Plus, CircleX } from "lucide-react";
+import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
+
+interface NumericFilter {
+    key: number,
+    mode: "==" | "!=" | ">=" | "=<" | ">" | "<",
+    join: "&&" | "||",
+    value: string
+}
 
 const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boundaries }: {
     column: string,
@@ -20,147 +27,172 @@ const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boun
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
     boundaries: {minimums: {[key: string]: number;}, maximums: {[key: string]: number}}
 }) => {
-    
-    /* Track states */
-    const [minValue, maxValue] = [boundaries.minimums[column], boundaries.maximums[column]]
-    const initialValue = [
-        columnFilters[column] && columnFilters[column][">"] ? parseFloat(columnFilters[column][">"]) : minValue ? minValue : 0,
-        columnFilters[column] && columnFilters[column]["<"] ? parseFloat(columnFilters[column]["<"]) : maxValue ? maxValue : 0
+
+    /* Initialize filters */
+    const options = [
+        {name: "==", label: "="  , description: "Filter for values equal to.."},
+        {name: "!=", label: "!=" , description: "Filter for values not equal to.."},
+        {name: ">",  label: ">"  , description: "Filter for values greater than.."},
+        {name: ">=", label: ">=" , description: "Filter for values greater or equal to.."},
+        {name: "<",  label: "<"  , description: "Filter for values less than.."},
+        {name: "<=", label: "<=" , description: "Filter for values less or equal to.."}
     ]
-    const defaultValue = initialValue;
-    const { sliderValue, inputValues, validateAndUpdateValue, handleInputChange, handleSliderChange, resetToDefault } = useSliderWithInput({ minValue, maxValue, initialValue, defaultValue });
-    const changed = 
-        parseFloat(inputValues[0]) != initialValue[0] || 
-        parseFloat(inputValues[1]) != initialValue[1]
+    const modes = options.map(option => option.name)
+    const [minValue, maxValue] = [boundaries.minimums[column], boundaries.maximums[column]]
+    let defaultFilter : NumericFilter = {key: 0, mode: "==", join: "&&", value: ""}
+    let initialValues : NumericFilter[] = [defaultFilter]
+    if (columnFilters[column]) initFilters(column, columnFilters, initialValues, modes)
+    const [filters, setFilters] = useState(initialValues);
     
-    /* Handle submit */
+    /* Event handlers */
+    const onInput = (value: any, filter: NumericFilter) => {
+        const newFilters = [...filters]
+        newFilters.find(f => f.key === filter.key)!.value = value
+        setFilters(newFilters)
+    }
     const onSubmit = () => {
-        let newColumnFilters = { ...columnFilters };
-    
-        if (inputValues[0] || inputValues[1]) {
-            
-            newColumnFilters[column] = { ...(newColumnFilters[column] || {}) };
-    
-            // Set the filter value to == or !=, or
-            // Remove any == or != filter and append the > or >= filter
-            if (inputValues[0]) {
-                const minFunctionName = minOption.name;
-                if (isSingleValueFilter(minOption)) {
-                    newColumnFilters[column] = {[minFunctionName]: inputValues[0]};
-                    setColumnFilterQuery(newColumnFilters);
-                    return;
-                } else {
-                    delete newColumnFilters[column]["=="]
-                    delete newColumnFilters[column]["!="]
-                    newColumnFilters[column][minFunctionName] = inputValues[0];
-                }
-            }
-
-            // Set the filter value to == or !=, or
-            // Remove any == or != filter and append the < or =< filter
-            if (inputValues[1]) {
-                const maxFunctionName = maxOption.name;
-                if (isSingleValueFilter(maxOption)) {
-                    newColumnFilters[column] = {[maxFunctionName]: inputValues[1]};
-                    setColumnFilterQuery(newColumnFilters);
-                    return;
-                } else {
-                    delete newColumnFilters[column]["=="]
-                    delete newColumnFilters[column]["!="]
-                    newColumnFilters[column][maxFunctionName] = inputValues[1];
-                }
-            }
-
-        } else {  // No filters applied
-            newColumnFilters = Object.fromEntries(
+        let newColumnFilters = { ...columnFilters }
+        if (filters.length){
+            const newFilters = filters.map(f => ({
+                key: f.key, 
+                mode: f.mode, 
+                join: f.join, 
+                value: f.value
+            }))
+            const filter : Filters = combineFilters(newFilters, modes)
+            newColumnFilters = {...columnFilters, [column]: filter}
+        } else{
+            Object.fromEntries(
                 Object.entries(columnFilters).filter(([key, _]) => key != column)
-            );
-            resetToDefault();    
+            )
+            setFilters([defaultFilter])
         }
-
         setColumnFilterQuery(newColumnFilters);
-
-    };
+        setOpen(false);
+    }
     const onReset = () => {
         const newColumnFilters = Object.fromEntries(
             Object.entries(columnFilters).filter(([key, _]) => key != column)
         );
-        resetToDefault();
-        setMinOption(minOptions[0])
-        setMaxOption(maxOptions[0])
+        setFilters([defaultFilter])
         setColumnFilterQuery(newColumnFilters)
+        setOpen(false)
     }
     const onEnter : KeyboardEventHandler = (event) => {
         if (event.key === "Enter") {
             onSubmit()
+            setOpen(false)
         }
     }
 
-    /* Inputs */
-    const minOptions = [ {name: ">", label: "greater than"}, {name: ">=", label: "greater or equal to"}, {name: "==", label: "equal to"}, {name: "!=", label: "not equal to"} ]
-    const maxOptions = [ {name: "<", label: "lower than"}, {name: "=<", label: "lower or equal to"}, {name: "==", label: "equal to"}, {name: "!=", label: "not equal to"} ]
-    const initialOptions = [
-        (columnFilters[column] && columnFilters[column][">"]) ? minOptions[0] : (columnFilters[column] && columnFilters[column][">="]) ? minOptions[1] : (columnFilters[column] && columnFilters[column]["=="]) ? minOptions[2] : (columnFilters[column] && columnFilters[column]["!="]) ? minOptions[3] : minOptions[0],
-        (columnFilters[column] && columnFilters[column]["<"]) ? maxOptions[0] : (columnFilters[column] && columnFilters[column]["=<"]) ? maxOptions[1] : (columnFilters[column] && columnFilters[column]["=="]) ? maxOptions[2] : (columnFilters[column] && columnFilters[column]["!="]) ? maxOptions[3] : maxOptions[0]
-    ] 
-    const [minOption, setMinOption] = useState<Option>(initialOptions[0])
-    const [maxOption, setMaxOption] = useState<Option>(initialOptions[1])
-    const isSingleValueFilter = (option: Option) => ["==", "!="].includes(option.name)
-    const sliderStep = (maxValue - minValue) / 100
-    const filterInput = 
-    <div className="items-center">
-        {!isSingleValueFilter(minOption) && !isSingleValueFilter(maxOption) && 
-            <DualRangeSlider
-                className="grow"
-                value={sliderValue}
-                onValueChange={handleSliderChange}
-                min={minValue}
-                max={maxValue}
-                step={sliderStep}
-            />
-        }
-        <div className="flex flex-row gap-5 justify-between pt-4">
-            {!isSingleValueFilter(maxOption) &&
-                <InputWithStartSelect
-                    options={minOptions}
-                    option={minOption}
-                    placeholder={`Filter for entries ${minOption.label}..`}
-                    inputValue={inputValues[0]}
-                    onChange={(e) => handleInputChange(e, 0)}
-                    onInput={() => validateAndUpdateValue(inputValues[0], 0)}
-                    onKeyDown={onEnter}
-                    onOptionChange={setMinOption}
-                    inputMode="decimal"
-                />
-            }
-            {!isSingleValueFilter(minOption) && 
-                <InputWithStartSelect
-                    options={maxOptions}
-                    option={maxOption}
-                    placeholder={`Filter for entries ${maxOption.label}..`}
-                    inputValue={inputValues[1]}
-                    onChange={(e) => handleInputChange(e, 1)}
-                    onInput={() => validateAndUpdateValue(inputValues[1], 1)}
-                    onKeyDown={onEnter}
-                    onOptionChange={setMaxOption}
-                    inputMode="decimal"
-                />
-            }
-        </div>
-    </div>
+    /* Dialog interactions */
+    const [open, setOpen] = useState(false);
+    const close = <BaseButton size="sm" icon={<CircleX/>} onClick={() => setOpen(false)} className="top-0 right-0 scale-60 absolute" variant="warning"/>
     const button = <ActionButton icon={<Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} />
-    const reset = <CancelButton text="Reset" onClick={() => onReset()}/>
-    const submit = <SubmitButton text="Apply" onClick={() => onSubmit()}/>
+    const reset = <ActionButton tooltip="Delete all filters" variant="warning" icon={<Trash/>} onClick={() => onReset()}/> 
+    const submit = <SubmitButton text="Save" onClick={() => onSubmit()}/>
+    const append = 
+        <BaseDropdown button={<ActionButton tooltip="Add new filter" icon={<Plus/>}/>}>
+            {["And", "Or"].map((method, index) => 
+                <DropdownMenuItem 
+                    key={index}
+                    className="p-2 hover:text-white hover:bg-primary cursor-pointer" 
+                    onClick={() => {
+                        const newFilters = [...filters]
+                        newFilters.push({key: filters.length, mode: "==", join: method === "And" ? "&&" : "||", value: ""})
+                        setFilters(newFilters)
+                    }}            
+                >
+                    {method.toLowerCase()}
+                </DropdownMenuItem>
+            )}
+        </BaseDropdown>
+
+    /* Filter row */
+    const join = (filter: NumericFilter) => 
+        <BaseDropdown button={<ActionButton tooltip="Update joining method" text={filter.join === "&&" ? "and" : "or"}/>}>
+            {["And", "Or"].map((method, index) => 
+                <DropdownMenuItem 
+                    key={index}
+                    className="p-2 hover:text-white hover:bg-primary cursor-pointer" 
+                    onClick={() => {
+                        const newFilters = [...filters]
+                        const join = method === "And" ? "&&" : "||"
+                        newFilters.find(f => f.key === filter.key)!.join = join 
+                        setFilters(newFilters)
+                    }}            
+                >
+                    {method.toLowerCase()}
+                </DropdownMenuItem>
+            )}
+        </BaseDropdown>
+    const filterInput = (filter: NumericFilter, withSlider: boolean) => {
+        const option = options.find(option => option.name === filter.mode)!;
+        return (
+            <div className="flex flex-row gap-2">
+                <InputWithStartSelect
+                    options={options}
+                    option={option}
+                    placeholder={option.description}
+                    inputValue={filter.value}
+                    onInput={(input) => onInput(input.currentTarget.value, filter)}
+                    onKeyDown={onEnter}
+                    onOptionChange={(option) => {
+                        const newFilters = [...filters]
+                        newFilters.find(f => f.key === filter.key)!.mode = option.name as "==" | "!="
+                    }}
+                />
+                {withSlider && 
+                    <div className="flex flex-col grow w-full px-2">
+                        <span
+                            className="mb-2 flex w-full items-center justify-between gap-2 text-xs font-medium text-muted-foreground"
+                            aria-hidden="true"
+                        >
+                            <span>{minValue}</span>
+                            <span>{maxValue}</span>
+                        </span>
+                        <Slider
+                            className="w-full"
+                            value={[parseFloat(filter.value)]}
+                            onValueChange={(value) => onInput(value[0].toString(), filter)}
+                            min={minValue}
+                            max={maxValue}
+                            aria-label="Slider with input"
+                        />
+                    </div>
+                }
+            </div>
+        )}
+    const remove = (filter: NumericFilter) =>
+        <ActionButton
+            tooltip="Remove filter"
+            icon={<Trash/>}
+            onClick={() => {
+                let newFilters = filters.filter(f => f.key != filter.key)
+                newFilters = newFilters.map((f, i) => ({key: i, mode: f.mode, join: i === 0 ? "&&" : f.join, value: f.value}))
+                newFilters = newFilters.length ? newFilters : [defaultFilter]
+                setFilters(newFilters)
+            }}
+        />
+
     return (
-        <BaseDropdown button={button}>
-            <div className="flex flex-col gap-2 p-2">
-                {filterInput}
-                {([maxOption, minOption].some(option => isSingleValueFilter(option)) || changed) &&
+        <BaseDropdown button={button} open={open} setOpen={setOpen}>
+            <div className="flex flex-col gap-3 px-2 pt-4 pb-2">
+                {filters.map((filter, index) => 
+                    <div key={index} className="grid grid-cols-8 items-center">
+                        {filters.length > 0 && filter.key != 0 && <div className="col-span-1">{join(filter)}</div>}
+                        <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-6" : "col-span-7"}`}>{filterInput(filter, !["==", "!="].includes(filter.mode))}</div>
+                        <div className="col-span-1 text-center">{remove(filter)}</div>
+                    </div>
+                )}
+                <div className="flex flex-row gap-2 justify-between">
+                    {append}
                     <div className="flex flex-row gap-2 justify-end">
                         {reset}
                         {submit}
                     </div>
-                }
+                </div>
+                {close}
             </div>
         </BaseDropdown>
     );

@@ -4,12 +4,12 @@ import { KeyboardEventHandler, useState } from "react";
 import { Filters, FiltersByColumn } from "@/types/evals/columns";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
+import BaseButton from "@/components/Common/Buttons/Base";
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import CancelButton from "@/components/Common/Buttons/Cancel";
-import { Filter, Plus, Trash } from "lucide-react";
+import { Filter, Plus, Trash, CircleX } from "lucide-react";
 import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
-import { separateFunctionFilters } from "@/utils/evals/filters";
+import { combineFilters, initFilters } from "@/utils/evals/filters";
 
 interface StringFilter {
     key: number,
@@ -24,35 +24,16 @@ const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void
 }) => {
 
-    /* Track states */
-    let initialValues : StringFilter[] = [];
-    if (columnFilters[column]) {
-        const included = columnFilters[column]["in"]
-        if (included) {
-            const array = ["&&"].concat(separateFunctionFilters(included))
-            for (let i = 0; i < array.length; i += 2) {
-                const key = i
-                const mode = "in"
-                const join = array[i] as "&&" || "||"
-                const value = array[i + 1].startsWith('"') && array[i + 1].endsWith('"') ? array[i + 1].slice(1, -1) : array[i + 1]
-                initialValues.push({key, mode, join, value});
-            }
-        }
-        const excluded = columnFilters[column]["not in"]
-        if (excluded) {
-            const array = ["&&"].concat(separateFunctionFilters(excluded))
-            for (let i = 0; i < array.length; i += 2) {
-                const key = initialValues.length + i
-                const mode = "not in"
-                const join = array[i] as "&&" || "||"
-                const value = array[i + 1].startsWith('"') && array[i + 1].endsWith('"') ? array[i + 1].slice(1, -1) : array[i + 1]
-                initialValues.push({key, mode, join, value});
-            }
-        }
-    }
-
+    /* Init filters */
+    const options = [
+        {name: "in", label: "Includes", description: "Filter for values included in.."},
+        {name: "not in", label: "Excludes", description: "Filter for values not included in.."}
+    ]
+    const modes = options.map(option => option.name)
+    let defaultFilter : StringFilter = {key: 0, mode: "in", join: "&&", value: ""};
+    let initialValues : StringFilter[] = [defaultFilter];
+    if (columnFilters[column]) initFilters(column, columnFilters, initialValues, modes);
     const [filters, setFilters] = useState(initialValues);
-    const changed = JSON.stringify(filters) != JSON.stringify(initialValues)
     
     /* Event handlers */
     const onInput = (input: any, filter: StringFilter) => {
@@ -60,7 +41,6 @@ const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
         newFilters.find(f => f.key === filter.key)!.value = input.currentTarget.value
         setFilters(newFilters)
     }
-
     const onSubmit = () => {
         let newColumnFilters = { ...columnFilters }
         if (filters.length){
@@ -68,63 +48,40 @@ const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
                 key: f.key, 
                 mode: f.mode, 
                 join: f.join, 
-                value: f.value.startsWith('"') && f.value.endsWith('"') ? f.value : `"${f.value}"`
+                value: f.value.startsWith('"') && f.value.endsWith('"') ? f.value : `"${f.value}"`  // Need to wrap in quotes
             }))
-            const filter : Filters = {}
-            const included = newFilters.filter(f => f.mode === "in")
-            if (included.length) {
-                let value = included[0].value
-                for (let i = 1; i < included.length; i++) {
-                    value += " " + included[i].join + " " + included[i].value;
-                }
-                filter["in"] = value
-            }
-            const excluded = newFilters.filter(f => f.mode === "not in")
-            if (excluded.length) {
-                let value = excluded[0].value
-                for (let i = 1; i < excluded.length; i++) {
-                    value += " " + excluded[i].join + " " + excluded[i].value;
-                }
-                filter["not in"] = value
-            } 
+            const filter : Filters = combineFilters(newFilters, modes) 
             newColumnFilters = {...columnFilters, [column]: filter}
         } else{
             Object.fromEntries(
                 Object.entries(columnFilters).filter(([key, _]) => key != column)
             )
-            setFilters([])
+            setFilters([defaultFilter])
         }
-        setColumnFilterQuery(newColumnFilters)
+        setColumnFilterQuery(newColumnFilters);
+        setOpen(false);
     }
     const onReset = () => {
         const newColumnFilters = Object.fromEntries(
             Object.entries(columnFilters).filter(([key, _]) => key != column)
         )
-        setFilters([])
+        setFilters([defaultFilter])
         setColumnFilterQuery(newColumnFilters)
+        setOpen(false)
     }
     const onEnter : KeyboardEventHandler = (event) => {
         if (event.key === "Enter") {
             onSubmit()
+            setOpen(false)
         }
     }
 
-    /* Inputs */
-    const options = [
-        {name: "in", label: "Includes"},
-        {name: "not in", label: "Excludes"}
-    ]
-
     // Dialog interactions
+    const [open, setOpen] = useState(false);
+    const close = <BaseButton size="sm" icon={<CircleX/>} onClick={() => setOpen(false)} className="top-0 right-0 scale-60 absolute" variant="warning"/>
     const button = <ActionButton icon={<Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} />
-    const reset = <CancelButton text="Reset" onClick={() => onReset()}/>
-    const submit = <SubmitButton text="Apply" onClick={() => onSubmit()}/>
-    const create = <ActionButton tooltip="Add filter" icon={<Plus/>} onClick={() => {
-        const mode = "in" as "in" | "not in"
-        const join = "&&" as "&&" | "||"
-        const newFilters = [{key: 0, mode: mode, join: join, value: ""}]
-        setFilters(newFilters)
-    }}/>
+    const reset = <ActionButton tooltip="Delete all filters" variant="warning" icon={<Trash/>} onClick={() => onReset()}/> 
+    const submit = <SubmitButton text="Save" onClick={() => onSubmit()}/>
     const append = 
         <BaseDropdown button={<ActionButton tooltip="Add new filter" icon={<Plus/>}/>}>
             {["And", "Or"].map((method, index) => 
@@ -137,14 +94,14 @@ const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
                         setFilters(newFilters)
                     }}            
                 >
-                    {method}
+                    {method.toLowerCase()}
                 </DropdownMenuItem>
             )}
         </BaseDropdown>
 
     // Filter row
     const join = (filter: StringFilter) => 
-        <BaseDropdown button={<ActionButton tooltip="Update joining method" text={filter.join === "&&" ? "And" : "Or"}/>}>
+        <BaseDropdown button={<ActionButton tooltip="Update joining method" text={filter.join === "&&" ? "and" : "or"}/>}>
             {["And", "Or"].map((method, index) => 
                 <DropdownMenuItem 
                     key={index}
@@ -156,23 +113,27 @@ const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
                         setFilters(newFilters)
                     }}            
                 >
-                    {method}
+                    {method.toLowerCase()}
                 </DropdownMenuItem>
             )}
         </BaseDropdown>
-    const filterInput = (filter: StringFilter) => 
-        <InputWithStartSelect
-            options={options}
-            option={options.find(option => option.name === filter.mode)}
-            placeholder={`Filter for entries ${filter.mode === "in" ? "including" : "excluding"}..`}
-            inputValue={filter.value}
-            onInput={(input) => onInput(input, filter)}
-            onKeyDown={onEnter}
-            onOptionChange={(option) => {
-                const newFilters = [...filters]
-                newFilters.find(f => f.key === filter.key)!.mode = option.name as "in" | "not in"
-            }}
-        />    
+    const filterInput = (filter: StringFilter) => {
+        const option = options.find(option => option.name === filter.mode)!;
+        return (
+            <InputWithStartSelect
+                options={options}
+                option={option}
+                placeholder={option.description}
+                inputValue={filter.value}
+                onInput={(input) => onInput(input, filter)}
+                onKeyDown={onEnter}
+                onOptionChange={(option) => {
+                    const newFilters = [...filters]
+                    newFilters.find(f => f.key === filter.key)!.mode = option.name as "in" | "not in"
+                }}
+            />
+        )
+    }
     const remove = (filter: StringFilter) =>
         <ActionButton
             tooltip="Remove filter"
@@ -180,17 +141,14 @@ const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
             onClick={() => {
                 let newFilters = filters.filter(f => f.key != filter.key)
                 newFilters = newFilters.map((f, i) => ({key: i, mode: f.mode, join: i === 0 ? "&&" : f.join, value: f.value}))
+                newFilters = newFilters.length ? newFilters : [defaultFilter]
                 setFilters(newFilters)
             }}
         /> 
-
+    
     return (
-        <BaseDropdown button={button}>
-            <div className="flex flex-col gap-3 p-2">
-                <div className="flex flex-row justify-between items-center gap-5 pl-1 pr-3">
-                    <p>Apply one or more filters</p>
-                    {filters.length === 0 ? create : append}
-                </div>
+        <BaseDropdown button={button} open={open} setOpen={setOpen}>
+            <div className="flex flex-col gap-3 px-2 pt-4 pb-2">
                 {filters.map((filter, index) => 
                     <div key={index} className="grid grid-cols-8 items-center">
                         {filters.length > 0 && filter.key != 0 && <div className="col-span-1">{join(filter)}</div>}
@@ -198,10 +156,14 @@ const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
                         <div className="col-span-1 text-center">{remove(filter)}</div>
                     </div>
                 )}
-                {changed && <div className="flex flex-row gap-2 justify-end">
-                    {reset}
-                    {submit}
-                </div>}
+                <div className="flex flex-row gap-2 justify-between">
+                    {append}
+                    <div className="flex flex-row gap-2 justify-end">
+                        {reset}
+                        {submit}
+                    </div>
+                </div>
+                {close}
             </div>
         </BaseDropdown>
     );
