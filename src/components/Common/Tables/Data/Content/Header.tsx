@@ -4,7 +4,7 @@ import { useState, CSSProperties, ReactNode } from "react";
 
 import { flexRender, Header, Column, Table, Cell } from "@tanstack/react-table";
 import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { CSS, Transform } from "@dnd-kit/utilities";
 
 import { TableHead } from "@/components/UI/table";
 import ColumnSort from "../Buttons/ColumnSort";
@@ -13,6 +13,8 @@ import ColumnHide from "../Buttons/ColumnHide";
 import ColumnShow from "../Buttons/ColumnShow";
 import ColumnContext from "../Buttons/ColumnContext";
 import { getCellsFromHeader, getSelectableTableCells } from "@/hooks/Logs/useCellSelection";
+import { getColumnGroupIDs } from "@/utils/evals/table";
+import { DraggingColumnsState } from "@/types/evals/columns";
 
 const DataTableHeader = ({
   table,
@@ -26,6 +28,7 @@ const DataTableHeader = ({
   ColumnFilters,
   context,
   setContext,
+  draggingColumns,
 }: {
   table: Table<any | unknown>,
   header: Header<any, unknown>,
@@ -41,14 +44,39 @@ const DataTableHeader = ({
   grouping: string[],
   setGrouping: (grouping: string[]) => void,
   ColumnFilters?: (column: Column<any | unknown>) => ReactNode,
-  context: string,
+  context: string | null,
   setContext: (context: string | null) => void,
+  draggingColumns: DraggingColumnsState;
 }) => {
 
-  const { attributes, isDragging, listeners, setNodeRef, transform } = useSortable({id: header.column.id});
+  const { attributes, listeners, setNodeRef, isDragging, transform } = useSortable({
+    id: header.column.id,
+    data: {
+      group: getColumnGroupIDs(header.column)
+    },
+  });
+
+  // Pre-calculate checks for active and over states
+  const isInActiveGroup = draggingColumns.active.ids?.includes(header.column.id);
+  const isInOverGroup = draggingColumns.over.ids?.includes(header.column.id);
+
+  // Consolidate into a single flag for overall dragging state
+  const isPartOfDraggingState = isInActiveGroup || isInOverGroup;
+
+  // For dragging columns that are parents, use the transform/transition from the parent dragging state
+  const isColumnDragging = isDragging || isPartOfDraggingState;
 
   const isPinned = header.column.getIsPinned(); 
   const isLastLeftPinnedColumn =  isPinned === "left" && header.column.getIsLastColumn('left')
+  const isParentColumn = header.column.columnDef.meta?.isParent;
+  const isNotUtilColumn = header.column.columnDef.meta?.columnType != "util";
+
+  // Determine the applied transform
+  const appliedTransform: Transform | null = isDragging
+    ? transform : isInActiveGroup ? draggingColumns.active.transform ?? null : isInOverGroup
+    ? draggingColumns.over.transform ?? null : isParentColumn ? null : transform;
+
+  const appliedTransition = "width transform 0.2s ease-in-out";
 
   // Handle header coloring.
   // - Applies selection (hover) background color on any column header for which all (some) cells are selected
@@ -59,20 +87,17 @@ const DataTableHeader = ({
   const isAllTableSelected = () => 
     table.getRowModel().rows.length && getSelectableTableCells(table).every(cell => isCellSelected(cell))
 
-  const isParentColumn = header.column.columnDef.meta?.isParent;
-  const isNotUtilColumn = header.column.columnDef.meta?.columnType != "util";
-
   const style: CSSProperties = {
     boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
-    opacity: isDragging ? 0.8 : 1,
+    opacity: isColumnDragging ? 0.8 : 1,
     position: isPinned ? "sticky" : "relative",
     left: isPinned === "left" ? `${header.column.getStart("left")}px` : undefined,
     right: isPinned === "right" ? `${header.column.getAfter("right")}px` : undefined,
-    transform: CSS.Translate.toString(transform), // translate instead of transform to avoid squishing
-    transition: "width transform 0.2s ease-in-out",
+    transform: CSS.Translate.toString(appliedTransform), // translate instead of transform to avoid squishing
+    transition: appliedTransition,
     whiteSpace: "nowrap",
     width: `${Math.round(header.getSize())}px`,
-    zIndex: isDragging || isPinned ? 1 : 0,
+    zIndex: isColumnDragging || isPinned ? 1 : 0,
     borderRight: "1px solid var(--muted)",
     borderBottom: "1px solid var(--muted)",
     borderTop: "1px solid var(--muted)",
@@ -125,7 +150,6 @@ const DataTableHeader = ({
                   onMouseUp={(e) => e.stopPropagation()}   // Prevent event bubbling for action buttons
                 >
                   <ColumnGroupBy column={header.column} grouping={grouping} setGrouping={setGrouping} />
-                  <ColumnHide column={header.column} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility} />
                   <ColumnContext column={header.column} context={context} setContext={setContext} />
                 </div>
               )}
@@ -133,13 +157,23 @@ const DataTableHeader = ({
           )}
         </div>
 
+        {/* Absolutely positioned ColumnHide */}
+        {!header.isPlaceholder && isNotUtilColumn && (
+          <div
+            className="absolute top-0 right-0 z-10"
+            onMouseDown={(e) => e.stopPropagation()} // Prevent drag interference
+            onMouseUp={(e) => e.stopPropagation()} // Prevent drag interference
+          >
+            <ColumnHide column={header.column} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility} />
+          </div>
+        )}
+
         {/* Column actions */}
         {!header.isPlaceholder && isNotUtilColumn &&
           <div className="flex items-center justify-center gap-2 mt-2">
             {!isParentColumn && <ColumnGroupBy column={header.column} grouping={grouping} setGrouping={setGrouping}/>}
             {!isParentColumn && <ColumnSort column={header.column}/>}
             {!isParentColumn && ColumnFilters && ColumnFilters(header.column)}
-            {!isParentColumn && <ColumnHide column={header.column} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility} />}
           </div>
         }
 
