@@ -54,9 +54,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
     useEffect(() => {
         if (!item.auto_update || item.auto_update == "false") return;
         const interval = setInterval(() => {
-            console.log("REACHED INSIDE");
             if (!running && !pending) {
-                console.log("REACHED HERE");
                 running = true;
                 logsActions.get(
                     project, item.context ?? null, filterExpression, sortingExpression, null, null, 0, Date.now().toString()
