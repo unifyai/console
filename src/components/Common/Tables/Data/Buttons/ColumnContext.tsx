@@ -16,8 +16,8 @@ const ColumnContext = ({
     const isActive = context === sanitizedId;
 
     const tooltip = isActive
-        ? `Deactivate ${column.columnDef.header} Context`
-        : `Activate ${column.columnDef.header} Context`;
+        ? `Unset Context`
+        : `Set ${column.columnDef.header} Context`;
 
     const variant = isActive ? "primary" : undefined;
 
