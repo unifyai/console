@@ -4,11 +4,12 @@ import { BasePopover } from "@/components/Common/Popovers/Base";
 import { Columns3 } from "lucide-react";
 import SettingButton from "@/components/Common/Buttons/Setting";
 import { Switch } from "@/components/UI/switch";
-import { updateColumnVisibility } from "@/utils/evals/columnOperations";
+import { processContext, sanitizeId, updateColumnVisibility } from "@/utils/evals/columnOperations";
 
-const VisibilityFilter = ({ columnVisibility, setColumnVisibility }: {
+const VisibilityFilter = ({ columnVisibility, setColumnVisibility, context }: {
     columnVisibility: { [key: string]: boolean },
-    setColumnVisibility: (x: { [key: string]: boolean }) => void
+    setColumnVisibility: (x: { [key: string]: boolean }) => void,
+    context: string | null,
 }) => {
     const columns = Object.keys(columnVisibility);
     const anyHidden = Object.values(columnVisibility).some(bool => !bool);
@@ -42,7 +43,7 @@ const VisibilityFilter = ({ columnVisibility, setColumnVisibility }: {
                 {columns.map((column, index) => (
                     <div key={index} className="flex flex-row gap-2 items-center justify-between">
                         <Switch checked={columnVisibility[column]} onCheckedChange={() => handleSingleCheck(column)} />
-                        {column}
+                        {context ? sanitizeId(processContext("split", context, column)) : column}
                     </div>
                 ))}
             </div>
