@@ -1,3 +1,5 @@
+import { Transform } from "@dnd-kit/utilities";
+
 export interface FilterMode {
     icon: JSX.Element;
     name: string;
@@ -12,3 +14,15 @@ export interface Filters {
 export interface FiltersByColumn {
     [key: string] : Filters
 }
+
+export interface DraggingColumnsState {
+    active: {
+        ids: string[];
+        transform?: Transform | null;
+    };
+    over: {
+        ids: string[];
+        transform?: Transform | null;
+    };
+}
+  
