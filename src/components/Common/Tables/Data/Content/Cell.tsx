@@ -4,14 +4,15 @@ import { useState, CSSProperties, ReactNode, Dispatch, SetStateAction } from "re
 
 import { Header, Cell, Row, flexRender } from "@tanstack/react-table";
 import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { CSS, Transform } from "@dnd-kit/utilities";
 
 import { TableCell } from "@/components/UI/table";
 
 import { ChevronRight, CornerDownLeft } from "lucide-react";
 import ColumnResizer from "../Buttons/ColumnResize";
+import { DraggingColumnsState } from "@/types/evals/columns";
 
-const DataTableCell = ({ cell, row, selectedCells, isCellSelected, cellSelection, resizeMap, isCellExpanded, setExpandedCells, AggregatedCell, ExtraCellContent }: { 
+const DataTableCell = ({ cell, row, selectedCells, isCellSelected, cellSelection, resizeMap, isCellExpanded, setExpandedCells, draggingColumns, AggregatedCell, ExtraCellContent }: { 
     cell: Cell<any, unknown>, 
     row: Row<any | unknown>,
     selectedCells: string[],
@@ -25,6 +26,7 @@ const DataTableCell = ({ cell, row, selectedCells, isCellSelected, cellSelection
     resizeMap: { [x: string]: (event: unknown) => void },
     isCellExpanded: (cell: Cell<any, unknown>) => boolean,
     setExpandedCells: Dispatch<SetStateAction<{[k: string]: boolean}>>,
+    draggingColumns: DraggingColumnsState,
     AggregatedCell?: (cell: Cell<any, unknown>, row: Row<any | unknown>) => ReactNode,
     ExtraCellContent?: (cell: Cell<any, unknown>, isCellExpanded: (cell: Cell<any, unknown>) => boolean, setExpandedCells: Dispatch<SetStateAction<{[k: string]: boolean}>>) => ReactNode
   }) => {
@@ -33,7 +35,27 @@ const DataTableCell = ({ cell, row, selectedCells, isCellSelected, cellSelection
       });
 
       const columnID = cell.column.columnDef.id!;
+
+      // Pre-calculate checks for active and over states
+      const isInActiveGroup = draggingColumns.active.ids?.includes(columnID);
+      const isInOverGroup = draggingColumns.over.ids?.includes(columnID);
+
+      // Consolidate into a single flag for overall dragging state
+      const isPartOfDraggingState = isInActiveGroup || isInOverGroup;
+
+      // For dragging columns that are parents, use the transform/transition from the parent dragging state
+      const isColumnDragging = isDragging || isPartOfDraggingState;
+
       const isPinned = cell.column.getIsPinned();
+      const isParentColumn = cell.column.columnDef.meta?.isParent;
+
+      // Determine the applied transform
+      const appliedTransform: Transform | null = isDragging
+        ? transform : isInActiveGroup ? draggingColumns.active.transform ?? null : isInOverGroup
+        ? draggingColumns.over.transform ?? null : isParentColumn ? null : transform;
+
+      const appliedTransition = "width transform 0.2s ease-in-out";
+
       const isLastLeftPinnedColumn =  isPinned === "left" && cell.column.getIsLastColumn('left')
 
       const properties = row.getAllCells().map((cell) => cell.column.id);
@@ -51,16 +73,16 @@ const DataTableCell = ({ cell, row, selectedCells, isCellSelected, cellSelection
 
       const style: CSSProperties = {
         boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
-        opacity: isDragging ? 0.8 : 1,
+        opacity: isColumnDragging ? 0.8 : 1,
         position: isPinned ? "sticky" : "relative",
         left: isPinned === "left" ? `${cell.column.getStart("left")}px` : undefined,
         right: isPinned === "right" ? `${cell.column.getAfter("right")}px` : undefined,
-        transform: CSS.Translate.toString(transform), // translate instead of transform to avoid squishing
-        transition: "width transform 0.2s ease-in-out",
+        transform: CSS.Translate.toString(appliedTransform), // translate instead of transform to avoid squishing
+        transition: appliedTransition,
         height: "21px",
         minWidth: columnID === "RowNumbering" ? "120px" : undefined,
         maxWidth: `${Math.round(cell.column.getSize())}px`,
-        zIndex: isDragging || isPinned ? 1 : 0,
+        zIndex: isColumnDragging || isPinned ? 1 : 0,
         borderRight: "1px solid var(--muted)",
         outline: "none",
         color: cell.column.id != "RowNumbering"
