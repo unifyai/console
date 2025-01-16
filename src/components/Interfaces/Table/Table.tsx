@@ -35,6 +35,7 @@ import CellPopover from "./Content/CellPopover";
 import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
+import { DraggingColumnsState } from "@/types/evals/columns";
 
 const LogsTable = ({
   projects,
@@ -234,6 +235,17 @@ const LogsTable = ({
       .reduce((acc, curr) => ({ ...acc, ...curr }), {})
   );
 
+  const [draggingColumns, setDraggingColumns] = useState<DraggingColumnsState>({
+    active: {
+      ids: [],
+      transform: null,
+    },
+    over: {
+      ids: [],
+      transform: null,
+    },
+  });
+
   const context = contextStr ? contextStr : null;
   const setContext = (c: string | null) =>
     updateItem(item, "context")(c ? c : undefined);
@@ -249,6 +261,7 @@ const LogsTable = ({
     columnPinning,
     columnSizing,
     context,
+    draggingColumns,
   };
   const setState = {
     setSelectedCells: (cells: string[]) => updateItem(item, "selected")(cells.join(",")),
@@ -261,6 +274,7 @@ const LogsTable = ({
     setColumnPinning,
     setColumnSizing,
     setContext,
+    setDraggingColumns,
   };
 
   // Use refs to detect a *real* page/filter change
@@ -361,6 +375,7 @@ const LogsTable = ({
           <VisibilityFilter
             columnVisibility={columnVisibility}
             setColumnVisibility={setColumnVisibility}
+            context={item.context ?? null}
           />
         </div>
       )}
@@ -479,12 +494,12 @@ const LogsTable = ({
                   <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />
                 )}
                 FooterCell={(column, resizeMap) => 
-                  <FooterCell column={column} resizeMap={resizeMap} >
+                  <FooterCell column={column} resizeMap={resizeMap} draggingColumns={state.draggingColumns}>
                     {
                       column.columnDef.id === indicesTitle
                       ? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric}/>
                       : !column.getIsGrouped()
-                        ?	<SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} />
+                        ?	<SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} draggingColumns={state.draggingColumns} />
                         : 	null
                     }
                   </FooterCell>

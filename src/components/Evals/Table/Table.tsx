@@ -37,6 +37,7 @@ import { searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
+import { DraggingColumnsState } from "@/types/evals/columns";
 
 const LogsTable = ({
   searchParams,
@@ -260,6 +261,17 @@ const LogsTable = ({
       .reduce((acc, curr) => ({ ...acc, ...curr }), {})
   );
 
+  const [draggingColumns, setDraggingColumns] = useState<DraggingColumnsState>({
+    active: {
+      ids: [],
+      transform: null,
+    },
+    over: {
+      ids: [],
+      transform: null,
+    },
+  });
+
   const [_timestamp, _setTimestamp] = useQueryState("_timestamp", { shallow: false })
 
   const state = {
@@ -273,6 +285,7 @@ const LogsTable = ({
     columnPinning,
     columnSizing,
     context,
+    draggingColumns,
     _timestamp
   };
   const setState = {
@@ -286,6 +299,7 @@ const LogsTable = ({
     setColumnPinning,
     setColumnSizing,
     setContext,
+    setDraggingColumns,
     _setTimestamp
   };
 
@@ -388,6 +402,7 @@ const LogsTable = ({
           <VisibilityFilter
             columnVisibility={columnVisibility}
             setColumnVisibility={setColumnVisibility}
+            context={context}
           />
         </div>
       )}
@@ -503,12 +518,12 @@ const LogsTable = ({
                   <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />
                 )}
                 FooterCell={(column, resizeMap) => 
-                  <FooterCell column={column} resizeMap={resizeMap} >
+                  <FooterCell column={column} resizeMap={resizeMap} draggingColumns={state.draggingColumns}>
                     {
                       column.columnDef.id === indicesTitle
                       ? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric}/>
                       : !column.getIsGrouped()
-                        ?	<SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} />
+                        ?	<SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} draggingColumns={state.draggingColumns} />
                         : 	null
                     }
                   </FooterCell>
