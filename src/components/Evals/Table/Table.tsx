@@ -233,8 +233,10 @@ const LogsTable = ({
 
   const sorting: ColumnSort[] = sortingStr
     ? sortingStr.split(",").map((c) => {
-        const [id, desc] = c.split("@");
-        return { id, desc: desc === "true" };
+        const [key, order] = c.split("@");
+        const id = entriesProperties.includes(key) ? `Entries/${key}` : `Parameters/${key}`;
+        const desc = order === "true";
+        return { id, desc };
       })
     : [];
   const setSorting = (s: ColumnSort[]) => 
