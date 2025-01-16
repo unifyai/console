@@ -81,16 +81,16 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
                     running = false;
                 });
             }
-        }, 2000); // Refresh every 2000ms
+        }, 10000); // Refresh every 10000ms
         return () => clearInterval(interval)
-    }, [item])
+    }, [item.auto_update])
     const onAutoClick = () => updateItem(item, "auto_update")(item.auto_update === "true" ? "false" : "true")
     const autoRefresh =
         <ActionButton
             variant={item.auto_update === "true" ? "primary" : "outline"}
             className="rounded-none rounded-tr-lg rounded-br-lg"
             icon={<Power />}
-            tooltip={"Auto refresh every 8000ms"}
+            tooltip={"Auto refresh every 10000ms"}
             onClick={() => onAutoClick()}
         />
 
