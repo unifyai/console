@@ -57,7 +57,7 @@ const DataTableHeader = ({
   const isAllColumnSelected = (header: Header<any, unknown>) =>
     getCellsFromHeader(header).every(cell => isCellSelected(cell))
   const isAllTableSelected = () => 
-    getSelectableTableCells(table).every(cell => isCellSelected(cell))
+    table.getRowModel().rows.length && getSelectableTableCells(table).every(cell => isCellSelected(cell))
 
   const isParentColumn = header.column.columnDef.meta?.isParent;
   const isNotUtilColumn = header.column.columnDef.meta?.columnType != "util";
