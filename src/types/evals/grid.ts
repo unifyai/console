@@ -31,7 +31,7 @@ export interface TileProps {
     x_axis?: string;
     y_axis?: string;
     plot_group_by?: string;
-    bin_size?: string;
+    bin_count?: string;
 }
 
 export interface TableDataItem {
@@ -61,7 +61,7 @@ export interface PlotDataProps {
 }
 
 export type ItemType = 
-    | "bin_size"
+    | "bin_count"
     | "plot_type"
     | "plot_scale"
     | "is_aggregated"

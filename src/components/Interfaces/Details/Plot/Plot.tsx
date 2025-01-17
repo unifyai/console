@@ -31,27 +31,13 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
     const axisPadding = 20; // Extra padding between axes borders and plot borders
     const placeholderTextRef = useRef(null);
 
-    // Define axis ranges
-    const numericAxisProperties = useMemo(() => 
-        Object
-        .entries(fields)
-        .filter(([name, { data_type, field_type }]) => field_type != "param" && (data_type === "float" || data_type === "int"))
-        .map(([name]) => name)
-    , [fields]);
-    const axisProperties = useMemo(() => 
-        Object
-            .entries(fields)
-            .filter(([name, { data_type, field_type }]) => field_type != "param")
-            .map(([name]) => name)
-    , [fields]);
-
     // Plot settings
     let plotType = item.plot_type;
     let scale = item.plot_scale;
     let [logScaleEnabled, setLogScaleEnabled] = useState(true);
     let isAggregated = item.is_aggregated;
-    let binSize = item.bin_size ? parseFloat(item.bin_size) : 1;
-    let [binSizes, setBinSizes] = useState([1])
+    let binCount = item.bin_count ? parseFloat(item.bin_count) : 1;
+    let [binCounts, setBinCounts] = useState([1])
     plotType = plotType ? plotType : "Scatter Plot";
     scale = scale ? scale : "linear";
 
@@ -72,7 +58,7 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
         svg.select("#clip-rect")
             .attr("x", margins.left)
             .attr("y", margins.top)
-            .attr("width", dimensions.width - margins.left - margins.bottom)
+            .attr("width", dimensions.width - margins.left - margins.right)
             .attr("height", dimensions.height - margins.top - margins.bottom)
 
         // Draw plot borders
@@ -100,7 +86,7 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
                     selectedYAxisProperty,
                     groupByProperty,
                     logs,
-                    numericAxisProperties
+                    fields
                 );
             } else if (plotType === "Bar Chart") {
                 drawBarChart(
@@ -113,7 +99,7 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
                     selectedYAxisProperty,
                     isAggregated,
                     logs,
-                    axisProperties
+                    fields
                 );
             } else if (plotType === "Histogram") {
                 drawHistogram(
@@ -123,10 +109,10 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
                     margins, 
                     axisPadding, 
                     selectedXAxisProperty, 
-                    binSize,
-                    setBinSizes,
+                    binCount,
+                    setBinCounts,
                     logs, 
-                    numericAxisProperties                    
+                    fields                  
                 )
             } else {
                 drawScatterPlot(
@@ -139,7 +125,7 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
                     selectedYAxisProperty,
                     groupByProperty,
                     logs,
-                    numericAxisProperties
+                    fields
                 );
             }
         }
@@ -166,7 +152,7 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
         plotType,
         groupByProperty,
         isAggregated,
-        binSize
+        binCount
     ]);
 
     return (
@@ -175,7 +161,7 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
             {/* Axes and type */}
             <div className="absolute bottom-6 right-1 z-10">
                 <PlotAxis
-                    properties={plotType === "Bar Chart" ? axisProperties : numericAxisProperties}
+                    fields={fields}
                     setAxisProperty={updateItem(item, "x_axis")}
                     axis="X"
                     axisProperty={selectedXAxisProperty}
@@ -185,7 +171,7 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
             {plotType != "Histogram" && 
                 <div className="absolute top-0.5 left-1 z-10">
                     <PlotAxis
-                        properties={numericAxisProperties}
+                        fields={fields}
                         setAxisProperty={updateItem(item, "y_axis")}
                         axis="Y"
                         axisProperty={selectedYAxisProperty}
@@ -197,7 +183,9 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
                 <PlotType
                     plotType={plotType}
                     setPlotType={updateItem(item, "plot_type")}
-                    numericAxisProperties={numericAxisProperties}
+                    fields={fields}
+                    selectedXAxisProperty={selectedXAxisProperty}
+                    setSelectedXAxisProperty={updateItem(item, "x_axis")}
                     selectedYAxisProperty={selectedYAxisProperty}
                     setSelectedYAxisProperty={updateItem(item, "y_axis")}
                 />
@@ -223,14 +211,14 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
                         : plotType === "Histogram"
                             ? <div className="absolute top-24 right-3 z-10 PlotAggregated">
                                 <PlotBins
-                                    binSize={binSize}
-                                    binSizes={binSizes}
-                                    setBinSize={updateItem(item, "bin_size")}
+                                    binCount={binCount}
+                                    binCounts={binCounts}
+                                    setBinCount={updateItem(item, "bin_count")}
                                 />
                             </div>
                             : <div className="absolute top-24 right-3 z-10 PlotGroupBy">
                                 <PlotGroupBy
-                                    properties={axisProperties}
+                                    fields={fields}
                                     groupBy={groupByProperty}
                                     setGroupBy={updateItem(item, "plot_group_by")}
                                 />

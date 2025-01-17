@@ -1,22 +1,25 @@
 import { Label } from "@/components/UI/label";
 import { Slider } from "@/components/UI/slider";
 
-const SliderWithValue = ({ticks, value, setValue}: {
+const SliderWithValue = ({label, ticks, value, setValue, max, min}: {
+    label: string
     ticks: number[],
     value: number,
     setValue: (value: number) => void
+    max?: number,
+    min?: number
 }) => {
 
-  const max = Math.max(...ticks);
-  const min = Math.min(...ticks);
+  const maximum = max ? max : Math.max(...ticks);
+  const minimum = min ? min : Math.min(...ticks);
 
   return (
     <div className="flex flex-col gap-2 p-2">
         <div className="flex items-center gap-2 justify-between">            
-            <Label>Current:</Label>
+            <Label>{label}</Label>
             <output className="text-sm font-medium tabular-nums">{value}</output>
         </div>
-        <Slider value={[value]} max={max} min={min} aria-label="Slider with ticks" onValueChange={(v) => setValue(v[0])} />
+        <Slider value={[value]} max={maximum} min={minimum} aria-label="Slider with ticks" onValueChange={(v) => setValue(v[0])} />
     </div>
   );
 }

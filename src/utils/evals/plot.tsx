@@ -1,7 +1,7 @@
 "use client";
 
 import * as d3 from "d3";
-import { LogProps, LogItemProps } from "@/types/evals/logs";
+import { LogProps, LogItemProps, LogFieldsResponseProps } from "@/types/evals/logs";
 import { DataLabel, DataPoint, GroupedDataLabel, GroupedDataPoint, GroupingColors } from "@/types/evals/plot";
 import { toComputableValue, computeStatistic } from "./common";
 import { metrics } from "@/constants/logs";
@@ -23,7 +23,8 @@ export const drawAxes = (
     y: d3.ScaleBand<string> | d3.ScaleLinear<number, number, never> | d3.ScaleLogarithmic<number, number, never>,
     xTicks: number[], 
     yTicks: number[],
-    xTime: boolean
+    xTime: boolean,
+    xType?: string
 ) => {
 
     const width = dimensions.width;
@@ -43,7 +44,21 @@ export const drawAxes = (
                         : JSON.stringify(d).slice(0, 5).replace(/^"|"$/g, '')
                 ) as any
             );
-    } else {
+    } else if (plotType === "Histogram") {
+        xAxis = svg
+            .select(".xAxis")
+            .attr("transform", `translate(0,${height - margins.bottom})`)
+            .call(
+                d3.axisBottom(x as d3.ScaleLinear<number, number, never>)
+                .tickSizeOuter(0)
+                .tickFormat(d => 
+                    xType === "timestamp"
+                        ? new Date(d as number).toISOString().replace("Z", "").replace("T", " ")
+                        : formatNumber(d as number)
+                ) as any
+            ); 
+    }
+    else {
         const allDates = xTicks.map(tick => new Date(tick as number).toLocaleDateString());
         xAxis = svg
             .select(".xAxis")
@@ -68,7 +83,7 @@ export const drawAxes = (
     xAxis.selectAll("text") // Axis labels style
         .attr("stroke", "black") 
         .attr("stroke-width", 0.1)
-        .attr("transform", "rotate(-25) translate(0, 5)") // Combine rotate and translate
+        .attr("transform", "rotate(-20) translate(0, 5)") // Combine rotate and translate
         .attr("text-anchor", "end")
         .attr("font-size", "10px");
     xAxis.select("path") // Axis line style
@@ -220,17 +235,22 @@ export const drawBarChart = (
   selectedYAxisProperty: string | undefined,
   isAggregated: string | undefined,
   logs: LogProps[],
-  axisProperties: string[]
+  fields: LogFieldsResponseProps
 ) => {
 
     // Remove drawings from other plots:
-    svg.selectAll("circle.data-point").remove();
-    svg.selectAll("path.line-item").remove();
-    svg.selectAll("rect.hist-item").remove();
+    const g = svg.select(".plotData")
+    g.selectAll("circle.data-point").remove();
+    g.selectAll("path.line-item").remove();
+    g.selectAll("rect.hist-item").remove();
 
     // Prepare data
     let data : DataLabel[] = [];
-    const xAxis = selectedXAxisProperty === "Log Time" ? axisProperties.at(0)! : selectedXAxisProperty;
+    const properties = Object
+            .entries(fields)
+            .filter(([name, { data_type, field_type }]) => field_type != "param")
+            .map(([name]) => name);
+    const xAxis = selectedXAxisProperty === "Log Time" ? properties.at(0)! : selectedXAxisProperty;
     const yAxis = selectedYAxisProperty && !metrics.includes(selectedYAxisProperty) ? metrics.at(0) : selectedYAxisProperty;
     if (xAxis && yAxis) {
         const filteredData = logs.filter((log) => log.entries[xAxis] != undefined);
@@ -281,7 +301,7 @@ export const drawBarChart = (
     drawAxes("Bar Chart", svg, dimensions, margins, x, y, [], yTicks, false);
 
     // Draw rectangles
-    svg
+    g
         .selectAll("rect.bar-item")
         .data(data, (d) => `${(d as DataLabel)[0]}-${(d as DataLabel)[1]}`)
         .join("rect") 
@@ -323,7 +343,7 @@ export const drawBarChart = (
             .style("top", `${position.y - 100 + topPadding}px`)
             .transition()
             .style("opacity", 1)
-        svg.selectAll(`[bar-id="bar-${data[0]}-${data[1]}"]`)
+        g.selectAll(`[bar-id="bar-${data[0]}-${data[1]}"]`)
             .each(function() {
                 d3.select(this)
                     .style("stroke", foreground)
@@ -335,7 +355,7 @@ export const drawBarChart = (
     // When leaving a bar, hide tooltip and remove striped contour
     function leaveBar (event: any, data: DataLabel) {
         tooltip.transition().style("opacity", 0)
-        svg.selectAll(`[bar-id="bar-${data[0]}-${data[1]}"]`)
+        g.selectAll(`[bar-id="bar-${data[0]}-${data[1]}"]`)
             .each(function() {
                 d3.select(this)
                 .style("stroke", "none")
@@ -360,7 +380,7 @@ export const drawLineChart = (
   selectedYAxisProperty: string | undefined,
   groupBy: string | undefined,
   logs: LogProps[],
-  axisProperties: string[]
+  fields: LogFieldsResponseProps
 ) => {
     
     // Remove drawings from previous plots
@@ -376,8 +396,12 @@ export const drawLineChart = (
     // 4- Sort logs by x axis value
     // 5- Return plotting data as arrays of x / y values, or arrays of groupedBy x / y values if grouping
     let data : DataPoint[] | GroupedDataPoint[] = [];
+    const properties = Object
+            .entries(fields)
+            .filter(([name, { data_type, field_type }]) => field_type != "param" && (data_type === "float" || data_type === "int"))
+            .map(([name]) => name);
     const xAxis = selectedXAxisProperty;
-    const yAxis = selectedYAxisProperty && metrics.includes(selectedYAxisProperty) ? axisProperties.at(0) : selectedYAxisProperty;
+    const yAxis = selectedYAxisProperty && metrics.includes(selectedYAxisProperty) ? properties.at(0) : selectedYAxisProperty;
     const xTime = xAxis === "Log Time";
     if (xAxis && yAxis) {
         const filteredData = logs.filter((log) => {
@@ -521,7 +545,7 @@ export const drawScatterPlot = (
   selectedYAxisProperty: string | undefined,
   groupBy: string | undefined,
   logs: LogProps[],
-  axisProperties: string[]
+  fields: LogFieldsResponseProps
 ) => {
   
     // Remove drawings from previous plots
@@ -532,8 +556,12 @@ export const drawScatterPlot = (
 
     // Prepare data
     let data : LogProps[] = [];
-    const xAxisProperty = selectedXAxisProperty === "Log Time" ? axisProperties.at(0) : selectedXAxisProperty;
-    const yAxisProperty = selectedYAxisProperty && metrics.includes(selectedYAxisProperty) ? axisProperties.at(0) : selectedYAxisProperty;            
+    const properties = Object
+            .entries(fields)
+            .filter(([name, { data_type, field_type }]) => field_type != "param" && (data_type === "float" || data_type === "int"))
+            .map(([name]) => name);
+    const xAxisProperty = selectedXAxisProperty === "Log Time" ? properties.at(0) : selectedXAxisProperty;
+    const yAxisProperty = selectedYAxisProperty && metrics.includes(selectedYAxisProperty) ? properties.at(0) : selectedYAxisProperty;            
 
     if (xAxisProperty && yAxisProperty) {
         const filteredData = logs.filter((log) => log.entries[xAxisProperty as keyof LogItemProps] && log.entries[yAxisProperty as keyof LogItemProps]);
@@ -692,10 +720,10 @@ export const drawHistogram = (
     margins: {[key: string]: number},
     axisPadding: number,
     selectedXAxisProperty: string | undefined,
-    binSize: number,
-    setBinSizes: (binSizes: number[]) => void,
+    binCount: number,
+    setbinCounts: (binCounts: number[]) => void,
     logs: LogProps[],
-    axisProperties: string[]
+    fields: LogFieldsResponseProps,
 ) => {
 
     // Remove drawings from previous plots
@@ -706,12 +734,21 @@ export const drawHistogram = (
 
     // Prepare data
     let data : number[] = [];
-    const xAxisProperty = selectedXAxisProperty === "Log Time" ? axisProperties.at(0) : selectedXAxisProperty;
+    const properties = Object
+        .entries(fields)
+        .filter(([name, { data_type, field_type }]) => field_type != "param" && (data_type === "float" || data_type === "int" || data_type === "timestamp"))
+        .map(([name]) => name);
+    const xAxisProperty = selectedXAxisProperty === "Log Time" ? properties.at(0) : selectedXAxisProperty;
+    let xType : string | undefined;
     if (xAxisProperty) {
+        xType = fields[xAxisProperty].data_type
         const filteredData = logs.filter((log) => log.entries[xAxisProperty as keyof LogItemProps]);
         data = filteredData.map((log) => {
             let entries = log.entries;
-            return parseFloat(entries[xAxisProperty]);
+            const entry = xType === "timestamp"
+                ? new Date(entries[xAxisProperty]).getTime()
+                : parseFloat(entries[xAxisProperty])
+            return entry;
         })
     }
     
@@ -722,24 +759,21 @@ export const drawHistogram = (
         [height - margins.bottom, margins.top + 2 * axisPadding]
     ];
     const [minX = 0, maxX = 0] = d3.extent(data);
-    const [xScale, yScale] = [
-        scale === "log" ? d3.scaleLog : d3.scaleLinear,
-        scale === "log" ? d3.scaleLog : d3.scaleLinear
-    ]
+    const [xScale, yScale] = [d3.scaleLinear, d3.scaleLinear]
     const x = xScale().domain([minX, maxX]).range(xRange)
     
     // Set bins
-    const bins = d3.bin().thresholds(binSize)
+    const bins = d3.bin().thresholds(binCount)
     const buckets = bins(data)
-    setBinSizes([1, data.length])
+    setbinCounts([1, data.length])
 
     const [minY, maxY] = [0, d3.max(buckets, d => d.length) ?? 0]
     const y = yScale().domain([minY, maxY]).range(yRange)
 
     // Draw axes
     const {xTicks, yTicks} = calculateTicks(data.length, scale, minY, maxY, minX, maxX);
-    drawAxes("Histogram", svg, dimensions, margins, x, y, xTicks, yTicks, false);
-    
+    drawAxes("Histogram", svg, dimensions, margins, x, y, xTicks, yTicks, false, xType);
+
     // Add histogram
     g
         .selectAll("rect.hist-item")
