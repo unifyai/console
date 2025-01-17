@@ -374,8 +374,6 @@ const CardGrid = ({
                 </div>
             </div>
             <TabsContent value="Interface_1" className="tutorial-selection-pane">
-                {/* <Selection params={params} logs={logs} /> */}
-                {/* <div className="text-center">text1</div> */}
                 <ResponsiveReactGridLayout
                     onLayoutChange={(newLayout) => {
                         const updatedItems = newLayout.map((item) => {
@@ -474,8 +472,7 @@ const CardGrid = ({
                 </ResponsiveReactGridLayout>
             </TabsContent>
             <TabsContent value="Interface_2" className="w-full h-[calc(100%-50px)] tutorial-plot-pane">
-                {/* <LogsPlot logs={plotLogs} fields={fields} /> */}
-                <div className="text-center">text2</div>
+                <div className="text-center">{"interface2 (placeholder)"}</div>
             </TabsContent>
         </Tabs>
         {maxTile && <Dialog open={true} onOpenChange={() => setMaxTile(undefined)}>
