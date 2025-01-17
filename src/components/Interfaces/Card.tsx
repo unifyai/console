@@ -149,7 +149,6 @@ const Card = ({
                 updateItem={updateItem}
             />}
             {tab?.includes("Table") && <LogsTable
-                projects={projects}
                 project={project}
                 pending={pending}
                 tab={tab}
@@ -166,11 +165,8 @@ const Card = ({
                     totalPages: tableData[item.i]?.totalPages || 0,
                     boundaries: tableData[item.i]?.boundaries || { minimus: {}, maximums: {} }
                 }}
-                setProject={setProject}
                 updateItem={updateItem}
-                projectActions={projectActions}
                 logsActions={logsActions}
-                fieldsActions={fieldsActions}
                 filterExpression={filterExpressions ? filterExpressions[items.findIndex(it => it.i === item.i)] : null}
                 sortingExpression={sortingExpressions ? sortingExpressions[items.findIndex(it => it.i === item.i)] : null}
             />}

@@ -38,22 +38,17 @@ import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState } from "@/types/evals/columns";
 
 const LogsTable = ({
-  projects,
   project,
   pending,
   item,
   fields,
   columnTypes,
   tableDataItem_,
-  setProject,
   updateItem,
-  projectActions,
   logsActions,
-  fieldsActions,
   filterExpression,
   sortingExpression,
 }: {
-  projects: string[] | undefined;
   project: string | undefined;
   pending: boolean;
   tab: string;
@@ -61,14 +56,7 @@ const LogsTable = ({
   fields: LogFieldsResponseProps;
   columnTypes: { [key: string]: string };
   tableDataItem_: TableDataItem;
-  setProject: Dispatch<SetStateAction<string | undefined>>;
   updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
-  projectActions: {
-    get: () => Promise<string[]>;
-    create: (name: string) => Promise<ResponseProps>;
-    rename: (oldName: string, newName: string) => Promise<ResponseProps>;
-    delete: (name: string) => Promise<ResponseProps>;
-  };
   logsActions: {
     get: (
       project: string,
@@ -97,9 +85,6 @@ const LogsTable = ({
     ) => Promise<number>;
     delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
   };
-  fieldsActions: {
-    get: (project: string) => Promise<LogFieldsResponseProps>,
-  },
   filterExpression: string | null,
   sortingExpression: string | null,
 }) => {
@@ -328,22 +313,6 @@ const LogsTable = ({
     setTableDataItem(tableDataItem_);
   }, [tableDataItem_]);
 
-  const resetParamsStates = () => {
-    updateItem(item, "selected")("");
-    updateItem(item, "column_order")(undefined);
-    updateItem(item, "hidden_columns")(undefined);
-    updateItem(item, "sorting")(undefined);
-    updateItem(item, "grouping")(undefined);
-    updateItem(item, "columns_pin_left")(undefined);
-    updateItem(item, "columns_pin_right")(undefined);
-    updateItem(item, "metric")("mean");
-    updateItem(item, "page_number")(undefined);
-    updateItem(item, "context")(undefined)
-  };
-
-  // Build directory data
-  const data = (projects || []).map((p) => ({ path: p, type: "file" }));
-
   // Top area: filters, page, etc.
   const tableTop = (
     <div className="flex flex-row justify-between gap-3 LogsTablePreferences">
@@ -380,11 +349,22 @@ const LogsTable = ({
         </div>
       )}
       {project && (
-        <div className="w-fit scale-90">
+        <div className="w-fit scale-90 flex gap-2">
           <PageController
             totalPages={totalPages}
             pageNumber={pageNumber}
             setPageNumber={updateItem(item, "page_number")}
+          />
+          <RefreshLogs
+            item={item}
+            project={project}
+            pending={showSpinner}
+            fields={fields}
+            filterExpression={filterExpression}
+            sortingExpression={sortingExpression}
+            updateItem={updateItem}
+            setTableDataItem={setTableDataItem}
+            logsActions={logsActions}
           />
         </div>
       )}
@@ -402,57 +382,6 @@ const LogsTable = ({
 
   return (
     <div className="flex-1 flex flex-col gap-4 w-full p-3 bg-background rounded-md" onClick={onContainerClick}>
-      {/* Project selection row */}
-      <div className="flex flex-row justify-between gap-8 w-full h-fit">
-        <div className="w-fit gap-2 flex flex-row items-center">
-          <FileDirectory
-            data={data}
-            renamingFunction={projectActions.rename}
-            setterFunction={(proj: FileProps | undefined) => {
-              const newProj = proj ? proj.path : undefined;
-              resetParamsStates();
-              setProject(newProj);
-            }}
-            type="Projects"
-            defaultValue={project}
-          />
-          {project && (
-            <div className="flex flex-row gap-2">
-              <CloseProject
-                onClick={() => {
-                  resetParamsStates();
-                  setProject(undefined);
-                }}
-              />
-              <DeleteDialog
-                type="project"
-                resource={project}
-                deletingFunction={projectActions.delete}
-                variant="outline"
-                onDelete={() => {
-                  resetParamsStates();
-                  setProject(undefined);
-                }}
-              />
-            </div>
-          )}
-          {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
-        </div>
-        {project && 
-          <RefreshLogs 
-            item={item}
-            project={project}
-            pending={showSpinner}
-            fields={fields}
-            filterExpression={filterExpression}
-            sortingExpression={sortingExpression}
-            updateItem={updateItem}
-            setTableDataItem={setTableDataItem}
-            logsActions={logsActions}
-          />
-        }
-      </div>
-
       {/* If truly pending or logs not present, show a spinner */}
       {showSpinner ? (
         <div className="flex justify-center items-center h-full w-full">
