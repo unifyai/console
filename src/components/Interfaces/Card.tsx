@@ -1,6 +1,6 @@
 "use client";
 
-import { Dispatch, SetStateAction, useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -14,7 +14,7 @@ import LogsTable from "@/components/Interfaces/Table/Table";
 import { ItemType, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 
 const Card = ({
-    projects,
+    editable,
     project,
     pending,
     fields,
@@ -22,22 +22,19 @@ const Card = ({
     tableNames,
     tableData,
     plotData,
-    projectActions,
     logsActions,
     index,
     item,
     originalItem,
     items,
-    setProject,
+    filterExpressions,
+    sortingExpressions,
     setPending,
     setItems,
     updateItem,
     updateInterface,
-    fieldsActions,
-    filterExpressions,
-    sortingExpressions,
 }: {
-    projects: string[] | undefined,
+    editable: boolean,
     project: string | undefined,
     pending: boolean,
     fields: LogFieldsResponseProps,
@@ -45,12 +42,6 @@ const Card = ({
     tableNames: string[],
     tableData: TableDataProps,
     plotData: PlotDataProps,
-    projectActions: {
-        get: () => Promise<string[]>,
-        create: (name: string) => Promise<ResponseProps>,
-        rename: (oldName: string, newName: string) => Promise<ResponseProps>,
-        delete: (name: string) => Promise<ResponseProps>
-    },
     logsActions: {
         get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
         getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
@@ -63,16 +54,12 @@ const Card = ({
     item: TileProps,
     originalItem: TileProps,
     items: TileProps[],
-    setProject: Dispatch<SetStateAction<string | undefined>>,
+    filterExpressions: (string | null)[],
+    sortingExpressions: (string | null)[],
     setPending: (pending: boolean) => void,
     setItems: (items: TileProps[]) => void,
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void
     updateInterface: () => Promise<ResponseProps>,
-    fieldsActions: {
-        get: (project: string) => Promise<LogFieldsResponseProps>,
-    },
-    filterExpressions: (string | null)[],
-    sortingExpressions: (string | null)[],
 }) => {
     const router = useRouter();
     const tab = items.find(item => item.i == index)?.tab
@@ -100,8 +87,9 @@ const Card = ({
                             variant="outline"
                             size="default"
                         />}
+                        open={tab && !editable ? false : undefined}
                     >
-                        {tabTypes.map((tab, idx) => <DropdownMenuItem
+                        {(tab && !editable ? [] : tabTypes).map((tab, idx) => <DropdownMenuItem
                             key={idx}
                             onSelect={() => setItems(
                                 [...items.map(item => item.i != index ? item : { ...item, tab: tab })]
@@ -120,8 +108,9 @@ const Card = ({
                             variant="outline"
                             size="default"
                         />}
+                        open={item.table && !editable ? false : undefined}
                     >
-                        {tableNames.map((tile, idx) => <DropdownMenuItem
+                        {(item.table && !editable ? [] : tableNames).map((tile, idx) => <DropdownMenuItem
                             key={idx}
                             onSelect={() => updateItem(item, "table")(tile)}
                             disabled={tableData[tile].logs.length == 0}

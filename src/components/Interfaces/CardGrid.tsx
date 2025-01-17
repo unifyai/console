@@ -379,7 +379,7 @@ const CardGrid = ({
                         hidden={!el.visible}
                     >
                         <Card
-                            projects={projects}
+                            editable={editable}
                             project={project}
                             pending={el.tab == "Table" ? pending[el.i] : false}
                             fields={fields}
@@ -387,20 +387,17 @@ const CardGrid = ({
                             tableNames={tableNames}
                             tableData={tableData}
                             plotData={plotData}
-                            projectActions={projectActions}
                             logsActions={logsActions}
                             index={el.i}
                             item={el}
                             originalItem={items_.find(i => i.i === el.i) as TileProps}
                             items={items}
-                            setProject={setProject}
+                            filterExpressions={filterExpressions}
+                            sortingExpressions={sortingExpressions}
                             setPending={(p: boolean) => setPending({ ...pending, [el.i]: p })}
                             setItems={(items: TileProps[]) => setItems(items)}
                             updateItem={updateItem}
-                            fieldsActions={fieldsActions}
                             updateInterface={updateInterface}
-                            filterExpressions={filterExpressions}
-                            sortingExpressions={sortingExpressions}
                         />
                         {editable && <div className="flex gap-2 absolute top-3 right-5 z-10">
                             <ActionButton
@@ -445,7 +442,7 @@ const CardGrid = ({
                         <Badge
                             className="no-drag absolute top-3 left-3 z-10 cursor-pointer"
                             variant="primary"
-                            onClick={() => setEditTile(el.i)}
+                            onClick={() => editable ? setEditTile(el.i) : undefined}
                         >
                             {el.i}
                         </Badge>
@@ -457,7 +454,7 @@ const CardGrid = ({
             <DialogContent className="min-w-full h-full">
                 <div className="p-4 overflow-auto">
                     <Card
-                        projects={projects}
+                        editable={editable}
                         project={project}
                         pending={maxTileItem.tab == "Table" ? pending[maxTileItem.i] : false}
                         columnTypes={columnTypes}
@@ -465,32 +462,29 @@ const CardGrid = ({
                         tableData={tableData}
                         fields={fields}
                         plotData={plotData}
-                        projectActions={projectActions}
                         logsActions={logsActions}
                         index={maxTileItem.i}
                         item={maxTileItem}
                         originalItem={items_.find(i => i.i === maxTileItem.i) as TileProps}
                         items={items}
-                        setProject={setProject}
+                        filterExpressions={filterExpressions}
+                        sortingExpressions={sortingExpressions}
                         setPending={(p: boolean) => setPending({ ...pending, [maxTileItem.i]: p })}
                         setItems={(items: TileProps[]) => setItems(items)}
                         updateItem={updateItem}
-                        fieldsActions={fieldsActions}
                         updateInterface={updateInterface}
-                        filterExpressions={filterExpressions}
-                        sortingExpressions={sortingExpressions}
                     />
                 </div>
                 <Badge
                     className="no-drag absolute top-3 left-3 z-10 cursor-pointer"
                     variant="primary"
-                    onClick={() => setEditTile(maxTileItem.i)}
+                    onClick={() => editable ? setEditTile(maxTileItem.i) : undefined}
                 >
                     {maxTileItem.i}
                 </Badge>
             </DialogContent>
         </Dialog>}
-        {editTile && <Dialog open={true} onOpenChange={() => {
+        {editable && editTile && <Dialog open={true} onOpenChange={() => {
             setEditTile(undefined);
             setNewTileName(undefined);
         }}>
