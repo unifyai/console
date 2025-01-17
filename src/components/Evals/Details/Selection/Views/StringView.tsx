@@ -1,141 +1,211 @@
+"use client";
+
 import React, { useState } from "react";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 import { LogComparisonProps } from "./types";
-import { FileText, CaseLower, Pilcrow, Columns, AlignJustify } from "lucide-react";
+import {
+  FileText,
+  CaseLower,
+  Pilcrow,
+  Columns,
+  AlignJustify,
+} from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
 import MarkdownRenderer from "@/components/UI/Chat/markdown-renderer";
+import RowBadge from "./RowBadge";
+
+function toStringSafe(val: unknown): string {
+  if (typeof val === "string") return val;
+  if (val == null) return "";
+  return String(val);
+}
 
 /**
- * compressRowNumbers:
- * Accepts an array of row indexes like [1,2,3,5,6,7,10]
- * and returns a compressed string like "1-3,5-7,10".
+ * gatherPresenceDiffs:
+ * Checks whether the base string is empty vs comparables.
+ * Returns:
+ *  - labelColor: display color class for the base label
+ *  - redRows:    row indices missing data (if base has data)
+ *  - greenRows:  row indices that have data (if base is empty)
  */
-function compressRowNumbers(rows: number[]): string {
-  if (!rows.length) return "";
-  const sorted = [...rows].sort((a, b) => a - b);
+function gatherPresenceDiffs(
+  baseStr: string,
+  compStrs: string[],
+  baseIdx: number,
+  compIdxs: number[]
+) {
+  const baseHas = baseStr !== "";
+  const redSet = new Set<number>();
+  const greenSet = new Set<number>();
 
-  const ranges: string[] = [];
-  let start = sorted[0];
-  let end = start;
-
-  for (let i = 1; i < sorted.length; i++) {
-    const cur = sorted[i];
-    if (cur === end + 1) {
-      end = cur;
-    } else {
-      if (start === end) {
-        ranges.push(String(start));
-      } else {
-        ranges.push(`${start}-${end}`);
-      }
-      start = cur;
-      end = cur;
+  compStrs.forEach((val, i) => {
+    if (baseHas && val === "") {
+      redSet.add(compIdxs[i]);
+    } else if (!baseHas && val !== "") {
+      greenSet.add(compIdxs[i]);
     }
+  });
+
+  let labelColor = "";
+  if (baseHas && redSet.size > 0) {
+    labelColor = "text-red-600";
+  } else if (!baseHas && greenSet.size > 0) {
+    labelColor = "text-green-600";
   }
-  if (start === end) {
-    ranges.push(String(start));
-  } else {
-    ranges.push(`${start}-${end}`);
-  }
-  return ranges.join(",");
+
+  const redRows = Array.from(redSet).sort((a, b) => a - b);
+  const greenRows = Array.from(greenSet).sort((a, b) => a - b);
+
+  return { labelColor, redRows, greenRows };
 }
 
 /**
  * groupComparablesByValue:
- * Takes an array of comparable string values plus their row indexes,
- * then collects identical strings and merges their row indexes.
- * Returns an array of { text, rows }, where "rows" is the list of
- * row indexes that had the string "text".
+ * If multiple comparables share an identical string,
+ * combine them so they share one diff block → so you don't
+ * render identical diffs for multiple rows that have the same text.
  */
-function groupComparablesByValue(comparables: string[], rowIndexes: number[]) {
+function groupComparablesByValue(values: string[], rowIndexes: number[]) {
   const map = new Map<string, number[]>();
-
-  comparables.forEach((txt, i) => {
+  values.forEach((txt, i) => {
     const row = rowIndexes[i];
-    const arr = map.get(txt) || [];
-    arr.push(row);
-    map.set(txt, arr);
+    if (!map.has(txt)) {
+      map.set(txt, []);
+    }
+    map.get(txt)!.push(row);
   });
-
-  // Convert each map entry -> { text, rows: number[] }
   return Array.from(map.entries()).map(([text, rows]) => ({ text, rows }));
 }
 
-const StringView: React.FC<LogComparisonProps> = ({
+type DiffMode = "lines" | "words" | "characters";
+const modes: DiffMode[] = ["lines", "words", "characters"];
+const modeIcons = [
+  <FileText key="lines" />,
+  <CaseLower key="words" />,
+  <Pilcrow key="chars" />,
+];
+
+/**
+ * StringView:
+ * 1) If no comparables, display a single string field (Markdown).
+ * 2) If multiple comparables:
+ *    - Compare presence vs. empty to highlight missing/added data.
+ *    - Group identical comparables together so each distinct text is diffed once.
+ *    - Provide controls (modeIndex, splitView) to switch diff mode or layout.
+ */
+export default function StringView({
   value,
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
-}) => {
-  // -------------------------------------------------------------------------
-  // Diff mode logic and toggles
-  // -------------------------------------------------------------------------
-  type DiffMode = "lines" | "words" | "characters";
-  const modes: DiffMode[] = ["lines", "words", "characters"];
-  const modeIcons = [<FileText key="lines" />, <CaseLower key="words" />, <Pilcrow key="chars" />];
-
+}: LogComparisonProps) {
+  // 1) Always call hooks at the top (no conditions):
   const [modeIndex, setModeIndex] = useState(0);
   const [splitView, setSplitView] = useState(false);
-  const diffMode = modes[modeIndex];
 
-  const handleCycleMode = () => setModeIndex((prev) => (prev + 1) % modes.length);
-  const handleToggleSplit = () => setSplitView((prev) => !prev);
+  // 2) Decide if single or multi mode
+  const singleMode = !comparables || comparables.length === 0;
 
-  // -------------------------------------------------------------------------
-  // If there's no comparables, just render the single string as Markdown
-  // -------------------------------------------------------------------------
-  const baseStr = (value ?? "").toString();
-  if (!comparables || comparables.length === 0) {
-    return (
-      <div className="ml-2">
-        <MarkdownRenderer>{baseStr}</MarkdownRenderer>
-      </div>
-    );
+  // 3) Single mode → no diff needed
+  if (singleMode) {
+    const safeStr = toStringSafe(value);
+    if (!safeStr) {
+      return <p className="italic text-sm text-muted-foreground">No string</p>;
+    }
+    return <MarkdownRenderer>{safeStr}</MarkdownRenderer>;
   }
 
-  // -------------------------------------------------------------------------
-  // When we have comparables, do grouped diffs
-  // -------------------------------------------------------------------------
-  // 1) Convert each comparable to a string
-  const compStrings = comparables.map((c) => (c ?? "").toString());
-  // 2) Group them by identical text
-  const groups = groupComparablesByValue(compStrings, comparisonLogsIndex ?? []);
+  // 4) Multi mode
+  //    Convert base & comparables → strings
+  const baseStr = toStringSafe(value);
+  const compStrs = comparables.map(toStringSafe);
+
+  const { labelColor, redRows, greenRows } = gatherPresenceDiffs(
+    baseStr,
+    compStrs,
+    baseLogIndex,
+    comparisonLogsIndex
+  );
+
+  // Group comparables that share identical text, so each distinct text is diffed once
+  const groups = groupComparablesByValue(compStrs, comparisonLogsIndex);
+
+  // The current diff mode and toggles
+  const diffMode = modes[modeIndex];
+  const handleCycleMode = () => setModeIndex((p) => (p + 1) % modes.length);
+  const handleToggleSplit = () => setSplitView((p) => !p);
 
   return (
-    <div className="flex flex-col space-y-4">
-      {/* Diff toolbar */}
-      <div className="flex justify-end gap-2 mb-2">
-        <ActionButton
-          tooltip={`Cycle diff mode (current: ${diffMode})`}
-          icon={modeIcons[modeIndex]}
-          onClick={handleCycleMode}
-          variant="ghost"
-          size="icon"
-        />
-        <ActionButton
-          tooltip={splitView ? "Switch to Inline View" : "Switch to Split View"}
-          icon={splitView ? <Columns /> : <AlignJustify />}
-          onClick={handleToggleSplit}
-          variant="ghost"
-          size="icon"
-        />
+    <div className="space-y-4">
+      {/* Header: presence-based row badges & diff controls */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className={`font-semibold ${labelColor}`}>Difference</span>
+          {redRows.length > 0 && (
+            <RowBadge rowNumbers={redRows} customClass="bg-red-300 text-red-800" />
+          )}
+          {greenRows.length > 0 && (
+            <RowBadge rowNumbers={greenRows} customClass="bg-green-300 text-green-800" />
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <ActionButton
+            tooltip={`Cycle diff mode (current: ${diffMode})`}
+            icon={modeIcons[modeIndex]}
+            onClick={handleCycleMode}
+            variant="ghost"
+            size="icon"
+          />
+          <ActionButton
+            tooltip={splitView ? "Switch to Inline View" : "Switch to Split View"}
+            icon={splitView ? <Columns /> : <AlignJustify />}
+            onClick={handleToggleSplit}
+            variant="ghost"
+            size="icon"
+          />
+        </div>
       </div>
 
-      {/* Render one DiffViewer per group of comparables with identical text */}
-      {groups.map((group, idx) => {
-        const rowSet = compressRowNumbers(group.rows);
+      {/* Diff blocks for each unique comparable text */}
+      {groups.map((block, idx) => {
+        const { text: compStr, rows } = block;
+
+        // If both base & comparable are empty, just show "No data"
+        if (baseStr === "" && compStr === "") {
+          return (
+            <div key={idx} className="border rounded p-3 space-y-2">
+              <div className="flex items-center gap-2 text-xs">
+                <RowBadge rowNumbers={[baseLogIndex]} isBase customClass="text-default bg-default" />
+                <RowBadge rowNumbers={rows} customClass="text-default bg-default" />
+              </div>
+              <div className="flex items-center gap-2 border rounded p-3">
+                <p className="text-sm text-muted-foreground italic">No data</p>
+              </div>
+            </div>
+          );
+        }
+
+        // If they're identical (non-empty), no color on row badges
+        let baseBadgeClass = "bg-red-200 text-red-800";
+        let compBadgeClass = "bg-green-200 text-green-800";
+        if (baseStr === compStr && baseStr !== "") {
+          baseBadgeClass = "bg-default text-default";
+          compBadgeClass = "bg-default text-default";
+        }
+
         return (
-          <div key={idx} className="mb-4">
-            <p className="text-xs text-muted-foreground mb-1">
-              Diff: Row {baseLogIndex} vs. Row(s) {rowSet}
-            </p>
+          <div key={idx} className="border rounded p-3 space-y-2">
+            <div className="flex items-center gap-2 text-xs">
+              <RowBadge rowNumbers={[baseLogIndex]} customClass={baseBadgeClass} />
+              <RowBadge rowNumbers={rows} customClass={compBadgeClass} />
+            </div>
             <DiffViewer
               oldValue={baseStr}
-              newValue={group.text}
+              newValue={compStr}
+              splitView={splitView}
               hideLineNumbers={false}
               hideMarkers
-              splitView={splitView}
-              showDiffOnly={true}
+              showDiffOnly
               mode={diffMode}
             />
           </div>
@@ -143,6 +213,4 @@ const StringView: React.FC<LogComparisonProps> = ({
       })}
     </div>
   );
-};
-
-export default StringView;
+}

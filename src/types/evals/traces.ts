@@ -11,6 +11,7 @@ export interface Span {
   outputs?: any;
   errors?: string | null;
   child_spans: Span[];
+  [key: string]: any;
 }
 
   

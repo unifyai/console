@@ -29,10 +29,9 @@ import {
   ImageIcon,
   Grid,
 } from "lucide-react";
+import RowBadge from "./RowBadge";
 
-/** 
- * Decide the data type for an item => "trace", "dict", "list", "image", "matrix", or "string".
- */
+/** Decide data type => icon => subcomponent. */
 function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix" | "string" {
   if (isTrace(value))   return "trace";
   if (isDict(value))    return "dict";
@@ -42,9 +41,6 @@ function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix
   return "string";
 }
 
-/** 
- * Pick an icon based on the data type.
- */
 function getTypeIcon(valueType: string) {
   switch (valueType) {
     case "trace":
@@ -62,76 +58,60 @@ function getTypeIcon(valueType: string) {
   }
 }
 
-/**
- * pickView decides which specialized component to render
- * given a base "value" + "comparables."
- */
 function pickView(props: LogComparisonProps): JSX.Element {
   const { value } = props;
 
-  // If it's a single or array of Spans => trace
   if (isTrace(value)) {
     const traceArr = Array.isArray(value) ? value : [value];
     return <TraceView {...props} value={traceArr} />;
   }
-  // If it's a dictionary
   if (isDict(value)) {
     return <DictionaryView {...props} />;
   }
-  // If it's a list
   if (isList(value)) {
     return <ListView {...props} />;
   }
-  // If it's an image
   if (isImage(value)) {
     return <ImageView {...props} />;
   }
-  // If it's a matrix
   if (isMatrix(value)) {
     return <MatrixView {...props} />;
   }
-  // Fallback => String
   return <StringView {...props} />;
 }
 
-/**
- * renderListItemSingle:
- * SINGLE mode => Base list => 1 <AccordionItem> per element.
- * We show an icon for each item’s data type next to "Item #".
- */
+/*-----------------------------------------------------------------------------
+ SINGLE MODE => base list => no diffs
+-----------------------------------------------------------------------------*/
 function renderListItemSingle(
   index: number,
   itemValue: any,
   props: Omit<LogComparisonProps, "value" | "comparables">
 ): JSX.Element {
-  const { baseLogIndex, comparisonLogsIndex, nestingLevel = 0 } = props;
+  const { baseLogIndex, nestingLevel = 0 } = props;
   const label = `Item ${index}`;
   const indentClass = `pl-${nestingLevel * 4}`;
-
-  // Infer type/icon for the item
   const itemType = getValueType(itemValue);
   const icon = getTypeIcon(itemType);
 
-  // Child props => pass itemValue as base, no comparables
   const childProps: LogComparisonProps = {
     value: itemValue,
     comparables: [],
     baseLogIndex,
-    comparisonLogsIndex,
-    nestingLevel: nestingLevel,
+    comparisonLogsIndex: [],
+    nestingLevel,
   };
 
   return (
     <AccordionItem key={index} value={label}>
-      <AccordionTrigger className={`${indentClass}`}>
-        {/* Single mode => label in red by default. Show icon + label */}
+      <AccordionTrigger className={indentClass}>
         <span className="inline-flex items-center gap-2">
           {icon}
           {label}
         </span>
       </AccordionTrigger>
       <AccordionContent>
-        <div className={`border-l ml-4 ${indentClass}`}>
+        <div className={`border-l ml-4 pl-1 ${indentClass}`}>
           {pickView(childProps)}
         </div>
       </AccordionContent>
@@ -139,12 +119,9 @@ function renderListItemSingle(
   );
 }
 
-/**
- * renderListItemMulti:
- * MULTI mode => merges an element from base (subValues[0]) + comparables (subValues[1..]).
- * If base item exists => red label, else green => only comparables.
- * Also show an icon for the subValues' type (base or first non-undefined).
- */
+/*-----------------------------------------------------------------------------
+ MULTI MODE => base + comps => highlight diffs
+-----------------------------------------------------------------------------*/
 function renderListItemMulti(
   index: number,
   subValues: any[],
@@ -154,26 +131,51 @@ function renderListItemMulti(
   const label = `Item ${index}`;
   const indentClass = `pl-${nestingLevel * 4}`;
 
-  // subValues[0] => the base item
-  const baseItem = subValues[0];
-  const isInBase = baseItem !== undefined;
-  const labelColorClass = isInBase ? "text-red-600" : "text-green-600";
+  // subValues[0] => base
+  const baseVal = subValues[0];
+  const compVals = subValues.slice(1);
+  const baseHasIt = baseVal !== undefined;
 
-  // Find a sample to determine icon
-  let sample = baseItem;
+  // Track row diffs in sets
+  const redSet = new Set<number>();   // base has item but comp missing => red
+  const greenSet = new Set<number>(); // base missing item but comp has => green
+  compVals.forEach((cv, i) => {
+    if (baseHasIt && cv === undefined) {
+      redSet.add(rowIndexes[i + 1]);
+    } else if (!baseHasIt && cv !== undefined) {
+      greenSet.add(rowIndexes[i + 1]);
+    }
+  });
+
+  const redRows = Array.from(redSet).sort((a, b) => a - b);
+  const greenRows = Array.from(greenSet).sort((a, b) => a - b);
+
+  // Label color => if no diffs => black. if baseHasIt => red if any missing. if baseMissing => green if any present
+  let labelColorClass = "";
+  if (redRows.length > 0 && baseHasIt) {
+    labelColorClass = "text-red-600";
+  } else if (greenRows.length > 0 && !baseHasIt) {
+    labelColorClass = "text-green-600";
+  }
+
+  // Icon => from a sample
+  let sample = baseVal;
   if (sample === undefined) {
-    sample = subValues.find((v) => v !== undefined);
+    sample = compVals.find((v) => v !== undefined);
   }
   const itemType = sample ? getValueType(sample) : "string";
   const icon = getTypeIcon(itemType);
 
-  // Child props => base= subValues[0], comparables= subValues[1..]
+  // Possibly show base row if there is a difference
+  const showBaseBadge = baseHasIt && (redRows.length > 0 || greenRows.length > 0);
+  const baseRows = showBaseBadge ? [rowIndexes[0]] : [];
+
   const childProps: LogComparisonProps = {
-    value: subValues[0],
-    comparables: subValues.slice(1),
+    value: baseVal,
+    comparables: compVals,
     baseLogIndex: rowIndexes[0],
     comparisonLogsIndex: rowIndexes.slice(1),
-    nestingLevel: nestingLevel,
+    nestingLevel,
   };
 
   return (
@@ -182,6 +184,29 @@ function renderListItemMulti(
         <span className="inline-flex items-center gap-2">
           {icon}
           {label}
+          {/* Row badges if diffs exist */}
+          {(baseRows.length > 0 || redRows.length > 0 || greenRows.length > 0) && (
+            <div className="ml-2 flex gap-1">
+              {/* {baseRows.length > 0 && (
+                <RowBadge
+                  rowNumbers={baseRows}
+                  customClass="bg-slate-200 text-foreground"
+                />
+              )} */}
+              {redRows.length > 0 && (
+                <RowBadge
+                  rowNumbers={redRows}
+                  customClass="bg-red-300 text-red-800"
+                />
+              )}
+              {greenRows.length > 0 && (
+                <RowBadge
+                  rowNumbers={greenRows}
+                  customClass="bg-green-300 text-green-800"
+                />
+              )}
+            </div>
+          )}
         </span>
       </AccordionTrigger>
       <AccordionContent>
@@ -193,34 +218,21 @@ function renderListItemMulti(
   );
 }
 
-/**
- * renderListMulti:
- * For multi-lists, find the widest length among [baseList, ...comps].
- * For each index, combine subValues => call renderListItemMulti.
- */
 function renderListMulti(
   lists: any[],
   rowIndexes: number[],
   nestingLevel: number
 ): JSX.Element[] {
-  if (!lists.length) {
-    return [
-      <p key="nolists" className="text-sm text-red-500">
-        No lists to compare.
-      </p>,
-    ];
-  }
   const maxLength = Math.max(
     ...lists.map((lst) => (Array.isArray(lst) ? lst.length : 0))
   );
 
   const items: JSX.Element[] = [];
-  for (let index = 0; index < maxLength; index++) {
-    // subValues => [baseItem, compItem1, compItem2...]
+  for (let idx = 0; idx < maxLength; idx++) {
     const subValues = lists.map((lst) =>
-      Array.isArray(lst) ? lst[index] : undefined
+      Array.isArray(lst) ? lst[idx] : undefined
     );
-    items.push(renderListItemMulti(index, subValues, rowIndexes, nestingLevel));
+    items.push(renderListItemMulti(idx, subValues, rowIndexes, nestingLevel));
   }
   return items;
 }
@@ -229,8 +241,8 @@ type ListViewProps = LogComparisonProps;
 
 /**
  * ListView:
- * - SINGLE mode => base list => each item => red label, with icon for data type.
- * - MULTI mode => merges elements at each index => item => red if base, else green, plus an icon.
+ *   - SINGLE mode => base only => no diffs
+ *   - MULTI mode => highlight presence diffs across comparables
  */
 const ListView: React.FC<ListViewProps> = ({
   value,
@@ -243,26 +255,26 @@ const ListView: React.FC<ListViewProps> = ({
     return <p className="text-red-500">ListView: Value is not a valid list.</p>;
   }
 
-  // SINGLE MODE => no comparables
   if (!comparables || comparables.length === 0) {
+    // single-mode
     return (
       <>
         {value.map((item, idx) =>
           renderListItemSingle(idx, item, {
             baseLogIndex,
-            comparisonLogsIndex,
             nestingLevel,
+            comparisonLogsIndex: []
           })
         )}
       </>
     );
   }
 
-  // MULTI MODE => merges sub-items index by index
+  // multi-mode => merges sub-items index by index
   const allLists = [value, ...comparables];
-  const allIndexes = [baseLogIndex, ...comparisonLogsIndex];
+  const rowIndexes = [baseLogIndex, ...comparisonLogsIndex];
 
-  return <>{renderListMulti(allLists, allIndexes, nestingLevel)}</>;
+  return <>{renderListMulti(allLists, rowIndexes, nestingLevel)}</>;
 };
 
 export default ListView;

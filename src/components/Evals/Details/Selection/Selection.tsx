@@ -56,20 +56,22 @@ export default function Selection({
   const columnOrdering = columnOrderStr ? columnOrderStr.split(",") : [];
   const hiddenColumns = hiddenColumnsStr ? hiddenColumnsStr.split(",") : [];
 
+  // Optional sorting logic 
   const sortedLogs = useMemo(() => {
-    // Insert your own logic if you do a custom sort
     return [...logs];
   }, [logs]);
 
+  // The “selected” query param => array of e.g. "123_columnName"
   const [selectedCells] = useQueryState(
     "selected",
     parseAsArrayOf(parseAsString).withDefault([])
   );
+  // Map rowIndex -> set of selected columns 
   const indexToColumns = useMemo(() => {
     return buildIndexToColumnsMapFromId(selectedCells, sortedLogs);
   }, [selectedCells, sortedLogs]);
 
-  // Gather the unique rowIndices from that map
+  // Distinct rowIndices that are selected
   const selectedRowIndices = useMemo(() => {
     return Object.keys(indexToColumns)
       .map((key) => parseInt(key, 10))
@@ -77,78 +79,105 @@ export default function Selection({
       .sort((a, b) => a - b);
   }, [indexToColumns]);
 
+  // Which row is “base”
   const [baseIndexParamStr, setBaseIndexParamStr] = useQueryState("base_idx", parseAsString);
   let baseIndexParam = baseIndexParamStr ? parseInt(baseIndexParamStr, 10) : 0;
   if (isNaN(baseIndexParam) || baseIndexParam < 0 || baseIndexParam >= selectedRowIndices.length) {
     baseIndexParam = 0;
   }
 
-  // The actual rowIndex in sortedLogs for the “base log”
+  // The rowIndex in sortedLogs for the base 
   const baseRowIndex = selectedRowIndices[baseIndexParam] ?? -1;
-  // The other row indices => comparisons
+  // The rest => for comparisons
   const comparisonRowIndices = selectedRowIndices.filter((_, i) => i !== baseIndexParam);
 
+  /**
+   * Build a new LogProps object (base or comparison) with only the 
+   * “chosen” columns from selectedCells, also filtering out hidden columns, 
+   * and respecting column order. Now we do the same for .params as well.
+   */
   function buildLogWithChosenColumns(originalLog: LogProps, rowIndex: number): LogProps {
+    // The user-chosen columns 
     const chosenCols = indexToColumns[rowIndex] ?? new Set<string>();
+
+    // Filtration & ordering for entries
     const safeEntries = originalLog.entries ?? {};
-
-    // Filter out hidden columns
-    const afterHidden = Array.from(chosenCols).filter(c => !hiddenColumns.includes(c));
-    // Respect columnOrdering if any
-    let finalCols: string[];
+    const afterHiddenEntries = Array.from(chosenCols).filter(c => !hiddenColumns.includes(c));
+    let finalColsEntries: string[];
     if (columnOrdering.length > 0) {
-      finalCols = columnOrdering.filter(c => afterHidden.includes(c)).map(sanitizeId);
+      finalColsEntries = columnOrdering
+        .filter(c => afterHiddenEntries.includes(c))
+        .map(sanitizeId);
     } else {
-      finalCols = afterHidden.map(sanitizeId);
+      finalColsEntries = afterHiddenEntries.map(sanitizeId);
     }
-
+    // Rebuild entries
     const newEntries: Record<string, unknown> = {};
-    for (const c of finalCols) {
+    for (const c of finalColsEntries) {
       if (safeEntries.hasOwnProperty(c)) {
         newEntries[c] = safeEntries[c];
       }
     }
-    // Keep params as-is or you might filter them as well
-    // For demonstration, keep them all:
-    const newParams = originalLog.params ?? {};
 
-    return { ...originalLog, entries: newEntries, params: newParams };
+    // Filtration & ordering for params
+    const safeParams = originalLog.params ?? {};
+    const afterHiddenParams = Array.from(chosenCols).filter(c => !hiddenColumns.includes(c));
+    let finalColsParams: string[];
+    if (columnOrdering.length > 0) {
+      finalColsParams = columnOrdering
+        .filter(c => afterHiddenParams.includes(c))
+        .map(sanitizeId);
+    } else {
+      finalColsParams = afterHiddenParams.map(sanitizeId);
+    }
+    // Rebuild params
+    const newParams: Record<string, unknown> = {};
+    for (const c of finalColsParams) {
+      if (safeParams.hasOwnProperty(c)) {
+        newParams[c] = safeParams[c];
+      }
+    }
+
+    return {
+      ...originalLog,
+      entries: newEntries,
+      params: newParams,
+    };
   }
 
-  // Build final base log
+  // The base log
   const baseLog = useMemo(() => {
     if (baseRowIndex < 0 || baseRowIndex >= sortedLogs.length) {
       return undefined;
     }
-    const original = sortedLogs[baseRowIndex];
-    return buildLogWithChosenColumns(original, baseRowIndex);
+    return buildLogWithChosenColumns(sortedLogs[baseRowIndex], baseRowIndex);
   }, [baseRowIndex, sortedLogs, indexToColumns, columnOrdering, hiddenColumns]);
 
-  // Build final comparison logs
+  // The comparisons
   const comparisonLogs = useMemo(() => {
     return comparisonRowIndices
       .map((ri) => {
-        if (ri < 0 || ri >= sortedLogs.length) return null;
-        const original = sortedLogs[ri];
-        return buildLogWithChosenColumns(original, ri);
+        if (ri < 0 || ri >= sortedLogs.length) {
+          return null;
+        }
+        return buildLogWithChosenColumns(sortedLogs[ri], ri);
       })
       .filter((x): x is LogProps => x !== null);
   }, [comparisonRowIndices, sortedLogs, indexToColumns, columnOrdering, hiddenColumns]);
 
-  // For the base selection combobox
+  // Build combobox items => e.g. "Row 5"
   const comboItems = useMemo(() => {
     return selectedRowIndices.map((rowIndex, i) => {
-      const displayLabel = rowLabel(rowIndex); // e.g. "Row 5"
+      const displayLabel = rowLabel(rowIndex);
       return {
-        value: displayLabel, // used for searching & display
+        value: displayLabel,
         label: displayLabel,
-        dataIndex: i,       // which item in selectedRowIndices this is
+        dataIndex: i,
       };
     });
   }, [selectedRowIndices]);
 
   const currentBaseLabel = comboItems[baseIndexParam]?.value || "";
-
   const handleBaseChange = (newLabel: string) => {
     const found = comboItems.find((x) => x.value === newLabel);
     if (found) {
@@ -158,20 +187,22 @@ export default function Selection({
     }
   };
 
-  // Accordion expansions for Entries
+  // Conditionals for expansions in the Accordion (“Entries” & “Params”)
   const [openItems, setOpenItems] = useState<string[]>([]);
-  const entryKeys = baseLog?.entries ? Object.keys(baseLog.entries) : [];
+  const [openParamItems, setOpenParamItems] = useState<string[]>([]);
+
+  const entryKeys = baseLog ? Object.keys(baseLog.entries) : [];
   const everythingOpen = entryKeys.length > 0 && openItems.length === entryKeys.length;
+
   const handleToggleAll = () => {
     if (everythingOpen) setOpenItems([]);
     else setOpenItems(entryKeys);
   };
 
-  // Accordion expansions for Params
-  const [openParamItems, setOpenParamItems] = useState<string[]>([]);
-  const paramKeys = baseLog?.params ? Object.keys(baseLog.params) : [];
+  const paramKeys = baseLog ? Object.keys(baseLog.params) : [];
   const everythingOpenParams =
     paramKeys.length > 0 && openParamItems.length === paramKeys.length;
+
   const handleToggleAllParams = () => {
     if (everythingOpenParams) setOpenParamItems([]);
     else setOpenParamItems(paramKeys);
@@ -179,7 +210,7 @@ export default function Selection({
 
   const canPickBase = selectedRowIndices.length > 1;
 
-  // If no base log, show hints
+  // If we have no baseLog => show hints
   let content;
   if (!baseLog) {
     content = (
@@ -188,10 +219,10 @@ export default function Selection({
       </div>
     );
   } else {
-    // We have a base log => show both “Entries” and “Params”
+    // We have a base => show “Entries” + “Params”
     content = (
       <div className="flex flex-col gap-4">
-        {/* Title row => combobox if multi-rows, plus "Expand All" (for entries) */}
+        {/* Title row => combobox if multiple rows, plus "Expand All" for entries */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -199,20 +230,20 @@ export default function Selection({
             </div>
             <div className="flex items-center gap-2">
               {canPickBase && (
-                  <>
-                    <span className="text-sm text-muted-foreground">Base:</span>
-                    <Combobox
-                      items={comboItems.map((item) => ({
-                        value: item.value,
-                        label: item.label,
-                      }))}
-                      value={currentBaseLabel}
-                      onValueChange={handleBaseChange}
-                      placeholder="Pick base row"
-                      className="w-[110px]"
-                    />
-                  </>
-                )}
+                <>
+                  <span className="text-sm text-muted-foreground">Base:</span>
+                  <Combobox
+                    items={comboItems.map((item) => ({
+                      value: item.value,
+                      label: item.label,
+                    }))}
+                    value={currentBaseLabel}
+                    onValueChange={handleBaseChange}
+                    placeholder="Pick base row"
+                    className="w-[110px]"
+                  />
+                </>
+              )}
               <ActionButton
                 variant="ghost"
                 size="icon"
@@ -227,13 +258,13 @@ export default function Selection({
             </div>
           </div>
 
-          {/* Accordion for “Entries” */}
+          {/* Accordion => “Entries” */}
           <Accordion
             type="multiple"
             value={openItems}
             onValueChange={setOpenItems}
           >
-            {entryKeys.map((col) => (
+            {entryKeys.map(col => (
               <SelectionEntry
                 key={col}
                 source="entries"
@@ -248,7 +279,7 @@ export default function Selection({
           </Accordion>
         </div>
 
-        {/* If “Params” exist, render them below Entries in a separate section */}
+        {/* “Params” if any */}
         {paramKeys.length > 0 && (
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
@@ -267,13 +298,12 @@ export default function Selection({
                 }
               />
             </div>
-
             <Accordion
               type="multiple"
               value={openParamItems}
               onValueChange={setOpenParamItems}
             >
-              {paramKeys.map((col) => (
+              {paramKeys.map(col => (
                 <SelectionEntry
                   key={col}
                   source="params"
@@ -292,7 +322,6 @@ export default function Selection({
     );
   }
 
-  // Return a single set of hooks usage, then conditionally render content
   return (
     <div className="bg-background rounded-md w-full h-full overflow-y-scroll p-5 flex flex-col">
       {content}

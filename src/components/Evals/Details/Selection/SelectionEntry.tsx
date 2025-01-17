@@ -30,6 +30,7 @@ import {
   Text
 } from "lucide-react";
 
+/** Either "entries" or "params", determining which field of the log object to read from. */
 type SourceType = "entries" | "params";
 
 type SelectionEntryProps = {
@@ -44,10 +45,10 @@ type SelectionEntryProps = {
 
 function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix" | "string" {
   if (isTrace(value)) return "trace";
-  if (isDict(value)) return "dict";
-  if (isList(value)) return "list";
+  if (isDict(value))  return "dict";
+  if (isList(value))  return "list";
   if (isImage(value)) return "image";
-  if (isMatrix(value)) return "matrix";
+  if (isMatrix(value))return "matrix";
   return "string";
 }
 
@@ -80,10 +81,9 @@ function getSelectionView(
   baseLogIndex: number,
   comparisonLogsIndex: number[]
 ) {
-  // Spans or array of spans => trace
   if (isTrace(value)) {
     const baseArr = Array.isArray(value) ? value : [value];
-    const compArrs = comparables.map((c) => (Array.isArray(c) ? c : c ? [c] : []));
+    const compArrs = comparables.map((c) => Array.isArray(c) ? c : c ? [c] : []);
     return (
       <TraceView
         value={baseArr}
@@ -94,7 +94,6 @@ function getSelectionView(
     );
   }
 
-  // Dictionary
   if (isDict(value)) {
     return (
       <DictionaryView
@@ -106,7 +105,6 @@ function getSelectionView(
     );
   }
 
-  // List
   if (isList(value)) {
     return (
       <ListView
@@ -118,7 +116,6 @@ function getSelectionView(
     );
   }
 
-  // Image
   if (isImage(value)) {
     return (
       <ImageView
@@ -130,7 +127,6 @@ function getSelectionView(
     );
   }
 
-  // Matrix
   if (isMatrix(value)) {
     return (
       <MatrixView
@@ -169,12 +165,10 @@ const SelectionEntry: React.FC<SelectionEntryProps> = ({
   comparisonLogs,
   comparisonLogsIndex
 }) => {
-  // Gather parallel values for this property from each comparison log,
-  // using either cl.entries or cl.params depending on source
-  const comparables = comparisonLogs?.map((cl) => {
+  const comparables = (comparisonLogs ?? []).map((cl) => {
     const container = source === "params" ? cl.params ?? {} : cl.entries ?? {};
     return container[property];
-  }) ?? [];
+  });
 
   const valueType = getValueType(value);
   const icon = getTypeIcon(valueType);
