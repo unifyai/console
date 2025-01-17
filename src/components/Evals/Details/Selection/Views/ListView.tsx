@@ -1,9 +1,10 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import {
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
+  Accordion
 } from "@/components/UI/accordion";
 import {
   isDict,
@@ -28,8 +29,11 @@ import {
   Brackets,
   ImageIcon,
   Grid,
+  FoldVertical,
+  UnfoldVertical,
 } from "lucide-react";
 import RowBadge from "./RowBadge";
+import ActionButton from "@/components/Common/Buttons/Action";
 
 /** Decide data type => icon => subcomponent. */
 function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix" | "string" {
@@ -60,7 +64,6 @@ function getTypeIcon(valueType: string) {
 
 function pickView(props: LogComparisonProps): JSX.Element {
   const { value } = props;
-
   if (isTrace(value)) {
     const traceArr = Array.isArray(value) ? value : [value];
     return <TraceView {...props} value={traceArr} />;
@@ -82,6 +85,7 @@ function pickView(props: LogComparisonProps): JSX.Element {
 
 /*-----------------------------------------------------------------------------
  SINGLE MODE => base list => no diffs
+   Returns an <AccordionItem> for one array item.
 -----------------------------------------------------------------------------*/
 function renderListItemSingle(
   index: number,
@@ -120,7 +124,8 @@ function renderListItemSingle(
 }
 
 /*-----------------------------------------------------------------------------
- MULTI MODE => base + comps => highlight diffs
+ MULTI MODE => base + comps => highlight presence diffs
+   Returns an <AccordionItem> for one index across all logs.
 -----------------------------------------------------------------------------*/
 function renderListItemMulti(
   index: number,
@@ -136,9 +141,8 @@ function renderListItemMulti(
   const compVals = subValues.slice(1);
   const baseHasIt = baseVal !== undefined;
 
-  // Track row diffs in sets
-  const redSet = new Set<number>();   // base has item but comp missing => red
-  const greenSet = new Set<number>(); // base missing item but comp has => green
+  const redSet = new Set<number>();
+  const greenSet = new Set<number>();
   compVals.forEach((cv, i) => {
     if (baseHasIt && cv === undefined) {
       redSet.add(rowIndexes[i + 1]);
@@ -150,7 +154,6 @@ function renderListItemMulti(
   const redRows = Array.from(redSet).sort((a, b) => a - b);
   const greenRows = Array.from(greenSet).sort((a, b) => a - b);
 
-  // Label color => if no diffs => black. if baseHasIt => red if any missing. if baseMissing => green if any present
   let labelColorClass = "";
   if (redRows.length > 0 && baseHasIt) {
     labelColorClass = "text-red-600";
@@ -166,7 +169,6 @@ function renderListItemMulti(
   const itemType = sample ? getValueType(sample) : "string";
   const icon = getTypeIcon(itemType);
 
-  // Possibly show base row if there is a difference
   const showBaseBadge = baseHasIt && (redRows.length > 0 || greenRows.length > 0);
   const baseRows = showBaseBadge ? [rowIndexes[0]] : [];
 
@@ -184,15 +186,8 @@ function renderListItemMulti(
         <span className="inline-flex items-center gap-2">
           {icon}
           {label}
-          {/* Row badges if diffs exist */}
           {(baseRows.length > 0 || redRows.length > 0 || greenRows.length > 0) && (
             <div className="ml-2 flex gap-1">
-              {/* {baseRows.length > 0 && (
-                <RowBadge
-                  rowNumbers={baseRows}
-                  customClass="bg-slate-200 text-foreground"
-                />
-              )} */}
               {redRows.length > 0 && (
                 <RowBadge
                   rowNumbers={redRows}
@@ -218,6 +213,10 @@ function renderListItemMulti(
   );
 }
 
+/**
+ * Build up the full set of “item indices” to handle multi-mode
+ * if arrays differ in length.
+ */
 function renderListMulti(
   lists: any[],
   rowIndexes: number[],
@@ -241,8 +240,7 @@ type ListViewProps = LogComparisonProps;
 
 /**
  * ListView:
- *   - SINGLE mode => base only => no diffs
- *   - MULTI mode => highlight presence diffs across comparables
+ *   Wraps items in its own <Accordion>, with an “Expand All/Collapse All” button.
  */
 const ListView: React.FC<ListViewProps> = ({
   value,
@@ -251,30 +249,88 @@ const ListView: React.FC<ListViewProps> = ({
   comparisonLogsIndex,
   nestingLevel = 0,
 }) => {
+  // Validate
   if (!isList(value)) {
     return <p className="text-red-500">ListView: Value is not a valid list.</p>;
   }
 
-  if (!comparables || comparables.length === 0) {
-    // single-mode
-    return (
-      <>
-        {value.map((item, idx) =>
-          renderListItemSingle(idx, item, {
-            baseLogIndex,
-            nestingLevel,
-            comparisonLogsIndex: []
-          })
-        )}
-      </>
+  // Single-mode or multi-mode data
+  let itemCount = value.length;
+  let multiMode = comparables && comparables.length > 0;
+
+  // For local expand/collapse
+  // We'll label each item "Item 0", "Item 1", ...
+  //
+  // In multi-mode, we want up to the max of base or comparables,
+  // so we also build them in renderListMulti. We'll create an array
+  // of label strings "Item 0", "Item 1", etc.
+  let labelKeys: string[] = [];
+
+  if (!multiMode) {
+    // single
+    labelKeys = value.map((_, idx) => `Item ${idx}`);
+  } else {
+    const maxLength = Math.max(
+      value.length,
+      ...comparables.map((arr) => (Array.isArray(arr) ? arr.length : 0))
     );
+    labelKeys = Array.from({ length: maxLength }, (_, i) => `Item ${i}`);
   }
 
-  // multi-mode => merges sub-items index by index
-  const allLists = [value, ...comparables];
-  const rowIndexes = [baseLogIndex, ...comparisonLogsIndex];
+  const [openItems, setOpenItems] = useState<string[]>([]);
+  const everythingOpen = labelKeys.length > 0 && openItems.length === labelKeys.length;
 
-  return <>{renderListMulti(allLists, rowIndexes, nestingLevel)}</>;
+  function handleToggleAll() {
+    if (everythingOpen) setOpenItems([]);
+    else setOpenItems(labelKeys);
+  }
+
+  // Render the content
+  let listItems: JSX.Element[];
+
+  if (!multiMode) {
+    // Single-mode
+    listItems = value.map((item, idx) =>
+      renderListItemSingle(idx, item, {
+        baseLogIndex,
+        nestingLevel,
+        comparisonLogsIndex: [],
+      })
+    );
+  } else {
+    // Multi-mode
+    const allLists = [value, ...(comparables ?? [])];
+    const rowIndexes = [baseLogIndex, ...(comparisonLogsIndex ?? [])];
+    listItems = renderListMulti(allLists, rowIndexes, nestingLevel);
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex justify-between items-center">
+        <p className="font-bold text-sm">List</p>
+        {labelKeys.length > 0 && (
+          <ActionButton
+            variant="ghost"
+            size="icon"
+            tooltip={everythingOpen ? "Collapse All" : "Expand All"}
+            onClick={handleToggleAll}
+            icon={
+              everythingOpen
+                ? <FoldVertical className="h-4 w-4" />
+                : <UnfoldVertical className="h-4 w-4" />
+            }
+          />
+        )}
+      </div>
+      <Accordion
+        type="multiple"
+        value={openItems}
+        onValueChange={setOpenItems}
+      >
+        {listItems}
+      </Accordion>
+    </div>
+  );
 };
 
 export default ListView;
