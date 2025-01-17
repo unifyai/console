@@ -37,7 +37,7 @@ export const isURLImage = (value: string) => {
   */
   try {
     const url = new URL(value);
-    const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'svg', 'webp'].map(type => `image${type}`);
+    const imageTypes = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.svg', '.webp'];
     if (imageTypes.map(imageType => url.pathname.includes(imageType)).some(check => check)) return true;
   } catch (e) {
     return false
