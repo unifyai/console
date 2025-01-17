@@ -249,27 +249,28 @@ const ListView: React.FC<ListViewProps> = ({
   comparisonLogsIndex,
   nestingLevel = 0,
 }) => {
-  // Validate
+  //
+  // 1) Always call hooks at the top, unconditionally
+  //
+  const [openItems, setOpenItems] = useState<string[]>([]);
+
+  //
+  // 2) Then do any early validation checks / returns
+  //
   if (!isList(value)) {
     return <p className="text-red-500">ListView: Value is not a valid list.</p>;
   }
 
   // Single-mode or multi-mode data
-  let itemCount = value.length;
-  let multiMode = comparables && comparables.length > 0;
+  const multiMode = comparables && comparables.length > 0;
 
-  // For local expand/collapse
-  // We'll label each item "Item 0", "Item 1", ...
-  //
-  // In multi-mode, we want up to the max of base or comparables,
-  // so we also build them in renderListMulti. We'll create an array
-  // of label strings "Item 0", "Item 1", etc.
+  // Build “labels” to drive the accordion items
   let labelKeys: string[] = [];
-
   if (!multiMode) {
     // single
-    labelKeys = value.map((_, idx) => `Item ${idx}`);
+    labelKeys = value.map((_: any, idx: number) => `Item ${idx}`);
   } else {
+    // multi
     const maxLength = Math.max(
       value.length,
       ...comparables.map((arr) => (Array.isArray(arr) ? arr.length : 0))
@@ -277,7 +278,7 @@ const ListView: React.FC<ListViewProps> = ({
     labelKeys = Array.from({ length: maxLength }, (_, i) => `Item ${i}`);
   }
 
-  const [openItems, setOpenItems] = useState<string[]>([]);
+  // Expand/Collapse behavior
   const everythingOpen = labelKeys.length > 0 && openItems.length === labelKeys.length;
 
   function handleToggleAll() {
@@ -285,12 +286,12 @@ const ListView: React.FC<ListViewProps> = ({
     else setOpenItems(labelKeys);
   }
 
-  // Render the content
+  // Actual list items
   let listItems: JSX.Element[];
 
   if (!multiMode) {
     // Single-mode
-    listItems = value.map((item, idx) =>
+    listItems = value.map((item: any, idx: number) =>
       renderListItemSingle(idx, item, {
         baseLogIndex,
         nestingLevel,

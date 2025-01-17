@@ -234,7 +234,14 @@ const DictionaryView: React.FC<DictionaryViewProps> = ({
   comparisonLogsIndex,
   nestingLevel = 0
 }) => {
-  // Validate
+  //
+  // 1) Always call hooks at the top, unconditionally
+  //
+  const [openItems, setOpenItems] = useState<string[]>([]);
+
+  //
+  // 2) Then do any early validation checks / returns
+  //
   if (!isDict(value)) {
     return (
       <p className="text-red-500">
@@ -268,8 +275,7 @@ const DictionaryView: React.FC<DictionaryViewProps> = ({
     allKeys = Array.from(unionKeys).sort();
   }
 
-  // Local expand/collapse control
-  const [openItems, setOpenItems] = useState<string[]>([]);
+  // Local Expand/Collapse:
   const everythingOpen = allKeys.length > 0 && openItems.length === allKeys.length;
 
   function handleToggleAll() {
