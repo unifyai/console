@@ -112,7 +112,7 @@ export const getLogMetrics = async (apiKey: string) => {
         const response = await fetch(
             (
                 `${process.env.NEXTAUTH_URL}/api/logs/${metricName}?project=${project}&key=${sanitizedKey}`
-                +  (filterExpression ? `&filter_expr=${filterExpression}` : "")
+                +  (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
             ),
             { method: "GET", headers: { apiKey: apiKey } }
         );
