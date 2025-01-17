@@ -11,7 +11,7 @@ import {
   AlignJustify,
 } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
-import MarkdownRenderer from "@/components/UI/Chat/markdown-renderer";
+import MarkdownRenderer from "./MarkdownRenderer";
 import RowBadge from "./RowBadge";
 
 function toStringSafe(val: unknown): string {
