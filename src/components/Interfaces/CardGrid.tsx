@@ -20,6 +20,7 @@ import FileDirectory from "../Tree/Directory/FileDirectory";
 import CloseProject from "./Table/Buttons/CloseProject";
 import DeleteDialog from "../Common/Dialogs/Delete";
 import CreateProject from "./Table/Buttons/CreateProject";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../UI/tabs";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -210,246 +211,273 @@ const CardGrid = ({
     );
 
     return (<div className="w-full h-full overflow-auto p-3" ref={gridRef}>
-        <div className="mt-2 ml-4 mr-8 flex justify-between gap-4">
-            <div className="w-fit gap-2 flex flex-row items-center">
-                <FileDirectory
-                    data={data}
-                    renamingFunction={projectActions.rename}
-                    setterFunction={(proj: FileProps | undefined) => {
-                        const newProj = proj ? proj.path : undefined;
-                        resetParamsStates();
-                        setProject(newProj);
-                    }}
-                    type="Projects"
-                    defaultValue={project}
-                />
-                {project && (
-                    <div className="flex flex-row gap-2">
-                        <CloseProject
-                            onClick={() => {
-                                resetParamsStates();
-                                setProject(undefined);
-                            }}
-                        />
-                        <DeleteDialog
-                            type="project"
-                            resource={project}
-                            deletingFunction={projectActions.delete}
-                            variant="outline"
-                            onDelete={() => {
-                                resetParamsStates();
-                                setProject(undefined);
-                            }}
-                        />
+        <Tabs defaultValue="Interface_1" className="w-full tutorial-details-panel">
+            <div className="mt-1 ml-4 mr-8 flex justify-between gap-4">
+                <div className="w-fit gap-2 flex flex-row items-center">
+                    <FileDirectory
+                        data={data}
+                        renamingFunction={projectActions.rename}
+                        setterFunction={(proj: FileProps | undefined) => {
+                            const newProj = proj ? proj.path : undefined;
+                            resetParamsStates();
+                            setProject(newProj);
+                        }}
+                        type="Projects"
+                        defaultValue={project}
+                    />
+                    {project && (
+                        <div className="flex flex-row gap-2">
+                            <CloseProject
+                                onClick={() => {
+                                    resetParamsStates();
+                                    setProject(undefined);
+                                }}
+                            />
+                            <DeleteDialog
+                                type="project"
+                                resource={project}
+                                deletingFunction={projectActions.delete}
+                                variant="outline"
+                                onDelete={() => {
+                                    resetParamsStates();
+                                    setProject(undefined);
+                                }}
+                            />
+                        </div>
+                    )}
+                    {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
+                </div>
+                <TabsList className="rounded-md justify-between">
+                    <div className="flex flex-row gap-3">
+                        <TabsTrigger
+                            value="Interface_1"
+                            className="flex flex-row gap-2 data-[state=active]:text-accent"
+                        >
+                            {"Interface_1"}
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="Interface_2"
+                            className="flex flex-row gap-2 data-[state=active]:text-accent"
+                        >
+                            {"Interface_2"}
+                        </TabsTrigger>
                     </div>
-                )}
-                {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
-            </div>
-            <div className="flex gap-2 items-center">
-                <ActionButton
-                    className="transition-all"
-                    tooltip="Save Interface"
-                    icon={saveIcon}
-                    variant={variant}
-                    disabled={disabled || anyPending}
-                    onClick={async () => {
-                        if (saveSuccess == undefined) {
-                            let response: ResponseProps | undefined = undefined;
-                            if (interfaceCreated)
-                                response = await interfaceActions.update(items, newCounter, project || null, false);
-                            else
-                                response = await interfaceActions.create(items, newCounter, project || null, false);
-                            if (response && "info" in response)
-                                setSaveSuccess(true);
-                            else
-                                setSaveSuccess(false);
-                        }
-                    }}
-                />
-                <ActionButton
-                    className="transition-all"
-                    tooltip="Return to last saved interface"
-                    icon={resetIcon}
-                    variant="outline"
-                    disabled={disabled || anyPending}
-                    onClick={async () => updateInterface(savedInterface).then(() => {
-                        setResetting(true);
-                        setEditable(true);
-                        router.refresh();
-                    })}
-                />
-                <ActionButton
-                    variant="outline"
-                    icon={<Plus />}
-                    text="Add Tile"
-                    tooltip="Add new tile"
-                    disabled={!editable}
-                    onClick={() => {
-                        setItems([
-                            ...items,
-                            {
-                                i: "Tile_" + newCounter,
-                                x: (items.length * 2) % 12,
-                                y: (items.length * 2) / 12,
-                                w: 4,
-                                h: 4,
-                                tab: undefined,
-                                visible: true,
+                </TabsList>
+
+                <div className="flex gap-2 items-center">
+                    <ActionButton
+                        className="transition-all"
+                        tooltip="Save Interface"
+                        icon={saveIcon}
+                        variant={variant}
+                        disabled={disabled || anyPending}
+                        onClick={async () => {
+                            if (saveSuccess == undefined) {
+                                let response: ResponseProps | undefined = undefined;
+                                if (interfaceCreated)
+                                    response = await interfaceActions.update(items, newCounter, project || null, false);
+                                else
+                                    response = await interfaceActions.create(items, newCounter, project || null, false);
+                                if (response && "info" in response)
+                                    setSaveSuccess(true);
+                                else
+                                    setSaveSuccess(false);
                             }
-                        ]);
-                        setNewCounter(newCounter + 1);
-                    }}
-                />
-                <BaseDropdown
-                    button={<ActionButton
+                        }}
+                    />
+                    <ActionButton
+                        className="transition-all"
+                        tooltip="Return to last saved interface"
+                        icon={resetIcon}
                         variant="outline"
-                        icon={<Eye />}
-                        tooltip="Show Hidden"
-                        size="sm"
-                        disabled={hiddenItems.length == 0}
-                    />}
-                >
-                    {hiddenItems.map((item, idx) => <DropdownMenuItem
-                        key={idx}
-                        onSelect={() => {
-                            setItems([...items.map(
-                                it => it.i == item.i ? {
-                                    ...it,
+                        disabled={disabled || anyPending}
+                        onClick={async () => updateInterface(savedInterface).then(() => {
+                            setResetting(true);
+                            setEditable(true);
+                            router.refresh();
+                        })}
+                    />
+                    <ActionButton
+                        variant="outline"
+                        icon={<Plus />}
+                        text="Add Tile"
+                        tooltip="Add new tile"
+                        disabled={!editable}
+                        onClick={() => {
+                            setItems([
+                                ...items,
+                                {
+                                    i: "Tile_" + newCounter,
                                     x: (items.length * 2) % 12,
                                     y: (items.length * 2) / 12,
                                     w: 4,
                                     h: 4,
-                                    visible: true
-                                } : { ...it }
-                            )]);
+                                    tab: undefined,
+                                    visible: true,
+                                }
+                            ]);
+                            setNewCounter(newCounter + 1);
                         }}
-                        disabled={hiddenItems.length == 0}
-                        className="w-64 no-drag"
-                    >
-                        {item.i}
-                    </DropdownMenuItem>)}
-                </BaseDropdown>
-                <ActionButton
-                    variant="outline"
-                    icon={<Clipboard />}
-                    tooltip="Paste"
-                    disabled={!copied}
-                    onClick={() => {
-                        const copiedItem = items.find(item => item.i == copied) as TileProps;
-                        setItems([
-                            ...items,
-                            { ...copiedItem, i: "Tile_" + newCounter }
-                        ]);
-                        setNewCounter(newCounter + 1);
-                        setCopied(undefined);
-                    }}
-                />
-                <div className="flex items-center gap-2 ml-2">
-                    <Switch
-                        checked={editable}
-                        onCheckedChange={(editable: boolean) => setEditable(editable)}
-                        id="editable"
                     />
-                    <Label htmlFor="airplane-mode">Editing Mode</Label>
+                    <BaseDropdown
+                        button={<ActionButton
+                            variant="outline"
+                            icon={<Eye />}
+                            tooltip="Show Hidden"
+                            size="sm"
+                            disabled={hiddenItems.length == 0}
+                        />}
+                    >
+                        {hiddenItems.map((item, idx) => <DropdownMenuItem
+                            key={idx}
+                            onSelect={() => {
+                                setItems([...items.map(
+                                    it => it.i == item.i ? {
+                                        ...it,
+                                        x: (items.length * 2) % 12,
+                                        y: (items.length * 2) / 12,
+                                        w: 4,
+                                        h: 4,
+                                        visible: true
+                                    } : { ...it }
+                                )]);
+                            }}
+                            disabled={hiddenItems.length == 0}
+                            className="w-64 no-drag"
+                        >
+                            {item.i}
+                        </DropdownMenuItem>)}
+                    </BaseDropdown>
+                    <ActionButton
+                        variant="outline"
+                        icon={<Clipboard />}
+                        tooltip="Paste"
+                        disabled={!copied}
+                        onClick={() => {
+                            const copiedItem = items.find(item => item.i == copied) as TileProps;
+                            setItems([
+                                ...items,
+                                { ...copiedItem, i: "Tile_" + newCounter }
+                            ]);
+                            setNewCounter(newCounter + 1);
+                            setCopied(undefined);
+                        }}
+                    />
+                    <div className="flex items-center gap-2 ml-2">
+                        <Switch
+                            checked={editable}
+                            onCheckedChange={(editable: boolean) => setEditable(editable)}
+                            id="editable"
+                        />
+                        <Label htmlFor="airplane-mode">Editing Mode</Label>
+                    </div>
                 </div>
             </div>
-        </div>
-        <ResponsiveReactGridLayout
-            onLayoutChange={(newLayout) => {
-                const updatedItems = newLayout.map((item) => {
-                    const originalItem = items.find(i => i.i === item.i);
-                    return { ...originalItem, ...item };
-                });
-                setItems([...updatedItems]);
-            }}
-            className="layout interactive-grid flex-1"
-            cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-            rowHeight={100}
-            isDraggable={editable}
-            isResizable={editable}
-            draggableCancel=".no-drag"
-            resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
-        >
-            {items.map(el => {
-                return (
-                    <div
-                        key={el.i}
-                        data-grid={el}
-                        className="relative m-1 p-1 rounded-lg"
-                        hidden={!el.visible}
-                    >
-                        <Card
-                            editable={editable}
-                            project={project}
-                            pending={el.tab == "Table" ? pending[el.i] : false}
-                            fields={fields}
-                            columnTypes={columnTypes}
-                            tableNames={tableNames}
-                            tableData={tableData}
-                            plotData={plotData}
-                            logsActions={logsActions}
-                            index={el.i}
-                            item={el}
-                            originalItem={items_.find(i => i.i === el.i) as TileProps}
-                            items={items}
-                            filterExpressions={filterExpressions}
-                            sortingExpressions={sortingExpressions}
-                            setPending={(p: boolean) => setPending({ ...pending, [el.i]: p })}
-                            setItems={(items: TileProps[]) => setItems(items)}
-                            updateItem={updateItem}
-                            updateInterface={updateInterface}
-                        />
-                        {editable && <div className="flex gap-2 absolute top-3 right-5 z-10">
-                            <ActionButton
-                                className="no-drag cursor-pointer"
-                                onClick={() => {
-                                    setItems([...items.map(
-                                        it => it.i == el.i ? { ...it, visible: false } : it
-                                    )]);
-                                }}
-                                icon={<EyeOff />}
-                                tooltip={"Hide"}
-                                variant="outline"
-                            />
-                            <ActionButton
-                                className="no-drag cursor-pointer"
-                                onClick={() => setCopied(el.i)}
-                                icon={<Copy />}
-                                tooltip={"Copy"}
-                                variant="outline"
-                            />
-                            <ActionButton
-                                className="cursor-grab"
-                                icon={<Grip />}
-                                tooltip="Drag"
-                                variant="outline"
-                            />
-                            <ActionButton
-                                className="no-drag cursor-pointer"
-                                onClick={() => setMaxTile(el.i)}
-                                icon={<Maximize2 />}
-                                tooltip="Maximize"
-                                variant="outline"
-                            />
-                            <ActionButton
-                                className="no-drag remove cursor-pointer"
-                                onClick={() => setItems([...items.filter(item => item.i != el.i)])}
-                                icon={<X />}
-                                tooltip="Remove"
-                                variant="outline"
-                            />
-                        </div>}
-                        <Badge
-                            className="no-drag absolute top-3 left-3 z-10 cursor-pointer"
-                            variant="primary"
-                            onClick={() => editable ? setEditTile(el.i) : undefined}
-                        >
-                            {el.i}
-                        </Badge>
-                    </div>
-                );
-            })}
-        </ResponsiveReactGridLayout>
+            <TabsContent value="Interface_1" className="tutorial-selection-pane">
+                {/* <Selection params={params} logs={logs} /> */}
+                {/* <div className="text-center">text1</div> */}
+                <ResponsiveReactGridLayout
+                    onLayoutChange={(newLayout) => {
+                        const updatedItems = newLayout.map((item) => {
+                            const originalItem = items.find(i => i.i === item.i);
+                            return { ...originalItem, ...item };
+                        });
+                        setItems([...updatedItems]);
+                    }}
+                    className="layout interactive-grid flex-1"
+                    cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+                    rowHeight={100}
+                    isDraggable={editable}
+                    isResizable={editable}
+                    draggableCancel=".no-drag"
+                    resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
+                >
+                    {items.map(el => {
+                        return (
+                            <div
+                                key={el.i}
+                                data-grid={el}
+                                className="relative m-1 p-1 rounded-lg"
+                                hidden={!el.visible}
+                            >
+                                <Card
+                                    editable={editable}
+                                    project={project}
+                                    pending={el.tab == "Table" ? pending[el.i] : false}
+                                    fields={fields}
+                                    columnTypes={columnTypes}
+                                    tableNames={tableNames}
+                                    tableData={tableData}
+                                    plotData={plotData}
+                                    logsActions={logsActions}
+                                    index={el.i}
+                                    item={el}
+                                    originalItem={items_.find(i => i.i === el.i) as TileProps}
+                                    items={items}
+                                    filterExpressions={filterExpressions}
+                                    sortingExpressions={sortingExpressions}
+                                    setPending={(p: boolean) => setPending({ ...pending, [el.i]: p })}
+                                    setItems={(items: TileProps[]) => setItems(items)}
+                                    updateItem={updateItem}
+                                    updateInterface={updateInterface}
+                                />
+                                {editable && <div className="flex gap-2 absolute top-3 right-5 z-10">
+                                    <ActionButton
+                                        className="no-drag cursor-pointer"
+                                        onClick={() => {
+                                            setItems([...items.map(
+                                                it => it.i == el.i ? { ...it, visible: false } : it
+                                            )]);
+                                        }}
+                                        icon={<EyeOff />}
+                                        tooltip={"Hide"}
+                                        variant="outline"
+                                    />
+                                    <ActionButton
+                                        className="no-drag cursor-pointer"
+                                        onClick={() => setCopied(el.i)}
+                                        icon={<Copy />}
+                                        tooltip={"Copy"}
+                                        variant="outline"
+                                    />
+                                    <ActionButton
+                                        className="cursor-grab"
+                                        icon={<Grip />}
+                                        tooltip="Drag"
+                                        variant="outline"
+                                    />
+                                    <ActionButton
+                                        className="no-drag cursor-pointer"
+                                        onClick={() => setMaxTile(el.i)}
+                                        icon={<Maximize2 />}
+                                        tooltip="Maximize"
+                                        variant="outline"
+                                    />
+                                    <ActionButton
+                                        className="no-drag remove cursor-pointer"
+                                        onClick={() => setItems([...items.filter(item => item.i != el.i)])}
+                                        icon={<X />}
+                                        tooltip="Remove"
+                                        variant="outline"
+                                    />
+                                </div>}
+                                <Badge
+                                    className="no-drag absolute top-3 left-3 z-10 cursor-pointer"
+                                    variant="primary"
+                                    onClick={() => editable ? setEditTile(el.i) : undefined}
+                                >
+                                    {el.i}
+                                </Badge>
+                            </div>
+                        );
+                    })}
+                </ResponsiveReactGridLayout>
+            </TabsContent>
+            <TabsContent value="Interface_2" className="w-full h-[calc(100%-50px)] tutorial-plot-pane">
+                {/* <LogsPlot logs={plotLogs} fields={fields} /> */}
+                <div className="text-center">text2</div>
+            </TabsContent>
+        </Tabs>
         {maxTile && <Dialog open={true} onOpenChange={() => setMaxTile(undefined)}>
             <DialogContent className="min-w-full h-full">
                 <div className="p-4 overflow-auto">
