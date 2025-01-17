@@ -8,6 +8,7 @@ export interface TileProps {
     h: number;
     moved?: boolean;
     static?: boolean;
+    visible?: boolean;
     tab?: string;
     table?: string;
     context?: string;
@@ -81,4 +82,5 @@ export type ItemType =
     | "columns_pin_right"
     | "table"
     | "context"
-    | "auto_update";
+    | "auto_update"
+    | "visible";

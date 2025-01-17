@@ -9,17 +9,13 @@ import { ItemType, PlotDataProps, TableDataProps, TileProps } from "@/types/eval
 import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import ActionButton from "../Common/Buttons/Action";
-import { Check, Clipboard, Copy, Grip, ListRestart, Loader2, Maximize2, Plus, Save, TriangleAlert, X } from "lucide-react";
+import { Check, Clipboard, Copy, Eye, EyeOff, Grip, ListRestart, Loader2, Maximize2, Plus, Save, TriangleAlert, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { Badge } from "../UI/badge";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-} from "../UI/dialog";
+import { Dialog, DialogContent } from "../UI/dialog";
 import { Input } from "../UI/input";
+import BaseDropdown from "../Common/Dropdowns/Base";
+import { DropdownMenuItem } from "../UI/dropdown-menu";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -99,9 +95,10 @@ const CardGrid = ({
     const gridRef = useRef<HTMLDivElement>(null);
     const anyPending = !Object.entries(pending).every(([_, value]) => !value);
     const maxTileItem = items.find(item => item.i == maxTile) as TileProps;
+    const hiddenItems = items.filter(item => !item.visible);
 
     const updateItem = (item: TileProps, attrName: ItemType) => {
-        return (newValue: string | undefined) => {
+        return (newValue: any | undefined) => {
             item[attrName] = newValue;
             setItems([...items.map((i) => (i.i === item.i ? item : i))]);
         }
@@ -238,28 +235,59 @@ const CardGrid = ({
                             i: "Tile_" + newCounter,
                             x: (items.length * 2) % 12,
                             y: (items.length * 2) / 12,
-                            w: 3,
-                            h: 3,
+                            w: 4,
+                            h: 4,
                             tab: undefined,
+                            visible: true,
                         }
                     ]);
                     setNewCounter(newCounter + 1);
                 }}
             />
-            {copied && <ActionButton
+            <BaseDropdown
+                button={<ActionButton
+                    variant="outline"
+                    icon={<Eye />}
+                    tooltip="Show Hidden"
+                    size="sm"
+                    disabled={hiddenItems.length == 0}
+                />}
+            >
+                {hiddenItems.map((item, idx) => <DropdownMenuItem
+                    key={idx}
+                    onSelect={() => {
+                        setItems([...items.map(
+                            it => it.i == item.i ? {
+                                ...it,
+                                x: (items.length * 2) % 12,
+                                y: (items.length * 2) / 12,
+                                w: 4,
+                                h: 4,
+                                visible: true
+                            } : { ...it }
+                        )]);
+                    }}
+                    disabled={hiddenItems.length == 0}
+                    className="w-64 no-drag"
+                >
+                    {item.i}
+                </DropdownMenuItem>)}
+            </BaseDropdown>
+            <ActionButton
                 variant="outline"
                 icon={<Clipboard />}
                 tooltip="Paste"
+                disabled={!copied}
                 onClick={() => {
                     const copiedItem = items.find(item => item.i == copied) as TileProps;
                     setItems([
                         ...items,
-                        {...copiedItem, i: "Tile_" + newCounter}
+                        { ...copiedItem, i: "Tile_" + newCounter }
                     ]);
                     setNewCounter(newCounter + 1);
                     setCopied(undefined);
                 }}
-            />}
+            />
             <div className="flex items-center gap-2">
                 <Switch
                     checked={editable}
@@ -291,6 +319,7 @@ const CardGrid = ({
                         key={el.i}
                         data-grid={el}
                         className="relative m-1 p-1 rounded-lg"
+                        hidden={!el.visible}
                     >
                         <Card
                             projects={projects}
@@ -317,6 +346,17 @@ const CardGrid = ({
                             sortingExpressions={sortingExpressions}
                         />
                         {editable && <div className="flex gap-2 absolute top-3 right-5 z-10">
+                            <ActionButton
+                                className="no-drag cursor-pointer"
+                                onClick={() => {
+                                    setItems([...items.map(
+                                        it => it.i == el.i ? { ...it, visible: false } : it
+                                    )]);
+                                }}
+                                icon={<EyeOff />}
+                                tooltip={"Hide"}
+                                variant="outline"
+                            />
                             <ActionButton
                                 className="no-drag cursor-pointer"
                                 onClick={() => setCopied(el.i)}
