@@ -2,54 +2,33 @@ import { ResponseProps } from "@/types/common";
 import CardGrid from "@/components/Interfaces/CardGrid";
 import { LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
-import { PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
+import { FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 
-const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActions }: {
-    projectsActions: {
-        get: () => Promise<string[]>,
-        create: (name: string) => Promise<ResponseProps>,
-        rename: (name: string, newName: string) => Promise<ResponseProps>,
-        delete: (name: string) => Promise<ResponseProps>
-    },
-    logsActions: {
-        get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
-        getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
-        getMetrics: (
-            project: string, filterExpression: string | null, metricName: string, keyName: string
-        ) => Promise<number>,
-        delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
-    },
-    fieldsActions: {
-        get: (project: string) => Promise<LogFieldsResponseProps>,
-    },
-    interfaceActions: {
-        get: (temporary: boolean) => Promise<{ items: TileProps[], new_counter: number, project: string | null } | null>,
-        create: (items: TileProps[], new_counter: number, project: string | null, temporary: boolean) => Promise<ResponseProps>,
-        update: (items: TileProps[], new_counter: number, project: string | null, temporary: boolean) => Promise<ResponseProps>,
-    }
+const Main = async ({ interface_, project_, projectsActions, logsActions, fieldsActions, interfaceActions }: {
+    interface_: string | undefined,
+    project_: string | undefined,
+    projectsActions: ProjectsActions,
+    logsActions: LogsActions,
+    fieldsActions: FieldsActions,
+    interfaceActions: InterfaceActions
 }) => {
-    // Get interface
-    let interface_: { items: TileProps[], new_counter: number, project: string | null } | null = await interfaceActions.get(false);
-    let interfaceTemp_: { items: TileProps[], new_counter: number, project: string | null } | null = await interfaceActions.get(true);
-    let interfaceCreated = Boolean(interfaceTemp_);
-    let currentInterface = interfaceTemp_;
-    if (!currentInterface) {
-        currentInterface = {
-            items: [
-                { i: "Tile_0", x: 0, y: 0, w: 6, h: 8, tab: "Table", moved: false, static: false, visible: true },
-                { i: "Tile_1", x: 6, y: 0, w: 6, h: 4, tab: "View", moved: false, static: false, visible: true },
-                { i: "Tile_2", x: 6, y: 4, w: 6, h: 4, tab: "Plot", moved: false, static: false, visible: true }
-            ],
-            new_counter: 1,
-            project: null
-        };
-    }
-
     // Get projects
     const projects: string[] = await projectsActions.get();
-    const project = projects.find(project => project == currentInterface.project) || null;
+    const project = projects.find(proj => proj == project_) || null;
+
+    // Get interface
+    let interfaces_: { [key: string]: Interface } = (
+        project ? await interfaceActions.get(project, false) : []
+    ).reduce((acc, curr) => ({...acc, [curr.name]: curr}), {});
+    let interfacesTemp_: { [key: string]: Interface } = (
+        project ? await interfaceActions.get(project, true) : []
+    ).reduce((acc, curr) => ({...acc, [curr.name]: curr}), {});
+    let interfaceCreated = Boolean(interface_);
+    const selectedInterface_ = interface_ ? interface_ : Object.keys(interfacesTemp_)[0];
+    let currentInterface = selectedInterface_ in interfacesTemp_ ? interfacesTemp_[selectedInterface_] : null;
+    let savedInterface = selectedInterface_ in interfaces_ ? interfaces_[selectedInterface_] : null;
 
     // Get fields
     let fields: LogFieldsResponseProps = {};
@@ -64,8 +43,8 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
     // 2- Join column filters with the corresponding filter functions and values using "and"
     // 3- Join common filters with the "in" filter function and common filter value using "or"
     // 4- Join common and column filters into a single filter expression
-    let tableItems = (currentInterface.items || []).filter(item => item.tab == "Table");
-    let plotItems = (currentInterface.items || []).filter(item => item.tab == "Plot");
+    let tableItems = (currentInterface?.items || []).filter(item => item.tab == "Table");
+    let plotItems = (currentInterface?.items || []).filter(item => item.tab == "Plot");
     const tableNames = tableItems.map(item => item.i);
     const logsFilters: { [column: string]: { [fn: string]: string } }[] = tableItems.map(
         item => searchParamToFilters(item.filters, item.context)
@@ -213,22 +192,23 @@ const Main = async ({ projectsActions, logsActions, fieldsActions, interfaceActi
     return <CardGrid
         projects={projects}
         project_={project}
+        interfaces={Object.keys(interfacesTemp_)}
         tableNames={tableNames}
         tableData={tableData}
         fields={fields}
         plotData={plotData}
         columnTypes={types}
-        savedInterface={interface_}
-        items_={currentInterface.items}
-        newCounter_={currentInterface.new_counter}
+        savedInterface={savedInterface}
+        name_={currentInterface?.name}
+        items_={currentInterface?.items || []}
+        newCounter_={currentInterface?.new_counter || 0}
         interfaceCreated={interfaceCreated}
-        tempInterfaceCreated={Boolean(interfaceTemp_)}
-        projectActions={projectsActions}
-        logsActions={logsActions}
-        fieldsActions={fieldsActions}
-        interfaceActions={interfaceActions}
+        tempInterfaceCreated={Boolean(currentInterface)}
         filterExpressions={filterExpressions}
         sortingExpressions={sortingExpressions}
+        projectActions={projectsActions}
+        logsActions={logsActions}
+        interfaceActions={interfaceActions}
     />;
 };
 

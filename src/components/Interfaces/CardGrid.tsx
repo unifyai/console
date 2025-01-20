@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Card from "./Card";
-import { LogFieldsResponseProps, LogFieldsProps, LogsResponseProps } from "@/types/evals/logs";
+import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { FileProps, ResponseProps } from "@/types/common";
-import { ItemType, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
+import { Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import ActionButton from "../Common/Buttons/Action";
@@ -21,6 +21,7 @@ import CloseProject from "./Table/Buttons/CloseProject";
 import DeleteDialog from "../Common/Dialogs/Delete";
 import CreateProject from "./Table/Buttons/CreateProject";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../UI/tabs";
+import { parseAsString, useQueryState } from "nuqs";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -28,67 +29,53 @@ const ResponsiveReactGridLayout = WidthProvider(Responsive);
 const CardGrid = ({
     projects,
     project_,
+    interfaces,
     tableNames,
     tableData,
     fields,
     plotData,
     columnTypes,
     savedInterface,
+    name_,
     items_,
     newCounter_,
     interfaceCreated,
     tempInterfaceCreated,
-    projectActions,
-    logsActions,
-    fieldsActions,
-    interfaceActions,
     filterExpressions,
     sortingExpressions,
+    projectActions,
+    logsActions,
+    interfaceActions,
 }: {
     projects: string[] | undefined,
     project_: string | null,
+    interfaces: string[],
     tableNames: string[]
     tableData: TableDataProps,
     fields: LogFieldsResponseProps,
     plotData: PlotDataProps,
     columnTypes: { [key: string]: string },
-    savedInterface: { items: TileProps[], new_counter: number, project: string | null } | null,
+    savedInterface: Interface | null,
+    name_: string | undefined,
     items_: TileProps[],
     newCounter_: number,
     interfaceCreated: boolean,
     tempInterfaceCreated: boolean,
-    projectActions: {
-        get: () => Promise<string[]>,
-        create: (name: string) => Promise<ResponseProps>,
-        rename: (oldName: string, newName: string) => Promise<ResponseProps>,
-        delete: (name: string) => Promise<ResponseProps>
-    },
-    logsActions: {
-        get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
-        getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
-        getMetrics: (
-            project: string, filterExpression: string | null, metricName: string, keyName: string
-        ) => Promise<number>,
-        delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
-    },
-    fieldsActions: {
-        get: (project: string) => Promise<LogFieldsResponseProps>,
-    },
-    interfaceActions: {
-        get: (temporary: boolean) => Promise<{ items: TileProps[], new_counter: number, project: string | null } | null>,
-        create: (items: TileProps[], new_counter: number, project: string | null, temporary: boolean) => Promise<ResponseProps>,
-        update: (items: TileProps[], new_counter: number, project: string | null, temporary: boolean) => Promise<ResponseProps>,
-    },
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
+    projectActions: ProjectsActions,
+    logsActions: LogsActions,
+    interfaceActions: InterfaceActions,
 }) => {
     const router = useRouter();
-    const [items, setItems] = useState<TileProps[]>([...items_.map(item => ({ ...item }))]);
-    const [newCounter, setNewCounter] = useState(newCounter_);
+    const [items, setItems] = useState<TileProps[]>(items_ ? [...items_.map(item => ({ ...item }))] : []);
+    const [newCounter, setNewCounter] = useState(newCounter_ || 0);
     const [saveSuccess, setSaveSuccess] = useState<boolean>();
     const [resetting, setResetting] = useState<boolean>();
     const [editable, setEditable] = useState(true);
-    const [project, setProject] = useState(project_ || undefined);
+    const [nameParam, setName] = useQueryState("name", { shallow: true });
+    const name = nameParam || name_;
+    const [project, setProject] = useQueryState("project", { shallow: false });
     const [pending, setPending] = useState<{ [key: string]: boolean }>(
         Object.fromEntries(Object.keys(tableData).map(k => [k, false]))
     );
@@ -126,17 +113,19 @@ const CardGrid = ({
     };
 
     const updateInterface = (
-        savedInterface: { items: TileProps[], new_counter: number, project: string | null } | null = null,
+        savedInterface: Interface | null = null,
     ) => {
         if (pending)
             setChangedDuringReload(true);
         const items_1 = savedInterface?.items || items;
         const newCounter_1 = savedInterface?.new_counter || newCounter;
-        const project_1 = "project" in (savedInterface || {}) ? savedInterface?.project : project;
-        if (tempInterfaceCreated)
-            return interfaceActions.update(items_1, newCounter_1, project_1 || null, true);
-        else
-            return interfaceActions.create(items_1, newCounter_1, project_1 || null, true);
+        if (name && project) {
+            if (tempInterfaceCreated)
+                return interfaceActions.update(name, project, items_1, newCounter_1, true);
+            else
+                return interfaceActions.create(name, project, items_1, newCounter_1, true);
+        }
+        return Promise.reject();
     }
 
     const saveTileName = () => {
@@ -157,7 +146,7 @@ const CardGrid = ({
     }
 
     useEffect(() => {
-        if (!project || project != project_) {
+        if (project && name && project != project_) {
             const items_1 = items.map(item => ({
                 i: item.i,
                 x: item.x,
@@ -170,13 +159,13 @@ const CardGrid = ({
                 table: item.table,
                 visible: item.visible,
             }));
-            updateInterface({ items: items_1, new_counter: newCounter, project: project || null }).then(
+            updateInterface({ name, project, items: items_1, new_counter: newCounter }).then(
                 () => { router.refresh(); }
             );
             setItems([...items_1]);
             setPending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
         }
-    }, [project]);
+    }, [project, name]);
 
     useEffect(() => {
         if (JSON.stringify(items) != JSON.stringify(items_))
@@ -189,10 +178,10 @@ const CardGrid = ({
             setNewCounter(newCounter_);
             setChangedDuringReload(false);
         }
-        setProject(project_ || undefined);
+        setProject(project_ || null);
         setPending(Object.fromEntries(Object.keys(tableData).map(k => [k, false])));
         setResetting(false);
-    }, [items_, project_, newCounter_])
+    }, [items_, project_, name_, newCounter_])
 
     useEffect(() => {
         gridRef.current?.scrollTo({
@@ -211,26 +200,26 @@ const CardGrid = ({
     );
 
     return (<div className="w-full h-full overflow-auto p-3" ref={gridRef}>
-        <Tabs defaultValue="Interface_1" className="w-full tutorial-details-panel">
+        <Tabs value={name || undefined} onValueChange={(value: string | undefined) => setName(value || null)} className="w-full tutorial-details-panel">
             <div className="mt-1 ml-4 mr-8 flex justify-between gap-4">
                 <div className="w-fit gap-2 flex flex-row items-center">
                     <FileDirectory
                         data={data}
                         renamingFunction={projectActions.rename}
                         setterFunction={(proj: FileProps | undefined) => {
-                            const newProj = proj ? proj.path : undefined;
+                            const newProj = proj ? proj.path : null;
                             resetParamsStates();
                             setProject(newProj);
                         }}
                         type="Projects"
-                        defaultValue={project}
+                        defaultValue={project || undefined}
                     />
                     {project && (
                         <div className="flex flex-row gap-2">
                             <CloseProject
                                 onClick={() => {
                                     resetParamsStates();
-                                    setProject(undefined);
+                                    setProject(null);
                                 }}
                             />
                             <DeleteDialog
@@ -240,44 +229,88 @@ const CardGrid = ({
                                 variant="outline"
                                 onDelete={() => {
                                     resetParamsStates();
-                                    setProject(undefined);
+                                    setProject(null);
                                 }}
                             />
                         </div>
                     )}
                     {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
                 </div>
-                <TabsList className="rounded-md justify-between">
-                    <div className="flex flex-row gap-3">
-                        <TabsTrigger
-                            value="Interface_1"
-                            className="flex flex-row gap-2 data-[state=active]:text-accent"
-                        >
-                            {"Interface_1"}
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="Interface_2"
-                            className="flex flex-row gap-2 data-[state=active]:text-accent"
-                        >
-                            {"Interface_2"}
-                        </TabsTrigger>
-                    </div>
-                </TabsList>
+
+                {project && <div className="flex gap-4">
+                    <TabsList className="rounded-md justify-between">
+                        <div className="flex flex-row gap-3">
+                            {interfaces.map(interface_ => <TabsTrigger
+                                value={interface_}
+                                className="flex flex-row gap-2 data-[state=active]:text-accent"
+                            >
+                                {interface_}
+                            </TabsTrigger>)}
+                        </div>
+                    </TabsList>
+                    <ActionButton
+                        variant="outline"
+                        icon={<Plus />}
+                        tooltip={"Add new interface"}
+                        disabled={true}
+                        onClick={() => interfaceActions.create(
+                            `interface_${interfaces.length + 1}`,
+                            project,
+                            [
+                                {
+                                    "i": "Tile_0",
+                                    "x": 0,
+                                    "y": 0,
+                                    "w": 6,
+                                    "h": 8,
+                                    "tab": "Table",
+                                    "moved": false,
+                                    "static": false,
+                                    "visible": true,
+                                },
+                                {
+                                    "i": "Tile_1",
+                                    "x": 6,
+                                    "y": 0,
+                                    "w": 6,
+                                    "h": 4,
+                                    "tab": "View",
+                                    "moved": false,
+                                    "static": false,
+                                    "visible": true,
+                                },
+                                {
+                                    "i": "Tile_2",
+                                    "x": 6,
+                                    "y": 4,
+                                    "w": 6,
+                                    "h": 4,
+                                    "tab": "Plot",
+                                    "moved": false,
+                                    "static": false,
+                                    "visible": true,
+                                },
+                            ],
+                            3,
+                            true
+                        ).then(() => setName(`interface_${interfaces.length + 1}`))}
+                    />
+                </div>}
 
                 <div className="flex gap-2 items-center">
                     <ActionButton
                         className="transition-all"
-                        tooltip="Save Interface"
+                        tooltip={!project ? "Select a project first" : "Save Interface"}
                         icon={saveIcon}
                         variant={variant}
-                        disabled={disabled || anyPending}
+                        disabled={disabled || anyPending || !project || !name}
                         onClick={async () => {
                             if (saveSuccess == undefined) {
                                 let response: ResponseProps | undefined = undefined;
                                 if (interfaceCreated)
-                                    response = await interfaceActions.update(items, newCounter, project || null, false);
+                                    response = await interfaceActions.update(name as string, project as string, items, newCounter, false);
                                 else
-                                    response = await interfaceActions.create(items, newCounter, project || null, false);
+                                    response = await interfaceActions.create(name as string, project as string, items, newCounter, false);
                                 if (response && "info" in response)
                                     setSaveSuccess(true);
                                 else
@@ -287,10 +320,10 @@ const CardGrid = ({
                     />
                     <ActionButton
                         className="transition-all"
-                        tooltip="Return to last saved interface"
+                        tooltip={!project ? "Select a project first" : "Return to last saved interface"}
                         icon={resetIcon}
                         variant="outline"
-                        disabled={disabled || anyPending}
+                        disabled={disabled || anyPending || !project}
                         onClick={async () => updateInterface(savedInterface).then(() => {
                             setResetting(true);
                             setEditable(true);
@@ -301,8 +334,8 @@ const CardGrid = ({
                         variant="outline"
                         icon={<Plus />}
                         text="Add Tile"
-                        tooltip="Add new tile"
-                        disabled={!editable}
+                        tooltip={(!editable || !project) ? "Select a project first" : "Add new tile"}
+                        disabled={!editable || !project}
                         onClick={() => {
                             setItems([
                                 ...items,
@@ -373,8 +406,8 @@ const CardGrid = ({
                     </div>
                 </div>
             </div>
-            <TabsContent value="Interface_1" className="tutorial-selection-pane">
-                <ResponsiveReactGridLayout
+            {interfaces.map(interface_ => <TabsContent value={interface_} className="tutorial-selection-pane">
+                {interface_ == name ? <ResponsiveReactGridLayout
                     onLayoutChange={(newLayout) => {
                         const updatedItems = newLayout.map((item) => {
                             const originalItem = items.find(i => i.i === item.i);
@@ -400,7 +433,7 @@ const CardGrid = ({
                             >
                                 <Card
                                     editable={editable}
-                                    project={project}
+                                    project={project || undefined}
                                     pending={el.tab == "Table" ? pending[el.i] : false}
                                     fields={fields}
                                     columnTypes={columnTypes}
@@ -469,18 +502,15 @@ const CardGrid = ({
                             </div>
                         );
                     })}
-                </ResponsiveReactGridLayout>
-            </TabsContent>
-            <TabsContent value="Interface_2" className="w-full h-[calc(100%-50px)] tutorial-plot-pane">
-                <div className="text-center">{"interface2 (placeholder)"}</div>
-            </TabsContent>
+                </ResponsiveReactGridLayout> : <div className="text-center"></div>}
+            </TabsContent>)}
         </Tabs>
         {maxTile && <Dialog open={true} onOpenChange={() => setMaxTile(undefined)}>
             <DialogContent className="min-w-full h-full">
                 <div className="p-4 overflow-auto">
                     <Card
                         editable={editable}
-                        project={project}
+                        project={project || undefined}
                         pending={maxTileItem.tab == "Table" ? pending[maxTileItem.i] : false}
                         columnTypes={columnTypes}
                         tableNames={tableNames}

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+// const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+const baseUrl = "http://localhost:8000/v0";
 
 export async function GET(request: NextRequest) {
     const url = new URL(request.url);

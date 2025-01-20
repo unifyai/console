@@ -1,4 +1,5 @@
-import { LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps } from "./logs";
+import { ResponseProps } from "../common";
+import { LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps } from "./logs";
 
 export interface TileProps {
     i: string;
@@ -84,3 +85,38 @@ export type ItemType =
     | "context"
     | "auto_update"
     | "visible";
+
+
+export interface ProjectsActions {
+    get: () => Promise<string[]>,
+    create: (name: string) => Promise<ResponseProps>,
+    rename: (name: string, newName: string) => Promise<ResponseProps>,
+    delete: (name: string) => Promise<ResponseProps>
+}
+
+export interface LogsActions {
+    get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
+    getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
+    getMetrics: (
+        project: string, filterExpression: string | null, metricName: string, keyName: string
+    ) => Promise<number>,
+    delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
+}
+
+export interface FieldsActions {
+    get: (project: string) => Promise<LogFieldsResponseProps>,
+}
+
+export interface InterfaceActions {
+    get: (project: string, temporary: boolean) => Promise<Interface[]>,
+    create: (name: string, project: string, items: TileProps[], new_counter: number, temporary: boolean) => Promise<ResponseProps>,
+    update: (name: string, project: string, items: TileProps[], new_counter: number, temporary: boolean) => Promise<ResponseProps>,
+    delete: (name: string, project: string, temporary: boolean) => Promise<ResponseProps>
+}
+
+export interface Interface {
+    name: string,
+    project: string,
+    items: TileProps[],
+    new_counter: number,
+}

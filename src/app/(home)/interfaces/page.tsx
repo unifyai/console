@@ -14,12 +14,13 @@ import {
     renameProject,
     createInterface,
     updateInterface,
-    getInterface
+    getInterface,
+    deleteInterface
 } from "../evals/actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
 
-const InterfacesPage = async () => {
+const InterfacesPage = async ({ searchParams }: { searchParams: { project?: string, interface?: string } }) => {
     // get user and api key
     const user = await getCurrentUser();
     if (!user) {
@@ -50,13 +51,16 @@ const InterfacesPage = async () => {
     const interfaceActions = {
         create: await createInterface(apiKey),
         update: await updateInterface(apiKey),
-        get: await getInterface(apiKey)
+        get: await getInterface(apiKey),
+        delete: await deleteInterface(apiKey),
     }
 
     return (
         <div className="w-full h-full">
             <Suspense fallback={<SkeletonLoader />}>
                 <Main
+                    project_={searchParams?.project}
+                    interface_={searchParams?.interface}
                     projectsActions={projectsActions}
                     logsActions={logsActions}
                     fieldsActions={fieldsActions}
