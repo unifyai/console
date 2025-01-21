@@ -1,8 +1,7 @@
-import { ResponseProps } from "@/types/common";
 import CardGrid from "@/components/Interfaces/CardGrid";
-import { LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
+import { LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
-import { FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
+import { FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 
@@ -20,15 +19,15 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
 
     // Get interface
     let interfaces_: { [key: string]: Interface } = (
-        project ? await interfaceActions.get(project, false) : []
+        (project ? await interfaceActions.get(project, false) : []) || []
     ).reduce((acc, curr) => ({...acc, [curr.name]: curr}), {});
     let interfacesTemp_: { [key: string]: Interface } = (
-        project ? await interfaceActions.get(project, true) : []
+        (project ? await interfaceActions.get(project, true) : []) || []
     ).reduce((acc, curr) => ({...acc, [curr.name]: curr}), {});
     let interfaceCreated = Boolean(interface_);
-    const selectedInterface_ = interface_ ? interface_ : Object.keys(interfacesTemp_)[0];
-    let currentInterface = selectedInterface_ in interfacesTemp_ ? interfacesTemp_[selectedInterface_] : null;
-    let savedInterface = selectedInterface_ in interfaces_ ? interfaces_[selectedInterface_] : null;
+    const interface_1 = Object.keys(interfacesTemp_).find(i => i == interface_) || null;
+    let currentInterface = (interface_ && interface_ in interfacesTemp_) ? interfacesTemp_[interface_] : null;
+    let savedInterface = (interface_ && interface_ in interfaces_) ? interfaces_[interface_] : null;
 
     // Get fields
     let fields: LogFieldsResponseProps = {};
@@ -199,7 +198,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
         plotData={plotData}
         columnTypes={types}
         savedInterface={savedInterface}
-        name_={currentInterface?.name}
+        interface_1={interface_1}
         items_={currentInterface?.items || []}
         newCounter_={currentInterface?.new_counter || 0}
         interfaceCreated={interfaceCreated}

@@ -21,7 +21,8 @@ import CloseProject from "./Table/Buttons/CloseProject";
 import DeleteDialog from "../Common/Dialogs/Delete";
 import CreateProject from "./Table/Buttons/CreateProject";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../UI/tabs";
-import { parseAsString, useQueryState } from "nuqs";
+import { useQueryState } from "nuqs";
+import LoadingScreen from "../LoadingScreen";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -36,7 +37,7 @@ const CardGrid = ({
     plotData,
     columnTypes,
     savedInterface,
-    name_,
+    interface_1,
     items_,
     newCounter_,
     interfaceCreated,
@@ -56,7 +57,7 @@ const CardGrid = ({
     plotData: PlotDataProps,
     columnTypes: { [key: string]: string },
     savedInterface: Interface | null,
-    name_: string | undefined,
+    interface_1: string | null,
     items_: TileProps[],
     newCounter_: number,
     interfaceCreated: boolean,
@@ -73,19 +74,19 @@ const CardGrid = ({
     const [saveSuccess, setSaveSuccess] = useState<boolean>();
     const [resetting, setResetting] = useState<boolean>();
     const [editable, setEditable] = useState(true);
-    const [nameParam, setName] = useQueryState("name", { shallow: true });
-    const name = nameParam || name_;
+    const [interface_, setInterface] = useQueryState("interface", { shallow: false });
     const [project, setProject] = useQueryState("project", { shallow: false });
     const [pending, setPending] = useState<{ [key: string]: boolean }>(
         Object.fromEntries(Object.keys(tableData).map(k => [k, false]))
     );
     const [changedDuringReload, setChangedDuringReload] = useState(false);
+    const [firstRender, setFirstRender] = useState(true);
     const [maxTile, setMaxTile] = useState<string>();
     const [editTile, setEditTile] = useState<string>();
     const [newTileName, setNewTileName] = useState<string>();
     const [copied, setCopied] = useState<string>();
     const gridRef = useRef<HTMLDivElement>(null);
-    const anyPending = !Object.entries(pending).every(([_, value]) => !value);
+    const anyPending = Object.entries(pending).some(([_, value]) => value);
     const maxTileItem = items.find(item => item.i == maxTile) as TileProps;
     const hiddenItems = items.filter(item => !item.visible);
     const data = (projects || []).map((p) => ({ path: p, type: "file" }));
@@ -115,15 +116,15 @@ const CardGrid = ({
     const updateInterface = (
         savedInterface: Interface | null = null,
     ) => {
-        if (pending)
+        if (anyPending)
             setChangedDuringReload(true);
         const items_1 = savedInterface?.items || items;
         const newCounter_1 = savedInterface?.new_counter || newCounter;
-        if (name && project) {
+        if (interface_ && project) {
             if (tempInterfaceCreated)
-                return interfaceActions.update(name, project, items_1, newCounter_1, true);
+                return interfaceActions.update(interface_, project, items_1, newCounter_1, true);
             else
-                return interfaceActions.create(name, project, items_1, newCounter_1, true);
+                return interfaceActions.create(interface_, project, items_1, newCounter_1, true);
         }
         return Promise.reject();
     }
@@ -146,7 +147,7 @@ const CardGrid = ({
     }
 
     useEffect(() => {
-        if (project && name && project != project_) {
+        if (interface_ && project && interface_ != interface_1 && project != project_) {
             const items_1 = items.map(item => ({
                 i: item.i,
                 x: item.x,
@@ -159,13 +160,13 @@ const CardGrid = ({
                 table: item.table,
                 visible: item.visible,
             }));
-            updateInterface({ name, project, items: items_1, new_counter: newCounter }).then(
+            updateInterface({ name: interface_, project, items: items_1, new_counter: newCounter }).then(
                 () => { router.refresh(); }
             );
             setItems([...items_1]);
             setPending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
         }
-    }, [project, name]);
+    }, [project, interface_]);
 
     useEffect(() => {
         if (JSON.stringify(items) != JSON.stringify(items_))
@@ -178,10 +179,16 @@ const CardGrid = ({
             setNewCounter(newCounter_);
             setChangedDuringReload(false);
         }
+        setFirstRender(true);
         setProject(project_ || null);
+        setInterface(interface_1 || null);
         setPending(Object.fromEntries(Object.keys(tableData).map(k => [k, false])));
         setResetting(false);
-    }, [items_, project_, name_, newCounter_])
+    }, [items_, project_, interface_1, newCounter_])
+
+    useEffect(() => {
+        setFirstRender(false);
+    }, []);
 
     useEffect(() => {
         gridRef.current?.scrollTo({
@@ -196,11 +203,11 @@ const CardGrid = ({
     const resetIcon = resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
     const variant = saveSuccess == false ? "destructive" : "outline";
     const disabled = JSON.stringify(savedInterface) == JSON.stringify(
-        { items, new_counter: newCounter, project: project_ }
+        { items, new_counter: newCounter, project: project_, name: interface_1 }
     );
 
     return (<div className="w-full h-full overflow-auto p-3" ref={gridRef}>
-        <Tabs value={name || undefined} onValueChange={(value: string | undefined) => setName(value || null)} className="w-full tutorial-details-panel">
+        <Tabs value={interface_ || undefined} onValueChange={(value: string | undefined) => setInterface(value || null)} className="w-full tutorial-details-panel">
             <div className="mt-1 ml-4 mr-8 flex justify-between gap-4">
                 <div className="w-fit gap-2 flex flex-row items-center">
                     <FileDirectory
@@ -252,7 +259,6 @@ const CardGrid = ({
                         variant="outline"
                         icon={<Plus />}
                         tooltip={"Add new interface"}
-                        disabled={true}
                         onClick={() => interfaceActions.create(
                             `interface_${interfaces.length + 1}`,
                             project,
@@ -293,7 +299,10 @@ const CardGrid = ({
                             ],
                             3,
                             true
-                        ).then(() => setName(`interface_${interfaces.length + 1}`))}
+                        ).then(() => {
+                            setPending(Object.fromEntries(Object.keys(tableData).map(k =>  [k, true])));
+                            setInterface(`interface_${interfaces.length + 1}`);
+                        })}
                     />
                 </div>}
 
@@ -303,14 +312,14 @@ const CardGrid = ({
                         tooltip={!project ? "Select a project first" : "Save Interface"}
                         icon={saveIcon}
                         variant={variant}
-                        disabled={disabled || anyPending || !project || !name}
+                        disabled={disabled || anyPending || !project || !interface_}
                         onClick={async () => {
                             if (saveSuccess == undefined) {
                                 let response: ResponseProps | undefined = undefined;
                                 if (interfaceCreated)
-                                    response = await interfaceActions.update(name as string, project as string, items, newCounter, false);
+                                    response = await interfaceActions.update(interface_ as string, project as string, items, newCounter, false);
                                 else
-                                    response = await interfaceActions.create(name as string, project as string, items, newCounter, false);
+                                    response = await interfaceActions.create(interface_ as string, project as string, items, newCounter, false);
                                 if (response && "info" in response)
                                     setSaveSuccess(true);
                                 else
@@ -406,14 +415,17 @@ const CardGrid = ({
                     </div>
                 </div>
             </div>
-            {interfaces.map(interface_ => <TabsContent value={interface_} className="tutorial-selection-pane">
-                {interface_ == name ? <ResponsiveReactGridLayout
+            {interfaces.map((interface_, idx) => <TabsContent value={interface_} className="tutorial-selection-pane">
+                {interface_1 == interface_ ? <ResponsiveReactGridLayout
+                    key={idx}
                     onLayoutChange={(newLayout) => {
-                        const updatedItems = newLayout.map((item) => {
-                            const originalItem = items.find(i => i.i === item.i);
-                            return { ...originalItem, ...item };
-                        });
-                        setItems([...updatedItems]);
+                        if (!firstRender) {
+                            const updatedItems = newLayout.map((item) => {
+                                const originalItem = items.find(i => i.i === item.i);
+                                return { ...originalItem, ...item };
+                            });
+                            setItems([...updatedItems]);
+                        }
                     }}
                     className="layout interactive-grid flex-1"
                     cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
@@ -502,7 +514,9 @@ const CardGrid = ({
                             </div>
                         );
                     })}
-                </ResponsiveReactGridLayout> : <div className="text-center"></div>}
+                </ResponsiveReactGridLayout> : <div key={idx} className="text-center flex justify-center">
+                    <Loader2 className="animate-spin my-36" />
+                </div>}
             </TabsContent>)}
         </Tabs>
         {maxTile && <Dialog open={true} onOpenChange={() => setMaxTile(undefined)}>
