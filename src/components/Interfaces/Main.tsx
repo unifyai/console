@@ -191,7 +191,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
     return <CardGrid
         projects={projects}
         project_={project}
-        interfaces_={Object.keys(interfacesTemp_)}
+        interfaces_={Object.keys(interfacesTemp_).sort()}
         tableNames={tableNames}
         tableData={tableData}
         fields={fields}
