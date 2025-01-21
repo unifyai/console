@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { Filters, FiltersByColumn } from "@/types/evals/columns";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -9,6 +9,7 @@ import BaseButton from "@/components/Common/Buttons/Base";
 import { Filter } from "lucide-react";
 import { KeyboardEventHandler } from "react";
 import InputWithStartSelect from "@/components/Common/Input/StartSelect";
+import { Input }from "@/components/UI/input";
 import { Slider } from "@/components/UI/slider";
 import { initFilters, combineFilters } from "@/utils/evals/filters";
 import { Trash, Plus, CircleX } from "lucide-react";
@@ -133,15 +134,21 @@ const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boun
                 <InputWithStartSelect
                     options={options}
                     option={option}
-                    placeholder={option.description}
-                    inputValue={filter.value}
-                    onInput={(input) => onInput(input.currentTarget.value, filter)}
-                    onKeyDown={onEnter}
                     onOptionChange={(option) => {
                         const newFilters = [...filters]
                         newFilters.find(f => f.key === filter.key)!.mode = option.name as "==" | "!="
                     }}
-                />
+                >
+                    <Input
+                        className="-ms-px rounded-s-none shadow-none focus-visible:z-10"
+                        placeholder={option.description}
+                        type="text"
+                        value={filter.value}
+                        onInput={(input: any) => onInput(input.currentTarget.value, filter)}
+                        onKeyDown={onEnter}
+                        inputMode="decimal"
+                    />
+                </InputWithStartSelect>
                 {withSlider && 
                     <div className="flex flex-col grow w-full px-2">
                         <span

@@ -8,6 +8,7 @@ import BaseButton from "@/components/Common/Buttons/Base";
 import SubmitButton from "@/components/Common/Buttons/Submit";
 import { Filter, Plus, Trash, CircleX } from "lucide-react";
 import InputWithStartSelect from "@/components/Common/Input/StartSelect";
+import { Input } from "@/components/UI/input";
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { combineFilters, initFilters } from "@/utils/evals/filters";
 
@@ -123,15 +124,20 @@ const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
             <InputWithStartSelect
                 options={options}
                 option={option}
-                placeholder={option.description}
-                inputValue={filter.value}
-                onInput={(input) => onInput(input, filter)}
-                onKeyDown={onEnter}
                 onOptionChange={(option) => {
                     const newFilters = [...filters]
                     newFilters.find(f => f.key === filter.key)!.mode = option.name as "in" | "not in"
                 }}
-            />
+            >
+                <Input
+                    className="-ms-px rounded-s-none shadow-none focus-visible:z-10"
+                    placeholder={option.description}
+                    type="text"
+                    value={filter.value}
+                    onInput={(input: any) => onInput(input, filter)}
+                    onKeyDown={onEnter}
+                />
+            </InputWithStartSelect>
         )
     }
     const remove = (filter: StringFilter) =>

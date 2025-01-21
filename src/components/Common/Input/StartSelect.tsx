@@ -1,19 +1,13 @@
-import { Input } from "@/components/UI/input";
 import { ChevronDown } from "lucide-react";
-import { FormEvent, ChangeEvent, ReactNode, KeyboardEventHandler } from "react";
+import { ReactNode } from "react";
 
 export interface Option {name: string, description?: string, label: string | ReactNode}
 
-const InputWithStartSelect = ({ options, inputValue, option, onOptionChange, onKeyDown, onChange, onInput, placeholder, inputMode }:{
+const InputWithStartSelect = ({ options, option, onOptionChange, children }:{
     options: Option[],
     onOptionChange: (option: Option) => void,
-    onChange?: (event: any) => void,
-    onInput?: (input: FormEvent<HTMLInputElement>) => void,
-    inputValue?: string,
     option?: Option,
-    onKeyDown?: KeyboardEventHandler,
-    placeholder?: string,
-    inputMode?: "search" | "email" | "tel" | "text" | "url" | "none" | "numeric" | "decimal" | undefined
+    children: ReactNode
 }) => {
   return (
       <div className="flex rounded-lg shadow-sm shadow-black/5">
@@ -33,17 +27,7 @@ const InputWithStartSelect = ({ options, inputValue, option, onOptionChange, onK
             <ChevronDown size={16} strokeWidth={2} aria-hidden="true" role="img" />
           </span>
         </div>
-        <Input
-          id="input-17"
-          className="-ms-px rounded-s-none shadow-none focus-visible:z-10"
-          placeholder={placeholder}
-          type="text"
-          value={inputValue}
-          onInput={onInput}
-          onChange={onChange}
-          onKeyDown={onKeyDown}
-          inputMode={inputMode}
-        />
+        {children}
       </div>
   );
 }

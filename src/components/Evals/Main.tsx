@@ -133,16 +133,13 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 		return metrics
 	}
 	const metrics = await getColumnMetrics(filterExpression, searchParams.metric)
+
+	// Min-max boundaries for numeric and time-like column filters
 	const [minimums, maximums] = await Promise.all([
 		getColumnMetrics(null, "min"),
 		getColumnMetrics(null, "max")
 	])
-
-	// Min-max boundaries for numeric and time-like column filters
-	const timeSortedLogs = logs.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
-	let boundaries = { minimums, maximums }
-	boundaries.minimums["ts"] = timeSortedLogs.length ? timeSortedLogs.at(0)!.ts : undefined
-	boundaries.maximums["ts"] = timeSortedLogs.length ? timeSortedLogs.at(-1)!.ts : undefined
+	const boundaries = { minimums, maximums }
 
 	return <DoublePanels
 		isLoading={false}

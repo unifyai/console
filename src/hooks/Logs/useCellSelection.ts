@@ -94,6 +94,22 @@ export const useCellSelection = ({
       return;
     }
     const previousRow = table.getRowModel().rows[nextRowIndex];
+
+    // Check if entire row is selected (implies row index cell was clicked)
+    const visibleLeafColumns = table.getVisibleLeafColumns().filter(col => col.id !== "RowNumbering");
+    const visibleLeafColumnIds = visibleLeafColumns.map(col => col.id);
+    const visibleSelectedCells = selectedCells.filter(cell => visibleLeafColumnIds.includes(getPartAfterFirstUnderscore(cell)));
+    const isEntireRowSelected = visibleSelectedCells.length === visibleLeafColumns.length &&
+      visibleSelectedCells.every(cell => cell.split("_")[0] === selectedCell.split("_")[0]);
+
+    if (isEntireRowSelected) {
+      const rowCells = previousRow.getAllCells();
+      const validCells = rowCells.filter(c => isValidSelectionTarget(c));
+      setSelectedCells(validCells.map(c => getCellSelectionData(c)));
+      scrollToRow?.(nextRowIndex);
+      return;
+    }
+
     const previousCellId = getCellSelectionData(
       previousRow
         .getAllCells()
@@ -105,7 +121,6 @@ export const useCellSelection = ({
       if (isCellExpanded(getCellFromID(selectedCell)))
         toggleExpansion(previousCellId);
     }
-
   };
 
   const navigateDown = () => {
@@ -120,6 +135,22 @@ export const useCellSelection = ({
       .rows.findIndex((row) => row.id === selectedCell.split("_").at(0));
     const nextRowIndex = selectedRowIndex + 1;
     const nextRow = table.getRowModel().rows[nextRowIndex];
+    
+    // Check if entire row is selected (implies row index cell was clicked)
+    const visibleLeafColumns = table.getVisibleLeafColumns().filter(col => col.id !== "RowNumbering");
+    const visibleLeafColumnIds = visibleLeafColumns.map(col => col.id);
+    const visibleSelectedCells = selectedCells.filter(cell => visibleLeafColumnIds.includes(getPartAfterFirstUnderscore(cell)));
+    const isEntireRowSelected = visibleSelectedCells.length === visibleLeafColumns.length &&
+      visibleSelectedCells.every(cell => cell.split("_")[0] === selectedCell.split("_")[0]);
+
+    if (isEntireRowSelected && nextRow) {
+      const rowCells = nextRow.getAllCells();
+      const validCells = rowCells.filter(c => isValidSelectionTarget(c));
+      setSelectedCells(validCells.map(c => getCellSelectionData(c)));
+      scrollToRow?.(nextRowIndex);
+      return;
+    }
+
     const nextCellId = getCellSelectionData(
       nextRow
         .getAllCells()
@@ -131,13 +162,24 @@ export const useCellSelection = ({
       if (isCellExpanded(getCellFromID(selectedCell)))
         toggleExpansion(nextCellId);
     }
-
   };
 
   const navigateLeft = () => {
 
     const selectedCell = selectedCells[selectedCells.length - 1];
     if (!selectedCell) {
+      return;
+    }
+
+    // Check if entire row is selected (implies row index cell was clicked)
+    const visibleLeafColumns = table.getVisibleLeafColumns().filter(col => col.id !== "RowNumbering");
+    const visibleLeafColumnIds = visibleLeafColumns.map(col => col.id);
+    const visibleSelectedCells = selectedCells.filter(cell => visibleLeafColumnIds.includes(getPartAfterFirstUnderscore(cell)));
+    const isEntireRowSelected = visibleSelectedCells.length === visibleLeafColumns.length &&
+      visibleSelectedCells.every(cell => cell.split("_")[0] === selectedCell.split("_")[0]);
+
+    // Prevent navigation if entire row is selected (equivalent to being on row index cell)
+    if (isEntireRowSelected) {
       return;
     }
 
@@ -152,7 +194,6 @@ export const useCellSelection = ({
       if (isCellExpanded(getCellFromID(selectedCell)))
         toggleExpansion(previousCellId);
     }
-
   };
 
   const navigateRight = () => {
@@ -163,17 +204,35 @@ export const useCellSelection = ({
     }
 
     const selectedRow = table.getRow(selectedCell.split("_").at(0) as string);
+    
+    // Check if entire row is selected (implies row index cell was clicked)
+    const visibleLeafColumns = table.getVisibleLeafColumns().filter(col => col.id !== "RowNumbering");
+    const visibleLeafColumnIds = visibleLeafColumns.map(col => col.id);
+    const visibleSelectedCells = selectedCells.filter(cell => visibleLeafColumnIds.includes(getPartAfterFirstUnderscore(cell)));
+    const isEntireRowSelected = visibleSelectedCells.length === visibleLeafColumns.length &&
+      visibleSelectedCells.every(cell => cell.split("_")[0] === selectedCell.split("_")[0]);
+
+    // If entire row is selected, select the first valid cell in the row
+    if (isEntireRowSelected) {
+      const rowCells = selectedRow.getAllCells();
+      const firstValidCell = rowCells.find(c => isValidSelectionTarget(c));
+      if (firstValidCell) {
+        const nextCellId = getCellSelectionData(firstValidCell);
+        setSelectedCells([nextCellId]);
+      }
+      return;
+    }
+
     const selectedColumnIndex = selectedRow
       .getAllCells()
       .findIndex((c) => c.id === selectedCell);
     const nextCell = selectedRow.getAllCells()[selectedColumnIndex + 1];
-    if (nextCell) {
+    if (nextCell && isValidSelectionTarget(nextCell)) {
       const nextCellId = getCellSelectionData(nextCell)
       setSelectedCells([nextCellId]);
       if (isCellExpanded(getCellFromID(selectedCell)))
         toggleExpansion(nextCellId);
     }
-
   };
 
   const expandCellContent = () => {
