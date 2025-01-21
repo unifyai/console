@@ -76,7 +76,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 	/* Get logs with pagination, and plot logs subset */
 	
 	let logsData: LogsResponseProps = { params: {}, logs: [], count: 0 };
-	const limit = 16;
+	const limit = 100;
 	const offset = (searchParams.page_number ? parseInt(searchParams.page_number) : 0) * limit;
 	let totalPages = 1;
 	let plotData: LogsResponseProps = { params: {}, logs: [], count: 0 };
