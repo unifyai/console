@@ -110,7 +110,7 @@ export interface FieldsActions {
 export interface InterfaceActions {
     get: (project: string, temporary: boolean) => Promise<Interface[]>,
     create: (name: string, project: string, items: TileProps[], new_counter: number, temporary: boolean) => Promise<ResponseProps>,
-    update: (name: string, project: string, items: TileProps[], new_counter: number, temporary: boolean) => Promise<ResponseProps>,
+    update: (name: string, project: string, items: TileProps[], new_counter: number, new_name: string | undefined, temporary: boolean) => Promise<ResponseProps>,
     delete: (name: string, project: string, temporary: boolean) => Promise<ResponseProps>
 }
 

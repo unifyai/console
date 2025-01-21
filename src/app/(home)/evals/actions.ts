@@ -196,19 +196,18 @@ export const getInterface = async (apiKey: string) => {
 
 // update interface
 export const updateInterface = async (apiKey: string) => {
-    return async (name: string, project: string, items: TileProps[], new_counter: number, temporary: boolean = false) => {
+    return async (name: string, project: string, items: TileProps[], new_counter: number, new_name: string | undefined = undefined, temporary: boolean = false) => {
         "use server";
 
+        const body = { name, project, items, new_counter, temporary };
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/interface`,
             {
                 method: "PUT",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ name, project, items, new_counter, temporary })
+                body: JSON.stringify(new_name ? {...body, new_name} : body)
             },
         );
-        console.dir(response);
-        console.dir({ name, project, items, new_counter, temporary });
         return await response.json();
     };
 };
