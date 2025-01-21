@@ -82,9 +82,6 @@ export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFiel
   
     const params = logsResponse.params;
     let logs = logsResponse.logs;
-    if (!sorting)
-      logs = logs.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
-
     let [paramsProperties, entriesProperties] = [
       Object.entries(fields).filter(entry => entry[1].field_type === "param").map(entry => entry[0]),
       Object.entries(fields).filter(entry => entry[1].field_type != "param").map(entry => entry[0])
