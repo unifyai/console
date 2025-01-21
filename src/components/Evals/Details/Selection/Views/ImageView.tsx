@@ -110,7 +110,7 @@ const ImageView: React.FC<LogComparisonProps> = ({
         // We have a valid image -> compress & show row indexes
         const rowText = compressRowNumbers(rows);
         return (
-          <div key={idx} className="border p-2 rounded bg-background">
+          <div key={idx} className="border p-2 rounded bg-background flex flex-col width-fit">
             <h4 className="font-bold mb-2">Rows: {rowText}</h4>
             <ImageDisplay value={src} />
           </div>

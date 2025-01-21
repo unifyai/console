@@ -2,6 +2,8 @@ import React from "react"
 import { Span } from "@/types/evals/traces"
 import { LogProps } from "@/types/evals/logs"
 import { sanitizeId } from "./columnOperations"
+import Image from "next/image"
+import Link from "next/link"
 
 export const MatrixDisplay = ({value}:{value: number[][]}) => {
     return (
@@ -23,8 +25,20 @@ export const MatrixDisplay = ({value}:{value: number[][]}) => {
 }
 
 export const ImageDisplay = ({value, className}: {value: string, className?: string}) => {
-  const url = isBase64Image(value) ? `data:image/png;base64,${value}` : value;
-  return <img src={url} className={className}/>;
+  const isBase64 = isBase64Image(value);
+  const url = isBase64 ? `data:image/png;base64,${value}` : value;
+
+  if (isBase64) {
+    // For base64 images, just display without a link
+    return <Image src={url} alt="Image" width={500} height={500} className={className} />
+  } else {
+    // For URL images, make it clickable
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer">
+        <Image src={url} alt="Image" width={500} height={500} className={className} />
+      </a>
+    )
+  }
 }
 
 export const isDict = (value: any) => typeof value === "object" && !Array.isArray(value) && !(value instanceof RegExp) && !(value instanceof Date) && !(value instanceof Function) && value != null;
