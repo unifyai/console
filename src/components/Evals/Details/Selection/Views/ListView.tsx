@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from "react";
+
+import React, { useMemo, useState } from "react";
 import {
   AccordionItem,
   AccordionTrigger,
@@ -35,7 +36,6 @@ import {
 import RowBadge from "./RowBadge";
 import ActionButton from "@/components/Common/Buttons/Action";
 
-/** Decide data type => icon => subcomponent. */
 function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix" | "string" {
   if (isTrace(value))   return "trace";
   if (isDict(value))    return "dict";
@@ -83,15 +83,11 @@ function pickView(props: LogComparisonProps): JSX.Element {
   return <StringView {...props} />;
 }
 
-/*-----------------------------------------------------------------------------
- SINGLE MODE => base list => no diffs
-   Returns an <AccordionItem> for one array item.
------------------------------------------------------------------------------*/
 function renderListItemSingle(
   index: number,
   itemValue: any,
   props: Omit<LogComparisonProps, "value" | "comparables">
-): JSX.Element {
+) {
   const { baseLogIndex, nestingLevel = 0 } = props;
   const label = `Item ${index}`;
   const indentClass = `pl-${nestingLevel * 4}`;
@@ -107,7 +103,7 @@ function renderListItemSingle(
   };
 
   return (
-    <AccordionItem key={index} value={label}>
+    <AccordionItem key={label} value={label}>
       <AccordionTrigger className={indentClass}>
         <span className="inline-flex items-center gap-2">
           {icon}
@@ -123,30 +119,25 @@ function renderListItemSingle(
   );
 }
 
-/*-----------------------------------------------------------------------------
- MULTI MODE => base + comps => highlight presence diffs
-   Returns an <AccordionItem> for one index across all logs.
------------------------------------------------------------------------------*/
 function renderListItemMulti(
   index: number,
   subValues: any[],
   rowIndexes: number[],
   nestingLevel: number
-): JSX.Element {
+) {
   const label = `Item ${index}`;
   const indentClass = `pl-${nestingLevel * 4}`;
 
-  // subValues[0] => base
   const baseVal = subValues[0];
   const compVals = subValues.slice(1);
-  const baseHasIt = baseVal !== undefined;
+  const baseHas = baseVal !== undefined;
 
   const redSet = new Set<number>();
   const greenSet = new Set<number>();
   compVals.forEach((cv, i) => {
-    if (baseHasIt && cv === undefined) {
+    if (baseHas && cv === undefined) {
       redSet.add(rowIndexes[i + 1]);
-    } else if (!baseHasIt && cv !== undefined) {
+    } else if (!baseHas && cv !== undefined) {
       greenSet.add(rowIndexes[i + 1]);
     }
   });
@@ -155,21 +146,15 @@ function renderListItemMulti(
   const greenRows = Array.from(greenSet).sort((a, b) => a - b);
 
   let labelColorClass = "";
-  if (redRows.length > 0 && baseHasIt) {
-    labelColorClass = "text-red-600";
-  } else if (greenRows.length > 0 && !baseHasIt) {
-    labelColorClass = "text-green-600";
-  }
+  if (redRows.length > 0 && baseHas) labelColorClass = "text-red-600";
+  else if (greenRows.length > 0 && !baseHas) labelColorClass = "text-green-600";
 
-  // Icon => from a sample
   let sample = baseVal;
-  if (sample === undefined) {
-    sample = compVals.find((v) => v !== undefined);
-  }
+  if (sample === undefined) sample = compVals.find((v) => v !== undefined);
   const itemType = sample ? getValueType(sample) : "string";
   const icon = getTypeIcon(itemType);
 
-  const showBaseBadge = baseHasIt && (redRows.length > 0 || greenRows.length > 0);
+  const showBaseBadge = baseHas && (redRows.length > 0 || greenRows.length > 0);
   const baseRows = showBaseBadge ? [rowIndexes[0]] : [];
 
   const childProps: LogComparisonProps = {
@@ -181,7 +166,7 @@ function renderListItemMulti(
   };
 
   return (
-    <AccordionItem key={index} value={label}>
+    <AccordionItem key={label} value={label}>
       <AccordionTrigger className={`${indentClass} ${labelColorClass}`}>
         <span className="inline-flex items-center gap-2">
           {icon}
@@ -189,16 +174,10 @@ function renderListItemMulti(
           {(baseRows.length > 0 || redRows.length > 0 || greenRows.length > 0) && (
             <div className="ml-2 flex gap-1">
               {redRows.length > 0 && (
-                <RowBadge
-                  rowNumbers={redRows}
-                  customClass="bg-red-300 text-red-800"
-                />
+                <RowBadge rowNumbers={redRows} customClass="bg-red-300 text-red-800" />
               )}
               {greenRows.length > 0 && (
-                <RowBadge
-                  rowNumbers={greenRows}
-                  customClass="bg-green-300 text-green-800"
-                />
+                <RowBadge rowNumbers={greenRows} customClass="bg-green-300 text-green-800" />
               )}
             </div>
           )}
@@ -213,35 +192,24 @@ function renderListItemMulti(
   );
 }
 
-/**
- * Build up the full set of “item indices” to handle multi-mode
- * if arrays differ in length.
- */
 function renderListMulti(
   lists: any[],
   rowIndexes: number[],
   nestingLevel: number
-): JSX.Element[] {
+) {
   const maxLength = Math.max(
-    ...lists.map((lst) => (Array.isArray(lst) ? lst.length : 0))
+    ...lists.map((l) => (Array.isArray(l) ? l.length : 0))
   );
-
-  const items: JSX.Element[] = [];
-  for (let idx = 0; idx < maxLength; idx++) {
-    const subValues = lists.map((lst) =>
-      Array.isArray(lst) ? lst[idx] : undefined
-    );
-    items.push(renderListItemMulti(idx, subValues, rowIndexes, nestingLevel));
+  const result: JSX.Element[] = [];
+  for (let i = 0; i < maxLength; i++) {
+    const subVals = lists.map((l) => (Array.isArray(l) ? l[i] : undefined));
+    result.push(renderListItemMulti(i, subVals, rowIndexes, nestingLevel));
   }
-  return items;
+  return result;
 }
 
 type ListViewProps = LogComparisonProps;
 
-/**
- * ListView:
- *   Wraps items in its own <Accordion>, with an “Expand All/Collapse All” button.
- */
 const ListView: React.FC<ListViewProps> = ({
   value,
   comparables,
@@ -249,60 +217,82 @@ const ListView: React.FC<ListViewProps> = ({
   comparisonLogsIndex,
   nestingLevel = 0,
 }) => {
-  //
-  // 1) Always call hooks at the top, unconditionally
-  //
-  const [openItems, setOpenItems] = useState<string[]>([]);
+  // hooks first
+  const multiMode = (comparables && comparables.length > 0) ? true : false;
 
-  //
-  // 2) Then do any early validation checks / returns
-  //
+  let labelKeys: string[] = [];
+  if (!multiMode) {
+    if (Array.isArray(value)) {
+      labelKeys = value.map((_, idx: number) => `Item ${idx}`);
+    }
+  } else {
+    const baseLen = Array.isArray(value) ? value.length : 0;
+    const compLens = (comparables ?? []).map((arr) => (Array.isArray(arr) ? arr.length : 0));
+    const maxLen = Math.max(baseLen, ...compLens);
+    labelKeys = Array.from({ length: maxLen }, (_, i) => `Item ${i}`);
+  }
+
+  // gather which should be default open
+  const defaultOpen = useMemo(() => {
+    const out: string[] = [];
+    if (!multiMode) {
+      if (Array.isArray(value)) {
+        value.forEach((item, idx) => {
+          const t = getValueType(item);
+          if (["string","matrix","image"].includes(t)) {
+            out.push(`Item ${idx}`);
+          }
+        });
+      }
+    } else {
+      const allLists = [value, ...(comparables ?? [])];
+      for (let i = 0; i < labelKeys.length; i++) {
+        // find first defined sample
+        let sample = undefined;
+        for (const arr of allLists) {
+          if (Array.isArray(arr) && arr[i] !== undefined) {
+            sample = arr[i];
+            break;
+          }
+        }
+        const t = getValueType(sample);
+        if (["string","matrix","image"].includes(t)) {
+          out.push(`Item ${i}`);
+        }
+      }
+    }
+    return out;
+  }, [multiMode, labelKeys, value, comparables]);
+
+  const [openItems, setOpenItems] = useState<string[]>(defaultOpen);
+
+  // now any early return
   if (!isList(value)) {
     return <p className="text-red-500">ListView: Value is not a valid list.</p>;
   }
 
-  // Single-mode or multi-mode data
-  const multiMode = comparables && comparables.length > 0;
-
-  // Build “labels” to drive the accordion items
-  let labelKeys: string[] = [];
+  let listItems: JSX.Element[] = [];
   if (!multiMode) {
-    // single
-    labelKeys = value.map((_: any, idx: number) => `Item ${idx}`);
+    if (Array.isArray(value)) {
+      listItems = value.map((item, idx) =>
+        renderListItemSingle(idx, item, {
+          baseLogIndex,
+          nestingLevel,
+          comparisonLogsIndex: [],
+        })
+      );
+    }
   } else {
-    // multi
-    const maxLength = Math.max(
-      value.length,
-      ...comparables.map((arr) => (Array.isArray(arr) ? arr.length : 0))
-    );
-    labelKeys = Array.from({ length: maxLength }, (_, i) => `Item ${i}`);
+    const allLists = [value, ...(comparables ?? [])];
+    const rowIdxs = [baseLogIndex, ...(comparisonLogsIndex ?? [])];
+    listItems = renderListMulti(allLists, rowIdxs, nestingLevel);
   }
 
-  // Expand/Collapse behavior
   const everythingOpen = labelKeys.length > 0 && openItems.length === labelKeys.length;
 
   function handleToggleAll() {
     if (everythingOpen) setOpenItems([]);
     else setOpenItems(labelKeys);
-  }
-
-  // Actual list items
-  let listItems: JSX.Element[];
-
-  if (!multiMode) {
-    // Single-mode
-    listItems = value.map((item: any, idx: number) =>
-      renderListItemSingle(idx, item, {
-        baseLogIndex,
-        nestingLevel,
-        comparisonLogsIndex: [],
-      })
-    );
-  } else {
-    // Multi-mode
-    const allLists = [value, ...(comparables ?? [])];
-    const rowIndexes = [baseLogIndex, ...(comparisonLogsIndex ?? [])];
-    listItems = renderListMulti(allLists, rowIndexes, nestingLevel);
   }
 
   return (

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   AccordionItem,
   AccordionTrigger,
@@ -12,7 +12,7 @@ import {
   isList,
   isMatrix,
   isImage,
-  isSpan
+  isSpan,
 } from "@/utils/evals/selection";
 
 import ListView from "./ListView";
@@ -23,7 +23,7 @@ import TraceView from "./TraceView";
 import { Span } from "@/types/evals/traces";
 import { LogComparisonProps } from "./types";
 
-import { 
+import {
   Text as TextIcon,
   Pilcrow,
   CurlyBraces,
@@ -31,7 +31,7 @@ import {
   ImageIcon,
   Grid,
   FoldVertical,
-  UnfoldVertical
+  UnfoldVertical,
 } from "lucide-react";
 import RowBadge from "./RowBadge";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -43,13 +43,12 @@ function isTrace(x: any): x is Span | Span[] {
   return Array.isArray(x) && x.every(isSpan);
 }
 
-/** Decide which specialized view to render. */
 function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix" | "string" {
-  if (isTrace(value))   return "trace";
-  if (isDict(value))    return "dict";
-  if (isList(value))    return "list";
-  if (isImage(value))   return "image";
-  if (isMatrix(value))  return "matrix";
+  if (isTrace(value)) return "trace";
+  if (isDict(value))  return "dict";
+  if (isList(value))  return "list";
+  if (isImage(value)) return "image";
+  if (isMatrix(value))return "matrix";
   return "string";
 }
 
@@ -70,7 +69,6 @@ function getTypeIcon(valueType: string) {
   }
 }
 
-/** pickView => subcomponent dispatch: */
 function pickView(props: LogComparisonProps): JSX.Element {
   const { value } = props;
   if (isTrace(value)) {
@@ -92,15 +90,36 @@ function pickView(props: LogComparisonProps): JSX.Element {
   return <StringView {...props} />;
 }
 
-/*-----------------------------------------------------------------------------
- SINGLE MODE => base dictionary only => no differences
-   Returns an <AccordionItem> for a single dictionary property.
------------------------------------------------------------------------------*/
+/**
+ * Helper to map each dictionary key => a sample type ("string", "matrix", "image", etc.)
+ */
+function buildKeyToTypeMap(
+  allKeys: string[],
+  baseValue: any,
+  comparables: any[] | undefined
+): Record<string, string> {
+  const map: Record<string, string> = {};
+  allKeys.forEach((k) => {
+    let sampleVal = baseValue ? baseValue[k] : undefined;
+    if (sampleVal === undefined && comparables) {
+      for (const c of comparables) {
+        if (c && isDict(c) && c[k] !== undefined) {
+          sampleVal = c[k];
+          break;
+        }
+      }
+    }
+    const valType = getValueType(sampleVal);
+    map[k] = valType;
+  });
+  return map;
+}
+
 function renderDictPropertySingle(
   propertyName: string,
   val: any,
   props: Omit<LogComparisonProps, "value" | "comparables"> & { nestingLevel: number }
-): JSX.Element {
+) {
   const { baseLogIndex, nestingLevel } = props;
   const indentClass = `pl-${nestingLevel * 4}`;
   const valType = getValueType(val);
@@ -131,26 +150,19 @@ function renderDictPropertySingle(
   );
 }
 
-/*-----------------------------------------------------------------------------
- MULTI MODE => base + comparables => highlight diffs
-   Returns an <AccordionItem> for a dictionary property across multiple logs.
------------------------------------------------------------------------------*/
 function renderDictPropertyMulti(
   propertyName: string,
   dicts: any[],
   dictIndexes: number[],
   nestingLevel: number
-): JSX.Element {
-  // subValues[0] => base; subValues[1..] => comps
+) {
   const subValues = dicts.map((d) => (d && isDict(d) ? d[propertyName] : undefined));
   const baseVal = subValues[0];
   const compVals = subValues.slice(1);
   const baseHasIt = baseVal !== undefined;
 
-  // presence diffs
   const redSet = new Set<number>();
   const greenSet = new Set<number>();
-
   compVals.forEach((compVal, i) => {
     const row = dictIndexes[i + 1];
     const compHasIt = compVal !== undefined;
@@ -165,17 +177,11 @@ function renderDictPropertyMulti(
   const greenRows = Array.from(greenSet).sort((a, b) => a - b);
 
   let labelColorClass = "";
-  if (redRows.length > 0 && baseHasIt) {
-    labelColorClass = "text-red-600";
-  } else if (greenRows.length > 0 && !baseHasIt) {
-    labelColorClass = "text-green-600";
-  }
+  if (redRows.length > 0 && baseHasIt) labelColorClass = "text-red-600";
+  else if (greenRows.length > 0 && !baseHasIt) labelColorClass = "text-green-600";
 
-  // Icon => from the first non-undefined
   let sample = baseVal;
-  if (sample === undefined) {
-    sample = compVals.find((v) => v !== undefined);
-  }
+  if (sample === undefined) sample = compVals.find((v) => v !== undefined);
   const valType = sample ? getValueType(sample) : "string";
   const icon = getTypeIcon(valType);
 
@@ -187,7 +193,6 @@ function renderDictPropertyMulti(
     nestingLevel,
   };
 
-  // Possibly show base row if diffs
   const baseHasDiff = baseHasIt && (redRows.length > 0 || greenRows.length > 0);
   const baseRows = baseHasDiff ? [dictIndexes[0]] : [];
 
@@ -222,46 +227,25 @@ function renderDictPropertyMulti(
 
 type DictionaryViewProps = LogComparisonProps;
 
-/**
- * DictionaryView:
- * Wraps the single or multi-mode dictionary items in an <Accordion>,
- * providing its own "Expand All/Collapse All" control.
- */
 const DictionaryView: React.FC<DictionaryViewProps> = ({
   value,
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
-  nestingLevel = 0
+  nestingLevel = 0,
 }) => {
-  //
-  // 1) Always call hooks at the top, unconditionally
-  //
-  const [openItems, setOpenItems] = useState<string[]>([]);
+  // Hooks must be at the top, so do them before any early returns
+  // We'll define states / memos here
 
-  //
-  // 2) Then do any early validation checks / returns
-  //
-  if (!isDict(value)) {
-    return (
-      <p className="text-red-500">
-        DictionaryView: Base value is not a dictionary.
-      </p>
-    );
-  }
-
-  // Single vs multi
-  let allKeys: string[];
-  let allDicts: any[];
-  let allIndexes: number[];
+  let allKeys: string[] = [];
+  let allDicts: any[] = [];
+  let allIndexes: number[] = [];
 
   if (!comparables || comparables.length === 0) {
-    // Single-mode => just base
-    allKeys = Object.keys(value);
+    allKeys = isDict(value) ? Object.keys(value) : [];
     allDicts = [value];
     allIndexes = [baseLogIndex];
   } else {
-    // Multi-mode => union of keys from base + comparables
     const joined = [value, ...comparables];
     allDicts = joined;
     allIndexes = [baseLogIndex, ...comparisonLogsIndex];
@@ -275,7 +259,55 @@ const DictionaryView: React.FC<DictionaryViewProps> = ({
     allKeys = Array.from(unionKeys).sort();
   }
 
-  // Local Expand/Collapse:
+  // Build key->type map
+  const keyTypeMap = useMemo(() => {
+    return buildKeyToTypeMap(allKeys, value, comparables);
+  }, [allKeys, value, comparables]);
+
+  // defaultOpen => for any property whose type is 'string','matrix','image'
+  const defaultOpenKeys = useMemo(() => {
+    return allKeys.filter((k) => {
+      const t = keyTypeMap[k];
+      return ["string", "matrix", "image"].includes(t);
+    });
+  }, [allKeys, keyTypeMap]);
+
+  const [openItems, setOpenItems] = useState<string[]>(defaultOpenKeys);
+
+  // Now the early return after the hooks
+  if (!isDict(value)) {
+    // We must do it after hooks so they are always called in the same order
+    return (
+      <p className="text-red-500">
+        DictionaryView: Base value is not a dictionary.
+      </p>
+    );
+  }
+
+  function renderProperties() {
+    return allKeys.map((propertyKey) => {
+      if (comparables && comparables.length > 0) {
+        return renderDictPropertyMulti(
+          propertyKey,
+          allDicts,
+          allIndexes,
+          nestingLevel + 1
+        );
+      } else {
+        const val = value[propertyKey];
+        return renderDictPropertySingle(
+          propertyKey,
+          val,
+          {
+            baseLogIndex,
+            comparisonLogsIndex: [],
+            nestingLevel: nestingLevel + 1,
+          }
+        );
+      }
+    });
+  }
+
   const everythingOpen = allKeys.length > 0 && openItems.length === allKeys.length;
 
   function handleToggleAll() {
@@ -283,27 +315,9 @@ const DictionaryView: React.FC<DictionaryViewProps> = ({
     else setOpenItems(allKeys);
   }
 
-  // Render each property as an <AccordionItem>
-  function renderProperties() {
-    return allKeys.map((propertyKey) => {
-      if (comparables && comparables.length > 0) {
-        // multi
-        return renderDictPropertyMulti(propertyKey, allDicts, allIndexes, nestingLevel + 1);
-      } else {
-        // single
-        const val = value[propertyKey];
-        return renderDictPropertySingle(propertyKey, val, {
-          baseLogIndex,
-          comparisonLogsIndex: [],
-          nestingLevel: nestingLevel + 1,
-        });
-      }
-    });
-  }
-
   return (
     <div className="flex flex-col gap-2">
-      {/* Optional label row */}
+      {/* label row */}
       <div className="flex items-center justify-between">
         <p className="font-bold text-sm">Dictionary</p>
         {allKeys.length > 0 && (

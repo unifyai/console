@@ -13,8 +13,8 @@ import { Combobox } from "@/components/UI/Combobox";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 
 /**
- * Helper to parse tokens like "116812_call_transcripts" => logId="116812", column="call_transcripts"
- * Then build a map of rowIndex -> Set of columns for each selected cell.
+ * Helper to parse tokens like "116812_call_transcripts" => logId="116812", columnName="call_transcripts"
+ * Then build a map rowIndex -> Set of columns for each selected cell.
  */
 function buildIndexToColumnsMapFromId(
   selectedCells: string[],
@@ -23,11 +23,11 @@ function buildIndexToColumnsMapFromId(
   const map: Record<number, Set<string>> = {};
   for (const token of selectedCells) {
     const underscorePos = token.indexOf("_");
-    if (underscorePos < 1) continue; // skip any invalid tokens
+    if (underscorePos < 1) continue; // skip invalid tokens
     const logIdStr = token.slice(0, underscorePos);
     const columnName = token.slice(underscorePos + 1);
 
-    // find rowIndex for log.id == logIdStr:
+    // Find rowIndex for log.id == logIdStr:
     const rowIndex = sortedLogs.findIndex((log) => String(log.id) === logIdStr);
     if (rowIndex < 0) continue; // not found => skip
 
@@ -39,9 +39,9 @@ function buildIndexToColumnsMapFromId(
   return map;
 }
 
-/**
- * Build row indices in the exact order cells were selected, ignoring duplicates.
- * This ensures that the base row (the first row clicked) remains the first item.
+/** 
+ * Build row indices in the order cells were selected, ignoring duplicates.
+ * Ensures that the first cell clicked becomes the base row, etc.
  */
 function buildRowIndicesInSelectionOrder(
   selectedCells: string[],
@@ -52,12 +52,11 @@ function buildRowIndicesInSelectionOrder(
 
   for (const token of selectedCells) {
     const underscorePos = token.indexOf("_");
-    if (underscorePos < 1) continue; // skip invalid tokens
+    if (underscorePos < 1) continue;
 
     const logIdStr = token.slice(0, underscorePos);
     const rowIndex = sortedLogs.findIndex(log => String(log.id) === logIdStr);
-    if (rowIndex < 0) continue; // not found => skip
-
+    if (rowIndex < 0) continue;
     if (!seen.has(rowIndex)) {
       seen.add(rowIndex);
       rowIndices.push(rowIndex);
@@ -72,6 +71,41 @@ function rowLabel(rowIndex: number) {
   return `Row ${rowIndex + 1}`;
 }
 
+/** Minimal type check for top-level values: string, matrix, image, etc. */
+function isList(val: any) {
+  return Array.isArray(val);
+}
+function isDict(val: any) {
+  return val && typeof val === "object" && !Array.isArray(val);
+}
+function isMatrix(val: any) {
+  if (!isList(val)) return false;
+  // For a matrix, each item is also an array => minimal check
+  return val.length > 0 && Array.isArray(val[0]);
+}
+function isImage(val: any) {
+  // If your images are strings like "data:image/..." or some path
+  // Here is a minimal placeholder
+  return typeof val === "string" && val.startsWith("data:image/");
+}
+function isTrace(val: any) {
+  // your logic for span or array of spans
+  // or skip if not needed at top-level
+  return false;
+}
+
+function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix" | "string" {
+  if (isTrace(value))   return "trace";
+  if (isDict(value))    return "dict";
+  if (isList(value)) {
+    // further check matrix
+    if (isMatrix(value)) return "matrix";
+    return "list";
+  }
+  if (isImage(value))   return "image";
+  return "string"; // fallback
+}
+
 export default function Selection({
   params,
   logs,
@@ -84,7 +118,7 @@ export default function Selection({
   const columnOrdering = columnOrderStr ? columnOrderStr.split(",") : [];
   const hiddenColumns = hiddenColumnsStr ? hiddenColumnsStr.split(",") : [];
 
-  // Optional sorting logic for logs. By default, we leave them as is:
+  // You can optionally reorder logs or keep them as is
   const sortedLogs = useMemo(() => {
     return [...logs];
   }, [logs]);
@@ -94,21 +128,18 @@ export default function Selection({
     "selected",
     parseAsArrayOf(parseAsString).withDefault([])
   );
-  // Map rowIndex -> set of selected columns for each row
+  // Map rowIndex -> set of selected columns for that row
   const indexToColumns = useMemo(() => {
     return buildIndexToColumnsMapFromId(selectedCells, sortedLogs);
   }, [selectedCells, sortedLogs]);
 
-  // Distinct rowIndices that are selected, preserving the order of selection
+  // Distinct rowIndices in selection order
   const selectedRowIndices = useMemo(() => {
     return buildRowIndicesInSelectionOrder(selectedCells, sortedLogs);
   }, [selectedCells, sortedLogs]);
 
-  // Determine the baseIndexParam from query, pointing into selectedRowIndices
-  const [baseIndexParamStr, setBaseIndexParamStr] = useQueryState(
-    "base_idx",
-    parseAsString
-  );
+  // baseIndexParam => the user can pick which row is base, default to first
+  const [baseIndexParamStr, setBaseIndexParamStr] = useQueryState("base_idx", parseAsString);
   let baseIndexParam = baseIndexParamStr ? parseInt(baseIndexParamStr, 10) : 0;
   if (
     isNaN(baseIndexParam) ||
@@ -118,27 +149,20 @@ export default function Selection({
     baseIndexParam = 0;
   }
 
-  // The rowIndex in sortedLogs for the base
   const baseRowIndex = selectedRowIndices[baseIndexParam] ?? -1;
-  // The rest => for comparisons
-  const comparisonRowIndices = selectedRowIndices.filter(
-    (_, i) => i !== baseIndexParam
-  );
+  const comparisonRowIndices = selectedRowIndices.filter((_, i) => i !== baseIndexParam);
 
   /**
-   * Build a new LogProps object with only the user-chosen columns
-   * from selectedCells, also filtering hidden columns, respecting column order.
+   * Build a LogProps with only the user-chosen columns from indexToColumns,
+   * also skipping hidden columns, and respecting column ordering.
    * We do this for both .entries and .params.
    */
   function buildLogWithChosenColumns(originalLog: LogProps, rowIndex: number): LogProps {
-    // The user-chosen columns for this row
     const chosenCols = indexToColumns[rowIndex] ?? new Set<string>();
 
-    // Filtration & ordering for .entries
+    // .entries
     const safeEntries = originalLog.entries ?? {};
-    const afterHiddenEntries = Array.from(chosenCols).filter(
-      (c) => !hiddenColumns.includes(c)
-    );
+    const afterHiddenEntries = Array.from(chosenCols).filter((c) => !hiddenColumns.includes(c));
     let finalColsEntries: string[];
     if (columnOrdering.length > 0) {
       finalColsEntries = columnOrdering
@@ -147,7 +171,6 @@ export default function Selection({
     } else {
       finalColsEntries = afterHiddenEntries.map(sanitizeId);
     }
-    // Rebuild entries
     const newEntries: Record<string, unknown> = {};
     for (const c of finalColsEntries) {
       if (safeEntries.hasOwnProperty(c)) {
@@ -155,11 +178,9 @@ export default function Selection({
       }
     }
 
-    // Filtration & ordering for .params
+    // .params
     const safeParams = originalLog.params ?? {};
-    const afterHiddenParams = Array.from(chosenCols).filter(
-      (c) => !hiddenColumns.includes(c)
-    );
+    const afterHiddenParams = Array.from(chosenCols).filter((c) => !hiddenColumns.includes(c));
     let finalColsParams: string[];
     if (columnOrdering.length > 0) {
       finalColsParams = columnOrdering
@@ -168,7 +189,6 @@ export default function Selection({
     } else {
       finalColsParams = afterHiddenParams.map(sanitizeId);
     }
-    // Rebuild params
     const newParams: Record<string, unknown> = {};
     for (const c of finalColsParams) {
       if (safeParams.hasOwnProperty(c)) {
@@ -237,13 +257,58 @@ export default function Selection({
     }
   };
 
-  // Conditionals for expansions in the Accordion (“Entries” & “Params”)
+  // State for expansions in the Accordion (“Entries” & “Params”)
+  // We add logic so if a top-level property is string/matrix/image => auto expand
   const [openItems, setOpenItems] = useState<string[]>([]);
   const [openParamItems, setOpenParamItems] = useState<string[]>([]);
 
+  // We gather the default expansions once:
   const entryKeys = baseLog ? Object.keys(baseLog.entries) : [];
-  const everythingOpen = entryKeys.length > 0 && openItems.length === entryKeys.length;
   const paramKeys = baseLog ? Object.keys(baseLog.params) : [];
+
+  // For “Entries,” check each key => if it’s string, matrix, or image => auto open
+  const defaultOpenEntries = useMemo(() => {
+    if (!baseLog) return [];
+    const out: string[] = [];
+    for (const k of entryKeys) {
+      const val = baseLog.entries[k];
+      const type = getValueType(val);
+      if (["string","matrix","image"].includes(type)) {
+        out.push(k);
+      }
+    }
+    return out;
+  }, [baseLog, entryKeys]);
+
+  // For “Params,” do the same
+  const defaultOpenParams = useMemo(() => {
+    if (!baseLog) return [];
+    const out: string[] = [];
+    for (const k of paramKeys) {
+      const val = baseLog.params[k];
+      const type = getValueType(val);
+      if (["string","matrix","image"].includes(type)) {
+        out.push(k);
+      }
+    }
+    return out;
+  }, [baseLog, paramKeys]);
+
+  // We'll lazily initialize expansions from these default sets, so they only run once.
+  const [didInit, setDidInit] = useState(false);
+  React.useEffect(() => {
+    if (baseLog && !didInit) {
+      if (defaultOpenEntries.length > 0) {
+        setOpenItems(defaultOpenEntries);
+      }
+      if (defaultOpenParams.length > 0) {
+        setOpenParamItems(defaultOpenParams);
+      }
+      setDidInit(true);
+    }
+  }, [baseLog, didInit, defaultOpenEntries, defaultOpenParams]);
+
+  const everythingOpen = entryKeys.length > 0 && openItems.length === entryKeys.length;
   const everythingOpenParams =
     paramKeys.length > 0 && openParamItems.length === paramKeys.length;
 
@@ -259,7 +324,6 @@ export default function Selection({
 
   const canPickBase = selectedRowIndices.length > 1;
 
-  // If we have no baseLog => show hints
   let content;
   if (!baseLog) {
     content = (
@@ -268,7 +332,6 @@ export default function Selection({
       </div>
     );
   } else {
-    // We have a base => show “Entries” + “Params”
     content = (
       <div className="flex flex-col gap-4">
         {/* Title row => combobox if multiple rows, plus "Expand All" for entries */}
@@ -377,3 +440,4 @@ export default function Selection({
     </div>
   );
 }
+
