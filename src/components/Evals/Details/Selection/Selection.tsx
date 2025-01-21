@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { LogProps, LogItemProps } from "@/types/evals/logs";
+import { LogProps } from "@/types/evals/logs";
 import SelectionHints from "./Hints";
 import SelectionEntry from "./SelectionEntry";
 import { useQueryState } from "nuqs";
@@ -14,7 +14,7 @@ import { sanitizeId } from "@/utils/evals/columnOperations";
 
 /**
  * Helper to parse tokens like "116812_call_transcripts" => logId="116812", column="call_transcripts"
- * Then find in sortedLogs whichever rowIndex has .id == "116812". Store rowIndex -> columns.
+ * Then build a map of rowIndex -> Set of columns for each selected cell.
  */
 function buildIndexToColumnsMapFromId(
   selectedCells: string[],
@@ -39,6 +39,34 @@ function buildIndexToColumnsMapFromId(
   return map;
 }
 
+/**
+ * Build row indices in the exact order cells were selected, ignoring duplicates.
+ * This ensures that the base row (the first row clicked) remains the first item.
+ */
+function buildRowIndicesInSelectionOrder(
+  selectedCells: string[],
+  sortedLogs: LogProps[]
+): number[] {
+  const seen = new Set<number>();
+  const rowIndices: number[] = [];
+
+  for (const token of selectedCells) {
+    const underscorePos = token.indexOf("_");
+    if (underscorePos < 1) continue; // skip invalid tokens
+
+    const logIdStr = token.slice(0, underscorePos);
+    const rowIndex = sortedLogs.findIndex(log => String(log.id) === logIdStr);
+    if (rowIndex < 0) continue; // not found => skip
+
+    if (!seen.has(rowIndex)) {
+      seen.add(rowIndex);
+      rowIndices.push(rowIndex);
+    }
+  }
+
+  return rowIndices;
+}
+
 /** A small helper to return a user-friendly label like "Row 5" for rowIndex=4 */
 function rowLabel(rowIndex: number) {
   return `Row ${rowIndex + 1}`;
@@ -56,7 +84,7 @@ export default function Selection({
   const columnOrdering = columnOrderStr ? columnOrderStr.split(",") : [];
   const hiddenColumns = hiddenColumnsStr ? hiddenColumnsStr.split(",") : [];
 
-  // Optional sorting logic 
+  // Optional sorting logic for logs. By default, we leave them as is:
   const sortedLogs = useMemo(() => {
     return [...logs];
   }, [logs]);
@@ -66,47 +94,55 @@ export default function Selection({
     "selected",
     parseAsArrayOf(parseAsString).withDefault([])
   );
-  // Map rowIndex -> set of selected columns 
+  // Map rowIndex -> set of selected columns for each row
   const indexToColumns = useMemo(() => {
     return buildIndexToColumnsMapFromId(selectedCells, sortedLogs);
   }, [selectedCells, sortedLogs]);
 
-  // Distinct rowIndices that are selected
+  // Distinct rowIndices that are selected, preserving the order of selection
   const selectedRowIndices = useMemo(() => {
-    return Object.keys(indexToColumns)
-      .map((key) => parseInt(key, 10))
-      .filter((n) => !isNaN(n))
-      .sort((a, b) => a - b);
-  }, [indexToColumns]);
+    return buildRowIndicesInSelectionOrder(selectedCells, sortedLogs);
+  }, [selectedCells, sortedLogs]);
 
-  // Which row is “base”
-  const [baseIndexParamStr, setBaseIndexParamStr] = useQueryState("base_idx", parseAsString);
+  // Determine the baseIndexParam from query, pointing into selectedRowIndices
+  const [baseIndexParamStr, setBaseIndexParamStr] = useQueryState(
+    "base_idx",
+    parseAsString
+  );
   let baseIndexParam = baseIndexParamStr ? parseInt(baseIndexParamStr, 10) : 0;
-  if (isNaN(baseIndexParam) || baseIndexParam < 0 || baseIndexParam >= selectedRowIndices.length) {
+  if (
+    isNaN(baseIndexParam) ||
+    baseIndexParam < 0 ||
+    baseIndexParam >= selectedRowIndices.length
+  ) {
     baseIndexParam = 0;
   }
 
-  // The rowIndex in sortedLogs for the base 
+  // The rowIndex in sortedLogs for the base
   const baseRowIndex = selectedRowIndices[baseIndexParam] ?? -1;
   // The rest => for comparisons
-  const comparisonRowIndices = selectedRowIndices.filter((_, i) => i !== baseIndexParam);
+  const comparisonRowIndices = selectedRowIndices.filter(
+    (_, i) => i !== baseIndexParam
+  );
 
   /**
-   * Build a new LogProps object (base or comparison) with only the 
-   * “chosen” columns from selectedCells, also filtering out hidden columns, 
-   * and respecting column order. Now we do the same for .params as well.
+   * Build a new LogProps object with only the user-chosen columns
+   * from selectedCells, also filtering hidden columns, respecting column order.
+   * We do this for both .entries and .params.
    */
   function buildLogWithChosenColumns(originalLog: LogProps, rowIndex: number): LogProps {
-    // The user-chosen columns 
+    // The user-chosen columns for this row
     const chosenCols = indexToColumns[rowIndex] ?? new Set<string>();
 
-    // Filtration & ordering for entries
+    // Filtration & ordering for .entries
     const safeEntries = originalLog.entries ?? {};
-    const afterHiddenEntries = Array.from(chosenCols).filter(c => !hiddenColumns.includes(c));
+    const afterHiddenEntries = Array.from(chosenCols).filter(
+      (c) => !hiddenColumns.includes(c)
+    );
     let finalColsEntries: string[];
     if (columnOrdering.length > 0) {
       finalColsEntries = columnOrdering
-        .filter(c => afterHiddenEntries.includes(c))
+        .filter((c) => afterHiddenEntries.includes(c))
         .map(sanitizeId);
     } else {
       finalColsEntries = afterHiddenEntries.map(sanitizeId);
@@ -119,13 +155,15 @@ export default function Selection({
       }
     }
 
-    // Filtration & ordering for params
+    // Filtration & ordering for .params
     const safeParams = originalLog.params ?? {};
-    const afterHiddenParams = Array.from(chosenCols).filter(c => !hiddenColumns.includes(c));
+    const afterHiddenParams = Array.from(chosenCols).filter(
+      (c) => !hiddenColumns.includes(c)
+    );
     let finalColsParams: string[];
     if (columnOrdering.length > 0) {
       finalColsParams = columnOrdering
-        .filter(c => afterHiddenParams.includes(c))
+        .filter((c) => afterHiddenParams.includes(c))
         .map(sanitizeId);
     } else {
       finalColsParams = afterHiddenParams.map(sanitizeId);
@@ -151,9 +189,15 @@ export default function Selection({
       return undefined;
     }
     return buildLogWithChosenColumns(sortedLogs[baseRowIndex], baseRowIndex);
-  }, [baseRowIndex, sortedLogs, indexToColumns, columnOrdering, hiddenColumns]);
+  }, [
+    baseRowIndex,
+    sortedLogs,
+    indexToColumns,
+    columnOrdering,
+    hiddenColumns,
+  ]);
 
-  // The comparisons
+  // The comparison logs
   const comparisonLogs = useMemo(() => {
     return comparisonRowIndices
       .map((ri) => {
@@ -163,7 +207,13 @@ export default function Selection({
         return buildLogWithChosenColumns(sortedLogs[ri], ri);
       })
       .filter((x): x is LogProps => x !== null);
-  }, [comparisonRowIndices, sortedLogs, indexToColumns, columnOrdering, hiddenColumns]);
+  }, [
+    comparisonRowIndices,
+    sortedLogs,
+    indexToColumns,
+    columnOrdering,
+    hiddenColumns,
+  ]);
 
   // Build combobox items => e.g. "Row 5"
   const comboItems = useMemo(() => {
@@ -171,6 +221,12 @@ export default function Selection({
       const displayLabel = rowLabel(rowIndex);
       return {
         value: displayLabel,
+        ￼￼
+        ￼￼￼
+        ￼￼￼
+        ￼￼￼
+        ￼￼
+        
         label: displayLabel,
         dataIndex: i,
       };
@@ -193,15 +249,14 @@ export default function Selection({
 
   const entryKeys = baseLog ? Object.keys(baseLog.entries) : [];
   const everythingOpen = entryKeys.length > 0 && openItems.length === entryKeys.length;
+  const paramKeys = baseLog ? Object.keys(baseLog.params) : [];
+  const everythingOpenParams =
+    paramKeys.length > 0 && openParamItems.length === paramKeys.length;
 
   const handleToggleAll = () => {
     if (everythingOpen) setOpenItems([]);
     else setOpenItems(entryKeys);
   };
-
-  const paramKeys = baseLog ? Object.keys(baseLog.params) : [];
-  const everythingOpenParams =
-    paramKeys.length > 0 && openParamItems.length === paramKeys.length;
 
   const handleToggleAllParams = () => {
     if (everythingOpenParams) setOpenParamItems([]);
