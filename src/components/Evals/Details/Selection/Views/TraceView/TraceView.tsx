@@ -22,17 +22,23 @@ import StringView from "../StringView";
 import { isDict, isList, isMatrix, isImage, isTrace } from "@/utils/evals/selection";
 
 /*---------------------------------------------------------------------
-  PatchDetailPanel: Displays fields (inputs, outputs, code, errors)
-                    by reusing the specialized DictionaryView, etc.
+  PatchDetailPanel: 
+   - Extended so if we have multiple “groupCompareRowIndices,” 
+     we gather each row’s matching Span (by name) for each field 
+     as comparables. This yields multi-diff in the right-hand pane.
 ---------------------------------------------------------------------*/
 function PatchDetailPanel({
   node,
   baseRowIndex,
   comparisonLogsIndex,
+  allTraces,
+  allRowIndexes,
 }: {
   node: PatchDiffNode;
   baseRowIndex: number;
-  comparisonLogsIndex: number[];
+  comparisonLogsIndex: number[]; // group or single
+  allTraces: Span[][];
+  allRowIndexes: number[];
 }) {
   if (!node.baseSpanRef && !node.targetSpanRef) {
     return <p className="italic text-sm">No base or target data</p>;
@@ -45,15 +51,37 @@ function PatchDetailPanel({
 
   const fields = ["inputs", "outputs", "code", "errors"];
 
+  /**
+   * Provided a row index (like row #10) and a spanName,
+   * find that row’s Spans array => find a matching span by name.
+   * If you want ID-based matching, you could do that instead, but
+   * for now we do name-based to keep consistent with the patch diff.
+   */
+  function findSpanByNameInRow(rowIndex: number, spanName: string): Span | undefined {
+    const i = allRowIndexes.indexOf(rowIndex);
+    if (i < 0) return undefined;
+    const rowSpans = allTraces[i];
+    if (!rowSpans) return undefined;
+    const queue = [...rowSpans];
+    while (queue.length) {
+      const s = queue.shift()!;
+      if (s.span_name === spanName) return s;
+      if (s.child_spans) {
+        queue.push(...s.child_spans);
+      }
+    }
+    return undefined;
+  }
+
   function getBaseAndComparables(field: string) {
     const marker = node.marker;
     const bSpan = node.baseSpanRef;
     const tSpan = node.targetSpanRef;
 
+    // By default, do the old approach with up to one target:
     let baseVal: any;
-    const comps: any[] = [];
+    let comps: any[] = [];
 
-    // If marker === " " or "r", both base & target matter
     if (marker === " " || marker === "r") {
       baseVal = bSpan?.[field];
       if (tSpan) comps.push(tSpan[field]);
@@ -62,6 +90,34 @@ function PatchDetailPanel({
     } else if (marker === "-") {
       baseVal = bSpan?.[field];
     }
+
+    /*----------------------------------------------------------
+      NEW LOGIC: If comparisonLogsIndex includes multiple rows, 
+      we want to gather each row’s value for the same field 
+      instead of just one. 
+      We'll skip the single “comps.push(tSpan[field])” approach 
+      and do a multi approach: each row => findSpan => field. 
+    ----------------------------------------------------------*/
+    if (comparisonLogsIndex.length > 1) {
+      // If we have >1 row => gather them all
+      // Overwrite comps with a new array of each row's value
+      const name = node.baseSpanRef ? node.baseSpanRef.span_name : node.name;
+      // If marker is "+" or "-" or "r", we might also want to use node.targetSpanRef?.span_name
+      // but we typically unify by name. We'll just assume baseSpanRef or node.name is correct.
+      const realSpanName = bSpan?.span_name || tSpan?.span_name || name;
+
+      const multiComps: any[] = [];
+      comparisonLogsIndex.forEach((rowN) => {
+        const match = findSpanByNameInRow(rowN, realSpanName);
+        if (match) {
+          multiComps.push(match[field]);
+        } else {
+          multiComps.push(undefined);
+        }
+      });
+      comps = multiComps;
+    }
+
     return { baseVal, comps };
   }
 
@@ -128,7 +184,8 @@ function PatchDetailPanel({
       {fields.map((field) => {
         const { baseVal, comps } = getBaseAndComparables(field);
         // Skip if base & comps are both undefined
-        if (baseVal === undefined && (!comps.length || comps[0] === undefined)) {
+        const isEmptyComps = comps.length && comps.every((c) => c === undefined);
+        if (baseVal === undefined && (!comps.length || isEmptyComps)) {
           return null;
         }
         const content = pickView(baseVal, comps);
@@ -143,7 +200,9 @@ function PatchDetailPanel({
   );
 }
 
-/** Convert a Span to a PatchDiffNode with marker=" " (unchanged) */
+/*---------------------------------------------------------------------
+  convertSpanToPatchNode: same as before
+---------------------------------------------------------------------*/
 function convertSpanToPatchNode(span: Span): PatchDiffNode {
   return {
     name: span.span_name,
@@ -155,8 +214,8 @@ function convertSpanToPatchNode(span: Span): PatchDiffNode {
 }
 
 /*---------------------------------------------------------------------
-  CollapsiblePatchLineNode: renders each node in the patch tree.
-  The big fix: call useEffect unconditionally, then do the “root skip.”
+  CollapsiblePatchLineNode: unchanged, 
+  skipping root if marker=" " & name="ROOT"
 ---------------------------------------------------------------------*/
 function CollapsiblePatchLineNode({
   node,
@@ -182,8 +241,6 @@ function CollapsiblePatchLineNode({
   const BOX_SIZE = 24;
   const children = node.children ?? [];
 
-  // 1) Always call the effect. If nodeRef.current doesn't exist or we skip
-  //    the "root" rendering, it won't break the Hooks rules:
   useEffect(() => {
     if (!nodeRef.current) return;
     const rect = nodeRef.current.getBoundingClientRect();
@@ -191,8 +248,7 @@ function CollapsiblePatchLineNode({
     setSegmentHeight(childCenterY - parentCenterY);
   }, [parentCenterY, collapsedNodes]);
 
-  // 2) If top-level node is "ROOT" & marker=" " & children exist, skip
-  //    rendering this node label and just render its children:
+  // skip "ROOT" if unchanged:
   if (depth === 0 && node.name === "ROOT" && node.marker === " " && children.length) {
     return (
       <>
@@ -212,7 +268,6 @@ function CollapsiblePatchLineNode({
     );
   }
 
-  // The rest: normal rendering
   const markerColors: Record<string, string> = {
     "+": "text-green-600",
     "-": "text-red-600",
@@ -325,8 +380,12 @@ function CollapsiblePatchLineNode({
 }
 
 /*---------------------------------------------------------------------
-  UnifiedTraceView: Manages base vs compare selection, displays a patch
-                    tree of differences, and a detail panel.
+  UnifiedTraceView:
+  - We skip the old single-row combobox
+  - We skip including base row in grouping
+  - We unify only the structure for base vs. group
+  - For the detail data (inputs, outputs, code, etc.), 
+    we pass all row indices in the group as “comparables.”
 ---------------------------------------------------------------------*/
 interface UnifiedTraceViewProps {
   allTraces: Span[][];  // each element is an array of spans for a row
@@ -337,88 +396,168 @@ export default function UnifiedTraceView({ allTraces, rowIndexes }: UnifiedTrace
   const [collapsedNodes, setCollapsedNodes] = useState<Record<string, boolean>>({});
   const [selectedNode, setSelectedNode] = useState<PatchDiffNode | null>(null);
 
-  // If multiple rows exist, let user choose one to compare to base
-  const [compareIndex, setCompareIndex] = useState<number | "">("");
-
-  // Example toggles
+  // Possibly for timeline usage
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [flowOpen, setFlowOpen] = useState(false);
-
-  // Always call useEffect, then conditionally do logic inside
-  useEffect(() => {
-    if (!timelineOpen) return;
-    // timeline logic if needed
-  }, [timelineOpen]);
-
-  useEffect(() => {
-    if (!flowOpen) return;
-    // flow logic if needed
-  }, [flowOpen]);
-
-  // Possibly you use unifyTracesForChart for a Gantt or timeline display
   const timelineData = useMemo(() => unifyTracesForChart(allTraces), [allTraces]);
 
-  const singleRowMode = allTraces.length <= 1;
+  // Base row => rowIndexes[0]
+  const baseRowSpans = useMemo(() => {
+    if (!allTraces.length) return [] as Span[];
+    return allTraces[0] ?? [];
+  }, [allTraces]);
 
-  // Build the patch diff from base (row 0) to selected compareIndex
-  const patchRoot = useMemo<PatchDiffNode | null>(() => {
-    if (!allTraces.length) return null; // no data
-    const baseRoot = wrapAsRootSpan(allTraces[0], "baseRoot");
+  // For grouping
+  const [groupSignature, setGroupSignature] = useState("");
 
-    // If single row or user set to “none,” just show base alone
-    if (singleRowMode || compareIndex === "") {
-      return convertSpanToPatchNode(baseRoot);
+  /** Structure-only to decide grouping (skip code, inputs, etc.) */
+  function minimalSpanHierarchy(span: Span): any {
+    return {
+      name: span.span_name,
+      children: (span.child_spans ?? []).map(minimalSpanHierarchy),
+    };
+  }
+  function minimalSpanTree(spans: Span[]): any {
+    return spans.map(minimalSpanHierarchy);
+  }
+
+  // skip rowIndexes[0] from grouping
+  const groupedRows = useMemo(() => {
+    const result: { signature: string; rowIndices: number[] }[] = [];
+    if (allTraces.length <= 1) return result;
+    const map = new Map<string, number[]>();
+
+    const rest = rowIndexes.slice(1);
+    rest.forEach((r) => {
+      const i = rowIndexes.indexOf(r);
+      const shape = minimalSpanTree(allTraces[i]);
+      const sig = JSON.stringify(shape);
+      if (!map.has(sig)) map.set(sig, []);
+      map.get(sig)!.push(r);
+    });
+
+    for (const [signature, rows] of Array.from(map.entries())) {
+      rows.sort((a, b) => a - b);
+      result.push({ signature, rowIndices: rows });
     }
+    return result;
+  }, [allTraces, rowIndexes]);
 
-    // Compare with the chosen row
-    const tIdx = Number(compareIndex);
-    if (!allTraces[tIdx]) return null;
-    const targetRoot = wrapAsRootSpan(allTraces[tIdx], "targetRoot");
-    return computeSpanDiffByName(baseRoot, targetRoot);
-  }, [allTraces, singleRowMode, compareIndex]);
+  // Build combobox items => each group
+  function compressRowNumbers(rows: number[]): string {
+    if (!rows.length) return "";
+    const sorted = rows.slice().sort((a, b) => a - b);
+    const out: string[] = [];
+    let start = sorted[0],
+      end = start;
+    for (let i = 1; i < sorted.length; i++) {
+      const cur = sorted[i];
+      if (cur === end + 1) {
+        end = cur;
+      } else {
+        if (start === end) out.push(String(start));
+        else out.push(`${start}-${end}`);
+        start = cur;
+        end = cur;
+      }
+    }
+    if (start === end) out.push(String(start));
+    else out.push(`${start}-${end}`);
+    return out.join(",");
+  }
 
-  // Render detail panel for the selected node
+  const groupOptions = useMemo(() => {
+    const arr = [{ value: "", label: "-- None --" }];
+    groupedRows.forEach((g) => {
+      const label = `Row(s): ${compressRowNumbers(g.rowIndices)}`;
+      arr.push({ value: g.signature, label });
+    });
+    return arr;
+  }, [groupedRows]);
+
+  /** unifyGroupIntoOne: if they’re truly identical, we can just pick the first row’s real spans */
+  function unifyGroupIntoOne(rowIndices: number[]): Span[] {
+    if (!rowIndices.length) return [];
+    const firstRow = rowIndices[0];
+    const i = rowIndexes.indexOf(firstRow);
+    return allTraces[i] ?? [];
+  }
+
+  /** patchRoot => base vs group. If no group => just base alone. */
+  const finalPatchRoot = useMemo<PatchDiffNode | null>(() => {
+    if (!allTraces.length) return null;
+    if (!groupSignature) {
+      // show base alone
+      const root = wrapAsRootSpan(baseRowSpans, "baseAlone");
+      return convertSpanToPatchNode(root);
+    }
+    const found = groupedRows.find((x) => x.signature === groupSignature);
+    if (!found) {
+      const root = wrapAsRootSpan(baseRowSpans, "fallbackBase");
+      return convertSpanToPatchNode(root);
+    }
+    const groupSpans = unifyGroupIntoOne(found.rowIndices);
+    const baseWrapped = wrapAsRootSpan(baseRowSpans, "baseRow");
+    const groupWrapped = wrapAsRootSpan(groupSpans, "groupRow");
+    return computeSpanDiffByName(baseWrapped, groupWrapped);
+  }, [groupSignature, groupedRows, baseRowSpans, allTraces, rowIndexes]);
+
+  /** For the detail panel => pass all rowIndices in that group as “comparisons.” */
+  const groupCompareRows = useMemo(() => {
+    if (!groupSignature) return [];
+    const found = groupedRows.find((g) => g.signature === groupSignature);
+    if (!found) return [];
+    return found.rowIndices;
+  }, [groupSignature, groupedRows]);
+
+  // handle combo changes
+  function handleGroupChange(val: string) {
+    setGroupSignature(val);
+    setCollapsedNodes({});
+    setSelectedNode(null);
+  }
+
   function renderDetail() {
     if (!selectedNode) {
       return <p className="text-sm italic">Select a node on the left</p>;
     }
-    // If comparing, pass that row index; else none
-    const compRows =
-      compareIndex !== "" && !singleRowMode
-        ? [rowIndexes[Number(compareIndex)]]
-        : [];
+    // pass groupCompareRows => so PatchDetailPanel can gather multiple comparables
     return (
       <PatchDetailPanel
         node={selectedNode}
         baseRowIndex={rowIndexes[0]}
-        comparisonLogsIndex={compRows}
+        comparisonLogsIndex={groupCompareRows}
+        allTraces={allTraces}
+        allRowIndexes={rowIndexes}
       />
     );
   }
 
-  // Build items for the “Compare with” combobox
-  const compareOptions = useMemo(() => {
-    const arr = [{ value: "", label: "-- None --" }];
-    allTraces.slice(1).forEach((_, i) => {
-      const realIdx = i + 1;
-      arr.push({
-        value: String(realIdx),
-        label: `Row ${rowIndexes[realIdx]}`,
-      });
-    });
-    return arr;
-  }, [allTraces, rowIndexes]);
-
-  const handleCompareChange = (val: string) => {
-    setSelectedNode(null);
-    setCompareIndex(val ? Number(val) : "");
-    setCollapsedNodes({});
-  };
+  function renderPatchTree() {
+    if (!finalPatchRoot) {
+      return (
+        <p className="text-sm italic text-muted-foreground mt-2">
+          No trace data
+        </p>
+      );
+    }
+    return (
+      <CollapsiblePatchLineNode
+        node={finalPatchRoot}
+        parentCenterY={0}
+        depth={0}
+        collapsedNodes={collapsedNodes}
+        setCollapsedNodes={setCollapsedNodes}
+        selectedNode={selectedNode}
+        onSelectNode={setSelectedNode}
+      />
+    );
+  }
 
   return (
     <div className="bg-background rounded-md w-full h-full p-4 flex flex-col gap-4">
       <div style={{ display: "flex", gap: "1rem", height: "600px" }}>
-        {/* Left side => patch tree */}
+        {/* Left => patch tree & combobox */}
         <div
           style={{
             flex: "0 0 300px",
@@ -428,44 +567,26 @@ export default function UnifiedTraceView({ allTraces, rowIndexes }: UnifiedTrace
             overflowY: "auto",
           }}
         >
-          {/* Only show Combobox if multiple rows */}
-          {!singleRowMode && (
-            <div className="sticky top-0 bg-background p-2 z-10 border-b border-muted">
+          {rowIndexes.length > 1 && (
+            <div className="sticky top-0 bg-background p-2 z-10 border-b border-muted space-y-2">
               <div className="flex items-center gap-2">
-                <label className="text-xs text-muted-foreground font-semibold block">
+                <span className="text-xs text-muted-foreground font-semibold block">
                   Compare with:
-                </label>
+                </span>
                 <Combobox
-                  items={compareOptions}
-                  value={compareIndex.toString()}
-                  onValueChange={handleCompareChange}
-                  placeholder="Pick a row..."
+                  items={groupOptions}
+                  value={groupSignature}
+                  onValueChange={handleGroupChange}
+                  placeholder="Pick a group..."
                   className="w-fit items-center"
                 />
               </div>
             </div>
           )}
-
-          <div className="p-2">
-            {patchRoot ? (
-              <CollapsiblePatchLineNode
-                node={patchRoot}
-                parentCenterY={0}
-                depth={0}
-                collapsedNodes={collapsedNodes}
-                setCollapsedNodes={setCollapsedNodes}
-                selectedNode={selectedNode}
-                onSelectNode={setSelectedNode}
-              />
-            ) : (
-              <p className="text-sm italic text-muted-foreground mt-2">
-                No trace data
-              </p>
-            )}
-          </div>
+          <div className="p-2">{renderPatchTree()}</div>
         </div>
 
-        {/* Right side => detail panel */}
+        {/* Right => detail panel */}
         <div
           style={{
             flex: "1 1 auto",
