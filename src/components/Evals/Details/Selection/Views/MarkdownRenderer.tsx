@@ -1,11 +1,9 @@
-// Your MarkdownRenderer.tsx (full file):
 import React, { Suspense } from "react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
 import { Light as SyntaxHighlighter } from "react-syntax-highlighter"
 
-// Import highlight.js languages
 import js from "react-syntax-highlighter/dist/esm/languages/hljs/javascript"
 import ts from "react-syntax-highlighter/dist/esm/languages/hljs/typescript"
 import py from "react-syntax-highlighter/dist/esm/languages/hljs/python"
