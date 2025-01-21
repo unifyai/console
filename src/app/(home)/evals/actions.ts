@@ -218,12 +218,8 @@ export const deleteInterface = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interface`,
-            {
-                method: "DELETE",
-                headers: { apiKey: apiKey },
-                body: JSON.stringify({ name, project, temporary })
-            },
+            `${process.env.NEXTAUTH_URL}/api/interface?name=${name}&project=${project}&temporary=${temporary}`,
+            { method: "DELETE", headers: { apiKey: apiKey } },
         );
         return await response.json();
     };

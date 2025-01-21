@@ -9,7 +9,7 @@ import { Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, Proj
 import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import ActionButton from "../Common/Buttons/Action";
-import { Check, Clipboard, Copy, Eye, EyeOff, Grip, ListRestart, Loader2, Maximize2, Plus, Save, TriangleAlert, X } from "lucide-react";
+import { Check, Clipboard, Copy, Eye, EyeOff, Grip, ListRestart, Loader2, Maximize2, Plus, Save, Trash, TriangleAlert, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { Badge } from "../UI/badge";
 import { Dialog, DialogContent } from "../UI/dialog";
@@ -279,57 +279,69 @@ const CardGrid = ({
                             </TabsTrigger>)}
                         </div>
                     </TabsList>
-                    <ActionButton
-                        variant="outline"
-                        icon={<Plus />}
-                        tooltip={"Add new interface"}
-                        disabled={projectPending}
-                        onClick={() => interfaceActions.create(
-                            `interface_${interfaces.length + 1}`,
-                            project,
-                            [
-                                {
-                                    "i": "Tile_0",
-                                    "x": 0,
-                                    "y": 0,
-                                    "w": 6,
-                                    "h": 8,
-                                    "tab": "Table",
-                                    "moved": false,
-                                    "static": false,
-                                    "visible": true,
-                                },
-                                {
-                                    "i": "Tile_1",
-                                    "x": 6,
-                                    "y": 0,
-                                    "w": 6,
-                                    "h": 4,
-                                    "tab": "View",
-                                    "moved": false,
-                                    "static": false,
-                                    "visible": true,
-                                },
-                                {
-                                    "i": "Tile_2",
-                                    "x": 6,
-                                    "y": 4,
-                                    "w": 6,
-                                    "h": 4,
-                                    "tab": "Plot",
-                                    "moved": false,
-                                    "static": false,
-                                    "visible": true,
-                                },
-                            ],
-                            3,
-                            true
-                        ).then(() => {
-                            setInterfaces([...interfaces, `interface_${interfaces.length + 1}`]);
-                            setPending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
-                            setInterface(`interface_${interfaces.length + 1}`);
-                        })}
-                    />
+                    <div className="flex gap-2">
+                        <ActionButton
+                            variant="outline"
+                            icon={<Plus />}
+                            tooltip={"Add new interface"}
+                            disabled={projectPending}
+                            onClick={() => interfaceActions.create(
+                                `interface_${interfaces.length + 1}`,
+                                project,
+                                [
+                                    {
+                                        "i": "Tile_0",
+                                        "x": 0,
+                                        "y": 0,
+                                        "w": 6,
+                                        "h": 8,
+                                        "tab": "Table",
+                                        "moved": false,
+                                        "static": false,
+                                        "visible": true,
+                                    },
+                                    {
+                                        "i": "Tile_1",
+                                        "x": 6,
+                                        "y": 0,
+                                        "w": 6,
+                                        "h": 4,
+                                        "tab": "View",
+                                        "moved": false,
+                                        "static": false,
+                                        "visible": true,
+                                    },
+                                    {
+                                        "i": "Tile_2",
+                                        "x": 6,
+                                        "y": 4,
+                                        "w": 6,
+                                        "h": 4,
+                                        "tab": "Plot",
+                                        "moved": false,
+                                        "static": false,
+                                        "visible": true,
+                                    },
+                                ],
+                                3,
+                                true
+                            ).then(() => {
+                                setInterfaces([...interfaces, `interface_${interfaces.length + 1}`]);
+                                setPending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
+                                setInterface(`interface_${interfaces.length + 1}`);
+                            })}
+                        />
+                        <ActionButton
+                            variant="outline"
+                            icon={<Trash />}
+                            tooltip={"Delete current active interface"}
+                            disabled={projectPending}
+                            onClick={() => interfaceActions.delete(interface_ as string, project, true).then(() => {
+                                setProjectPending(true);
+                                router.refresh();
+                            })}
+                        />
+                    </div>
                 </div>}
 
                 <div className="flex gap-2 items-center">

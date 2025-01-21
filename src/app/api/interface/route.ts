@@ -45,3 +45,17 @@ export async function POST(request: NextRequest) {
         },
     );
 }
+
+export async function DELETE(request: NextRequest) {
+    const url = new URL(request.url);
+    return await fetch(
+        `${baseUrl}/interface${url.search}`,
+        {
+            method: "DELETE",
+            headers: {
+                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
+                "accept": "application/json",
+            }
+        },
+    );
+}
