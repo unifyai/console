@@ -128,13 +128,14 @@ const MatrixView: React.FC<LogComparisonProps> = ({
   comparisonLogsIndex
 }) => {
   // a) Add “none” to the diff modes
-  type DiffMode = "none" | "lines" | "words" | "characters";
-  const modes: DiffMode[] = ["none", "lines", "words", "characters"];
+  type DiffMode = "lines" | "words" | "characters" | "none";
+  const modes: DiffMode[] = ["lines", "words", "characters" , "none"];
   const modeIcons = [
-    <EyeOff key="none" />,
     <FileText key="lines" />,
     <CaseLower key="words" />,
     <Pilcrow key="characters" />,
+    <EyeOff key="none" />,
+
   ];
 
   const [modeIndex, setModeIndex] = useState(0);
@@ -294,7 +295,6 @@ const MatrixView: React.FC<LogComparisonProps> = ({
                 hideLineNumbers={false}
                 hideMarkers
                 splitView={splitView}
-                showDiffOnly={false}
                 mode={diffMode} // "lines" | "words" | "characters"
               />
             </div>

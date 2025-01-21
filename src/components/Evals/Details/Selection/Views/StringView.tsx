@@ -159,13 +159,13 @@ export default function StringView({
   comparisonLogsIndex,
 }: LogComparisonProps) {
   // a) Setup diff modes
-  type DiffMode = "none" | "lines" | "words" | "characters";
-  const modes: DiffMode[] = ["none", "lines", "words", "characters"];
+  type DiffMode =  "lines" | "words" | "characters" | "none";
+  const modes: DiffMode[] = ["lines", "words", "characters", "none"];
   const modeIcons = [
-    <EyeOff key="none" />,
     <FileText key="lines" />,
     <CaseLower key="words" />,
     <Pilcrow key="characters" />,
+    <EyeOff key="none" />,
   ];
 
   // b) Local state
@@ -339,7 +339,6 @@ export default function StringView({
               splitView={splitView}
               hideLineNumbers={false}
               hideMarkers
-              showDiffOnly
               mode={diffMode} // "lines", "words", or "characters"
             />
           </div>
