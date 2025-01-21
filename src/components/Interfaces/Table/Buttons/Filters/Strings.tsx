@@ -8,6 +8,7 @@ import BaseButton from "@/components/Common/Buttons/Base";
 import SubmitButton from "@/components/Common/Buttons/Submit";
 import { Filter, Plus, Trash, CircleX } from "lucide-react";
 import InputWithStartSelect from "@/components/Common/Input/StartSelect";
+import { Input } from "@/components/UI/input";
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { combineFilters, initFilters } from "@/utils/evals/filters";
 
@@ -26,8 +27,8 @@ const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
 
     /* Init filters */
     const options = [
-        {name: "in", label: "Includes"},
-        {name: "not in", label: "Excludes"}
+        {name: "in", label: "Includes", description: "Filter for values included in.."},
+        {name: "not in", label: "Excludes", description: "Filter for values not included in.."}
     ]
     const modes = options.map(option => option.name)
     let defaultFilter : StringFilter = {key: 0, mode: "in", join: "&&", value: ""}
@@ -117,19 +118,28 @@ const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
                 </DropdownMenuItem>
             )}
         </BaseDropdown>
-    const filterInput = (filter: StringFilter) => 
-        <InputWithStartSelect
-            options={options}
-            option={options.find(option => option.name === filter.mode)}
-            placeholder={`Filter for entries ${filter.mode === "in" ? "including" : "excluding"}..`}
-            inputValue={filter.value}
-            onInput={(input) => onInput(input, filter)}
-            onKeyDown={onEnter}
-            onOptionChange={(option) => {
-                const newFilters = [...filters]
-                newFilters.find(f => f.key === filter.key)!.mode = option.name as "in" | "not in"
-            }}
-        />    
+    const filterInput = (filter: StringFilter) => {
+        const option = options.find(option => option.name === filter.mode)!;
+        return (
+            <InputWithStartSelect
+                options={options}
+                option={option}
+                onOptionChange={(option) => {
+                    const newFilters = [...filters]
+                    newFilters.find(f => f.key === filter.key)!.mode = option.name as "in" | "not in"
+                }}
+            >
+                <Input
+                    className="-ms-px rounded-s-none shadow-none focus-visible:z-10"
+                    placeholder={option.description}
+                    type="text"
+                    value={filter.value}
+                    onInput={(input: any) => onInput(input, filter)}
+                    onKeyDown={onEnter}
+                />
+            </InputWithStartSelect>
+        )
+    }
     const remove = (filter: StringFilter) =>
         <ActionButton
             tooltip="Remove filter"

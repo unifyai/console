@@ -1,80 +1,221 @@
 "use client";
 
-import { useState } from "react";
-import { FiltersByColumn } from "@/types/evals/columns";
+import { useState, useRef } from "react";
+import { Filters, FiltersByColumn } from "@/types/evals/columns";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import CancelButton from "@/components/Common/Buttons/Cancel";
+import BaseButton from "@/components/Common/Buttons/Base";
 import { Filter } from "lucide-react";
-import { DateTimeRangeSelector } from "@/components/Common/Time/DatetimeRangeSelector";
+import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { KeyboardEventHandler } from "react";
+import { initFilters, combineFilters } from "@/utils/evals/filters";
+import { Trash, Plus, CircleX, Clock, History } from "lucide-react";
+import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
+import { DateTimeInput } from "@/components/Common/Time/DateTimeInput";
 
-const TimeColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boundaries }: {
+interface TimeFilter {
+    key: number,
+    mode: "==" | "!=" | ">=" | "=<" | ">" | "<",
+    join: "&&" | "||",
+    value: string
+}
+
+const TimeColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
     column: string,
     columnFilters: FiltersByColumn
-    setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
-    boundaries: {minimums: {[key: string]: any}, maximums: {[key: string]: any}}
+    setColumnFilterQuery: (columnFilters: FiltersByColumn) => void
 }) => {
 
-    /* Track states */
-    const [initialStartDate, initialEndDate] = [
-        columnFilters[column] && columnFilters[column][">"] ? columnFilters[column][">"] : boundaries.minimums["ts"], 
-        columnFilters[column] && columnFilters[column]["<"] ? columnFilters[column]["<"] : boundaries.maximums["ts"]
-    ];
-    const [startDate, setStartDateState] = useState<string | undefined>(initialStartDate);
-    const [endDate, setEndDateState] = useState<string | undefined>(initialEndDate);
-    const changed = startDate != initialStartDate || endDate != initialEndDate;
-    
-    /* Handle submit */
+    /* Initialize filters */
+    const options = [
+        {name: "==", label: "="  , description: "Filter for values equal to.."},
+        {name: "!=", label: "!=" , description: "Filter for values not equal to.."},
+        {name: ">",  label: ">"  , description: "Filter for values greater than.."},
+        {name: ">=", label: ">=" , description: "Filter for values greater or equal to.."},
+        {name: "<",  label: "<"  , description: "Filter for values less than.."},
+        {name: "<=", label: "<=" , description: "Filter for values less or equal to.."}
+    ]
+    const modes = options.map(option => option.name)
+    let defaultFilter : TimeFilter = {key: 0, mode: "==", join: "&&", value: new Date().toISOString().replace("Z","")}
+    let initialValues : TimeFilter[] = [defaultFilter]
+    if (columnFilters[column]) initFilters(column, columnFilters, initialValues, modes)
+    initialValues = initialValues.map(initial => ({
+        key: initial.key, 
+        mode: initial.mode, 
+        join: initial.join, 
+        value: initial.value
+    }))
+    const [filters, setFilters] = useState(initialValues);
+
+    /* Event handlers */
+    const onInput = (value: any, filter: TimeFilter) => {
+        const newFilters = [...filters]
+        newFilters.find(f => f.key === filter.key)!.value = value
+        setFilters(newFilters)
+    }
     const onSubmit = () => {
         let newColumnFilters = { ...columnFilters }
-        newColumnFilters[column] = { ...(newColumnFilters[column] || {}) };
-        if (startDate) 
-            newColumnFilters[column][">"] = `"${startDate}"`
-        if (endDate)
-            newColumnFilters[column]["<"] = `"${endDate}"`
-        if (!startDate && !endDate) 
-            newColumnFilters = Object.fromEntries(
+        if (filters.length){
+            const newFilters = filters.map(f => ({
+                key: f.key, 
+                mode: f.mode, 
+                join: f.join, 
+                value: `"${f.value}"`.replace("T", " ").replace("Z", "")
+            }))
+            let filter : Filters = combineFilters(newFilters, modes)
+            newColumnFilters = {...columnFilters, [column]: filter}
+        } else{
+            Object.fromEntries(
                 Object.entries(columnFilters).filter(([key, _]) => key != column)
             )
-        setColumnFilterQuery(newColumnFilters)
+            setFilters([defaultFilter])
+        }
+        setColumnFilterQuery(newColumnFilters);
+        setOpen(false);
     }
     const onReset = () => {
         const newColumnFilters = Object.fromEntries(
             Object.entries(columnFilters).filter(([key, _]) => key != column)
         );
+        setFilters([defaultFilter])
         setColumnFilterQuery(newColumnFilters)
+        setOpen(false)
     }
     const onEnter : KeyboardEventHandler = (event) => {
         if (event.key === "Enter") {
             onSubmit()
+            setOpen(false)
         }
     }
 
-    /* Inputs */
-    const filterInput = <DateTimeRangeSelector
-        startDate={startDate}
-        endDate={endDate}
-        onDateRangeChange={(start: string, end: string) => {
-          setStartDateState(start);
-          setEndDateState(end);
-        }}
-        className="flex-1 min-w-[200px]"
-    />
+    /* Dialog interactions */
+    const [open, setOpen] = useState(false);
+    const close = <BaseButton size="sm" icon={<CircleX/>} onClick={() => setOpen(false)} className="top-0 right-0 scale-60 absolute" variant="warning"/>
     const button = <ActionButton icon={<Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} />
-    const reset = <CancelButton text="Reset" onClick={() => onReset()}/>
-    const submit = <SubmitButton text="Apply" onClick={() => onSubmit()}/>
+    const reset = <ActionButton tooltip="Delete all filters" variant="warning" icon={<Trash/>} onClick={() => onReset()}/> 
+    const submit = <SubmitButton text="Save" onClick={() => onSubmit()}/>
+    const append = 
+        <BaseDropdown button={<ActionButton tooltip="Add new filter" icon={<Plus/>}/>}>
+            {["And", "Or"].map((method, index) => 
+                <DropdownMenuItem 
+                    key={index}
+                    className="p-2 hover:text-white hover:bg-primary cursor-pointer" 
+                    onClick={() => {
+                        const newFilters = [...filters]
+                        newFilters.push({key: filters.length, mode: "==", join: method === "And" ? "&&" : "||", value: ""})
+                        setFilters(newFilters)
+                    }}            
+                >
+                    {method.toLowerCase()}
+                </DropdownMenuItem>
+            )}
+        </BaseDropdown>
+    const [relative, setRelative] = useState(false);
+    const basis = <ActionButton 
+        tooltip={relative ? "Set absolute time" : "Set relative time"} 
+        icon={relative ? <History/> : <Clock/>} 
+        onClick={() => setRelative(!relative)}
+    />
+
+    /* Filter row */
+    const join = (filter: TimeFilter) => 
+        <BaseDropdown button={<ActionButton tooltip="Update joining method" text={filter.join === "&&" ? "and" : "or"}/>}>
+            {["And", "Or"].map((method, index) => 
+                <DropdownMenuItem 
+                    key={index}
+                    className="p-2 hover:text-white hover:bg-primary cursor-pointer" 
+                    onClick={() => {
+                        const newFilters = [...filters]
+                        const join = method === "And" ? "&&" : "||"
+                        newFilters.find(f => f.key === filter.key)!.join = join 
+                        setFilters(newFilters)
+                    }}            
+                >
+                    {method.toLowerCase()}
+                </DropdownMenuItem>
+            )}
+        </BaseDropdown>
+    const times = [
+        {name: "year", ref: useRef<HTMLInputElement>(null), className: "w-[72px] border-r-0"},
+        {name: "month", ref: useRef<HTMLInputElement>(null), className: "border-l-0 border-r-0"},
+        {name: "day", ref: useRef<HTMLInputElement>(null), className: "border-l-0 border-r-0"},
+        {name: "hours", ref: useRef<HTMLInputElement>(null), className: "border-l-0 border-r-0"},
+        {name: "minutes", ref: useRef<HTMLInputElement>(null), className: "border-l-0 border-r-0"},
+        {name: "seconds", ref: useRef<HTMLInputElement>(null), className: "border-l-0 border-r-0"},
+        {name: "milliseconds", ref: useRef<HTMLInputElement>(null), className: "w-[68px] border-l-0 rounded-tr-md rounded-br-md"},
+    ]
+    const filterInput = (filter: TimeFilter) => {
+        const option = options.find(option => option.name === filter.mode)!;
+        return (
+            <InputWithStartSelect
+                options={options}
+                option={option}
+                onOptionChange={(option) => {
+                    const newFilters = [...filters]
+                    newFilters.find(f => f.key === filter.key)!.mode = option.name as "==" | "!="
+                }}
+            >
+                <div className="flex flex-row">
+                    {times.map((time, index) => {
+                        const picker = time.name as ("year" | "month" | "day" | "hours" | "minutes" | "seconds" | "milliseconds")
+                        const date = new Date(filter.value)
+                        const setDate = (date: Date | undefined) => onInput(date?.toISOString(), filter)
+                        const ref = time.ref
+                        const previousRef = index === 0 ? undefined : times[index - 1].ref
+                        const nextRef = index === times.length - 1 ? undefined : times[index + 1].ref
+                        const className = time.className
+                        return (
+                        <DateTimeInput
+                            key={index}
+                            picker={picker}
+                            date={date}
+                            setDate={setDate}
+                            ref={ref}
+                            onLeftFocus={() => previousRef ? previousRef.current?.focus() : null}
+                            onRightFocus={() => nextRef ? nextRef.current?.focus() : null}
+                            relative={relative}
+                            className={className}
+                            onEnter={onEnter}
+                        />
+                    )
+                    })}
+                </div>
+            </InputWithStartSelect>
+        )}
+    const remove = (filter: TimeFilter) =>
+        <ActionButton
+            tooltip="Remove filter"
+            icon={<Trash/>}
+            onClick={() => {
+                let newFilters = filters.filter(f => f.key != filter.key)
+                newFilters = newFilters.map((f, i) => ({key: i, mode: f.mode, join: i === 0 ? "&&" : f.join, value: f.value}))
+                newFilters = newFilters.length ? newFilters : [defaultFilter]
+                setFilters(newFilters)
+            }}
+        />
+
     return (
-        <BaseDropdown button={button}>
-            <div className="flex flex-col gap-2 p-2">
-                {filterInput}
-                {changed &&
+        <BaseDropdown button={button} open={open} setOpen={setOpen}>
+            <div className="flex flex-col gap-3 px-2 pt-4 pb-2">
+                {filters.map((filter, index) => 
+                    <div key={index} className="grid grid-cols-8 items-center">
+                        {filters.length > 0 && filter.key != 0 && <div className="col-span-1">{join(filter)}</div>}
+                        <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-6" : "col-span-7"}`}>{filterInput(filter)}</div>
+                        <div className="col-span-1 text-center">{remove(filter)}</div>
+                    </div>
+                )}
+                <div className="flex flex-row gap-2 justify-between">
+                    <div className="flex flex-row justify-start">
+                        {append}
+                        {basis}
+                    </div>
                     <div className="flex flex-row gap-2 justify-end">
                         {reset}
                         {submit}
                     </div>
-                }
+                </div>
+                {close}
             </div>
         </BaseDropdown>
     );
