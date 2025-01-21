@@ -273,20 +273,21 @@ const MatrixView: React.FC<LogComparisonProps> = ({
           // If identical => no differences, but let's still show the row badges
           // We'll optionally color them. For a direct presence diff approach,
           // you might do something more advanced like the string version.
-          let baseBadgeClass = "bg-red-200 text-red-800";
-          let compBadgeClass = "bg-green-200 text-green-800";
+          let BadgeMode = "delete";
+          let CompBadeMode = "insert"
           if (grp.str === baseStr && baseStr !== "(invalid matrix)" && baseStr !== "") {
-            baseBadgeClass = "bg-default text-default";
-            compBadgeClass = "bg-default text-default";
+            BadgeMode = "base";
+            CompBadeMode = "none"
+
           }
 
           return (
             <div key={idx} className="diff-viewer-container space-y-2">
               <div className="flex items-center gap-1 text-xs">
                 {/* base row first */}
-                <RowBadge rowNumbers={[baseLogIndex]} customClass={baseBadgeClass} />
+                <RowBadge rowNumbers={[baseLogIndex]} mode={BadgeMode as "none" | "base" | "delete" | "insert" | undefined} />
                 {/* comparable group rows */}
-                <RowBadge rowNumbers={grp.rows} customClass={compBadgeClass} />
+                <RowBadge rowNumbers={grp.rows} mode="base" />
               </div>
 
               <DiffViewer

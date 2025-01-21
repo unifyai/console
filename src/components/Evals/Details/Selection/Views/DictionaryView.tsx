@@ -207,10 +207,10 @@ function renderDictPropertyMulti(
           {(baseRows.length > 0 || redRows.length > 0 || greenRows.length > 0) && (
             <div className="ml-2 flex gap-1">
               {redRows.length > 0 && (
-                <RowBadge rowNumbers={redRows} customClass="bg-red-300 text-red-800" />
+                <RowBadge rowNumbers={redRows} mode="delete" />
               )}
               {greenRows.length > 0 && (
-                <RowBadge rowNumbers={greenRows} customClass="bg-green-300 text-green-800" />
+                <RowBadge rowNumbers={greenRows} mode="insert" />
               )}
             </div>
           )}

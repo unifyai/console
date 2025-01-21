@@ -271,10 +271,10 @@ export default function StringView({
         <div className="flex items-center gap-2">
           <span className={`font-semibold ${labelColor}`}>Difference</span>
           {redRows.length > 0 && (
-            <RowBadge rowNumbers={redRows} customClass="bg-red-300 text-red-800" />
+            <RowBadge rowNumbers={redRows} mode="delete" />
           )}
           {greenRows.length > 0 && (
-            <RowBadge rowNumbers={greenRows} customClass="bg-green-300 text-green-800" />
+            <RowBadge rowNumbers={greenRows} mode="insert" />
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -309,8 +309,8 @@ export default function StringView({
           return (
             <div key={idx} className="border rounded p-3 space-y-2">
               <div className="flex items-center gap-2 text-xs">
-                <RowBadge rowNumbers={[baseLogIndex]} isBase customClass="bg-default text-default" />
-                <RowBadge rowNumbers={rowNums} customClass="bg-default text-default" />
+                <RowBadge rowNumbers={[baseLogIndex]} isBase mode="base" />
+                <RowBadge rowNumbers={rowNums} mode="none" />
               </div>
               <p className="text-sm italic text-muted-foreground">No data</p>
             </div>
@@ -318,19 +318,19 @@ export default function StringView({
         }
 
         // If they differ => color-coded row badges
-        let baseBadgeClass = "bg-red-200 text-red-800";
-        let compBadgeClass = "bg-green-200 text-green-800";
+        let baseBadgeMode = "delete";
+        let compBadgeMode = "insert";
         if (baseStr === compStr && baseStr !== "") {
           // identical & non-empty => no highlight
-          baseBadgeClass = "bg-default text-default";
-          compBadgeClass = "bg-default text-default";
+          baseBadgeMode = "none";
+          compBadgeMode = "none";
         }
 
         return (
           <div key={idx} className="border rounded p-3 space-y-2">
             <div className="flex items-center gap-2 text-xs">
-              <RowBadge rowNumbers={[baseLogIndex]} customClass={baseBadgeClass} />
-              <RowBadge rowNumbers={rowNums} customClass={compBadgeClass} />
+              <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadgeMode as "insert" | "delete" | "none"} />
+              <RowBadge rowNumbers={rowNums} mode={compBadgeMode as "insert" | "delete" | "none" | "base"} />
             </div>
             {/* Use DiffViewer to compare baseStr vs. the block.text */}
             <DiffViewer
