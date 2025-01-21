@@ -221,12 +221,6 @@ export default function Selection({
       const displayLabel = rowLabel(rowIndex);
       return {
         value: displayLabel,
-        ￼￼
-        ￼￼￼
-        ￼￼￼
-        ￼￼￼
-        ￼￼
-        
         label: displayLabel,
         dataIndex: i,
       };
