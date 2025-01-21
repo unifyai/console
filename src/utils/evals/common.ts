@@ -148,7 +148,7 @@ export const getLogsDetails = async (
     ]);
 
     // Min-max boundaries for numeric and time-like column filters
-    const timeSortedLogs = logs.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+    const timeSortedLogs = [...logs].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
     let boundaries = { minimums, maximums }
     boundaries.minimums["ts"] = timeSortedLogs.length ? timeSortedLogs.at(0)!.ts : undefined
     boundaries.maximums["ts"] = timeSortedLogs.length ? timeSortedLogs.at(-1)!.ts : undefined
