@@ -163,13 +163,13 @@ const DateTimeInput = React.forwardRef<
     const initialOffset = React.useMemo(() => {
       if (relative && date) {
         switch (picker) {
-          case "year": return differenceInYears(new Date(), date);
-          case "month": return differenceInMonths(new Date(), date) % 12;
-          case "day": return differenceInDays(new Date(), date) % 31;
-          case "hours": return differenceInHours(new Date(), date) % 24;
-          case "minutes": return differenceInMinutes(new Date(), date) % 60;
-          case "seconds": return differenceInSeconds(new Date(), date) % 60;
-          case "milliseconds": return differenceInMilliseconds(new Date(), date) % 1000;
+          case "year":         return !date ? 0 : differenceInYears(new Date(), date);
+          case "month":        return !date ? 0 : differenceInMonths(new Date(), date) % 12;
+          case "day":          return !date ? 0 : differenceInDays(new Date(), date) % 31;
+          case "hours":        return !date ? 0 : differenceInHours(new Date(), date) % 24;
+          case "minutes":      return !date ? 0 : differenceInMinutes(new Date(), date) % 60;
+          case "seconds":      return !date ? 0 : differenceInSeconds(new Date(), date) % 60;
+          case "milliseconds": return !date ? 0 : differenceInMilliseconds(new Date(), date) % 1000;
           default: return 0;
         }
       }
