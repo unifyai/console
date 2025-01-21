@@ -247,7 +247,8 @@ const CardGrid = ({
                 {project && <div className="flex gap-4">
                     <TabsList className="rounded-md justify-between">
                         <div className="flex flex-row gap-3">
-                            {interfaces.map(interface_ => <TabsTrigger
+                            {interfaces.map((interface_, idx) => <TabsTrigger
+                                key={idx}
                                 value={interface_}
                                 className="flex flex-row gap-2 data-[state=active]:text-accent"
                             >
@@ -415,7 +416,7 @@ const CardGrid = ({
                     </div>
                 </div>
             </div>
-            {interfaces.map((interface_, idx) => <TabsContent value={interface_} className="tutorial-selection-pane">
+            {interfaces.map((interface_, idx) => <TabsContent key={idx} value={interface_} className="tutorial-selection-pane">
                 {interface_1 == interface_ ? <ResponsiveReactGridLayout
                     key={idx}
                     onLayoutChange={(newLayout) => {
