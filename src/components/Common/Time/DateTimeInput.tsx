@@ -257,7 +257,7 @@ const DateTimeInput = React.forwardRef<
       <div className="relative items-center group">
 
       {relative &&
-        <span className="pointer-events-none absolute inset-y-0 start-1.5 pt-1 pe-3 text-xs flex items-center font-bold group-focus-within:text-accent-foreground">-</span>
+        <span className="pointer-events-none absolute inset-y-0 start-1.5 pe-3 text-xs flex items-center font-bold group-focus-within:text-accent-foreground">-</span>
       }
 
       <Input 
@@ -281,7 +281,7 @@ const DateTimeInput = React.forwardRef<
         }}
       />
   
-      <span className="pointer-events-none absolute inset-y-0 end-0 pt-1 pe-3 text-xs flex items-center text-muted-foreground group-focus-within:text-accent-foreground">{attributes[picker].symbol}</span>
+      <span className="pointer-events-none absolute inset-y-0 end-0 pe-3 text-xs flex items-center text-muted-foreground group-focus-within:text-accent-foreground">{attributes[picker].symbol}</span>
   
     </div>
   
