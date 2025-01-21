@@ -192,10 +192,7 @@ const DateTimeInput = React.forwardRef<
     */
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
       
-      if (onEnter) {
-        onEnter(e);
-        return;
-      };
+      if (onEnter) onEnter(e);
       if (e.key === "Tab") return;
       e.preventDefault();
       
