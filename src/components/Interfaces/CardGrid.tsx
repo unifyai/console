@@ -186,6 +186,7 @@ const CardGrid = ({
         setInterfaces(interfaces_);
         setProject(project_ || null);
         setInterface(interface_1 || null);
+        setInterface_2(interface_1 || "");
         setPending(Object.fromEntries(Object.keys(tableData).map(k => [k, false])));
         setResetting(false);
     }, [items_, project_, interface_1, interfaces_, newCounter_])
