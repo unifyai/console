@@ -109,7 +109,7 @@ export default function DataTable<TData, TValue>({ interactive, data, columns, s
 
     return (<div className="flex flex-col gap-2">
         {TableTop && TableTop}
-        <div className="h-fit overflow-x-auto w-full">
+        <div className="h-fit w-full">
         <DndContext
             collisionDetection={closestCenter}
             modifiers={[restrictToHorizontalAxis]}
@@ -120,8 +120,8 @@ export default function DataTable<TData, TValue>({ interactive, data, columns, s
             onDragCancel={(event) => handleDragCancel(setState.setDraggingColumns)}
             sensors={sensors}
         >
-            <Table className="sticky top-0 z-10 max-h-[90vh] w-full" style={{ width: table.getTotalSize() }}>
-                <TableHeader className="sticky -top-[6px] z-10 bg-background">
+            <Table className="relative w-full" style={{ width: table.getTotalSize() }}>
+                <TableHeader className="sticky top-0 z-20 bg-background">
                     {table.getHeaderGroups().map((headerGroup) => (
                         <TableRow key={headerGroup.id}>
                             <SortableContext items={state.columnOrder} strategy={horizontalListSortingStrategy}>
@@ -147,7 +147,7 @@ export default function DataTable<TData, TValue>({ interactive, data, columns, s
                         </TableRow>
                     ))}
                 </TableHeader>
-                <TableBody>
+                <TableBody className="contents overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
                     {table.getRowModel().rows?.length ? (
                         <>
                             {table.getRowModel().rows.map((row, index) => (
@@ -182,7 +182,7 @@ export default function DataTable<TData, TValue>({ interactive, data, columns, s
                         </TableRow>
                     )}
                 </TableBody>
-                <TableFooter className="sticky -bottom-[1px] z-10 bg-background border-t-2 border-foreground">
+                <TableFooter className="sticky bottom-0 z-20 bg-background border-t-2 border-foreground">
                     <TableRow>
                         {finalColumns.map((column, index) =>
                             <SortableContext key={index} items={state.columnOrder} strategy={horizontalListSortingStrategy}>
