@@ -39,7 +39,7 @@ function buildIndexToColumnsMapFromId(
   return map;
 }
 
-/** 
+/**
  * Build row indices in the order cells were selected, ignoring duplicates.
  * Ensures that the first cell clicked becomes the base row, etc.
  */
@@ -71,7 +71,7 @@ function rowLabel(rowIndex: number) {
   return `Row ${rowIndex + 1}`;
 }
 
-/** Minimal type check for top-level values: string, matrix, image, etc. */
+// Minimal checks for top-level
 function isList(val: any) {
   return Array.isArray(val);
 }
@@ -80,30 +80,37 @@ function isDict(val: any) {
 }
 function isMatrix(val: any) {
   if (!isList(val)) return false;
-  // For a matrix, each item is also an array => minimal check
   return val.length > 0 && Array.isArray(val[0]);
 }
 function isImage(val: any) {
-  // If your images are strings like "data:image/..." or some path
-  // Here is a minimal placeholder
   return typeof val === "string" && val.startsWith("data:image/");
 }
 function isTrace(val: any) {
-  // your logic for span or array of spans
-  // or skip if not needed at top-level
   return false;
 }
-
 function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix" | "string" {
   if (isTrace(value))   return "trace";
   if (isDict(value))    return "dict";
   if (isList(value)) {
-    // further check matrix
     if (isMatrix(value)) return "matrix";
     return "list";
   }
   if (isImage(value))   return "image";
-  return "string"; // fallback
+  return "string";
+}
+
+/**
+ * If a param is an object like {0: "dataset_10"}, unwrap that single value.
+ * (Optional logic, retained if you still need it.)
+ */
+function unwrapSingleKeyObject(val: unknown) {
+  if (val && typeof val === "object" && !Array.isArray(val)) {
+    const keys = Object.keys(val);
+    if (keys.length === 1 && keys[0] === "0") {
+      return (val as Record<string, unknown>)["0"];
+    }
+  }
+  return val;
 }
 
 export default function Selection({
@@ -118,34 +125,30 @@ export default function Selection({
   const columnOrdering = columnOrderStr ? columnOrderStr.split(",") : [];
   const hiddenColumns = hiddenColumnsStr ? hiddenColumnsStr.split(",") : [];
 
-  // You can optionally reorder logs or keep them as is
-  const sortedLogs = useMemo(() => {
-    return [...logs];
-  }, [logs]);
+  const sortedLogs = useMemo(() => [...logs], [logs]);
 
   // The “selected” query param => array of e.g. "123_columnName"
   const [selectedCells] = useQueryState(
     "selected",
     parseAsArrayOf(parseAsString).withDefault([])
   );
+
   // Map rowIndex -> set of selected columns for that row
-  const indexToColumns = useMemo(() => {
-    return buildIndexToColumnsMapFromId(selectedCells, sortedLogs);
-  }, [selectedCells, sortedLogs]);
+  const indexToColumns = useMemo(
+    () => buildIndexToColumnsMapFromId(selectedCells, sortedLogs),
+    [selectedCells, sortedLogs]
+  );
 
   // Distinct rowIndices in selection order
-  const selectedRowIndices = useMemo(() => {
-    return buildRowIndicesInSelectionOrder(selectedCells, sortedLogs);
-  }, [selectedCells, sortedLogs]);
+  const selectedRowIndices = useMemo(
+    () => buildRowIndicesInSelectionOrder(selectedCells, sortedLogs),
+    [selectedCells, sortedLogs]
+  );
 
   // baseIndexParam => the user can pick which row is base, default to first
   const [baseIndexParamStr, setBaseIndexParamStr] = useQueryState("base_idx", parseAsString);
   let baseIndexParam = baseIndexParamStr ? parseInt(baseIndexParamStr, 10) : 0;
-  if (
-    isNaN(baseIndexParam) ||
-    baseIndexParam < 0 ||
-    baseIndexParam >= selectedRowIndices.length
-  ) {
+  if (isNaN(baseIndexParam) || baseIndexParam < 0 || baseIndexParam >= selectedRowIndices.length) {
     baseIndexParam = 0;
   }
 
@@ -155,22 +158,27 @@ export default function Selection({
   /**
    * Build a LogProps with only the user-chosen columns from indexToColumns,
    * also skipping hidden columns, and respecting column ordering.
-   * We do this for both .entries and .params.
+   *
+   * For “params,” if the saved index is e.g. "0" or "2", we look up params[c] in
+   * the global params object => (like a dictionary). If found, replace with that.
+   * Otherwise, just store as-is. 
    */
-  function buildLogWithChosenColumns(originalLog: LogProps, rowIndex: number): LogProps {
+  function buildLogWithChosenColumns(
+    originalLog: LogProps,
+    rowIndex: number,
+    globalParams: Record<string, unknown>
+  ): LogProps {
     const chosenCols = indexToColumns[rowIndex] ?? new Set<string>();
 
-    // .entries
+    // 1) ENTRIES
     const safeEntries = originalLog.entries ?? {};
-    const afterHiddenEntries = Array.from(chosenCols).filter((c) => !hiddenColumns.includes(c));
-    let finalColsEntries: string[];
-    if (columnOrdering.length > 0) {
-      finalColsEntries = columnOrdering
-        .filter((c) => afterHiddenEntries.includes(c))
-        .map(sanitizeId);
-    } else {
-      finalColsEntries = afterHiddenEntries.map(sanitizeId);
-    }
+    const afterHiddenEntries = Array.from(chosenCols).filter(
+      (c) => !hiddenColumns.includes(c)
+    );
+    const finalColsEntries = columnOrdering.length > 0
+      ? columnOrdering.filter((c) => afterHiddenEntries.includes(c)).map(sanitizeId)
+      : afterHiddenEntries.map(sanitizeId);
+
     const newEntries: Record<string, unknown> = {};
     for (const c of finalColsEntries) {
       if (safeEntries.hasOwnProperty(c)) {
@@ -178,22 +186,36 @@ export default function Selection({
       }
     }
 
-    // .params
+    // 2) PARAMS
     const safeParams = originalLog.params ?? {};
-    const afterHiddenParams = Array.from(chosenCols).filter((c) => !hiddenColumns.includes(c));
-    let finalColsParams: string[];
-    if (columnOrdering.length > 0) {
-      finalColsParams = columnOrdering
-        .filter((c) => afterHiddenParams.includes(c))
-        .map(sanitizeId);
-    } else {
-      finalColsParams = afterHiddenParams.map(sanitizeId);
-    }
+    const afterHiddenParams = Array.from(chosenCols).filter(
+      (c) => !hiddenColumns.includes(c)
+    );
+    const finalColsParams = columnOrdering.length > 0
+      ? columnOrdering.filter((c) => afterHiddenParams.includes(c)).map(sanitizeId)
+      : afterHiddenParams.map(sanitizeId);
+
     const newParams: Record<string, unknown> = {};
+
+    // For each selected param column "c," look up its stored index + map from globalParams if possible.
     for (const c of finalColsParams) {
-      if (safeParams.hasOwnProperty(c)) {
-        newParams[c] = safeParams[c];
+      if (!safeParams.hasOwnProperty(c)) continue;
+      // The param stored in the log might be a numeric index into globalParams[c],
+      // or might be a literal value. We'll attempt the globalParams approach first.
+      const storedIndexOrValue = safeParams[c];
+      if (typeof storedIndexOrValue === "string" && globalParams.hasOwnProperty(c)) {
+        const possibleObj = globalParams[c];
+        if (possibleObj && typeof possibleObj === "object") {
+          const castObj = possibleObj as Record<string, unknown>;
+          const mappedVal = castObj[storedIndexOrValue];
+          if (mappedVal !== undefined) {
+            newParams[c] = unwrapSingleKeyObject(mappedVal);
+            continue;
+          }
+        }
       }
+      // If above logic fails or doesn't apply, store safeParams[c] as-is:
+      newParams[c] = unwrapSingleKeyObject(storedIndexOrValue);
     }
 
     return {
@@ -203,29 +225,29 @@ export default function Selection({
     };
   }
 
-  // The base log
+  // Build baseLog
   const baseLog = useMemo(() => {
     if (baseRowIndex < 0 || baseRowIndex >= sortedLogs.length) {
       return undefined;
     }
-    return buildLogWithChosenColumns(sortedLogs[baseRowIndex], baseRowIndex);
+    return buildLogWithChosenColumns(sortedLogs[baseRowIndex], baseRowIndex, params);
   }, [
     baseRowIndex,
     sortedLogs,
     indexToColumns,
     columnOrdering,
     hiddenColumns,
+    params,
   ]);
 
-  // The comparison logs
+  // Build comparison logs
   const comparisonLogs = useMemo(() => {
     return comparisonRowIndices
-      .map((ri) => {
-        if (ri < 0 || ri >= sortedLogs.length) {
-          return null;
-        }
-        return buildLogWithChosenColumns(sortedLogs[ri], ri);
-      })
+      .map((ri) =>
+        ri < 0 || ri >= sortedLogs.length
+          ? null
+          : buildLogWithChosenColumns(sortedLogs[ri], ri, params)
+      )
       .filter((x): x is LogProps => x !== null);
   }, [
     comparisonRowIndices,
@@ -233,28 +255,22 @@ export default function Selection({
     indexToColumns,
     columnOrdering,
     hiddenColumns,
+    params,
   ]);
 
-  // Build combobox items => e.g. "Row 5"
+  // Combobox items => e.g., "Row 5"
   const comboItems = useMemo(() => {
-    return selectedRowIndices.map((rowIndex, i) => {
-      const displayLabel = rowLabel(rowIndex);
-      return {
-        value: displayLabel,
-        label: displayLabel,
-        dataIndex: i,
-      };
-    });
+    return selectedRowIndices.map((rowIndex, i) => ({
+      value: rowLabel(rowIndex),
+      label: rowLabel(rowIndex),
+      dataIndex: i,
+    }));
   }, [selectedRowIndices]);
 
   const currentBaseLabel = comboItems[baseIndexParam]?.value || "";
   const handleBaseChange = (newLabel: string) => {
     const found = comboItems.find((x) => x.value === newLabel);
-    if (found) {
-      setBaseIndexParamStr(String(found.dataIndex));
-    } else {
-      setBaseIndexParamStr("0");
-    }
+    setBaseIndexParamStr(found ? String(found.dataIndex) : "0");
   };
 
   // State for expansions in the Accordion (“Entries” & “Params”)
@@ -262,39 +278,27 @@ export default function Selection({
   const [openItems, setOpenItems] = useState<string[]>([]);
   const [openParamItems, setOpenParamItems] = useState<string[]>([]);
 
-  // We gather the default expansions once:
+  // We'll gather default expansions from baseLog's keys:
   const entryKeys = baseLog ? Object.keys(baseLog.entries) : [];
   const paramKeys = baseLog ? Object.keys(baseLog.params) : [];
 
-  // For “Entries,” check each key => if it’s string, matrix, or image => auto open
+  function defaultOpenFor(keys: string[], obj: Record<string, unknown>) {
+    return keys.filter((k) => {
+      const val = obj[k];
+      return ["string", "matrix", "image"].includes(getValueType(val));
+    });
+  }
+
   const defaultOpenEntries = useMemo(() => {
     if (!baseLog) return [];
-    const out: string[] = [];
-    for (const k of entryKeys) {
-      const val = baseLog.entries[k];
-      const type = getValueType(val);
-      if (["string","matrix","image"].includes(type)) {
-        out.push(k);
-      }
-    }
-    return out;
+    return defaultOpenFor(entryKeys, baseLog.entries);
   }, [baseLog, entryKeys]);
 
-  // For “Params,” do the same
   const defaultOpenParams = useMemo(() => {
     if (!baseLog) return [];
-    const out: string[] = [];
-    for (const k of paramKeys) {
-      const val = baseLog.params[k];
-      const type = getValueType(val);
-      if (["string","matrix","image"].includes(type)) {
-        out.push(k);
-      }
-    }
-    return out;
+    return defaultOpenFor(paramKeys, baseLog.params);
   }, [baseLog, paramKeys]);
 
-  // We'll lazily initialize expansions from these default sets, so they only run once.
   const [didInit, setDidInit] = useState(false);
   React.useEffect(() => {
     if (baseLog && !didInit) {
@@ -313,16 +317,59 @@ export default function Selection({
     paramKeys.length > 0 && openParamItems.length === paramKeys.length;
 
   const handleToggleAll = () => {
-    if (everythingOpen) setOpenItems([]);
-    else setOpenItems(entryKeys);
+    setOpenItems(everythingOpen ? [] : entryKeys);
   };
 
   const handleToggleAllParams = () => {
-    if (everythingOpenParams) setOpenParamItems([]);
-    else setOpenParamItems(paramKeys);
+    setOpenParamItems(everythingOpenParams ? [] : paramKeys);
   };
 
   const canPickBase = selectedRowIndices.length > 1;
+
+  /**
+   * Determine which category (entries or params) was selected first for the base row.
+   * We'll scan selectedCells in order, check if it belongs to the base row, and see if
+   * it matches a baseLog.entries or baseLog.params. Then fallback for slash-based naming.
+   */
+  function findEarliestCategoryForBase(): "entries" | "params" | null {
+    if (!baseLog) {
+      return null;
+    }
+    const baseLogId = String(baseLog.id ?? "");
+    for (const token of selectedCells) {
+      const underscorePos = token.indexOf("_");
+      if (underscorePos < 1) continue;
+
+      const logIdPart = token.slice(0, underscorePos);
+      const colNamePart = token.slice(underscorePos + 1);
+      if (logIdPart !== baseLogId) continue;
+
+      // direct
+      if (baseLog.entries?.hasOwnProperty(colNamePart)) {
+        return "entries";
+      }
+      if (baseLog.params?.hasOwnProperty(colNamePart)) {
+        return "params";
+      }
+
+      // fallback slash
+      if (colNamePart.startsWith("Entries/")) {
+        const sub = colNamePart.slice("Entries/".length);
+        if (baseLog.entries?.hasOwnProperty(sub)) {
+          return "entries";
+        }
+      }
+      if (colNamePart.startsWith("Parameters/")) {
+        const sub = colNamePart.slice("Parameters/".length);
+        if (baseLog.params?.hasOwnProperty(sub)) {
+          return "params";
+        }
+      }
+    }
+    return null;
+  }
+
+  const earliestCategory = findEarliestCategoryForBase();
 
   let content;
   if (!baseLog) {
@@ -332,9 +379,10 @@ export default function Selection({
       </div>
     );
   } else {
-    content = (
-      <div className="flex flex-col gap-4">
-        {/* Title row => combobox if multiple rows, plus "Expand All" for entries */}
+    // “Entries” section if any
+    let entriesSection: JSX.Element | null = null;
+    if (entryKeys.length > 0) {
+      entriesSection = (
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -345,10 +393,7 @@ export default function Selection({
                 <>
                   <span className="text-sm text-muted-foreground">Base:</span>
                   <Combobox
-                    items={comboItems.map((item) => ({
-                      value: item.value,
-                      label: item.label,
-                    }))}
+                    items={comboItems}
                     value={currentBaseLabel}
                     onValueChange={handleBaseChange}
                     placeholder="Pick base row"
@@ -369,8 +414,6 @@ export default function Selection({
               />
             </div>
           </div>
-
-          {/* Accordion => “Entries” */}
           <Accordion
             type="multiple"
             value={openItems}
@@ -390,46 +433,65 @@ export default function Selection({
             ))}
           </Accordion>
         </div>
+      );
+    }
 
-        {/* “Params” if any */}
-        {paramKeys.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <p className="font-bold text-lg">Params</p>
-              </div>
-              <ActionButton
-                variant="ghost"
-                size="icon"
-                tooltip={everythingOpenParams ? "Collapse All" : "Expand All"}
-                onClick={handleToggleAllParams}
-                icon={
-                  everythingOpenParams
-                    ? <FoldVertical className="h-4 w-4" />
-                    : <UnfoldVertical className="h-4 w-4" />
-                }
-              />
+    // “Params” section if any
+    let paramsSection: JSX.Element | null = null;
+    if (paramKeys.length > 0) {
+      paramsSection = (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <p className="font-bold text-lg">Params</p>
             </div>
-            <Accordion
-              type="multiple"
-              value={openParamItems}
-              onValueChange={setOpenParamItems}
-            >
-              {paramKeys.map(col => (
-                <SelectionEntry
-                  key={col}
-                  source="params"
-                  property={col}
-                  value={baseLog.params[col]}
-                  baseLog={baseLog}
-                  baseLogIndex={baseRowIndex + 1}
-                  comparisonLogs={comparisonLogs}
-                  comparisonLogsIndex={comparisonRowIndices.map(x => x + 1)}
-                />
-              ))}
-            </Accordion>
+            <ActionButton
+              variant="ghost"
+              size="icon"
+              tooltip={everythingOpenParams ? "Collapse All" : "Expand All"}
+              onClick={handleToggleAllParams}
+              icon={
+                everythingOpenParams
+                  ? <FoldVertical className="h-4 w-4" />
+                  : <UnfoldVertical className="h-4 w-4" />
+              }
+            />
           </div>
-        )}
+          <Accordion
+            type="multiple"
+            value={openParamItems}
+            onValueChange={setOpenParamItems}
+          >
+            {paramKeys.map(col => (
+              <SelectionEntry
+                key={col}
+                source="params"
+                property={col}
+                value={baseLog.params[col]}
+                baseLog={baseLog}
+                baseLogIndex={baseRowIndex + 1}
+                comparisonLogs={comparisonLogs}
+                comparisonLogsIndex={comparisonRowIndices.map(x => x + 1)}
+              />
+            ))}
+          </Accordion>
+        </div>
+      );
+    }
+
+    // Render order: whichever was selected first
+    const sections: JSX.Element[] = [];
+    if (earliestCategory === "params") {
+      if (paramsSection) sections.push(paramsSection);
+      if (entriesSection) sections.push(entriesSection);
+    } else {
+      if (entriesSection) sections.push(entriesSection);
+      if (paramsSection) sections.push(paramsSection);
+    }
+
+    content = (
+      <div className="flex flex-col gap-4">
+        {sections}
       </div>
     );
   }
@@ -439,5 +501,4 @@ export default function Selection({
       {content}
     </div>
   );
-}
-
+}4
