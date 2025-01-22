@@ -14,27 +14,19 @@ import {
 import ActionButton from "@/components/Common/Buttons/Action";
 import MarkdownRenderer from "./MarkdownRenderer";
 import RowBadge from "./RowBadge";
+import { CopyButton } from "@/components/Common/Buttons/Copy";
 
-/**
- * Safely convert a value to a string. If the value is null or undefined, returns
- * an empty string. If it is already a string, returns it as is. Otherwise, calls
- * the String() constructor to convert the value.
- */
 function toStringSafe(val: unknown): string {
   if (typeof val === "string") return val;
   if (val == null) return "";
   return String(val);
 }
 
-/** Compress an integer array like [2,3,4,6] => "2-4,6". */
 function compressRowNumbers(rows: number[]): string {
   if (!rows.length) return "";
   const sorted = [...rows].sort((a, b) => a - b);
-
   const ranges: string[] = [];
-  let start = sorted[0];
-  let end = start;
-
+  let start = sorted[0], end = start;
   for (let i = 1; i < sorted.length; i++) {
     const current = sorted[i];
     if (current === end + 1) {
@@ -49,19 +41,11 @@ function compressRowNumbers(rows: number[]): string {
       end = current;
     }
   }
-  if (start === end) {
-    ranges.push(String(start));
-  } else {
-    ranges.push(`${start}-${end}`);
-  }
+  if (start === end) ranges.push(String(start));
+  else ranges.push(`${start}-${end}`);
   return ranges.join(",");
 }
 
-/**
- * gatherPresenceDiffs:
- *  - Checks if the base string is empty vs. comparables, to highlight rows
- *    that are “missing” or “added” data.
- */
 function gatherPresenceDiffs(
   baseStr: string,
   compStrs: string[],
@@ -94,10 +78,6 @@ function gatherPresenceDiffs(
   };
 }
 
-/**
- * groupComparablesByValue:
- *  - For the old diff approach: lumps identical strings among comparables so each distinct text => { text, rows }.
- */
 function groupComparablesByValue(values: string[], rowIndices: number[]) {
   const map = new Map<string, number[]>();
   values.forEach((txt, i) => {
@@ -113,10 +93,6 @@ function groupComparablesByValue(values: string[], rowIndices: number[]) {
   }));
 }
 
-/**
- * groupAllByValue:
- *  - For diffMode === "none": lumps base + all comparables ignoring base vs. comp distinction.
- */
 function groupAllByValue(
   baseValue: unknown,
   comparables: unknown[] | undefined,
@@ -172,7 +148,7 @@ export default function StringView({
 
   const singleMode = !comparables || comparables.length === 0;
 
-  // If single => just show as Markdown
+  // Single => just show as Markdown
   if (singleMode) {
     const str = toStringSafe(value);
     if (!str) {
@@ -181,12 +157,12 @@ export default function StringView({
     return <MarkdownRenderer>{str}</MarkdownRenderer>;
   }
 
-  // Multi-mode => base + comparables
+  // Multi => base + comparables
   const baseStr = toStringSafe(value);
   const compStrs = comparables.map(toStringSafe);
 
-  // If diffMode === "none," group all into blocks ignoring "base" vs not
   if (diffMode === "none") {
+    // no diff => group all ignoring base vs comp
     const groups = groupAllByValue(value, comparables, baseLogIndex, comparisonLogsIndex);
     const disableSplit = true;
 
@@ -215,14 +191,21 @@ export default function StringView({
         </div>
 
         {groups.map((block, idx) => {
+          const textValue = block.text;
           return (
             <div key={idx} className="border rounded p-3 space-y-2">
-              {/* RowBadge instead of plain text to show row indices */}
-              <div className="flex items-center gap-2 text-xs">
+              {/* RowBadge + copy button => justify-between */}
+              <div className="flex items-center justify-between text-xs">
                 <RowBadge rowNumbers={block.rows} mode="none" />
+                <CopyButton
+                  content={textValue}
+                  copyMessage="Copied string!"
+                  tooltipContent="Copy string"
+                />
               </div>
-              {block.text ? (
-                <MarkdownRenderer>{block.text}</MarkdownRenderer>
+
+              {textValue ? (
+                <MarkdownRenderer>{textValue}</MarkdownRenderer>
               ) : (
                 <p className="text-sm italic text-muted-foreground">No data</p>
               )}
@@ -233,7 +216,7 @@ export default function StringView({
     );
   }
 
-  // Otherwise, "lines" | "words" | "characters"
+  // else => "lines", "words", "characters"
   const { labelColor, redRows, greenRows } = gatherPresenceDiffs(
     baseStr,
     compStrs,
@@ -265,11 +248,9 @@ export default function StringView({
         </div>
       </div>
 
-      {/* Show each distinct text block for the comparables */}
       {groups.map((block, idx) => {
         const compStr = block.text;
         const rowNums = block.rows;
-
         // both base & comp empty => "No data"
         if (baseStr === "" && compStr === "") {
           return (
@@ -286,7 +267,6 @@ export default function StringView({
         let baseBadgeMode = "delete";
         let compBadgeMode = "insert";
         if (baseStr === compStr && baseStr !== "") {
-          // identical => no highlight
           baseBadgeMode = "none";
           compBadgeMode = "none";
         }
