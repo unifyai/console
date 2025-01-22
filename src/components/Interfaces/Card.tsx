@@ -78,18 +78,15 @@ const Card = ({
     return (<div className="no-drag overflow-auto relative flex w-full h-full border rounded-lg">
         <div className={"w-full flex-1 flex flex-col items-center " + (tab ? "mt-2" : "justify-center")}>
             <div className="flex gap-4">
-                <div className="w-fit">
+                {mode == "edit" && <div className="w-fit">
                     <BaseDropdown
-                        button={mode == "edit" ? <ActionButton
+                        button={<ActionButton
                             tooltip="Add Tab"
                             text={tab || undefined}
                             icon={tab ? undefined : <Plus />}
                             variant="outline"
                             size="default"
-                        /> : <div className="h-9 p-2 border border-input inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium">
-                            {tab ? tab : <Plus />}
-                        </div>}
-                        open={mode != "edit" ? false : undefined}
+                        />}
                     >
                         {(mode != "edit" ? [] : tabTypes).map((tab, idx) => <DropdownMenuItem
                             key={idx}
@@ -101,18 +98,15 @@ const Card = ({
                             {tab}
                         </DropdownMenuItem>)}
                     </BaseDropdown>
-                </div>
-                {tab && ["Plot", "View"].includes(tab) && <div className="w-fit">
+                </div>}
+                {tab && mode == "edit" && ["Plot", "View"].includes(tab) && <div className="w-fit">
                     <BaseDropdown
-                        button={mode == "edit" ? <ActionButton
+                        button={<ActionButton
                             tooltip="Select Table"
                             text={item.table || "Select Table"}
                             variant="outline"
                             size="default"
-                        /> : <div className="h-9 p-2 border border-input inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium">
-                            {item.table || "Select Table"}
-                        </div>}
-                        open={mode != "edit" ? false : undefined}
+                        />}
                     >
                         {(mode != "edit" ? [] : tableNames).map((tile, idx) => <DropdownMenuItem
                             key={idx}

@@ -504,7 +504,7 @@ const CardGrid = ({
                                         updateItem={updateItem}
                                         updateInterface={updateInterface}
                                     />
-                                    <div className="flex gap-2 absolute top-3 right-5 z-10">
+                                    <div className={"flex gap-2 absolute top-3 z-10 " + (mode == "edit" ? "right-5" : "left-1/2 ml-2")}>
                                         <ActionButton
                                             className="no-drag cursor-pointer"
                                             onClick={() => setMaxTile(el.i)}
@@ -547,7 +547,7 @@ const CardGrid = ({
                                         </>}
                                     </div>
                                     <Badge
-                                        className="no-drag absolute top-3 left-3 z-10 cursor-pointer"
+                                        className={"no-drag absolute z-10 cursor-pointer " + (mode == "edit" ? "top-3 left-3" : "top-4 right-1/2 mr-2")}
                                         variant="primary"
                                         onClick={() => mode == "edit" ? setEditTile(el.i) : undefined}
                                     >
