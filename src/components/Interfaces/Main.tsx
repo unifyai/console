@@ -26,7 +26,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
     ).reduce((acc, curr) => ({...acc, [curr.name]: curr}), {});
     let interfaceCreated = Boolean(interface_);
     const interface_1 = Object.keys(interfacesTemp_).find(i => i == interface_) || (
-        Object.keys(interfacesTemp_).length ? Object.keys(interfacesTemp_)[0] : null
+        Object.keys(interfacesTemp_).length ? Object.keys(interfacesTemp_).sort()[0] : null
     );
     let currentInterface = (interface_ && interface_ in interfacesTemp_) ? interfacesTemp_[interface_] : null;
     let savedInterface = (interface_ && interface_ in interfaces_) ? interfaces_[interface_] : null;
