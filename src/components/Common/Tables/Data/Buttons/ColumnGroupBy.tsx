@@ -5,10 +5,12 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { getAllChildColumns, isAllChildrenGrouped } from "@/utils/evals/columnOperations";
 
 const ColumnGroupBy = ({
+    interactive,
     column,
     grouping,
     setGrouping
 }: {
+    interactive?: boolean,
     column: Column<any, unknown>,
     grouping: string[],
     setGrouping: (grouping: string[]) => void
@@ -64,7 +66,7 @@ const ColumnGroupBy = ({
     };
 
     return (
-        <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick}/>
+        <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false}/>
     );
 }
 

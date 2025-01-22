@@ -17,7 +17,8 @@ import PlotAxis from "./Buttons/PlotAxis";
 import PlotAggregate from "./Buttons/PlotAggregate";
 import { ItemType, TileProps } from "@/types/evals/grid";
 
-const LogsPlot = ({ logs, fields, item, updateItem }: {
+const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
+    interactive: boolean,
     logs: LogProps[] | undefined,
     fields: LogFieldsResponseProps,
     item: TileProps,
@@ -161,6 +162,7 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
             {/* Axes and type */}
             <div className="absolute bottom-6 right-1 z-10">
                 <PlotAxis
+                    interactive={interactive}
                     fields={fields}
                     setAxisProperty={updateItem(item, "x_axis")}
                     axis="X"
@@ -171,6 +173,7 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
             {plotType != "Histogram" && 
                 <div className="absolute top-0.5 left-1 z-10">
                     <PlotAxis
+                        interactive={interactive}
                         fields={fields}
                         setAxisProperty={updateItem(item, "y_axis")}
                         axis="Y"
@@ -181,6 +184,7 @@ const LogsPlot = ({ logs, fields, item, updateItem }: {
             }
             <div className="absolute top-0.5 right-1 z-10">
                 <PlotType
+                    interactive={interactive}
                     plotType={plotType}
                     setPlotType={updateItem(item, "plot_type")}
                     fields={fields}

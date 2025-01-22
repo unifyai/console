@@ -17,6 +17,7 @@ import { getColumnGroupIDs } from "@/utils/evals/table";
 import { DraggingColumnsState } from "@/types/evals/columns";
 
 const DataTableHeader = ({
+  interactive,
   table,
   header,
   isCellSelected,
@@ -30,6 +31,7 @@ const DataTableHeader = ({
   setContext,
   draggingColumns,
 }: {
+  interactive?: boolean,
   table: Table<any | unknown>,
   header: Header<any, unknown>,
   isCellSelected: (cell: Cell<any, any>) => boolean,
@@ -149,8 +151,8 @@ const DataTableHeader = ({
                   onMouseDown={(e) => e.stopPropagation()} // Prevent event bubbling for action buttons
                   onMouseUp={(e) => e.stopPropagation()}   // Prevent event bubbling for action buttons
                 >
-                  <ColumnGroupBy column={header.column} grouping={grouping} setGrouping={setGrouping} />
-                  <ColumnContext column={header.column} context={context} setContext={setContext} />
+                  <ColumnGroupBy interactive={interactive} column={header.column} grouping={grouping} setGrouping={setGrouping} />
+                  <ColumnContext interactive={interactive} column={header.column} context={context} setContext={setContext} />
                 </div>
               )}
             </>
@@ -171,8 +173,8 @@ const DataTableHeader = ({
         {/* Column actions */}
         {!header.isPlaceholder && isNotUtilColumn &&
           <div className="flex items-center justify-center gap-2 mt-2">
-            {!isParentColumn && <ColumnGroupBy column={header.column} grouping={grouping} setGrouping={setGrouping}/>}
-            {!isParentColumn && <ColumnSort column={header.column}/>}
+            {!isParentColumn && <ColumnGroupBy interactive={interactive} column={header.column} grouping={grouping} setGrouping={setGrouping}/>}
+            {!isParentColumn && <ColumnSort interactive={interactive} column={header.column}/>}
             {!isParentColumn && ColumnFilters && ColumnFilters(header.column)}
           </div>
         }

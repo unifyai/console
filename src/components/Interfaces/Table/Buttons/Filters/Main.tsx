@@ -12,7 +12,8 @@ import { sanitizeId } from "@/utils/evals/columnOperations";
     Reference: https://github.com/unifyai/orchestra/blob/68f543bb9094a8dffc111e6b1960385fd64459b8/orchestra/web/api/log/helpers.py#L284
 */
 
-const ColumnFilter = ({ column, columnFilters, setColumnFilterQuery, columnTypes, boundaries }: {
+const ColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, columnTypes, boundaries }: {
+    interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
@@ -24,13 +25,13 @@ const ColumnFilter = ({ column, columnFilters, setColumnFilterQuery, columnTypes
     column = sanitizeId(column);
 
     if (["float", "int"].includes(columnTypes[column])) {
-        filter = <NumericColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} boundaries={boundaries} />
+        filter = <NumericColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} boundaries={boundaries} />
     }
     else if (columnTypes[column] === "timestamp") {
-        filter = <TimeColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery}/>         
+        filter = <TimeColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery}/>
     }
     else {
-        filter = <StringColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery}/>
+        filter = <StringColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery}/>
     }
 
     return filter;

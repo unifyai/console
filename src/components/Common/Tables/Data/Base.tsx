@@ -23,7 +23,8 @@ import { LogProps } from "@/types/evals/logs";
 
 import { useCellSelection } from "@/hooks/Logs/useCellSelection";
 
-export default function DataTable<TData, TValue>({ data, columns, state, setState, TableTop, FooterCell, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
+export default function DataTable<TData, TValue>({ interactive, data, columns, state, setState, TableTop, FooterCell, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
+    interactive?: boolean,
     data: TData[],
     columns: ColumnDef<TData, TValue>[],
     state: StateProps,
@@ -127,6 +128,7 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
                                 {headerGroup.headers.map((header) => (
                                     <DataTableHeader
                                         key={header.id}
+                                        interactive={interactive}
                                         header={header}
                                         isCellSelected={isCellSelected}
                                         cellSelection={cellSelection}

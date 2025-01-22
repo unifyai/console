@@ -14,7 +14,7 @@ import LogsTable from "@/components/Interfaces/Table/Table";
 import { ItemType, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 
 const Card = ({
-    editable,
+    mode,
     project,
     pending,
     fields,
@@ -34,7 +34,7 @@ const Card = ({
     updateItem,
     updateInterface,
 }: {
-    editable: boolean,
+    mode: "edit" | "interactive" | "dashboard",
     project: string | undefined,
     pending: boolean,
     fields: LogFieldsResponseProps,
@@ -80,16 +80,18 @@ const Card = ({
             <div className="flex gap-4">
                 <div className="w-fit">
                     <BaseDropdown
-                        button={<ActionButton
+                        button={mode == "edit" ? <ActionButton
                             tooltip="Add Tab"
                             text={tab || undefined}
                             icon={tab ? undefined : <Plus />}
                             variant="outline"
                             size="default"
-                        />}
-                        open={tab && !editable ? false : undefined}
+                        /> : <div className="h-9 p-2 border border-input inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium">
+                            {tab ? tab : <Plus />}
+                        </div>}
+                        open={mode != "edit" ? false : undefined}
                     >
-                        {(tab && !editable ? [] : tabTypes).map((tab, idx) => <DropdownMenuItem
+                        {(mode != "edit" ? [] : tabTypes).map((tab, idx) => <DropdownMenuItem
                             key={idx}
                             onSelect={() => setItems(
                                 [...items.map(item => item.i != index ? item : { ...item, tab: tab })]
@@ -102,15 +104,17 @@ const Card = ({
                 </div>
                 {tab && ["Plot", "View"].includes(tab) && <div className="w-fit">
                     <BaseDropdown
-                        button={<ActionButton
+                        button={mode == "edit" ? <ActionButton
                             tooltip="Select Table"
                             text={item.table || "Select Table"}
                             variant="outline"
                             size="default"
-                        />}
-                        open={item.table && !editable ? false : undefined}
+                        /> : <div className="h-9 p-2 border border-input inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium">
+                            {item.table || "Select Table"}
+                        </div>}
+                        open={mode != "edit" ? false : undefined}
                     >
-                        {(item.table && !editable ? [] : tableNames).map((tile, idx) => <DropdownMenuItem
+                        {(mode != "edit" ? [] : tableNames).map((tile, idx) => <DropdownMenuItem
                             key={idx}
                             onSelect={() => updateItem(item, "table")(tile)}
                             disabled={tableData[tile].logs.length == 0}
@@ -132,12 +136,14 @@ const Card = ({
                 updateItem={updateItem}
             />}
             {tab?.includes("Plot") && <LogsPlot
+                interactive={["edit", "interactive"].includes(mode)}
                 logs={item.table ? plotData[item.i]?.plotLogs || [] : []}
                 fields={item.table ? plotData[item.i]?.plotFields || {} : {}}
                 item={item}
                 updateItem={updateItem}
             />}
             {tab?.includes("Table") && <LogsTable
+                interactive={["edit", "interactive"].includes(mode)}
                 project={project}
                 pending={pending}
                 tab={tab}

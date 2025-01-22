@@ -70,9 +70,12 @@ const CardGrid = ({
     const router = useRouter();
     const [items, setItems] = useState<TileProps[]>(items_ ? [...items_.map(item => ({ ...item }))] : []);
     const [newCounter, setNewCounter] = useState(newCounter_ || 0);
+    const [showSaveDialog, setShowSaveDialog] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState<boolean>();
     const [resetting, setResetting] = useState<boolean>();
-    const [editable, setEditable] = useState(true);
+    // const [editable, setEditable] = useState(true);
+    const [mode, setMode] = useState<"edit" | "interactive" | "dashboard">("edit");
+    const modes: ("edit" | "interactive" | "dashboard")[] = ["edit", "interactive", "dashboard"];
     const [interfaces, setInterfaces] = useState(interfaces_);
     const [interface_, setInterface] = useQueryState("interface", { shallow: false });
     const [project, setProject] = useQueryState("project", { shallow: false });
@@ -352,19 +355,7 @@ const CardGrid = ({
                         icon={saveIcon}
                         variant={variant}
                         disabled={disabled || anyPending || !project || !interface_ || projectPending}
-                        onClick={async () => {
-                            if (saveSuccess == undefined) {
-                                let response: ResponseProps | undefined = undefined;
-                                if (interfaceCreated)
-                                    response = await interfaceActions.update(interface_ as string, project as string, items, newCounter, undefined, false);
-                                else
-                                    response = await interfaceActions.create(interface_ as string, project as string, items, newCounter, false);
-                                if (response && "info" in response)
-                                    setSaveSuccess(true);
-                                else
-                                    setSaveSuccess(false);
-                            }
-                        }}
+                        onClick={async () => setShowSaveDialog(true)}
                     />
                     <ActionButton
                         className="transition-all"
@@ -374,7 +365,7 @@ const CardGrid = ({
                         disabled={disabled || anyPending || !project || projectPending}
                         onClick={async () => updateInterface(savedInterface).then(() => {
                             setResetting(true);
-                            setEditable(true);
+                            setMode("edit");
                             router.refresh();
                         })}
                     />
@@ -382,8 +373,8 @@ const CardGrid = ({
                         variant="outline"
                         icon={<Plus />}
                         text="Add Tile"
-                        tooltip={(!editable || !project) ? "Select a project first" : "Add new tile"}
-                        disabled={!editable || !project || projectPending}
+                        tooltip={(mode != "edit" || !project) ? "Select a project first" : "Add new tile"}
+                        disabled={mode != "edit" || !project || projectPending}
                         onClick={() => {
                             setItems([
                                 ...items,
@@ -444,14 +435,22 @@ const CardGrid = ({
                             setCopied(undefined);
                         }}
                     />
-                    <div className="flex items-center gap-2 ml-2">
-                        <Switch
-                            checked={editable}
-                            onCheckedChange={(editable: boolean) => setEditable(editable)}
-                            id="editable"
-                        />
-                        <Label htmlFor="airplane-mode">Editing Mode</Label>
-                    </div>
+                    <BaseDropdown
+                        button={<ActionButton
+                            tooltip="Select mode"
+                            text={mode || undefined}
+                            variant="outline"
+                            size="sm"
+                        />}
+                    >
+                        {modes.map((mode, idx) => <DropdownMenuItem
+                            key={idx}
+                            onSelect={() => setMode(mode)}
+                            className="w-64 no-drag"
+                        >
+                            {mode}
+                        </DropdownMenuItem>)}
+                    </BaseDropdown>
                 </div>
             </div>
             {interfaces.map((interface_, idx) => <TabsContent key={idx} value={interface_} className="tutorial-selection-pane">
@@ -471,8 +470,8 @@ const CardGrid = ({
                         className="layout interactive-grid flex-1"
                         cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
                         rowHeight={100}
-                        isDraggable={editable}
-                        isResizable={editable}
+                        isDraggable={mode == "edit"}
+                        isResizable={mode == "edit"}
                         draggableCancel=".no-drag"
                         resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
                     >
@@ -485,7 +484,7 @@ const CardGrid = ({
                                     hidden={!el.visible}
                                 >
                                     <Card
-                                        editable={editable}
+                                        mode={mode}
                                         project={project || undefined}
                                         pending={el.tab == "Table" ? pending[el.i] : false}
                                         fields={fields}
@@ -505,31 +504,7 @@ const CardGrid = ({
                                         updateItem={updateItem}
                                         updateInterface={updateInterface}
                                     />
-                                    {editable && <div className="flex gap-2 absolute top-3 right-5 z-10">
-                                        <ActionButton
-                                            className="no-drag cursor-pointer"
-                                            onClick={() => {
-                                                setItems([...items.map(
-                                                    it => it.i == el.i ? { ...it, visible: false } : it
-                                                )]);
-                                            }}
-                                            icon={<EyeOff />}
-                                            tooltip={"Hide"}
-                                            variant="outline"
-                                        />
-                                        <ActionButton
-                                            className="no-drag cursor-pointer"
-                                            onClick={() => setCopied(el.i)}
-                                            icon={<Copy />}
-                                            tooltip={"Copy"}
-                                            variant="outline"
-                                        />
-                                        <ActionButton
-                                            className="cursor-grab"
-                                            icon={<Grip />}
-                                            tooltip="Drag"
-                                            variant="outline"
-                                        />
+                                    <div className="flex gap-2 absolute top-3 right-5 z-10">
                                         <ActionButton
                                             className="no-drag cursor-pointer"
                                             onClick={() => setMaxTile(el.i)}
@@ -537,18 +512,44 @@ const CardGrid = ({
                                             tooltip="Maximize"
                                             variant="outline"
                                         />
-                                        <ActionButton
-                                            className="no-drag remove cursor-pointer"
-                                            onClick={() => setItems([...items.filter(item => item.i != el.i)])}
-                                            icon={<X />}
-                                            tooltip="Remove"
-                                            variant="outline"
-                                        />
-                                    </div>}
+                                        {mode == "edit" && <>
+                                            <ActionButton
+                                                className="no-drag cursor-pointer"
+                                                onClick={() => {
+                                                    setItems([...items.map(
+                                                        it => it.i == el.i ? { ...it, visible: false } : it
+                                                    )]);
+                                                }}
+                                                icon={<EyeOff />}
+                                                tooltip={"Hide"}
+                                                variant="outline"
+                                            />
+                                            <ActionButton
+                                                className="no-drag cursor-pointer"
+                                                onClick={() => setCopied(el.i)}
+                                                icon={<Copy />}
+                                                tooltip={"Copy"}
+                                                variant="outline"
+                                            />
+                                            <ActionButton
+                                                className="cursor-grab"
+                                                icon={<Grip />}
+                                                tooltip="Drag"
+                                                variant="outline"
+                                            />
+                                            <ActionButton
+                                                className="no-drag remove cursor-pointer"
+                                                onClick={() => setItems([...items.filter(item => item.i != el.i)])}
+                                                icon={<X />}
+                                                tooltip="Remove"
+                                                variant="outline"
+                                            />
+                                        </>}
+                                    </div>
                                     <Badge
                                         className="no-drag absolute top-3 left-3 z-10 cursor-pointer"
                                         variant="primary"
-                                        onClick={() => editable ? setEditTile(el.i) : undefined}
+                                        onClick={() => mode == "edit" ? setEditTile(el.i) : undefined}
                                     >
                                         {el.i}
                                     </Badge>
@@ -564,7 +565,7 @@ const CardGrid = ({
             <DialogContent className="min-w-full h-full">
                 <div className="p-4 overflow-auto">
                     <Card
-                        editable={editable}
+                        mode={mode}
                         project={project || undefined}
                         pending={maxTileItem.tab == "Table" ? pending[maxTileItem.i] : false}
                         columnTypes={columnTypes}
@@ -588,13 +589,13 @@ const CardGrid = ({
                 <Badge
                     className="no-drag absolute top-3 left-3 z-10 cursor-pointer"
                     variant="primary"
-                    onClick={() => editable ? setEditTile(maxTileItem.i) : undefined}
+                    onClick={() => mode == "edit" ? setEditTile(maxTileItem.i) : undefined}
                 >
                     {maxTileItem.i}
                 </Badge>
             </DialogContent>
         </Dialog>}
-        {editable && editTile && <Dialog open={true} onOpenChange={() => {
+        {mode == "edit" && editTile && <Dialog open={true} onOpenChange={() => {
             setEditTile(undefined);
             setNewTileName(undefined);
         }}>
@@ -614,9 +615,40 @@ const CardGrid = ({
                         className="no-drag remove cursor-pointer"
                         onClick={() => saveTileName()}
                         text="Save"
-                        tooltip="Remove"
+                        tooltip="Save"
                         variant="primary"
                     />
+                </div>
+            </DialogContent>
+        </Dialog>}
+        {showSaveDialog && <Dialog open={true} onOpenChange={() => setShowSaveDialog(false)}>
+            <DialogContent className="w-1/4">
+                <div className="mt-4 flex flex-col gap-4">
+                    <div>Are you sure you want to save the changes to <span className="font-semibold">
+                        {interface_}
+                    </span>?</div>
+                    <div className="flex justify-end pr-2">
+                        <ActionButton
+                            className="w-fit no-drag remove cursor-pointer mr-0 justify-self-end"
+                            onClick={async () => {
+                                if (saveSuccess == undefined) {
+                                    let response: ResponseProps | undefined = undefined;
+                                    if (interfaceCreated)
+                                        response = await interfaceActions.update(interface_ as string, project as string, items, newCounter, undefined, false);
+                                    else
+                                        response = await interfaceActions.create(interface_ as string, project as string, items, newCounter, false);
+                                    if (response && "info" in response)
+                                        setSaveSuccess(true);
+                                    else
+                                        setSaveSuccess(false);
+                                    setShowSaveDialog(false);
+                                }
+                            }}
+                            text="Save"
+                            tooltip="Save"
+                            variant="primary"
+                        />
+                    </div>
                 </div>
             </DialogContent>
         </Dialog>}
