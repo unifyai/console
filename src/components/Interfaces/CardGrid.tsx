@@ -480,7 +480,7 @@ const CardGrid = ({
                                 <div
                                     key={el.i}
                                     data-grid={el}
-                                    className="relative m-1 p-1 rounded-lg"
+                                    className="relative rounded-lg"
                                     hidden={!el.visible}
                                 >
                                     <Card
