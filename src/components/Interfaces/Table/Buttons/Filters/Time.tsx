@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Filters, FiltersByColumn } from "@/types/evals/columns";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -21,8 +21,7 @@ interface TimeFilter {
     value: string
 }
 
-const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery }: {
-    interactive: boolean,
+const TimeColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void
@@ -93,7 +92,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
     /* Dialog interactions */
     const [open, setOpen] = useState(false);
     const close = <BaseButton size="sm" icon={<CircleX/>} onClick={() => setOpen(false)} className="top-0 right-0 scale-60 absolute" variant="warning"/>
-    const button = <ActionButton icon={<Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} disabled={!interactive} />
+    const button = <ActionButton icon={<Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} />
     const reset = <ActionButton tooltip="Delete all filters" variant="warning" icon={<Trash/>} onClick={() => onReset()}/> 
     const submit = <SubmitButton text="Save" onClick={() => onSubmit()}/>
     const append = 
@@ -138,15 +137,20 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
             )}
         </BaseDropdown>
     const times = [
-        {name: "year", ref: useRef<HTMLInputElement>(null), className: "w-[72px] border-r-0"},
-        {name: "month", ref: useRef<HTMLInputElement>(null), className: "border-l-0 border-r-0"},
-        {name: "day", ref: useRef<HTMLInputElement>(null), className: "border-l-0 border-r-0"},
-        {name: "hours", ref: useRef<HTMLInputElement>(null), className: "border-l-0 border-r-0"},
-        {name: "minutes", ref: useRef<HTMLInputElement>(null), className: "border-l-0 border-r-0"},
-        {name: "seconds", ref: useRef<HTMLInputElement>(null), className: "border-l-0 border-r-0"},
-        {name: "milliseconds", ref: useRef<HTMLInputElement>(null), className: "w-[68px] border-l-0 rounded-tr-md rounded-br-md"},
+        {name: "year", className: "w-[72px] border-r-0"},
+        {name: "month", className: "border-l-0 border-r-0"},
+        {name: "day", className: "border-l-0 border-r-0"},
+        {name: "hours", className: "border-l-0 border-r-0"},
+        {name: "minutes", className: "border-l-0 border-r-0"},
+        {name: "seconds", className: "border-l-0 border-r-0"},
+        {name: "milliseconds", className: "w-[68px] border-l-0 rounded-tr-md rounded-br-md"},
     ]
+    const filterRefs = useRef<Record<string, Record<string, HTMLInputElement | null>>>({});
     const filterInput = (filter: TimeFilter) => {
+        if (!filterRefs.current[filter.key]) {
+            filterRefs.current[filter.key] = {};
+        }
+        const refs = filterRefs.current[filter.key];
         const option = options.find(option => option.name === filter.mode)!;
         return (
             <InputWithStartSelect
@@ -162,9 +166,21 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
                         const picker = time.name as ("year" | "month" | "day" | "hours" | "minutes" | "seconds" | "milliseconds")
                         const date = new Date(filter.value)
                         const setDate = (date: Date | undefined) => onInput(date?.toISOString(), filter)
-                        const ref = time.ref
-                        const previousRef = index === 0 ? undefined : times[index - 1].ref
-                        const nextRef = index === times.length - 1 ? undefined : times[index + 1].ref
+                        const ref = (element:HTMLInputElement | null) => {
+                            refs[time.name] = element
+                        }
+                        const prevIndex = index > 0 ? index - 1 : -1;
+                        const nextIndex = index < times.length - 1 ? index + 1 : -1;
+                        const onLeftFocus = () => {
+                            if (prevIndex !== -1) {
+                                refs[times[prevIndex].name]?.focus();
+                            }
+                        };
+                        const onRightFocus = () => {
+                            if (nextIndex !== -1) {
+                                refs[times[nextIndex].name]?.focus();
+                            }
+                        };
                         const className = time.className
                         return (
                         <DateTimeInput
@@ -173,8 +189,8 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
                             date={date}
                             setDate={setDate}
                             ref={ref}
-                            onLeftFocus={() => previousRef ? previousRef.current?.focus() : null}
-                            onRightFocus={() => nextRef ? nextRef.current?.focus() : null}
+                            onLeftFocus={onLeftFocus}
+                            onRightFocus={onRightFocus}
                             relative={relative}
                             className={className}
                             onEnter={onEnter}
@@ -197,7 +213,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
         />
 
     return (
-        <BaseDropdown button={button} open={interactive && open} setOpen={setOpen}>
+        <BaseDropdown button={button} open={open} setOpen={setOpen}>
             <div className="flex flex-col gap-3 px-2 pt-4 pb-2">
                 {filters.map((filter, index) => 
                     <div key={index} className="grid grid-cols-8 items-center">
