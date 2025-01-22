@@ -15,11 +15,6 @@ import {
 import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 
-/**
- * matrixToString:
- * Converts a 2D array-like "matrix" into a single multiline string,
- * so you can do line/word/char diffs in DiffViewer.
- */
 function matrixToString(matrix: any[]): string {
   if (!Array.isArray(matrix)) return "(invalid matrix)";
   return matrix
@@ -28,9 +23,7 @@ function matrixToString(matrix: any[]): string {
 }
 
 /**
- * groupAllMatricesByValue:
- *  - For “none” mode: lumps base + comparables into a single map based on
- *    the matrix string. Ignores base vs. comp, just unique strings => row sets.
+ * For “none” mode: lumps base + comparables ignoring base vs comp -> distinct strings => row sets
  */
 function groupAllMatricesByValue(
   baseValue: unknown,
@@ -58,9 +51,7 @@ function groupAllMatricesByValue(
 }
 
 /**
- * groupComparableMatrices:
- *  - For "lines/words/characters” modes: convert each comparable to a string,
- *    then group them by identical matrix string.
+ * For lines/words/characters => convert each comparable to a string, group them
  */
 function groupComparableMatrices(
   comparables: any[],
@@ -107,39 +98,45 @@ export default function MatrixView({
   function handleCycleMode() {
     setModeIndex((p) => (p + 1) % modes.length);
   }
-
   function handleToggleSplit() {
     if (diffMode !== "none") {
       setSplitView((prev) => !prev);
     }
   }
 
-  // If no comparables => single
+  // Single => no comparables
   const multiMode = comparables && comparables.length > 0;
   if (!multiMode) {
+    // Single
     if (!isValidMatrix(value)) {
-      return (
-        <p className="text-red-500">
-          MatrixView: Not a valid matrix.
-        </p>
-      );
+      return <p className="text-red-500">MatrixView: Not a valid matrix.</p>;
     }
+
+    const matrixStr = matrixToString(value);
     return (
       <div className="space-y-2">
-        <p className="font-bold">Matrix (Row {baseLogIndex})</p>
-        <MatrixDisplay value={value} />
+        <div className="flex items-center justify-between text-xs">
+          <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
+          <CopyButton
+            content={matrixStr}
+            copyMessage="Copied matrix!"
+            tooltipContent="Copy matrix"
+          />
+        </div>
+        <div className="border rounded p-2">
+          <MatrixDisplay value={value} />
+        </div>
       </div>
     );
   }
 
   // Multi => check diffMode
   if (diffMode === "none") {
-    // no diff => group all ignoring base vs. comps
     const groups = groupAllMatricesByValue(value, comparables, baseLogIndex, comparisonLogsIndex);
 
     return (
       <div className="space-y-4">
-        {/* Toolbar */}
+        {/* top toolbar */}
         <div className="flex items-center justify-between">
           <p className="font-semibold">Matrix (No Diff Mode)</p>
           <div className="flex items-center gap-2">
@@ -162,7 +159,6 @@ export default function MatrixView({
         </div>
 
         {groups.map((grp, idx) => {
-          // If invalid => show an error
           if (!isValidMatrix(grp.rawMatrix)) {
             return (
               <div key={idx} className="border rounded p-3 space-y-2">
@@ -174,11 +170,9 @@ export default function MatrixView({
             );
           }
 
-          // Else => valid matrix => show row badges + copy button inline
           const matrixStr = matrixToString(grp.rawMatrix);
           return (
             <div key={idx} className="border rounded p-3 space-y-2">
-              {/* RowBadge + copy button => justify-between */}
               <div className="flex items-center justify-between text-xs">
                 <RowBadge rowNumbers={grp.rows} mode="none" />
                 <CopyButton
@@ -195,13 +189,9 @@ export default function MatrixView({
     );
   }
 
-  // Otherwise => "lines","words","characters"
+  // Otherwise => lines/words/characters
   if (!isValidMatrix(value)) {
-    return (
-      <p className="text-red-500">
-        MatrixView: Not a valid base matrix.
-      </p>
-    );
+    return <p className="text-red-500">MatrixView: Not a valid base matrix.</p>;
   }
 
   const baseStr = matrixToString(value);
@@ -209,7 +199,7 @@ export default function MatrixView({
 
   return (
     <div className="space-y-4">
-      {/* Base row + diff controls */}
+      {/* Diff controls */}
       <div className="flex items-center justify-between">
         <p className="font-semibold">Matrix Diff</p>
         <div className="flex items-center gap-2">
@@ -230,21 +220,16 @@ export default function MatrixView({
         </div>
       </div>
 
-      {/* Show the base matrix first */}
+      {/* Show base matrix */}
       <div>
         <h4 className="font-bold mb-2">Base Matrix (Row {baseLogIndex})</h4>
         <MatrixDisplay value={value} />
       </div>
 
-      {/* Then each group => DiffViewer comparing baseStr vs that group's str */}
+      {/* Compare with each group */}
       <div className="space-y-4 border-l pl-4 mt-2">
         {grouped.map((grp, idx) => {
-          if (
-            grp.str === baseStr &&
-            baseStr !== "(invalid matrix)" &&
-            baseStr !== ""
-          ) {
-            // identical => no highlight
+          if (grp.str === baseStr && baseStr !== "(invalid matrix)" && baseStr !== "") {
             return (
               <div key={idx} className="diff-viewer-container space-y-2">
                 <div className="flex items-center gap-2 text-xs">
@@ -262,8 +247,6 @@ export default function MatrixView({
               </div>
             );
           }
-
-          // else => highlight
           return (
             <div key={idx} className="diff-viewer-container space-y-2">
               <div className="flex items-center gap-2 text-xs">

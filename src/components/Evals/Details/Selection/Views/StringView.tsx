@@ -16,36 +16,18 @@ import MarkdownRenderer from "./MarkdownRenderer";
 import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 
+/**
+ * Convert unknown value => string. 
+ */
 function toStringSafe(val: unknown): string {
   if (typeof val === "string") return val;
   if (val == null) return "";
   return String(val);
 }
 
-function compressRowNumbers(rows: number[]): string {
-  if (!rows.length) return "";
-  const sorted = [...rows].sort((a, b) => a - b);
-  const ranges: string[] = [];
-  let start = sorted[0], end = start;
-  for (let i = 1; i < sorted.length; i++) {
-    const current = sorted[i];
-    if (current === end + 1) {
-      end = current;
-    } else {
-      if (start === end) {
-        ranges.push(`${start}`);
-      } else {
-        ranges.push(`${start}-${end}`);
-      }
-      start = current;
-      end = current;
-    }
-  }
-  if (start === end) ranges.push(String(start));
-  else ranges.push(`${start}-${end}`);
-  return ranges.join(",");
-}
-
+/**
+ * gatherPresenceDiffs => highlight missing vs. added text
+ */
 function gatherPresenceDiffs(
   baseStr: string,
   compStrs: string[],
@@ -78,6 +60,10 @@ function gatherPresenceDiffs(
   };
 }
 
+/**
+ * groupComparablesByValue => for real diff ("lines"/"words"/"characters") to 
+ * group identical strings among comparables => { text, rows } blocks.
+ */
 function groupComparablesByValue(values: string[], rowIndices: number[]) {
   const map = new Map<string, number[]>();
   values.forEach((txt, i) => {
@@ -93,6 +79,9 @@ function groupComparablesByValue(values: string[], rowIndices: number[]) {
   }));
 }
 
+/**
+ * groupAllByValue => for diffMode==="none", lumps base + comparables into a single map
+ */
 function groupAllByValue(
   baseValue: unknown,
   comparables: unknown[] | undefined,
@@ -122,6 +111,7 @@ export default function StringView({
   baseLogIndex,
   comparisonLogsIndex,
 }: LogComparisonProps) {
+  // Available diff modes
   type DiffMode =  "none" | "lines" | "words" | "characters";
   const modes: DiffMode[] = ["none", "lines", "words", "characters"];
   const modeIcons = [
@@ -133,42 +123,56 @@ export default function StringView({
 
   const [modeIndex, setModeIndex] = useState(0);
   const [splitView, setSplitView] = useState(false);
-
   const diffMode = modes[modeIndex];
 
   function handleCycleMode() {
-    setModeIndex((p) => (p + 1) % modes.length);
+    setModeIndex((prev) => (prev + 1) % modes.length);
   }
-
   function handleToggleSplit() {
     if (diffMode !== "none") {
       setSplitView((prev) => !prev);
     }
   }
 
+  // Check single vs multi
   const singleMode = !comparables || comparables.length === 0;
 
-  // Single => just show as Markdown
+  // If single => just display with a copy button at the top
   if (singleMode) {
     const str = toStringSafe(value);
     if (!str) {
       return <p className="italic text-sm text-muted-foreground">No string</p>;
     }
-    return <MarkdownRenderer>{str}</MarkdownRenderer>;
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          {/* RowBadge for the single row */}
+          <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
+          <CopyButton
+            content={str}
+            copyMessage="Copied string!"
+            tooltipContent="Copy string"
+          />
+        </div>
+        <div className="border rounded p-2">
+          <MarkdownRenderer>{str}</MarkdownRenderer>
+        </div>
+      </div>
+    );
   }
 
-  // Multi => base + comparables
+  // Multi => we have baseStr + compStrs
   const baseStr = toStringSafe(value);
   const compStrs = comparables.map(toStringSafe);
 
+  // If diffMode === "none," group ignoring base vs comp
   if (diffMode === "none") {
-    // no diff => group all ignoring base vs comp
     const groups = groupAllByValue(value, comparables, baseLogIndex, comparisonLogsIndex);
     const disableSplit = true;
 
     return (
       <div className="space-y-4">
-        {/* Controls row */}
+        {/* top controls */}
         <div className="flex items-center justify-between">
           <p className="font-semibold">Difference</p>
           <div className="flex items-center gap-2">
@@ -180,7 +184,7 @@ export default function StringView({
               size="icon"
             />
             <ActionButton
-              tooltip={"Disabled in 'none' mode"}
+              tooltip="Disabled in 'none' mode"
               icon={splitView ? <Columns /> : <AlignJustify />}
               onClick={handleToggleSplit}
               variant="ghost"
@@ -194,7 +198,6 @@ export default function StringView({
           const textValue = block.text;
           return (
             <div key={idx} className="border rounded p-3 space-y-2">
-              {/* RowBadge + copy button => justify-between */}
               <div className="flex items-center justify-between text-xs">
                 <RowBadge rowNumbers={block.rows} mode="none" />
                 <CopyButton
@@ -216,18 +219,13 @@ export default function StringView({
     );
   }
 
-  // else => "lines", "words", "characters"
-  const { labelColor, redRows, greenRows } = gatherPresenceDiffs(
-    baseStr,
-    compStrs,
-    baseLogIndex,
-    comparisonLogsIndex
-  );
+  // Otherwise => lines/words/characters
+  const { labelColor } = gatherPresenceDiffs(baseStr, compStrs, baseLogIndex, comparisonLogsIndex);
   const groups = groupComparablesByValue(compStrs, comparisonLogsIndex);
 
   return (
     <div className="space-y-4">
-      {/* Controls row => with presence color, row badges, diff toggles */}
+      {/* controls */}
       <div className="flex items-center justify-between">
         <div className={`font-semibold ${labelColor}`}>Difference</div>
         <div className="flex items-center gap-2">
@@ -251,8 +249,9 @@ export default function StringView({
       {groups.map((block, idx) => {
         const compStr = block.text;
         const rowNums = block.rows;
-        // both base & comp empty => "No data"
-        if (baseStr === "" && compStr === "") {
+
+        const bothEmpty = (baseStr === "" && compStr === "");
+        if (bothEmpty) {
           return (
             <div key={idx} className="border rounded p-3 space-y-2">
               <div className="flex items-center gap-2 text-xs">
@@ -274,8 +273,14 @@ export default function StringView({
         return (
           <div key={idx} className="border rounded p-3 space-y-2">
             <div className="flex items-center gap-2 text-xs">
-              <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadgeMode as "insert" | "delete" | "none"} />
-              <RowBadge rowNumbers={rowNums} mode={compBadgeMode as "insert" | "delete" | "none"} />
+              <RowBadge
+                rowNumbers={[baseLogIndex]}
+                mode={baseBadgeMode as "none" | "insert" | "delete"}
+              />
+              <RowBadge
+                rowNumbers={rowNums}
+                mode={compBadgeMode as "none" | "insert" | "delete"}
+              />
             </div>
             <DiffViewer
               oldValue={baseStr}
