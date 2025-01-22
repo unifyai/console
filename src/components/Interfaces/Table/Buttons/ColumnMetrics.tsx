@@ -16,10 +16,10 @@ const style: CSSProperties = {
     zIndex: 1,
 };
 
-const ColumnMetrics = ({metric, setMetric, colSpan = 1}: {metric: string, setMetric: (x: string) => void, colSpan?: number}) => {
+const ColumnMetrics = ({interactive, metric, setMetric, colSpan = 1}: {interactive: boolean, metric: string, setMetric: (x: string) => void, colSpan?: number}) => {
     return (
         <TableCell style={style} colSpan={colSpan} className="text-left">
-            <BaseDropdown button={<ActionButton tooltip="Select metric" text={metric} icon={<ChevronDown />} />}>
+            <BaseDropdown button={<ActionButton tooltip="Select metric" text={metric} icon={<ChevronDown />} disabled={!interactive} />} open={interactive ? undefined : false}>
                 {metrics.map((metric_, index) =>
                     <DropdownMenuCheckboxItem checked={metric === metric_} key={index} onClick={() => setMetric(metric_)}>
                         {metric_}

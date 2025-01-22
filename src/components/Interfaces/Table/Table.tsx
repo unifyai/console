@@ -432,7 +432,7 @@ const LogsTable = ({
                   <FooterCell column={column} resizeMap={resizeMap} draggingColumns={state.draggingColumns}>
                     {
                       column.columnDef.id === indicesTitle
-                      ? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric}/>
+                      ? <ColumnMetrics interactive={interactive} metric={state.metric} setMetric={setState.setMetric}/>
                       : !column.getIsGrouped()
                         ?	<SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} draggingColumns={state.draggingColumns} />
                         : 	null
