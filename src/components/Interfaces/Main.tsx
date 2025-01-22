@@ -24,12 +24,12 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
     let interfacesTemp_: { [key: string]: Interface } = (
         (project ? await interfaceActions.get(project, true) : []) || []
     ).reduce((acc, curr) => ({...acc, [curr.name]: curr}), {});
-    let interfaceCreated = Boolean(interface_);
+    let interfaceCreated = interface_ != undefined && interface_ in interfaces_;
     const interface_1 = Object.keys(interfacesTemp_).find(i => i == interface_) || (
         Object.keys(interfacesTemp_).length ? Object.keys(interfacesTemp_).sort()[0] : null
     );
     let currentInterface = (interface_ && interface_ in interfacesTemp_) ? interfacesTemp_[interface_] : null;
-    let savedInterface = (interface_ && interface_ in interfaces_) ? interfaces_[interface_] : null;
+    let savedInterface = interfaceCreated ? interfaces_[interface_ as string] : null;
 
     // Get fields
     let fields: LogFieldsResponseProps = {};

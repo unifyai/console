@@ -629,6 +629,7 @@ const CardGrid = ({
                                         setSaveSuccess(true);
                                     else
                                         setSaveSuccess(false);
+                                    setShowSaveDialog(false);
                                 }
                             }}
                             text="Save"
