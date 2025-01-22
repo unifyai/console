@@ -4,9 +4,15 @@ import DiffViewer from "@/components/Common/Misc/DiffViewer";
 import { LogComparisonProps } from "./types";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { MatrixDisplay } from "@/utils/evals/selection";
-import { FileText, CaseLower, Pilcrow, Columns, AlignJustify, EyeOff } from "lucide-react";
+import {
+  FileText,
+  CaseLower,
+  Pilcrow,
+  Columns,
+  AlignJustify,
+  EyeOff
+} from "lucide-react";
 import RowBadge from "./RowBadge";
-
 
 /**
  * matrixToString:
@@ -87,8 +93,8 @@ function groupAllMatricesByValue(
 
 /**
  * groupComparableMatrices:
- *  - For the “lines/words/characters” modes: first convert each comparable to a string,
- *    then group them if they share the exact same matrix string.
+ *  - For the “lines/words/characters” modes: first convert each comparable
+ *    to a string, then group them if they share the same matrix string.
  */
 function groupComparableMatrices(
   comparables: any[],
@@ -110,16 +116,12 @@ function groupComparableMatrices(
 }
 
 /**
- * Check if the provided matrix is “valid.” For simplicity, we'll just
- * verify that it's an array.
+ * Check if the provided matrix is “valid.” For simplicity,
+ * we'll just verify that it's an array.
  */
 function isValidMatrix(val: any): boolean {
   return Array.isArray(val);
 }
-
-/*-----------------------------------------------------------------------------
-  2) Component: MatrixView
------------------------------------------------------------------------------*/
 
 const MatrixView: React.FC<LogComparisonProps> = ({
   value,
@@ -127,7 +129,7 @@ const MatrixView: React.FC<LogComparisonProps> = ({
   baseLogIndex,
   comparisonLogsIndex
 }) => {
-  // a) Add “none” to the diff modes
+  // Add “none” to diff modes
   type DiffMode = "none" | "lines" | "words" | "characters";
   const modes: DiffMode[] = ["none", "lines", "words", "characters"];
   const modeIcons = [
@@ -150,10 +152,9 @@ const MatrixView: React.FC<LogComparisonProps> = ({
     }
   }
 
-  // b) SINGLE MODE => no comparables => just show one matrix
+  // single => no comparables
   const multiMode = comparables && comparables.length > 0;
   if (!multiMode) {
-    // single => just show base matrix or an error
     if (!isValidMatrix(value)) {
       return <p className="text-red-500">MatrixView: Not a valid matrix.</p>;
     }
@@ -165,8 +166,7 @@ const MatrixView: React.FC<LogComparisonProps> = ({
     );
   }
 
-  // c) MULTI MODE => base + comps
-  //    If user picks “none,” group all together ignoring base vs. comps.
+  // multi => if "none", group all ignoring base vs. comps
   if (diffMode === "none") {
     const groups = groupAllMatricesByValue(value, comparables, baseLogIndex, comparisonLogsIndex);
 
@@ -194,20 +194,24 @@ const MatrixView: React.FC<LogComparisonProps> = ({
           </div>
         </div>
 
-        {/* Show each unique matrix from base or comps, grouped by its string repr */}
+        {/* Show each unique matrix from base or comps, grouped by string */}
         {groups.map((grp, idx) => {
-          const rowLabel = compressRowNumbers(grp.rows);
           if (!isValidMatrix(grp.rawMatrix)) {
             return (
               <div key={idx} className="border rounded p-3 space-y-2">
-                <p className="text-xs font-semibold">Rows [{rowLabel}]</p>
+                <div className="flex items-center gap-2 text-xs">
+                  <RowBadge rowNumbers={grp.rows} mode="none" />
+                </div>
                 <p className="text-destructive">(Invalid matrix)</p>
               </div>
             );
           }
           return (
             <div key={idx} className="border rounded p-3 space-y-2">
-              <p className="text-xs font-semibold">Rows [{rowLabel}]</p>
+              {/* RowBadge instead of "Rows: [xx]" */}
+              <div className="flex items-center gap-2 text-xs">
+                <RowBadge rowNumbers={grp.rows} mode="none" />
+              </div>
               <MatrixDisplay value={grp.rawMatrix} />
             </div>
           );
@@ -216,19 +220,13 @@ const MatrixView: React.FC<LogComparisonProps> = ({
     );
   }
 
-  // d) DIFF MODES => "lines", "words", or "characters"
-  //    We'll do the base string => matrixToString(value)
-  //    Then group comparables by distinct string, produce a diff for each group.
+  // Otherwise => "lines","words","characters" => do matrix diffs
   if (!isValidMatrix(value)) {
     return <p className="text-red-500">MatrixView: Not a valid base matrix.</p>;
   }
 
   const baseStr = matrixToString(value);
   const grouped = groupComparableMatrices(comparables, comparisonLogsIndex);
-
-  // Optionally, you can highlight row presence diffs exactly like StringView if desired
-  // e.g. check if baseStr is empty vs. each comparable. But here's a simpler usage:
-  // We'll just show the base matrix once, then show diffs with each unique comparable group.
 
   return (
     <div className="space-y-4">
@@ -244,11 +242,7 @@ const MatrixView: React.FC<LogComparisonProps> = ({
             size="icon"
           />
           <ActionButton
-            tooltip={
-              splitView
-                ? "Switch to Inline View"
-                : "Switch to Split View"
-            }
+            tooltip={splitView ? "Switch to Inline View" : "Switch to Split View"}
             icon={splitView ? <Columns /> : <AlignJustify />}
             onClick={handleToggleSplit}
             variant="ghost"
@@ -263,39 +257,44 @@ const MatrixView: React.FC<LogComparisonProps> = ({
         <MatrixDisplay value={value} />
       </div>
 
-      {/* Then each group => DiffViewer comparing baseStr vs. that group's str */}
+      {/* Then each group => DiffViewer comparing baseStr vs that group's str */}
       <div className="space-y-4 border-l pl-4 mt-2">
         {grouped.map((grp, idx) => {
           // row badges
-          const rowLabel = compressRowNumbers(grp.rows);
-
-          // If identical => no differences, but let's still show the row badges
-          // We'll optionally color them. For a direct presence diff approach,
-          // you might do something more advanced like the string version.
-          let BadgeMode = "delete";
-          let CompBadeMode = "insert"
           if (grp.str === baseStr && baseStr !== "(invalid matrix)" && baseStr !== "") {
-            BadgeMode = "base";
-            CompBadeMode = "none"
-
+            // identical => no highlight
+            return (
+              <div key={idx} className="diff-viewer-container space-y-2">
+                <div className="flex items-center gap-2 text-xs">
+                  <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
+                  <RowBadge rowNumbers={grp.rows} mode="none" />
+                </div>
+                <DiffViewer
+                  oldValue={baseStr}
+                  newValue={grp.str}
+                  hideLineNumbers={false}
+                  hideMarkers
+                  splitView={splitView}
+                  mode={diffMode}
+                />
+              </div>
+            );
           }
 
+          // else => highlight
           return (
             <div key={idx} className="diff-viewer-container space-y-2">
-              <div className="flex items-center gap-1 text-xs">
-                {/* base row first */}
-                <RowBadge rowNumbers={[baseLogIndex]} mode={BadgeMode as "none" | "base" | "delete" | "insert" | undefined} />
-                {/* comparable group rows */}
-                <RowBadge rowNumbers={grp.rows} mode="base" />
+              <div className="flex items-center gap-2 text-xs">
+                <RowBadge rowNumbers={[baseLogIndex]} mode="delete" />
+                <RowBadge rowNumbers={grp.rows} mode="insert" />
               </div>
-
               <DiffViewer
                 oldValue={baseStr}
                 newValue={grp.str}
                 hideLineNumbers={false}
                 hideMarkers
                 splitView={splitView}
-                mode={diffMode} // "lines" | "words" | "characters"
+                mode={diffMode}
               />
             </div>
           );

@@ -4,9 +4,7 @@ import React from "react"
 import Tooltip from "@/components/Common/Misc/Tooltip"
 
 /**
- * compressRowNumbers:
- * Compresses an array of row indices (like [1,2,3,5,6,8])
- * to a string like "1-3,5-6,8".
+ * Compresses row indices like [1,2,3,5,6,8] to a string "1-3,5-6,8".
  */
 function compressRowNumbers(rows: number[]): string {
   if (!rows.length) return "";
@@ -36,7 +34,7 @@ function compressRowNumbers(rows: number[]): string {
     ranges.push(`${start}-${end}`);
   }
 
-  return ranges.join(",");
+  return ranges.join(", ");
 }
 
 export interface RowBadgeProps {
@@ -59,9 +57,12 @@ export interface RowBadgeProps {
 
 /**
  * RowBadge:
- *  - Takes an array of rowNumbers (e.g. [1,2,3]) and compresses them ("1-3").
- *  - Renders a small badge "[1-3]" with a color. 
- *  - On hover, a shadcn-based tooltip shows e.g. "Inserted Rows: 1-3".
+ *  - Renders "[3, 5-7, 9]" or "[2]" etc. with a color-coded background.
+ *  - On hover, shows a tooltip according to "mode" and row count:
+ *      - delete => "Only in row 3" or "Only in rows 1-2,4"
+ *      - insert => "Changes in row 5" or "Changes in rows 2-3,6"
+ *      - base   => "Base row 3" or "Base rows 2,4"  
+ *      - none   => "Row 3" or "Rows 4,6-7"
  */
 export default function RowBadge({
   rowNumbers,
@@ -74,49 +75,63 @@ export default function RowBadge({
   }
 
   const label = compressRowNumbers(rowNumbers);
+  const count = rowNumbers.length;
+  const rowOrRows = count === 1 ? "row" : "rows";
 
   // Decide color classes
   let colorClasses = customClass || "";
   if (!customClass) {
-    if (mode === "insert") {
-      colorClasses = "insert bg-green-300 text-green-800";
-    } else if (mode === "delete") {
-      colorClasses = "delete bg-red-300 text-red-800";
-    } else if (mode === "base" || isBase) {
-      colorClasses = "base bg-red-200 text-red-800";
-    } else {
-      // mode === "none"
-      colorClasses = "none bg-gray-200 text-gray-700";
+    switch (mode) {
+      case "insert":
+        colorClasses = "insert bg-green-300 text-green-800";
+        break;
+      case "delete":
+        colorClasses = "delete bg-red-300 text-red-800";
+        break;
+      case "base":
+        colorClasses = "base bg-red-200 text-red-800";
+        break;
+      default:
+        // mode="none"
+        colorClasses = "none bg-gray-200 text-gray-700";
+        break;
     }
   }
 
-  // Build the tooltip text
+  // Build tooltip text
   let hoverText = "";
   switch (mode) {
-    case "insert":
-      hoverText = `Inserted To Row(s) ${label}`;
-      break;
     case "delete":
-      hoverText = `Deleted From Row(s) ${label}`;
+      // "Only in row 3" or "Only in rows 3,5-7"
+      hoverText = `Only in ${rowOrRows} ${label}`;
+      break;
+    case "insert":
+      // "Changes in row 3" or "Changes in rows 3,5-7"
+      hoverText = `Changes in ${rowOrRows} ${label}`;
       break;
     case "base":
-      hoverText = `Base Row(s) ${label}`;
-      break;
-    case "none":
-      hoverText = `No Changes to Row(s) ${label}`;
-    default:
-      // if isBase is set, we can interpret that as base
-      if (isBase) {
-        hoverText = `Base Rows ${label}`;
+      // "Base row 3" or "Base rows 3,5-7"
+      if (count === 1) {
+        hoverText = `Base row ${label}`;
       } else {
-        hoverText = `No Changes Rows ${label}`;
+        hoverText = `Base rows ${label}`;
+      }
+      break;
+    default:
+      // mode="none" => "Row 3" or "Rows 3,5-7"
+      if (count === 1) {
+        hoverText = `Row ${label}`;
+      } else {
+        hoverText = `Rows ${label}`;
       }
       break;
   }
 
   return (
     <Tooltip content={hoverText}>
-      <span className={`row-badge px-1 ml-1 rounded text-xs font-semibold ${colorClasses}`}>
+      <span
+        className={`row-badge rounded text-xs font-semibold ${colorClasses}`}
+      >
         [{label}]
       </span>
     </Tooltip>
