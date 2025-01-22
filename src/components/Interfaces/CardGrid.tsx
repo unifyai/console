@@ -73,7 +73,6 @@ const CardGrid = ({
     const [showSaveDialog, setShowSaveDialog] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState<boolean>();
     const [resetting, setResetting] = useState<boolean>();
-    // const [editable, setEditable] = useState(true);
     const [mode, setMode] = useState<"edit" | "interactive" | "dashboard">("edit");
     const modes: ("edit" | "interactive" | "dashboard")[] = ["edit", "interactive", "dashboard"];
     const [interfaces, setInterfaces] = useState(interfaces_);
@@ -435,22 +434,18 @@ const CardGrid = ({
                             setCopied(undefined);
                         }}
                     />
-                    <BaseDropdown
-                        button={<ActionButton
-                            tooltip="Select mode"
-                            text={mode || undefined}
-                            variant="outline"
-                            size="sm"
-                        />}
-                    >
-                        {modes.map((mode, idx) => <DropdownMenuItem
-                            key={idx}
-                            onSelect={() => setMode(mode)}
-                            className="w-64 no-drag"
-                        >
-                            {mode}
-                        </DropdownMenuItem>)}
-                    </BaseDropdown>
+                    <ActionButton
+                        tooltip="Switch mode"
+                        text={mode}
+                        variant="outline"
+                        onClick={() => setMode(
+                            mode == "edit"
+                                ? "interactive"
+                                : mode == "interactive"
+                                    ? "dashboard"
+                                    : "edit"
+                        )}
+                    />
                 </div>
             </div>
             {interfaces.map((interface_, idx) => <TabsContent key={idx} value={interface_} className="tutorial-selection-pane">
