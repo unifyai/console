@@ -70,6 +70,7 @@ const CardGrid = ({
     const router = useRouter();
     const [items, setItems] = useState<TileProps[]>(items_ ? [...items_.map(item => ({ ...item }))] : []);
     const [newCounter, setNewCounter] = useState(newCounter_ || 0);
+    const [showSaveDialog, setShowSaveDialog] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState<boolean>();
     const [resetting, setResetting] = useState<boolean>();
     const [editable, setEditable] = useState(true);
@@ -352,19 +353,7 @@ const CardGrid = ({
                         icon={saveIcon}
                         variant={variant}
                         disabled={disabled || anyPending || !project || !interface_ || projectPending}
-                        onClick={async () => {
-                            if (saveSuccess == undefined) {
-                                let response: ResponseProps | undefined = undefined;
-                                if (interfaceCreated)
-                                    response = await interfaceActions.update(interface_ as string, project as string, items, newCounter, undefined, false);
-                                else
-                                    response = await interfaceActions.create(interface_ as string, project as string, items, newCounter, false);
-                                if (response && "info" in response)
-                                    setSaveSuccess(true);
-                                else
-                                    setSaveSuccess(false);
-                            }
-                        }}
+                        onClick={async () => setShowSaveDialog(true)}
                     />
                     <ActionButton
                         className="transition-all"
@@ -614,9 +603,39 @@ const CardGrid = ({
                         className="no-drag remove cursor-pointer"
                         onClick={() => saveTileName()}
                         text="Save"
-                        tooltip="Remove"
+                        tooltip="Save"
                         variant="primary"
                     />
+                </div>
+            </DialogContent>
+        </Dialog>}
+        {showSaveDialog && <Dialog open={true} onOpenChange={() => setShowSaveDialog(false)}>
+            <DialogContent className="w-1/4">
+                <div className="mt-4 flex flex-col gap-4">
+                    <div>Are you sure you want to save the changes to <span className="font-semibold">
+                        {interface_}
+                    </span>?</div>
+                    <div className="flex justify-end pr-2">
+                        <ActionButton
+                            className="w-fit no-drag remove cursor-pointer mr-0 justify-self-end"
+                            onClick={async () => {
+                                if (saveSuccess == undefined) {
+                                    let response: ResponseProps | undefined = undefined;
+                                    if (interfaceCreated)
+                                        response = await interfaceActions.update(interface_ as string, project as string, items, newCounter, undefined, false);
+                                    else
+                                        response = await interfaceActions.create(interface_ as string, project as string, items, newCounter, false);
+                                    if (response && "info" in response)
+                                        setSaveSuccess(true);
+                                    else
+                                        setSaveSuccess(false);
+                                }
+                            }}
+                            text="Save"
+                            tooltip="Save"
+                            variant="primary"
+                        />
+                    </div>
                 </div>
             </DialogContent>
         </Dialog>}
