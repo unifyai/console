@@ -1,6 +1,12 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/UI/accordion";
 import { Combobox } from "@/components/UI/Combobox";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
@@ -21,11 +27,56 @@ import MatrixView from "../MatrixView";
 import StringView from "../StringView";
 import { isDict, isList, isMatrix, isImage, isTrace } from "@/utils/evals/selection";
 
+import RowBadge from "../RowBadge";
+import ActionButton from "@/components/Common/Buttons/Action";
+import { CopyButton } from "@/components/Common/Buttons/Copy";
+
+/*-----------------------------------------------------------------------------
+  Helpers for row-labelling with singular/plural
+-----------------------------------------------------------------------------*/
+function compressRowNumbers(rows: number[]): string {
+  if (!rows.length) return "";
+  const sorted = [...rows].sort((a, b) => a - b);
+  const ranges: string[] = [];
+  let start = sorted[0];
+  let end = start;
+
+  for (let i = 1; i < sorted.length; i++) {
+    const current = sorted[i];
+    if (current === end + 1) {
+      end = current;
+    } else {
+      if (start === end) {
+        ranges.push(String(start));
+      } else {
+        ranges.push(`${start}-${end}`);
+      }
+      start = current;
+      end = current;
+    }
+  }
+  if (start === end) {
+    ranges.push(String(start));
+  } else {
+    ranges.push(`${start}-${end}`);
+  }
+  return ranges.join(", ");
+}
+
+function labelForRows(rows: number[]): string {
+  if (!rows.length) return "--";
+  const compressed = compressRowNumbers(rows);
+  return rows.length === 1 ? `Row ${compressed}` : `Rows ${compressed}`;
+}
+
 /*---------------------------------------------------------------------
-  PatchDetailPanel: 
-   - Extended so if we have multiple “groupCompareRowIndices,” 
-     we gather each row’s matching Span (by name) for each field 
-     as comparables. This yields multi-diff in the right-hand pane.
+  PatchDetailPanel:
+   - We do not show ID text, but we provide a CopyButton for the ID at the top.
+   - We treat "exec_time" as a normal field, so you can see it in e.g. a StringView.
+   - "inputs", "outputs", and "exec_time" are shown as normal blocks.
+   - "code" and "errors" go into an accordion, folded by default.
+   - Also new: an “IDs” accordion item at the bottom, which uses pickView
+     to display base ID + comparable IDs in a list (if multiple).
 ---------------------------------------------------------------------*/
 function PatchDetailPanel({
   node,
@@ -36,7 +87,7 @@ function PatchDetailPanel({
 }: {
   node: PatchDiffNode;
   baseRowIndex: number;
-  comparisonLogsIndex: number[]; // group or single
+  comparisonLogsIndex: number[];
   allTraces: Span[][];
   allRowIndexes: number[];
 }) {
@@ -44,19 +95,11 @@ function PatchDetailPanel({
     return <p className="italic text-sm">No base or target data</p>;
   }
 
-  let label = "Unchanged";
-  if (node.marker === "+") label = "Added";
-  else if (node.marker === "-") label = "Removed";
-  else if (node.marker === "r") label = "Replaced";
+  // We'll pick whichever is available for copying ID
+  const mainSpan = node.baseSpanRef || node.targetSpanRef;
+  const spanId = mainSpan?.id ?? "(no id)";
 
-  const fields = ["inputs", "outputs", "code", "errors"];
-
-  /**
-   * Provided a row index (like row #10) and a spanName,
-   * find that row’s Spans array => find a matching span by name.
-   * If you want ID-based matching, you could do that instead, but
-   * for now we do name-based to keep consistent with the patch diff.
-   */
+  // Helper: find a matching span by name in a given row
   function findSpanByNameInRow(rowIndex: number, spanName: string): Span | undefined {
     const i = allRowIndexes.indexOf(rowIndex);
     if (i < 0) return undefined;
@@ -66,111 +109,61 @@ function PatchDetailPanel({
     while (queue.length) {
       const s = queue.shift()!;
       if (s.span_name === spanName) return s;
-      if (s.child_spans) {
-        queue.push(...s.child_spans);
-      }
+      if (s.child_spans) queue.push(...s.child_spans);
     }
     return undefined;
   }
 
-  function getBaseAndComparables(field: string) {
-    const marker = node.marker;
-    const bSpan = node.baseSpanRef;
-    const tSpan = node.targetSpanRef;
-
-    // By default, do the old approach with up to one target:
-    let baseVal: any;
-    let comps: any[] = [];
-
-    if (marker === " " || marker === "r") {
-      baseVal = bSpan?.[field];
-      if (tSpan) comps.push(tSpan[field]);
-    } else if (marker === "+") {
-      baseVal = tSpan?.[field];
-    } else if (marker === "-") {
-      baseVal = bSpan?.[field];
-    }
-
-    /*----------------------------------------------------------
-      NEW LOGIC: If comparisonLogsIndex includes multiple rows, 
-      we want to gather each row’s value for the same field 
-      instead of just one. 
-      We'll skip the single “comps.push(tSpan[field])” approach 
-      and do a multi approach: each row => findSpan => field. 
-    ----------------------------------------------------------*/
-    if (comparisonLogsIndex.length > 1) {
-      // If we have >1 row => gather them all
-      // Overwrite comps with a new array of each row's value
-      const name = node.baseSpanRef ? node.baseSpanRef.span_name : node.name;
-      // If marker is "+" or "-" or "r", we might also want to use node.targetSpanRef?.span_name
-      // but we typically unify by name. We'll just assume baseSpanRef or node.name is correct.
-      const realSpanName = bSpan?.span_name || tSpan?.span_name || name;
-
-      const multiComps: any[] = [];
-      comparisonLogsIndex.forEach((rowN) => {
-        const match = findSpanByNameInRow(rowN, realSpanName);
-        if (match) {
-          multiComps.push(match[field]);
-        } else {
-          multiComps.push(undefined);
-        }
-      });
-      comps = multiComps;
-    }
-
-    return { baseVal, comps };
-  }
-
-  function pickView(value: any, comps: any[]) {
+  // We'll reuse pickView from older logic to display text, arrays, etc.
+  function pickView(baseValue: any, comps: any[]): JSX.Element {
     if (!comps) comps = [];
-
-    if (isTrace(value)) {
+    if (isTrace(baseValue)) {
       return <p className="italic text-sm">(Span data)</p>;
     }
-    if (isDict(value)) {
+    if (isDict(baseValue)) {
       return (
         <DictionaryView
-          value={value}
+          value={baseValue}
           comparables={comps}
           baseLogIndex={baseRowIndex}
           comparisonLogsIndex={comparisonLogsIndex}
         />
       );
     }
-    if (isList(value)) {
+    if (isList(baseValue)) {
       return (
         <ListView
-          value={value}
+          value={baseValue}
           comparables={comps}
           baseLogIndex={baseRowIndex}
           comparisonLogsIndex={comparisonLogsIndex}
         />
       );
     }
-    if (isImage(value)) {
+    if (isImage(baseValue)) {
       return (
         <ImageView
-          value={value}
+          value={baseValue}
           comparables={comps}
           baseLogIndex={baseRowIndex}
           comparisonLogsIndex={comparisonLogsIndex}
         />
       );
     }
-    if (isMatrix(value)) {
+    if (isMatrix(baseValue)) {
       return (
         <MatrixView
-          value={value}
+          value={baseValue}
           comparables={comps}
           baseLogIndex={baseRowIndex}
           comparisonLogsIndex={comparisonLogsIndex}
         />
       );
     }
-    // Default => string
+    // fallback => string
     return (
       <StringView
-        value={value ?? ""}
+        value={baseValue ?? ""}
         comparables={comps}
         baseLogIndex={baseRowIndex}
         comparisonLogsIndex={comparisonLogsIndex}
@@ -178,44 +171,160 @@ function PatchDetailPanel({
     );
   }
 
+  /**
+   * gatherFieldValues => returns the baseVal and comps for the specified field,
+   * if there's multi-compare. If baseSpanRef===targetSpanRef => no diff => just baseVal.
+   */
+  function gatherFieldValues(field: string) {
+    const bSpan = node.baseSpanRef;
+    const tSpan = node.targetSpanRef;
+    // If truly no diff => bSpan===tSpan, so just show base
+    if (bSpan && tSpan && bSpan === tSpan) {
+      return { baseVal: bSpan[field], comps: [] };
+    }
+
+    switch (node.marker) {
+      case "+":
+        return { baseVal: tSpan?.[field], comps: [] };
+      case "-":
+        return { baseVal: bSpan?.[field], comps: [] };
+      case "r":
+      case " ":
+        if (comparisonLogsIndex.length <= 1) {
+          // single compare => base vs target
+          return {
+            baseVal: bSpan?.[field],
+            comps: tSpan ? [tSpan[field]] : [],
+          };
+        }
+        // multi-compare => gather
+        const baseVal = bSpan?.[field];
+        const realName = bSpan?.span_name || tSpan?.span_name || node.name;
+        const compsArr = comparisonLogsIndex.map((rowN) => {
+          const match = findSpanByNameInRow(rowN, realName);
+          return match?.[field];
+        });
+        return { baseVal, comps: compsArr };
+      default:
+        return { baseVal: undefined, comps: [] };
+    }
+  }
+
+  // We'll handle inputs/outputs/exec_time as direct blocks, code/errors in an accordion
+  const { baseVal: baseInputs, comps: compsInputs } = gatherFieldValues("inputs");
+  const { baseVal: baseOutputs, comps: compsOutputs } = gatherFieldValues("outputs");
+  const { baseVal: baseExecTime, comps: compsExecTime } = gatherFieldValues("exec_time");
+
+  const inputsView = pickView(baseInputs, compsInputs);
+  const outputsView = pickView(baseOutputs, compsOutputs);
+  const execTimeView = pickView(baseExecTime, compsExecTime);
+
+  // code & errors => also in the accordion
+  const { baseVal: baseCode, comps: compsCode } = gatherFieldValues("code");
+  const { baseVal: baseErrors, comps: compsErrors } = gatherFieldValues("errors");
+
+  const codeView = pickView(baseCode, compsCode);
+  const errorsView = pickView(baseErrors, compsErrors);
+
+  // Gather IDs => treat as array of strings (for multi-diff)
+  function gatherIdValues() {
+    const bSpan = node.baseSpanRef;
+    const tSpan = node.targetSpanRef;
+    // If base===target, only show base ID
+    if (bSpan && tSpan && bSpan === tSpan) {
+      return { baseVal: bSpan.id ?? "(no id)", comps: [] };
+    }
+    if (comparisonLogsIndex.length <= 1) {
+      // single compare
+      const bId = bSpan?.id ?? "(no id)";
+      const tId = tSpan ? (tSpan.id ?? "(no id)") : undefined;
+      if (tId !== undefined) {
+        return { baseVal: bId, comps: [tId] };
+      } else {
+        return { baseVal: bId, comps: [] };
+      }
+    } else {
+      // multi => gather each row's ID
+      const bId = bSpan?.id ?? "(no id)";
+      const realName = bSpan?.span_name || tSpan?.span_name || node.name;
+      const compsArr = comparisonLogsIndex.map((rowN) => {
+        const match = findSpanByNameInRow(rowN, realName);
+        return match?.id ?? "(no id)";
+      });
+      return { baseVal: bId, comps: compsArr };
+    }
+  }
+
+  const { baseVal: baseID, comps: compsID } = gatherIdValues();
+  const idView = pickView(baseID, compsID);
+
   return (
     <div className="flex flex-col gap-3">
-      <p className="font-bold text-sm">{node.name}</p>
-      {fields.map((field) => {
-        const { baseVal, comps } = getBaseAndComparables(field);
-        // Skip if base & comps are both undefined
-        const isEmptyComps = comps.length && comps.every((c) => c === undefined);
-        if (baseVal === undefined && (!comps.length || isEmptyComps)) {
-          return null;
-        }
-        const content = pickView(baseVal, comps);
-        return (
-          <div key={field} className="border rounded p-2 bg-background">
-            <p className="font-semibold text-sm mb-2">{field}</p>
-            {content}
-          </div>
-        );
-      })}
+      {/* Title row => left: node name, right: CopyButton => ID */}
+      <div className="flex items-center justify-between">
+        <p className="font-bold text-sm">{node.name}</p>
+        <CopyButton
+          content={String(spanId)}
+          copyMessage="Copied trace ID!"
+          tooltipContent="Copy Base Span ID"
+        />
+      </div>
+
+      {/* Inputs */}
+      <div>
+        <p className="font-semibold text-sm mb-2">Inputs</p>
+        <div className="border border-muted p-2 rounded">
+          {inputsView}
+        </div>
+      </div>
+
+      {/* Outputs */}
+      <div>
+        <p className="font-semibold text-sm mt-2 mb-2">Outputs</p>
+        <div className="border border-muted p-2 rounded">
+          {outputsView}
+        </div>
+      </div>
+
+      {/* Execution Time */}
+      <div>
+        <p className="font-semibold text-sm mt-2 mb-2">Execution Time</p>
+        <div className="border border-muted p-2 rounded">
+          {execTimeView}
+        </div>
+      </div>
+
+      {/* code + errors => folded accordion by default */}
+      <Accordion type="multiple" defaultValue={[]} className="mt-3">
+        <AccordionItem value="code">
+          <AccordionTrigger className="font-medium">Code</AccordionTrigger>
+          <AccordionContent className="pl-2 border-l">
+            {codeView}
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="errors">
+          <AccordionTrigger className="font-medium">Errors</AccordionTrigger>
+          <AccordionContent className="pl-2 border-l">
+            {errorsView}
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Additional item => IDs */}
+        <AccordionItem value="ids">
+          <AccordionTrigger className="font-medium">IDs</AccordionTrigger>
+          <AccordionContent className="pl-2 border-l">
+            {idView}
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }
 
 /*---------------------------------------------------------------------
-  convertSpanToPatchNode: same as before
----------------------------------------------------------------------*/
-function convertSpanToPatchNode(span: Span): PatchDiffNode {
-  return {
-    name: span.span_name,
-    marker: " ",
-    baseSpanRef: span,
-    targetSpanRef: undefined,
-    children: (span.child_spans ?? []).map(convertSpanToPatchNode),
-  };
-}
-
-/*---------------------------------------------------------------------
-  CollapsiblePatchLineNode: unchanged, 
-  skipping root if marker=" " & name="ROOT"
+  CollapsiblePatchLineNode => Left side patch tree
+  (unchanged except we skip "ROOT" if base==base => no changes displayed)
 ---------------------------------------------------------------------*/
 function CollapsiblePatchLineNode({
   node,
@@ -248,7 +357,7 @@ function CollapsiblePatchLineNode({
     setSegmentHeight(childCenterY - parentCenterY);
   }, [parentCenterY, collapsedNodes]);
 
-  // skip "ROOT" if unchanged:
+  // If top node is "ROOT" with marker=== " " => skip if there's children
   if (depth === 0 && node.name === "ROOT" && node.marker === " " && children.length) {
     return (
       <>
@@ -380,12 +489,9 @@ function CollapsiblePatchLineNode({
 }
 
 /*---------------------------------------------------------------------
-  UnifiedTraceView:
-  - We skip the old single-row combobox
-  - We skip including base row in grouping
-  - We unify only the structure for base vs. group
-  - For the detail data (inputs, outputs, code, etc.), 
-    we pass all row indices in the group as “comparables.”
+  UnifiedTraceView
+    - If user picks "None," we do base vs. base => no diffs
+    - The rest is unchanged
 ---------------------------------------------------------------------*/
 interface UnifiedTraceViewProps {
   allTraces: Span[][];  // each element is an array of spans for a row
@@ -396,21 +502,15 @@ export default function UnifiedTraceView({ allTraces, rowIndexes }: UnifiedTrace
   const [collapsedNodes, setCollapsedNodes] = useState<Record<string, boolean>>({});
   const [selectedNode, setSelectedNode] = useState<PatchDiffNode | null>(null);
 
-  // Possibly for timeline usage
-  const [timelineOpen, setTimelineOpen] = useState(false);
-  const [flowOpen, setFlowOpen] = useState(false);
-  const timelineData = useMemo(() => unifyTracesForChart(allTraces), [allTraces]);
-
-  // Base row => rowIndexes[0]
+  // "baseRow" => rowIndexes[0]
   const baseRowSpans = useMemo(() => {
     if (!allTraces.length) return [] as Span[];
     return allTraces[0] ?? [];
   }, [allTraces]);
 
-  // For grouping
+  // grouping
   const [groupSignature, setGroupSignature] = useState("");
 
-  /** Structure-only to decide grouping (skip code, inputs, etc.) */
   function minimalSpanHierarchy(span: Span): any {
     return {
       name: span.span_name,
@@ -421,7 +521,6 @@ export default function UnifiedTraceView({ allTraces, rowIndexes }: UnifiedTrace
     return spans.map(minimalSpanHierarchy);
   }
 
-  // skip rowIndexes[0] from grouping
   const groupedRows = useMemo(() => {
     const result: { signature: string; rowIndices: number[] }[] = [];
     if (allTraces.length <= 1) return result;
@@ -443,39 +542,14 @@ export default function UnifiedTraceView({ allTraces, rowIndexes }: UnifiedTrace
     return result;
   }, [allTraces, rowIndexes]);
 
-  // Build combobox items => each group
-  function compressRowNumbers(rows: number[]): string {
-    if (!rows.length) return "";
-    const sorted = rows.slice().sort((a, b) => a - b);
-    const out: string[] = [];
-    let start = sorted[0],
-      end = start;
-    for (let i = 1; i < sorted.length; i++) {
-      const cur = sorted[i];
-      if (cur === end + 1) {
-        end = cur;
-      } else {
-        if (start === end) out.push(String(start));
-        else out.push(`${start}-${end}`);
-        start = cur;
-        end = cur;
-      }
-    }
-    if (start === end) out.push(String(start));
-    else out.push(`${start}-${end}`);
-    return out.join(",");
-  }
-
   const groupOptions = useMemo(() => {
     const arr = [{ value: "", label: "-- None --" }];
     groupedRows.forEach((g) => {
-      const label = `Row(s): ${compressRowNumbers(g.rowIndices)}`;
-      arr.push({ value: g.signature, label });
+      arr.push({ value: g.signature, label: labelForRows(g.rowIndices) });
     });
     return arr;
   }, [groupedRows]);
 
-  /** unifyGroupIntoOne: if they’re truly identical, we can just pick the first row’s real spans */
   function unifyGroupIntoOne(rowIndices: number[]): Span[] {
     if (!rowIndices.length) return [];
     const firstRow = rowIndices[0];
@@ -483,26 +557,24 @@ export default function UnifiedTraceView({ allTraces, rowIndexes }: UnifiedTrace
     return allTraces[i] ?? [];
   }
 
-  /** patchRoot => base vs group. If no group => just base alone. */
+  // finalPatchRoot => if no group => base vs base => no difference
   const finalPatchRoot = useMemo<PatchDiffNode | null>(() => {
     if (!allTraces.length) return null;
+    const baseWrapped = wrapAsRootSpan(baseRowSpans, "baseRow");
     if (!groupSignature) {
-      // show base alone
-      const root = wrapAsRootSpan(baseRowSpans, "baseAlone");
-      return convertSpanToPatchNode(root);
+      // base vs. base => no difference
+      return computeSpanDiffByName(baseWrapped, baseWrapped);
     }
     const found = groupedRows.find((x) => x.signature === groupSignature);
     if (!found) {
-      const root = wrapAsRootSpan(baseRowSpans, "fallbackBase");
-      return convertSpanToPatchNode(root);
+      // fallback => base vs base
+      return computeSpanDiffByName(baseWrapped, baseWrapped);
     }
     const groupSpans = unifyGroupIntoOne(found.rowIndices);
-    const baseWrapped = wrapAsRootSpan(baseRowSpans, "baseRow");
     const groupWrapped = wrapAsRootSpan(groupSpans, "groupRow");
     return computeSpanDiffByName(baseWrapped, groupWrapped);
   }, [groupSignature, groupedRows, baseRowSpans, allTraces, rowIndexes]);
 
-  /** For the detail panel => pass all rowIndices in that group as “comparisons.” */
   const groupCompareRows = useMemo(() => {
     if (!groupSignature) return [];
     const found = groupedRows.find((g) => g.signature === groupSignature);
@@ -510,27 +582,10 @@ export default function UnifiedTraceView({ allTraces, rowIndexes }: UnifiedTrace
     return found.rowIndices;
   }, [groupSignature, groupedRows]);
 
-  // handle combo changes
   function handleGroupChange(val: string) {
     setGroupSignature(val);
     setCollapsedNodes({});
     setSelectedNode(null);
-  }
-
-  function renderDetail() {
-    if (!selectedNode) {
-      return <p className="text-sm italic">Select a node on the left</p>;
-    }
-    // pass groupCompareRows => so PatchDetailPanel can gather multiple comparables
-    return (
-      <PatchDetailPanel
-        node={selectedNode}
-        baseRowIndex={rowIndexes[0]}
-        comparisonLogsIndex={groupCompareRows}
-        allTraces={allTraces}
-        allRowIndexes={rowIndexes}
-      />
-    );
   }
 
   function renderPatchTree() {
@@ -550,6 +605,21 @@ export default function UnifiedTraceView({ allTraces, rowIndexes }: UnifiedTrace
         setCollapsedNodes={setCollapsedNodes}
         selectedNode={selectedNode}
         onSelectNode={setSelectedNode}
+      />
+    );
+  }
+
+  function renderDetail() {
+    if (!selectedNode) {
+      return <p className="text-sm italic">Select a node on the left</p>;
+    }
+    return (
+      <PatchDetailPanel
+        node={selectedNode}
+        baseRowIndex={rowIndexes[0]}
+        comparisonLogsIndex={groupCompareRows}
+        allTraces={allTraces}
+        allRowIndexes={rowIndexes}
       />
     );
   }
