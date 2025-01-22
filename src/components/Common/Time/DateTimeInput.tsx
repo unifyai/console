@@ -161,20 +161,18 @@ const DateTimeInput = React.forwardRef<
     /* Handle absolute vs relative time computation */
     const attributes = React.useMemo(() => getAttributes(relative), [relative]);
     const initialOffset = React.useMemo(() => {
-      if (relative && date) {
-        switch (picker) {
-          case "year":         return !date ? 0 : differenceInYears(new Date(), date);
-          case "month":        return !date ? 0 : differenceInMonths(new Date(), date) % 12;
-          case "day":          return !date ? 0 : differenceInDays(new Date(), date) % 31;
-          case "hours":        return !date ? 0 : differenceInHours(new Date(), date) % 24;
-          case "minutes":      return !date ? 0 : differenceInMinutes(new Date(), date) % 60;
-          case "seconds":      return !date ? 0 : differenceInSeconds(new Date(), date) % 60;
-          case "milliseconds": return !date ? 0 : differenceInMilliseconds(new Date(), date) % 1000;
-          default: return 0;
-        }
+      switch (picker) {
+        case "year":         return differenceInYears(new Date(), date) || 0;
+        case "month":        return differenceInMonths(new Date(), date) % 12 || 0;
+        case "day":          return differenceInDays(new Date(), date) % 31 || 0;
+        case "hours":        return differenceInHours(new Date(), date) % 24 || 0;
+        case "minutes":      return differenceInMinutes(new Date(), date) % 60 || 0;
+        case "seconds":      return differenceInSeconds(new Date(), date) % 60 || 0;
+        case "milliseconds": return differenceInMilliseconds(new Date(), date) % 1000 || 0;
+        default: return 0;
       }
-      return 0;
     }, [date, picker, relative]);
+
     const [offset, setOffset] = React.useState(initialOffset);
 
     /* Track input and date value */
