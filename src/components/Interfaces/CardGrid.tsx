@@ -73,7 +73,9 @@ const CardGrid = ({
     const [showSaveDialog, setShowSaveDialog] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState<boolean>();
     const [resetting, setResetting] = useState<boolean>();
-    const [editable, setEditable] = useState(true);
+    // const [editable, setEditable] = useState(true);
+    const [mode, setMode] = useState<"edit" | "interactive" | "dashboard">("edit");
+    const modes: ("edit" | "interactive" | "dashboard")[] = ["edit", "interactive", "dashboard"];
     const [interfaces, setInterfaces] = useState(interfaces_);
     const [interface_, setInterface] = useQueryState("interface", { shallow: false });
     const [project, setProject] = useQueryState("project", { shallow: false });
@@ -363,7 +365,7 @@ const CardGrid = ({
                         disabled={disabled || anyPending || !project || projectPending}
                         onClick={async () => updateInterface(savedInterface).then(() => {
                             setResetting(true);
-                            setEditable(true);
+                            setMode("edit");
                             router.refresh();
                         })}
                     />
@@ -371,8 +373,8 @@ const CardGrid = ({
                         variant="outline"
                         icon={<Plus />}
                         text="Add Tile"
-                        tooltip={(!editable || !project) ? "Select a project first" : "Add new tile"}
-                        disabled={!editable || !project || projectPending}
+                        tooltip={(!(mode == "edit") || !project) ? "Select a project first" : "Add new tile"}
+                        disabled={!(mode == "edit") || !project || projectPending}
                         onClick={() => {
                             setItems([
                                 ...items,
@@ -433,14 +435,22 @@ const CardGrid = ({
                             setCopied(undefined);
                         }}
                     />
-                    <div className="flex items-center gap-2 ml-2">
-                        <Switch
-                            checked={editable}
-                            onCheckedChange={(editable: boolean) => setEditable(editable)}
-                            id="editable"
-                        />
-                        <Label htmlFor="airplane-mode">Editing Mode</Label>
-                    </div>
+                    <BaseDropdown
+                        button={<ActionButton
+                            tooltip="Add Tab"
+                            text={mode || undefined}
+                            variant="outline"
+                            size="sm"
+                        />}
+                    >
+                        {modes.map((mode, idx) => <DropdownMenuItem
+                            key={idx}
+                            onSelect={() => setMode(mode)}
+                            className="w-64 no-drag"
+                        >
+                            {mode}
+                        </DropdownMenuItem>)}
+                    </BaseDropdown>
                 </div>
             </div>
             {interfaces.map((interface_, idx) => <TabsContent key={idx} value={interface_} className="tutorial-selection-pane">
@@ -460,8 +470,8 @@ const CardGrid = ({
                         className="layout interactive-grid flex-1"
                         cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
                         rowHeight={100}
-                        isDraggable={editable}
-                        isResizable={editable}
+                        isDraggable={mode == "edit"}
+                        isResizable={mode == "edit"}
                         draggableCancel=".no-drag"
                         resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
                     >
@@ -474,7 +484,7 @@ const CardGrid = ({
                                     hidden={!el.visible}
                                 >
                                     <Card
-                                        editable={editable}
+                                        editable={mode == "edit"}
                                         project={project || undefined}
                                         pending={el.tab == "Table" ? pending[el.i] : false}
                                         fields={fields}
@@ -494,7 +504,7 @@ const CardGrid = ({
                                         updateItem={updateItem}
                                         updateInterface={updateInterface}
                                     />
-                                    {editable && <div className="flex gap-2 absolute top-3 right-5 z-10">
+                                    {mode == "edit" && <div className="flex gap-2 absolute top-3 right-5 z-10">
                                         <ActionButton
                                             className="no-drag cursor-pointer"
                                             onClick={() => {
@@ -537,7 +547,7 @@ const CardGrid = ({
                                     <Badge
                                         className="no-drag absolute top-3 left-3 z-10 cursor-pointer"
                                         variant="primary"
-                                        onClick={() => editable ? setEditTile(el.i) : undefined}
+                                        onClick={() => mode == "edit" ? setEditTile(el.i) : undefined}
                                     >
                                         {el.i}
                                     </Badge>
@@ -553,7 +563,7 @@ const CardGrid = ({
             <DialogContent className="min-w-full h-full">
                 <div className="p-4 overflow-auto">
                     <Card
-                        editable={editable}
+                        editable={mode == "edit"}
                         project={project || undefined}
                         pending={maxTileItem.tab == "Table" ? pending[maxTileItem.i] : false}
                         columnTypes={columnTypes}
@@ -577,13 +587,13 @@ const CardGrid = ({
                 <Badge
                     className="no-drag absolute top-3 left-3 z-10 cursor-pointer"
                     variant="primary"
-                    onClick={() => editable ? setEditTile(maxTileItem.i) : undefined}
+                    onClick={() => mode == "edit" ? setEditTile(maxTileItem.i) : undefined}
                 >
                     {maxTileItem.i}
                 </Badge>
             </DialogContent>
         </Dialog>}
-        {editable && editTile && <Dialog open={true} onOpenChange={() => {
+        {mode == "edit" && editTile && <Dialog open={true} onOpenChange={() => {
             setEditTile(undefined);
             setNewTileName(undefined);
         }}>
