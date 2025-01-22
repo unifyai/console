@@ -39,7 +39,7 @@ function buildIndexToColumnsMapFromId(
   return map;
 }
 
-/**
+/** 
  * Build row indices in the order cells were selected, ignoring duplicates.
  * Ensures that the first cell clicked becomes the base row, etc.
  */
@@ -71,7 +71,7 @@ function rowLabel(rowIndex: number) {
   return `Row ${rowIndex + 1}`;
 }
 
-// Minimal checks for top-level
+/** Minimal type check for top-level values: string, matrix, image, etc. */
 function isList(val: any) {
   return Array.isArray(val);
 }
@@ -80,6 +80,7 @@ function isDict(val: any) {
 }
 function isMatrix(val: any) {
   if (!isList(val)) return false;
+  // For a matrix, each item is also an array => minimal check
   return val.length > 0 && Array.isArray(val[0]);
 }
 function isImage(val: any) {
@@ -88,29 +89,18 @@ function isImage(val: any) {
 function isTrace(val: any) {
   return false;
 }
-function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix" | "string" {
-  if (isTrace(value))   return "trace";
-  if (isDict(value))    return "dict";
+
+function getValueType(
+  value: any
+): "trace" | "dict" | "list" | "image" | "matrix" | "string" {
+  if (isTrace(value)) return "trace";
+  if (isDict(value)) return "dict";
   if (isList(value)) {
     if (isMatrix(value)) return "matrix";
     return "list";
   }
-  if (isImage(value))   return "image";
+  if (isImage(value)) return "image";
   return "string";
-}
-
-/**
- * If a param is an object like {0: "dataset_10"}, unwrap that single value.
- * (Optional logic, retained if you still need it.)
- */
-function unwrapSingleKeyObject(val: unknown) {
-  if (val && typeof val === "object" && !Array.isArray(val)) {
-    const keys = Object.keys(val);
-    if (keys.length === 1 && keys[0] === "0") {
-      return (val as Record<string, unknown>)["0"];
-    }
-  }
-  return val;
 }
 
 export default function Selection({
@@ -125,7 +115,9 @@ export default function Selection({
   const columnOrdering = columnOrderStr ? columnOrderStr.split(",") : [];
   const hiddenColumns = hiddenColumnsStr ? hiddenColumnsStr.split(",") : [];
 
-  const sortedLogs = useMemo(() => [...logs], [logs]);
+  const sortedLogs = useMemo(() => {
+    return [...logs];
+  }, [logs]);
 
   // The “selected” query param => array of e.g. "123_columnName"
   const [selectedCells] = useQueryState(
@@ -134,21 +126,23 @@ export default function Selection({
   );
 
   // Map rowIndex -> set of selected columns for that row
-  const indexToColumns = useMemo(
-    () => buildIndexToColumnsMapFromId(selectedCells, sortedLogs),
-    [selectedCells, sortedLogs]
-  );
+  const indexToColumns = useMemo(() => {
+    return buildIndexToColumnsMapFromId(selectedCells, sortedLogs);
+  }, [selectedCells, sortedLogs]);
 
   // Distinct rowIndices in selection order
-  const selectedRowIndices = useMemo(
-    () => buildRowIndicesInSelectionOrder(selectedCells, sortedLogs),
-    [selectedCells, sortedLogs]
-  );
+  const selectedRowIndices = useMemo(() => {
+    return buildRowIndicesInSelectionOrder(selectedCells, sortedLogs);
+  }, [selectedCells, sortedLogs]);
 
   // baseIndexParam => the user can pick which row is base, default to first
   const [baseIndexParamStr, setBaseIndexParamStr] = useQueryState("base_idx", parseAsString);
   let baseIndexParam = baseIndexParamStr ? parseInt(baseIndexParamStr, 10) : 0;
-  if (isNaN(baseIndexParam) || baseIndexParam < 0 || baseIndexParam >= selectedRowIndices.length) {
+  if (
+    isNaN(baseIndexParam) ||
+    baseIndexParam < 0 ||
+    baseIndexParam >= selectedRowIndices.length
+  ) {
     baseIndexParam = 0;
   }
 
@@ -158,27 +152,21 @@ export default function Selection({
   /**
    * Build a LogProps with only the user-chosen columns from indexToColumns,
    * also skipping hidden columns, and respecting column ordering.
-   *
-   * For “params,” if the saved index is e.g. "0" or "2", we look up params[c] in
-   * the global params object => (like a dictionary). If found, replace with that.
-   * Otherwise, just store as-is. 
    */
-  function buildLogWithChosenColumns(
-    originalLog: LogProps,
-    rowIndex: number,
-    globalParams: Record<string, unknown>
-  ): LogProps {
+  function buildLogWithChosenColumns(originalLog: LogProps, rowIndex: number): LogProps {
     const chosenCols = indexToColumns[rowIndex] ?? new Set<string>();
 
-    // 1) ENTRIES
+    // entries
     const safeEntries = originalLog.entries ?? {};
-    const afterHiddenEntries = Array.from(chosenCols).filter(
-      (c) => !hiddenColumns.includes(c)
-    );
-    const finalColsEntries = columnOrdering.length > 0
-      ? columnOrdering.filter((c) => afterHiddenEntries.includes(c)).map(sanitizeId)
-      : afterHiddenEntries.map(sanitizeId);
-
+    const afterHiddenEntries = Array.from(chosenCols).filter((c) => !hiddenColumns.includes(c));
+    let finalColsEntries: string[];
+    if (columnOrdering.length > 0) {
+      finalColsEntries = columnOrdering
+        .filter((c) => afterHiddenEntries.includes(c))
+        .map(sanitizeId);
+    } else {
+      finalColsEntries = afterHiddenEntries.map(sanitizeId);
+    }
     const newEntries: Record<string, unknown> = {};
     for (const c of finalColsEntries) {
       if (safeEntries.hasOwnProperty(c)) {
@@ -186,36 +174,22 @@ export default function Selection({
       }
     }
 
-    // 2) PARAMS
+    // params
     const safeParams = originalLog.params ?? {};
-    const afterHiddenParams = Array.from(chosenCols).filter(
-      (c) => !hiddenColumns.includes(c)
-    );
-    const finalColsParams = columnOrdering.length > 0
-      ? columnOrdering.filter((c) => afterHiddenParams.includes(c)).map(sanitizeId)
-      : afterHiddenParams.map(sanitizeId);
-
+    const afterHiddenParams = Array.from(chosenCols).filter((c) => !hiddenColumns.includes(c));
+    let finalColsParams: string[];
+    if (columnOrdering.length > 0) {
+      finalColsParams = columnOrdering
+        .filter((c) => afterHiddenParams.includes(c))
+        .map(sanitizeId);
+    } else {
+      finalColsParams = afterHiddenParams.map(sanitizeId);
+    }
     const newParams: Record<string, unknown> = {};
-
-    // For each selected param column "c," look up its stored index + map from globalParams if possible.
     for (const c of finalColsParams) {
-      if (!safeParams.hasOwnProperty(c)) continue;
-      // The param stored in the log might be a numeric index into globalParams[c],
-      // or might be a literal value. We'll attempt the globalParams approach first.
-      const storedIndexOrValue = safeParams[c];
-      if (typeof storedIndexOrValue === "string" && globalParams.hasOwnProperty(c)) {
-        const possibleObj = globalParams[c];
-        if (possibleObj && typeof possibleObj === "object") {
-          const castObj = possibleObj as Record<string, unknown>;
-          const mappedVal = castObj[storedIndexOrValue];
-          if (mappedVal !== undefined) {
-            newParams[c] = unwrapSingleKeyObject(mappedVal);
-            continue;
-          }
-        }
+      if (safeParams.hasOwnProperty(c)) {
+        newParams[c] = safeParams[c];
       }
-      // If above logic fails or doesn't apply, store safeParams[c] as-is:
-      newParams[c] = unwrapSingleKeyObject(storedIndexOrValue);
     }
 
     return {
@@ -225,29 +199,23 @@ export default function Selection({
     };
   }
 
-  // Build baseLog
+  // The base log
   const baseLog = useMemo(() => {
     if (baseRowIndex < 0 || baseRowIndex >= sortedLogs.length) {
       return undefined;
     }
-    return buildLogWithChosenColumns(sortedLogs[baseRowIndex], baseRowIndex, params);
-  }, [
-    baseRowIndex,
-    sortedLogs,
-    indexToColumns,
-    columnOrdering,
-    hiddenColumns,
-    params,
-  ]);
+    return buildLogWithChosenColumns(sortedLogs[baseRowIndex], baseRowIndex);
+  }, [baseRowIndex, sortedLogs, indexToColumns, columnOrdering, hiddenColumns]);
 
-  // Build comparison logs
+  // The comparison logs
   const comparisonLogs = useMemo(() => {
     return comparisonRowIndices
-      .map((ri) =>
-        ri < 0 || ri >= sortedLogs.length
-          ? null
-          : buildLogWithChosenColumns(sortedLogs[ri], ri, params)
-      )
+      .map((ri) => {
+        if (ri < 0 || ri >= sortedLogs.length) {
+          return null;
+        }
+        return buildLogWithChosenColumns(sortedLogs[ri], ri);
+      })
       .filter((x): x is LogProps => x !== null);
   }, [
     comparisonRowIndices,
@@ -255,22 +223,28 @@ export default function Selection({
     indexToColumns,
     columnOrdering,
     hiddenColumns,
-    params,
   ]);
 
-  // Combobox items => e.g., "Row 5"
+  // Build combobox items => e.g. "Row 5"
   const comboItems = useMemo(() => {
-    return selectedRowIndices.map((rowIndex, i) => ({
-      value: rowLabel(rowIndex),
-      label: rowLabel(rowIndex),
-      dataIndex: i,
-    }));
+    return selectedRowIndices.map((rowIndex, i) => {
+      const displayLabel = rowLabel(rowIndex);
+      return {
+        value: displayLabel,
+        label: displayLabel,
+        dataIndex: i,
+      };
+    });
   }, [selectedRowIndices]);
 
   const currentBaseLabel = comboItems[baseIndexParam]?.value || "";
   const handleBaseChange = (newLabel: string) => {
     const found = comboItems.find((x) => x.value === newLabel);
-    setBaseIndexParamStr(found ? String(found.dataIndex) : "0");
+    if (found) {
+      setBaseIndexParamStr(String(found.dataIndex));
+    } else {
+      setBaseIndexParamStr("0");
+    }
   };
 
   // State for expansions in the Accordion (“Entries” & “Params”)
@@ -278,14 +252,14 @@ export default function Selection({
   const [openItems, setOpenItems] = useState<string[]>([]);
   const [openParamItems, setOpenParamItems] = useState<string[]>([]);
 
-  // We'll gather default expansions from baseLog's keys:
   const entryKeys = baseLog ? Object.keys(baseLog.entries) : [];
   const paramKeys = baseLog ? Object.keys(baseLog.params) : [];
 
   function defaultOpenFor(keys: string[], obj: Record<string, unknown>) {
     return keys.filter((k) => {
       const val = obj[k];
-      return ["string", "matrix", "image"].includes(getValueType(val));
+      const t = getValueType(val);
+      return ["string", "matrix", "image"].includes(t);
     });
   }
 
@@ -328,8 +302,6 @@ export default function Selection({
 
   /**
    * Determine which category (entries or params) was selected first for the base row.
-   * We'll scan selectedCells in order, check if it belongs to the base row, and see if
-   * it matches a baseLog.entries or baseLog.params. Then fallback for slash-based naming.
    */
   function findEarliestCategoryForBase(): "entries" | "params" | null {
     if (!baseLog) {
@@ -339,30 +311,26 @@ export default function Selection({
     for (const token of selectedCells) {
       const underscorePos = token.indexOf("_");
       if (underscorePos < 1) continue;
-
       const logIdPart = token.slice(0, underscorePos);
       const colNamePart = token.slice(underscorePos + 1);
-      if (logIdPart !== baseLogId) continue;
-
-      // direct
-      if (baseLog.entries?.hasOwnProperty(colNamePart)) {
-        return "entries";
-      }
-      if (baseLog.params?.hasOwnProperty(colNamePart)) {
-        return "params";
-      }
-
-      // fallback slash
-      if (colNamePart.startsWith("Entries/")) {
-        const sub = colNamePart.slice("Entries/".length);
-        if (baseLog.entries?.hasOwnProperty(sub)) {
+      if (logIdPart === baseLogId) {
+        if (baseLog.entries && baseLog.entries.hasOwnProperty(colNamePart)) {
           return "entries";
         }
-      }
-      if (colNamePart.startsWith("Parameters/")) {
-        const sub = colNamePart.slice("Parameters/".length);
-        if (baseLog.params?.hasOwnProperty(sub)) {
+        if (baseLog.params && baseLog.params.hasOwnProperty(colNamePart)) {
           return "params";
+        }
+        if (colNamePart.startsWith("Entries/")) {
+          const sub = colNamePart.slice("Entries/".length);
+          if (baseLog.entries && baseLog.entries.hasOwnProperty(sub)) {
+            return "entries";
+          }
+        }
+        if (colNamePart.startsWith("Parameters/")) {
+          const sub = colNamePart.slice("Parameters/".length);
+          if (baseLog.params && baseLog.params.hasOwnProperty(sub)) {
+            return "params";
+          }
         }
       }
     }
@@ -385,34 +353,18 @@ export default function Selection({
       entriesSection = (
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <p className="font-bold text-lg">Entries</p>
-            </div>
-            <div className="flex items-center gap-2">
-              {canPickBase && (
-                <>
-                  <span className="text-sm text-muted-foreground">Base:</span>
-                  <Combobox
-                    items={comboItems}
-                    value={currentBaseLabel}
-                    onValueChange={handleBaseChange}
-                    placeholder="Pick base row"
-                    className="w-[110px]"
-                  />
-                </>
-              )}
-              <ActionButton
-                variant="ghost"
-                size="icon"
-                tooltip={everythingOpen ? "Collapse All" : "Expand All"}
-                onClick={handleToggleAll}
-                icon={
-                  everythingOpen
-                    ? <FoldVertical className="h-4 w-4" />
-                    : <UnfoldVertical className="h-4 w-4" />
-                }
-              />
-            </div>
+            <p className="font-bold text-lg">Entries</p>
+            <ActionButton
+              variant="ghost"
+              size="icon"
+              tooltip={everythingOpen ? "Collapse All" : "Expand All"}
+              onClick={handleToggleAll}
+              icon={
+                everythingOpen
+                  ? <FoldVertical className="h-4 w-4" />
+                  : <UnfoldVertical className="h-4 w-4" />
+              }
+            />
           </div>
           <Accordion
             type="multiple"
@@ -442,9 +394,7 @@ export default function Selection({
       paramsSection = (
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <p className="font-bold text-lg">Params</p>
-            </div>
+            <p className="font-bold text-lg">Params</p>
             <ActionButton
               variant="ghost"
               size="icon"
@@ -479,7 +429,7 @@ export default function Selection({
       );
     }
 
-    // Render order: whichever was selected first
+    // whichever was selected first => show first
     const sections: JSX.Element[] = [];
     if (earliestCategory === "params") {
       if (paramsSection) sections.push(paramsSection);
@@ -498,7 +448,27 @@ export default function Selection({
 
   return (
     <div className="bg-background rounded-md w-full h-full overflow-y-scroll p-5 flex flex-col">
+      {/* NEW top row => "Selection" + (optionally) "Pick base row" */}
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="font-bold text-xl">Selection</h1>
+        {canPickBase && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Base:</span>
+            <Combobox
+              items={comboItems.map((item) => ({
+                value: item.value,
+                label: item.label,
+              }))}
+              value={currentBaseLabel}
+              onValueChange={handleBaseChange}
+              placeholder="Pick base row"
+              className="w-[110px]"
+            />
+          </div>
+        )}
+      </div>
+
       {content}
     </div>
   );
-}4
+}
