@@ -354,6 +354,7 @@ const LogsTable = ({
       {project && (
         <div className="w-fit scale-90 flex gap-2">
           <PageController
+            interactive={interactive}
             totalPages={totalPages}
             pageNumber={pageNumber}
             setPageNumber={updateItem(item, "page_number")}

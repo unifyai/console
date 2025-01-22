@@ -10,7 +10,8 @@ import {
     PaginationPrevious
 } from "@/components/UI/pagination";
 
-const PageController = ({ totalPages, pageNumber, setPageNumber }: {
+const PageController = ({ interactive, totalPages, pageNumber, setPageNumber }: {
+    interactive?: boolean,
     totalPages: number,
     pageNumber: string | undefined,
     setPageNumber: (pageNumber: string | undefined) => void
@@ -41,27 +42,27 @@ const PageController = ({ totalPages, pageNumber, setPageNumber }: {
             <PaginationContent>
                 <PaginationItem>
                     <PaginationPrevious
-                        className="cursor-pointer"
-                        onClick={() => pageNum > 0 ? setPageNumber(`${pageNum - 1}`) : null}
+                        className={"cursor-pointer " + (interactive ? "" : "opacity-50")}
+                        onClick={() => (pageNum > 0 && !interactive) ? setPageNumber(`${pageNum - 1}`) : null}
                     />
                 </PaginationItem>
                 {startEllipses && <PaginationItem><PaginationEllipsis /></PaginationItem>}
                 {pageWindow.map(page => (
                     <PaginationItem key={page}>
                         <PaginationLink
-                            className="cursor-pointer"
-                            onClick={() => setPageNumber(`${page}`)}
+                            className={"cursor-pointer " + (interactive ? "" : "opacity-50")}
+                            onClick={() => interactive ? setPageNumber(`${page}`) : undefined}
                             isActive={pageNum == page}
                         >
                             {page + 1}
                         </PaginationLink>
                     </PaginationItem>
                 ))}
-                {endEllipses && <PaginationItem><PaginationEllipsis /></PaginationItem>}
+                {endEllipses && <PaginationItem><PaginationEllipsis className={interactive ? "" : "opacity-50"} /></PaginationItem>}
                 <PaginationItem>
                     <PaginationNext
-                        className="cursor-pointer"
-                        onClick={() => pageNum < totalPages - 1 ? setPageNumber(`${pageNum + 1}`) : null}
+                        className={"cursor-pointer " + (interactive ? "" : "opacity-50")}
+                        onClick={() => (pageNum < totalPages - 1 && !interactive) ? setPageNumber(`${pageNum + 1}`) : null}
                     />
                 </PaginationItem>
             </PaginationContent>
