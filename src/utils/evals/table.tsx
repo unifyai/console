@@ -186,7 +186,7 @@ export function handleDragEnd(
 		}
 
 		// Update columns order, ensuring parent and child columns are moved together
-		const newOrder = moveGroupInColumnOrder(columnOrder, activeGroupIDs, newIndex);
+		const newOrder = moveGroupInColumnOrder(columnOrder, activeGroupIDs, overGroupIDs);
 		setColumnOrder(newOrder);
 
 		// Update grouping order if both columns are grouped
@@ -225,18 +225,27 @@ export function getColumnGroupIDs(column: Column<any, unknown>): string[] {
 */
 function moveGroupInColumnOrder(
 	columnOrder: string[],
-	groupIDs: string[],
-	newIndex: number
+	activeGroupIDs: string[],
+	overGroupIDs: string[],
 ): string[] {
-	// Create a new column order, excluding the group being moved
-	const filteredOrder = columnOrder.filter(id => !groupIDs.includes(id));
+	// Create a copy of the column order
+	const result = [...columnOrder];
 
-	// Ensure the new index respects the reduced order
-	const safeNewIndex = Math.max(0, Math.min(filteredOrder.length, newIndex));
+	// Find the start indices of both groups
+	const activeStartIndex = result.findIndex(id => id === activeGroupIDs[0]);
+	const overStartIndex = result.findIndex(id => id === overGroupIDs[0]);
 
-	// Insert the group at the new index
-	const result = [...filteredOrder];
-	result.splice(safeNewIndex, 0, ...groupIDs);
+	// Remove both groups
+	result.splice(activeStartIndex, activeGroupIDs.length);
+	const adjustedOverIndex = overStartIndex > activeStartIndex
+		? overStartIndex - activeGroupIDs.length
+		: overStartIndex;
+	result.splice(adjustedOverIndex, overGroupIDs.length);
+
+	// Insert them in swapped positions
+	result.splice(adjustedOverIndex, 0, ...activeGroupIDs);
+	result.splice(activeStartIndex, 0, ...overGroupIDs);
+	
 	return result;
 }
 
