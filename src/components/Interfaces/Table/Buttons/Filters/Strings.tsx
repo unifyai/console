@@ -19,7 +19,8 @@ interface StringFilter {
     value: string
 }
 
-const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
+const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery }: {
+    interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void
@@ -80,7 +81,7 @@ const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
     // Dialog interactions
     const [open, setOpen] = useState(false);
     const close = <BaseButton size="sm" icon={<CircleX/>} onClick={() => setOpen(false)} className="top-0 right-0 scale-60 absolute" variant="warning"/>
-    const button = <ActionButton icon={<Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} />
+    const button = <ActionButton icon={<Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} disabled={!interactive} />
     const reset = <ActionButton tooltip="Delete all filters" variant="warning" icon={<Trash/>} onClick={() => onReset()}/> 
     const submit = <SubmitButton text="Apply" onClick={() => onSubmit()}/>
     const append = 
@@ -153,7 +154,7 @@ const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
         /> 
 
     return (
-        <BaseDropdown button={button} open={open} setOpen={setOpen}>
+        <BaseDropdown button={button} open={interactive && open} setOpen={setOpen}>
             <div className="flex flex-col gap-3 px-2 pt-4 pb-2">
                 {filters.map((filter, index) => 
                     <div key={index} className="grid grid-cols-8 items-center">

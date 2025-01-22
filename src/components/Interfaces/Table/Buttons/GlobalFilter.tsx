@@ -5,7 +5,8 @@ import { Input } from "@/components/UI/input";
 import { Filter, X } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
 
-const GlobalFilter = ({ logsFilters, commonFilter_, setLogsFilters, setCommonFilter_ }: {
+const GlobalFilter = ({ interactive, logsFilters, commonFilter_, setLogsFilters, setCommonFilter_ }: {
+    interactive: boolean,
     logsFilters: string | undefined,
     commonFilter_: string | undefined,
     setLogsFilters: (logsFilters: { [key: string]: { [key: string]: string } }) => void
@@ -34,6 +35,7 @@ const GlobalFilter = ({ logsFilters, commonFilter_, setLogsFilters, setCommonFil
                                 setCommonFilter_(undefined);
                         }
                     }}
+                    disabled={!interactive}
                     className="h-8"
                 />
                 {commonFilter?.length ? <div className="absolute right-2 top-[9px]">
@@ -49,6 +51,7 @@ const GlobalFilter = ({ logsFilters, commonFilter_, setLogsFilters, setCommonFil
                     setCommonFilter("");
                     setCommonFilter_(undefined);
                 }}
+                disabled={!interactive}
             />}
         </>
     );

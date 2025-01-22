@@ -38,6 +38,7 @@ import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState } from "@/types/evals/columns";
 
 const LogsTable = ({
+  interactive,
   project,
   pending,
   item,
@@ -49,6 +50,7 @@ const LogsTable = ({
   filterExpression,
   sortingExpression,
 }: {
+  interactive: boolean;
   project: string | undefined;
   pending: boolean;
   tab: string;
@@ -324,6 +326,7 @@ const LogsTable = ({
             onClick={setContext}
           />
           <GlobalFilter
+            interactive={interactive}
             logsFilters={logsFilters}
             commonFilter_={commonFilter}
             setCommonFilter_={updateItem(item, "common_filter")}
@@ -393,6 +396,7 @@ const LogsTable = ({
             <div className="relative flex-col gap-2">
               {/* “summaryPending” can optionally show a small loader over the table if you like */}
               <DataTable
+                interactive={interactive}
                 data={logs}
                 columns={columns}
                 state={state}
@@ -400,6 +404,7 @@ const LogsTable = ({
                 TableTop={tableTop}
                 ColumnFilters={(column) => (
                   <ColumnFilter
+                    interactive={interactive}
                     setColumnFilterQuery={(filtersObj) => {
                       const keys = Object.keys(filtersObj);
                       updateItem(item, "filters")(

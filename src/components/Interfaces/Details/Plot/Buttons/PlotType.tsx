@@ -6,7 +6,8 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { ChevronDown } from "lucide-react";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
 
-const PlotType = ({plotType, setPlotType, fields, selectedXAxisProperty, setSelectedXAxisProperty, selectedYAxisProperty, setSelectedYAxisProperty}: {
+const PlotType = ({ interactive, plotType, setPlotType, fields, selectedXAxisProperty, setSelectedXAxisProperty, selectedYAxisProperty, setSelectedYAxisProperty}: {
+    interactive: boolean,
     plotType: string, 
     setPlotType: (x: string | undefined) => void,
     fields: LogFieldsResponseProps,
@@ -43,8 +44,10 @@ const PlotType = ({plotType, setPlotType, fields, selectedXAxisProperty, setSele
                     text={plotType}
                     icon={<ChevronDown/>}
                     tooltip="Plot type"
+                    disabled={!interactive}
                 />
             }
+            open={interactive ? undefined : false}
         >
         {
             ["Scatter Plot", "Line Chart", "Bar Chart", "Histogram"].map((type, index) => {

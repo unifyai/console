@@ -1,7 +1,7 @@
 import { Column } from "@tanstack/react-table";
 import { SortDesc, SortAsc, ArrowUpDown } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
-const ColumnSort = ({column}: {column: Column<any | unknown>}) => {
+const ColumnSort = ({interactive, column}: {interactive?: boolean, column: Column<any | unknown>}) => {
     const states = [
         { key: false, tooltip: "Sort ascending", icon: <ArrowUpDown/> },
         { key: "asc", tooltip: "Sort descending", icon: <SortAsc/> },
@@ -13,7 +13,7 @@ const ColumnSort = ({column}: {column: Column<any | unknown>}) => {
     const variant = column.getIsSorted() ? "primary" : undefined;
     const onClick = () => column.toggleSorting()
     return(
-        <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick}/>
+        <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false}/>
     );
 }
 

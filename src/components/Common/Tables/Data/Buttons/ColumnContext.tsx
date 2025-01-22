@@ -4,10 +4,12 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 
 const ColumnContext = ({
+    interactive,
     column,
     context,
     setContext
 }: {
+    interactive?: boolean,
     column: Column<any, unknown>,
     context: string | null,
     setContext: (context: string | null) => void
@@ -31,6 +33,7 @@ const ColumnContext = ({
             icon={<FolderTree />}
             variant={variant}
             onClick={onClick}
+            disabled={interactive == false}
         />
     );
 };

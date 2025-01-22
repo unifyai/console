@@ -7,7 +7,8 @@ import { metrics } from "@/constants/logs";
 import { ChevronDown } from "lucide-react";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
 
-const PlotAxis = ({fields, axisProperty, setAxisProperty, axis, plotType}: {
+const PlotAxis = ({interactive, fields, axisProperty, setAxisProperty, axis, plotType}: {
+    interactive: boolean
     fields: LogFieldsResponseProps,
     axisProperty: string | undefined,
     setAxisProperty: (x: string | undefined) => void,
@@ -46,8 +47,10 @@ const PlotAxis = ({fields, axisProperty, setAxisProperty, axis, plotType}: {
                     tooltip="Select property" 
                     icon={<ChevronDown/>}
                     text={axisProperty ? axisProperty : `${axis}-axis`} 
+                    disabled={!interactive}
                 />
             }
+            open={interactive ? undefined : false}
         >
             {choices.map((property, index) => {
                 return (

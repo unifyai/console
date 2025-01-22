@@ -136,12 +136,14 @@ const Card = ({
                 updateItem={updateItem}
             />}
             {tab?.includes("Plot") && <LogsPlot
+                interactive={["edit", "interactive"].includes(mode)}
                 logs={item.table ? plotData[item.i]?.plotLogs || [] : []}
                 fields={item.table ? plotData[item.i]?.plotFields || {} : {}}
                 item={item}
                 updateItem={updateItem}
             />}
             {tab?.includes("Table") && <LogsTable
+                interactive={["edit", "interactive"].includes(mode)}
                 project={project}
                 pending={pending}
                 tab={tab}
