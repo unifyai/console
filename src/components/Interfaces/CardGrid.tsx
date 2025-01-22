@@ -373,8 +373,8 @@ const CardGrid = ({
                         variant="outline"
                         icon={<Plus />}
                         text="Add Tile"
-                        tooltip={(!(mode == "edit") || !project) ? "Select a project first" : "Add new tile"}
-                        disabled={!(mode == "edit") || !project || projectPending}
+                        tooltip={(mode != "edit" || !project) ? "Select a project first" : "Add new tile"}
+                        disabled={mode != "edit" || !project || projectPending}
                         onClick={() => {
                             setItems([
                                 ...items,
@@ -437,7 +437,7 @@ const CardGrid = ({
                     />
                     <BaseDropdown
                         button={<ActionButton
-                            tooltip="Add Tab"
+                            tooltip="Select mode"
                             text={mode || undefined}
                             variant="outline"
                             size="sm"
@@ -484,7 +484,7 @@ const CardGrid = ({
                                     hidden={!el.visible}
                                 >
                                     <Card
-                                        editable={mode == "edit"}
+                                        mode={mode}
                                         project={project || undefined}
                                         pending={el.tab == "Table" ? pending[el.i] : false}
                                         fields={fields}
@@ -504,31 +504,7 @@ const CardGrid = ({
                                         updateItem={updateItem}
                                         updateInterface={updateInterface}
                                     />
-                                    {mode == "edit" && <div className="flex gap-2 absolute top-3 right-5 z-10">
-                                        <ActionButton
-                                            className="no-drag cursor-pointer"
-                                            onClick={() => {
-                                                setItems([...items.map(
-                                                    it => it.i == el.i ? { ...it, visible: false } : it
-                                                )]);
-                                            }}
-                                            icon={<EyeOff />}
-                                            tooltip={"Hide"}
-                                            variant="outline"
-                                        />
-                                        <ActionButton
-                                            className="no-drag cursor-pointer"
-                                            onClick={() => setCopied(el.i)}
-                                            icon={<Copy />}
-                                            tooltip={"Copy"}
-                                            variant="outline"
-                                        />
-                                        <ActionButton
-                                            className="cursor-grab"
-                                            icon={<Grip />}
-                                            tooltip="Drag"
-                                            variant="outline"
-                                        />
+                                    <div className="flex gap-2 absolute top-3 right-5 z-10">
                                         <ActionButton
                                             className="no-drag cursor-pointer"
                                             onClick={() => setMaxTile(el.i)}
@@ -536,14 +512,40 @@ const CardGrid = ({
                                             tooltip="Maximize"
                                             variant="outline"
                                         />
-                                        <ActionButton
-                                            className="no-drag remove cursor-pointer"
-                                            onClick={() => setItems([...items.filter(item => item.i != el.i)])}
-                                            icon={<X />}
-                                            tooltip="Remove"
-                                            variant="outline"
-                                        />
-                                    </div>}
+                                        {mode == "edit" && <>
+                                            <ActionButton
+                                                className="no-drag cursor-pointer"
+                                                onClick={() => {
+                                                    setItems([...items.map(
+                                                        it => it.i == el.i ? { ...it, visible: false } : it
+                                                    )]);
+                                                }}
+                                                icon={<EyeOff />}
+                                                tooltip={"Hide"}
+                                                variant="outline"
+                                            />
+                                            <ActionButton
+                                                className="no-drag cursor-pointer"
+                                                onClick={() => setCopied(el.i)}
+                                                icon={<Copy />}
+                                                tooltip={"Copy"}
+                                                variant="outline"
+                                            />
+                                            <ActionButton
+                                                className="cursor-grab"
+                                                icon={<Grip />}
+                                                tooltip="Drag"
+                                                variant="outline"
+                                            />
+                                            <ActionButton
+                                                className="no-drag remove cursor-pointer"
+                                                onClick={() => setItems([...items.filter(item => item.i != el.i)])}
+                                                icon={<X />}
+                                                tooltip="Remove"
+                                                variant="outline"
+                                            />
+                                        </>}
+                                    </div>
                                     <Badge
                                         className="no-drag absolute top-3 left-3 z-10 cursor-pointer"
                                         variant="primary"
@@ -563,7 +565,7 @@ const CardGrid = ({
             <DialogContent className="min-w-full h-full">
                 <div className="p-4 overflow-auto">
                     <Card
-                        editable={mode == "edit"}
+                        mode={mode}
                         project={project || undefined}
                         pending={maxTileItem.tab == "Table" ? pending[maxTileItem.i] : false}
                         columnTypes={columnTypes}
