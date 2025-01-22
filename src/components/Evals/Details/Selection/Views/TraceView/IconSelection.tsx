@@ -1,5 +1,4 @@
-import { ChevronsLeftRightEllipsis, FileCode, BotMessageSquare, Wrench, Cable, CloudCog } from "lucide-react";
-
+import { ChevronsLeftRightEllipsis, FileCode, MessageSquare, MessageSquareDashed, Wrench, Cable, CloudCog } from "lucide-react";
 
 /**
  * A small helper that determines the icon to use based on span.type.
@@ -9,7 +8,7 @@ export default function getIconForSpanType(type?: string) {
     if (!type) return ChevronsLeftRightEllipsis;
     switch (type.toLowerCase()) {
       case "llm":
-        return BotMessageSquare;
+        return MessageSquare;
       case "retrieval":
         return FileCode;
       case "tool call":
@@ -18,6 +17,8 @@ export default function getIconForSpanType(type?: string) {
         return Cable;
       case "api":
         return CloudCog;
+      case "llm-cached":
+        return MessageSquareDashed;
       default:
         return ChevronsLeftRightEllipsis; // fallback
     }
