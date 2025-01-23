@@ -289,45 +289,7 @@ const CardGrid = ({
                             tooltip={"Add new interface"}
                             disabled={projectPending}
                             onClick={() => interfaceActions.create(
-                                `interface_${interfaces.length + 1}`,
-                                project,
-                                [
-                                    {
-                                        "i": "Tile_0",
-                                        "x": 0,
-                                        "y": 0,
-                                        "w": 6,
-                                        "h": 8,
-                                        "tab": "Table",
-                                        "moved": false,
-                                        "static": false,
-                                        "visible": true,
-                                    },
-                                    {
-                                        "i": "Tile_1",
-                                        "x": 6,
-                                        "y": 0,
-                                        "w": 6,
-                                        "h": 4,
-                                        "tab": "View",
-                                        "moved": false,
-                                        "static": false,
-                                        "visible": true,
-                                    },
-                                    {
-                                        "i": "Tile_2",
-                                        "x": 6,
-                                        "y": 4,
-                                        "w": 6,
-                                        "h": 4,
-                                        "tab": "Plot",
-                                        "moved": false,
-                                        "static": false,
-                                        "visible": true,
-                                    },
-                                ],
-                                3,
-                                true
+                                `interface_${interfaces.length + 1}`, project, [], 0, true
                             ).then(() => {
                                 setInterfaces([...interfaces, `interface_${interfaces.length + 1}`]);
                                 setPending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
