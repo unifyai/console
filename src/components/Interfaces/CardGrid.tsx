@@ -74,7 +74,6 @@ const CardGrid = ({
     const [saveSuccess, setSaveSuccess] = useState<boolean>();
     const [resetting, setResetting] = useState<boolean>();
     const [mode, setMode] = useState<"edit" | "interactive" | "dashboard">("edit");
-    const modes: ("edit" | "interactive" | "dashboard")[] = ["edit", "interactive", "dashboard"];
     const [interfaces, setInterfaces] = useState(interfaces_);
     const [interface_, setInterface] = useQueryState("interface", { shallow: false });
     const [project, setProject] = useQueryState("project", { shallow: false });
@@ -210,12 +209,12 @@ const CardGrid = ({
         { items, new_counter: newCounter, project: project_, name: interface_1 }
     );
 
-    return (<div className="w-full h-full overflow-auto p-3" ref={gridRef}>
+    return (<div className="w-full h-full overflow-auto" ref={gridRef}>
         <Tabs value={interface_ || undefined} onValueChange={(value: string | undefined) => {
             setInterface_2(value || "");
             setInterface(value || null);
         }} className="w-full tutorial-details-panel">
-            <div className="mt-1 ml-4 mr-8 flex justify-between gap-4">
+            <div className="sticky top-0 z-10 bg-background pt-3 pb-3 shadow-sm pl-4 pr-8 flex justify-between gap-4">
                 <div className="w-fit gap-2 flex flex-row items-center">
                     <FileDirectory
                         data={data}
@@ -407,7 +406,7 @@ const CardGrid = ({
                     />
                 </div>
             </div>
-            {interfaces.map((interface_, idx) => <TabsContent key={idx} value={interface_} className="tutorial-selection-pane">
+            {interfaces.map((interface_, idx) => <TabsContent key={idx} value={interface_} className="tutorial-selection-pane p-3">
                 {projectPending
                     ? <div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>
                     : interface_1 == interface_ ? <ResponsiveReactGridLayout
