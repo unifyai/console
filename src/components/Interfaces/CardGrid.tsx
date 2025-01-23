@@ -194,14 +194,11 @@ const CardGrid = ({
     }, [items_, project_, interface_1, interfaces_, newCounter_])
 
     useEffect(() => {
-        setFirstRender(false);
-    }, []);
-
-    useEffect(() => {
         gridRef.current?.scrollTo({
             top: gridRef.current?.scrollHeight,
             behavior: "smooth",
         });
+        setFirstRender(false);
     }, [newCounter]);
 
     useEffect(() => { setTimeout(() => setSaveSuccess(undefined), 3000); }, [saveSuccess]);
@@ -423,6 +420,8 @@ const CardGrid = ({
                                 });
                                 setItems([...updatedItems]);
                             }
+                            else
+                                setFirstRender(false);
                         }}
                         className="layout interactive-grid flex-1"
                         cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
