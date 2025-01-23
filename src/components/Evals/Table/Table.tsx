@@ -38,7 +38,7 @@ import CellPopover from "./Content/CellPopover";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState } from "@/types/evals/columns";
-import ColumnCreate from "@/components/Common/Tables/Data/Buttons/ColumnCreate";
+import ColumnCreate from "@/components/Evals/Table/Buttons/ColumnCreate";
 
 const LogsTable = ({
   searchParams,
