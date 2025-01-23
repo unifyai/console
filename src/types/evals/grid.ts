@@ -1,5 +1,5 @@
 import { ResponseProps } from "../common";
-import { LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps } from "./logs";
+import { TableArguments, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps } from "./logs";
 
 export interface TileProps {
     i: string;
@@ -91,7 +91,7 @@ export interface ProjectsActions {
     get: () => Promise<string[]>,
     create: (name: string) => Promise<ResponseProps>,
     rename: (name: string, newName: string) => Promise<ResponseProps>,
-    delete: (name: string) => Promise<ResponseProps>
+    delete: (name: string) => Promise<ResponseProps>,
 }
 
 export interface LogsActions {
@@ -100,7 +100,8 @@ export interface LogsActions {
     getMetrics: (
         project: string, filterExpression: string | null, metricName: string, keyName: string
     ) => Promise<number>,
-    delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
+    delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
+    derive: (project: string, key: string, equation: string, referenced_logs: TableArguments) => Promise<ResponseProps>
 }
 
 export interface FieldsActions {

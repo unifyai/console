@@ -1,31 +1,40 @@
 "use client";
 
-import { useState } from "react";
-import * as math from "mathjs";
-import { Table, Header } from "@tanstack/react-table";
+import { KeyboardEventHandler, useState } from "react";
 import { Input } from "@/components/UI/input";
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import { DropdownMenuLabel } from "@radix-ui/react-dropdown-menu";
-import { BaseTable } from "../../Base";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/UI/collapsible";
+import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs"
+import BaseButton from "@/components/Common/Buttons/Base";
+import BaseDropdown from "@/components/Common/Dropdowns/Base";
+import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuGroup } from "@/components/UI/dropdown-menu";
+import { Plus } from "lucide-react";
+import { ResponseProps } from "@/types/common";
 
-const ColumnCreate = ({ table, header }: {
-    table: Table<any | unknown>,
-    header: Header<any, unknown>
+const ColumnCreate = ({ project, currentTable, tableArguments, fields, derive, _setTimestamp }: {
+    project: string,
+    currentTable: string,
+    tableArguments: {[table_name:string]: {[table_argument: string]: string}},
+    fields: LogFieldsResponseProps,
+    derive: (project: string, key: string, equation: string, referenced_logs: TableArguments) => Promise<ResponseProps>,
+    _setTimestamp?: (_timestamp: string) => void
 }) => {
 
-    const originals = table.getRowModel().rows.map((row) => row.original)
-    const columns = table.getAllLeafColumns().map((column) => column.id);
+    const tables = Object.keys(tableArguments)
+    const columns = Object.keys(fields);
+    const appendRegex = new RegExp(`(?<!(${tables.join('|')})\\:)(${columns.join('|')})`, 'g'); // Replace standalone column names with current_table.column_name
+    const wrapRegex = new RegExp(`(${tables.join('|')})\\:(${columns.join('|')})`, 'g');        // Wrap all instances of table_name.column_name with curly braces
 
     // State tracking
+    const [open, setOpen] = useState<boolean>(false);
     const [name, setName] = useState<string>("");
     const [nameError, setNameError] = useState<string>("");
     const [expression, setExpression] = useState<string>("");
-    const [expressionError, setExpressionError] = useState<string>("");
-    const [previewValues, setPreviewValues] = useState<{[key: string]: any}[]>();
+    const [equation, setEquation] = useState<string>("");
+    const [errorMessage, setErrorMessage] = useState<string>("");
 
     // Handle inputs
     const handleName = (value: string) => {
+        setName(value)
         if (columns.includes(value)) {
             setNameError(`${value} already used as a column name.`);
             return;
@@ -34,38 +43,39 @@ const ColumnCreate = ({ table, header }: {
     }
 
     const handleExpression = (value: string) => {
-        try {
-            const results = originals
-                .map((original) => {
-                    const variables = Object.fromEntries(columns.map(column => [column, original.entries[column]])) // Hardcoded entries for now
-                    const operation = math.evaluate(value, variables)
-                    return operation
-                })
+        setExpression(value);
+        const equation = value
+            .replace(appendRegex, (match, p1, p2) => `${currentTable}:${p2}`)
+            .replace(wrapRegex, '{$1:$2}');
+        setEquation(equation)
+    }
 
-            // Exclude support of all but numbers and strings
-            if (results.some(result => !["number", "string", "undefined"].includes(typeof result) )) {
-                setPreviewValues(undefined)
-                setExpressionError(`Invalid input`)
-                return;                
-            }
-
-            // Handle empty input
-            if (results.every(result => result === undefined)){
-                setPreviewValues(undefined)
-                setExpressionError("")
+    // Handle submission    
+    const onSubmit = () => {
+        let referencedTables = tables.filter(table => equation.includes(table))
+        if (!referencedTables.length) referencedTables = [currentTable]
+        const referencedArguments = Object.fromEntries(
+            Object.entries(tableArguments).filter(([key, _]) => referencedTables.includes(key))
+        );
+        derive(project, name, equation, referencedArguments).then(response => {
+            if ("info" in response) {
+                setErrorMessage("");
+                setOpen(false);
+                if (_setTimestamp) _setTimestamp(Date.now().toString());
                 return;
+            } 
+            let error = "Failed to create derived entries, please try again.";
+            if ("detail" in response) {
+                if (typeof response.detail === "string") error = response.detail;
+                else error = JSON.stringify(response.detail);
             }
-
-            // Otherwise display results for preview
-            setPreviewValues(
-                results.map((result, index) => ({"n°":index + 1, [name]: result}))
-            )
-            setExpressionError("")
-        
-        } catch (e: any) {
-            setPreviewValues(undefined)
-            setExpressionError(`Invalid input: ${e.message}`)
-        }
+            setErrorMessage(error);
+            setTimeout(() => setErrorMessage(""), 5000);
+        })
+    }
+    const onEnter : KeyboardEventHandler = (e) => {
+        e.stopPropagation()
+        if (e.key === "Enter" && name && expression && !nameError) onSubmit()
     }
 
     // Subcomponents
@@ -74,16 +84,8 @@ const ColumnCreate = ({ table, header }: {
                         onClick={(event) => event.stopPropagation()}
                         placeholder={"Enter a column name.."}
                         value={name}
-                        onInput={(event) => {
-                            const value = event.currentTarget.value
-                            setName(value);
-                            handleName(value)
-                        }}
-                        onKeyDown={(e) => {
-                            e.stopPropagation()
-                            // if (e.key === "Enter")
-                            //     onSubmit();
-                        }}
+                        onInput={(event) => handleName(event.currentTarget.value)}
+                        onKeyDown={onEnter}
                     />
     const entry =   <Input
                         className="w-full"
@@ -91,105 +93,57 @@ const ColumnCreate = ({ table, header }: {
                         placeholder={"Enter an expression.."}
                         value={expression}
                         disabled={!name || nameError != ""}
-                        onInput={(event) => {
-                            const value = event.currentTarget.value
-                            if (value === "" || expression === "") setPreviewValues(undefined)
-                            setExpression(value);
-                            handleExpression(value)
-                        }}
-                        onKeyDown={(e) => {
-                            e.stopPropagation()
-                            // if (e.key === "Enter")
-                            //     onSubmit();
-                        }}
+                        onInput={(event) => handleExpression(event.currentTarget.value)}
+                        onKeyDown={onEnter}
                     />
     const warning = (error: string) => 
-                    <p className="text-sm text-destructive">{error}</p>
-
-    const preview =     <div className="max-h-[200px] max-w-[600px] overflow-auto">
-                            <BaseTable items={previewValues as {[key: string]: any}[]}/>
-                        </div>
+                    <p className="flex justify-start text-sm text-destructive">{error}</p>
     const submit =  <div className="flex justify-end">
                         <SubmitButton text="Apply"/>
                     </div>
 
-    const hints =   <Collapsible>
-                        <CollapsibleTrigger 
-                            onClick={(event) => event.stopPropagation()}
-                            className="text-gray-500 underline"
-                        >
-                            Click to view examples of common supported operations
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                            <div className="text-gray-500 grid grid-cols-2">
-                                
-                                <p>Length of a column value</p>
-                                <span className="flex flex-row ">
-                                    <p className="font-semibold">count(</p>
-                                    <p>column_name</p>
-                                    <p className="font-semibold">)</p>
-                                </span>
-
-                                <p>Rounded decimal value</p>
-                                <span className="flex flex-row ">
-                                    <p className="font-semibold">round(</p>
-                                    <p>column_name, </p>
-                                    <p className="font-semibold">number_of_decimals)</p>
-                                </span>
-                                
-                                <p>Value extracted from a dictionary</p>
-                                <span className="flex flex-row ">
-                                    <p>dict_column</p>
-                                    <p className="font-semibold">.extracted_column</p>
-                                </span>
-
-                                <p>Element extracted from a list</p>
-                                <span className="flex flex-row ">
-                                    <p>list_column</p>
-                                    <p className="font-semibold">[index_of_extracted]</p>
-
-                                </span>
-
-                            </div>
-                        </CollapsibleContent>
-                    </Collapsible>
+    const button = <BaseButton variant="ghost" icon={<Plus/>} text={"Create Column"} className={"h-4 pt-2"}/>
     return (
-    <div className="p-2 flex flex-col gap-3 ">
+    <DropdownMenuGroup>
+        <DropdownMenuItem className="flex flex-row justify-between">
+            <BaseDropdown button={button} open={open} setOpen={setOpen}>
+                <div className="p-2 flex flex-col gap-3 ">
 
-        <div className="flex flex-col gap-3 max-h-[500px] overflow-y-auto">
-            <DropdownMenuLabel className="text-sm">Create a new derived column from any entry column.</DropdownMenuLabel>
-            <div className="flex flex-col gap-1">
-                <DropdownMenuLabel className="text-sm font-semibold">Column name</DropdownMenuLabel>
-                {column}
-                {nameError && warning(nameError)}
-            </div>
+                    <div className="flex flex-col gap-1 max-h-[500px] overflow-y-auto">
+                        <div className="flex flex-col">
+                            <DropdownMenuLabel className="text-sm font-semibold">Column name</DropdownMenuLabel>
+                            {column}
+                            {nameError && warning(nameError)}
+                        </div>
 
-            <div className="flex flex-col gap-1">
-                <DropdownMenuLabel className="text-sm font-semibold">Derived expression</DropdownMenuLabel>
-                <DropdownMenuLabel className="text-sm">
-                    <p>Enter a mathematical expression to evaluate. You can use any entry column name as variable.</p>
-                    {hints}
-                </DropdownMenuLabel>
-                {entry}
-                {expressionError && warning(expressionError)}
-            </div>
+                        <div className="flex flex-col">
+                            <DropdownMenuLabel className="text-sm font-semibold">Derived expression</DropdownMenuLabel>
+                            <DropdownMenuLabel className="text-sm font-normal">
+                                <p>Enter a mathematical expression to evaluate. You can use any entry column name as variable.</p>
+                            </DropdownMenuLabel>
+                            {entry}
+                        </div>
 
-            {previewValues && 
-                <div className="flex flex-col gap-1">
-                    <DropdownMenuLabel className="text-sm font-semibold">Output preview</DropdownMenuLabel>
-                    {preview}
+                    </div>
+                    
+                    <div className="flex flex-row gap-1 justify-between">
+                        {warning(errorMessage)}
+                        {name && expression && !nameError && submit}
+                    </div>
+
                 </div>
-            }
-        </div>
-        
-        {name && expression && !expressionError && !nameError && submit}
-
-    </div>
+            </BaseDropdown>
+        </DropdownMenuItem>
+    </DropdownMenuGroup>
     );
 }
 
 export default ColumnCreate;
 
-/*
-TODO: Integrate with orchestra endpoint and handle derived columns in the table
+/* TODO: 
+    - More robust preprocessing of the equation (e.g {table:example} when one of the columns in named x)
+    - More robust testing with filters, sorting, context etc.
+    - Add button to refresh the values
+    - Add grouping when server side grouping is supported
+    - Add option to edit the equation
 */

@@ -402,12 +402,13 @@ export const nestedColumns = (
 	prependPath: string,
 	data: LogsResponseProps,
 	enableRowSpan: boolean = false,
-	dataTypes: { [key: string]: string }
+	dataTypes: { [key: string]: string },
+	fieldTypes:{ [key: string]: string }
 	): ColumnDef<LogProps>[] => {
 	return nodes.map(node => {
 		// If this node has children (nested columns), recursively build columns
 		if (node.nodes) {
-		const columns = nestedColumns(node.nodes, type, prependPath, data, false, dataTypes);
+		const columns = nestedColumns(node.nodes, type, prependPath, data, false, dataTypes, fieldTypes);
 		return {
 			id: `${prependPath}/${node.path}`,  // needed for grouping, showing, hiding multiple column nests
 			header: node.name,
@@ -423,7 +424,7 @@ export const nestedColumns = (
 	
 		// Determine the dataType (default to 'str' if not found or unrecognized)
 		const dataType = dataTypes[node.path] || "str";
-	
+		const fieldType = fieldTypes[node.path] || "entry";
 		return {
 		id: `${prependPath}/${node.path}`,  // needed for grouping, showing, hiding multiple column nests
 		accessorFn: (log) => {
@@ -506,7 +507,8 @@ export const nestedColumns = (
 			}
 		},
 		meta: {
-			dataType,
+			dataType: dataType,
+			fieldType: fieldType,
 			columnType: type,
 			enableRowSpan: enableRowSpan,
 			isParent: false,

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Card from "./Card";
-import { LogFieldsResponseProps } from "@/types/evals/logs";
+import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import { FileProps, ResponseProps } from "@/types/common";
 import { Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import { Switch } from "../UI/switch";
@@ -32,9 +32,9 @@ const CardGrid = ({
     interfaces_,
     tableNames,
     tableData,
+    tableArguments,
     fields,
     plotData,
-    columnTypes,
     savedInterface,
     interface_1,
     items_,
@@ -52,9 +52,9 @@ const CardGrid = ({
     interfaces_: string[],
     tableNames: string[]
     tableData: TableDataProps,
+    tableArguments: TableArguments,
     fields: LogFieldsResponseProps,
     plotData: PlotDataProps,
-    columnTypes: { [key: string]: string },
     savedInterface: Interface | null,
     interface_1: string | null,
     items_: TileProps[],
@@ -443,9 +443,9 @@ const CardGrid = ({
                                         project={project || undefined}
                                         pending={el.tab == "Table" ? pending[el.i] : false}
                                         fields={fields}
-                                        columnTypes={columnTypes}
                                         tableNames={tableNames}
                                         tableData={tableData}
+                                        tableArguments={tableArguments}
                                         plotData={plotData}
                                         logsActions={logsActions}
                                         index={el.i}
@@ -523,9 +523,9 @@ const CardGrid = ({
                         mode={mode}
                         project={project || undefined}
                         pending={maxTileItem.tab == "Table" ? pending[maxTileItem.i] : false}
-                        columnTypes={columnTypes}
                         tableNames={tableNames}
                         tableData={tableData}
+                        tableArguments={tableArguments}
                         fields={fields}
                         plotData={plotData}
                         logsActions={logsActions}

@@ -1,8 +1,9 @@
 "use server";
 
 import { TileProps } from "@/types/evals/grid";
-import { LogFieldsProps } from "@/types/evals/logs";
+import { LogFieldsProps, TableArguments } from "@/types/evals/logs";
 import { sanitizeKey } from "./utils";
+import { ResponseProps } from "@/types/common";
 
 // create project
 export const createProject = async (apiKey: string) => {
@@ -161,6 +162,28 @@ export const deleteLogs = async (apiKey: string) => {
         return await response.json();
     };
 };
+
+// create derived entry
+export const createDerivedEntry = async (apiKey: string) => {
+    return async (project: string, key: string, equation: string, referenced_logs: TableArguments): Promise<ResponseProps> => {
+        "use server";
+
+        try {
+            const response = await fetch(
+                `${process.env.NEXTAUTH_URL}/api/logs/derived`,
+                {
+                    method: "PUT",
+                    headers: { apiKey: apiKey },
+                    body: JSON.stringify({ project, key, equation, referenced_logs })
+                }
+            );
+            return await response.json();
+        } catch (e) {
+            console.log(`Failed to create derived entry with error: ${e}`)
+            return {detail: "Failed to create derived entry, please try again."}
+        }
+    }
+}
 
 // create interface
 export const createInterface = async (apiKey: string) => {

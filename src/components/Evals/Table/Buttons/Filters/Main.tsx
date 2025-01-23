@@ -12,21 +12,21 @@ import { sanitizeId } from "@/utils/evals/columnOperations";
     Reference: https://github.com/unifyai/orchestra/blob/68f543bb9094a8dffc111e6b1960385fd64459b8/orchestra/web/api/log/helpers.py#L284
 */
 
-const ColumnFilter = ({ column, columnFilters, setColumnFilterQuery, columnTypes, boundaries }: {
+const ColumnFilter = ({ column, columnFilters, setColumnFilterQuery, dataTypes, boundaries }: {
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
-    columnTypes: {[key: string]: string},
+    dataTypes: {[key: string]: string},
     boundaries: {minimums: {[key: string]: any}, maximums: {[key: string]: any}}
 }) => {
     
     let filter;
     column = sanitizeId(column);
 
-    if (["float", "int"].includes(columnTypes[column])) {
+    if (["float", "int"].includes(dataTypes[column])) {
         filter = <NumericColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} boundaries={boundaries} />
     }
-    else if (columnTypes[column] === "timestamp") {
+    else if (dataTypes[column] === "timestamp") {
         filter = <TimeColumnFilter column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery}/>         
     }
     else {

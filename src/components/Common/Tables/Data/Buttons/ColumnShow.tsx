@@ -1,17 +1,17 @@
 import ActionButton from "@/components/Common/Buttons/Action";
-import BaseButton from "@/components/Common/Buttons/Base";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuGroup } from "@/components/UI/dropdown-menu";
 import { Table, Header } from "@tanstack/react-table";
-import { CirclePlus, Plus } from "lucide-react";
+import { CirclePlus } from "lucide-react";
 import { getAllChildColumns, updateColumnVisibility } from "@/utils/evals/columnOperations";
-import ColumnCreate from "./ColumnCreate";
+import { ReactNode } from "react";
 
-const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility }: {
+const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, ColumnCreate }: {
     table: Table<any | unknown>,
     header: Header<any, unknown>,
     columnVisibility: { [key: string]: boolean },
     setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void,
+    ColumnCreate?: ReactNode
 }) => {
     const isParentColumn = header.column.columnDef.meta?.isParent;
     const columnType = header.column.columnDef.meta?.columnType;
@@ -103,15 +103,8 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility }: {
                             </DropdownMenuItem>
                         )}
                     </DropdownMenuGroup>
-    const derivedButton = <BaseButton variant="ghost" icon={<Plus/>} text={"Create Column"} className={"h-4 pt-2"}/>
-    const derived = <DropdownMenuGroup>
-                        <DropdownMenuItem className="flex flex-row justify-between">
-                            <BaseDropdown button={derivedButton}>
-                                <ColumnCreate table={table} header={header}/>
-                            </BaseDropdown>
-                        </DropdownMenuItem>
-                    </DropdownMenuGroup>
 
+    const derived = ColumnCreate ? ColumnCreate : null;
     return (
         <div className="absolute top-5 -right-4 z-10 hover:opacity-100 opacity-0 transition-all">
             <BaseDropdown button={columnButton}>

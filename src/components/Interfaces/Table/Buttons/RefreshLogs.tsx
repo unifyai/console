@@ -5,7 +5,7 @@ import { RefreshCw, Power } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { BasePopover } from "@/components/Common/Popovers/Base";
 import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
-import { LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
+import { TableArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { ResponseProps } from "@/types/common";
 
@@ -44,7 +44,13 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             metricName: string,
             keyName: string
         ) => Promise<number>;
-        delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
+        delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
+        derive: (
+            project: string, 
+            key: string, 
+            equation: string, 
+            referenced_logs: TableArguments
+        ) => Promise<ResponseProps>
     },
 }) => {
 

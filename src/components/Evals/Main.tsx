@@ -1,7 +1,7 @@
 import React from "react";
 import { DoublePanels } from "../Common/Body/DoublePanels";
 import LogsTable from "./Table/Table";
-import { LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
+import { TableArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { extractLogsData } from "@/utils/evals/common";
 import Details from "./Details/Details";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
@@ -23,7 +23,8 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 		getMetrics: (
 			project: string, filterExpression: string | null, metricName: string, keyName: string
 		) => Promise<number>,
-		delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
+		delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
+		derive: (project: string, key: string, equation: string, referenced_logs: TableArguments) => Promise<ResponseProps>
 	},
 	fieldsActions: {
 		get: (project: string) => Promise<LogFieldsResponseProps>,
@@ -41,7 +42,6 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 	let types: {[key: string] : string} = {}
 	if (project) {
 		fields = await fieldsActions.get(project)
-		types = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type]))
 	}
 
 	/* Handle filters */
@@ -73,6 +73,12 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 		: ""
 	const sortingExpression = sortingObject ? JSON.stringify(sortingObject) : null
 
+	/* Aggregate table arguments */
+	let tableArguments : TableArguments = { "table": {filter_expr: ""}}
+	if (filterExpression) tableArguments["table"]["filter_expr"] = filterExpression
+	if (sortingExpression) tableArguments["table"]["sorting"] = sortingExpression 
+	if (context) tableArguments["table"]["context"] = context
+	
 	/* Get logs with pagination, and plot logs subset */
 	
 	let logsData: LogsResponseProps = { params: {}, logs: [], count: 0 };
@@ -121,10 +127,21 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 		if (context)
 			fullColumns = fullColumns.map(column => processContext("merge", context, column))
 		const metricValues = await Promise.all(
-			fullColumns.map(async (key) => logsActions.getMetrics(
-				project!, expression, metric ? metric : "mean", key
-			)
-		));
+			fullColumns.map(async (key) => {
+			  try {
+				const result = await logsActions.getMetrics(
+				  project!,
+				  expression,
+				  metric ? metric : "mean",
+				  key
+				);
+				return result;
+			  } catch (error) {
+				console.error(`Error fetching metric for key ${key}`);
+				return "";
+			  }
+			})
+		  );
 		const metrics: { [key: string]: any } = columns.length 
 			? columns
 				.map((key, index) => ({ [key]: metricValues[index] }))
@@ -149,7 +166,6 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 				projects={projects}
 				project={project}
 				logs={logs}
-				columnTypes={types}
 				entriesProperties={entriesProperties}
 				paramsProperties={paramsProperties}
 				metrics={metrics}
@@ -157,6 +173,8 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 				totalPages={totalPages}
 				projectActions={projectsActions}
 				logsActions={logsActions}
+				fields={fields}
+				tableArguments={tableArguments}
 				fieldsActions={fieldsActions}
 				boundaries={boundaries}
 				filterExpression={filterExpression}

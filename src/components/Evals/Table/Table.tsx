@@ -4,7 +4,7 @@ import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
 import FileDirectory from "@/components/Tree/Directory/FileDirectory";
-import { LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -38,18 +38,20 @@ import CellPopover from "./Content/CellPopover";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState } from "@/types/evals/columns";
+import ColumnCreate from "@/components/Common/Tables/Data/Buttons/ColumnCreate";
 
 const LogsTable = ({
   searchParams,
   projects,
   project,
   logs,
+  fields,
+  tableArguments,
   entriesProperties,
   paramsProperties,
   metrics,
   logsData,
   totalPages,
-  columnTypes,
   projectActions,
   logsActions,
   fieldsActions,
@@ -68,12 +70,13 @@ const LogsTable = ({
   projects: string[] | undefined;
   project: string | undefined;
   logs: LogProps[];
+  tableArguments: TableArguments;
+  fields: LogFieldsResponseProps;
   entriesProperties: string[];
   paramsProperties: string[];
   metrics: { [key: string]: any };
   logsData: LogsResponseProps;
   totalPages: number;
-  columnTypes: { [key: string]: string };
   projectActions: {
     get: () => Promise<string[]>;
     create: (name: string) => Promise<ResponseProps>;
@@ -106,7 +109,13 @@ const LogsTable = ({
       metricName: string,
       keyName: string
     ) => Promise<number>;
-    delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
+    delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>;
+    derive: (
+      project: string, 
+      key: string, 
+      equation: string, 
+      referenced_logs: TableArguments
+    ) => Promise<ResponseProps>
   };
   fieldsActions: {
     get: (project: string, _timestamp: string | null) => Promise<LogFieldsResponseProps>,
@@ -134,7 +143,8 @@ const LogsTable = ({
   // Column definitions
   const entriesTree = buildTree(entriesProperties);
   const paramsTree = buildTree(paramsProperties);
-
+  const dataTypes = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type]))
+  const fieldTypes = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].field_type]))
   const indicesTitle = "RowNumbering";
   const entriesTitle = "Entries";
   const paramsTitle = "Parameters";
@@ -156,7 +166,7 @@ const LogsTable = ({
           {
             id: paramsTitle,
             header: paramsTitle,
-            columns: nestedColumns(paramsTree, "params", paramsTitle, logsData, true, columnTypes),
+            columns: nestedColumns(paramsTree, "params", paramsTitle, logsData, true, dataTypes, fieldTypes),
             meta: {
               columnType: "paramsHeader",
               isParent: true,
@@ -170,7 +180,7 @@ const LogsTable = ({
           {
             id: entriesTitle,
             header: entriesTitle,
-            columns: nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, columnTypes),
+            columns: nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, dataTypes, fieldTypes),
             meta: {
               columnType: "entriesHeader",
               isParent: true,
@@ -178,7 +188,7 @@ const LogsTable = ({
             },
           },
         ]
-      : nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, columnTypes)),
+      : nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, dataTypes, fieldTypes)),
   ];
 
   // Apply rendered depth encoding to account for depth mismatch for all headers
@@ -377,7 +387,7 @@ const LogsTable = ({
         <div className="flex flex-row gap-2 items-center">
           <SelectionMenu
             type="Contexts"
-            data={Object.keys(columnTypes).map(property => ({path: property, type:"file"}))}
+            data={Object.keys(dataTypes).map(property => ({path: property, type:"file"}))}
             onClick={setContext}
           />
           <GlobalFilter
@@ -511,9 +521,12 @@ const LogsTable = ({
                     boundaries={boundaries}
                     columnFilters={searchParamToFilters(logsFiltersQuery ?? undefined, context ?? undefined)}
                     column={column.id}
-                    columnTypes={columnTypes}
+                    dataTypes={dataTypes}
                   />
                 )}
+                ColumnCreate={
+                  <ColumnCreate project={project} currentTable="table" tableArguments={tableArguments} fields={fields} derive={logsActions.derive} _setTimestamp={_setTimestamp}/>
+                }
                 AggregatedCell={(cell, row) => (
                   <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />
                 )}

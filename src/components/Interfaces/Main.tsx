@@ -1,5 +1,5 @@
 import CardGrid from "@/components/Interfaces/CardGrid";
-import { LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
+import { TableArguments, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
@@ -33,10 +33,8 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
 
     // Get fields
     let fields: LogFieldsResponseProps = {};
-    let types: { [key: string]: string } = {}
     if (project) {
         fields = await fieldsActions.get(project);
-        types = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type]));
     }
 
     /* Handle filters */
@@ -140,12 +138,23 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
         }));
     }
 
+    /* Aggregate table arguments */
+    let tableArguments : TableArguments = {}
+
     const tableData: TableDataProps = (await Promise.all(
         tableItems.map(async (item, idx) => {
             const logsData = allLogsData[idx];
             const totalPages = allTotalPages[idx];
             const context = item.context ?? null
             const sorting = item.sorting ?? null
+            
+            const table = item.table
+            if (table) {
+                const [filterExpression, sortingExpression] = [filterExpressions[idx], sortingExpressions[idx]]
+                if (filterExpression) tableArguments[table]["filter_expr"] = filterExpression
+                if (sortingExpression) tableArguments[table]["sorting"] = sortingExpression
+                if (context) tableArguments[table]["context"] = context
+            }
 
             const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
                 item, logsData, fields, context, project, filterExpressions[idx], sorting, logsActions
@@ -196,9 +205,9 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
         interfaces_={Object.keys(interfacesTemp_).sort()}
         tableNames={tableNames}
         tableData={tableData}
+        tableArguments={tableArguments}
         fields={fields}
         plotData={plotData}
-        columnTypes={types}
         savedInterface={savedInterface}
         interface_1={interface_1}
         items_={currentInterface?.items || []}

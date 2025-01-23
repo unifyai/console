@@ -1,4 +1,4 @@
-import { LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "../../types/evals/logs";
+import { TableArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "../../types/evals/logs";
 
 import _ from "lodash";
 import { formatNumber } from "../formatNumber";
@@ -82,6 +82,7 @@ export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFiel
   
     const params = logsResponse.params;
     let logs = logsResponse.logs;
+    logs = logs.map(log => ({id: log.id, ts: log.ts, params: log.params, derived_entries: {}, entries: {...log.entries, ...log.derived_entries}})) // Bundle derived entries with entries
     let [paramsProperties, entriesProperties] = [
       Object.entries(fields).filter(entry => entry[1].field_type === "param").map(entry => entry[0]),
       Object.entries(fields).filter(entry => entry[1].field_type != "param").map(entry => entry[0])
@@ -110,7 +111,8 @@ export const getLogsDetails = async (
         getMetrics: (
             project: string, filterExpression: string | null, metricName: string, keyName: string
         ) => Promise<number>,
-        delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
+        delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
+        derive: (project: string, key: string, equation: string, referenced_logs: TableArguments) => Promise<ResponseProps>
     }
 ) => {
     // Unpack log data
@@ -123,20 +125,31 @@ export const getLogsDetails = async (
     // Min / max bounds are used to set the filtering range for numeric columns
     const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
     const getColumnMetrics = async (expression: string | null, metric: string | undefined) => {
-        let fullColumns = columns
-        if (context)
-            fullColumns = fullColumns.map(column => processContext("merge", context, column))
-        const metricValues = await Promise.all(
-            fullColumns.map(async (key) => logsActions.getMetrics(
-                project!, expression, metric ? metric : "mean", key
-            ))
+      let fullColumns = columns
+      if (context)
+        fullColumns = fullColumns.map(column => processContext("merge", context, column))
+      const metricValues = await Promise.all(
+        fullColumns.map(async (key) => {
+          try {
+          const result = await logsActions.getMetrics(
+            project!,
+            expression,
+            metric ? metric : "mean",
+            key
+          );
+          return result;
+          } catch (error) {
+          console.error(`Error fetching metric for key ${key}`);
+          return "";
+          }
+        })
         );
-        const metrics_: { [key: string]: any } = columns.length
-            ? columns
-                .map((key, index) => ({ [key]: metricValues[index] }))
-                .reduce((acc, curr) => ({ ...acc, ...curr }))
-            : {};
-        return metrics_;
+      const metrics_: { [key: string]: any } = columns.length 
+        ? columns
+          .map((key, index) => ({ [key]: metricValues[index] }))
+          .reduce((acc, curr) => ({...acc, ...curr})) 
+        : {};
+      return metrics_
     }
     const [metrics, minimums, maximums] = await Promise.all([
         getColumnMetrics(filterExpression, item.metric),

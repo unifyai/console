@@ -27,6 +27,7 @@ const DataTableHeader = ({
   grouping,
   setGrouping,
   ColumnFilters,
+  ColumnCreate,
   context,
   setContext,
   draggingColumns,
@@ -46,6 +47,7 @@ const DataTableHeader = ({
   grouping: string[],
   setGrouping: (grouping: string[]) => void,
   ColumnFilters?: (column: Column<any | unknown>) => ReactNode,
+  ColumnCreate?: ReactNode,
   context: string | null,
   setContext: (context: string | null) => void,
   draggingColumns: DraggingColumnsState;
@@ -72,6 +74,7 @@ const DataTableHeader = ({
   const isLastLeftPinnedColumn =  isPinned === "left" && header.column.getIsLastColumn('left')
   const isParentColumn = header.column.columnDef.meta?.isParent;
   const isNotUtilColumn = header.column.columnDef.meta?.columnType != "util";
+  const isDerivedColumn = header.column.columnDef.meta?.fieldType === "derived_entry";
 
   // Determine the applied transform
   const appliedTransform: Transform | null = isDragging
@@ -108,7 +111,7 @@ const DataTableHeader = ({
       ? isAllColumnSelected(header) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
       : isAllTableSelected() ? `var(--primary)` : hovered ? "var(--muted)" : "var(--background)"
   };
-  
+
   return (
     <TableHead 
       colSpan={header.colSpan} 
@@ -171,7 +174,7 @@ const DataTableHeader = ({
         )}
 
         {/* Column actions */}
-        {!header.isPlaceholder && isNotUtilColumn &&
+        {!header.isPlaceholder && isNotUtilColumn && !isDerivedColumn &&
           <div className="flex items-center justify-center gap-2 mt-2">
             {!isParentColumn && <ColumnGroupBy interactive={interactive} column={header.column} grouping={grouping} setGrouping={setGrouping}/>}
             {!isParentColumn && <ColumnSort interactive={interactive} column={header.column}/>}
@@ -181,7 +184,7 @@ const DataTableHeader = ({
 
         {/* New columns */}
         {!header.isPlaceholder && isNotUtilColumn &&
-          <ColumnShow table={table} header={header} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility}  />
+          <ColumnShow table={table} header={header} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility} ColumnCreate={ColumnCreate} />
         }
 
       </div>

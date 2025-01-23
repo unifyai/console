@@ -23,7 +23,7 @@ import { LogProps } from "@/types/evals/logs";
 
 import { useCellSelection } from "@/hooks/Logs/useCellSelection";
 
-export default function DataTable<TData, TValue>({ interactive, data, columns, state, setState, TableTop, FooterCell, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
+export default function DataTable<TData, TValue>({ interactive, data, columns, state, setState, TableTop, FooterCell, ColumnCreate, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
     interactive?: boolean,
     data: TData[],
     columns: ColumnDef<TData, TValue>[],
@@ -32,6 +32,7 @@ export default function DataTable<TData, TValue>({ interactive, data, columns, s
     TableTop?: JSX.Element,
     FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}) => ReactNode,
     ColumnFilters?: (column: TanstackColumn<any | unknown>) => ReactNode;
+    ColumnCreate?: ReactNode;
     AggregatedCell?: (cell: TanstackCell<any, unknown>, row: TanstackRow<any | unknown>) => ReactNode;
     ExtraCellContent?: (cell: TanstackCell<any, unknown>, isCellExpanded: (cell: TanstackCell<any, unknown>) => boolean, setExpandedCells: Dispatch<SetStateAction<{[k: string]: boolean}>>) => ReactNode;
     ExtraComponents?: (table: TanstackTable<any | unknown>) => ReactNode
@@ -138,6 +139,7 @@ export default function DataTable<TData, TValue>({ interactive, data, columns, s
                                         grouping={state.grouping}
                                         setGrouping={setState.setGrouping}
                                         ColumnFilters={ColumnFilters}
+                                        ColumnCreate={ColumnCreate}
                                         context={state.context}
                                         setContext={setState.setContext}
                                         draggingColumns={state.draggingColumns}

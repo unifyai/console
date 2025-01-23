@@ -15,7 +15,8 @@ import {
     createInterface,
     updateInterface,
     getInterface,
-    deleteInterface
+    deleteInterface,
+    createDerivedEntry,
 } from "../evals/actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -41,7 +42,8 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
         get: await getLogs(apiKey),
         getMetrics: await getLogMetrics(apiKey),
         delete: await deleteLogs(apiKey),
-        getLatest: await getLatestTimestamp(apiKey)
+        getLatest: await getLatestTimestamp(apiKey),
+        derive: await createDerivedEntry(apiKey)
     }
 
     const fieldsActions = {

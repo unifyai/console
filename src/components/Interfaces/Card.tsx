@@ -7,7 +7,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import Selection from "@/components/Interfaces/Details/Selection/Selection";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { Plus } from "lucide-react";
-import { LogFieldsResponseProps, LogFieldsProps, LogsResponseProps } from "@/types/evals/logs";
+import { TableArguments, LogFieldsResponseProps, LogFieldsProps, LogsResponseProps } from "@/types/evals/logs";
 import LogsPlot from "@/components/Interfaces/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Interfaces/Table/Table";
@@ -18,10 +18,10 @@ const Card = ({
     project,
     pending,
     fields,
-    columnTypes,
     tableNames,
     tableData,
     plotData,
+    tableArguments,
     logsActions,
     index,
     item,
@@ -38,9 +38,9 @@ const Card = ({
     project: string | undefined,
     pending: boolean,
     fields: LogFieldsResponseProps,
-    columnTypes: { [key: string]: string },
     tableNames: string[],
     tableData: TableDataProps,
+    tableArguments: TableArguments,
     plotData: PlotDataProps,
     logsActions: {
         get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
@@ -48,7 +48,8 @@ const Card = ({
         getMetrics: (
             project: string, filterExpression: string | null, metricName: string, keyName: string
         ) => Promise<number>,
-        delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>
+        delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>;
+        derive: (project: string, key: string, equation: string, referenced_logs: TableArguments) => Promise<ResponseProps>
     },
     index: string,
     item: TileProps,
@@ -143,7 +144,7 @@ const Card = ({
                 tab={tab}
                 item={item}
                 fields={fields}
-                columnTypes={columnTypes}
+                tableArguments={tableArguments}
                 tableDataItem_={{
                     ...tableData[item.i],
                     logs: tableData[item.i]?.logs || [],
