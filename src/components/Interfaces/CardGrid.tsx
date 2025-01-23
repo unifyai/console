@@ -406,7 +406,7 @@ const CardGrid = ({
                     />
                 </div>
             </div>
-            {interfaces.map((interface_, idx) => <TabsContent key={idx} value={interface_} className="tutorial-selection-pane p-3">
+            {interfaces.map((interface_, idx) => <TabsContent key={idx} value={interface_} className="tutorial-selection-pane px-3">
                 {projectPending
                     ? <div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>
                     : interface_1 == interface_ ? <ResponsiveReactGridLayout
