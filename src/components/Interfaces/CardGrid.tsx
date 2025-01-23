@@ -256,7 +256,7 @@ const CardGrid = ({
                 </div>
 
                 {project && <div className="flex gap-4">
-                    <TabsList className="rounded-md justify-between">
+                    {interfaces.length > 0 &&<TabsList className="rounded-md justify-between">
                         <div className="flex flex-row gap-3">
                             {interfaces.map((int_, idx) => <TabsTrigger
                                 key={idx}
@@ -281,7 +281,7 @@ const CardGrid = ({
                                 /> : <div className="h-5 w-20 text-center">{int_}</div>}
                             </TabsTrigger>)}
                         </div>
-                    </TabsList>
+                    </TabsList>}
                     <div className="flex gap-2">
                         <ActionButton
                             variant="outline"

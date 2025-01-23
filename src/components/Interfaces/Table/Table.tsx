@@ -385,7 +385,7 @@ const LogsTable = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col gap-4 w-full p-3 bg-background rounded-md" onClick={onContainerClick}>
+    <div className="flex-1 flex flex-col gap-4 w-full h-[80%] p-2 bg-background rounded-md" onClick={onContainerClick}>
       {/* If truly pending or logs not present, show a spinner */}
       {showSpinner ? (
         <div className="flex justify-center items-center h-full w-full">

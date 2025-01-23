@@ -75,7 +75,7 @@ const Card = ({
         }
     }, [item.tab, item.filters, item.context, item.common_filter, item.sorting, item.page_number, item.metric, item.plot_type, item.x_axis, item.y_axis]);
 
-    return (<div className="no-drag overflow-auto relative flex w-full h-full border rounded-lg">
+    return (<div className="no-drag relative flex w-full h-full border rounded-lg">
         <div className={"w-full flex-1 flex flex-col items-center " + (tab ? "mt-2" : "justify-center")}>
             <div className="flex gap-4">
                 {mode == "edit" && <div className="w-fit">
