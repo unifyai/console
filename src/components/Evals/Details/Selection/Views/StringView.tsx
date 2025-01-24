@@ -172,7 +172,7 @@ export default function StringView({
       <div className="space-y-4">
         {/* top controls */}
         <div className="flex items-center justify-between">
-          <p className="font-semibold">Difference</p>
+          <p></p>
           <div className="flex items-center gap-2">
             <ActionButton
               tooltip={`Cycle diff mode (current: ${diffMode})`}
@@ -225,7 +225,7 @@ export default function StringView({
     <div className="space-y-4">
       {/* controls */}
       <div className="flex items-center justify-between">
-        <div className={`font-semibold ${labelColor}`}>Difference</div>
+        <div></div>
         <div className="flex items-center gap-2">
           <ActionButton
             tooltip={`Cycle diff mode (current: ${diffMode})`}
