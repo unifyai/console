@@ -29,7 +29,7 @@ import RowBadge from "../RowBadge";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 import { LogComparisonProps } from "../types";
-import { split } from "lodash";
+import Tooltip from "@/components/Common/Misc/Tooltip";
 
 /*--------------------------------------------------------------
   compressRowNumbers + labelForRows => for grouping row indices
@@ -466,7 +466,9 @@ function CollapsiblePatchLineNode({
             style={{ width: BOX_SIZE, height: BOX_SIZE }}
             className="flex items-center justify-center"
           >
-            <IconComponent className="h-4 w-4" />
+            <Tooltip content={spanType ?? "Span"}>
+              <IconComponent className="h-4 w-4" />
+            </Tooltip>
           </div>
         )}
 
@@ -545,7 +547,7 @@ export default function UnifiedTraceView({
 
   // For multi grouping (not strictly about diff)
   const [groupSignature, setGroupSignature] = useState("");
-  
+
   function minimalSpanHierarchy(span: Span): any {
     return {
       name: span.span_name,
