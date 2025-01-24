@@ -469,7 +469,7 @@ export default function Selection({
     <div className="bg-background rounded-md w-full h-full overflow-y-scroll p-5 flex flex-col">
       {/* Top row => "Selection" + (optionally) 'Pick base row' */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="font-bold text-xl">Selection</h1>
+        <div></div>
         {selectedRowIndices.length > 1 && (
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Base:</span>
