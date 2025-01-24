@@ -10,13 +10,13 @@ import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuGroup } from "@/compon
 import { Plus } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 
-const ColumnCreate = ({ project, currentTable, tableArguments, fields, derive, _setTimestamp }: {
+const ColumnCreate = ({ project, currentTable, tableArguments, fields, derive, refresh }: {
     project: string,
     currentTable: string,
     tableArguments: {[table_name:string]: {[table_argument: string]: string}},
     fields: LogFieldsResponseProps,
     derive: (project: string, key: string, equation: string, referenced_logs: TableArguments) => Promise<ResponseProps>,
-    _setTimestamp: (_timestamp: string) => void
+    refresh: Promise<void>
 }) => {
 
     const tables = Object.keys(tableArguments)
@@ -61,7 +61,9 @@ const ColumnCreate = ({ project, currentTable, tableArguments, fields, derive, _
             if ("info" in response) {
                 setErrorMessage("");
                 setOpen(false);
-                _setTimestamp(Date.now().toString());
+                refresh.then(() => {
+                    return;
+                });
                 return;
             } 
             let error = "Failed to create derived entries, please try again.";

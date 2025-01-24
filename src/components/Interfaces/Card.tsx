@@ -159,6 +159,8 @@ const Card = ({
                 logsActions={logsActions}
                 filterExpression={filterExpressions ? filterExpressions[items.findIndex(it => it.i === item.i)] : null}
                 sortingExpression={sortingExpressions ? sortingExpressions[items.findIndex(it => it.i === item.i)] : null}
+                updateInterface={updateInterface}
+                setPending={setPending}
             />}
         </div>
     </div>)

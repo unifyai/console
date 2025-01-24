@@ -36,7 +36,8 @@ import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/eval
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState } from "@/types/evals/columns";
-import ColumnCreate from "@/components/Evals/Table/Buttons/ColumnCreate";
+import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
+import { useRouter } from "next/navigation";
 
 const LogsTable = ({
   interactive,
@@ -50,6 +51,8 @@ const LogsTable = ({
   logsActions,
   filterExpression,
   sortingExpression,
+  updateInterface,
+  setPending
 }: {
   interactive: boolean;
   project: string | undefined;
@@ -96,7 +99,12 @@ const LogsTable = ({
   };
   filterExpression: string | null,
   sortingExpression: string | null,
+  updateInterface: () => Promise<ResponseProps>
+  setPending: (pending: boolean) => void,
 }) => {
+
+  const router = useRouter();
+  
   // extract necessary fields
   const [tableDataItem, setTableDataItem] = useState(tableDataItem_);
   const { logs, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
@@ -434,7 +442,17 @@ const LogsTable = ({
                   />
                 )}
                 ColumnCreate={
-                  <ColumnCreate project={project} currentTable={item.table ?? "table"} tableArguments={tableArguments} fields={fields} derive={logsActions.derive}/>
+                  <ColumnCreate 
+                    project={project} 
+                    currentTable={item.table ?? "table"}
+                    tableArguments={tableArguments}
+                    fields={fields}
+                    derive={logsActions.derive}
+                    refresh={updateInterface().then(() => {
+                        router.refresh();
+                        setPending(true);
+                    })}
+                  />
                 }
                 AggregatedCell={(cell, row) => (
                   <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />
