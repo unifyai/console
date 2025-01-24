@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import RowBadge from "./RowBadge";
 import ActionButton from "@/components/Common/Buttons/Action";
+import Tooltip from "@/components/Common/Misc/Tooltip";
 
 /** Type guard for trace data (a single or array of Span). */
 function isTrace(x: any): x is Span | Span[] {
@@ -137,7 +138,9 @@ function renderDictPropertySingle(
     <AccordionItem key={propertyName} value={propertyName}>
       <AccordionTrigger className={indentClass}>
         <span className="inline-flex items-center gap-2">
-          {icon}
+          <Tooltip content={valType}>
+            {icon}
+          </Tooltip>
           {propertyName}
         </span>
       </AccordionTrigger>
@@ -202,7 +205,9 @@ function renderDictPropertyMulti(
     <AccordionItem key={propertyName} value={propertyName}>
       <AccordionTrigger className={`${indentClass} ${labelColorClass}`}>
         <span className="inline-flex items-center gap-2">
-          {icon}
+          <Tooltip content={valType}>
+            {icon}
+          </Tooltip>
           {propertyName}
           {(baseRows.length > 0 || redRows.length > 0 || greenRows.length > 0) && (
             <div className="ml-2 flex gap-1">
@@ -319,7 +324,7 @@ const DictionaryView: React.FC<DictionaryViewProps> = ({
     <div className="flex flex-col gap-2">
       {/* label row */}
       <div className="flex items-center justify-between">
-        <p className="font-bold text-sm">Dictionary</p>
+        <p></p>
         {allKeys.length > 0 && (
           <ActionButton
             variant="ghost"

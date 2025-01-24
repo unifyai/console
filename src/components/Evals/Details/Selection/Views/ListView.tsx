@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import RowBadge from "./RowBadge";
 import ActionButton from "@/components/Common/Buttons/Action";
+import Tooltip from "@/components/Common/Misc/Tooltip";
 
 function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix" | "string" {
   if (isTrace(value))   return "trace";
@@ -106,7 +107,9 @@ function renderListItemSingle(
     <AccordionItem key={label} value={label}>
       <AccordionTrigger className={indentClass}>
         <span className="inline-flex items-center gap-2">
-          {icon}
+          <Tooltip content={itemType}>
+            {icon}
+          </Tooltip>
           {label}
         </span>
       </AccordionTrigger>
@@ -169,7 +172,9 @@ function renderListItemMulti(
     <AccordionItem key={label} value={label}>
       <AccordionTrigger className={`${indentClass} ${labelColorClass}`}>
         <span className="inline-flex items-center gap-2">
-          {icon}
+          <Tooltip content={itemType}>
+            {icon}
+          </Tooltip>
           {label}
           {(baseRows.length > 0 || redRows.length > 0 || greenRows.length > 0) && (
             <div className="ml-2 flex gap-1">
@@ -298,7 +303,7 @@ const ListView: React.FC<ListViewProps> = ({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex justify-between items-center">
-        <p className="font-bold text-sm">List</p>
+        <p></p>
         {labelKeys.length > 0 && (
           <ActionButton
             variant="ghost"

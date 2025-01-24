@@ -14,6 +14,8 @@ import MatrixView from "./Views/MatrixView";
 import StringView from "./Views/StringView";
 import TraceView from "./Views/TraceView";
 
+import Tooltip from "@/components/Common/Misc/Tooltip";
+
 import {
   isDict,
   isList,
@@ -184,7 +186,9 @@ const SelectionEntry: React.FC<SelectionEntryProps> = ({
     <AccordionItem value={property}>
       <AccordionTrigger>
         <span className="inline-flex items-center gap-2">
-          {icon}
+          <Tooltip content={valueType}>
+            {icon}
+          </Tooltip>
           {property}
         </span>
       </AccordionTrigger>
