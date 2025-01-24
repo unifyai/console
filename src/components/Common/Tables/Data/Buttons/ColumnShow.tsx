@@ -3,39 +3,78 @@ import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuGroup } from "@/components/UI/dropdown-menu";
 import { Table, Header } from "@tanstack/react-table";
 import { CirclePlus } from "lucide-react";
-import { getAllChildColumns, updateColumnVisibility } from "@/utils/evals/columnOperations";
+import { getImmediateHiddenSiblings, updateColumnVisibility } from "@/utils/evals/columnOperations";
+import { getColumnGroupIDs, moveGroupInColumnOrder } from "@/utils/evals/table";
 import { ReactNode } from "react";
 
-const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, ColumnCreate }: {
+const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, columnOrder, setColumnOrder, ColumnCreate }: {
     table: Table<any | unknown>,
     header: Header<any, unknown>,
     columnVisibility: { [key: string]: boolean },
     setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void,
-    ColumnCreate?: ReactNode
+    columnOrder: string[],
+    setColumnOrder: (columnOrder: string[]) => void,
+    ColumnCreate?: ReactNode,
 }) => {
     const isParentColumn = header.column.columnDef.meta?.isParent;
     const columnType = header.column.columnDef.meta?.columnType;
     const currentDepth = header.column.columnDef.meta?.renderedDepth;
+    const isUtilColumn = header.column.columnDef.meta?.columnType === "util";
+
+    // Store both all immediate right neighbors and hidden ones
+    let immediateRightNeighborIds: string[] = [];
+    let hiddenImmediateRightNeighborIds: string[] = [];
 
     const rawHiddenColumns = (() => {
         // Get the immediate parent column for the current column
         const immediateParent = header.column.parent;
 
-        if (!immediateParent) {
-            // If there's no parent, there are no siblings
-            return [];
+        // Initialize array to store hidden columns
+        let hidden: string[] = [];
+
+        // Get hidden siblings of current column
+        if (immediateParent && currentDepth !== undefined) {
+            const currentHiddenSiblings = getImmediateHiddenSiblings(header.column, currentDepth, columnVisibility);
+            hidden.push(...currentHiddenSiblings);
         }
 
-        // Get all sibling columns by finding all immediate children of the immediate parent
-        const siblingColumns = immediateParent.columns;
+        // Find the immediate right neighbors at the same depth that are hidden
+        const currentColumnIndex = columnOrder.indexOf(header.column.id);
+        if (currentColumnIndex !== -1) {
+            // Look at columns to the right
+            const allColumns = table.getAllFlatColumns();
+            for (let i = currentColumnIndex + 1; i < columnOrder.length; i++) {
+                const colId = columnOrder[i];
+                const col = allColumns.find(c => c.id === colId);
 
-        // Filter for hidden sibling columns
-        const hidden = siblingColumns
-            .filter((col) => 
-                col.columnDef.meta?.renderedDepth === currentDepth && 
-                !columnVisibility[col.columnDef.id as string]
-            )
-            .map((col) => col.columnDef.id as string);
+                // Skip if column or its metadata is not found
+                if (!col || !col.columnDef.meta?.renderedDepth) continue;
+
+                // If we find a column at the same depth
+                const depth = isUtilColumn ? header.depth - 1 : currentDepth;
+                if (col.columnDef.meta.renderedDepth === depth) {
+                    // Only consider as immediate right neighbor if it has a different parent
+                    if (col.parent?.id !== header.column.parent?.id) {
+                        // Get all siblings of this column (including itself)
+                        const siblingColumns = col.parent?.columns || [];
+                        const siblingIds = siblingColumns
+                            .filter((siblingCol) => siblingCol.columnDef.meta?.renderedDepth === depth)
+                            .map((siblingCol) => siblingCol.id as string);
+
+                        // Store all immediate right neighbors
+                        immediateRightNeighborIds.push(...siblingIds);
+
+                        // Get hidden siblings and store them separately
+                        const hiddenSiblings = getImmediateHiddenSiblings(col, depth, columnVisibility);
+                        hidden.push(...hiddenSiblings);
+                        hiddenImmediateRightNeighborIds.push(...hiddenSiblings);
+                    }
+                    
+                    // Whether siblings were found or not, we break as we found the first column at our depth
+                    break;
+                }
+            }
+        }
 
         return hidden;
     })();
@@ -51,13 +90,35 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, Colu
     });
 
     const displayColumn = (column: string) => {
-        const columnToShow = table.getAllFlatColumns().find((col) => col.columnDef.id === column);
+        const allColumns = table.getAllFlatColumns();
+        const columnToShow = allColumns.find((col) => col.columnDef.id === column);
 
         if (!columnToShow) {
             console.warn("Column not found. No updates made.");
             return;
         }
 
+        // Get the active group IDs (column to show and its children)
+        const activeGroupIDs = getColumnGroupIDs(columnToShow);
+
+        // If this is an immediate sibling, handle column order update
+        if (!immediateRightNeighborIds.includes(column)) {
+            // For regular columns, use current header as target
+            const overGroupIDs = getColumnGroupIDs(header.column);
+            const newOrder = moveGroupInColumnOrder(columnOrder, activeGroupIDs, overGroupIDs, true);
+            setColumnOrder(newOrder);
+        } else if (immediateRightNeighborIds.length > 0) {
+            // For immediate right neighbors from another parent, use the first column from that group as target
+            const firstNeighborId = immediateRightNeighborIds[0];
+            const firstNeighborColumn = allColumns.find(col => col.id === firstNeighborId);
+            if (firstNeighborColumn) {
+                const overGroupIDs = getColumnGroupIDs(firstNeighborColumn);
+                const newOrder = moveGroupInColumnOrder(columnOrder, activeGroupIDs, overGroupIDs);
+                setColumnOrder(newOrder);
+            }
+        }
+
+        // Update column visibility for all columns in the active group
         let newVisibility = { ...columnVisibility };
         newVisibility = updateColumnVisibility(newVisibility, column, true);
         setColumnVisibility(newVisibility);
@@ -65,8 +126,8 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, Colu
 
     // Conditions for showing the Plus button
     const shouldShowButton = (() => {
-        // Case 1: Leaf headers with columnType "params"
-        if (!isParentColumn && columnType === "params") {
+        // Case 1: Leaf headers with columnType "params" or "utils"
+        if (!isParentColumn && (columnType === "params" || columnType === "util")) {
             return hiddenColumns.length > 0; // Show only if there are hidden columns
         }
 

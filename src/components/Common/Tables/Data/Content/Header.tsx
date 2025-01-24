@@ -31,6 +31,8 @@ const DataTableHeader = ({
   context,
   setContext,
   draggingColumns,
+  columnOrder,
+  setColumnOrder,
 }: {
   interactive?: boolean,
   table: Table<any | unknown>,
@@ -50,7 +52,9 @@ const DataTableHeader = ({
   ColumnCreate?: ReactNode,
   context: string | null,
   setContext: (context: string | null) => void,
-  draggingColumns: DraggingColumnsState;
+  draggingColumns: DraggingColumnsState,
+  columnOrder: string[],
+  setColumnOrder: (columnOrder: string[]) => void,
 }) => {
 
   const { attributes, listeners, setNodeRef, isDragging, transform } = useSortable({
@@ -183,8 +187,16 @@ const DataTableHeader = ({
         }
 
         {/* New columns */}
-        {!header.isPlaceholder && isNotUtilColumn &&
-          <ColumnShow table={table} header={header} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility} ColumnCreate={ColumnCreate} />
+        {!header.isPlaceholder &&
+          <ColumnShow
+            table={table}
+            header={header}
+            columnVisibility={columnVisibility}
+            setColumnVisibility={setColumnVisibility}
+            columnOrder={columnOrder}
+            setColumnOrder={setColumnOrder}
+            ColumnCreate={ColumnCreate}
+          />
         }
 
       </div>
