@@ -169,3 +169,22 @@ export const updateColumnVisibility = (
     updatedVisibility = updateParentVisibility(updatedVisibility, columnKey);
     return updatedVisibility;
 };
+
+/*
+  Utility function to get immediate hidden siblings for a column
+*/
+export const getImmediateHiddenSiblings = (
+    column: Column<any, unknown>,
+    currentDepth: number,
+    columnVisibility: { [key: string]: boolean }
+): string[] => {
+    if (!column.parent) return [];
+
+    const siblingColumns = column.parent.columns;
+    return siblingColumns
+        .filter((siblingCol: Column<any, unknown>) => 
+            siblingCol.columnDef.meta?.renderedDepth === currentDepth && 
+            !columnVisibility[siblingCol.id as string]
+        )
+        .map((siblingCol: Column<any, unknown>) => siblingCol.id as string);
+};
