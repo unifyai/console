@@ -207,7 +207,10 @@ export default function Selection({
           const castObj = possibleObj as Record<string, unknown>;
           const mappedVal = castObj[storedVal];
           if (mappedVal !== undefined) {
-            newParams[c] = unwrapSingleKeyObject(mappedVal);
+            newParams[c] = {
+              "paramValue": mappedVal,
+              "paramVersion" : unwrapSingleKeyObject(storedVal)
+            }
             continue;
           }
         }
@@ -352,6 +355,19 @@ export default function Selection({
       }
       if (baseLog.params && baseLog.params.hasOwnProperty(colNamePart)) {
         return "params";
+      }
+      // slash fallback
+      if (colNamePart.startsWith("Entries/")) {
+        const sub = colNamePart.slice("Entries/".length);
+        if (baseLog.entries && baseLog.entries.hasOwnProperty(sub)) {
+          return "entries";
+        }
+      }
+      if (colNamePart.startsWith("Parameters/")) {
+        const sub = colNamePart.slice("Parameters/".length);
+        if (baseLog.params && baseLog.params.hasOwnProperty(sub)) {
+          return "params";
+        }
       }
     }
     return null;
