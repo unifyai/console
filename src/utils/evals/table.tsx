@@ -181,7 +181,7 @@ export function handleDragEnd(
 		const oldIndex = columnOrder.findIndex(id => id === activeGroupIDs[0]);
 		const newIndex = columnOrder.findIndex(id => id === overGroupIDs[0]);
 
-		if (oldIndex === -1 || newIndex === -1) {
+		if (oldIndex === -1 || newIndex === -1 || oldIndex  === newIndex) {
 			return;
 		}
 
@@ -221,12 +221,13 @@ export function getColumnGroupIDs(column: Column<any, unknown>): string[] {
 }
 
 /*
-  Helper to move a group of columns in the columnOrder
+  Helper to move a group of columns in the columnOrder by inserting at target position
 */
-function moveGroupInColumnOrder(
+export function moveGroupInColumnOrder(
 	columnOrder: string[],
 	activeGroupIDs: string[],
 	overGroupIDs: string[],
+	insertRightAfterOver: boolean = false,  // Whether to insert the activeGroupIDs right after the overGroupIDs
 ): string[] {
 	// Create a copy of the column order
 	const result = [...columnOrder];
@@ -235,17 +236,26 @@ function moveGroupInColumnOrder(
 	const activeStartIndex = result.findIndex(id => id === activeGroupIDs[0]);
 	const overStartIndex = result.findIndex(id => id === overGroupIDs[0]);
 
-	// Remove both groups
-	result.splice(activeStartIndex, activeGroupIDs.length);
-	const adjustedOverIndex = overStartIndex > activeStartIndex
-		? overStartIndex - activeGroupIDs.length
-		: overStartIndex;
-	result.splice(adjustedOverIndex, overGroupIDs.length);
+	// Remove the active group
+    const activeLength = activeGroupIDs.length;
+	const overLength = overGroupIDs.length;
+    const removed = result.splice(activeStartIndex, activeLength);
 
-	// Insert them in swapped positions
-	result.splice(adjustedOverIndex, 0, ...activeGroupIDs);
-	result.splice(activeStartIndex, 0, ...overGroupIDs);
-	
+    // Calculate the insertion index
+    let insertionIndex = overStartIndex;
+
+    // If active group was before the over group, adjust the insertion index
+    if (activeStartIndex < overStartIndex) {
+        insertionIndex = overStartIndex - activeLength + overLength;
+    }
+	// If we want to insert the active group right after the over group (for column show)
+	else if (insertRightAfterOver) {
+		insertionIndex = overStartIndex + overLength;
+	}
+
+	// Insert the active group at the calculated position
+	result.splice(insertionIndex, 0, ...removed);
+
 	return result;
 }
 
