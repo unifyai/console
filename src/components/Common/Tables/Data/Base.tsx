@@ -143,6 +143,8 @@ export default function DataTable<TData, TValue>({ interactive, data, columns, s
                                         context={state.context}
                                         setContext={setState.setContext}
                                         draggingColumns={state.draggingColumns}
+                                        columnOrder={state.columnOrder}
+                                        setColumnOrder={setState.setColumnOrder}
                                     />
                                 ))}
                             </SortableContext>
