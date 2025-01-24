@@ -51,7 +51,9 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
     const columnFiltersExpressions = logsFilters.map(filter => filtersToExpression(filter));
     const commonFiltersExpressions = tableItems.map(
         item => item.common_filter && fields
-            ? Object.keys(fields)
+            ? Object.keys(
+                Object.fromEntries(Object.entries(fields).filter(([key, value]) => value.field_type != "derived_entry")) // Exclude derived entries from filters
+            )
                 .map(column => `${item.common_filter} in ${item.context ? processContext("merge", item.context, column) : column}`)
                 .join(" or ")
             : ""

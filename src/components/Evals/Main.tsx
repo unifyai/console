@@ -52,7 +52,9 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 	const logsFilters : {[column: string]: {[fn: string]: string}} = searchParamToFilters(searchParams.filters, context) 
 	const columnFiltersExpression = filtersToExpression(logsFilters) 
 	const commonFiltersExpression = searchParams.common_filter && fields
-		? Object.keys(fields)
+		? Object.keys(
+			Object.fromEntries(Object.entries(fields).filter(([key, value]) => value.field_type != "derived_entry"))	// Exclude derived entries from filters
+		)
 			.map(column => `${searchParams.common_filter} in ${context ? processContext("merge", context, column) : column}`)
 			.join(" or ")
 		: ""
