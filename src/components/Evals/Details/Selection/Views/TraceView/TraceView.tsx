@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Accordion,
@@ -30,10 +28,12 @@ import { isDict, isList, isMatrix, isImage, isTrace } from "@/utils/evals/select
 import RowBadge from "../RowBadge";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
+import { LogComparisonProps } from "../types";
+import { split } from "lodash";
 
-/*-----------------------------------------------------------------------------
-  Plural/singular row labeler
------------------------------------------------------------------------------*/
+/*--------------------------------------------------------------
+  compressRowNumbers + labelForRows => for grouping row indices
+--------------------------------------------------------------*/
 function compressRowNumbers(rows: number[]): string {
   if (!rows.length) return "";
   const sorted = [...rows].sort((a, b) => a - b);
@@ -62,7 +62,6 @@ function compressRowNumbers(rows: number[]): string {
   }
   return ranges.join(", ");
 }
-
 function labelForRows(rows: number[]): string {
   if (!rows.length) return "--";
   const compressed = compressRowNumbers(rows);
@@ -70,9 +69,7 @@ function labelForRows(rows: number[]): string {
 }
 
 /*---------------------------------------------------------------------
-  A small helper to decide if a baseVal+comps is genuinely empty.
-  For strings => "" => empty. For arrays/lists => length=0 => empty, etc.
-  Adjust as needed for your environment.
+  Helper to skip rendering if a base + comps are all empty
 ---------------------------------------------------------------------*/
 function isEmptyValue(val: any): boolean {
   if (val === null || val === undefined) return true;
@@ -93,9 +90,83 @@ function allEmpty(baseVal: any, comps: any[]): boolean {
 }
 
 /*---------------------------------------------------------------------
-  PatchDetailPanel:
-   - For each field (inputs, outputs, exec_time, code, errors, IDs),
-     we skip rendering if base+comps are all empty.
+  pickView => local helper that chooses DictionaryView/ListView/etc.
+---------------------------------------------------------------------*/
+function pickView(
+  baseVal: any, 
+  comps: any[],
+  baseLogIndex: number,
+  comparisonLogsIndex: number[],
+  diffMode: LogComparisonProps["diffMode"],
+  splitView: LogComparisonProps["splitView"]
+): JSX.Element {
+  if (isTrace(baseVal)) {
+    return <p className="italic text-sm">(Span data ignored here)</p>;
+  }
+  if (isDict(baseVal)) {
+    return (
+      <DictionaryView
+        value={baseVal}
+        comparables={comps}
+        baseLogIndex={baseLogIndex}
+        comparisonLogsIndex={comparisonLogsIndex}
+        diffMode={diffMode}
+        splitView={splitView}
+      />
+    );
+  }
+  if (isList(baseVal)) {
+    return (
+      <ListView
+        value={baseVal}
+        comparables={comps}
+        baseLogIndex={baseLogIndex}
+        comparisonLogsIndex={comparisonLogsIndex}
+        diffMode={diffMode}
+        splitView={splitView}
+      />
+    );
+  }
+  if (isImage(baseVal)) {
+    return (
+      <ImageView
+        value={baseVal}
+        comparables={comps}
+        baseLogIndex={baseLogIndex}
+        comparisonLogsIndex={comparisonLogsIndex}
+        diffMode={diffMode}
+        splitView={splitView}
+      />
+    );
+  }
+  if (isMatrix(baseVal)) {
+    return (
+      <MatrixView
+        value={baseVal}
+        comparables={comps}
+        baseLogIndex={baseLogIndex}
+        comparisonLogsIndex={comparisonLogsIndex}
+        diffMode={diffMode}
+        splitView={splitView}
+      />
+    );
+  }
+  // fallback => string
+  return (
+    <StringView
+      value={baseVal}
+      comparables={comps}
+      baseLogIndex={baseLogIndex}
+      comparisonLogsIndex={comparisonLogsIndex}
+      diffMode={diffMode}
+      splitView={splitView}
+    />
+  );
+}
+
+/*---------------------------------------------------------------------
+  PatchDetailPanel => the right pane's detail about a single Span
+  (Inputs, Outputs, Code, Errors, etc.)
 ---------------------------------------------------------------------*/
 function PatchDetailPanel({
   node,
@@ -103,30 +174,36 @@ function PatchDetailPanel({
   comparisonLogsIndex,
   allTraces,
   allRowIndexes,
+  diffMode,
+  splitView,
 }: {
   node: PatchDiffNode;
   baseRowIndex: number;
   comparisonLogsIndex: number[];
   allTraces: Span[][];
   allRowIndexes: number[];
+
+  // pass these in explicitly
+  diffMode?: LogComparisonProps["diffMode"];
+  splitView?: LogComparisonProps["splitView"];
+
 }) {
   if (!node.baseSpanRef && !node.targetSpanRef) {
     return <p className="italic text-sm">No base or target data</p>;
   }
-
   const mainSpan = node.baseSpanRef || node.targetSpanRef;
   const spanId = mainSpan?.id ?? "(no id)";
 
-  // gather a field => baseVal + comps
+  /**
+   * gatherField => returns { baseVal, comps: any[] }
+   * so we can pass them to pickView
+   */
   function gatherField(field: string) {
     const bSpan = node.baseSpanRef;
     const tSpan = node.targetSpanRef;
-
-    // same span => no diff
     if (bSpan && tSpan && bSpan === tSpan) {
       return { baseVal: bSpan[field], comps: [] };
     }
-
     switch (node.marker) {
       case "+":
         return { baseVal: tSpan?.[field], comps: [] };
@@ -135,10 +212,9 @@ function PatchDetailPanel({
       case "r":
       case " ":
         if (comparisonLogsIndex.length <= 1) {
-          return {
-            baseVal: bSpan?.[field],
-            comps: tSpan ? [tSpan[field]] : [],
-          };
+          const b = bSpan?.[field];
+          const t = tSpan ? tSpan[field] : undefined;
+          return { baseVal: b, comps: t !== undefined ? [t] : [] };
         }
         // multi
         const realName = bSpan?.span_name || tSpan?.span_name || node.name;
@@ -153,7 +229,7 @@ function PatchDetailPanel({
     }
   }
 
-  // For multi-lookup by name
+  // helper for findSpanByNameInRow
   function findSpanByNameInRow(rowIndex: number, spanName: string): Span | undefined {
     const i = allRowIndexes.indexOf(rowIndex);
     if (i < 0) return undefined;
@@ -168,103 +244,27 @@ function PatchDetailPanel({
     return undefined;
   }
 
-  function pickView(baseVal: any, comps: any[]): JSX.Element {
-    if (!comps) comps = [];
-    // custom detection
-    if (isTrace(baseVal)) {
-      return <p className="italic text-sm">(Span data)</p>;
-    }
-    if (isDict(baseVal)) {
-      return (
-        <DictionaryView
-          value={baseVal}
-          comparables={comps}
-          baseLogIndex={baseRowIndex}
-          comparisonLogsIndex={comparisonLogsIndex}
-        />
-      );
-    }
-    if (isList(baseVal)) {
-      return (
-        <ListView
-          value={baseVal}
-          comparables={comps}
-          baseLogIndex={baseRowIndex}
-          comparisonLogsIndex={comparisonLogsIndex}
-        />
-      );
-    }
-    if (isImage(baseVal)) {
-      return (
-        <ImageView
-          value={baseVal}
-          comparables={comps}
-          baseLogIndex={baseRowIndex}
-          comparisonLogsIndex={comparisonLogsIndex}
-        />
-      );
-    }
-    if (isMatrix(baseVal)) {
-      return (
-        <MatrixView
-          value={baseVal}
-          comparables={comps}
-          baseLogIndex={baseRowIndex}
-          comparisonLogsIndex={comparisonLogsIndex}
-        />
-      );
-    }
-    // fallback => string
-    return (
-      <StringView
-        value={baseVal ?? ""}
-        comparables={comps}
-        baseLogIndex={baseRowIndex}
-        comparisonLogsIndex={comparisonLogsIndex}
-      />
-    );
-  }
-
-  // gather ID as well => treat as a single field
-  function gatherID() {
-    const bSpan = node.baseSpanRef;
-    const tSpan = node.targetSpanRef;
-    if (bSpan && tSpan && bSpan === tSpan) {
-      return { baseVal: bSpan.id ?? "", comps: [] };
-    }
-    if (comparisonLogsIndex.length <= 1) {
-      const bId = bSpan?.id ?? "";
-      const tId = tSpan ? (tSpan.id ?? "") : "";
-      return tId ? { baseVal: bId, comps: [tId] } : { baseVal: bId, comps: [] };
-    } else {
-      // multi
-      const realName = bSpan?.span_name || tSpan?.span_name || node.name;
-      const bId = bSpan?.id ?? "";
-      const compsArr = comparisonLogsIndex.map((r) => {
-        const match = findSpanByNameInRow(r, realName);
-        return match?.id ?? "";
-      });
-      return { baseVal: bId, comps: compsArr };
-    }
-  }
-
-  // We'll define small utility for rendering a block if there's data
-  const contentBlocks: JSX.Element[] = [];
-
+  /**
+   * maybeRenderBlock => optionally skip if all empty,
+   * otherwise calls pickView to generate the content
+   */
   function maybeRenderBlock(
     title: string,
     baseVal: any,
     comps: any[],
     isAccordionItem?: boolean
   ) {
-    if (!baseVal && !comps) return; // skip
-    // if all empty => skip
-    if (allEmpty(baseVal, comps)) return;
-
-    const view = pickView(baseVal, comps);
+    if (allEmpty(baseVal, comps)) return null;
+    const view = pickView(
+      baseVal,
+      comps,
+      baseRowIndex,
+      comparisonLogsIndex,
+      diffMode,
+      splitView
+    );
 
     if (isAccordionItem) {
-      // For code/errors/IDs
       return (
         <AccordionItem key={title} value={title}>
           <AccordionTrigger className="font-medium">{title}</AccordionTrigger>
@@ -274,8 +274,7 @@ function PatchDetailPanel({
         </AccordionItem>
       );
     } else {
-      // normal block => inputs, outputs, exec_time
-      contentBlocks.push(
+      return (
         <div key={title}>
           <p className="font-semibold text-sm mb-2">{title}</p>
           <div className="border border-muted p-2 rounded">
@@ -286,27 +285,54 @@ function PatchDetailPanel({
     }
   }
 
-  // gather data for fields
+  // gather data
   const { baseVal: bInputs, comps: cInputs } = gatherField("inputs");
   const { baseVal: bOutputs, comps: cOutputs } = gatherField("outputs");
   const { baseVal: bExecTime, comps: cExecTime } = gatherField("exec_time");
-
   const { baseVal: bCode, comps: cCode } = gatherField("code");
   const { baseVal: bErrors, comps: cErrors } = gatherField("errors");
+
+  // gather ID as well
+  function gatherID() {
+    const bSpan = node.baseSpanRef;
+    const tSpan = node.targetSpanRef;
+    if (bSpan && tSpan && bSpan === tSpan) {
+      return { baseVal: bSpan.id ?? "", comps: [] };
+    }
+    if (comparisonLogsIndex.length <= 1) {
+      const bId = bSpan?.id ?? "";
+      const tId = tSpan ? (tSpan.id ?? "") : "";
+      return tId ? { baseVal: bId, comps: [tId] } : { baseVal: bId, comps: [] };
+    }
+    const realName = bSpan?.span_name || tSpan?.span_name || node.name;
+    const bId = bSpan?.id ?? "";
+    const compsArr = comparisonLogsIndex.map((r) => {
+      const match = findSpanByNameInRow(r, realName);
+      return match?.id ?? "";
+    });
+    return { baseVal: bId, comps: compsArr };
+  }
   const { baseVal: bId, comps: cId } = gatherID();
 
-  // render normal blocks for inputs, outputs, exec_time
-  maybeRenderBlock("Inputs", bInputs, cInputs);
-  maybeRenderBlock("Outputs", bOutputs, cOutputs);
-  maybeRenderBlock("Execution Time", bExecTime, cExecTime);
+  // Now render blocks
+  const contentBlocks: JSX.Element[] = [];
 
-  // prepare the accordion items => code, errors, IDs
+  // inputs, outputs, exec_time as normal blocks
+  const block1 = maybeRenderBlock("Inputs", bInputs, cInputs, false);
+  if (block1) contentBlocks.push(block1);
+  const block2 = maybeRenderBlock("Outputs", bOutputs, cOutputs, false);
+  if (block2) contentBlocks.push(block2);
+  const block3 = maybeRenderBlock("Execution Time", bExecTime, cExecTime, false);
+  if (block3) contentBlocks.push(block3);
+
+  // code, errors, IDs => in an accordion
   const accordionItems: JSX.Element[] = [];
   const codeBlock = maybeRenderBlock("Code", bCode, cCode, true);
+  if (codeBlock) accordionItems.push(codeBlock);
   const errorsBlock = maybeRenderBlock("Errors", bErrors, cErrors, true);
+  if (errorsBlock) accordionItems.push(errorsBlock);
   const idsBlock = maybeRenderBlock("IDs", bId, cId, true);
-
-  // codeBlock, errorsBlock, idsBlock might be undefined if there's no data
+  if (idsBlock) accordionItems.push(idsBlock);
 
   return (
     <div className="flex flex-col gap-3">
@@ -319,15 +345,11 @@ function PatchDetailPanel({
         />
       </div>
 
-      {/* the normal content blocks */}
-      {contentBlocks}
+      {contentBlocks.map((blockEl) => blockEl)}
 
-      {/* the Accordion for code, errors, IDs => only if they exist */}
-      {(codeBlock || errorsBlock || idsBlock) && (
+      {accordionItems.length > 0 && (
         <Accordion type="multiple" defaultValue={[]} className="mt-3">
-          {codeBlock}
-          {errorsBlock}
-          {idsBlock}
+          {accordionItems}
         </Accordion>
       )}
     </div>
@@ -335,7 +357,7 @@ function PatchDetailPanel({
 }
 
 /*---------------------------------------------------------------------
-  CollapsiblePatchLineNode => left side patch tree (unchanged).
+  CollapsiblePatchLineNode => the left tree node
 ---------------------------------------------------------------------*/
 function CollapsiblePatchLineNode({
   node,
@@ -368,7 +390,7 @@ function CollapsiblePatchLineNode({
     setSegmentHeight(childCenterY - parentCenterY);
   }, [parentCenterY, collapsedNodes]);
 
-  // if top node is ROOT w/ marker " " => skip if children
+  // If top-level is "ROOT" with no real marker => skip rendering it, show children
   if (depth === 0 && node.name === "ROOT" && node.marker === " " && children.length) {
     return (
       <>
@@ -411,7 +433,6 @@ function CollapsiblePatchLineNode({
       [nodeId]: !prev[nodeId],
     }));
   }
-
   function handleClickSpan() {
     onSelectNode(isSelected ? null : node);
   }
@@ -422,7 +443,6 @@ function CollapsiblePatchLineNode({
 
   return (
     <div className="relative" ref={nodeRef} style={{ position: "relative" }}>
-      {/* connector line from parent node */}
       {showLine && (
         <div
           className="absolute border-l-2 border-b-2 rounded-bl-lg"
@@ -500,24 +520,32 @@ function CollapsiblePatchLineNode({
 }
 
 /*---------------------------------------------------------------------
-  UnifiedTraceView => top-level main
+  UnifiedTraceView => top-level trace comparison, receives diffMode/splitView
 ---------------------------------------------------------------------*/
 interface UnifiedTraceViewProps {
-  allTraces: Span[][];  // each element is an array of spans for a row
-  rowIndexes: number[]; // the row index for each item in allTraces
+  allTraces: Span[][];
+  rowIndexes: number[];
+  diffMode?: LogComparisonProps["diffMode"];
+  splitView?: LogComparisonProps["splitView"];
 }
 
-export default function UnifiedTraceView({ allTraces, rowIndexes }: UnifiedTraceViewProps) {
+export default function UnifiedTraceView({
+  allTraces,
+  rowIndexes,
+  diffMode = "none",
+  splitView = false,
+}: UnifiedTraceViewProps) {
   const [collapsedNodes, setCollapsedNodes] = useState<Record<string, boolean>>({});
   const [selectedNode, setSelectedNode] = useState<PatchDiffNode | null>(null);
 
   const baseRowSpans = useMemo(() => {
-    if (!allTraces.length) return [] as Span[];
+    if (!allTraces.length) return [];
     return allTraces[0] ?? [];
   }, [allTraces]);
 
+  // For multi grouping (not strictly about diff)
   const [groupSignature, setGroupSignature] = useState("");
-
+  
   function minimalSpanHierarchy(span: Span): any {
     return {
       name: span.span_name,
@@ -528,7 +556,6 @@ export default function UnifiedTraceView({ allTraces, rowIndexes }: UnifiedTrace
     return spans.map(minimalSpanHierarchy);
   }
 
-  // grouping
   const groupedRows = useMemo(() => {
     const result: { signature: string; rowIndices: number[] }[] = [];
     if (allTraces.length <= 1) return result;
@@ -565,17 +592,15 @@ export default function UnifiedTraceView({ allTraces, rowIndexes }: UnifiedTrace
     return allTraces[i] ?? [];
   }
 
-  // finalPatchRoot => if no group => base vs base => no difference
   const finalPatchRoot = useMemo<PatchDiffNode | null>(() => {
     if (!allTraces.length) return null;
     const baseWrapped = wrapAsRootSpan(baseRowSpans, "baseRow");
     if (!groupSignature) {
-      // base vs base => no difference
+      // comparing baseRow to itself => no changes
       return computeSpanDiffByName(baseWrapped, baseWrapped);
     }
     const found = groupedRows.find((x) => x.signature === groupSignature);
     if (!found) {
-      // fallback => base vs base
       return computeSpanDiffByName(baseWrapped, baseWrapped);
     }
     const groupSpans = unifyGroupIntoOne(found.rowIndices);
@@ -628,6 +653,8 @@ export default function UnifiedTraceView({ allTraces, rowIndexes }: UnifiedTrace
         comparisonLogsIndex={groupCompareRows}
         allTraces={allTraces}
         allRowIndexes={rowIndexes}
+        diffMode={diffMode}
+        splitView={splitView}
       />
     );
   }
@@ -635,7 +662,7 @@ export default function UnifiedTraceView({ allTraces, rowIndexes }: UnifiedTrace
   return (
     <div className="bg-background rounded-md w-full h-full p-4 flex flex-col gap-4">
       <div style={{ display: "flex", gap: "1rem", height: "600px" }}>
-        {/* left tree & combo */}
+        {/* Left tree & combo */}
         <div
           style={{
             flex: "0 0 300px",
@@ -664,7 +691,7 @@ export default function UnifiedTraceView({ allTraces, rowIndexes }: UnifiedTrace
           <div className="p-2">{renderPatchTree()}</div>
         </div>
 
-        {/* right detail panel */}
+        {/* Right detail panel */}
         <div
           style={{
             flex: "1 1 auto",

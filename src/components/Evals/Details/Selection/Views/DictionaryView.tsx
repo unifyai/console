@@ -71,7 +71,8 @@ function getTypeIcon(valueType: string) {
 }
 
 function pickView(props: LogComparisonProps): JSX.Element {
-  const { value } = props;
+  const { value, diffMode, splitView } = props;
+
   if (isTrace(value)) {
     const traceArr = Array.isArray(value) ? value : [value];
     return <TraceView {...props} value={traceArr} />;
@@ -121,17 +122,20 @@ function renderDictPropertySingle(
   val: any,
   props: Omit<LogComparisonProps, "value" | "comparables"> & { nestingLevel: number }
 ) {
-  const { baseLogIndex, nestingLevel } = props;
+  const { baseLogIndex, nestingLevel, diffMode, splitView } = props;
   const indentClass = `pl-${nestingLevel * 4}`;
   const valType = getValueType(val);
   const icon = getTypeIcon(valType);
 
+  // Pass along diffMode/splitView
   const childProps: LogComparisonProps = {
     value: val,
     comparables: [],
     baseLogIndex,
     comparisonLogsIndex: [],
     nestingLevel,
+    diffMode,
+    splitView
   };
 
   return (
@@ -157,7 +161,9 @@ function renderDictPropertyMulti(
   propertyName: string,
   dicts: any[],
   dictIndexes: number[],
-  nestingLevel: number
+  nestingLevel: number,
+  diffMode?: LogComparisonProps["diffMode"],
+  splitView?: LogComparisonProps["splitView"]
 ) {
   const subValues = dicts.map((d) => (d && isDict(d) ? d[propertyName] : undefined));
   const baseVal = subValues[0];
@@ -194,6 +200,8 @@ function renderDictPropertyMulti(
     baseLogIndex: dictIndexes[0],
     comparisonLogsIndex: dictIndexes.slice(1),
     nestingLevel,
+    diffMode,
+    splitView
   };
 
   const baseHasDiff = baseHasIt && (redRows.length > 0 || greenRows.length > 0);
@@ -238,10 +246,9 @@ const DictionaryView: React.FC<DictionaryViewProps> = ({
   baseLogIndex,
   comparisonLogsIndex,
   nestingLevel = 0,
+  diffMode = "none",
+  splitView = false,
 }) => {
-  // Hooks must be at the top, so do them before any early returns
-  // We'll define states / memos here
-
   let allKeys: string[] = [];
   let allDicts: any[] = [];
   let allIndexes: number[] = [];
@@ -279,9 +286,7 @@ const DictionaryView: React.FC<DictionaryViewProps> = ({
 
   const [openItems, setOpenItems] = useState<string[]>(defaultOpenKeys);
 
-  // Now the early return after the hooks
   if (!isDict(value)) {
-    // We must do it after hooks so they are always called in the same order
     return (
       <p className="text-red-500">
         DictionaryView: Base value is not a dictionary.
@@ -296,7 +301,9 @@ const DictionaryView: React.FC<DictionaryViewProps> = ({
           propertyKey,
           allDicts,
           allIndexes,
-          nestingLevel + 1
+          nestingLevel + 1,
+          diffMode,
+          splitView
         );
       } else {
         const val = value[propertyKey];
@@ -307,6 +314,8 @@ const DictionaryView: React.FC<DictionaryViewProps> = ({
             baseLogIndex,
             comparisonLogsIndex: [],
             nestingLevel: nestingLevel + 1,
+            diffMode,
+            splitView
           }
         );
       }

@@ -8,8 +8,10 @@ const TraceView: React.FC<LogComparisonProps> = ({
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
+  diffMode = "none",
+  splitView = false,
 }) => {
-  // Ensure base “value” is an array of spans
+  // Ensure the base “value” is an array of spans
   if (!Array.isArray(value)) {
     return (
       <p className="text-red-500">
@@ -27,6 +29,8 @@ const TraceView: React.FC<LogComparisonProps> = ({
     <UnifiedTraceView
       allTraces={allTraces}
       rowIndexes={rowIndexes}
+      diffMode={diffMode}
+      splitView={splitView}
     />
   );
 };

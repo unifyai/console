@@ -1,20 +1,15 @@
 "use client";
-import React, { useState } from "react";
+import React from "react";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 import { LogComparisonProps } from "./types";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { MatrixDisplay } from "@/utils/evals/selection";
-import {
-  FileText,
-  CaseLower,
-  Pilcrow,
-  Columns,
-  AlignJustify,
-  EyeOff
-} from "lucide-react";
 import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 
+/**
+ * Convert a matrix (array of arrays) into a single string for diff.
+ */
 function matrixToString(matrix: any[]): string {
   if (!Array.isArray(matrix)) return "(invalid matrix)";
   return matrix
@@ -23,7 +18,7 @@ function matrixToString(matrix: any[]): string {
 }
 
 /**
- * For “none” mode: lumps base + comparables ignoring base vs comp -> distinct strings => row sets
+ * For diffMode === "none," lumps all matrices ignoring base vs comp => distinct strings => row sets.
  */
 function groupAllMatricesByValue(
   baseValue: unknown,
@@ -51,7 +46,7 @@ function groupAllMatricesByValue(
 }
 
 /**
- * For lines/words/characters => convert each comparable to a string, group them
+ * For lines/words/characters => convert each comparable to a string and group them.
  */
 function groupComparableMatrices(
   comparables: any[],
@@ -80,38 +75,16 @@ export default function MatrixView({
   value,
   comparables,
   baseLogIndex,
-  comparisonLogsIndex
+  comparisonLogsIndex,
+  diffMode = "none",
+  splitView = false,
 }: LogComparisonProps) {
-  type DiffMode = "none" | "lines" | "words" | "characters";
-  const modes: DiffMode[] = ["none", "lines", "words", "characters"];
-  const modeIcons = [
-    <EyeOff key="none" />,
-    <FileText key="lines" />,
-    <CaseLower key="words" />,
-    <Pilcrow key="characters" />,
-  ];
-
-  const [modeIndex, setModeIndex] = useState(0);
-  const [splitView, setSplitView] = useState(false);
-  const diffMode = modes[modeIndex];
-
-  function handleCycleMode() {
-    setModeIndex((p) => (p + 1) % modes.length);
-  }
-  function handleToggleSplit() {
-    if (diffMode !== "none") {
-      setSplitView((prev) => !prev);
-    }
-  }
-
-  // Single => no comparables
+  // Single => no comparables => just display the matrix
   const multiMode = comparables && comparables.length > 0;
   if (!multiMode) {
-    // Single
     if (!isValidMatrix(value)) {
       return <p className="text-red-500">MatrixView: Not a valid matrix.</p>;
     }
-
     const matrixStr = matrixToString(value);
     return (
       <div className="space-y-2">
@@ -129,34 +102,17 @@ export default function MatrixView({
     );
   }
 
-  // Multi => check diffMode
+  // Multi-mode => we have base matrix + comparables
+  if (!isValidMatrix(value)) {
+    return <p className="text-red-500">MatrixView: Not a valid base matrix.</p>;
+  }
+
+  // If diffMode === "none," we group them ignoring base vs comp
   if (diffMode === "none") {
     const groups = groupAllMatricesByValue(value, comparables, baseLogIndex, comparisonLogsIndex);
 
     return (
       <div className="space-y-4">
-        {/* top toolbar */}
-        <div className="flex items-center justify-between">
-          <p className="font-semibold">Matrix (No Diff Mode)</p>
-          <div className="flex items-center gap-2">
-            <ActionButton
-              tooltip={`Cycle diff mode (current: ${diffMode})`}
-              icon={modeIcons[modeIndex]}
-              onClick={handleCycleMode}
-              variant="ghost"
-              size="icon"
-            />
-            <ActionButton
-              tooltip="Disabled in 'none' mode"
-              icon={splitView ? <Columns /> : <AlignJustify />}
-              onClick={handleToggleSplit}
-              variant="ghost"
-              size="icon"
-              disabled
-            />
-          </div>
-        </div>
-
         {groups.map((grp, idx) => {
           if (!isValidMatrix(grp.rawMatrix)) {
             return (
@@ -189,37 +145,12 @@ export default function MatrixView({
   }
 
   // Otherwise => lines/words/characters
-  if (!isValidMatrix(value)) {
-    return <p className="text-red-500">MatrixView: Not a valid base matrix.</p>;
-  }
-
   const baseStr = matrixToString(value);
   const grouped = groupComparableMatrices(comparables, comparisonLogsIndex);
 
   return (
     <div className="space-y-4">
-      {/* Diff controls */}
-      <div className="flex items-center justify-between">
-        <p className="font-semibold">Matrix Diff</p>
-        <div className="flex items-center gap-2">
-          <ActionButton
-            tooltip={`Cycle diff mode (current: ${diffMode})`}
-            icon={modeIcons[modeIndex]}
-            onClick={handleCycleMode}
-            variant="ghost"
-            size="icon"
-          />
-          <ActionButton
-            tooltip={splitView ? "Switch to Inline View" : "Switch to Split View"}
-            icon={splitView ? <Columns /> : <AlignJustify />}
-            onClick={handleToggleSplit}
-            variant="ghost"
-            size="icon"
-          />
-        </div>
-      </div>
-
-      {/* Show base matrix */}
+      {/* Show base matrix at top */}
       <div>
         <h4 className="font-bold mb-2">Base Matrix (Row {baseLogIndex})</h4>
         <MatrixDisplay value={value} />
@@ -228,6 +159,7 @@ export default function MatrixView({
       {/* Compare with each group */}
       <div className="space-y-4 border-l pl-4 mt-2">
         {grouped.map((grp, idx) => {
+          // If same as base => no highlight
           if (grp.str === baseStr && baseStr !== "(invalid matrix)" && baseStr !== "") {
             return (
               <div key={idx} className="diff-viewer-container space-y-2">
@@ -246,6 +178,7 @@ export default function MatrixView({
               </div>
             );
           }
+          // Otherwise highlight
           return (
             <div key={idx} className="diff-viewer-container space-y-2">
               <div className="flex items-center gap-2 text-xs">

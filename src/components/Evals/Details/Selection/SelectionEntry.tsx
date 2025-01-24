@@ -34,6 +34,7 @@ import {
 
 /** Either "entries" or "params", determining which field of the log object to read from. */
 type SourceType = "entries" | "params";
+type DiffMode = "none" | "lines" | "words" | "characters";
 
 type SelectionEntryProps = {
   source?: SourceType;
@@ -43,6 +44,8 @@ type SelectionEntryProps = {
   baseLogIndex: number;
   comparisonLogs?: LogProps[];
   comparisonLogsIndex: number[];
+  diffMode: DiffMode;
+  splitView: boolean;
 };
 
 function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix" | "string" {
@@ -81,7 +84,9 @@ function getSelectionView(
   value: any,
   comparables: any[],
   baseLogIndex: number,
-  comparisonLogsIndex: number[]
+  comparisonLogsIndex: number[],
+  diffMode: DiffMode,
+  splitView: boolean
 ) {
   if (isTrace(value)) {
     const baseArr = Array.isArray(value) ? value : [value];
@@ -92,6 +97,8 @@ function getSelectionView(
         comparables={compArrs}
         baseLogIndex={baseLogIndex}
         comparisonLogsIndex={comparisonLogsIndex}
+        diffMode={diffMode}
+        splitView={splitView}
       />
     );
   }
@@ -103,6 +110,8 @@ function getSelectionView(
         comparables={comparables}
         baseLogIndex={baseLogIndex}
         comparisonLogsIndex={comparisonLogsIndex}
+        diffMode={diffMode}
+        splitView={splitView}
       />
     );
   }
@@ -114,6 +123,8 @@ function getSelectionView(
         comparables={comparables}
         baseLogIndex={baseLogIndex}
         comparisonLogsIndex={comparisonLogsIndex}
+        diffMode={diffMode}
+        splitView={splitView}
       />
     );
   }
@@ -125,6 +136,8 @@ function getSelectionView(
         comparables={comparables}
         baseLogIndex={baseLogIndex}
         comparisonLogsIndex={comparisonLogsIndex}
+        diffMode={diffMode}
+        splitView={splitView}
       />
     );
   }
@@ -136,6 +149,8 @@ function getSelectionView(
         comparables={comparables}
         baseLogIndex={baseLogIndex}
         comparisonLogsIndex={comparisonLogsIndex}
+        diffMode={diffMode}
+        splitView={splitView}
       />
     );
   }
@@ -147,6 +162,8 @@ function getSelectionView(
       comparables={comparables}
       baseLogIndex={baseLogIndex}
       comparisonLogsIndex={comparisonLogsIndex}
+      diffMode={diffMode}
+      splitView={splitView}
     />
   );
 }
@@ -165,7 +182,9 @@ const SelectionEntry: React.FC<SelectionEntryProps> = ({
   baseLog,
   baseLogIndex,
   comparisonLogs,
-  comparisonLogsIndex
+  comparisonLogsIndex,
+  diffMode,
+  splitView
 }) => {
   const comparables = (comparisonLogs ?? []).map((cl) => {
     const container = source === "params" ? cl.params ?? {} : cl.entries ?? {};
@@ -179,7 +198,9 @@ const SelectionEntry: React.FC<SelectionEntryProps> = ({
     value,
     comparables,
     baseLogIndex,
-    comparisonLogsIndex
+    comparisonLogsIndex,
+    diffMode,
+    splitView
   );
 
   return (

@@ -41,12 +41,10 @@ function compressRowNumbers(rows: number[]): string {
 
 /**
  * groupImagesByValue:
- * Given parallel arrays of images (as strings) and row indexes,
- * groups identical images into an object { src, rows: number[] }.
+ * Combine base + comparables into arrays of { src, rows: number[] } for each unique image string.
  */
 function groupImagesByValue(images: string[], rowIndexes: number[]) {
   const map = new Map<string, number[]>();
-
   images.forEach((img, i) => {
     const row = rowIndexes[i];
     if (!map.has(img)) {
@@ -54,39 +52,27 @@ function groupImagesByValue(images: string[], rowIndexes: number[]) {
     }
     map.get(img)!.push(row);
   });
-
   return Array.from(map.entries()).map(([src, rows]) => ({ src, rows }));
 }
 
-/**
- * A small helper to decide if a string is a "valid" image. 
- * (You can adjust this check as needed for your environment.)
- */
 function isValidImage(img: string): boolean {
-  return !!img; // treat non-empty strings as valid images
+  // Minimal check; adjust as needed for your environment
+  return !!img;
 }
 
-/**
- * ImageView:
- * 1) Combines base + comparables into two arrays: allImages, allRowIndexes.
- * 2) Groups identical images so each distinct image is displayed once 
- *    with a "Rows: x-y" label (like the multi trace grouping).
- * 3) If all are invalid or empty, renders an error.
- */
-const ImageView: React.FC<LogComparisonProps> = ({
+export default function ImageView({
   value,
   comparables,
   baseLogIndex,
-  comparisonLogsIndex
-}) => {
-  // Combine base + comparables into arrays
-  const allImages = [value, ...(comparables ?? [])].map((img) => (img ?? "").toString());
+  comparisonLogsIndex,
+  diffMode = "none",
+  splitView = false,
+}: LogComparisonProps) {
+  const allImages = [value, ...(comparables ?? [])].map((val) => (val ?? "").toString());
   const allRowIndexes = [baseLogIndex, ...(comparisonLogsIndex ?? [])];
 
-  // Group identical images together
   const grouped = groupImagesByValue(allImages, allRowIndexes);
 
-  // If no images or all are empty strings => show an error
   const allEmpty = grouped.every((g) => !isValidImage(g.src));
   if (!grouped.length || allEmpty) {
     return <p className="text-destructive">No valid images to display</p>;
@@ -96,9 +82,9 @@ const ImageView: React.FC<LogComparisonProps> = ({
     <div className="space-y-4">
       {grouped.map((group, idx) => {
         const { src, rows } = group;
+        const rowText = compressRowNumbers(rows);
+
         if (!isValidImage(src)) {
-          // Show that it's invalid but note which rows had it
-          const rowText = compressRowNumbers(rows);
           return (
             <div key={idx} className="border p-2 rounded bg-background">
               <h4 className="font-bold mb-2">Rows: {rowText}</h4>
@@ -107,8 +93,6 @@ const ImageView: React.FC<LogComparisonProps> = ({
           );
         }
 
-        // We have a valid image -> compress & show row indexes
-        const rowText = compressRowNumbers(rows);
         return (
           <div key={idx} className="border p-2 rounded bg-background flex flex-col width-fit">
             <h4 className="font-bold mb-2">Rows: {rowText}</h4>
@@ -118,6 +102,4 @@ const ImageView: React.FC<LogComparisonProps> = ({
       })}
     </div>
   );
-};
-
-export default ImageView;
+}

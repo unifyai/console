@@ -1,23 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 import { LogComparisonProps } from "./types";
-import {
-  FileText,
-  CaseLower,
-  Pilcrow,
-  Columns,
-  AlignJustify,
-  EyeOff
-} from "lucide-react";
-import ActionButton from "@/components/Common/Buttons/Action";
 import MarkdownRenderer from "./MarkdownRenderer";
 import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 
 /**
- * Convert unknown value => string. 
+ * Convert unknown value => string.
  */
 function toStringSafe(val: unknown): string {
   if (typeof val === "string") return val;
@@ -61,7 +52,7 @@ function gatherPresenceDiffs(
 }
 
 /**
- * groupComparablesByValue => for real diff ("lines"/"words"/"characters") to 
+ * groupComparablesByValue => for real diff ("lines"/"words"/"characters") to
  * group identical strings among comparables => { text, rows } blocks.
  */
 function groupComparablesByValue(values: string[], rowIndices: number[]) {
@@ -80,7 +71,7 @@ function groupComparablesByValue(values: string[], rowIndices: number[]) {
 }
 
 /**
- * groupAllByValue => for diffMode==="none", lumps base + comparables into a single map
+ * groupAllByValue => for diffMode==="none", lumps base + comparables together
  */
 function groupAllByValue(
   baseValue: unknown,
@@ -110,34 +101,13 @@ export default function StringView({
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
+  diffMode = "none",
+  splitView = false,
 }: LogComparisonProps) {
-  // Available diff modes
-  type DiffMode =  "none" | "lines" | "words" | "characters";
-  const modes: DiffMode[] = ["none", "lines", "words", "characters"];
-  const modeIcons = [
-    <EyeOff key="none" />,
-    <FileText key="lines" />,
-    <CaseLower key="words" />,
-    <Pilcrow key="characters" />,
-  ];
-
-  const [modeIndex, setModeIndex] = useState(0);
-  const [splitView, setSplitView] = useState(false);
-  const diffMode = modes[modeIndex];
-
-  function handleCycleMode() {
-    setModeIndex((prev) => (prev + 1) % modes.length);
-  }
-  function handleToggleSplit() {
-    if (diffMode !== "none") {
-      setSplitView((prev) => !prev);
-    }
-  }
-
-  // Check single vs multi
+  // If there's no comparables => single-mode
   const singleMode = !comparables || comparables.length === 0;
 
-  // If single => just display with a copy button at the top
+  // Single-mode => just render the string (no diff)
   if (singleMode) {
     const str = toStringSafe(value);
     if (!str) {
@@ -159,39 +129,16 @@ export default function StringView({
     );
   }
 
-  // Multi => we have baseStr + compStrs
+  // Multi-mode => we have baseStr + compStrs
   const baseStr = toStringSafe(value);
   const compStrs = comparables.map(toStringSafe);
 
   // If diffMode === "none," group ignoring base vs comp
   if (diffMode === "none") {
     const groups = groupAllByValue(value, comparables, baseLogIndex, comparisonLogsIndex);
-    const disableSplit = true;
 
     return (
       <div className="space-y-4">
-        {/* top controls */}
-        <div className="flex items-center justify-between">
-          <p></p>
-          <div className="flex items-center gap-2">
-            <ActionButton
-              tooltip={`Cycle diff mode (current: ${diffMode})`}
-              icon={modeIcons[modeIndex]}
-              onClick={handleCycleMode}
-              variant="ghost"
-              size="icon"
-            />
-            <ActionButton
-              tooltip="Disabled in 'none' mode"
-              icon={splitView ? <Columns /> : <AlignJustify />}
-              onClick={handleToggleSplit}
-              variant="ghost"
-              size="icon"
-              disabled={disableSplit}
-            />
-          </div>
-        </div>
-
         {groups.map((block, idx) => {
           const textValue = block.text;
           return (
@@ -218,38 +165,22 @@ export default function StringView({
   }
 
   // Otherwise => lines/words/characters
-  const { labelColor } = gatherPresenceDiffs(baseStr, compStrs, baseLogIndex, comparisonLogsIndex);
+  const { redRows, greenRows } = gatherPresenceDiffs(
+    baseStr,
+    compStrs,
+    baseLogIndex,
+    comparisonLogsIndex
+  );
   const groups = groupComparablesByValue(compStrs, comparisonLogsIndex);
 
   return (
     <div className="space-y-4">
-      {/* controls */}
-      <div className="flex items-center justify-between">
-        <div></div>
-        <div className="flex items-center gap-2">
-          <ActionButton
-            tooltip={`Cycle diff mode (current: ${diffMode})`}
-            icon={modeIcons[modeIndex]}
-            onClick={handleCycleMode}
-            variant="ghost"
-            size="icon"
-          />
-          <ActionButton
-            tooltip={splitView ? "Switch to Inline View" : "Switch to Split View"}
-            icon={splitView ? <Columns /> : <AlignJustify />}
-            onClick={handleToggleSplit}
-            variant="ghost"
-            size="icon"
-          />
-        </div>
-      </div>
-
       {groups.map((block, idx) => {
         const compStr = block.text;
         const rowNums = block.rows;
 
-        const bothEmpty = (baseStr === "" && compStr === "");
-        if (bothEmpty) {
+        // both empty?
+        if (baseStr === "" && compStr === "") {
           return (
             <div key={idx} className="border rounded p-3 space-y-2">
               <div className="flex items-center gap-2 text-xs">
@@ -261,24 +192,19 @@ export default function StringView({
           );
         }
 
-        let baseBadgeMode = "delete";
-        let compBadgeMode = "insert";
-        if (baseStr === compStr && baseStr !== "") {
-          baseBadgeMode = "none";
-          compBadgeMode = "none";
+        // same => "none" or different => "delete"/"insert"
+        let baseBadgeMode: "none" | "insert" | "delete" = "none";
+        let compBadgeMode: "none" | "insert" | "delete" = "none";
+        if (baseStr !== compStr) {
+          baseBadgeMode = "delete";
+          compBadgeMode = "insert";
         }
 
         return (
           <div key={idx} className="border rounded p-3 space-y-2">
             <div className="flex items-center gap-2 text-xs">
-              <RowBadge
-                rowNumbers={[baseLogIndex]}
-                mode={baseBadgeMode as "none" | "insert" | "delete"}
-              />
-              <RowBadge
-                rowNumbers={rowNums}
-                mode={compBadgeMode as "none" | "insert" | "delete"}
-              />
+              <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadgeMode} />
+              <RowBadge rowNumbers={rowNums} mode={compBadgeMode} />
             </div>
             <DiffViewer
               oldValue={baseStr}
