@@ -116,7 +116,6 @@ export default function MatrixView({
     return (
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs">
-          <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
           <CopyButton
             content={matrixStr}
             copyMessage="Copied matrix!"

@@ -146,8 +146,6 @@ export default function StringView({
     return (
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs">
-          {/* RowBadge for the single row */}
-          <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
           <CopyButton
             content={str}
             copyMessage="Copied string!"
