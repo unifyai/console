@@ -1,4 +1,5 @@
 import { Label } from "@/components/UI/label";
+import { Input } from "@/components/UI/input";
 import { Slider } from "@/components/UI/slider";
 
 const SliderWithValue = ({label, ticks, value, setValue, max, min}: {
@@ -14,10 +15,15 @@ const SliderWithValue = ({label, ticks, value, setValue, max, min}: {
   const minimum = min ? min : Math.min(...ticks);
 
   return (
-    <div className="flex flex-col gap-2 p-2">
-        <div className="flex items-center gap-2 justify-between">            
+    <div className="flex flex-col gap-2 p-2 pb-3">
+        <div className="flex items-center gap-5 justify-between">            
             <Label>{label}</Label>
-            <output className="text-sm font-medium tabular-nums">{value}</output>
+            <Input 
+              type="number" 
+              value={value} 
+              onChange={(e) => setValue(+e.currentTarget.value)}
+              className="h-8 max-w-[50px]"
+            />
         </div>
         <Slider value={[value]} max={maximum} min={minimum} aria-label="Slider with ticks" onValueChange={(v) => setValue(v[0])} />
     </div>
