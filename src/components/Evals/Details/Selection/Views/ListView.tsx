@@ -13,6 +13,9 @@ import {
   isMatrix,
   isImage,
   isTrace,
+  isNumber,
+  isTimestamp,
+  isChat,
 } from "@/utils/evals/selection";
 
 import DictionaryView from "./DictionaryView";
@@ -20,6 +23,9 @@ import ImageView from "./ImageView";
 import MatrixView from "./MatrixView";
 import StringView from "./StringView";
 import TraceView from "./TraceView";
+import NumberView from "./NumberView";
+import TimestampView from "./TimestampView";
+
 import { LogComparisonProps } from "./types";
 
 import {
@@ -31,42 +37,24 @@ import {
   Grid,
   FoldVertical,
   UnfoldVertical,
+  Hash,
+  Clock,
 } from "lucide-react";
 import RowBadge from "./RowBadge";
 import ActionButton from "@/components/Common/Buttons/Action";
 import Tooltip from "@/components/Common/Misc/Tooltip";
+import ChatView from "./ChatView";
+import { getTypeIcon, getValueType } from "./ViewTypes";
 
-function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix" | "string" {
-  if (isTrace(value))   return "trace";
-  if (isDict(value))    return "dict";
-  if (isList(value))    return "list";
-  if (isImage(value))   return "image";
-  if (isMatrix(value))  return "matrix";
-  return "string";
-}
-
-function getTypeIcon(valueType: string) {
-  switch (valueType) {
-    case "trace":
-      return <Pilcrow className="h-4 w-4 text-primary" />;
-    case "dict":
-      return <CurlyBraces className="h-4 w-4 text-primary" />;
-    case "list":
-      return <Brackets className="h-4 w-4 text-primary" />;
-    case "image":
-      return <ImageIcon className="h-4 w-4 text-primary" />;
-    case "matrix":
-      return <Grid className="h-4 w-4 text-primary" />;
-    default:
-      return <TextIcon className="h-4 w-4 text-primary" />;
-  }
-}
 
 function pickView(props: LogComparisonProps): JSX.Element {
   const { value } = props;
   if (isTrace(value)) {
     const traceArr = Array.isArray(value) ? value : [value];
     return <TraceView {...props} value={traceArr} />;
+  }
+  if (isChat(value)) {
+    return <ChatView {...props} />;
   }
   if (isDict(value)) {
     return <DictionaryView {...props} />;
@@ -79,6 +67,12 @@ function pickView(props: LogComparisonProps): JSX.Element {
   }
   if (isMatrix(value)) {
     return <MatrixView {...props} />;
+  }
+  if (isNumber(value)) {
+    return <NumberView {...props} />;
+  }
+  if (isTimestamp(value)) {
+    return <TimestampView {...props} />;
   }
   return <StringView {...props} />;
 }
@@ -144,7 +138,6 @@ function renderListItemMulti(
 ) {
   const label = `Item ${index}`;
   const indentClass = `pl-${nestingLevel * 4}`;
-
   const baseVal = subValues[0];
   const compVals = subValues.slice(1);
   const baseHas = baseVal !== undefined;
@@ -273,7 +266,6 @@ const ListView: React.FC<ListViewProps> = ({
     labelKeys = Array.from({ length: maxLen }, (_, i) => `Item ${i}`);
   }
 
-  // gather which should be default open
   const defaultOpen = useMemo(() => {
     const out: string[] = [];
     if (!multiMode) {
@@ -288,8 +280,7 @@ const ListView: React.FC<ListViewProps> = ({
     } else {
       const allLists = [value, ...(comparables ?? [])];
       for (let i = 0; i < labelKeys.length; i++) {
-        // find first defined sample
-        let sample = undefined;
+        let sample: any = undefined;
         for (const arr of allLists) {
           if (Array.isArray(arr) && arr[i] !== undefined) {
             sample = arr[i];

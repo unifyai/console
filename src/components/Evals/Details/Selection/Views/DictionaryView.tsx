@@ -13,6 +13,10 @@ import {
   isMatrix,
   isImage,
   isSpan,
+  isNumber,
+  isTimestamp,
+  isTrace,
+  isChat,
 } from "@/utils/evals/selection";
 
 import ListView from "./ListView";
@@ -20,6 +24,10 @@ import ImageView from "./ImageView";
 import MatrixView from "./MatrixView";
 import StringView from "./StringView";
 import TraceView from "./TraceView";
+import NumberView from "./NumberView";
+import TimestampView from "./TimestampView";
+import ChatOutView from "./ChatView/ChatOutView"; // ← added import
+
 import { Span } from "@/types/evals/traces";
 import { LogComparisonProps } from "./types";
 
@@ -32,43 +40,14 @@ import {
   Grid,
   FoldVertical,
   UnfoldVertical,
+  Hash,
+  Clock,
 } from "lucide-react";
 import RowBadge from "./RowBadge";
 import ActionButton from "@/components/Common/Buttons/Action";
 import Tooltip from "@/components/Common/Misc/Tooltip";
-
-/** Type guard for trace data (a single or array of Span). */
-function isTrace(x: any): x is Span | Span[] {
-  if (!x) return false;
-  if (isSpan(x)) return true;
-  return Array.isArray(x) && x.every(isSpan);
-}
-
-function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix" | "string" {
-  if (isTrace(value)) return "trace";
-  if (isDict(value))  return "dict";
-  if (isList(value))  return "list";
-  if (isImage(value)) return "image";
-  if (isMatrix(value))return "matrix";
-  return "string";
-}
-
-function getTypeIcon(valueType: string) {
-  switch (valueType) {
-    case "trace":
-      return <Pilcrow className="h-4 w-4 text-primary" />;
-    case "dict":
-      return <CurlyBraces className="h-4 w-4 text-primary" />;
-    case "list":
-      return <Brackets className="h-4 w-4 text-primary" />;
-    case "image":
-      return <ImageIcon className="h-4 w-4 text-primary" />;
-    case "matrix":
-      return <Grid className="h-4 w-4 text-primary" />;
-    default:
-      return <TextIcon className="h-4 w-4 text-primary" />;
-  }
-}
+import ChatView from "./ChatView";
+import { getValueType, getTypeIcon } from "./ViewTypes";
 
 function pickView(props: LogComparisonProps): JSX.Element {
   const { value } = props;
@@ -76,6 +55,9 @@ function pickView(props: LogComparisonProps): JSX.Element {
   if (isTrace(value)) {
     const traceArr = Array.isArray(value) ? value : [value];
     return <TraceView {...props} value={traceArr} />;
+  }
+  if (isChat(value)) {
+    return <ChatView {...props} />;
   }
   if (isDict(value)) {
     return <DictionaryView {...props} />;
@@ -89,11 +71,17 @@ function pickView(props: LogComparisonProps): JSX.Element {
   if (isMatrix(value)) {
     return <MatrixView {...props} />;
   }
+  if (isNumber(value)) {
+    return <NumberView {...props} />;
+  }
+  if (isTimestamp(value)) {
+    return <TimestampView {...props} />;
+  }
   return <StringView {...props} />;
 }
 
 /**
- * Helper to map each dictionary key => a sample type ("string", "matrix", "image", etc.)
+ * Helper to map each dictionary key => a sample type.
  */
 function buildKeyToTypeMap(
   allKeys: string[],
@@ -146,6 +134,7 @@ function renderDictPropertySingle(
     comparableVersions,
   };
 
+  const rendered = pickView(childProps);
   return (
     <AccordionItem key={propertyName} value={propertyName}>
       <AccordionTrigger className={indentClass}>
@@ -158,7 +147,7 @@ function renderDictPropertySingle(
       </AccordionTrigger>
       <AccordionContent>
         <div className={`border-l ml-4 ${indentClass}`}>
-          {pickView(childProps)}
+          {rendered}
         </div>
       </AccordionContent>
     </AccordionItem>
@@ -231,12 +220,8 @@ function renderDictPropertyMulti(
           {propertyName}
           {(baseRows.length > 0 || redRows.length > 0 || greenRows.length > 0) && (
             <div className="ml-2 flex gap-1">
-              {redRows.length > 0 && (
-                <RowBadge rowNumbers={redRows} mode="delete" />
-              )}
-              {greenRows.length > 0 && (
-                <RowBadge rowNumbers={greenRows} mode="insert" />
-              )}
+              {redRows.length > 0 && <RowBadge rowNumbers={redRows} mode="delete" />}
+              {greenRows.length > 0 && <RowBadge rowNumbers={greenRows} mode="insert" />}
             </div>
           )}
         </span>
@@ -285,7 +270,6 @@ const DictionaryView: React.FC<DictionaryViewProps> = ({
     allKeys = Array.from(unionKeys).sort();
   }
 
-  // Build key->type map
   const keyTypeMap = useMemo(() => {
     return buildKeyToTypeMap(allKeys, value, comparables);
   }, [allKeys, value, comparables]);
@@ -301,11 +285,7 @@ const DictionaryView: React.FC<DictionaryViewProps> = ({
   const [openItems, setOpenItems] = useState<string[]>(defaultOpenKeys);
 
   if (!isDict(value)) {
-    return (
-      <p className="text-red-500">
-        DictionaryView: Base value is not a dictionary.
-      </p>
-    );
+    return <p className="text-red-500">DictionaryView: Value is not a dictionary.</p>;
   }
 
   function renderProperties() {
@@ -345,7 +325,6 @@ const DictionaryView: React.FC<DictionaryViewProps> = ({
 
   return (
     <div className="flex flex-col gap-2">
-      {/* label row */}
       <div className="flex items-center justify-between">
         <p></p>
         {allKeys.length > 0 && (

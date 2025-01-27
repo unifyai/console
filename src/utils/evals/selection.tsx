@@ -103,6 +103,40 @@ export function isTrace(x: any): x is Span | Span[] {
   return false;
 }
 
+/** Minimal isNumber check. */
+export function isNumber(value: any): boolean {
+  return typeof value === "number";
+}
+
+
+export function isTimestamp(value: any): boolean {
+  if (typeof value !== "string") return false;
+  // Rough ISO-8601 pattern (YYYY-MM-DDTHH:mm:ss, optionally with milliseconds & zone)
+  const isoRegex = /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.\d+)?(Z|[+\-][0-9]{2}:[0-9]{2})?$/;
+  return isoRegex.test(value);
+}
+
+/** Minimal isChat check:
+ *  e.g. require an object with an "id" and a "choices" array.
+ */
+export function isChat(value: any): boolean {
+  if (!value || typeof value !== "object") return false;
+  const isChatOut = (
+    "id" in value &&
+    "choices" in value &&
+    Array.isArray(value.choices)
+  );
+  const isChatIn = (
+    Array.isArray(value.messages) &&
+    (
+      ("model" in value && typeof value.model === "string") ||
+      value.messages.length >= 0 // or any additional checks you like
+    )
+  );
+  return isChatOut || isChatIn;
+}
+
+
 /**
   * Given a list of keys, returns the subset of a dictionary 
   * for which the keys are included in the list

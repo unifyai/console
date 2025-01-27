@@ -85,6 +85,10 @@ function isImage(val: any) {
 function isTrace(val: any) {
   return false;
 }
+function isNumber(val: any) {
+  return typeof val === "number";
+}
+
 function getValueType(value: any) {
   if (isTrace(value))   return "trace";
   if (isDict(value))    return "dict";
@@ -93,6 +97,7 @@ function getValueType(value: any) {
     return "list";
   }
   if (isImage(value))   return "image";
+  if (isNumber(value))  return "number";
   return "string";
 }
 
@@ -354,7 +359,6 @@ export default function Selection({
     );
   } else {
     // Build sections in a fixed order: (1) Params, then (2) Entries
-    // if each section is present.
     let entriesSection: JSX.Element | null = null;
     if (entryKeys.length > 0) {
       entriesSection = (
@@ -439,7 +443,6 @@ export default function Selection({
       );
     }
 
-    // Always render params first if present, then entries
     const sections: JSX.Element[] = [];
     if (paramsSection) sections.push(paramsSection);
     if (entriesSection) sections.push(entriesSection);
@@ -447,7 +450,7 @@ export default function Selection({
     content = <div className="flex flex-col gap-6">{sections}</div>;
   }
 
-  // 9) Return with pinned heading if multiple rows are selected
+  // 9) Return
   return (
     <div className="bg-background rounded-md w-full h-full flex flex-col">
       {selectedRowIndices.length > 1 && (
@@ -487,7 +490,6 @@ export default function Selection({
         </div>
       )}
 
-      {/* The scrollable area */}
       <div className="overflow-y-auto px-5 flex-1">
         {content}
       </div>
