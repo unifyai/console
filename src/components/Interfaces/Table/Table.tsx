@@ -31,7 +31,7 @@ import CellPopover from "./Content/CellPopover";
 import { ItemType, TableDataItem, TileProps } from "@/types/evals/grid";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
-import { DraggingColumnsState } from "@/types/evals/columns";
+import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
 
 const LogsTable = ({
@@ -217,7 +217,7 @@ const LogsTable = ({
     updateItem(item, "grouping")(g.length ? g.join(",") : undefined);
 
   const columnPinning: ColumnPinningState = {
-    left: columnsPinLeft ? [indicesTitle].concat(columnsPinLeft.split(",")) : [indicesTitle],
+    left: columnsPinLeft ? columnsPinLeft.split(",") : [indicesTitle],
     right: columnsPinRight ? columnsPinRight.split(",") : [],
   };
   const setColumnPinning = (pin: ColumnPinningState) => {
@@ -242,6 +242,13 @@ const LogsTable = ({
     },
   });
 
+  const [pinningState, setPinningState] = useState<PinningColumnState>({
+    columnId: null,
+    isPinning: false,
+    direction: null,
+    transform: null
+  });
+
   const context = contextStr ? contextStr : null;
   const setContext = (c: string | null) =>
     updateItem(item, "context")(c ? c : undefined);
@@ -258,6 +265,7 @@ const LogsTable = ({
     columnSizing,
     context,
     draggingColumns,
+    pinningState,
   };
   const setState = {
     setSelectedCells: (cells: string[]) => updateItem(item, "selected")(cells.join(",")),
@@ -271,6 +279,7 @@ const LogsTable = ({
     setColumnSizing,
     setContext,
     setDraggingColumns,
+    setPinningState,
   };
 
   // Use refs to detect a *real* page/filter change
@@ -448,8 +457,18 @@ const LogsTable = ({
                 AggregatedCell={(cell, row) => (
                   <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />
                 )}
-                FooterCell={(column, resizeMap) => 
-                  <FooterCell column={column} resizeMap={resizeMap} draggingColumns={state.draggingColumns}>
+                FooterCell={(column, resizeMap, table) => 
+                  <FooterCell 
+                    column={column} 
+                    resizeMap={resizeMap} 
+                    draggingColumns={state.draggingColumns}
+                    pinningState={pinningState}
+                    setPinningState={setPinningState}
+                    columnOrder={state.columnOrder}
+                    table={table}
+                    columnPinning={state.columnPinning}
+                    setColumnPinning={setState.setColumnPinning}
+                  >
                     {
                       column.columnDef.id === indicesTitle
                       ? <ColumnMetrics interactive={interactive} metric={state.metric} setMetric={setState.setMetric}/>

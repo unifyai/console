@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, ReactNode, MouseEvent, JSX, Ref, Dispatch, SetStateAction } from "react";
+import { useMemo, ReactNode, MouseEvent, JSX, Ref, Dispatch, SetStateAction, useState } from "react";
 
-import { ColumnFiltersState, GroupingState, Header, SortingState, Updater, useReactTable } from "@tanstack/react-table";
+import { ColumnFiltersState, ColumnPinningState, GroupingState, Header, SortingState, Updater, useReactTable } from "@tanstack/react-table";
 import { getCoreRowModel, getFilteredRowModel, getExpandedRowModel, getGroupedRowModel, getSortedRowModel } from "@tanstack/react-table";
 import { ColumnDef, Table as TanstackTable, Column as TanstackColumn, Cell as TanstackCell, Row as TanstackRow } from "@tanstack/react-table";
 
@@ -20,7 +20,6 @@ import DataTableCell from "./Content/Cell";
 import { StateProps } from "@/types/dataTable";
 import { SetStateProps } from "@/types/dataTable";
 import { LogProps } from "@/types/evals/logs";
-
 import { useCellSelection } from "@/hooks/Logs/useCellSelection";
 
 export default function DataTable<TData, TValue>({ interactive, data, columns, state, setState, TableTop, FooterCell, ColumnCreate, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
@@ -30,7 +29,7 @@ export default function DataTable<TData, TValue>({ interactive, data, columns, s
     state: StateProps,
     setState: SetStateProps,
     TableTop?: JSX.Element,
-    FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}) => ReactNode,
+    FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>) => ReactNode,
     ColumnFilters?: (column: TanstackColumn<any | unknown>) => ReactNode;
     ColumnCreate?: ReactNode;
     AggregatedCell?: (cell: TanstackCell<any, unknown>, row: TanstackRow<any | unknown>) => ReactNode;
@@ -65,6 +64,7 @@ export default function DataTable<TData, TValue>({ interactive, data, columns, s
         onColumnFiltersChange: (updater: Updater<ColumnFiltersState>) => setUpdatedState(
             state.columnFilters, setState.setColumnFilters, updater
         ),
+        onColumnPinningChange: (updater: Updater<ColumnPinningState>) => setUpdatedState(state.columnPinning, setState.setColumnPinning, updater),
         onColumnSizingChange: setState.setColumnSizing,
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
@@ -98,9 +98,9 @@ export default function DataTable<TData, TValue>({ interactive, data, columns, s
             : visibleColumns
     );
 
-    const resizeMap = table.getLeafHeaders().map(
+    const resizeMap = table.getFlatHeaders().map(
         (header: Header<TData, unknown>) => ({[header.id]: header.getResizeHandler()})
-    ).reduce((acc, curr) => ({...acc, ...curr}), {});
+    ).reduce((acc: { [key: string]: (event: unknown) => void }, curr: { [key: string]: (event: unknown) => void }) => ({...acc, ...curr}), {});
 
     const { isCellSelected, isRowSelected, isCellExpanded, setExpandedCells, ...cellSelection } = useCellSelection({
         table,
@@ -133,6 +133,7 @@ export default function DataTable<TData, TValue>({ interactive, data, columns, s
                                         header={header}
                                         isCellSelected={isCellSelected}
                                         cellSelection={cellSelection}
+                                        resizeMap={resizeMap}
                                         table={table}
                                         columnVisibility={state.columnVisibility}
                                         setColumnVisibility={setState.setColumnVisibility}
@@ -145,6 +146,10 @@ export default function DataTable<TData, TValue>({ interactive, data, columns, s
                                         draggingColumns={state.draggingColumns}
                                         columnOrder={state.columnOrder}
                                         setColumnOrder={setState.setColumnOrder}
+                                        columnPinning={state.columnPinning}
+                                        setColumnPinning={setState.setColumnPinning}
+                                        pinningState={state.pinningState}
+                                        setPinningState={setState.setPinningState}
                                     />
                                 ))}
                             </SortableContext>
@@ -171,6 +176,8 @@ export default function DataTable<TData, TValue>({ interactive, data, columns, s
                                                     isCellExpanded={isCellExpanded}
                                                     setExpandedCells={setExpandedCells}
                                                     draggingColumns={state.draggingColumns}
+                                                    pinningState={state.pinningState}
+                                                    setPinningState={setState.setPinningState}
                                                 />
                                             </SortableContext>
                                         );
@@ -190,7 +197,7 @@ export default function DataTable<TData, TValue>({ interactive, data, columns, s
                     <TableRow>
                         {finalColumns.map((column, index) =>
                             <SortableContext key={index} items={state.columnOrder} strategy={horizontalListSortingStrategy}>
-                                {FooterCell && FooterCell(column, resizeMap)}
+                                {FooterCell && FooterCell(column, resizeMap, table)}
                             </SortableContext>
                         )}
                     </TableRow>
