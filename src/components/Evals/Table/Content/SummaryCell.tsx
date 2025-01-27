@@ -55,8 +55,13 @@ const SummaryCell = ({ column, state, metrics, pending, draggingColumns }: {
     const metricTooltip = `${state.metric} ${["dict", "list", "tuple", "str"].includes(column.columnDef.meta?.dataType!) ? "length" : "value"}`;
 
 	let logEntryMetric = sanitizeId(column.id) in metrics ? metrics[sanitizeId(column.id)] : null;
-	logEntryMetric = parseFloat(logEntryMetric) ? formatNumber(parseFloat(logEntryMetric)) : logEntryMetric
-	logEntryMetric = logEntryMetric.toString() ?? ""
+	if (logEntryMetric) {
+		logEntryMetric = parseFloat(logEntryMetric) ? formatNumber(parseFloat(logEntryMetric)) : logEntryMetric
+		logEntryMetric = logEntryMetric.toString()
+	} else {
+		logEntryMetric = ""
+	}
+
 
 	return (
 		<>
