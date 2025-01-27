@@ -1,5 +1,5 @@
 import { LogProps } from "@/types/evals/logs";
-import { Column, ColumnDef } from "@tanstack/react-table";
+import { Column, ColumnDef, Table } from "@tanstack/react-table";
 
 /*
   Utility function to sanitize column IDs.
@@ -204,4 +204,98 @@ export const getImmediateHiddenSiblings = (
 
     const immediateSiblings = getImmediateSiblings(column, currentDepth, columnOrder);
     return immediateSiblings.filter((sibling) => !columnVisibility[sibling]);
+};
+
+/*
+  Get the next column at the same rendered depth
+*/
+export const getNextColumnAtSameDepth = (
+    column: Column<any, unknown>,
+    columnOrder: string[],
+    table: Table<any>
+): Column<any, unknown> | undefined => {
+    const currentDepth = column.columnDef.meta?.renderedDepth;
+    const currentIndex = columnOrder.indexOf(column.id);
+    
+    if (currentIndex === -1 || currentDepth === undefined) return undefined;
+
+    const allColumns = table.getAllColumns();
+    
+    // Look through columns after the current one
+    for (let i = currentIndex + 1; i < columnOrder.length; i++) {
+        const nextColId = columnOrder[i];
+        const nextCol = allColumns.find(c => c.id === nextColId);
+        
+        if (nextCol && nextCol.columnDef.meta?.renderedDepth === currentDepth) {
+            return nextCol;
+        }
+    }
+    
+    return undefined;
+};
+
+/*
+  Get the previous column at the same rendered depth
+*/
+export const getPreviousColumnAtSameDepth = (
+    column: Column<any, unknown>,
+    columnOrder: string[],
+    table: Table<any>
+): Column<any, unknown> | undefined => {
+    const currentDepth = column.columnDef.meta?.renderedDepth;
+    const currentIndex = columnOrder.indexOf(column.id);
+    
+    if (currentIndex === -1 || currentDepth === undefined) return undefined;
+
+    const allColumns = table.getAllColumns();
+
+    // Look through columns before the current one
+    for (let i = currentIndex - 1; i >= 0; i--) {
+        const prevColId = columnOrder[i];
+        const prevCol = allColumns.find(c => c.id === prevColId);
+        
+        if (prevCol && prevCol.columnDef.meta?.renderedDepth === currentDepth) {
+            return prevCol;
+        }
+    }
+    
+    return undefined;
+};
+
+/*
+  Get the next leaf column in the column order
+*/
+export const getNextLeafColumn = (
+    column: Column<any, unknown>,
+    columnOrder: string[],
+    table: Table<any>
+): Column<any, unknown> | undefined => {
+    const currentIndex = columnOrder.indexOf(column.id);
+    if (currentIndex === -1) return undefined;
+    
+    const leafColumns = table.getAllLeafColumns();
+    const currentLeafIndex = leafColumns.findIndex(c => c.id === column.id);
+    
+    if (currentLeafIndex === -1 || currentLeafIndex === leafColumns.length - 1) return undefined;
+    
+    return leafColumns[currentLeafIndex + 1];
+};
+
+/*
+  Get the previous leaf column in the column order
+*/
+export const getPreviousLeafColumn = (
+    column: Column<any, unknown>,
+    columnOrder: string[],
+    table: Table<any>
+): Column<any, unknown> | undefined => {
+    const currentIndex = columnOrder.indexOf(column.id);
+    if (currentIndex === -1) return undefined;
+    
+    const leafColumns = table.getAllLeafColumns();
+    const currentLeafIndex = leafColumns.findIndex(c => c.id === column.id);
+    
+    if (currentLeafIndex <= 0) return undefined;
+    
+    return leafColumns[currentLeafIndex - 1];
 };
