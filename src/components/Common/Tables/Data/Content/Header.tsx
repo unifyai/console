@@ -7,14 +7,17 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS, Transform } from "@dnd-kit/utilities";
 
 import { TableHead } from "@/components/UI/table";
+import { getNextLeafColumn, getPreviousLeafColumn } from "@/utils/evals/columnOperations";
+import { DraggingColumnsState, PinningColumnState } from "@/types/columns";
 import ColumnSort from "../Buttons/ColumnSort";
 import ColumnGroupBy from "../Buttons/ColumnGroupBy";
 import ColumnHide from "../Buttons/ColumnHide";
 import ColumnShow from "../Buttons/ColumnShow";
 import ColumnContext from "../Buttons/ColumnContext";
+import ColumnResizer from "../Buttons/ColumnResize";
+import ColumnPinner from "../Buttons/ColumnPinner";
 import { getCellsFromHeader, getSelectableTableCells } from "@/hooks/Logs/useCellSelection";
 import { getColumnGroupIDs } from "@/utils/evals/table";
-import { DraggingColumnsState } from "@/types/evals/columns";
 
 const DataTableHeader = ({
   interactive,
@@ -22,6 +25,7 @@ const DataTableHeader = ({
   header,
   isCellSelected,
   cellSelection,
+  resizeMap,
   columnVisibility,
   setColumnVisibility,
   grouping,
@@ -33,9 +37,14 @@ const DataTableHeader = ({
   draggingColumns,
   columnOrder,
   setColumnOrder,
+  columnPinning,
+  setColumnPinning,
+  pinningState,
+  setPinningState,
+  children
 }: {
   interactive?: boolean,
-  table: Table<any | unknown>,
+  table: Table<any>,
   header: Header<any, unknown>,
   isCellSelected: (cell: Cell<any, any>) => boolean,
   cellSelection: {
@@ -44,6 +53,7 @@ const DataTableHeader = ({
     handleCellMouseOver: (e: React.MouseEvent<HTMLElement>, target: Cell<any, any> | Header<any, any>) => void;
     handleCellsKeyDown: (e: React.KeyboardEvent<HTMLElement>) => void;
   },
+  resizeMap: { [x: string]: (event: unknown) => void },
   columnVisibility: { [key: string]: boolean },
   setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void,
   grouping: string[],
@@ -55,6 +65,11 @@ const DataTableHeader = ({
   draggingColumns: DraggingColumnsState,
   columnOrder: string[],
   setColumnOrder: (columnOrder: string[]) => void,
+  columnPinning: { left?: string[]; right?: string[] },
+  setColumnPinning: (pinning: { left?: string[]; right?: string[] }) => void,
+  pinningState: PinningColumnState,
+  setPinningState: (state: PinningColumnState) => void,
+  children?: ReactNode
 }) => {
 
   const { attributes, listeners, setNodeRef, isDragging, transform } = useSortable({
@@ -74,18 +89,51 @@ const DataTableHeader = ({
   // For dragging columns that are parents, use the transform/transition from the parent dragging state
   const isColumnDragging = isDragging || isPartOfDraggingState;
 
-  const isPinned = header.column.getIsPinned(); 
-  const isLastLeftPinnedColumn =  isPinned === "left" && header.column.getIsLastColumn('left')
+  const isPinned = header.column.getIsPinned();
+  const isLastLeftPinnedColumn = isPinned === "left" && header.column.getIsLastColumn('left');
   const isParentColumn = header.column.columnDef.meta?.isParent;
   const isNotUtilColumn = header.column.columnDef.meta?.columnType != "util";
   const isDerivedColumn = header.column.columnDef.meta?.fieldType === "derived_entry";
 
-  // Determine the applied transform
-  const appliedTransform: Transform | null = isDragging
-    ? transform : isInActiveGroup ? draggingColumns.active.transform ?? null : isInOverGroup
-    ? draggingColumns.over.transform ?? null : isParentColumn ? null : transform;
+  // Handle pinning animation
+  const isPinning = pinningState.isPinning && (
+    header.column.id === pinningState.columnId || // Current column being pinned
+    (pinningState.direction === 'right' && header.column.id === getNextLeafColumn(header.column, columnOrder, table)?.id) || // Next column when pinning right
+    (pinningState.direction === 'left' && header.column.id === getPreviousLeafColumn(header.column, columnOrder, table)?.id) // Previous column when pinning left
+  );
 
-  const appliedTransition = "width transform 0.2s ease-in-out";
+  // Determine the applied transform for both dragging and pinning
+  const appliedTransform: Transform | null = isDragging
+    ? transform 
+    : isInActiveGroup 
+      ? draggingColumns.active.transform ?? null 
+      : isInOverGroup
+        ? draggingColumns.over.transform ?? null 
+        : isPinning
+          ? pinningState.transform
+          : isParentColumn 
+            ? null 
+            : transform;
+
+  const appliedTransition = isPinning 
+    ? "none" 
+    : "width transform 0.2s ease-in-out";
+
+  // Add pinning border highlight
+  const pinningBorderStyle = isPinning ? {
+    '&::after': {
+      content: '""',
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      [pinningState.direction === 'right' ? 'right' : 'left']: 0,
+      width: '2px',
+      background: 'var(--primary)',
+      opacity: 0.7,
+      transform: CSS.Translate.toString(pinningState.transform),
+      transition: 'transform 0.2s ease-in-out',
+    }
+  } : {};
 
   // Handle header coloring.
   // - Applies selection (hover) background color on any column header for which all (some) cells are selected
@@ -113,7 +161,8 @@ const DataTableHeader = ({
     color: isAllColumnSelected(header) ? "var(--primary-foreground)" : "",
     backgroundColor: isNotUtilColumn
       ? isAllColumnSelected(header) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
-      : isAllTableSelected() ? `var(--primary)` : hovered ? "var(--muted)" : "var(--background)"
+      : isAllTableSelected() ? `var(--primary)` : hovered ? "var(--muted)" : "var(--background)",
+    ...pinningBorderStyle
   };
 
   return (
@@ -199,7 +248,22 @@ const DataTableHeader = ({
           />
         }
 
+        {/* Column pinner */}
+        <ColumnPinner 
+            column={header.column}
+            table={table}
+            columnPinning={columnPinning}
+            setColumnPinning={setColumnPinning}
+            columnOrder={columnOrder}
+            pinningState={pinningState}
+            setPinningState={setPinningState}
+        />
+
+        {/* Column resizer */}
+        <ColumnResizer column={header.column} resizeHandler={resizeMap[header.column.id]}/>
+
       </div>
+      {children}
     </TableHead>
   );
 };
