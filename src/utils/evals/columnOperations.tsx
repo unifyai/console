@@ -171,12 +171,13 @@ export const updateColumnVisibility = (
 };
 
 /*
-  Utility function to get immediate hidden siblings for a column
+  Utility function to get immediate siblings for a column. The returned
+  siblings respect the order defined in the columnOrder array.
 */
-export const getImmediateHiddenSiblings = (
+export const getImmediateSiblings = (
     column: Column<any, unknown>,
     currentDepth: number,
-    columnVisibility: { [key: string]: boolean }
+    columnOrder: string[]
 ): string[] => {
     if (!column.parent) return [];
 
@@ -184,7 +185,23 @@ export const getImmediateHiddenSiblings = (
     return siblingColumns
         .filter((siblingCol: Column<any, unknown>) => 
             siblingCol.columnDef.meta?.renderedDepth === currentDepth && 
-            !columnVisibility[siblingCol.id as string]
+            columnOrder.includes(siblingCol.id as string)
         )
-        .map((siblingCol: Column<any, unknown>) => siblingCol.id as string);
+        .map((siblingCol: Column<any, unknown>) => siblingCol.id as string)
+        .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));  // Sort based on columnOrder indices
+};
+
+/*
+  Utility function to get immediate hidden siblings for a column
+*/
+export const getImmediateHiddenSiblings = (
+    column: Column<any, unknown>,
+    currentDepth: number,
+    columnOrder: string[],
+    columnVisibility: { [key: string]: boolean }
+): string[] => {
+    if (!column.parent) return [];
+
+    const immediateSiblings = getImmediateSiblings(column, currentDepth, columnOrder);
+    return immediateSiblings.filter((sibling) => !columnVisibility[sibling]);
 };

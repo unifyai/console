@@ -3,7 +3,7 @@ import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuGroup } from "@/components/UI/dropdown-menu";
 import { Table, Header } from "@tanstack/react-table";
 import { CirclePlus } from "lucide-react";
-import { getImmediateHiddenSiblings, updateColumnVisibility } from "@/utils/evals/columnOperations";
+import { getImmediateHiddenSiblings, getImmediateSiblings, updateColumnVisibility } from "@/utils/evals/columnOperations";
 import { getColumnGroupIDs, moveGroupInColumnOrder } from "@/utils/evals/table";
 import { ReactNode } from "react";
 
@@ -34,14 +34,19 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
 
         // Get hidden siblings of current column
         if (immediateParent && currentDepth !== undefined) {
-            const currentHiddenSiblings = getImmediateHiddenSiblings(header.column, currentDepth, columnVisibility);
+            const currentHiddenSiblings = getImmediateHiddenSiblings(
+                header.column,
+                currentDepth,
+                columnOrder,
+                columnVisibility,
+            );
             hidden.push(...currentHiddenSiblings);
         }
 
         // Find the immediate right neighbors at the same depth that are hidden
         const currentColumnIndex = columnOrder.indexOf(header.column.id);
         if (currentColumnIndex !== -1) {
-            // Look at columns to the right
+            // Look at columns to the right of the current column in the columnOrder array
             const allColumns = table.getAllFlatColumns();
             for (let i = currentColumnIndex + 1; i < columnOrder.length; i++) {
                 const colId = columnOrder[i];
@@ -51,25 +56,26 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
                 if (!col || !col.columnDef.meta?.renderedDepth) continue;
 
                 // If we find a column at the same depth
-                const depth = isUtilColumn ? header.depth - 1 : currentDepth;
+                const depth = isUtilColumn ? header.depth - 1 : currentDepth;  // Adjust depth for util columns
                 if (col.columnDef.meta.renderedDepth === depth) {
                     // Only consider as immediate right neighbor if it has a different parent
                     if (col.parent?.id !== header.column.parent?.id) {
                         // Get all siblings of this column (including itself)
-                        const siblingColumns = col.parent?.columns || [];
-                        const siblingIds = siblingColumns
-                            .filter((siblingCol) => siblingCol.columnDef.meta?.renderedDepth === depth)
-                            .map((siblingCol) => siblingCol.id as string);
-
+                        const siblingIds = getImmediateSiblings(col, depth, columnOrder);
                         // Store all immediate right neighbors
                         immediateRightNeighborIds.push(...siblingIds);
 
                         // Get hidden siblings and store them separately
-                        const hiddenSiblings = getImmediateHiddenSiblings(col, depth, columnVisibility);
+                        const hiddenSiblings = getImmediateHiddenSiblings(
+                            col,
+                            depth,
+                            columnOrder,
+                            columnVisibility,
+                        );
                         hidden.push(...hiddenSiblings);
                         hiddenImmediateRightNeighborIds.push(...hiddenSiblings);
                     }
-                    
+
                     // Whether siblings were found or not, we break as we found the first column at our depth
                     break;
                 }
