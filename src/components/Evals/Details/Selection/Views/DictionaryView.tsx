@@ -71,7 +71,7 @@ function getTypeIcon(valueType: string) {
 }
 
 function pickView(props: LogComparisonProps): JSX.Element {
-  const { value, diffMode, splitView } = props;
+  const { value } = props;
 
   if (isTrace(value)) {
     const traceArr = Array.isArray(value) ? value : [value];
@@ -122,12 +122,18 @@ function renderDictPropertySingle(
   val: any,
   props: Omit<LogComparisonProps, "value" | "comparables"> & { nestingLevel: number }
 ) {
-  const { baseLogIndex, nestingLevel, diffMode, splitView } = props;
+  const {
+    baseLogIndex,
+    nestingLevel,
+    diffMode,
+    splitView,
+    version,
+    comparableVersions,
+  } = props;
   const indentClass = `pl-${nestingLevel * 4}`;
   const valType = getValueType(val);
   const icon = getTypeIcon(valType);
 
-  // Pass along diffMode/splitView
   const childProps: LogComparisonProps = {
     value: val,
     comparables: [],
@@ -135,7 +141,9 @@ function renderDictPropertySingle(
     comparisonLogsIndex: [],
     nestingLevel,
     diffMode,
-    splitView
+    splitView,
+    version,
+    comparableVersions,
   };
 
   return (
@@ -163,7 +171,9 @@ function renderDictPropertyMulti(
   dictIndexes: number[],
   nestingLevel: number,
   diffMode?: LogComparisonProps["diffMode"],
-  splitView?: LogComparisonProps["splitView"]
+  splitView?: LogComparisonProps["splitView"],
+  version?: string,
+  comparableVersions?: string[]
 ) {
   const subValues = dicts.map((d) => (d && isDict(d) ? d[propertyName] : undefined));
   const baseVal = subValues[0];
@@ -201,7 +211,9 @@ function renderDictPropertyMulti(
     comparisonLogsIndex: dictIndexes.slice(1),
     nestingLevel,
     diffMode,
-    splitView
+    splitView,
+    version,
+    comparableVersions,
   };
 
   const baseHasDiff = baseHasIt && (redRows.length > 0 || greenRows.length > 0);
@@ -245,6 +257,8 @@ const DictionaryView: React.FC<DictionaryViewProps> = ({
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
+  version = "",
+  comparableVersions = [],
   nestingLevel = 0,
   diffMode = "none",
   splitView = false,
@@ -303,21 +317,21 @@ const DictionaryView: React.FC<DictionaryViewProps> = ({
           allIndexes,
           nestingLevel + 1,
           diffMode,
-          splitView
+          splitView,
+          version,
+          comparableVersions
         );
       } else {
         const val = value[propertyKey];
-        return renderDictPropertySingle(
-          propertyKey,
-          val,
-          {
-            baseLogIndex,
-            comparisonLogsIndex: [],
-            nestingLevel: nestingLevel + 1,
-            diffMode,
-            splitView
-          }
-        );
+        return renderDictPropertySingle(propertyKey, val, {
+          baseLogIndex,
+          comparisonLogsIndex: [],
+          nestingLevel: nestingLevel + 1,
+          diffMode,
+          splitView,
+          version,
+          comparableVersions,
+        });
       }
     });
   }

@@ -18,6 +18,7 @@ function toStringSafe(val: unknown): string {
 
 /**
  * gatherPresenceDiffs => highlight missing vs. added text
+ * (used for "lines"/"words"/"characters" modes)
  */
 function gatherPresenceDiffs(
   baseStr: string,
@@ -52,8 +53,8 @@ function gatherPresenceDiffs(
 }
 
 /**
- * groupComparablesByValue => for real diff ("lines"/"words"/"characters") to
- * group identical strings among comparables => { text, rows } blocks.
+ * groupComparablesByValue => for diff="lines"/"words"/"characters" we group
+ * identical strings among comparables => { text, rows } blocks.
  */
 function groupComparablesByValue(values: string[], rowIndices: number[]) {
   const map = new Map<string, number[]>();
@@ -71,7 +72,8 @@ function groupComparablesByValue(values: string[], rowIndices: number[]) {
 }
 
 /**
- * groupAllByValue => for diffMode==="none", lumps base + comparables together
+ * groupAllByValue => for diffMode==="none", lumps base + comparables
+ * together so identical strings appear once with combined row badges.
  */
 function groupAllByValue(
   baseValue: unknown,
@@ -96,6 +98,37 @@ function groupAllByValue(
   }));
 }
 
+/**
+ * groupVersionsForRows => given a set of rows that share the same main string,
+ * group them by their version text so that identical versions appear once.
+ */
+function groupVersionsForRows(
+  rows: number[],
+  baseLogIndex: number,
+  baseVer: string,
+  compLogIndexes: number[],
+  compVers: string[]
+) {
+  const map = new Map<string, number[]>();
+
+  rows.forEach((r) => {
+    const verStr =
+      r === baseLogIndex
+        ? baseVer
+        : compVers[compLogIndexes.indexOf(r)] ?? "";
+    if (!map.has(verStr)) {
+      map.set(verStr, []);
+    }
+    map.get(verStr)!.push(r);
+  });
+
+  // Return array of objects with the version text and the rows that share it
+  return Array.from(map.entries()).map(([text, rows]) => ({
+    text,
+    rows: rows.sort((a, b) => a - b),
+  }));
+}
+
 export default function StringView({
   value,
   comparables,
@@ -103,60 +136,151 @@ export default function StringView({
   comparisonLogsIndex,
   diffMode = "none",
   splitView = false,
+  version = "",
+  comparableVersions = [""],
 }: LogComparisonProps) {
-  // If there's no comparables => single-mode
+  // Prepare string values
   const singleMode = !comparables || comparables.length === 0;
+  const baseStr = toStringSafe(value);
+  const compStrs = (comparables ?? []).map(toStringSafe);
 
-  // Single-mode => just render the string (no diff)
+  // Prepare version strings
+  const baseVerStr = toStringSafe(version);
+  const compVerStrs = (comparableVersions ?? []).map(toStringSafe);
+
+  // Check if *all* versions are empty
+  const versionEmpty =
+    baseVerStr === "" && compVerStrs.every((s) => s === "");
+
+  // SINGLE MODE => No comparables
   if (singleMode) {
-    const str = toStringSafe(value);
-    if (!str) {
-      return <p className="italic text-sm text-muted-foreground">No string</p>;
-    }
     return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs">
-          <CopyButton
-            content={str}
-            copyMessage="Copied string!"
-            tooltipContent="Copy string"
-          />
-        </div>
-        <div className="border rounded p-2">
-          <MarkdownRenderer>{str}</MarkdownRenderer>
-        </div>
+      <div className="space-y-4">
+        {!versionEmpty && (
+          <div className="space-y-2">
+            <p className="font-semibold">Version</p>
+            {baseVerStr ? (
+              <div className="space-y-2 border rounded p-2 relative">
+                <MarkdownRenderer>{baseVerStr}</MarkdownRenderer>
+                <CopyButton
+                  className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                  content={baseVerStr}
+                  copyMessage="Copied version!"
+                  tooltipContent="Copy version"
+                />
+              </div>
+            ) : (
+              <p className="italic text-sm text-muted-foreground">No version</p>
+            )}
+          </div>
+        )}
+
+        {baseStr ? (
+          <div className="space-y-2">
+            {!versionEmpty && (
+              <p className="font-semibold">Value</p>
+            )}
+            <div className="border rounded p-2 relative">
+              <MarkdownRenderer>{baseStr}</MarkdownRenderer>
+              <CopyButton
+                className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                content={baseStr}
+                copyMessage="Copied string!"
+                tooltipContent="Copy string"
+              />
+            </div>
+          </div>
+        ) : (
+          <p className="italic text-sm text-muted-foreground">No string</p>
+        )}
       </div>
     );
   }
 
-  // Multi-mode => we have baseStr + compStrs
-  const baseStr = toStringSafe(value);
-  const compStrs = comparables.map(toStringSafe);
+  // MULTI-MODE => We have baseStr + compStrs
 
-  // If diffMode === "none," group ignoring base vs comp
+  // If diffMode === "none", group everything by main string
   if (diffMode === "none") {
-    const groups = groupAllByValue(value, comparables, baseLogIndex, comparisonLogsIndex);
+    const stringGroups = groupAllByValue(
+      baseStr,
+      compStrs,
+      baseLogIndex,
+      comparisonLogsIndex
+    );
 
     return (
       <div className="space-y-4">
-        {groups.map((block, idx) => {
+        {stringGroups.map((block, i) => {
+          // block.text => the main string value
+          // block.rows => whichever rows share that string
           const textValue = block.text;
-          return (
-            <div key={idx} className="border rounded p-3 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <RowBadge rowNumbers={block.rows} mode="none" />
-                <CopyButton
-                  content={textValue}
-                  copyMessage="Copied string!"
-                  tooltipContent="Copy string"
-                />
-              </div>
+          const rowNums = block.rows;
 
-              {textValue ? (
-                <MarkdownRenderer>{textValue}</MarkdownRenderer>
-              ) : (
-                <p className="text-sm italic text-muted-foreground">No data</p>
+          const versionGroups = groupVersionsForRows(
+            rowNums,
+            baseLogIndex,
+            baseVerStr,
+            comparisonLogsIndex,
+            compVerStrs
+          );
+
+          return (
+            <div key={i} className="p-3 space-y-4">
+              {!versionEmpty && (
+                <div className="space-y-2">
+                  <p className="font-semibold">Version</p>
+                  {versionGroups.map((vg, j) => {
+                    const verText = vg.text;
+                    return (
+                      <div
+                        key={j}
+                        className="space-y-2 border rounded p-2 relative"
+                      >
+                        <RowBadge rowNumbers={vg.rows} mode="none" />
+                        <CopyButton
+                          className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"
+                          content={verText}
+                          copyMessage="Copied version!"
+                          tooltipContent="Copy version"
+                        />
+                        {verText ? (
+                          <div className="pt-2">
+                            <MarkdownRenderer>{verText}</MarkdownRenderer>
+                          </div>
+                        ) : (
+                          <p className="italic text-sm text-muted-foreground border rounded">
+                            No version
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
+
+              <div className="space-y-2">
+                {!versionEmpty && (
+                  <p className="font-semibold">Value</p>
+                )}
+                <div className="border rounded p-2 relative">
+                  <RowBadge rowNumbers={rowNums} mode="none" />
+                  <CopyButton
+                    className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"
+                    content={textValue}
+                    copyMessage="Copied string!"
+                    tooltipContent="Copy string"
+                  />
+                  {textValue ? (
+                    <div className="pt-2">
+                      <MarkdownRenderer>{textValue}</MarkdownRenderer>
+                    </div>
+                  ) : (
+                    <p className="text-sm italic text-muted-foreground">
+                      No data
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
           );
         })}
@@ -164,56 +288,98 @@ export default function StringView({
     );
   }
 
-  // Otherwise => lines/words/characters
+  // For lines/words/characters => we do a DiffViewer approach
+  const baseStrSafe = toStringSafe(value);
   const { redRows, greenRows } = gatherPresenceDiffs(
-    baseStr,
+    baseStrSafe,
     compStrs,
     baseLogIndex,
     comparisonLogsIndex
   );
-  const groups = groupComparablesByValue(compStrs, comparisonLogsIndex);
+  const stringGroups = groupComparablesByValue(compStrs, comparisonLogsIndex);
 
   return (
     <div className="space-y-4">
-      {groups.map((block, idx) => {
+      {stringGroups.map((block, i) => {
         const compStr = block.text;
         const rowNums = block.rows;
-
-        // both empty?
-        if (baseStr === "" && compStr === "") {
-          return (
-            <div key={idx} className="border rounded p-3 space-y-2">
-              <div className="flex items-center gap-2 text-xs">
-                <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
-                <RowBadge rowNumbers={rowNums} mode="none" />
-              </div>
-              <p className="text-sm italic text-muted-foreground">No data</p>
-            </div>
-          );
-        }
-
-        // same => "none" or different => "delete"/"insert"
-        let baseBadgeMode: "none" | "insert" | "delete" = "none";
-        let compBadgeMode: "none" | "insert" | "delete" = "none";
-        if (baseStr !== compStr) {
+        let baseBadgeMode: "none" | "delete" = "none";
+        if (baseStrSafe !== compStr) {
           baseBadgeMode = "delete";
-          compBadgeMode = "insert";
         }
+
+        const versionGroups = groupVersionsForRows(
+          rowNums,
+          baseLogIndex,
+          baseVerStr,
+          comparisonLogsIndex,
+          compVerStrs
+        );
 
         return (
-          <div key={idx} className="border rounded p-3 space-y-2">
-            <div className="flex items-center gap-2 text-xs">
-              <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadgeMode} />
-              <RowBadge rowNumbers={rowNums} mode={compBadgeMode} />
+          <div key={i} className="border rounded p-3 space-y-4">
+            {!versionEmpty && (
+              <div className="space-y-2">
+                <p className="font-semibold">Param Version</p>
+                {versionGroups.map((vg, j) => {
+                  const verText = vg.text;
+                  let oldVal = baseVerStr;
+                  let newVal = verText;
+                  let oldMode: "none" | "delete" = "none";
+                  let newMode: "none" | "insert" = "none";
+                  if (oldVal !== newVal) {
+                    oldMode = "delete";
+                    newMode = "insert";
+                  }
+
+                  return (
+                    <div key={j} className="p-3 space-y-2">
+                      <div className="flex items-center gap-2 text-xs">
+                        <RowBadge
+                          rowNumbers={[baseLogIndex]}
+                          mode={oldVal !== newVal ? "delete" : "none"}
+                        />
+                        <RowBadge
+                          rowNumbers={vg.rows}
+                          mode={oldVal !== newVal ? "insert" : "none"}
+                        />
+                      </div>
+                      <div className="border rounded p-2">
+                        <DiffViewer
+                          oldValue={oldVal}
+                          newValue={newVal}
+                          splitView={splitView}
+                          hideLineNumbers={false}
+                          hideMarkers
+                          mode={diffMode}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <p className="font-semibold">String Diff</p>
+              <div className="flex items-center gap-2 text-xs">
+                <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadgeMode} />
+                <RowBadge
+                  rowNumbers={rowNums}
+                  mode={baseStrSafe !== compStr ? "insert" : "none"}
+                />
+              </div>
+              <div className="border rounded p-2">
+                <DiffViewer
+                  oldValue={baseStrSafe}
+                  newValue={compStr}
+                  splitView={splitView}
+                  hideLineNumbers={false}
+                  hideMarkers
+                  mode={diffMode}
+                />
+              </div>
             </div>
-            <DiffViewer
-              oldValue={baseStr}
-              newValue={compStr}
-              splitView={splitView}
-              hideLineNumbers={false}
-              hideMarkers
-              mode={diffMode}
-            />
           </div>
         );
       })}

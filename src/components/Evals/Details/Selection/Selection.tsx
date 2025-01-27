@@ -324,10 +324,15 @@ export default function Selection({
     setBaseIndexParamStr(found ? String(found.dataIndex) : "0");
   }
 
-  // 7) Diff toggles – define them BEFORE using them
+  // 7) Diff toggles
   type DiffMode = "none" | "lines" | "words" | "characters";
   const allModes: DiffMode[] = ["none", "lines", "words", "characters"];
-  const modeIcons = [<EyeOff key="none"/>, <FileText key="lines"/>, <CaseLower key="words"/>, <Pilcrow key="characters"/>];
+  const modeIcons = [
+    <EyeOff key="none" />,
+    <FileText key="lines" />,
+    <CaseLower key="words" />,
+    <Pilcrow key="characters" />
+  ];
   const [modeIndex, setModeIndex] = useState(0);
   const diffMode = allModes[modeIndex];
   const [splitView, setSplitView] = useState(false);
@@ -340,40 +345,6 @@ export default function Selection({
   }
 
   // 8) Now content depending on whether baseLog is present
-  function findEarliestCategoryForBase(): "entries" | "params" | null {
-    if (!baseLog) return null;
-    const baseLogId = String(baseLog.id ?? "");
-    for (const token of selectedCells) {
-      const underscorePos = token.indexOf("_");
-      if (underscorePos < 1) continue;
-      const logIdPart = token.slice(0, underscorePos);
-      if (logIdPart !== baseLogId) continue;
-      const colNamePart = token.slice(underscorePos + 1);
-
-      if (baseLog.entries && baseLog.entries.hasOwnProperty(colNamePart)) {
-        return "entries";
-      }
-      if (baseLog.params && baseLog.params.hasOwnProperty(colNamePart)) {
-        return "params";
-      }
-      // slash fallback
-      if (colNamePart.startsWith("Entries/")) {
-        const sub = colNamePart.slice("Entries/".length);
-        if (baseLog.entries && baseLog.entries.hasOwnProperty(sub)) {
-          return "entries";
-        }
-      }
-      if (colNamePart.startsWith("Parameters/")) {
-        const sub = colNamePart.slice("Parameters/".length);
-        if (baseLog.params && baseLog.params.hasOwnProperty(sub)) {
-          return "params";
-        }
-      }
-    }
-    return null;
-  }
-  const earliestCategory = findEarliestCategoryForBase();
-
   let content: JSX.Element;
   if (!baseLog) {
     content = (
@@ -382,11 +353,13 @@ export default function Selection({
       </div>
     );
   } else {
+    // Build sections in a fixed order: (1) Params, then (2) Entries
+    // if each section is present.
     let entriesSection: JSX.Element | null = null;
     if (entryKeys.length > 0) {
       entriesSection = (
         <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between sticky top-0 z-10 bg-background py-2 border-b border-muted">
             <p className="font-bold text-lg">Entries</p>
             <ActionButton
               variant="ghost"
@@ -415,8 +388,6 @@ export default function Selection({
                 baseLogIndex={baseRowIndex + 1}
                 comparisonLogs={comparisonLogs}
                 comparisonLogsIndex={comparisonRowIndices.map(x => x + 1)}
-
-                // Pass our new props properly
                 diffMode={diffMode}
                 splitView={splitView}
               />
@@ -430,7 +401,7 @@ export default function Selection({
     if (paramKeys.length > 0) {
       paramsSection = (
         <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between sticky top-0 z-10 bg-background py-2 border-b border-muted">
             <p className="font-bold text-lg">Params</p>
             <ActionButton
               variant="ghost"
@@ -459,8 +430,6 @@ export default function Selection({
                 baseLogIndex={baseRowIndex + 1}
                 comparisonLogs={comparisonLogs}
                 comparisonLogsIndex={comparisonRowIndices.map(x => x + 1)}
-
-                // Also pass them here
                 diffMode={diffMode}
                 splitView={splitView}
               />
@@ -470,24 +439,19 @@ export default function Selection({
       );
     }
 
-    // Render whichever was selected first
+    // Always render params first if present, then entries
     const sections: JSX.Element[] = [];
-    if (earliestCategory === "params") {
-      if (paramsSection) sections.push(paramsSection);
-      if (entriesSection) sections.push(entriesSection);
-    } else {
-      if (entriesSection) sections.push(entriesSection);
-      if (paramsSection) sections.push(paramsSection);
-    }
+    if (paramsSection) sections.push(paramsSection);
+    if (entriesSection) sections.push(entriesSection);
 
-    content = <div className="flex flex-col gap-4">{sections}</div>;
+    content = <div className="flex flex-col gap-6">{sections}</div>;
   }
 
-  // 9) Finally render
+  // 9) Return with pinned heading if multiple rows are selected
   return (
-    <div className="bg-background rounded-md w-full h-full overflow-y-scroll p-5 flex flex-col">
+    <div className="bg-background rounded-md w-full h-full flex flex-col">
       {selectedRowIndices.length > 1 && (
-        <div className="flex items-center justify-between mb-4">
+        <div className="sticky top-0 z-10 bg-background px-5 py-2 border-b border-muted flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Base:</span>
             <Combobox
@@ -522,7 +486,11 @@ export default function Selection({
           </div>
         </div>
       )}
-      {content}
+
+      {/* The scrollable area */}
+      <div className="overflow-y-auto px-5 flex-1">
+        {content}
+      </div>
     </div>
   );
 }

@@ -88,7 +88,14 @@ function renderListItemSingle(
   itemValue: any,
   props: Omit<LogComparisonProps, "value" | "comparables">
 ) {
-  const { baseLogIndex, nestingLevel = 0, diffMode, splitView } = props;
+  const {
+    baseLogIndex,
+    nestingLevel = 0,
+    diffMode,
+    splitView,
+    version,
+    comparableVersions,
+  } = props;
   const label = `Item ${index}`;
   const indentClass = `pl-${nestingLevel * 4}`;
   const itemType = getValueType(itemValue);
@@ -101,7 +108,9 @@ function renderListItemSingle(
     comparisonLogsIndex: [],
     nestingLevel,
     diffMode,
-    splitView
+    splitView,
+    version,
+    comparableVersions,
   };
 
   return (
@@ -129,7 +138,9 @@ function renderListItemMulti(
   rowIndexes: number[],
   nestingLevel: number,
   diffMode?: LogComparisonProps["diffMode"],
-  splitView?: LogComparisonProps["splitView"]
+  splitView?: LogComparisonProps["splitView"],
+  version?: string,
+  comparableVersions?: string[]
 ) {
   const label = `Item ${index}`;
   const indentClass = `pl-${nestingLevel * 4}`;
@@ -170,7 +181,9 @@ function renderListItemMulti(
     comparisonLogsIndex: rowIndexes.slice(1),
     nestingLevel,
     diffMode,
-    splitView
+    splitView,
+    version,
+    comparableVersions,
   };
 
   return (
@@ -207,7 +220,9 @@ function renderListMulti(
   rowIndexes: number[],
   nestingLevel: number,
   diffMode?: LogComparisonProps["diffMode"],
-  splitView?: LogComparisonProps["splitView"]
+  splitView?: LogComparisonProps["splitView"],
+  version?: string,
+  comparableVersions?: string[]
 ) {
   const maxLength = Math.max(
     ...lists.map((l) => (Array.isArray(l) ? l.length : 0))
@@ -215,7 +230,18 @@ function renderListMulti(
   const result: JSX.Element[] = [];
   for (let i = 0; i < maxLength; i++) {
     const subVals = lists.map((l) => (Array.isArray(l) ? l[i] : undefined));
-    result.push(renderListItemMulti(i, subVals, rowIndexes, nestingLevel, diffMode, splitView));
+    result.push(
+      renderListItemMulti(
+        i,
+        subVals,
+        rowIndexes,
+        nestingLevel,
+        diffMode,
+        splitView,
+        version,
+        comparableVersions
+      )
+    );
   }
   return result;
 }
@@ -227,6 +253,8 @@ const ListView: React.FC<ListViewProps> = ({
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
+  version = "",
+  comparableVersions = [],
   nestingLevel = 0,
   diffMode = "none",
   splitView = false,
@@ -292,14 +320,24 @@ const ListView: React.FC<ListViewProps> = ({
           nestingLevel,
           comparisonLogsIndex: [],
           diffMode,
-          splitView
+          splitView,
+          version,
+          comparableVersions,
         })
       );
     }
   } else {
     const allLists = [value, ...(comparables ?? [])];
     const rowIdxs = [baseLogIndex, ...(comparisonLogsIndex ?? [])];
-    listItems = renderListMulti(allLists, rowIdxs, nestingLevel, diffMode, splitView);
+    listItems = renderListMulti(
+      allLists,
+      rowIdxs,
+      nestingLevel,
+      diffMode,
+      splitView,
+      version,
+      comparableVersions
+    );
   }
 
   const everythingOpen = labelKeys.length > 0 && openItems.length === labelKeys.length;

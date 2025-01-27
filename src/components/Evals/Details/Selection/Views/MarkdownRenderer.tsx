@@ -41,7 +41,6 @@ export function MarkdownRenderer({ children }: MarkdownRendererProps) {
     <Markdown
       remarkPlugins={[remarkGfm]} // If removing remark-gfm fixes it, re-enable only if you want GFM features
       components={COMPONENTS}
-      className="space-y-3"
     >
       {children}
     </Markdown>

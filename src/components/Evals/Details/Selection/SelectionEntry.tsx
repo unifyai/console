@@ -83,10 +83,12 @@ function getTypeIcon(valueType: string) {
 function getSelectionView(
   value: any,
   comparables: any[],
+  version: string,
+  comparableVersions: string[],
   baseLogIndex: number,
   comparisonLogsIndex: number[],
   diffMode: DiffMode,
-  splitView: boolean
+  splitView: boolean,
 ) {
   if (isTrace(value)) {
     const baseArr = Array.isArray(value) ? value : [value];
@@ -99,6 +101,8 @@ function getSelectionView(
         comparisonLogsIndex={comparisonLogsIndex}
         diffMode={diffMode}
         splitView={splitView}
+        version={version}
+        comparableVersions={comparableVersions}
       />
     );
   }
@@ -112,6 +116,8 @@ function getSelectionView(
         comparisonLogsIndex={comparisonLogsIndex}
         diffMode={diffMode}
         splitView={splitView}
+        version={version}
+        comparableVersions={comparableVersions}
       />
     );
   }
@@ -125,6 +131,8 @@ function getSelectionView(
         comparisonLogsIndex={comparisonLogsIndex}
         diffMode={diffMode}
         splitView={splitView}
+        version={version}
+        comparableVersions={comparableVersions}
       />
     );
   }
@@ -138,6 +146,8 @@ function getSelectionView(
         comparisonLogsIndex={comparisonLogsIndex}
         diffMode={diffMode}
         splitView={splitView}
+        version={version}
+        comparableVersions={comparableVersions}
       />
     );
   }
@@ -151,6 +161,8 @@ function getSelectionView(
         comparisonLogsIndex={comparisonLogsIndex}
         diffMode={diffMode}
         splitView={splitView}
+        version={version}
+        comparableVersions={comparableVersions}
       />
     );
   }
@@ -164,6 +176,8 @@ function getSelectionView(
       comparisonLogsIndex={comparisonLogsIndex}
       diffMode={diffMode}
       splitView={splitView}
+      version={version}
+      comparableVersions={comparableVersions}
     />
   );
 }
@@ -186,21 +200,33 @@ const SelectionEntry: React.FC<SelectionEntryProps> = ({
   diffMode,
   splitView
 }) => {
-  const comparables = (comparisonLogs ?? []).map((cl) => {
+  let comparables = (comparisonLogs ?? []).map((cl) => {
     const container = source === "params" ? cl.params ?? {} : cl.entries ?? {};
     return container[property];
   });
 
+  let version = "";
+  let comparableVersions = [];
+
+  if (source === "params") {
+    version = value.paramVersion;
+    comparableVersions = comparables.map((c) => c.paramVersion);
+    value = value.paramValue;
+    comparables = comparables.map((c) => c.paramValue);
+  }
+  
   const valueType = getValueType(value);
   const icon = getTypeIcon(valueType);
 
   const renderedContent = getSelectionView(
     value,
     comparables,
+    version,
+    comparableVersions,
     baseLogIndex,
     comparisonLogsIndex,
     diffMode,
-    splitView
+    splitView,
   );
 
   return (
