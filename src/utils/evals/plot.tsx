@@ -184,6 +184,26 @@ export const calculateTicks = (length: number, scale: string, minY: number, maxY
 };
 
 /* 
+    Check if values can be plotted using log scale
+*/
+export function checkLogScalability (
+    logs: LogProps[], 
+    selectedXAxisProperty: string, 
+    selectedYAxisProperty: string, 
+    scale: string,
+    setScale: (scale: string) => void,
+    setLogScaleEnabled: (enabled: boolean) => void
+) {
+    if (logs.some(log => log.entries[selectedXAxisProperty] <= 0) || logs.some(log => log.entries[selectedYAxisProperty] <= 0)) {
+        setLogScaleEnabled(false)
+        if (scale === "log") setScale("linear")
+    } else {
+        setLogScaleEnabled(true)
+    }
+}
+
+
+/* 
     Hover tooltip and grouping key templates
     NB: Styling should use regular HTML notation (class instead of className, etc.)
         since the components are parsed through the .html method
@@ -751,7 +771,7 @@ export const drawHistogram = (
             return entry;
         })
     }
-    
+
     // Define scales
     const [width, height] = [dimensions.width, dimensions.height];
     const [xRange, yRange] = [
@@ -777,7 +797,7 @@ export const drawHistogram = (
     // Add histogram
     g
         .selectAll("rect.hist-item")
-        .data(buckets)
+        .data(buckets, (d: any) => `${d.x0 as number}-${d.x1 as number}`)
         .join("rect")
         .transition()
         .duration(500)

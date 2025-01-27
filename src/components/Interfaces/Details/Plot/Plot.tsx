@@ -11,7 +11,7 @@ import PlotBins from "./Buttons/PlotBins";
 
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { LogFieldsResponseProps, LogProps } from "@/types/evals/logs";
-import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram } from "@/utils/evals/plot";
+import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram, checkLogScalability } from "@/utils/evals/plot";
 
 import PlotAxis from "./Buttons/PlotAxis";
 import PlotAggregate from "./Buttons/PlotAggregate";
@@ -65,18 +65,11 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
         // Draw plot borders
         drawBorders(svg, dimensions.height, dimensions.width, margins);
 
-        if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-
-            // Adjust for zero or negative values
-            if (logs.some(log => log.entries[selectedXAxisProperty] <= 0) || logs.some(log => log.entries[selectedYAxisProperty] <= 0)) {
-                setLogScaleEnabled(false)
-                if (scale === "log") updateItem(item, "plot_scale")("linear")
-            } else {
-                setLogScaleEnabled(true)
-            }
-
-            // Draw selected plot type 
-            if (plotType === "Line Chart") {
+        // Draw selected plot type 
+        if (plotType === "Line Chart") {
+            if (logs && selectedXAxisProperty && selectedYAxisProperty) {
+                d3.select(placeholderTextRef.current).text("");
+                checkLogScalability(logs, selectedXAxisProperty, selectedYAxisProperty, scale, updateItem(item, "plot_scale"), setLogScaleEnabled)
                 drawLineChart(
                     svg,
                     scale,
@@ -89,7 +82,21 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                     logs,
                     fields
                 );
-            } else if (plotType === "Bar Chart") {
+            } else {
+                d3.select(placeholderTextRef.current)
+                .attr("stroke", "black") 
+                .attr("stroke-width", 0.1)
+                .attr("fill", "gray")
+                .attr("text-anchor", "middle")
+                .attr("font-size", "16px")
+                .text("Select two numeric properties to plot");    
+            }
+        } 
+        
+        else if (plotType === "Bar Chart") {
+            if (logs && selectedXAxisProperty && selectedYAxisProperty) {
+                d3.select(placeholderTextRef.current).text("");
+                checkLogScalability(logs, selectedXAxisProperty, selectedYAxisProperty, scale, updateItem(item, "plot_scale"), setLogScaleEnabled)    
                 drawBarChart(
                     svg,
                     scale,
@@ -102,7 +109,20 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                     logs,
                     fields
                 );
-            } else if (plotType === "Histogram") {
+            } else {
+                d3.select(placeholderTextRef.current)
+                .attr("stroke", "black") 
+                .attr("stroke-width", 0.1)
+                .attr("fill", "gray")
+                .attr("text-anchor", "middle")
+                .attr("font-size", "16px")
+                .text("Select a property to plot and a reduction metric");    
+            }
+        } 
+        
+        else if (plotType === "Histogram") {
+            if (logs && selectedXAxisProperty) {
+                d3.select(placeholderTextRef.current).text("");    
                 drawHistogram(
                     svg, 
                     scale, 
@@ -113,9 +133,23 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                     binCount,
                     setBinCounts,
                     logs, 
-                    fields                  
+                    fields
                 )
             } else {
+                d3.select(placeholderTextRef.current)
+                .attr("stroke", "black") 
+                .attr("stroke-width", 0.1)
+                .attr("fill", "gray")
+                .attr("text-anchor", "middle")
+                .attr("font-size", "16px")
+                .text("Select a numeric or time property to plot");    
+            }
+        } 
+        
+        else {
+            if (logs && selectedXAxisProperty && selectedYAxisProperty) {
+                d3.select(placeholderTextRef.current).text("");
+                checkLogScalability(logs, selectedXAxisProperty, selectedYAxisProperty, scale, updateItem(item, "plot_scale"), setLogScaleEnabled)    
                 drawScatterPlot(
                     svg,
                     scale,
@@ -128,22 +162,17 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                     logs,
                     fields
                 );
-            }
-        }
-
-        // Add placeholder text if either properties are not selected
-        if (!selectedXAxisProperty || !selectedYAxisProperty) {
-            d3.select(placeholderTextRef.current)
-                .attr("stroke", "black")
+            } else {
+                d3.select(placeholderTextRef.current)
+                .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
-                .text("Select two numeric properties to plot");
-        } else {
-            d3.select(placeholderTextRef.current)
-                .text("");
+                .text("Select two numeric properties to plot");    
+            }
         }
+
     }, [
         logs,
         dimensions,
