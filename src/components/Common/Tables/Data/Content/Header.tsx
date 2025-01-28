@@ -8,7 +8,7 @@ import { CSS, Transform } from "@dnd-kit/utilities";
 
 import { TableHead } from "@/components/UI/table";
 import { getNextLeafColumn, getPreviousLeafColumn } from "@/utils/evals/columnOperations";
-import { DraggingColumnsState, PinningColumnState } from "@/types/columns";
+import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnSort from "../Buttons/ColumnSort";
 import ColumnGroupBy from "../Buttons/ColumnGroupBy";
 import ColumnHide from "../Buttons/ColumnHide";
@@ -38,7 +38,6 @@ const DataTableHeader = ({
   columnOrder,
   setColumnOrder,
   columnPinning,
-  setColumnPinning,
   pinningState,
   setPinningState,
   children
@@ -66,7 +65,6 @@ const DataTableHeader = ({
   columnOrder: string[],
   setColumnOrder: (columnOrder: string[]) => void,
   columnPinning: { left?: string[]; right?: string[] },
-  setColumnPinning: (pinning: { left?: string[]; right?: string[] }) => void,
   pinningState: PinningColumnState,
   setPinningState: (state: PinningColumnState) => void,
   children?: ReactNode
@@ -109,15 +107,13 @@ const DataTableHeader = ({
       ? draggingColumns.active.transform ?? null 
       : isInOverGroup
         ? draggingColumns.over.transform ?? null 
-        : isPinning
-          ? pinningState.transform
-          : isParentColumn 
-            ? null 
-            : transform;
+        : isParentColumn 
+          ? null 
+          : transform;
 
-  const appliedTransition = isPinning 
-    ? "none" 
-    : "width transform 0.2s ease-in-out";
+  const appliedTransition = isDragging 
+    ? "width transform 0.2s ease-in-out"
+    : undefined;
 
   // Add pinning border highlight
   const pinningBorderStyle = isPinning ? {
@@ -130,8 +126,6 @@ const DataTableHeader = ({
       width: '2px',
       background: 'var(--primary)',
       opacity: 0.7,
-      transform: CSS.Translate.toString(pinningState.transform),
-      transition: 'transform 0.2s ease-in-out',
     }
   } : {};
 
@@ -162,7 +156,6 @@ const DataTableHeader = ({
     backgroundColor: isNotUtilColumn
       ? isAllColumnSelected(header) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
       : isAllTableSelected() ? `var(--primary)` : hovered ? "var(--muted)" : "var(--background)",
-    ...pinningBorderStyle
   };
 
   return (
@@ -170,7 +163,8 @@ const DataTableHeader = ({
       colSpan={header.colSpan} 
       ref={setNodeRef} 
       style={style} 
-      className={`relative px-0 py-0`} // Reset padding to let the grabbing area span the entire width       
+      className={`relative px-0 py-0`}
+      data-column-id={header.column.id}
     >
 
       {/* Grab area */}
@@ -235,33 +229,42 @@ const DataTableHeader = ({
           </div>
         }
 
-        {/* New columns */}
-        {!header.isPlaceholder &&
-          <ColumnShow
-            table={table}
-            header={header}
-            columnVisibility={columnVisibility}
-            setColumnVisibility={setColumnVisibility}
-            columnOrder={columnOrder}
-            setColumnOrder={setColumnOrder}
-            ColumnCreate={ColumnCreate}
-          />
-        }
+        {/* Right edge components stack */}
+        <div className="absolute -right-2 top-0 bottom-0" style={{ width: '15px', height: '100%' }}>
+            {/* Column pinner - top third */}
+            {isLastLeftPinnedColumn && (
+                <div className="absolute top-0 right-0" style={{ height: '33.33%' }}>
+                    <ColumnPinner 
+                        column={header.column}
+                        table={table}
+                        columnPinning={columnPinning}
+                        columnOrder={columnOrder}
+                        pinningState={pinningState}
+                        setPinningState={setPinningState}
+                    />
+                </div>
+            )}
 
-        {/* Column pinner */}
-        <ColumnPinner 
-            column={header.column}
-            table={table}
-            columnPinning={columnPinning}
-            setColumnPinning={setColumnPinning}
-            columnOrder={columnOrder}
-            pinningState={pinningState}
-            setPinningState={setPinningState}
-        />
+            {/* Column show - middle third */}
+            {!header.isPlaceholder && (
+                <div className="absolute top-1/3 right-0" style={{ height: '33.33%' }}>
+                    <ColumnShow
+                        table={table}
+                        header={header}
+                        columnVisibility={columnVisibility}
+                        setColumnVisibility={setColumnVisibility}
+                        columnOrder={columnOrder}
+                        setColumnOrder={setColumnOrder}
+                        ColumnCreate={ColumnCreate}
+                    />
+                </div>
+            )}
 
-        {/* Column resizer */}
-        <ColumnResizer column={header.column} resizeHandler={resizeMap[header.column.id]}/>
-
+            {/* Column resizer - bottom third */}
+            <div className="absolute bottom-0 right-0" style={{ height: '33.33%' }}>
+                <ColumnResizer column={header.column} resizeHandler={resizeMap[header.column.id]}/>
+            </div>
+        </div>
       </div>
       {children}
     </TableHead>
