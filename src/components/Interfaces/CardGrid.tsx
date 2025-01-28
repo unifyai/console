@@ -76,9 +76,10 @@ const CardGrid = ({
     const [saveSuccess, setSaveSuccess] = useState<boolean>();
     const [resetting, setResetting] = useState<boolean>(false);
 
-    // modes and copy button
+    // modes, hover and copy button
     const [mode, setMode] = useState<"edit" | "interactive" | "dashboard">("edit");
     const [copied, setCopied] = useState<string>();
+    const [hovered, setHovered] = useState<string>();
 
     // data fields
     const [interfaces, setInterfaces] = useState(interfaces_);
@@ -471,7 +472,7 @@ const CardGrid = ({
                                         logsActions={logsActions}
                                         index={el.i}
                                         item={el}
-                                        originalItem={{...items.find(i => i.i === el.i) as TileProps}}
+                                        originalItem={{ ...items.find(i => i.i === el.i) as TileProps }}
                                         items={items}
                                         filterExpressions={filterExpressions}
                                         sortingExpressions={sortingExpressions}
@@ -480,55 +481,59 @@ const CardGrid = ({
                                         updateItem={updateItem}
                                         updateInterface={updateInterface}
                                     />
-                                    <div className={"flex gap-2 absolute top-3 z-10 " + (mode == "edit" ? "right-5" : "left-1/2 ml-2")}>
-                                        <ActionButton
-                                            className="no-drag cursor-pointer"
-                                            onClick={() => setMaxTile(el.i)}
-                                            icon={<Maximize2 />}
-                                            tooltip="Maximize"
-                                            variant="outline"
-                                        />
-                                        {mode == "edit" && <>
-                                            <ActionButton
+                                    <div className="w-full px-2 h-20 opacity-0 hover:opacity-100 transition-all absolute -top-3 flex justify-between">
+                                        <div className="mb-auto">
+                                            <Badge
                                                 className="no-drag cursor-pointer"
-                                                onClick={() => {
-                                                    setItems([...items.map(
-                                                        it => it.i == el.i ? { ...it, visible: false } : it
-                                                    )]);
-                                                }}
-                                                icon={<EyeOff />}
-                                                tooltip={"Hide"}
-                                                variant="outline"
-                                            />
+                                                variant="primary"
+                                                onClick={() => mode == "edit" ? setEditTile(el.i) : undefined}
+                                            >
+                                                {el.i}
+                                            </Badge>
+                                        </div>
+                                        <div className="flex gap-2 mb-auto">
                                             <ActionButton
-                                                className="no-drag cursor-pointer"
-                                                onClick={() => setCopied(el.i)}
-                                                icon={<Copy />}
-                                                tooltip={"Copy"}
+                                                className="no-drag cursor-pointer hover:z-10"
+                                                onClick={() => setMaxTile(el.i)}
+                                                icon={<Maximize2 />}
+                                                tooltip="Maximize"
                                                 variant="outline"
                                             />
-                                            <ActionButton
-                                                className="cursor-grab"
-                                                icon={<Grip />}
-                                                tooltip="Drag"
-                                                variant="outline"
-                                            />
-                                            <ActionButton
-                                                className="no-drag remove cursor-pointer"
-                                                onClick={() => setItems([...items.filter(item => item.i != el.i)])}
-                                                icon={<X />}
-                                                tooltip="Remove"
-                                                variant="outline"
-                                            />
-                                        </>}
+                                            {mode == "edit" && <>
+                                                <ActionButton
+                                                    className="no-drag cursor-pointer hover:z-10"
+                                                    onClick={() => {
+                                                        setItems([...items.map(
+                                                            it => it.i == el.i ? { ...it, visible: false } : it
+                                                        )]);
+                                                    }}
+                                                    icon={<EyeOff />}
+                                                    tooltip={"Hide"}
+                                                    variant="outline"
+                                                />
+                                                <ActionButton
+                                                    className="no-drag cursor-pointer hover:z-10"
+                                                    onClick={() => setCopied(el.i)}
+                                                    icon={<Copy />}
+                                                    tooltip={"Copy"}
+                                                    variant="outline"
+                                                />
+                                                <ActionButton
+                                                    className="cursor-grab hover:z-10"
+                                                    icon={<Grip />}
+                                                    tooltip="Drag"
+                                                    variant="outline"
+                                                />
+                                                <ActionButton
+                                                    className="no-drag remove cursor-pointer hover:z-10"
+                                                    onClick={() => setItems([...items.filter(item => item.i != el.i)])}
+                                                    icon={<X />}
+                                                    tooltip="Remove"
+                                                    variant="outline"
+                                                />
+                                            </>}
+                                        </div>
                                     </div>
-                                    <Badge
-                                        className={"no-drag absolute z-10 cursor-pointer " + (mode == "edit" ? "top-3 left-3" : "top-4 right-1/2 mr-2")}
-                                        variant="primary"
-                                        onClick={() => mode == "edit" ? setEditTile(el.i) : undefined}
-                                    >
-                                        {el.i}
-                                    </Badge>
                                 </div>
                             );
                         })}

@@ -75,7 +75,7 @@ const Card = ({
 
     return (<div className="no-drag relative flex w-full h-full border rounded-lg">
         <div className={"w-full flex-1 flex flex-col items-center " + (tab ? "mt-2" : "justify-center")}>
-            <div className="flex gap-4">
+            <div className="flex gap-4 z-20">
                 {mode == "edit" && <div className="w-fit">
                     <BaseDropdown
                         button={<ActionButton
