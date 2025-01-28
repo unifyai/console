@@ -7,8 +7,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS, Transform } from "@dnd-kit/utilities";
 
 import { TableCell } from "@/components/UI/table";
-import { getNextLeafColumn, getPreviousLeafColumn } from "@/utils/evals/columnOperations";
-import { DraggingColumnsState, PinningColumnState } from "@/types/columns";
+import { DraggingColumnsState } from "@/types/evals/columns";
 
 import { ChevronRight, CornerDownLeft } from "lucide-react";
 import ColumnResizer from "../Buttons/ColumnResize";
@@ -25,8 +24,6 @@ const DataTableCell = ({
   isCellExpanded,
   setExpandedCells,
   draggingColumns,
-  pinningState,
-  setPinningState,
   children,
 }: {
   cell: Cell<any, unknown>,
@@ -45,8 +42,6 @@ const DataTableCell = ({
   isCellExpanded: (cell: Cell<any, unknown>) => boolean,
   setExpandedCells: Dispatch<SetStateAction<{[k: string]: boolean}>>,
   draggingColumns: DraggingColumnsState,
-  pinningState: PinningColumnState,
-  setPinningState: (state: PinningColumnState) => void,
   children?: ReactNode,
 }) => {
   const { isDragging, setNodeRef, transform } = useSortable({
@@ -69,13 +64,6 @@ const DataTableCell = ({
   const isParentColumn = cell.column.columnDef.meta?.isParent;
   const isLastLeftPinnedColumn = isPinned === "left" && cell.column.getIsLastColumn('left');
 
-  // Handle pinning animation
-  const isPinning = pinningState.isPinning && (
-    cell.column.id === pinningState.columnId || // Current column being pinned
-    (pinningState.direction === 'right' && cell.column.id === getNextLeafColumn(cell.column, cell.column.getFlatColumns().map(c => c.id), cell.getContext().table)?.id) || // Next column when pinning right
-    (pinningState.direction === 'left' && cell.column.id === getPreviousLeafColumn(cell.column, cell.column.getFlatColumns().map(c => c.id), cell.getContext().table)?.id) // Previous column when pinning left
-  );
-
   // Determine the applied transform for both dragging and pinning
   const appliedTransform: Transform | null = isDragging
     ? transform 
@@ -83,31 +71,13 @@ const DataTableCell = ({
       ? draggingColumns.active.transform ?? null 
       : isInOverGroup
         ? draggingColumns.over.transform ?? null 
-        : isPinning
-          ? pinningState.transform
-          : isParentColumn 
-            ? null 
-            : transform;
+        : isParentColumn 
+          ? null 
+          : transform;
 
-  const appliedTransition = isPinning 
-    ? "none" 
-    : "width transform 0.2s ease-in-out";
-
-  // Add pinning border highlight
-  const pinningBorderStyle = isPinning ? {
-    '&::after': {
-      content: '""',
-      position: 'absolute',
-      top: 0,
-      bottom: 0,
-      [pinningState.direction === 'right' ? 'right' : 'left']: 0,
-      width: '2px',
-      background: 'var(--primary)',
-      opacity: 0.7,
-      transform: CSS.Translate.toString(pinningState.transform),
-      transition: 'transform 0.2s ease-in-out',
-    }
-  } : {};
+  const appliedTransition = isDragging 
+    ? "width transform 0.2s ease-in-out"
+    : undefined;
 
   const properties = row.getAllCells().map((cell) => cell.column.id);
 
@@ -142,7 +112,6 @@ const DataTableCell = ({
     backgroundColor: cell.column.id != "RowNumbering"
       ? isCellSelected(cell) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
       : isSelectableCell(cell) && isAllRowSelected(cell) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : "",
-      ...pinningBorderStyle
   };
 
   if (cell.isRowSpanned) return null;

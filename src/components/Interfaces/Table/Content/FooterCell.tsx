@@ -1,37 +1,24 @@
 import { CSSProperties, ReactNode } from "react";
 
-import { Cell, Column, Row, flexRender, Table } from "@tanstack/react-table";
+import { Column, Row } from "@tanstack/react-table";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS, Transform } from "@dnd-kit/utilities";
 
 import { TableCell } from "@/components/UI/table";
 
 import ColumnResizer from "@/components/Common/Tables/Data/Buttons/ColumnResize";
-import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
-import { getNextLeafColumn, getPreviousLeafColumn } from "@/utils/evals/columnOperations";
+import { DraggingColumnsState } from "@/types/evals/columns";
 
 const FooterCell = ({ 
     column, 
     resizeMap, 
     children, 
     draggingColumns,
-    pinningState,
-    setPinningState,
-    columnOrder,
-    table,
-    columnPinning,
-    setColumnPinning
 }: { 
     column: Column<any| unknown>,
     resizeMap: { [x: string]: (event: unknown) => void },
     children: ReactNode,
     draggingColumns: DraggingColumnsState;
-    pinningState: PinningColumnState;
-    setPinningState: (state: PinningColumnState) => void;
-    columnOrder: string[];
-    table: Table<any>;
-    columnPinning: { left?: string[]; right?: string[] };
-    setColumnPinning: (pinning: { left?: string[]; right?: string[] }) => void;
 }) => {
     const { isDragging, setNodeRef, transform } = useSortable({id: column.id,});
 
@@ -49,13 +36,6 @@ const FooterCell = ({
     const isLastLeftPinnedColumn = isPinned === "left" && column.getIsLastColumn('left');
     const isParentColumn = column.columnDef.meta?.isParent;
 
-    // Handle pinning animation
-    const isPinning = pinningState.isPinning && (
-        column.id === pinningState.columnId || // Current column being pinned
-        (pinningState.direction === 'right' && column.id === getNextLeafColumn(column, columnOrder, table)?.id) || // Next column when pinning right
-        (pinningState.direction === 'left' && column.id === getPreviousLeafColumn(column, columnOrder, table)?.id) // Previous column when pinning left
-    );
-
     // Determine the applied transform for both dragging and pinning
     const appliedTransform: Transform | null = isDragging
         ? transform 
@@ -63,31 +43,13 @@ const FooterCell = ({
             ? draggingColumns.active.transform ?? null 
             : isInOverGroup
                 ? draggingColumns.over.transform ?? null 
-                : isPinning
-                    ? pinningState.transform
-                    : isParentColumn 
-                        ? null 
+                : isParentColumn 
+                    ? null 
                         : transform;
 
-    const appliedTransition = isPinning 
-        ? "none" 
-        : "width transform 0.2s ease-in-out";
-
-    // Add pinning border highlight
-    const pinningBorderStyle = isPinning ? {
-        '&::after': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            bottom: 0,
-            [pinningState.direction === 'right' ? 'right' : 'left']: 0,
-            width: '2px',
-            background: 'var(--primary)',
-            opacity: 0.7,
-            transform: CSS.Translate.toString(pinningState.transform),
-            transition: 'transform 0.2s ease-in-out',
-        }
-    } : {};
+    const appliedTransition = isDragging 
+        ? "width transform 0.2s ease-in-out"
+        : undefined;
 
     const style: CSSProperties = {
         boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset' : undefined,
@@ -100,7 +62,6 @@ const FooterCell = ({
         maxWidth: `${Math.round(column.getSize())}px`,
         zIndex: isColumnDragging || isPinned ? 1 : 0,
         backgroundColor: isPinned ? "var(--background)" : "",
-        ...pinningBorderStyle
     };
 
     const nestedExpand = (row: Row<any>, expanded: boolean) => {
