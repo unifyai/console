@@ -18,6 +18,7 @@ import ColumnResizer from "../Buttons/ColumnResize";
 import ColumnPinner from "../Buttons/ColumnPinner";
 import { getCellsFromHeader, getSelectableTableCells } from "@/hooks/Logs/useCellSelection";
 import { getColumnGroupIDs } from "@/utils/evals/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 
 const DataTableHeader = ({
   interactive,
@@ -190,9 +191,24 @@ const DataTableHeader = ({
         >
           {header.isPlaceholder ? null : (
             <>
-              <span className="text-center flex-shrink-0 mr-4">
-                {flexRender(header.column.columnDef.header, header.getContext())}
-              </span>
+              {!isParentColumn ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-center flex-shrink-0 mr-4">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>type: {header.column.columnDef.meta?.dataType || 'unknown'}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : (
+                <span className="text-center flex-shrink-0 mr-4">
+                  {flexRender(header.column.columnDef.header, header.getContext())}
+                </span>
+              )}
 
               {/* Inline Column Actions for Parent Columns */}
               {isParentColumn && (
