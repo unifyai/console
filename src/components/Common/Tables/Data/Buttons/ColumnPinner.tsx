@@ -25,6 +25,7 @@ const ColumnPinner = ({
     const [isHovered, setIsHovered] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [startX, setStartX] = useState(0);
+    const [overlayPosition, setOverlayPosition] = useState<{ left: number; top: number; height: number } | null>(null);
 
     // Memoize handlers to prevent recreating them on each render
     const handleDragStart = useCallback((e: React.MouseEvent) => {
@@ -34,6 +35,21 @@ const ColumnPinner = ({
             startX: e.clientX
         });
         e.stopPropagation(); // Prevent interference with other drag handlers
+
+        // Get the table element and its dimensions
+        const borderElement = e.currentTarget;
+        const tableElement = borderElement?.closest('.LogsTable');
+        if (!borderElement || !tableElement) return;
+
+        // Calculate initial overlay position
+        const tableRect = tableElement.getBoundingClientRect();
+        const borderRect = borderElement.getBoundingClientRect();
+        setOverlayPosition({
+            left: borderRect.right,
+            top: borderRect.top,
+            height: (tableRect.height - (borderRect.top - tableRect.top)),
+        });
+
         setStartX(e.clientX);
         setIsDragging(true);
         
@@ -49,7 +65,7 @@ const ColumnPinner = ({
     }, [column.id, setPinningState]);
 
     const handleDragMove = useCallback((e: MouseEvent) => {
-        if (!isDragging || !pinningState.isPinning) {
+        if (!isDragging || !pinningState.isPinning || !overlayPosition) {
             console.log('🟡 handleDragMove ignored - not dragging or not pinning', { isDragging, isPinning: pinningState.isPinning });
             return;
         }
@@ -64,6 +80,12 @@ const ColumnPinner = ({
             isDragging,
             isPinning: pinningState.isPinning
         });
+
+        // Update overlay position
+        setOverlayPosition(prev => prev ? {
+            ...prev,
+            left: prev.left + dragDelta
+        } : null);
 
         const transform: Transform = {
             x: dragDelta,
@@ -99,8 +121,9 @@ const ColumnPinner = ({
             const currentPinned = columnPinning.left || [];
             if (!currentPinned.includes(nextColumn.id as string)) {
                 nextColumn.pin("left")
+                // Update start position after pinning
+                setStartX(e.clientX);
             }
-            setStartX(e.clientX);
         }
         // If dragging left and current column is pinned and there's a previous leaf column
         else if (dragDelta < -50 && column.getIsPinned() && prevColumn) {
@@ -109,10 +132,11 @@ const ColumnPinner = ({
             const currentPinned = columnPinning.left || [];
             if (prevColumn.getIsPinned()) {
                 column.pin(false)
+                // Update start position after unpinning
+                setStartX(e.clientX);
             }
-            setStartX(e.clientX);
         }
-    }, [isDragging, pinningState, startX, column, columnOrder, table, columnPinning, setPinningState]);
+    }, [isDragging, pinningState, startX, column, columnOrder, table, columnPinning, setPinningState, overlayPosition]);
 
     const handleDragEnd = useCallback(() => {
         console.log('⚫ handleDragEnd fired', {
@@ -122,6 +146,7 @@ const ColumnPinner = ({
         });
         
         setIsDragging(false);
+        setOverlayPosition(null);
         setPinningState({
             columnId: null,
             isPinning: false,
@@ -149,7 +174,7 @@ const ColumnPinner = ({
 
     const style: CSSProperties = {
         position: 'absolute',
-        right: -4,
+        right: 0,
         top: 0,
         bottom: 0,
         width: 8,
@@ -157,24 +182,46 @@ const ColumnPinner = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: pinningState.isPinning || isHovered ? 'var(--primary)' : 'transparent',
-        opacity: pinningState.isPinning ? 1 : isHovered ? 0.7 : 0,
-        transition: pinningState.isPinning ? 'none' : 'opacity 0.2s, background 0.2s',
+        background: !isDragging && isHovered ? 'var(--primary)' : 'transparent',
+        opacity: !isDragging && isHovered ? 0.7 : 0,
+        transition: 'opacity 0.2s, background 0.2s',
         zIndex: 30,
         userSelect: 'none',
         touchAction: 'none'
     };
 
     return (
-        <div
-            style={style}
-            onMouseDown={handleDragStart}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            className="hover:opacity-100 opacity-0 transition-all"
-        >
-            <Hand className="h-4 w-4" />
-        </div>
+        <>
+            <div
+                style={style}
+                onMouseDown={handleDragStart}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+                className="hover:opacity-100 opacity-0 transition-all"
+            >
+                <Hand className="h-4 w-4" />
+            </div>
+            
+            {/* Draggable overlay border */}
+            {overlayPosition && (
+                <div
+                    style={{
+                        position: 'fixed', // Change to fixed positioning
+                        left: overlayPosition.left,
+                        top: overlayPosition.top,
+                        height: overlayPosition.height,
+                        width: 2,
+                        background: 'var(--primary)',
+                        opacity: 0.7,
+                        transform: pinningState.transform ? `translateX(${pinningState.transform.x}px)` : undefined,
+                        transition: 'transform 0.2s ease-out',
+                        pointerEvents: 'none',
+                        zIndex: 1000,
+                        boxShadow: '0 0 4px var(--primary)'
+                    }}
+                />
+            )}
+        </>
     );
 };
 
