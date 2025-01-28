@@ -415,6 +415,7 @@ const LogsTable = ({
             <div className="relative flex-col gap-2">
               {/* “summaryPending” can optionally show a small loader over the table if you like */}
               <DataTable
+                className="LogsTable"
                 interactive={interactive}
                 data={logs}
                 columns={columns}
@@ -462,12 +463,6 @@ const LogsTable = ({
                     column={column} 
                     resizeMap={resizeMap} 
                     draggingColumns={state.draggingColumns}
-                    pinningState={pinningState}
-                    setPinningState={setPinningState}
-                    columnOrder={state.columnOrder}
-                    table={table}
-                    columnPinning={state.columnPinning}
-                    setColumnPinning={setState.setColumnPinning}
                   >
                     {
                       column.columnDef.id === indicesTitle
