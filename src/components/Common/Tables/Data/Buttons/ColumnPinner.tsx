@@ -2,7 +2,7 @@ import { Column, Table } from "@tanstack/react-table";
 import { CSSProperties, useState, useEffect, useCallback } from "react";
 import { Hand, ChevronLeft, ChevronRight } from "lucide-react";
 import { getNextLeafColumn, getPreviousLeafColumn } from "@/utils/evals/columnOperations";
-import { PinningColumnState } from "@/types/columns";
+import { PinningColumnState } from "@/types/evals/columns";
 import { Transform } from "@dnd-kit/utilities";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 
