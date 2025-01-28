@@ -48,7 +48,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
     const logsFilters: { [column: string]: { [fn: string]: string } }[] = tableItems.map(
         item => searchParamToFilters(item.filters, item.context)
     );
-    const columnFiltersExpressions = logsFilters.map(filter => filtersToExpression(filter));
+    const columnFiltersExpressions = logsFilters.map(filter => filtersToExpression(filter, fields));
     const commonFiltersExpressions = tableItems.map(
         item => item.common_filter && fields
             ? Object.keys(

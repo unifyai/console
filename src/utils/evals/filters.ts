@@ -1,5 +1,74 @@
 import { Filters, FiltersByColumn } from "@/types/evals/columns";
 import { processContext } from "./columnOperations";
+import { LogFieldsResponseProps } from "@/types/evals/logs";
+import { AbsoluteDateString, RelativeDateString } from "@/types/evals/filters";
+import { differenceInYears, differenceInMonths, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, differenceInMilliseconds, subMonths, subDays, subHours, subMinutes, subSeconds, subMilliseconds, subYears } from 'date-fns';
+
+/* Initialization constants and utils*/
+export const now = new Date(Date.now())
+export const defaultRelativeDate = `0Y;0M;0D;0h;0m;0s;0ms` as RelativeDateString;
+export const defaultAbsoluteDate = new Date(Date.now()).toISOString() as AbsoluteDateString;
+export const initDefaultDate = (value: string, relative: boolean) => {
+    return relative 
+    ? value ? value as RelativeDateString : defaultRelativeDate
+    : value ? value as AbsoluteDateString : defaultAbsoluteDate
+}
+
+/* Checks if a date is in relative format */
+export const isRelativeDate = (date: AbsoluteDateString | RelativeDateString) => {
+	const regex = /^\d+Y;\d+M;\d+D;\d+h;\d+m;\d+s;\d+ms$/;
+  	return regex.test(date);
+}
+
+/* Checks if a date has NaN values and resets to the default date if so */
+export const handleInvalidDate = (date: AbsoluteDateString | RelativeDateString) => {
+	if (date === "NaNY;NaNM;NaND;NaNh;NaNm;NaNs;NaNms") 
+		return defaultRelativeDate
+	else if (date === "NaN-NaN-NaNTNaN:NaN:NaNZ")
+		return defaultAbsoluteDate
+	else 
+		return date  
+}
+
+/* Converts a date from relative format to an absolute date	*/
+export const toAbsoluteDate = (value: RelativeDateString) => {
+	const offsets = value.split(";").map(offset => +offset.replace(/[^0-9]/g, ''))
+	const date = new Date(Date.now())
+	date.setFullYear(date.getFullYear() - offsets[0])
+	date.setMonth(date.getMonth() - offsets[1])
+	date.setDate(date.getDate() - offsets[2] )
+	date.setHours(date.getHours() - offsets[3])
+	date.setMinutes(date.getMinutes() - offsets[4])
+	date.setSeconds(date.getSeconds() - offsets[5])
+	date.setMilliseconds(date.getMilliseconds() - offsets[6])
+	const absolute = handleInvalidDate(date.toISOString() as AbsoluteDateString)
+	return absolute as AbsoluteDateString
+}
+
+/* Converts a date from absolute format to relative, compared to a specified baseline date */
+export const toRelativeDate = (value: AbsoluteDateString, base: Date) => {
+	const date = new Date(value);
+	const offsets = [];
+    offsets[0] = `${Math.max(0, differenceInYears(base, date))}Y`;
+    offsets[1] = `${Math.max(0, differenceInMonths(base, date) % 12)}M`;
+    offsets[2] = `${Math.max(0, differenceInDays(base, date) % 30)}D`;
+    offsets[3] = `${Math.max(0, differenceInHours(base, date) % 24)}h`;
+    offsets[4] = `${Math.max(0, differenceInMinutes(base, date) % 60)}m`;
+    offsets[5] = `${Math.max(0, differenceInSeconds(base, date) % 60)}s`;
+    offsets[6] = `${Math.max(0, differenceInMilliseconds(base, date) % 1000)}ms`;
+	const relative = handleInvalidDate(offsets.join(";") as RelativeDateString)
+	return relative as RelativeDateString
+}
+
+/* Converts a date string from relative format to absolute format or vice versa */
+export const rebaseDate = (date: AbsoluteDateString | RelativeDateString, target: "absolute" | "relative") => {
+  const isRelative = isRelativeDate(date)
+  if (target === "relative") {
+	return isRelative ? date : toRelativeDate(date as AbsoluteDateString, now)
+  } else {
+	return isRelative ? toAbsoluteDate(date as RelativeDateString) : date
+  }
+}
 
 /* 
 	Separates string filters that have more than one filter joined with && / ||, for a given function.
@@ -58,18 +127,26 @@ export function joinFunctionFilters (filter: string, fn: string,cKey: string) {
 	Converts nested filters dict into string filter expression.
 	Join column filters with the corresponding filter functions and values using "and"
 */
-export function filtersToExpression (columnFilters: FiltersByColumn) {
+export function filtersToExpression (columnFilters: FiltersByColumn, fields: LogFieldsResponseProps) {
 	if (Object.keys(columnFilters).length === 0) return ""
 	const expression = Object
 		.entries(columnFilters)
 		.map(([cKey, filter]) =>
-			Object.entries(filter).map(([fn, value]) => 
-				["in", "not in"].includes(fn) 
+			Object.entries(filter).map(([fn, val]) => { 
+				let value = val;
+
+				// Handling relative timestamp filters
+				if (fields[cKey].data_type === "timestamp" && val.includes(";")) {
+					const date = toAbsoluteDate(val as RelativeDateString)
+					value = `"${date.replace("T", " ").replace("Z", "")}"`
+				}
+				
+				return ["in", "not in"].includes(fn) 
 					? value.includes(" && ") || value.includes(" || ")
 						? joinFunctionFilters(value, fn, cKey)
 						: `${value} ${fn} ${cKey}` 
 					: `${cKey} ${fn} ${value}`
-			)
+			})
 		)
 		.flat()
 		.join(" and ")

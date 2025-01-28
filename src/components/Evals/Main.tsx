@@ -50,7 +50,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 	// 3- Join common filters with the "in" filter function and common filter value using "or"
 	// 4- Join common and column filters into a single filter expression
 	const logsFilters : {[column: string]: {[fn: string]: string}} = searchParamToFilters(searchParams.filters, context) 
-	const columnFiltersExpression = filtersToExpression(logsFilters) 
+	const columnFiltersExpression = filtersToExpression(logsFilters, fields) 
 	const commonFiltersExpression = searchParams.common_filter && fields
 		? Object.keys(
 			Object.fromEntries(Object.entries(fields).filter(([key, value]) => value.field_type != "derived_entry"))	// Exclude derived entries from filters

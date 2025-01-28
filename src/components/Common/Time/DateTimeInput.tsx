@@ -2,7 +2,8 @@ import { Input } from "@/components/UI/input";
 import { cn } from "@/lib/utils";
 import React from "react";
 import { KeyboardEventHandler } from "react";
-import { differenceInYears, differenceInMonths, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, differenceInMilliseconds, subMonths, subDays, subHours, subMinutes, subSeconds, subMilliseconds, subYears } from 'date-fns';
+import { rebaseDate } from "@/utils/evals/filters";
+import { AbsoluteDateString, RelativeDateString } from "@/types/evals/filters";
 
 export type TimeType = "year" | "month" | "day" | "minutes" | "seconds" | "hours" | "milliseconds"; 
 export type Attributes = {[key in TimeType]: { symbol: string, padding: number, min: number, max: number, format: RegExp }}
@@ -16,7 +17,7 @@ export type Attributes = {[key in TimeType]: { symbol: string, padding: number, 
 */
 const getAttributes = (relative: boolean) : Attributes => { 
   const [minMonth, minDay] = relative ? [0, 0] : [1, 1];
-  const maxYear = relative ? new Date().getFullYear() : 9999;
+  const maxYear = relative ? 9999 : new Date().getFullYear();
   const [regExMonth, regExDay] = relative ? [/^(0[0-9]|1[0-2])$/, /^(0[0-9]|1[0-9]|2[0-9]|3[0-1])$/] : [/^(0[1-9]|1[0-2])$/, /^(0[1-9]|1[0-9]|2[0-9]|3[0-1])$/]
   return {
     "year":         {symbol: "Y",  padding: 4, max: maxYear, min: 0,        format: /^[0-9][0-9][0-9][0-9]$/},
@@ -46,72 +47,74 @@ export function getValidValue(value: string, type: TimeType, loop: boolean = fal
 }
 
 /* Extract and validate the corresponding part from the full datetime input, or the difference between the current time and the datetime input */
-export function getDateValue(date: Date, type: TimeType, attributes: Attributes) {
+export function getDateValue(date: AbsoluteDateString, type: TimeType, attributes: Attributes) {
   let value: string;
+  const dateValue = new Date(date)
   switch (type) {
     case "year":
-      value = String(date.getFullYear());
+      value = String(dateValue.getFullYear());
       return getValidValue(value, "year", false, attributes)
     case "month":
-      value = String(date.getMonth() + 1);  // Months are 0 indexed
+      value = String(dateValue.getMonth() + 1);  // Months are 0 indexed
       return getValidValue(value, "month", false, attributes)
     case "day":
-      value = String(date.getDate());
+      value = String(dateValue.getDate());
       return getValidValue(value, "day", false, attributes)
     case "hours":
-      value = String(date.getHours());
+      value = String(dateValue.getHours());
       return getValidValue(value, "hours", false, attributes)
     case "minutes":
-      value = String(date.getMinutes());
+      value = String(dateValue.getMinutes());
       return getValidValue(value, "minutes", false, attributes)
     case "seconds":
-      value = String(date.getSeconds());
+      value = String(dateValue.getSeconds());
       return getValidValue(value, "seconds", false, attributes)
     case "milliseconds":
-      value = String(date.getMilliseconds());
+      value = String(dateValue.getMilliseconds());
       return getValidValue(value, "milliseconds", false, attributes)
     default:
       return "00";
   }
 }
 
+/* Update the full relative datetime value by deconstructing the value, updating the corresponding type input and reconstructing into a single string */
+export function setRelativeDateValue(date: RelativeDateString, value: string, type: TimeType, attributes: Attributes) {
+  const dateObject = date.split(";");
+  const index = Object.entries(attributes).findIndex(([key, _]) => key === type)
+  const symbol= attributes[type].symbol
+  dateObject[index] = `${value}${symbol}`
+  return dateObject.join(";")
+}
+
 /* Update the full datetime input with the corresponding part, or the difference between the current time and the corresponding part  */
-export function setDateValue(date: Date, value: string, type: TimeType, attributes: Attributes, relative: boolean = false){
-  const valid = relative ? value : getValidValue(value, type, false, attributes);
+export function setDateValue(date: AbsoluteDateString, value: string, type: TimeType, attributes: Attributes){
+  const valid = getValidValue(value, type, false, attributes);
   const parsed = parseInt(valid, 10)
-  let newDate = relative ? new Date() : new Date(date)
+  let newDate = new Date(date)
   switch (type) {
     case "year":
-      if (relative) newDate = subYears(newDate, parsed) 
-      else newDate.setFullYear(parsed)
-      return newDate;
+      newDate.setFullYear(parsed)
+      break;
     case "month":
-      if (relative) newDate = subMonths(newDate, parsed) 
-      else newDate.setMonth(parsed - 1) // Months are 0 indexed
-      return newDate;
+      newDate.setMonth(parsed - 1) // Months are 0 indexed
+      break;
     case "day":
-      if (relative) newDate = subDays(newDate, parsed) 
-      else newDate.setDate(parsed)
-      return newDate;
+      newDate.setDate(parsed)
+      break;
     case "hours":
-      if (relative) newDate = subHours(newDate, parsed) 
-      else newDate.setHours(parsed)
-      return newDate;
+      newDate.setHours(parsed)
+      break;
     case "minutes":
-      if (relative) newDate = subMinutes(newDate, parsed) 
-      else newDate.setMinutes(parsed)
-      return newDate;
+      newDate.setMinutes(parsed)
+      break;
     case "seconds":
-      if (relative) newDate = subSeconds(newDate, parsed) 
-      else newDate.setSeconds(parsed)
-      return newDate;
+      newDate.setSeconds(parsed)
+      break;
     case "milliseconds":
-      if (relative) newDate = subMilliseconds(newDate, parsed) 
-      else newDate.setMilliseconds(parsed)
-      return newDate;
-    default:
-      return newDate;
+      newDate.setMilliseconds(parsed)
+      break;
   }
+  return newDate.toISOString();
 }
 
 /* Handle updating the input value using up and down arrow keys */
@@ -126,8 +129,8 @@ export function getIncrement( value: string, type: TimeType, step: number, attri
 
 export interface DateTimeInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   picker: TimeType;
-  date: Date | undefined;
-  setDate: (date: Date | undefined) => void;
+  date: AbsoluteDateString | RelativeDateString;
+  setDate: (date: AbsoluteDateString | RelativeDateString) => void;
   onRightFocus?: () => void;
   onLeftFocus?: () => void;
   relative: boolean;
@@ -144,14 +147,14 @@ const DateTimeInput = React.forwardRef<
       value,
       id,
       name,
-      date = new Date(new Date().setHours(0, 0, 0, 0)),
+      relative = false,
+      date,
       setDate,
       onChange,
       onKeyDown,
       picker,
       onLeftFocus,
       onRightFocus,
-      relative = false,
       onEnter,
       ...props
     },
@@ -161,25 +164,33 @@ const DateTimeInput = React.forwardRef<
     /* Handle absolute vs relative time computation */
     const attributes = React.useMemo(() => getAttributes(relative), [relative]);
     const initialOffset = React.useMemo(() => {
-      switch (picker) {
-        case "year":         return differenceInYears(new Date(), date) || 0;
-        case "month":        return differenceInMonths(new Date(), date) % 12 || 0;
-        case "day":          return differenceInDays(new Date(), date) % 31 || 0;
-        case "hours":        return differenceInHours(new Date(), date) % 24 || 0;
-        case "minutes":      return differenceInMinutes(new Date(), date) % 60 || 0;
-        case "seconds":      return differenceInSeconds(new Date(), date) % 60 || 0;
-        case "milliseconds": return differenceInMilliseconds(new Date(), date) % 1000 || 0;
-        default: return 0;
+      if (relative) {
+        const dateObject = (rebaseDate(date, "relative") as RelativeDateString).split(";");
+        const index = Object.entries(attributes).findIndex(([key, _]) => key === picker)
+        const value = +dateObject[index].replace(/[^0-9]/g, '');
+        return value
       }
+      return 0;
     }, [date, picker, relative]);
-
+    React.useEffect(() => {
+      if (relative) {
+        const dateObject = (rebaseDate(date, "relative") as RelativeDateString).split(";");
+        const index = Object.entries(attributes).findIndex(([key, _]) => key === picker)
+        const value = +dateObject[index].replace(/[^0-9]/g, '');
+        const offset = Math.max(0, value)
+        setOffset(offset)
+      }
+    }, [relative])
     const [offset, setOffset] = React.useState(initialOffset);
 
     /* Track input and date value */
     const [inputChars, setInputChars] = React.useState(0);
     const [lastInputTime, setLastInputTime] = React.useState<number | null>(null)
     const calculatedValue = React.useMemo(() => { 
-      return relative ? String(offset) : getDateValue(date, picker, attributes) 
+      if (relative) return String(offset);
+      const dateValue = rebaseDate(date, "absolute") as AbsoluteDateString;
+      const value = getDateValue(dateValue, picker, attributes)
+      return value; 
     }, [date, picker, attributes, offset, relative]);
     
     /* Event handler:
@@ -201,7 +212,9 @@ const DateTimeInput = React.forwardRef<
         const step = e.key === "ArrowUp" ? 1 : -1;
         const newOffset = Math.max(0, offset + step);
         const newValue = relative ? String(newOffset) : getIncrement(calculatedValue, picker, step, attributes);
-        const newDate = setDateValue(date, newValue, picker, attributes, relative)
+        const newDate = relative
+          ? setRelativeDateValue(date as RelativeDateString, newValue, picker, attributes) as RelativeDateString
+          : setDateValue(date as AbsoluteDateString, newValue, picker, attributes) as AbsoluteDateString
         setOffset(newOffset);
         setDate(newDate);
       }
@@ -239,7 +252,9 @@ const DateTimeInput = React.forwardRef<
           }
         }
 
-        const newDate = setDateValue(date, newValue, picker, attributes, relative) 
+        const newDate = relative
+          ? setRelativeDateValue(date as RelativeDateString, newValue, picker, attributes) as RelativeDateString
+          : setDateValue(date as AbsoluteDateString, newValue, picker, attributes) as AbsoluteDateString
         setOffset(parseInt(newValue, 10) || 0)
         setDate(newDate);
         setLastInputTime(currentTime);
@@ -292,3 +307,6 @@ DateTimeInput.displayName = "DateTimeInput";
 export { DateTimeInput };
 
 /* Original component: https://time.openstatus.dev/ */
+/* 
+  Fixing typing and increments
+*/
