@@ -173,7 +173,7 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
 
     const derived = ColumnCreate ? ColumnCreate : null;
     return (
-        <div className="absolute top-5 -right-4 z-10 hover:opacity-100 opacity-0 transition-all">
+        <div className="absolute -right-2 z-10 hover:opacity-100 opacity-0 transition-all">
             <BaseDropdown button={columnButton}>
                 {hiddenColumns.length > 0 && hidden}
                 {header.column.columnDef.meta?.columnType === "entries" && derived}

@@ -9,10 +9,11 @@ import BaseButton from "@/components/Common/Buttons/Base";
 import { Filter } from "lucide-react";
 import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { KeyboardEventHandler } from "react";
-import { initFilters, combineFilters } from "@/utils/evals/filters";
+import { initFilters, combineFilters, rebaseDate, defaultRelativeDate, defaultAbsoluteDate, initDefaultDate } from "@/utils/evals/filters";
 import { Trash, Plus, CircleX, Clock, History } from "lucide-react";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { DateTimeInput } from "@/components/Common/Time/DateTimeInput";
+import { AbsoluteDateString, RelativeDateString } from "@/types/evals/filters";
 
 interface TimeFilter {
     key: number,
@@ -37,9 +38,14 @@ const TimeColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
         {name: "<=", label: "<=" , description: "Filter for values less or equal to.."}
     ]
     const modes = options.map(option => option.name)
-    let defaultFilter : TimeFilter = {key: 0, mode: "==", join: "&&", value: ""}
-    let initialValues : TimeFilter[] = [defaultFilter]
-    if (columnFilters[column]) initFilters(column, columnFilters, initialValues, modes)
+    let defaultFilter : TimeFilter = {key: 0, mode: "==", join: "&&", value: defaultAbsoluteDate}
+    let initialValues : TimeFilter[] = []
+    if (columnFilters[column]) {
+        initFilters(column, columnFilters, initialValues, modes)
+    }
+    else {
+        initialValues.push(defaultFilter)
+    }
     initialValues = initialValues.map(initial => ({
         key: initial.key, 
         mode: initial.mode, 
@@ -49,7 +55,7 @@ const TimeColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
     const [filters, setFilters] = useState(initialValues);
 
     /* Event handlers */
-    const onInput = (value: any, filter: TimeFilter) => {
+    const onInput = (value: AbsoluteDateString | RelativeDateString, filter: TimeFilter) => {
         const newFilters = [...filters]
         newFilters.find(f => f.key === filter.key)!.value = value
         setFilters(newFilters)
@@ -57,12 +63,20 @@ const TimeColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
     const onSubmit = () => {
         let newColumnFilters = { ...columnFilters }
         if (filters.length){
-            const newFilters = filters.map(f => ({
-                key: f.key, 
-                mode: f.mode, 
-                join: f.join, 
-                value: `"${f.value}"`.replace("T", " ").replace("Z", "")
-            }))
+            const newFilters = filters.map(f => {
+                let newValue = f.value ? f.value : relative ? defaultRelativeDate : defaultAbsoluteDate
+                newValue = newValue
+                    .replace("T", " ").replace("Z", "")         // Clean-up absolute date strings
+                    .substring(0, newValue.indexOf("ms") + 2)   // Clean-up relative date strings (remove characters after ms)
+                    .substring(newValue.search(/\d/))           //                                (remove characters ebfore first number)
+                newValue = `"${newValue}"`
+                return {
+                        key: f.key, 
+                        mode: f.mode, 
+                        join: f.join, 
+                        value: newValue
+                    }
+            })
             let filter : Filters = combineFilters(newFilters, modes)
             newColumnFilters = {...columnFilters, [column]: filter}
         } else{
@@ -111,11 +125,23 @@ const TimeColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
                 </DropdownMenuItem>
             )}
         </BaseDropdown>
-    const [relative, setRelative] = useState(false);
+    const [relative, setRelative] = useState(
+        initialValues.map(initial => initial.value).every(value => value.includes(";"))
+    );
+    const onRebase = () => {
+        const newFilters = [...filters]
+        const newBase = relative ? "absolute" : "relative"
+        newFilters.map(filter => {
+            const value = initDefaultDate(filter.value, relative)
+            return filter.value = rebaseDate(value, newBase)
+        })
+        setFilters(newFilters)
+        setRelative(!relative)
+    }
     const basis = <ActionButton 
         tooltip={relative ? "Set absolute time" : "Set relative time"} 
         icon={relative ? <History/> : <Clock/>} 
-        onClick={() => setRelative(!relative)}
+        onClick={onRebase}
     />
 
     /* Filter row */
@@ -164,8 +190,8 @@ const TimeColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
                 <div className="flex flex-row">
                     {times.map((time, index) => {
                         const picker = time.name as ("year" | "month" | "day" | "hours" | "minutes" | "seconds" | "milliseconds")
-                        const date = new Date(filter.value)
-                        const setDate = (date: Date | undefined) => onInput(date?.toISOString(), filter)
+                        const date = initDefaultDate(filter.value, relative)
+                        const setDate = (date: AbsoluteDateString | RelativeDateString) => onInput(date, filter)
                         const ref = (element:HTMLInputElement | null) => {
                             refs[time.name] = element
                         }

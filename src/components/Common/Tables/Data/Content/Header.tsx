@@ -7,14 +7,18 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS, Transform } from "@dnd-kit/utilities";
 
 import { TableHead } from "@/components/UI/table";
+import { getNextLeafColumn, getPreviousLeafColumn } from "@/utils/evals/columnOperations";
+import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnSort from "../Buttons/ColumnSort";
 import ColumnGroupBy from "../Buttons/ColumnGroupBy";
 import ColumnHide from "../Buttons/ColumnHide";
 import ColumnShow from "../Buttons/ColumnShow";
 import ColumnContext from "../Buttons/ColumnContext";
+import ColumnResizer from "../Buttons/ColumnResize";
+import ColumnPinner from "../Buttons/ColumnPinner";
 import { getCellsFromHeader, getSelectableTableCells } from "@/hooks/Logs/useCellSelection";
 import { getColumnGroupIDs } from "@/utils/evals/table";
-import { DraggingColumnsState } from "@/types/evals/columns";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 
 const DataTableHeader = ({
   interactive,
@@ -22,6 +26,7 @@ const DataTableHeader = ({
   header,
   isCellSelected,
   cellSelection,
+  resizeMap,
   columnVisibility,
   setColumnVisibility,
   grouping,
@@ -33,9 +38,13 @@ const DataTableHeader = ({
   draggingColumns,
   columnOrder,
   setColumnOrder,
+  columnPinning,
+  pinningState,
+  setPinningState,
+  children
 }: {
   interactive?: boolean,
-  table: Table<any | unknown>,
+  table: Table<any>,
   header: Header<any, unknown>,
   isCellSelected: (cell: Cell<any, any>) => boolean,
   cellSelection: {
@@ -44,6 +53,7 @@ const DataTableHeader = ({
     handleCellMouseOver: (e: React.MouseEvent<HTMLElement>, target: Cell<any, any> | Header<any, any>) => void;
     handleCellsKeyDown: (e: React.KeyboardEvent<HTMLElement>) => void;
   },
+  resizeMap: { [x: string]: (event: unknown) => void },
   columnVisibility: { [key: string]: boolean },
   setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void,
   grouping: string[],
@@ -55,6 +65,10 @@ const DataTableHeader = ({
   draggingColumns: DraggingColumnsState,
   columnOrder: string[],
   setColumnOrder: (columnOrder: string[]) => void,
+  columnPinning: { left?: string[]; right?: string[] },
+  pinningState: PinningColumnState,
+  setPinningState: (state: PinningColumnState) => void,
+  children?: ReactNode
 }) => {
 
   const { attributes, listeners, setNodeRef, isDragging, transform } = useSortable({
@@ -74,18 +88,47 @@ const DataTableHeader = ({
   // For dragging columns that are parents, use the transform/transition from the parent dragging state
   const isColumnDragging = isDragging || isPartOfDraggingState;
 
-  const isPinned = header.column.getIsPinned(); 
-  const isLastLeftPinnedColumn =  isPinned === "left" && header.column.getIsLastColumn('left')
+  const isPinned = header.column.getIsPinned();
+  const isLastLeftPinnedColumn = isPinned === "left" && header.column.getIsLastColumn('left');
   const isParentColumn = header.column.columnDef.meta?.isParent;
   const isNotUtilColumn = header.column.columnDef.meta?.columnType != "util";
   const isDerivedColumn = header.column.columnDef.meta?.fieldType === "derived_entry";
 
-  // Determine the applied transform
-  const appliedTransform: Transform | null = isDragging
-    ? transform : isInActiveGroup ? draggingColumns.active.transform ?? null : isInOverGroup
-    ? draggingColumns.over.transform ?? null : isParentColumn ? null : transform;
+  // Handle pinning animation
+  const isPinning = pinningState.isPinning && (
+    header.column.id === pinningState.columnId || // Current column being pinned
+    (pinningState.direction === 'right' && header.column.id === getNextLeafColumn(header.column, columnOrder, table)?.id) || // Next column when pinning right
+    (pinningState.direction === 'left' && header.column.id === getPreviousLeafColumn(header.column, columnOrder, table)?.id) // Previous column when pinning left
+  );
 
-  const appliedTransition = "width transform 0.2s ease-in-out";
+  // Determine the applied transform for both dragging and pinning
+  const appliedTransform: Transform | null = isDragging
+    ? transform 
+    : isInActiveGroup 
+      ? draggingColumns.active.transform ?? null 
+      : isInOverGroup
+        ? draggingColumns.over.transform ?? null 
+        : isParentColumn 
+          ? null 
+          : transform;
+
+  const appliedTransition = isDragging 
+    ? "width transform 0.2s ease-in-out"
+    : undefined;
+
+  // Add pinning border highlight
+  const pinningBorderStyle = isPinning ? {
+    '&::after': {
+      content: '""',
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      [pinningState.direction === 'right' ? 'right' : 'left']: 0,
+      width: '2px',
+      background: 'var(--primary)',
+      opacity: 0.7,
+    }
+  } : {};
 
   // Handle header coloring.
   // - Applies selection (hover) background color on any column header for which all (some) cells are selected
@@ -113,7 +156,7 @@ const DataTableHeader = ({
     color: isAllColumnSelected(header) ? "var(--primary-foreground)" : "",
     backgroundColor: isNotUtilColumn
       ? isAllColumnSelected(header) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
-      : isAllTableSelected() ? `var(--primary)` : hovered ? "var(--muted)" : "var(--background)"
+      : isAllTableSelected() ? `var(--primary)` : hovered ? "var(--muted)" : "var(--background)",
   };
 
   return (
@@ -121,7 +164,8 @@ const DataTableHeader = ({
       colSpan={header.colSpan} 
       ref={setNodeRef} 
       style={style} 
-      className={`relative px-0 py-0`} // Reset padding to let the grabbing area span the entire width       
+      className={`relative px-0 py-0`}
+      data-column-id={header.column.id}
     >
 
       {/* Grab area */}
@@ -147,9 +191,24 @@ const DataTableHeader = ({
         >
           {header.isPlaceholder ? null : (
             <>
-              <span className="text-center flex-shrink-0 mr-4">
-                {flexRender(header.column.columnDef.header, header.getContext())}
-              </span>
+              {!isParentColumn ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-center flex-shrink-0 mr-4">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>type: {header.column.columnDef.meta?.dataType || 'unknown'}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : (
+                <span className="text-center flex-shrink-0 mr-4">
+                  {flexRender(header.column.columnDef.header, header.getContext())}
+                </span>
+              )}
 
               {/* Inline Column Actions for Parent Columns */}
               {isParentColumn && (
@@ -186,20 +245,44 @@ const DataTableHeader = ({
           </div>
         }
 
-        {/* New columns */}
-        {!header.isPlaceholder &&
-          <ColumnShow
-            table={table}
-            header={header}
-            columnVisibility={columnVisibility}
-            setColumnVisibility={setColumnVisibility}
-            columnOrder={columnOrder}
-            setColumnOrder={setColumnOrder}
-            ColumnCreate={ColumnCreate}
-          />
-        }
+        {/* Right edge components stack */}
+        <div className="absolute -right-2 top-0 bottom-0" style={{ width: '15px', height: '100%' }}>
+            {/* Column pinner - top third */}
+            {isLastLeftPinnedColumn && (
+                <div className="absolute top-0 right-0" style={{ height: '33.33%' }}>
+                    <ColumnPinner 
+                        column={header.column}
+                        table={table}
+                        columnPinning={columnPinning}
+                        columnOrder={columnOrder}
+                        pinningState={pinningState}
+                        setPinningState={setPinningState}
+                    />
+                </div>
+            )}
 
+            {/* Column show - middle third */}
+            {!header.isPlaceholder && (
+                <div className="absolute top-1/3 right-0" style={{ height: '33.33%' }}>
+                    <ColumnShow
+                        table={table}
+                        header={header}
+                        columnVisibility={columnVisibility}
+                        setColumnVisibility={setColumnVisibility}
+                        columnOrder={columnOrder}
+                        setColumnOrder={setColumnOrder}
+                        ColumnCreate={ColumnCreate}
+                    />
+                </div>
+            )}
+
+            {/* Column resizer - bottom third */}
+            <div className="absolute bottom-0 right-0" style={{ height: '33.33%' }}>
+                <ColumnResizer column={header.column} resizeHandler={resizeMap[header.column.id]}/>
+            </div>
+        </div>
       </div>
+      {children}
     </TableHead>
   );
 };
