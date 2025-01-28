@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import Selection from "@/components/Interfaces/Details/Selection/Selection";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { Plus } from "lucide-react";
-import { TableArguments, LogFieldsResponseProps, LogFieldsProps, LogsResponseProps } from "@/types/evals/logs";
+import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import LogsPlot from "@/components/Interfaces/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Interfaces/Table/Table";
-import { ItemType, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
+import { ItemType, LogsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 
 const Card = ({
     mode,
@@ -40,17 +40,9 @@ const Card = ({
     fields: LogFieldsResponseProps,
     tableNames: string[],
     tableData: TableDataProps,
-    tableArguments: TableArguments,
     plotData: PlotDataProps,
-    logsActions: {
-        get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
-        getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
-        getMetrics: (
-            project: string, filterExpression: string | null, metricName: string, keyName: string
-        ) => Promise<number>,
-        delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>;
-        derive: (project: string, key: string, equation: string, referenced_logs: TableArguments) => Promise<ResponseProps>
-    },
+    tableArguments: TableArguments,
+    logsActions: LogsActions,
     index: string,
     item: TileProps,
     originalItem: TileProps,
@@ -63,18 +55,23 @@ const Card = ({
     updateInterface: () => Promise<ResponseProps>,
 }) => {
     const router = useRouter();
+    const [initial, setInitial] = useState(true);
     const tab = items.find(item => item.i == index)?.tab
     const tabTypes = ["Table", "Plot", "View"];
     const relevantItem = item.table ? items.find(it => it.i == item.table) : undefined
 
     useEffect(() => {
-        if (item.tab != "View" && JSON.stringify(item) != JSON.stringify(originalItem)) {
+        if (item.tab != "View" && !initial) {
             updateInterface().then(() => {
-                router.refresh();
                 setPending(true);
+                router.refresh();
             });
         }
     }, [item.tab, item.filters, item.context, item.common_filter, item.sorting, item.page_number, item.metric, item.plot_type, item.x_axis, item.y_axis]);
+
+    useEffect(() => {
+        setInitial(false);
+    }, []);
 
     return (<div className="no-drag relative flex w-full h-full border rounded-lg">
         <div className={"w-full flex-1 flex flex-col items-center " + (tab ? "mt-2" : "justify-center")}>
@@ -112,11 +109,11 @@ const Card = ({
                         {(mode != "edit" ? [] : tableNames).map((tile, idx) => <DropdownMenuItem
                             key={idx}
                             onSelect={() => updateItem(item, "table")(tile)}
-                            disabled={tableData[tile].logs.length == 0}
+                            disabled={(tableData[tile]?.logs || []).length == 0}
                             className="w-64 no-drag"
                         >
                             {tile}
-                            {tableData[tile].logs.length ? "" : " (empty table)"}
+                            {(tableData[tile]?.logs || []).length ? "" : " (empty table)"}
                         </DropdownMenuItem>)}
                     </BaseDropdown>
                 </div>}
@@ -146,7 +143,7 @@ const Card = ({
                 fields={fields}
                 tableArguments={tableArguments}
                 tableDataItem_={{
-                    ...tableData[item.i],
+                    ...(tableData[item.i] || {}),
                     logs: tableData[item.i]?.logs || [],
                     entriesProperties: tableData[item.i]?.entriesProperties || [],
                     paramsProperties: tableData[item.i]?.paramsProperties || [],

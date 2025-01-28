@@ -1,6 +1,7 @@
 "use client";
 
 import { KeyboardEventHandler, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/UI/input";
 import SubmitButton from "@/components/Common/Buttons/Submit";
 import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs"
@@ -10,15 +11,16 @@ import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuGroup } from "@/compon
 import { Plus } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 
-const ColumnCreate = ({ project, currentTable, tableArguments, fields, derive, refresh }: {
+const ColumnCreate = ({ project, currentTable, tableArguments, fields, derive, setPending, refresh }: {
     project: string,
     currentTable: string,
     tableArguments: {[table_name:string]: {[table_argument: string]: string}},
     fields: LogFieldsResponseProps,
     derive: (project: string, key: string, equation: string, referenced_logs: TableArguments) => Promise<ResponseProps>,
-    refresh: Promise<void>
+    setPending: (pending: boolean) => void,
+    refresh: () => Promise<ResponseProps>,
 }) => {
-
+    const router = useRouter();
     const tables = Object.keys(tableArguments)
     const columns = Object.keys(fields);
     const appendRegex = new RegExp(`(?<!(${tables.join('|')})\\:)(${columns.join('|')})`, 'g'); // Replace standalone column names with current_table.column_name
@@ -61,8 +63,9 @@ const ColumnCreate = ({ project, currentTable, tableArguments, fields, derive, r
             if ("info" in response) {
                 setErrorMessage("");
                 setOpen(false);
-                refresh.then(() => {
-                    return;
+                refresh().then(() => {
+                    router.refresh();
+                    setPending(true);
                 });
                 return;
             } 

@@ -28,8 +28,8 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
     const interface_1 = Object.keys(interfacesTemp_).find(i => i == interface_) || (
         Object.keys(interfacesTemp_).length ? Object.keys(interfacesTemp_).sort()[0] : null
     );
-    let currentInterface = (interface_ && interface_ in interfacesTemp_) ? interfacesTemp_[interface_] : null;
-    let savedInterface = interfaceCreated ? interfaces_[interface_ as string] : null;
+    let currentInterface = (interface_1 && interface_1 in interfacesTemp_) ? interfacesTemp_[interface_1] : null;
+    let savedInterface = interfaceCreated ? interfaces_[interface_1 as string] : null;
 
     // Get fields
     let fields: LogFieldsResponseProps = {};
@@ -211,11 +211,8 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
         fields={fields}
         plotData={plotData}
         savedInterface={savedInterface}
-        interface_1={interface_1}
-        items_={currentInterface?.items || []}
-        newCounter_={currentInterface?.new_counter || 0}
         interfaceCreated={interfaceCreated}
-        tempInterfaceCreated={Boolean(currentInterface)}
+        interface_1={interface_1}
         filterExpressions={filterExpressions}
         sortingExpressions={sortingExpressions}
         projectActions={projectsActions}

@@ -6,8 +6,6 @@ import Card from "./Card";
 import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import { FileProps, ResponseProps } from "@/types/common";
 import { Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
-import { Switch } from "../UI/switch";
-import { Label } from "../UI/label";
 import ActionButton from "../Common/Buttons/Action";
 import { Check, Clipboard, Copy, Eye, EyeOff, Grip, ListRestart, Loader2, Maximize2, Plus, Save, Trash, TriangleAlert, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
@@ -36,11 +34,8 @@ const CardGrid = ({
     fields,
     plotData,
     savedInterface,
-    interface_1,
-    items_,
-    newCounter_,
     interfaceCreated,
-    tempInterfaceCreated,
+    interface_1,
     filterExpressions,
     sortingExpressions,
     projectActions,
@@ -56,11 +51,8 @@ const CardGrid = ({
     fields: LogFieldsResponseProps,
     plotData: PlotDataProps,
     savedInterface: Interface | null,
-    interface_1: string | null,
-    items_: TileProps[],
-    newCounter_: number,
     interfaceCreated: boolean,
-    tempInterfaceCreated: boolean,
+    interface_1: string | null,
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
     projectActions: ProjectsActions,
@@ -68,32 +60,48 @@ const CardGrid = ({
     interfaceActions: InterfaceActions,
 }) => {
     const router = useRouter();
-    const [items, setItems] = useState<TileProps[]>(items_ ? [...items_.map(item => ({ ...item }))] : []);
-    const [newCounter, setNewCounter] = useState(newCounter_ || 0);
-    const [showSaveDialog, setShowSaveDialog] = useState(false);
-    const [saveSuccess, setSaveSuccess] = useState<boolean>();
-    const [resetting, setResetting] = useState<boolean>();
-    const [mode, setMode] = useState<"edit" | "interactive" | "dashboard">("edit");
-    const [interfaces, setInterfaces] = useState(interfaces_);
-    const [interface_, setInterface] = useQueryState("interface", { shallow: false });
-    const [project, setProject] = useQueryState("project", { shallow: false });
-    const [interface_2, setInterface_2] = useState(interface_ || "");
-    const [pending, setPending] = useState<{ [key: string]: boolean }>(
-        Object.fromEntries(Object.keys(tableData).map(k => [k, false]))
-    );
-    const [changedDuringReload, setChangedDuringReload] = useState(false);
-    const [firstRender, setFirstRender] = useState(true);
-    const [projectPending, setProjectPending] = useState(false);
+
+    // layout structure
+    const [items, setItems] = useState<TileProps[]>([]);
+    const [newCounter, setNewCounter] = useState(0);
+    const [tempInterfaceCreated, setTempInterfaceCreated] = useState(false);
+
+    // modals
+    const [saveDialog, setSaveDialog] = useState(false);
     const [maxTile, setMaxTile] = useState<string>();
     const [editTile, setEditTile] = useState<string>();
     const [newTileName, setNewTileName] = useState<string>();
+
+    // save and reset buttons
+    const [saveSuccess, setSaveSuccess] = useState<boolean>();
+    const [resetting, setResetting] = useState<boolean>(false);
+
+    // modes and copy button
+    const [mode, setMode] = useState<"edit" | "interactive" | "dashboard">("edit");
     const [copied, setCopied] = useState<string>();
+
+    // data fields
+    const [interfaces, setInterfaces] = useState(interfaces_);
+    const [interface_, setInterface] = useQueryState("interface", { shallow: false });
+    const finalInterface = interface_ || interface_1;
+    const [project, setProject] = useQueryState("project", { shallow: false });
+    const [interface_2, setInterface_2] = useState(finalInterface || "");
+
+    // pending fields
+    const [tilePending, setTilePending] = useState<{ [key: string]: boolean }>(
+        Object.fromEntries(Object.keys(tableData).map(k => [k, false]))
+    );
+    const [dataPending, setDataPending] = useState(false);
+    const [pending, setPending] = useState(true);
+
+    // other variables
     const gridRef = useRef<HTMLDivElement>(null);
-    const anyPending = Object.entries(pending).some(([_, value]) => value);
+    const anyTilePending = Object.entries(tilePending).some(([_, value]) => value);
     const maxTileItem = items.find(item => item.i == maxTile) as TileProps;
     const hiddenItems = items.filter(item => !item.visible);
     const data = (projects || []).map((p) => ({ path: p, type: "file" }));
 
+    // update any attribute of an item
     const updateItem = (item: TileProps, attrName: ItemType) => {
         return (newValue: any | undefined) => {
             item[attrName] = newValue;
@@ -101,6 +109,7 @@ const CardGrid = ({
         }
     }
 
+    // reset all attributes when a data field is changed
     const resetParamsStates = () => {
         items.filter(item => item.tab == "Table").map(item => {
             updateItem(item, "selected")("");
@@ -116,22 +125,22 @@ const CardGrid = ({
         })
     };
 
+    // update interface
     const updateInterface = (
         savedInterface: Interface | null = null,
     ) => {
-        if (anyPending)
-            setChangedDuringReload(true);
         const items_1 = savedInterface?.items || items;
         const newCounter_1 = savedInterface?.new_counter || newCounter;
-        if (interface_ && project) {
+        if (finalInterface && project && !pending) {
             if (tempInterfaceCreated)
-                return interfaceActions.update(interface_, project, items_1, newCounter_1, undefined, true);
+                return interfaceActions.update(finalInterface, project, items_1, newCounter_1, undefined, true);
             else
-                return interfaceActions.create(interface_, project, items_1, newCounter_1, true);
+                return interfaceActions.create(finalInterface, project, items_1, newCounter_1, true);
         }
         return Promise.reject();
     }
 
+    // edit tile name
     const saveTileName = () => {
         if (newTileName) {
             const newItems = items.map(
@@ -149,68 +158,60 @@ const CardGrid = ({
         setNewTileName(undefined);
     }
 
-    useEffect(() => {
-        if (interface_ && project && interface_ != interface_1 && project != project_) {
-            const items_1 = items.map(item => ({
-                i: item.i,
-                x: item.x,
-                y: item.y,
-                w: item.w,
-                h: item.h,
-                moved: item.moved,
-                static: item.static,
-                tab: item.tab,
-                table: item.table,
-                visible: item.visible,
-            }));
-            updateInterface({ name: interface_, project, items: items_1, new_counter: newCounter }).then(
-                () => { router.refresh(); }
-            );
-            setItems([...items_1]);
-            setPending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
-        }
-    }, [project, interface_]);
+    // get latest interface
+    const getLatestInterface = () => {
+        interfaceActions.get(project as string, true).then((ints: Interface[]) => {
+            const currentInterface = ints.find(i => i.name == finalInterface);
+            setItems(currentInterface?.items || []);
+            setNewCounter(currentInterface?.new_counter || 0);
+            setTempInterfaceCreated(Boolean(currentInterface));
+            setPending(false);
+            setInterfaces(ints.map(int => int.name).sort());
+            setInterface_2(finalInterface as string);
+        });
+    }
 
+    // set the items and new counter whenever project or interface changes
     useEffect(() => {
-        if (JSON.stringify(items) != JSON.stringify(items_))
-            updateInterface();
+        if (project && finalInterface)
+            getLatestInterface();
+    }, [project, finalInterface]);
+
+    // update interface whenever items change
+    useEffect(() => {
+        updateInterface();
     }, [items]);
 
+    // trigger update when table data changes (server reloaded)
     useEffect(() => {
-        if (!changedDuringReload) {
-            setItems([...items_.map(item => ({ ...item }))]);
-            setNewCounter(newCounter_);
-            setChangedDuringReload(false);
-        }
-        setFirstRender(true);
-        setProjectPending(false);
-        setInterfaces(interfaces_);
-        setProject(project_ || null);
-        setInterface(interface_1 || null);
-        setInterface_2(interface_1 || "");
-        setPending(Object.fromEntries(Object.keys(tableData).map(k => [k, false])));
+        setDataPending(false);
+        setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, false])));
+        if ((pending || resetting) && project && finalInterface)
+            getLatestInterface();
         setResetting(false);
-    }, [items_, project_, interface_1, interfaces_, newCounter_])
+    }, [tableData]);
 
+    // scroll to the bottom whenever new items are added
     useEffect(() => {
         gridRef.current?.scrollTo({
             top: gridRef.current?.scrollHeight,
             behavior: "smooth",
         });
-        setFirstRender(false);
     }, [newCounter]);
 
+    // end success green after 3 seconds
     useEffect(() => { setTimeout(() => setSaveSuccess(undefined), 3000); }, [saveSuccess]);
 
+    // icons, variants and disabled variables for saving and resetting
     const saveIcon = saveSuccess ? <Check /> : saveSuccess == false ? <TriangleAlert /> : <Save />;
     const resetIcon = resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
     const variant = saveSuccess == false ? "destructive" : "outline";
-    const disabled = JSON.stringify(savedInterface) == JSON.stringify(
-        { items, new_counter: newCounter, project: project_, name: interface_1 }
-    );
+    const disabled = JSON.stringify({ items: savedInterface?.items }) == JSON.stringify({ items });
 
     return (<div className="w-full h-full overflow-auto" ref={gridRef}>
-        <Tabs value={interface_ || undefined} onValueChange={(value: string | undefined) => {
+        <Tabs value={finalInterface || undefined} onValueChange={(value: string | undefined) => {
+            setPending(true);
+            setDataPending(true);
             setInterface_2(value || "");
             setInterface(value || null);
         }} className="w-full tutorial-details-panel">
@@ -222,7 +223,8 @@ const CardGrid = ({
                         setterFunction={(proj: FileProps | undefined) => {
                             const newProj = proj ? proj.path : null;
                             resetParamsStates();
-                            setProjectPending(true);
+                            setPending(true);
+                            setDataPending(true);
                             setProject(newProj);
                         }}
                         type="Projects"
@@ -233,6 +235,8 @@ const CardGrid = ({
                             <CloseProject
                                 onClick={() => {
                                     resetParamsStates();
+                                    setPending(true);
+                                    setDataPending(true);
                                     setProject(null);
                                 }}
                             />
@@ -243,6 +247,8 @@ const CardGrid = ({
                                 variant="outline"
                                 onDelete={() => {
                                     resetParamsStates();
+                                    setPending(true);
+                                    setDataPending(true);
                                     setProject(null);
                                 }}
                             />
@@ -252,24 +258,25 @@ const CardGrid = ({
                 </div>
 
                 {project && <div className="flex gap-4">
-                    {interfaces.length > 0 &&<TabsList className="rounded-md justify-between">
+                    {interfaces.length > 0 && <TabsList className="rounded-md justify-between">
                         <div className="flex flex-row gap-3">
                             {interfaces.map((int_, idx) => <TabsTrigger
                                 key={idx}
                                 value={int_}
-                                disabled={projectPending}
+                                disabled={pending || dataPending}
                                 className="flex flex-row gap-2 data-[state=active]:text-accent"
                             >
-                                {interface_ == int_ ? <Input
+                                {finalInterface == int_ ? <Input
                                     value={interface_2}
+                                    disabled={pending || dataPending}
                                     onInput={(event: React.ChangeEvent<HTMLInputElement>) => setInterface_2(event.target.value)}
                                     onKeyDown={(e) => {
                                         if (e.key === "Enter" && int_ != interface_2) {
                                             interfaceActions.update(
                                                 int_, project, items, newCounter, interface_2, true
                                             ).then(() => {
+                                                setPending(true);
                                                 setInterface(interface_2);
-                                                setProjectPending(true);
                                             });
                                         }
                                     }}
@@ -283,23 +290,25 @@ const CardGrid = ({
                             variant="outline"
                             icon={<Plus />}
                             tooltip={"Add new interface"}
-                            disabled={projectPending}
+                            disabled={pending}
                             onClick={() => interfaceActions.create(
                                 `interface_${interfaces.length + 1}`, project, [], 0, true
                             ).then(() => {
                                 setInterfaces([...interfaces, `interface_${interfaces.length + 1}`]);
-                                setPending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
+                                setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
                                 setInterface(`interface_${interfaces.length + 1}`);
+                                setInterface_2(`interface_${interfaces.length + 1}`);
                             })}
                         />
                         <ActionButton
                             variant="outline"
                             icon={<Trash />}
                             tooltip={"Delete current active interface"}
-                            disabled={projectPending}
-                            onClick={() => interfaceActions.delete(interface_ as string, project, true).then(() => {
-                                setProjectPending(true);
-                                router.refresh();
+                            disabled={pending}
+                            onClick={() => interfaceActions.delete(finalInterface as string, project, true).then(() => {
+                                setPending(true);
+                                setInterface(null);
+                                setInterface_2("");
                             })}
                         />
                     </div>
@@ -311,15 +320,15 @@ const CardGrid = ({
                         tooltip={!project ? "Select a project first" : "Save Interface"}
                         icon={saveIcon}
                         variant={variant}
-                        disabled={disabled || anyPending || !project || !interface_ || projectPending}
-                        onClick={async () => setShowSaveDialog(true)}
+                        disabled={disabled || anyTilePending || !project || !finalInterface || pending}
+                        onClick={async () => setSaveDialog(true)}
                     />
                     <ActionButton
                         className="transition-all"
                         tooltip={!project ? "Select a project first" : "Return to last saved interface"}
                         icon={resetIcon}
                         variant="outline"
-                        disabled={disabled || anyPending || !project || projectPending}
+                        disabled={disabled || anyTilePending || !project || pending}
                         onClick={async () => updateInterface(savedInterface).then(() => {
                             setResetting(true);
                             setMode("edit");
@@ -331,7 +340,7 @@ const CardGrid = ({
                         icon={<Plus />}
                         text="Add Tile"
                         tooltip={(mode != "edit" || !project) ? "Select a project first" : "Add new tile"}
-                        disabled={mode != "edit" || !project || projectPending}
+                        disabled={mode != "edit" || !project || pending}
                         onClick={() => {
                             setItems([
                                 ...items,
@@ -354,7 +363,7 @@ const CardGrid = ({
                             icon={<Eye />}
                             tooltip="Show Hidden"
                             size="sm"
-                            disabled={hiddenItems.length == 0 || projectPending}
+                            disabled={hiddenItems.length == 0 || pending}
                         />}
                     >
                         {hiddenItems.map((item, idx) => <DropdownMenuItem
@@ -381,7 +390,7 @@ const CardGrid = ({
                         variant="outline"
                         icon={<Clipboard />}
                         tooltip="Paste"
-                        disabled={!copied || projectPending}
+                        disabled={!copied || pending}
                         onClick={() => {
                             const copiedItem = items.find(item => item.i == copied) as TileProps;
                             setItems([
@@ -406,13 +415,13 @@ const CardGrid = ({
                     />
                 </div>
             </div>
-            {interfaces.map((interface_, idx) => <TabsContent key={idx} value={interface_} className="tutorial-selection-pane px-3">
-                {projectPending
+            {interfaces.map((int_, idx) => <TabsContent key={idx} value={int_} className="tutorial-selection-pane px-3">
+                {pending
                     ? <div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>
-                    : interface_1 == interface_ ? <ResponsiveReactGridLayout
+                    : interface_1 == int_ ? <ResponsiveReactGridLayout
                         key={idx}
                         onLayoutChange={(newLayout) => {
-                            if (!firstRender) {
+                            if (!pending) {
                                 const updatedItems = newLayout.map((item) => {
                                     const originalItem = items.find(i => i.i === item.i);
                                     return { ...originalItem, ...item };
@@ -420,7 +429,7 @@ const CardGrid = ({
                                 setItems([...updatedItems]);
                             }
                             else
-                                setFirstRender(false);
+                                setPending(false);
                         }}
                         className="layout interactive-grid flex-1"
                         cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
@@ -441,20 +450,20 @@ const CardGrid = ({
                                     <Card
                                         mode={mode}
                                         project={project || undefined}
-                                        pending={el.tab == "Table" ? pending[el.i] : false}
+                                        pending={pending || dataPending || (el.tab == "Table" ? tilePending[el.i] : false)}
                                         fields={fields}
                                         tableNames={tableNames}
                                         tableData={tableData}
-                                        tableArguments={tableArguments}
                                         plotData={plotData}
+                                        tableArguments={tableArguments}
                                         logsActions={logsActions}
                                         index={el.i}
                                         item={el}
-                                        originalItem={items_.find(i => i.i === el.i) as TileProps}
+                                        originalItem={{...items.find(i => i.i === el.i) as TileProps}}
                                         items={items}
                                         filterExpressions={filterExpressions}
                                         sortingExpressions={sortingExpressions}
-                                        setPending={(p: boolean) => setPending({ ...pending, [el.i]: p })}
+                                        setPending={(p: boolean) => setTilePending({ ...tilePending, [el.i]: p })}
                                         setItems={(items: TileProps[]) => setItems(items)}
                                         updateItem={updateItem}
                                         updateInterface={updateInterface}
@@ -522,7 +531,7 @@ const CardGrid = ({
                     <Card
                         mode={mode}
                         project={project || undefined}
-                        pending={maxTileItem.tab == "Table" ? pending[maxTileItem.i] : false}
+                        pending={pending || dataPending || (maxTileItem.tab == "Table" ? tilePending[maxTileItem.i] : false)}
                         tableNames={tableNames}
                         tableData={tableData}
                         tableArguments={tableArguments}
@@ -531,11 +540,11 @@ const CardGrid = ({
                         logsActions={logsActions}
                         index={maxTileItem.i}
                         item={maxTileItem}
-                        originalItem={items_.find(i => i.i === maxTileItem.i) as TileProps}
+                        originalItem={items.find(i => i.i === maxTileItem.i) as TileProps}
                         items={items}
                         filterExpressions={filterExpressions}
                         sortingExpressions={sortingExpressions}
-                        setPending={(p: boolean) => setPending({ ...pending, [maxTileItem.i]: p })}
+                        setPending={(p: boolean) => setTilePending({ ...tilePending, [maxTileItem.i]: p })}
                         setItems={(items: TileProps[]) => setItems(items)}
                         updateItem={updateItem}
                         updateInterface={updateInterface}
@@ -576,11 +585,11 @@ const CardGrid = ({
                 </div>
             </DialogContent>
         </Dialog>}
-        {showSaveDialog && <Dialog open={true} onOpenChange={() => setShowSaveDialog(false)}>
+        {saveDialog && <Dialog open={true} onOpenChange={() => setSaveDialog(false)}>
             <DialogContent className="w-1/4">
                 <div className="mt-4 flex flex-col gap-4">
                     <div>Are you sure you want to save the changes to <span className="font-semibold">
-                        {interface_}
+                        {finalInterface}
                     </span>?</div>
                     <div className="flex justify-end pr-2">
                         <ActionButton
@@ -589,14 +598,15 @@ const CardGrid = ({
                                 if (saveSuccess == undefined) {
                                     let response: ResponseProps | undefined = undefined;
                                     if (interfaceCreated)
-                                        response = await interfaceActions.update(interface_ as string, project as string, items, newCounter, undefined, false);
+                                        response = await interfaceActions.update(finalInterface as string, project as string, items, newCounter, undefined, false);
                                     else
-                                        response = await interfaceActions.create(interface_ as string, project as string, items, newCounter, false);
+                                        response = await interfaceActions.create(finalInterface as string, project as string, items, newCounter, false);
                                     if (response && "info" in response)
                                         setSaveSuccess(true);
                                     else
                                         setSaveSuccess(false);
-                                    setShowSaveDialog(false);
+                                    setSaveDialog(false);
+                                    router.refresh();
                                 }
                             }}
                             text="Save"

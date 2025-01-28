@@ -1,9 +1,7 @@
 "use client";
 
-import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
-import FileDirectory from "@/components/Tree/Directory/FileDirectory";
 import { TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import {
   ColumnDef,
@@ -12,9 +10,9 @@ import {
   ColumnPinningState,
   ColumnSizingState,
 } from "@tanstack/react-table";
-import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { FileProps, ResponseProps } from "@/types/common";
+import { ResponseProps } from "@/types/common";
 import { buildTree, nestedColumns, encodeRenderedDepth } from "@/utils/evals/table";
 import { Badge } from "@/components/UI/badge";
 import ColumnFilter from "./Buttons/Filters/Main";
@@ -24,20 +22,17 @@ import DeleteCells from "./Buttons/DeleteCells";
 import ColumnMetrics from "./Buttons/ColumnMetrics";
 import SummaryCell from "./Content/SummaryCell";
 import FooterCell from "./Content/FooterCell";
-import CreateProject from "./Buttons/CreateProject";
 import GlobalFilter from "./Buttons/GlobalFilter";
 import PageController from "@/components/Common/Tables/Data/Buttons/PageController";
-import CloseProject from "./Buttons/CloseProject";
 import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
 import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
-import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
+import { ItemType, TableDataItem, TileProps } from "@/types/evals/grid";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
-import { useRouter } from "next/navigation";
 
 const LogsTable = ({
   interactive,
@@ -103,8 +98,6 @@ const LogsTable = ({
   setPending: (pending: boolean) => void,
 }) => {
 
-  const router = useRouter();
-  
   // extract necessary fields
   const [tableDataItem, setTableDataItem] = useState(tableDataItem_);
   const { logs, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
@@ -448,10 +441,8 @@ const LogsTable = ({
                     tableArguments={tableArguments}
                     fields={fields}
                     derive={logsActions.derive}
-                    refresh={updateInterface().then(() => {
-                        router.refresh();
-                        setPending(true);
-                    })}
+                    setPending={setPending}
+                    refresh={() => updateInterface()}
                   />
                 }
                 AggregatedCell={(cell, row) => (
