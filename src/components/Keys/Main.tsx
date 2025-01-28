@@ -2,7 +2,7 @@
 
 import { useState, useMemo, ReactNode } from "react";
 import CustomKeysTable from "./Table";
-import FileDirectory from "../Directory/FileDirectory";
+import FileDirectory from "../Tree/Directory/FileDirectory";
 import { FileProps } from "@/types/common";
 import { ResponseProps } from "@/types/common";
 import SinglePaneBody from "../Common/Body/SinglePaneBody";

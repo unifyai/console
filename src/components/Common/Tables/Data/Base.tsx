@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, ReactNode, MouseEvent } from "react";
+import { useMemo, ReactNode, MouseEvent, JSX, Ref, Dispatch, SetStateAction } from "react";
 
 import { ColumnFiltersState, GroupingState, Header, SortingState, Updater, useReactTable } from "@tanstack/react-table";
 import { getCoreRowModel, getFilteredRowModel, getExpandedRowModel, getGroupedRowModel, getSortedRowModel } from "@tanstack/react-table";
@@ -11,7 +11,7 @@ import { DndContext, closestCenter } from "@dnd-kit/core";
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 
-import { handleDragEnd } from "@/utils/evals/table";
+import { handleDragCancel, handleDragEnd, handleDragMove, handleDragOver, handleDragStart } from "@/utils/evals/table";
 import { Table, TableHeader, TableRow, TableBody, TableCell, TableFooter } from "@/components/UI/table";
 
 import DataTableHeader from "./Content/Header";
@@ -21,19 +21,23 @@ import { StateProps } from "@/types/dataTable";
 import { SetStateProps } from "@/types/dataTable";
 import { LogProps } from "@/types/evals/logs";
 
-export default function DataTable<TData, TValue>({ data, columns, state, setState, tableHotkeys, onRowClick, FooterCell, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
+import { useCellSelection } from "@/hooks/Logs/useCellSelection";
+
+export default function DataTable<TData, TValue>({ interactive, data, columns, state, setState, TableTop, FooterCell, ColumnCreate, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
+    interactive?: boolean,
     data: TData[],
     columns: ColumnDef<TData, TValue>[],
     state: StateProps,
     setState: SetStateProps,
-    tableHotkeys?: (table: TanstackTable<any | unknown>, logs: LogProps[] | undefined, setState: SetStateProps) => void
-    onRowClick?: (table: TanstackTable<any | unknown>, row: TanstackRow<any | unknown>, event: MouseEvent<HTMLTableRowElement, globalThis.MouseEvent>) => void,
-    FooterCell?: (column: TanstackColumn<any | unknown>) => ReactNode,
+    TableTop?: JSX.Element,
+    FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}) => ReactNode,
     ColumnFilters?: (column: TanstackColumn<any | unknown>) => ReactNode;
+    ColumnCreate?: ReactNode;
     AggregatedCell?: (cell: TanstackCell<any, unknown>, row: TanstackRow<any | unknown>) => ReactNode;
-    ExtraCellContent?: (cell: TanstackCell<any, unknown>) => ReactNode;
+    ExtraCellContent?: (cell: TanstackCell<any, unknown>, isCellExpanded: (cell: TanstackCell<any, unknown>) => boolean, setExpandedCells: Dispatch<SetStateAction<{[k: string]: boolean}>>) => ReactNode;
     ExtraComponents?: (table: TanstackTable<any | unknown>) => ReactNode
 }) {
+
     const setUpdatedState = (
         state: any, setterFunction: (x: any) => void, updater: Updater<any>
     ) => {
@@ -66,7 +70,16 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
         getFilteredRowModel: getFilteredRowModel(),
         getExpandedRowModel: getExpandedRowModel(),
         getGroupedRowModel: getGroupedRowModel(),
-        getSortedRowModel: getSortedRowModel(),
+        manualSorting: true,
+        getRowId(originalRow, index, parent) {
+            return (originalRow as LogProps).id.toString()
+        },
+        meta: {
+            createColumn: () => {
+                // updateLogs(...).then(...)
+                // window.location.reload();
+            },
+        }
     });
 
     // Set up drag-and-drop
@@ -75,8 +88,6 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
         useSensor(TouchSensor, {}),
         useSensor(KeyboardSensor, {})
     );
-
-    if (tableHotkeys) tableHotkeys(table, data as LogProps[], setState);
 
     const visibleColumns = table.getVisibleLeafColumns();
     const finalColumns = (
@@ -91,54 +102,75 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
         (header: Header<TData, unknown>) => ({[header.id]: header.getResizeHandler()})
     ).reduce((acc, curr) => ({...acc, ...curr}), {});
 
-    // click status (to avoid resizing from selecting rows)
-    let click = false;
+    const { isCellSelected, isRowSelected, isCellExpanded, setExpandedCells, ...cellSelection } = useCellSelection({
+        table,
+        selectedCells: state.selectedCells,
+        setSelectedCells: setState.setSelectedCells
+    });
 
-    return (<>
+    return (<div className="flex flex-col gap-2">
+        {TableTop && TableTop}
+        <div className="h-fit w-full">
         <DndContext
             collisionDetection={closestCenter}
             modifiers={[restrictToHorizontalAxis]}
-            onDragEnd={(event) => handleDragEnd(event, state.columnOrder, setState.setColumnOrder, state.grouping, setState.setGrouping, table.getAllFlatColumns())}
+            onDragStart={(event) => handleDragStart(event, state.draggingColumns, setState.setDraggingColumns, table.getAllFlatColumns())}
+            onDragMove={(event) => handleDragMove(event, state.draggingColumns, setState.setDraggingColumns, table.getAllFlatColumns())}
+            onDragOver={(event) => handleDragOver(event, state.draggingColumns, setState.setDraggingColumns, table.getAllFlatColumns())}
+            onDragEnd={(event) => handleDragEnd(event, state.columnOrder, setState.setColumnOrder, state.grouping, setState.setGrouping, setState.setDraggingColumns, table.getAllFlatColumns())}
+            onDragCancel={(event) => handleDragCancel(setState.setDraggingColumns)}
             sensors={sensors}
         >
-            <Table className="sticky top-0 z-10 max-h-[90vh] w-full" style={{ width: table.getTotalSize() }}>
-                <TableHeader className="sticky -top-[6px] z-10 bg-background">
+            <Table className="relative w-full" style={{ width: table.getTotalSize() }}>
+                <TableHeader className="sticky top-0 z-20 bg-background">
                     {table.getHeaderGroups().map((headerGroup) => (
                         <TableRow key={headerGroup.id}>
                             <SortableContext items={state.columnOrder} strategy={horizontalListSortingStrategy}>
                                 {headerGroup.headers.map((header) => (
                                     <DataTableHeader
                                         key={header.id}
+                                        interactive={interactive}
                                         header={header}
+                                        isCellSelected={isCellSelected}
+                                        cellSelection={cellSelection}
+                                        table={table}
                                         columnVisibility={state.columnVisibility}
                                         setColumnVisibility={setState.setColumnVisibility}
+                                        grouping={state.grouping}
+                                        setGrouping={setState.setGrouping}
                                         ColumnFilters={ColumnFilters}
+                                        ColumnCreate={ColumnCreate}
+                                        context={state.context}
+                                        setContext={setState.setContext}
+                                        draggingColumns={state.draggingColumns}
+                                        columnOrder={state.columnOrder}
+                                        setColumnOrder={setState.setColumnOrder}
                                     />
                                 ))}
                             </SortableContext>
                         </TableRow>
                     ))}
                 </TableHeader>
-                <TableBody>
+                <TableBody className="contents overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
                     {table.getRowModel().rows?.length ? (
                         <>
                             {table.getRowModel().rows.map((row, index) => (
-                                <TableRow
-                                    key={row.id}
-                                    onClick={(event) => click &&onRowClick && onRowClick(table, row, event)}
-                                    onMouseDown={() => {
-                                        click = true;
-                                    }}
-                                >
+                                <TableRow key={row.id}>
                                     {row.getVisibleCells().map(cell => {
                                         return (
                                             <SortableContext key={cell.id} items={state.columnOrder} strategy={horizontalListSortingStrategy}>
                                                 <DataTableCell
                                                     cell={cell}
                                                     row={row}
+                                                    selectedCells={state.selectedCells}
+                                                    isCellSelected={isCellSelected}
+                                                    cellSelection={cellSelection}
                                                     resizeMap={resizeMap}
                                                     ExtraCellContent={ExtraCellContent}
                                                     AggregatedCell={AggregatedCell}
+                                                    isCellExpanded={isCellExpanded}
+                                                    setExpandedCells={setExpandedCells}
+                                                    draggingColumns={state.draggingColumns}
                                                 />
                                             </SortableContext>
                                         );
@@ -154,11 +186,11 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
                         </TableRow>
                     )}
                 </TableBody>
-                <TableFooter className="sticky -bottom-[1px] z-10 bg-background">
+                <TableFooter className="sticky bottom-0 z-20 bg-background border-t-2 border-foreground">
                     <TableRow>
                         {finalColumns.map((column, index) =>
                             <SortableContext key={index} items={state.columnOrder} strategy={horizontalListSortingStrategy}>
-                                {FooterCell && FooterCell(column)}
+                                {FooterCell && FooterCell(column, resizeMap)}
                             </SortableContext>
                         )}
                     </TableRow>
@@ -166,7 +198,6 @@ export default function DataTable<TData, TValue>({ data, columns, state, setStat
             </Table>
         </DndContext>
         {ExtraComponents && ExtraComponents(table)}
-    </>);
+        </div>
+    </div>);
 }
-
-/* TODO: Add back Pagination*/

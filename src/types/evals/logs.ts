@@ -12,6 +12,7 @@ export interface LogProps {
     id: string,
     ts: string,
     entries: LogItemProps,
+    derived_entries: LogItemProps,
     params: LogItemProps
 } 
 
@@ -26,8 +27,10 @@ export interface LogsResponseProps {
     count: number
 }
 
-export interface LogColumnsProps {
-    [name: string]: { [name: string]: string }
+export type LogFieldsProps = [number, string][]
+
+export interface LogFieldsResponseProps {
+    [name: string]: {data_type: string, field_type: "entry" | "param" | "derived_entry"}
 }
 
 export interface HeaderNode {
@@ -38,12 +41,21 @@ export interface HeaderNode {
     isLeaf?: boolean; // Indicates if the node corresponds to a path in the input array
   }
 
+export interface TableArguments {
+    [table_name: string]: {
+        [table_argument: string]: string
+    }
+}
+
 declare module "@tanstack/react-table" {
     // eslint-disable-next-line no-unused-vars
     interface ColumnMeta<TData extends RowData, TValue> {
-      dataType: () => string | null,
+      dataType?: string | null,
+      fieldType?: string | null,
       columnType: string,
-      enableRowSpan: boolean
+      enableRowSpan?: boolean,
+      isParent: boolean,
+      renderedDepth: number,
     }
     interface Cell<TData extends RowData, TValue> {
         rowSpan: number,

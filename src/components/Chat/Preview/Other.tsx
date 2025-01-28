@@ -16,13 +16,12 @@ const OtherLanguages = ({languages, setSelectedLanguage, setSelectedVariant}: {
      
     const icon = <MoreHorizontal/>
     const button = <SettingButton icon={icon} tooltip={"Other languages"}/>
-    const label = `Select a language`;
     const onClick = (language: { key: string; label: string; variant: string }) => {
         setSelectedLanguage(language.key);
         setSelectedVariant(language.variant);
     }
     return (
-        <BaseDropdown button={button} label={label}>
+        <BaseDropdown button={button}>
             {languages.map((language, index) => 
                 <DropdownMenuItem key={index} onClick={() => onClick(language)}>
                     {`${language.key}-${language.variant}`}

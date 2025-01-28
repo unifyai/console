@@ -26,15 +26,16 @@ const GlobalFilter = ({ searchParams, columnNames, commonFilterQuery, setCommonF
                     onKeyDown={(e) => {
                         if (e.key === "Enter") {
                             if (commonFilter) {
-                                setCommonFilterQuery([
-                                    (commonFilter.startsWith('"') && commonFilter.endsWith('"')) ? commonFilter : `"${commonFilter}"`,
-                                    ...columnNames
-                                ].join(","));
+                                setCommonFilterQuery((commonFilter.startsWith('"') && commonFilter.endsWith('"')) 
+                                    ? commonFilter 
+                                    : `"${commonFilter}"`
+                                );
                             }
                             else
                                 setCommonFilterQuery(null);
                         }
                     }}
+                    className="h-8"
                 />
                 {commonFilter?.length ? <div className="absolute right-2 top-[9px]">
                     <X size={18} onClick={() => setCommonFilter("")} className="cursor-pointer" />

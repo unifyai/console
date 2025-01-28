@@ -13,9 +13,11 @@ const BillingPage: React.FC = async () => {
   const onPrem = process.env.ON_PREM;
 
   return (
-    <Suspense fallback={<SkeletonLoader />}>
-      {onPrem ? <OnPrem /> : <Main/>}
-    </Suspense>
+    <div className="w-full h-full p-1 overflow-auto">
+      <Suspense fallback={<SkeletonLoader />}>
+        {onPrem ? <OnPrem /> : <Main />}
+      </Suspense>
+    </div>
   );
 };
 

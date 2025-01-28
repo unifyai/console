@@ -2,17 +2,22 @@
 import { ReactNode } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/UI/dialog";
 
-export default function BaseDialog ({button, title, description, body, footer, open, setOpen}: {
+export default function BaseDialog ({button, title, description, body, footer, open, setOpen, onOpen}: {
     button: ReactNode, 
     title: string, 
     body: ReactNode, 
     footer?: ReactNode
     description?: string, 
     open?: boolean,
-    setOpen?: (open: boolean) => void
+    setOpen?: (open: boolean) => void,
+    onOpen?: () => void
 }) {
+  const onOpenChange = (o: boolean) => {
+    if (onOpen && o) onOpen()
+    if (setOpen) setOpen(o)
+  }
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => onOpenChange(o)}>
 
       <DialogTrigger>
         {button}

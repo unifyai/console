@@ -23,7 +23,10 @@ const ColumnResizer = ({column, resizeHandler}: {
       <div
         {...{
           onDoubleClick: () => column.resetSize(),
-          onMouseDown: resizeHandler,
+          onMouseDown: (e) => {
+            e.stopPropagation()
+            resizeHandler(e)
+          },
           onTouchStart: resizeHandler,
           style: resizerStyle,
         }}

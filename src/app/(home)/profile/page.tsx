@@ -26,9 +26,11 @@ const ProfilePage = async () => {
   }
 
   return (
-    <Suspense fallback={<SkeletonLoader />}>
-      <Main user={user} onPrem={onPrem} />
-    </Suspense>
+    <div className="w-full h-full p-1 overflow-auto">
+      <Suspense fallback={<SkeletonLoader />}>
+        <Main user={user} onPrem={onPrem} />
+      </Suspense>
+    </div>
   );
 };
 

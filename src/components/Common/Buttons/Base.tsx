@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 import { MouseEventHandler } from "react";
 export default function BaseButton ({text, icon, variant, disabled = false, type, size = "sm", onClick, className}: {
     text?: string,
-    variant?: "default" | "primary" | "secondary" | "destructive" | "outline" | "ghost" | "link",
+    variant?: "default" | "primary" | "secondary" | "destructive" | "warning" | "outline" | "ghost" | "link",
     icon?: ReactNode,
     disabled?: boolean,
     type?: "submit" | "reset" | "button" | undefined,

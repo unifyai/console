@@ -1,13 +1,19 @@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/UI/popover"
-import { ReactNode } from "react"
+import { Dispatch, ReactNode, SetStateAction } from "react"
 
-export function BasePopover({button, children}: {button: ReactNode, children: ReactNode}) {
+export function BasePopover({button, open, setOpen, className, children}: {
+  button: ReactNode, 
+  open?: boolean,
+  setOpen?: Dispatch<SetStateAction<boolean>>,
+  className?: string,
+  children: ReactNode
+}) {
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger>
         {button}
       </PopoverTrigger>
-      <PopoverContent className="w-fit px-[50px]">
+      <PopoverContent className={`${className ? className : "w-fit px-[50px]"}`}>
         {children}
       </PopoverContent>
     </Popover>

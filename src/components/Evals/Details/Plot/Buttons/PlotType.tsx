@@ -4,9 +4,38 @@ import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { ChevronDown } from "lucide-react";
-import { Dispatch, SetStateAction } from "react";
+import { LogFieldsResponseProps } from "@/types/evals/logs";
 
-const PlotType = ({plotType, setPlotType}: {plotType: string, setPlotType: (x: string | null) => void }) => {
+const PlotType = ({plotType, setPlotType, fields, selectedXAxisProperty, setSelectedXAxisProperty, selectedYAxisProperty, setSelectedYAxisProperty}: {
+    plotType: string, 
+    setPlotType: (x: string | null) => void,
+    fields: LogFieldsResponseProps,
+    selectedXAxisProperty: string | null,
+    setSelectedXAxisProperty: (x: string | null) => void    
+    selectedYAxisProperty: string | null,
+    setSelectedYAxisProperty: (x: string | null) => void
+}) => {
+
+    const properties = Object
+        .entries(fields)
+        .filter(([name, { data_type, field_type }]) => field_type != "param" && (data_type === "float" || data_type === "int"))
+        .map(([name]) => name);
+    
+    // Update plot type and
+    // - Set y axis to "count" if moving to a bar chart, or to the current y axis, or to the first numeric property if the current y axis isn't numeric
+    // - Set x axis to the current x axis, or the first numeric property if the current x axis isn't numeric
+    const onClick = (type: string) => {
+        setPlotType(type)
+        let yAxis: string;
+        if (type === "Bar Chart") {
+            yAxis = "count"
+        } else {
+            yAxis = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : properties[0];
+        }
+        setSelectedYAxisProperty(yAxis)
+        const xAxis = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties[0];
+        setSelectedXAxisProperty(xAxis)
+    } 
     return (
         <BaseDropdown
             button={
@@ -16,13 +45,12 @@ const PlotType = ({plotType, setPlotType}: {plotType: string, setPlotType: (x: s
                     tooltip="Plot type"
                 />
             }
-            label="Select plot type"
         >
         {
-            ["Scatter Plot", "Line Chart", "Bar Chart"].map((property, index) => {
+            ["Scatter Plot", "Line Chart", "Bar Chart", "Histogram"].map((type, index) => {
                 return (
-                    <DropdownMenuItem key={index} onClick={() => setPlotType(property)}>
-                        {property}
+                    <DropdownMenuItem key={index} onClick={() => onClick(type)}>
+                        {type}
                     </DropdownMenuItem>
                 );
             })

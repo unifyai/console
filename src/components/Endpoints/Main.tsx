@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import CustomEndpointsTable from "./Table";
-import FileDirectory from "../Directory/FileDirectory";
+import FileDirectory from "../Tree/Directory/FileDirectory";
 import { FileProps } from "@/types/common";
 import { ResponseProps } from "@/types/common";
 import SinglePaneBody from "../Common/Body/SinglePaneBody";

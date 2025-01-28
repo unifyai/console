@@ -20,24 +20,26 @@ const CustomEndpointsPage = async () => {
     // get custom endpoints
     const getEndpoints = await listCustomEndpoints(apiKey);
     const customEndpointsList = await getEndpoints();
-    const customEndpoints : FileProps[] = customEndpointsList.map((endpoint) => ({path: endpoint.name, type: "file", data: {...endpoint}}));
+    const customEndpoints: FileProps[] = customEndpointsList.map((endpoint) => ({ path: endpoint.name, type: "file", data: { ...endpoint } }));
 
     // get custom keys
     const getKeys = await listCustomKeys(apiKey);
     const customKeysList = await getKeys()
-    const customKeys : FileProps[] = customKeysList.map((key) => ({path: key.name, type: "file", data: {...key}}));
+    const customKeys: FileProps[] = customKeysList.map((key) => ({ path: key.name, type: "file", data: { ...key } }));
 
     // get server actions
-	const customEndpointActions = { 
-		rename: await renameCustomEndpoint(apiKey),
-		delete: await deleteCustomEndpoint(apiKey),
+    const customEndpointActions = {
+        rename: await renameCustomEndpoint(apiKey),
+        delete: await deleteCustomEndpoint(apiKey),
         create: await createCustomEndpoint(apiKey),
-	};
+    };
 
     return (
-        <Suspense fallback={<SkeletonLoader />}>
-            <Main customEndpoints={customEndpoints} customKeys={customKeys} customEndpointActions={customEndpointActions}/>
-        </Suspense>
+        <div className="w-full h-full p-1 overflow-auto">
+            <Suspense fallback={<SkeletonLoader />}>
+                <Main customEndpoints={customEndpoints} customKeys={customKeys} customEndpointActions={customEndpointActions} />
+            </Suspense>
+        </div>
     );
 };
 

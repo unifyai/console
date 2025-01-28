@@ -1,5 +1,10 @@
 "use server";
 
+import { TileProps } from "@/types/evals/grid";
+import { LogFieldsProps, TableArguments } from "@/types/evals/logs";
+import { sanitizeKey } from "./utils";
+import { ResponseProps } from "@/types/common";
+
 // create project
 export const createProject = async (apiKey: string) => {
     return async (name: string) => {
@@ -63,27 +68,30 @@ export const deleteProject = async (apiKey: string) => {
 
 // get logs
 export const getLogs = async (apiKey: string) => {
-    return async (project: string, filterExpression: string | null, limit: number | null, offset: number | null) => {
+    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number | null, _timestamp: string | null) => {
         "use server";
 
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/logs?project=${project}`
-            + (filterExpression ? `&filter_expr=${filterExpression}` : "")
+            + (context ? `&context=${context}` : "")
+            + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
+            + (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : "")
+            + (from_fields ? `&from_fields=${from_fields}` : "")
             + (limit ? `&limit=${limit}` : "")
             + (offset ? `&offset=${offset}` : ""),
-            { method: "GET", headers: { apiKey: apiKey } }
+            { method: "GET", headers: { apiKey: apiKey }, next: { tags: [`logs_${_timestamp}`] } },
         );
         return await response.json();
     };
 };
 
-// get log columns
-export const getLogColumns = async (apiKey: string) => {
+// get log fields
+export const getLogFields = async (apiKey: string) => {
     return async (project: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/logs/columns?project=${project}`,
+            `${process.env.NEXTAUTH_URL}/api/logs/fields?project=${project}`,
             { method: "GET", headers: { apiKey: apiKey } }
         );
         return await response.json();
@@ -99,20 +107,48 @@ export const getLogMetrics = async (apiKey: string) => {
     ) => {
         "use server";
 
+        // Sanitize the keyName before using it in the request
+        const sanitizedKey = sanitizeKey(keyName);
+
         const response = await fetch(
             (
-                `${process.env.NEXTAUTH_URL}/api/logs/${metricName}?project=${project}&key=${keyName}`
-                +  (filterExpression ? `&filter_expr=${filterExpression}` : "")
+                `${process.env.NEXTAUTH_URL}/api/logs/${metricName}?project=${project}&key=${sanitizedKey}`
+                +  (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
             ),
             { method: "GET", headers: { apiKey: apiKey } }
         );
+
+        if (!response.ok) {
+            console.error(response);
+            throw new Error("Network error");
+        }
+
         return await response.json();
     }
 };
 
+// get latest timestamp
+export const getLatestTimestamp = async (apiKey: string) => {
+    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number | null) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/logs/latest_timestamp?project=${project}`
+            + (context ? `&context=${context}` : "")
+            + (filterExpression ? `&filter_expr=${filterExpression}` : "")
+            + (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : "")
+            + (from_fields ? `&from_fields=${from_fields}` : "")
+            + (limit ? `&limit=${limit}` : "")
+            + (offset ? `&offset=${offset}` : ""),
+            { method: "GET", headers: { apiKey: apiKey } }
+        );
+        return await response.json();
+    };
+};
+
 // delete logs
 export const deleteLogs = async (apiKey: string) => {
-    return async (ids: string[]) => {
+    return async (ids_and_fields: LogFieldsProps) => {
         "use server";
 
         const response = await fetch(
@@ -120,8 +156,93 @@ export const deleteLogs = async (apiKey: string) => {
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ ids })
+                body: JSON.stringify({ ids_and_fields })
             }
+        );
+        return await response.json();
+    };
+};
+
+// create derived entry
+export const createDerivedEntry = async (apiKey: string) => {
+    return async (project: string, key: string, equation: string, referenced_logs: TableArguments): Promise<ResponseProps> => {
+        "use server";
+
+        try {
+            const response = await fetch(
+                `${process.env.NEXTAUTH_URL}/api/logs/derived`,
+                {
+                    method: "PUT",
+                    headers: { apiKey: apiKey },
+                    body: JSON.stringify({ project, key, equation, referenced_logs })
+                }
+            );
+            return await response.json();
+        } catch (e) {
+            console.log(`Failed to create derived entry with error: ${e}`)
+            return {detail: "Failed to create derived entry, please try again."}
+        }
+    }
+}
+
+// create interface
+export const createInterface = async (apiKey: string) => {
+    return async (name: string, project: string, items: TileProps[], new_counter: number, temporary: boolean = false) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/interface`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({ name, project, items, new_counter, temporary })
+            }
+        );
+        return await response.json();
+    };
+};
+
+// get interface
+export const getInterface = async (apiKey: string) => {
+    return async (project: string, temporary: boolean = false) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/interface?temporary=${temporary}&project=${project}`,
+            { method: "GET", headers: { apiKey: apiKey } }
+        );
+        if (!response.ok)
+            return null;
+        return await response.json();
+    };
+};
+
+// update interface
+export const updateInterface = async (apiKey: string) => {
+    return async (name: string, project: string, items: TileProps[], new_counter: number, new_name: string | undefined = undefined, temporary: boolean = false) => {
+        "use server";
+
+        const body = { name, project, items, new_counter, temporary };
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/interface`,
+            {
+                method: "PUT",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify(new_name ? {...body, new_name} : body)
+            },
+        );
+        return await response.json();
+    };
+};
+
+// delete interface
+export const deleteInterface = async (apiKey: string) => {
+    return async (name: string, project: string, temporary: boolean = false) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/interface?name=${name}&project=${project}&temporary=${temporary}`,
+            { method: "DELETE", headers: { apiKey: apiKey } },
         );
         return await response.json();
     };

@@ -1,5 +1,6 @@
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
-import { CodeBlock } from '@/components/UI/Chat/markdown-renderer';
+import { useTheme } from "next-themes";
+
 const modes = {
     "characters" : DiffMethod.CHARS,
     "words" : DiffMethod.WORDS,
@@ -39,7 +40,7 @@ const DiffViewer = ({oldValue, newValue, showDiffOnly = false, hideMarkers = tru
 
     const render = (str: string) => <p className='text-foreground'>{str}</p>
     return (
-        <div className="rounded-md border bg-background/50 p-4 font-mono text-sm w-full max-h-[200px] overflow-y-auto">
+        <div className="bg-background p-4 font-mono text-sm w-full">
             <ReactDiffViewer 
                 oldValue={oldValue} 
                 newValue={newValue}
@@ -50,6 +51,7 @@ const DiffViewer = ({oldValue, newValue, showDiffOnly = false, hideMarkers = tru
                 showDiffOnly={showDiffOnly}
                 compareMethod={modes[mode]}
                 renderContent={render}
+                useDarkTheme={useTheme().theme === "dark"}
             />
         </div>
     )

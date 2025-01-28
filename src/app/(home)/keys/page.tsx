@@ -20,23 +20,25 @@ const CustomKeysPage = async () => {
     // get custom keys
     const getKeys = await listCustomKeys(apiKey);
     const customKeysList = await getKeys();
-    const customKeys : FileProps[] = customKeysList.map((key) => ({path: key.name, type: "file", data: {...key}}));
-    
+    const customKeys: FileProps[] = customKeysList.map((key) => ({ path: key.name, type: "file", data: { ...key } }));
+
     // get default providers
     const getProviders = await listProviders(apiKey);
     const providers = await getProviders();
 
     // get server actions
-	const customKeyActions = { 
-		rename: await renameCustomKey(apiKey),
-		delete: await deleteCustomKey(apiKey),
+    const customKeyActions = {
+        rename: await renameCustomKey(apiKey),
+        delete: await deleteCustomKey(apiKey),
         create: await createCustomKey(apiKey)
-	};
+    };
 
     return (
-        <Suspense fallback={<SkeletonLoader />}>
-            <Main apiKey={apiKey} onPrem={onPrem} providers={providers} customKeys={customKeys} customKeyActions={customKeyActions}/>
-        </Suspense>
+        <div className="w-full h-full p-1 overflow-auto">
+            <Suspense fallback={<SkeletonLoader />}>
+                <Main apiKey={apiKey} onPrem={onPrem} providers={providers} customKeys={customKeys} customKeyActions={customKeyActions} />
+            </Suspense>
+        </div>
     );
 };
 

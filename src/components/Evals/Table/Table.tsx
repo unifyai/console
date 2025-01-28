@@ -3,381 +3,559 @@
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
-import FileDirectory from "@/components/Directory/FileDirectory";
-import { LogProps, LogsResponseProps } from "@/types/evals/logs";
-import { Row, ColumnDef, ColumnFiltersState, ColumnSort, ColumnPinningState, Updater, ColumnSizingState } from "@tanstack/react-table";
-import React, { useEffect, useState } from "react";
-import { Loader2 } from 'lucide-react';
+import FileDirectory from "@/components/Tree/Directory/FileDirectory";
+import { TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
+import {
+  ColumnDef,
+  ColumnFiltersState,
+  ColumnSort,
+  ColumnPinningState,
+  Updater,
+  ColumnSizingState,
+} from "@tanstack/react-table";
+import React, { useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { FileProps, ResponseProps } from "@/types/common";
-import { buildTree, nestedColumns, onRowClick } from "@/utils/evals/table";
+import { buildTree, encodeRenderedDepth, nestedColumns } from "@/utils/evals/table";
 import { Badge } from "@/components/UI/badge";
 import { useQueryState } from "nuqs";
-import { useTableHotkeys } from "@/hooks/Logs/useTableHotkeys";
-import ColumnFilter from "./Buttons/ColumnFilter";
+import ColumnFilter from "./Buttons/Filters/Main";
 import AggregatedCell from "./Content/AggregatedCell";
 import VisibilityFilter from "./Buttons/VisibilityFilter";
-import DeleteRows from "./Buttons/DeleteRows";
+import DeleteCells from "./Buttons/DeleteCells";
 import ColumnMetrics from "./Buttons/ColumnMetrics";
 import SummaryCell from "./Content/SummaryCell";
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
+import FooterCell from "./Content/FooterCell";
 import CreateProject from "./Buttons/CreateProject";
 import GlobalFilter from "./Buttons/GlobalFilter";
 import PageController from "@/components/Common/Tables/Data/Buttons/PageController";
+import CloseProject from "./Buttons/CloseProject";
+import { extractBaseAndComparisonLogs, getPartAfterFirstUnderscore } from "@/utils/evals/selection";
+import { parseAsArrayOf, parseAsString } from "nuqs";
+import RefreshLogs from "./Buttons/RefreshLogs";
+import { searchParamToFilters } from "@/utils/evals/filters";
+import CellPopover from "./Content/CellPopover";
+import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
+import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
+import { DraggingColumnsState } from "@/types/evals/columns";
+import ColumnCreate from "@/components/Evals/Table/Buttons/ColumnCreate";
 
 const LogsTable = ({
-	searchParams,
-	projects,
-	project,
-	logs,
-	entriesProperties,
-	paramsProperties,
-	metrics,
-	logsData,
-	totalPages,
-	columnTypes,
-	projectActions,
-	logsActions
+  searchParams,
+  projects,
+  project,
+  logs,
+  fields,
+  tableArguments,
+  entriesProperties,
+  paramsProperties,
+  metrics,
+  logsData,
+  totalPages,
+  projectActions,
+  logsActions,
+  fieldsActions,
+  boundaries,
+  filterExpression,
+  sortingExpression,
 }: {
-	searchParams: { project?: string, page_number?: string, metric?: string, filters?: string, common_filter?: string },
-	projects: string[] | undefined,
-	project: string | undefined,
-	logs: LogProps[],
-	entriesProperties: string[],
-	paramsProperties: string[],
-	metrics: { [key: string]: any }
-	logsData: LogsResponseProps,
-	totalPages: number,
-	columnTypes: { [key: string]: string }
-	projectActions: {
-		get: () => Promise<string[]>,
-		create: (name: string) => Promise<ResponseProps>,
-		rename: (oldName: string, newName: string) => Promise<ResponseProps>,
-		delete: (name: string) => Promise<ResponseProps>
-	}
-	logsActions: {
-		get: (project: string, filterExpression: string | null, limit: number, offset: number) => Promise<LogsResponseProps>,
-		getMetrics: (
-			project: string, filterExpression: string | null, metricName: string, keyName: string
-		) => Promise<number>,
-		delete: (ids: string[]) => Promise<ResponseProps>
-	}
+  searchParams: {
+    project?: string;
+    page_number?: string;
+    metric?: string;
+    context?: string;
+    filters?: string;
+    common_filter?: string;
+  };
+  projects: string[] | undefined;
+  project: string | undefined;
+  logs: LogProps[];
+  tableArguments: TableArguments;
+  fields: LogFieldsResponseProps;
+  entriesProperties: string[];
+  paramsProperties: string[];
+  metrics: { [key: string]: any };
+  logsData: LogsResponseProps;
+  totalPages: number;
+  projectActions: {
+    get: () => Promise<string[]>;
+    create: (name: string) => Promise<ResponseProps>;
+    rename: (oldName: string, newName: string) => Promise<ResponseProps>;
+    delete: (name: string) => Promise<ResponseProps>;
+  };
+  logsActions: {
+    get: (
+      project: string,
+      context: string | null,
+      filterExpression: string | null,
+      sortingExpression: string | null,
+      from_fields: string | null,
+      limit: number | null,
+      offset: number,
+      _timestamp: string | null
+    ) => Promise<LogsResponseProps>;
+    getLatest: (
+      project: string,
+      context: string | null,
+      filterExpression: string | null,
+      sortingExpression: string | null,
+      from_fields: string | null,
+      limit: number | null,
+      offset: number
+    ) => Promise<string>;
+    getMetrics: (
+      project: string,
+      filterExpression: string | null,
+      metricName: string,
+      keyName: string
+    ) => Promise<number>;
+    delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>;
+    derive: (
+      project: string, 
+      key: string, 
+      equation: string, 
+      referenced_logs: TableArguments
+    ) => Promise<ResponseProps>
+  };
+  fieldsActions: {
+    get: (project: string, _timestamp: string | null) => Promise<LogFieldsResponseProps>,
+  },
+  boundaries: {minimums: {[key: string]: number}, maximums: {[key: string]: number}}
+  filterExpression: string | null,
+  sortingExpression: string | null
 }) => {
-	// pending state
-	const [pending, setPending] = useState(false);
-	const [summaryPending, setSummaryPending] = useState(false);
-	const [loading, setLoading] = useState(false);
+  // Basic states for quick feedback
+  const [pending, setPending] = useState(false);        // if the project is invalid
+  const [summaryPending, setSummaryPending] = useState(false); // if metric changed
 
-	// get logs selected for comparison/details
-	const [comparisonLogsParam, setComparisonLogsParam] = useQueryState("comparison");
-	const comparisonLogs = comparisonLogsParam && logs ? comparisonLogsParam.split(",").map(
-		(value: string) => logs.find(log => log.id == value)!
-	) : [];
-	const setComparisonLogs = (updater: Updater<LogProps[]>) => {
-		if (typeof updater === "function") {
-			const newComparisonLogs = updater(comparisonLogs);
-			if (newComparisonLogs != undefined) {
-				if (newComparisonLogs.length) {
-					const ids = newComparisonLogs.map(
-						l => logs.find(log => log.id == l.id)?.id
-					).filter(id => Boolean(id));
-					setComparisonLogsParam(ids.join(","));
-				}
-				else
-					setComparisonLogsParam(null);
-			}
-			else
-				setComparisonLogsParam(null);
-		}
-	}
-	const [baseLogParam, setBaseLogParam] = useQueryState("base");
-	const baseLog = baseLogParam && logs ? logs.find(log => log.id == baseLogParam) : undefined;
-	const setBaseLog = (updater: Updater<LogProps | undefined>) => {
-		if (typeof updater === "function") {
-			const newBaseLog = updater(baseLog);
-			const logFound = newBaseLog ? logs.find(log => log.id == newBaseLog.id)?.id : undefined;
-			setBaseLogParam(logFound ? logFound : null);
-		}
-	}
+  // We skip complicated "loading" checks to avoid the stuck spinner:
+  // just show a spinner if logs are truly undefined or project is pending
+  // (for example, remove "loading" if you want). 
+  const showSpinner = pending || !logs;
 
-	// getting columns from the properties
-	const entriesTree = buildTree(entriesProperties);
-	const paramsTree = buildTree(paramsProperties);
-	const columns: ColumnDef<LogProps>[] = [
-		{
-			id: "RowNumbering",
-			cell: ({ row }: { row: Row<LogProps> }) => {
-				return <Badge>{row.index + 1}</Badge>;
-			},
-			meta: {
-				dataType: () => null,
-				columnType: "util",
-				enableRowSpan: false
-			}
-		},
-		...(paramsProperties.length > 0 ? [
-			{
-				id: "ParametersHeader",
-				header: "Parameters",
-				columns: nestedColumns(paramsTree, "params", logsData, true)
-			}
-		] : []),
-		...(paramsProperties.length > 0 ? [
-			{
-				id: "EntriesHeader",
-				header: "Entries",
-				columns: nestedColumns(entriesTree, "entries", logsData)
-			},
-		] : nestedColumns(entriesTree, "entries", logsData))
-	];
-	const columnIDs = ["RowNumbering", ...paramsProperties.concat(entriesProperties)];
+  // Get base and comparison logs
+  const [selectedCells, setSelectedCells]  = useQueryState(
+    "selected", 
+    parseAsArrayOf(parseAsString).withDefault([])                    // [logId1_colId1,logId1_colId2,logId2_colId3,...]
+  )
+  const { baseLogIndex, baseLog, comparisonLogsIndex, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, logs)
 
-	// project
-	const [projectQuery, setProject] = useQueryState("project", { shallow: false });
-	const projectQueryVal = (projects || []).find(proj => proj == projectQuery);
+  // Column definitions
+  const entriesTree = buildTree(entriesProperties);
+  const paramsTree = buildTree(paramsProperties);
+  const dataTypes = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type]))
+  const fieldTypes = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].field_type]))
+  const indicesTitle = "RowNumbering";
+  const entriesTitle = "Entries";
+  const paramsTitle = "Parameters";
 
-	// log filters
-	const [logsFiltersQuery, setLogsFiltersQuery] = useQueryState("filters", { shallow: false });
-	const [commonFilter, setCommonFilter] = useQueryState("common_filter", { shallow: false });
-	const logsFilters = logsFiltersQuery ? logsFiltersQuery.split(",").map((filter => {
-		const [key, fn, value] = filter.split("@");
-		return { [key]: { [fn]: value } };
-	})).reduce((acc, curr) => {
-		for (const key in curr) {
-			if (acc.hasOwnProperty(key))
-				acc[key] = { ...acc[key], ...curr[key] };
-			else
-				acc[key] = curr[key];
-		}
-		return acc;
-	}, {}) : {};
+  const columns: ColumnDef<LogProps>[] = [
+    {
+      id: indicesTitle,
+      cell: ({ row }) => <Badge>{row.index + 1}</Badge>,
+      meta: {
+        dataType: null,
+        columnType: "util",
+        enableRowSpan: false,
+        isParent: false,
+        renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
+      },
+    },
+    ...(paramsProperties.length
+      ? [
+          {
+            id: paramsTitle,
+            header: paramsTitle,
+            columns: nestedColumns(paramsTree, "params", paramsTitle, logsData, true, dataTypes, fieldTypes),
+            meta: {
+              columnType: "paramsHeader",
+              isParent: true,
+              renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
+            },
+          },
+        ]
+      : []),
+    ...(paramsProperties.length
+      ? [
+          {
+            id: entriesTitle,
+            header: entriesTitle,
+            columns: nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, dataTypes, fieldTypes),
+            meta: {
+              columnType: "entriesHeader",
+              isParent: true,
+              renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
+            },
+          },
+        ]
+      : nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, dataTypes, fieldTypes)),
+  ];
 
-	const setLogsFilters = (logsFilters: { [key: string]: { [key: string]: string } }) => {
-		const keys = Object.keys(logsFilters);
-		setLogsFiltersQuery(
-			keys.length
-				? Object.entries(logsFilters).map(
-					([key, value]) => Object.entries(value).map(([fn, val]) => `${key}@${fn}@${val}`)
-				).flat().join(",")
-				: null
-		);
-	};
+  // Apply rendered depth encoding to account for depth mismatch for all headers
+  // This is needed for accurate column hiding/showing/grouping to work on all nest levels
+  // Always assign depth = 0 for the meta column types as passed here
+  encodeRenderedDepth(columns, ["util", "paramsHeader", "entriesHeader"]);
 
-	// pagination
-	const [pageNumber, setPageNumber] = useQueryState("page_number", { shallow: false });
+  // Various table states from the URL
+  const [metricQuery, setMetric] = useQueryState("metric", {shallow: false});
+  const metric = metricQuery ?? "mean";
 
-	// column order
-	const [columnOrderStr, setColumnOrderStr] = useQueryState("column_order");
-	const columnOrder = columnOrderStr ? columnOrderStr.split(",") : columnIDs;
-	const setColumnOrder = (columnOrder: string[]) => {
-		setColumnOrderStr(columnOrder.join(","));
-	};
+  const [projectQuery, setProject] = useQueryState("project", { shallow: false });
+  const projectQueryVal = (projects || []).find((p) => p === projectQuery);
 
-	// column visibility
-	const [hiddenColumns, setHiddenColumns] = useQueryState("hidden_columns");
-	const allColumnsVisible = Object.fromEntries(columnIDs.map(id => [id, true]));
-	const columnVisibility = hiddenColumns ? {
-		...allColumnsVisible,
-		...Object.fromEntries(
-			hiddenColumns.split(",").map(id => [id, false])
-		)
-	} : allColumnsVisible;
-	const setColumnVisibility = (columnVisibility: { [k: string]: boolean }) => {
-		const hiddenColumns = Object.keys(columnVisibility).filter(key => !columnVisibility[key]);
-		setHiddenColumns(hiddenColumns.length ? hiddenColumns.join(",") : null);
-	};
+  const [logsFiltersQuery, setLogsFiltersQuery] = useQueryState("filters", {
+    shallow: false,
+  });
+  const [commonFilter, setCommonFilter] = useQueryState("common_filter", {
+    shallow: false,
+  });
+  const [pageNumber, setPageNumber_] = useQueryState("page_number", {
+    shallow: false,
+  });
+  const setPageNumber = (pageNumber: string | undefined) => setPageNumber_(pageNumber || null);
+  const [sortingStr, setSortingStr] = useQueryState("sorting", {
+    shallow: false,
+  });
 
-	// column filters
-	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnOrderStr, setColumnOrderStr] = useQueryState("column_order");
+  const [hiddenColumns, setHiddenColumns] = useQueryState("hidden_columns");
+  const [groupingStr, setGroupingStr] = useQueryState("grouping");
+  const [columnsPinLeft, setColumnsPinLeft] = useQueryState("columns_pin_left");
+  const [columnsPinRight, setColumnsPinRight] = useQueryState("columns_pin_right");
+  const [context, setContext] = useQueryState("context", {shallow: false})
 
-	// sorting
-	const [sortingStr, setSortingStr] = useQueryState("sorting");
-	const sorting = sortingStr ? sortingStr.split(",").map(column => {
-		const [id, desc] = column.split("@");
-		return { id: id, desc: desc == "true" };
-	}) : [];
-	const setSorting = (sorting: ColumnSort[]) => {
-		setSortingStr(sorting.map(col => `${col.id}@${col.desc}`).join(","));
-	};
+  /// Convert those strings → arrays/objects
+  const columnIDs = flattenColumnIDs(columns);
+  const columnOrder = columnOrderStr ? columnOrderStr.split(",") : columnIDs;
+  const allColumnsVisible = Object.fromEntries(columnIDs.map((x) => [x, true]));
+  const columnVisibility = hiddenColumns
+    ? {
+        ...allColumnsVisible,
+        ...Object.fromEntries(hiddenColumns.split(",").map((x) => [x, false])),
+      }
+    : allColumnsVisible;
 
-	// grouping
-	const [groupingStr, setGroupingStr] = useQueryState("grouping");
-	const grouping = groupingStr ? groupingStr.split(",") : [];
-	const setGrouping = (grouping: string[]) => {
-		setGroupingStr(grouping.length ? grouping.join(",") : null);
-	};
+  const setColumnVisibility = (v: { [key: string]: boolean }) => {
+    const hidden = Object.keys(v).filter((k) => !v[k]);
+    setHiddenColumns(hidden.length ? hidden.join(",") : null);
+  };
 
-	// pinning
-	const [columnsPinLeft, setColumnsPinLeft] = useQueryState("columns_pin_left");
-	const [columnsPinRight, setColumnsPinRight] = useQueryState("columns_pin_right");
-	const columnPinning: ColumnPinningState = {
-		left: columnsPinLeft ? ["RowNumbering"].concat(columnsPinLeft.split(",")) : ["RowNumbering"],
-		right: columnsPinRight ? columnsPinRight.split(",") : []
-	};
-	const setColumnPinning = (columnPinning: ColumnPinningState) => {
-		setColumnsPinLeft(columnPinning.left ? columnPinning.left.join(",") : null);
-		setColumnsPinRight(columnPinning.right ? columnPinning.right.join(",") : null);
-	};
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-	// sizing
-	const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(
-		columnIDs.map(id => ({ [id]: id == "RowNumbering" ? 50 : 150 })).reduce((acc, curr) => ({ ...acc, ...curr }))
-	);
+  const sorting: ColumnSort[] = sortingStr
+    ? sortingStr.split(",").map((c) => {
+        const [key, order] = c.split("@");
+        const id = entriesProperties.includes(key) ? `Entries/${key}` : `Parameters/${key}`;
+        const desc = order === "true";
+        return { id, desc };
+      })
+    : [];
+  const setSorting = (s: ColumnSort[]) => 
+    setSortingStr(s.map((item) => `${sanitizeId(item.id)}@${item.desc}`).join(","));
+  const grouping = groupingStr ? groupingStr.split(",") : [];
+  const setGrouping = (g: string[]) =>
+    setGroupingStr(g.length ? g.join(",") : null);
 
-	// Extra states
-	let [metricQuery, setMetric] = useQueryState("metric", { shallow: false });
-	const metric = metricQuery ? metricQuery : "mean";
-	const [lastSelectedRow, setLastSelectedRow] = useState<Row<any | unknown> | undefined>();
+  const columnPinning: ColumnPinningState = {
+    left: columnsPinLeft ? [indicesTitle].concat(columnsPinLeft.split(",")) : [indicesTitle],
+    right: columnsPinRight ? columnsPinRight.split(",") : [],
+  };
+  const setColumnPinning = (pin: ColumnPinningState) => {
+    setColumnsPinLeft(pin.left ? pin.left.join(",") : null);
+    setColumnsPinRight(pin.right ? pin.right.join(",") : null);
+  };
 
-	// state
-	const state = {
-		lastSelectedRow,
-		metric,
-		sorting,
-		columnVisibility,
-		columnOrder,
-		columnFilters,
-		grouping,
-		columnPinning,
-		columnSizing,
-		comparisonLogs,
-		baseLog
-	};
-	const setState = {
-		setLastSelectedRow,
-		setMetric,
-		setSorting,
-		setColumnVisibility,
-		setColumnOrder,
-		setColumnFilters,
-		setGrouping,
-		setColumnPinning,
-		setColumnSizing,
-		setComparisonLogs,
-		setBaseLog
-	};
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(
+    columnIDs
+      .map((id) => ({ [id]: id === indicesTitle ? 50 : 150 }))
+      .reduce((acc, curr) => ({ ...acc, ...curr }), {})
+  );
 
-	// creating the projects list
-	const data = (projects || []).map(datum => ({ path: datum, type: "file" }));
+  const [draggingColumns, setDraggingColumns] = useState<DraggingColumnsState>({
+    active: {
+      ids: [],
+      transform: null,
+    },
+    over: {
+      ids: [],
+      transform: null,
+    },
+  });
 
-	// set pending when project changes
-	useEffect(() => {
-		if (project == projectQueryVal)
-			setPending(false);
-		else
-			setPending(true);
-		if (searchParams.metric == metricQuery)
-			setSummaryPending(false);
-		else
-			setSummaryPending(true);
-		if (
-			searchParams.filters == logsFiltersQuery
-			&& searchParams.page_number == (pageNumber || undefined)
-		)
-			setLoading(false);
-		else
-			setLoading(true);
-	}, [project, projectQuery, searchParams, metricQuery, logsFiltersQuery, pageNumber]);
+  const [_timestamp, _setTimestamp] = useQueryState("_timestamp", { shallow: false })
 
-	return (
-		<div className="flex flex-col gap-4 w-full h-full p-3 bg-background rounded-md">
-			<div className="flex flex-row justify-between w-full h-fit">
-				<div className="w-fit gap-3 flex flex-row items-center">
-					<FileDirectory
-						data={data}
-						renamingFunction={projectActions.rename}
-						setterFunction={(project: FileProps | undefined) => {
-							const projectPath = project ? project.path : null;
-							setBaseLogParam(null);
-							setComparisonLogsParam(null);
-							setColumnOrderStr(null);
-							setHiddenColumns(null);
-							setSortingStr(null);
-							setGroupingStr(null);
-							setColumnsPinLeft(null);
-							setColumnsPinRight(null);
-							setMetric(null);
-							setPageNumber(null);
-							setProject(projectPath);
-						}}
-						type="Projects"
-						defaultValue={projectQueryVal}
-					/>
-					{project && (
-						<DeleteDialog
-							type="project"
-							resource={project}
-							deletingFunction={projectActions.delete}
-							variant="outline"
-						/>
-					)}
-					{projects &&
-						<CreateProject creationFunction={projectActions.create} paths={projects} />
-					}
-					<div className="flex flex-row gap-3 LogsTablePreferences">
-						{
-							project && columns.length > 0 &&
-							<div className="flex flex-row gap-3">
-								<VisibilityFilter columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility} />
-								<GlobalFilter
-									searchParams={searchParams}
-									columnNames={columnIDs.slice(1)}
-									commonFilterQuery={commonFilter || undefined}
-									setCommonFilterQuery={setCommonFilter}
-									setLogsFilters={setLogsFilters}
-								/>
-							</div>
-						}
-					</div>
-				</div>
-			</div>
-			{pending
-				? <SkeletonLoader />
-				: <div className="w-full h-fit overflow-auto tutorial-logs-table">
-					{project                    // If project selected
-						? <div className="relative flex-col gap-2">
-							{loading && <div className="rounded-lg absolute z-20 w-full h-full flex justify-center">
-								<Loader2 className="animate-spin my-36" />
-							</div>}
-							<DataTable
-								data={logs}
-								columns={columns}
-								state={state}
-								setState={setState}
-								tableHotkeys={useTableHotkeys}
-								onRowClick={(table, row, event) => onRowClick(state, setState, table, row, event)}
-								ColumnFilters={(column) => <ColumnFilter
-									setFilters={setLogsFilters}
-									filters={logsFilters}
-									column={column}
-									columnTypes={columnTypes}
-								/>}
-								AggregatedCell={(cell, row) => <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />}
-								FooterCell={(column) => column.columnDef.id === "RowNumbering"
-									? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric} colSpan={1 + grouping.length}/>
-									: !column.getIsGrouped()
-										?	<SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} />
-										: 	null
-								}
-								ExtraComponents={(table) => <>
-									<DeleteRows
-										selectedRows={table.getSelectedRowModel().rows}
-										deleteLogs={logsActions.delete}
-									/>
-								</>}
-							/>
-						</div>
-						: <BaseTable items={[{ "Entries": "Select a project to display your logs." }]} />
-					}
-				</div>}
-			{project && 
-			<div className="flex justify-end">
-				<div className="w-fit">
-					<PageController totalPages={totalPages} pageNumber={pageNumber} setPageNumber={setPageNumber} />
-				</div>
-			</div>
-			}
-		</div>
-	);
+  const state = {
+    selectedCells,
+    metric,
+    sorting,
+    columnVisibility,
+    columnOrder,
+    columnFilters,
+    grouping,
+    columnPinning,
+    columnSizing,
+    context,
+    draggingColumns,
+    _timestamp
+  };
+  const setState = {
+    setSelectedCells,
+    setMetric,
+    setSorting,
+    setColumnVisibility,
+    setColumnOrder: (order: string[]) => setColumnOrderStr(order.join(",")),
+    setColumnFilters,
+    setGrouping,
+    setColumnPinning,
+    setColumnSizing,
+    setContext,
+    setDraggingColumns,
+    _setTimestamp
+  };
+
+  // If the project changes, we treat it as pending until data arrives
+  useEffect(() => {
+    setPending(project !== projectQueryVal);
+    // Summaries pending if the metric changed
+    setSummaryPending(searchParams.metric !== metricQuery);
+  }, [project, projectQueryVal, searchParams.metric, metricQuery]);
+
+  // Use refs to detect a *real* page/filter change
+  const prevPageRef = useRef(pageNumber);
+  const prevFiltersRef = useRef(logsFiltersQuery);
+  const prevCommonFilterRef = useRef(commonFilter);
+  const prevSortingRef = useRef(sortingStr);
+
+  // Prune base/comparison IDs if user REALLY changes page or filters
+  useEffect(() => {
+    const pageChanged = prevPageRef.current !== pageNumber;
+    const filtersChanged = prevFiltersRef.current !== logsFiltersQuery;
+    const commonChanged = prevCommonFilterRef.current !== commonFilter;
+    const sortingChanged = prevSortingRef.current !== sortingStr;
+
+    if (pageChanged || filtersChanged || commonChanged || sortingChanged) {
+      // If base no longer valid, remove it
+      if (baseLog && !logs.some((l) => l.id === baseLog.id)) {
+        setSelectedCells(cells => cells.slice(1));
+      }
+      // If compare logs not valid, prune them
+      if (comparisonLogs) {
+        const ids = comparisonLogs.map(cl => cl.id);
+        const validIds = ids.filter((id) => logs.some((l) => l.id === id));
+        if (!validIds.length) {
+          setSelectedCells(cells => cells.at(0) ? [cells.at(0) as string] : []);
+        } else if (validIds.length < ids.length) {
+          setSelectedCells(cells => cells.filter(cell => validIds.includes(cell.split("_").at(0)!)));
+        }
+      }
+    }
+    // Update the refs
+    prevPageRef.current = pageNumber;
+    prevFiltersRef.current = logsFiltersQuery;
+    prevCommonFilterRef.current = commonFilter;
+    prevSortingRef.current = sortingStr
+  }, [
+    logs,
+    pageNumber,
+    logsFiltersQuery,
+    commonFilter,
+    sortingStr,
+    selectedCells
+  ]);
+
+  const resetParamsStates = () => {
+    setContext(null);
+    setSelectedCells([])
+    setColumnOrderStr(null);
+    setHiddenColumns(null);
+    setSortingStr(null);
+    setGroupingStr(null);
+    setColumnsPinLeft(null);
+    setColumnsPinRight(null);
+    setMetric(null);
+    setPageNumber_(null);
+    _setTimestamp(null)
+  };
+
+  // Build directory data
+  const data = (projects || []).map((p) => ({ path: p, type: "file" }));
+
+  // Top area: filters, page, etc.
+  const tableTop = (
+    <div className="flex flex-row justify-between gap-3 LogsTablePreferences">
+      {project && columns.length > 0 && (
+        <div className="flex flex-row gap-2 items-center">
+          <SelectionMenu
+            type="Contexts"
+            data={Object.keys(dataTypes).map(property => ({path: property, type:"file"}))}
+            onClick={setContext}
+          />
+          <GlobalFilter
+            searchParams={searchParams}
+            columnNames={columnIDs.slice(1)}
+            commonFilterQuery={commonFilter || undefined}
+            setCommonFilterQuery={setCommonFilter}
+            setLogsFilters={(obj) => {
+              const keys = Object.keys(obj);
+              setLogsFiltersQuery(
+                keys.length
+                  ? Object.entries(obj)
+                      .map(([colKey, val]) =>
+                        Object.entries(val).map(([fn, val2]) => `${colKey}@${fn}@${val2}`)
+                      )
+                      .flat()
+                      .join(",")
+                  : null
+              );
+            }}
+          />
+          <VisibilityFilter
+            columnVisibility={columnVisibility}
+            setColumnVisibility={setColumnVisibility}
+            context={context}
+          />
+        </div>
+      )}
+      {project && (
+        <div className="w-fit scale-90">
+          <PageController
+            totalPages={totalPages}
+            pageNumber={pageNumber || undefined}
+            setPageNumber={setPageNumber}
+          />
+        </div>
+      )}
+    </div>
+  );
+
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  // Handle clicking outside of the table
+  const onContainerClick = (event: React.MouseEvent<HTMLElement, MouseEvent>) => {
+    if (tableRef.current && !tableRef.current.contains(event.target as Node)) {
+      setSelectedCells([]);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4 w-full h-full p-3 bg-background rounded-md" onClick={onContainerClick}>
+      {/* Project selection row */}
+      <div className="flex flex-row justify-between gap-8 w-full h-fit">
+        <div className="w-fit gap-2 flex flex-row items-center">
+          <FileDirectory
+            data={data}
+            renamingFunction={projectActions.rename}
+            setterFunction={(proj: FileProps | undefined) => {
+              const newProj = proj ? proj.path : null;
+              resetParamsStates();
+              setProject(newProj);
+            }}
+            type="Projects"
+            defaultValue={projectQueryVal}
+            onOpen={() => _setTimestamp(Date.now().toString())}
+          />
+          {project && (
+            <div className="flex flex-row gap-2">
+              <CloseProject
+                onClick={() => {
+                  resetParamsStates();
+                  setProject(null);
+                }}
+              />
+              <DeleteDialog
+                type="project"
+                resource={project}
+                deletingFunction={projectActions.delete}
+                variant="outline"
+                onDelete={() => {
+                  resetParamsStates()
+                  setProject(null)
+                }}
+              />
+            </div>
+          )}
+          {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
+        </div>
+        {project && 
+          <RefreshLogs 
+            context={context}
+            project={project}
+            filterExpression={filterExpression}
+            sortingExpression={sortingExpression}
+            getLatest={logsActions.getLatest}
+          />
+        }
+      </div>
+
+      {/* If truly pending or logs not present, show a spinner */}
+      {showSpinner ? (
+        <div className="flex justify-center items-center h-full w-full">
+          <Loader2 className="animate-spin my-36" />
+        </div>
+      ) : (
+        <div ref={tableRef} className="w-full h-fit overflow-y-auto tutorial-logs-table">
+          {project ? (
+            <div className="relative flex-col gap-2">
+              {/* “summaryPending” can optionally show a small loader over the table if you like */}
+              <DataTable
+                data={logs}
+                columns={columns}
+                state={state}
+                setState={setState}
+                TableTop={tableTop}
+                ColumnFilters={(column) => (
+                  <ColumnFilter
+                    setColumnFilterQuery={(filtersObj) => {
+                      const keys = Object.keys(filtersObj);
+                      setLogsFiltersQuery(
+                        keys.length
+                          ? Object.entries(filtersObj)
+                              .map(([cKey, val]) =>
+                                Object.entries(val).map(([fn, val2]) => `${cKey}@${fn}@${val2}`)
+                              )
+                              .flat()
+                              .join(",")
+                          : null
+                      );
+                    }}
+                    boundaries={boundaries}
+                    columnFilters={searchParamToFilters(logsFiltersQuery ?? undefined, context ?? undefined)}
+                    column={column.id}
+                    dataTypes={dataTypes}
+                  />
+                )}
+                ColumnCreate={
+                  <ColumnCreate project={project} currentTable="table" tableArguments={tableArguments} fields={fields} derive={logsActions.derive} _setTimestamp={_setTimestamp}/>
+                }
+                AggregatedCell={(cell, row) => (
+                  <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />
+                )}
+                FooterCell={(column, resizeMap) => 
+                  <FooterCell column={column} resizeMap={resizeMap} draggingColumns={state.draggingColumns}>
+                    {
+                      column.columnDef.id === indicesTitle
+                      ? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric}/>
+                      : !column.getIsGrouped()
+                        ?	<SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} draggingColumns={state.draggingColumns} />
+                        : 	null
+                    }
+                  </FooterCell>
+                }
+                ExtraComponents={(table) => {
+                  return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} context={context ?? undefined}/>
+                }}
+                ExtraCellContent={(cell, isCellExpanded, setExpandedCells) => 
+                  <CellPopover cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells}/>
+                }
+              />
+            </div>
+          ) : (
+            <BaseTable items={[{ Entries: "Select a project to display your logs." }]} />
+          )}
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default LogsTable;

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { Suspense, useState } from "react";
-import FileDirectory from "@/components/Directory/FileDirectory";
+import FileDirectory from "@/components/Tree/Directory/FileDirectory";
 import { FileProps, ResponseProps } from "@/types/common";
 import { DatasetProps } from "@/types/datasets";
 import DatasetsTable from "./Table";

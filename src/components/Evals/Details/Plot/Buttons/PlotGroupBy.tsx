@@ -1,38 +1,37 @@
 "use client";
 
-import { Dispatch, SetStateAction } from "react";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { Group, Ungroup } from "lucide-react";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import SettingButton from "@/components/Common/Buttons/Setting";
-import { GroupingColors } from "@/types/evals/plot";
+import { LogFieldsResponseProps } from "@/types/evals/logs";
 
-const PlotGroupBy = ({properties, groupBy, setGroupBy, setGroupByColors}: {
-    properties: string[], 
+const PlotGroupBy = ({fields, groupBy, setGroupBy}: {
+    fields: LogFieldsResponseProps, 
     groupBy: string | null, 
     setGroupBy: (x: string | null) => void, 
-    setGroupByColors: Dispatch<SetStateAction<GroupingColors>>
 }) => {
+    const properties = Object
+        .entries(fields)
+        .filter(([name, { data_type, field_type }]) => field_type != "param")
+        .map(([name]) => name);
     const icon = !groupBy || groupBy === "None" ? <Group/> : <Ungroup/>;
     const variant = !groupBy || groupBy === "None" ? "outline" : "primary";
+    const options = ["None"].concat(properties)
     return (
         <BaseDropdown
             button={
-                <SettingButton icon={icon} tooltip={"Group by property"} variant={variant}/>
+                <SettingButton icon={icon} tooltip={"Group by"} variant={variant}/>
             }
-            label={"Group plot by property"}
         >
             {
-            ["None"].concat(properties).map(property => {
+            options.map(option => {
                 return (
                     <DropdownMenuItem 
-                        key={property} 
-                        onClick={() => {
-                            setGroupBy(property != "None" ? property : null)
-                            if (property === "None") setGroupByColors([])
-                        }}
+                        key={option} 
+                        onClick={() => setGroupBy(option != "None" ? option : null)}
                     >
-                        {property}
+                        {option}
                     </DropdownMenuItem>
                 );
             })

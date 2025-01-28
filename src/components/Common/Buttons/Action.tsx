@@ -3,16 +3,25 @@ import BaseButton from "./Base";
 import Tooltip from "../Misc/Tooltip";
 import { MouseEventHandler } from "react";
 
-export default function ActionButton ({tooltip, text, icon, variant, disabled = false,  onClick, className}: {
+export default function ActionButton ({tooltip, text, icon, variant, size, disabled = false, onClick, className}: {
     tooltip: string,
     text?: string,
     icon?: ReactNode,
-    variant?: "primary" | "secondary" | "destructive" | "outline" | "ghost" | "link",
+    size?: "icon" | "default" | "sm" | "lg" | null | undefined,
+    variant?: "primary" | "secondary" | "destructive" | "warning" | "outline" | "ghost" | "link",
     disabled?: boolean,
     onClick?: MouseEventHandler<HTMLButtonElement>,
     className?: string
 }) {
     return <Tooltip content={tooltip}>
-        <BaseButton variant={variant ? variant : "ghost"} disabled={disabled} icon={icon} text={text} onClick={onClick} className={className}/>
+        <BaseButton
+            variant={variant ? variant : "ghost"}
+            size={size}
+            disabled={disabled}
+            icon={icon}
+            text={text}
+            onClick={onClick}
+            className={className}
+        />
     </Tooltip>
 }

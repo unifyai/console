@@ -32,11 +32,13 @@ const DatasetsPage = async (
   };
 
   return (
-    <Suspense fallback={<SkeletonLoader />}>
-      <Main
-        datasetsActions={datasetsActions}
-      />
-    </Suspense>
+    <div className="w-full h-full p-1 overflow-auto">
+      <Suspense fallback={<SkeletonLoader />}>
+        <Main
+          datasetsActions={datasetsActions}
+        />
+      </Suspense>
+    </div>
   );
 };
 

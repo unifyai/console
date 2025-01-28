@@ -19,7 +19,7 @@ const style: CSSProperties = {
 const ColumnMetrics = ({metric, setMetric, colSpan = 1}: {metric: string, setMetric: (x: string) => void, colSpan?: number}) => {
     return (
         <TableCell style={style} colSpan={colSpan} className="text-left">
-            <BaseDropdown button={<ActionButton tooltip="Select metric" text={metric} icon={<ChevronDown />} />} label="Select column reduction metric">
+            <BaseDropdown button={<ActionButton tooltip="Select metric" text={metric} icon={<ChevronDown />} />}>
                 {metrics.map((metric_, index) =>
                     <DropdownMenuCheckboxItem checked={metric === metric_} key={index} onClick={() => setMetric(metric_)}>
                         {metric_}
