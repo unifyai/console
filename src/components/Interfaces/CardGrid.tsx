@@ -275,8 +275,12 @@ const CardGrid = ({
                                             interfaceActions.update(
                                                 int_, project, items, newCounter, interface_2, true
                                             ).then(() => {
-                                                setPending(true);
-                                                setInterface(interface_2);
+                                                interfaceActions.update(
+                                                    int_, project, items, newCounter, interface_2, false
+                                                ).then(() => {
+                                                    setPending(true);
+                                                    setInterface(interface_2);
+                                                });
                                             });
                                         }
                                     }}
@@ -294,10 +298,14 @@ const CardGrid = ({
                             onClick={() => interfaceActions.create(
                                 `interface_${interfaces.length + 1}`, project, [], 0, true
                             ).then(() => {
-                                setInterfaces([...interfaces, `interface_${interfaces.length + 1}`]);
-                                setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
-                                setInterface(`interface_${interfaces.length + 1}`);
-                                setInterface_2(`interface_${interfaces.length + 1}`);
+                                interfaceActions.create(
+                                    `interface_${interfaces.length + 1}`, project, [], 0, false
+                                ).then(() => {
+                                    setInterfaces([...interfaces, `interface_${interfaces.length + 1}`]);
+                                    setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
+                                    setInterface(`interface_${interfaces.length + 1}`);
+                                    setInterface_2(`interface_${interfaces.length + 1}`);
+                                });
                             })}
                         />
                         <ActionButton
@@ -307,8 +315,10 @@ const CardGrid = ({
                             disabled={pending}
                             onClick={() => interfaceActions.delete(finalInterface as string, project, true).then(() => {
                                 setPending(true);
-                                setInterface(null);
-                                setInterface_2("");
+                                interfaceActions.delete(finalInterface as string, project, false).then(() => {
+                                    setInterface(null);
+                                    setInterface_2("");
+                                })
                             })}
                         />
                     </div>
