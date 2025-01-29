@@ -74,11 +74,15 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
         if (filters.length){
             const newFilters = filters.map(f => {
                 let newValue = f.value ? f.value : relative ? defaultRelativeDate : defaultAbsoluteDate
-                newValue = newValue
-                    .replace("T", " ").replace("Z", "")         // Clean-up absolute date strings
-                    .substring(0, newValue.indexOf("ms") + 2)   // Clean-up relative date strings (remove characters after ms)
-                    .substring(newValue.search(/\d/))           //                                (remove characters ebfore first number)
-                newValue = `"${newValue}"`
+                if (newValue.includes(";")) {
+                    newValue = newValue
+                        .substring(0, newValue.indexOf("ms") + 2)                  // Clean-up relative date strings (remove characters after ms)
+                        .substring(newValue.search(/\d/))                          //                                (remove characters ebfore first number)
+                }
+                else {
+                    newValue = newValue.replace("T", " ").replace("Z", "")         // Clean-up absolute date strings
+                }
+                newValue = `"${newValue}"`                                         // Wrap date string in quotes
                 return {
                         key: f.key, 
                         mode: f.mode, 
