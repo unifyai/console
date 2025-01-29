@@ -178,7 +178,6 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
                             onValueChange={(value) => onInput(value[0].toString(), filter)}
                             min={minValue}
                             max={maxValue}
-                            inverted={["<", "<="].includes(option.name)}
                             aria-label="Slider with input"
                         />
                     </div>
