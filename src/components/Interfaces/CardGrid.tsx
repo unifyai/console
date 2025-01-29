@@ -210,6 +210,8 @@ const CardGrid = ({
                             setPending(true);
                             setDataPending(true);
                             setInterface(null);
+                            setInterfaces([]);
+                            setInterface_2("");
                             setProject(newProj);
                         }}
                         type="Projects"
@@ -222,6 +224,8 @@ const CardGrid = ({
                                     setPending(true);
                                     setDataPending(true);
                                     setInterface(null);
+                                    setInterfaces([]);
+                                    setInterface_2("");
                                     setProject(null);
                                 }}
                             />
@@ -234,6 +238,8 @@ const CardGrid = ({
                                     setPending(true);
                                     setDataPending(true);
                                     setInterface(null);
+                                    setInterfaces([]);
+                                    setInterface_2("");
                                     setProject(null);
                                 }}
                             />
