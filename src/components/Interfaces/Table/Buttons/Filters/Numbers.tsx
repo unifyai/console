@@ -50,8 +50,12 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
     const modes = options.map(option => option.name)
     const [minValue, maxValue] = [boundaries.minimums[column], boundaries.maximums[column]]
     let defaultFilter : NumericFilter = {key: 0, mode: "==", join: "&&", value: ""}
-    let initialValues : NumericFilter[] = [defaultFilter]
-    if (columnFilters[column]) initFilters(column, columnFilters, initialValues, modes)
+    let initialValues : NumericFilter[] = []
+    if (columnFilters[column]) {
+        initFilters(column, columnFilters, initialValues, modes)
+    } else {
+        initialValues.push(defaultFilter)
+    }
     const [filters, setFilters] = useState(initialValues);
     
     /* Event handlers */

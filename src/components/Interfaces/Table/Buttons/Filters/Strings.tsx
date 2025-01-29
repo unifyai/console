@@ -41,8 +41,12 @@ const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
     ]
     const modes = options.map(option => option.name)
     let defaultFilter : StringFilter = {key: 0, mode: "in", join: "&&", value: ""}
-    let initialValues : StringFilter[] = [defaultFilter];
-    if (columnFilters[column]) initFilters(column, columnFilters, initialValues, modes);
+    let initialValues : StringFilter[] = [];
+    if (columnFilters[column]) {
+        initFilters(column, columnFilters, initialValues, modes)
+    } else {
+        initialValues.push(defaultFilter)
+    }
     const [filters, setFilters] = useState(initialValues);
     
     /* Event handlers */
