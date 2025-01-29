@@ -20,6 +20,7 @@ import DeleteDialog from "../Common/Dialogs/Delete";
 import CreateProject from "./Table/Buttons/CreateProject";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../UI/tabs";
 import { useQueryState } from "nuqs";
+import { v4 as uuidv4 } from "uuid";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -79,12 +80,11 @@ const CardGrid = ({
     // modes, hover and copy button
     const [mode, setMode] = useState<"edit" | "interactive" | "dashboard">("edit");
     const [copied, setCopied] = useState<string>();
-    const [hovered, setHovered] = useState<string>();
 
     // data fields
     const [interfaces, setInterfaces] = useState(interfaces_);
     const [interface_, setInterface] = useQueryState("interface", { shallow: false });
-    const finalInterface = interface_ || interface_1;
+    let finalInterface = interface_ || interface_1;
     const [project, setProject] = useQueryState("project", { shallow: false });
     const [interface_2, setInterface_2] = useState(finalInterface || "");
 
@@ -109,22 +109,6 @@ const CardGrid = ({
             setItems([...items.map((i) => (i.i === item.i ? item : i))]);
         }
     }
-
-    // reset all attributes when a data field is changed
-    const resetParamsStates = () => {
-        items.filter(item => item.tab == "Table").map(item => {
-            updateItem(item, "selected")("");
-            updateItem(item, "column_order")(undefined);
-            updateItem(item, "hidden_columns")(undefined);
-            updateItem(item, "sorting")(undefined);
-            updateItem(item, "grouping")(undefined);
-            updateItem(item, "columns_pin_left")(undefined);
-            updateItem(item, "columns_pin_right")(undefined);
-            updateItem(item, "metric")("mean");
-            updateItem(item, "page_number")(undefined);
-            updateItem(item, "context")(undefined);
-        })
-    };
 
     // update interface
     const updateInterface = (
@@ -223,9 +207,9 @@ const CardGrid = ({
                         renamingFunction={projectActions.rename}
                         setterFunction={(proj: FileProps | undefined) => {
                             const newProj = proj ? proj.path : null;
-                            resetParamsStates();
                             setPending(true);
                             setDataPending(true);
+                            setInterface(null);
                             setProject(newProj);
                         }}
                         type="Projects"
@@ -235,9 +219,9 @@ const CardGrid = ({
                         <div className="flex flex-row gap-2">
                             <CloseProject
                                 onClick={() => {
-                                    resetParamsStates();
                                     setPending(true);
                                     setDataPending(true);
+                                    setInterface(null);
                                     setProject(null);
                                 }}
                             />
@@ -247,9 +231,9 @@ const CardGrid = ({
                                 deletingFunction={projectActions.delete}
                                 variant="outline"
                                 onDelete={() => {
-                                    resetParamsStates();
                                     setPending(true);
                                     setDataPending(true);
+                                    setInterface(null);
                                     setProject(null);
                                 }}
                             />
@@ -296,18 +280,22 @@ const CardGrid = ({
                             icon={<Plus />}
                             tooltip={"Add new interface"}
                             disabled={pending}
-                            onClick={() => interfaceActions.create(
-                                `interface_${interfaces.length + 1}`, project, [], 0, true
-                            ).then(() => {
+                            onClick={() => {
+                                const newInterfaceName = `interface_${uuidv4().slice(0, 2)}`;
                                 interfaceActions.create(
-                                    `interface_${interfaces.length + 1}`, project, [], 0, false
+                                    newInterfaceName, project, [], 0, true
                                 ).then(() => {
-                                    setInterfaces([...interfaces, `interface_${interfaces.length + 1}`]);
-                                    setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
-                                    setInterface(`interface_${interfaces.length + 1}`);
-                                    setInterface_2(`interface_${interfaces.length + 1}`);
-                                });
-                            })}
+                                    interfaceActions.create(
+                                        newInterfaceName, project, [], 0, false
+                                    ).then(() => {
+                                        setInterfaces([...interfaces, newInterfaceName]);
+                                        setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
+                                        setInterface(newInterfaceName);
+                                        setInterface_2(newInterfaceName);
+                                        finalInterface = newInterfaceName;
+                                    });
+                                })}
+                            }
                         />
                         <ActionButton
                             variant="outline"
