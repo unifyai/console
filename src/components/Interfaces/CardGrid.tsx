@@ -312,8 +312,8 @@ const CardGrid = ({
                         <ActionButton
                             variant="outline"
                             icon={<Trash />}
-                            tooltip={"Delete current active interface"}
-                            disabled={pending}
+                            tooltip={interfaces.length <= 1 ? "Projects need to have atleast one interface" : "Delete current active interface"}
+                            disabled={pending || interfaces.length <= 1}
                             onClick={() => interfaceActions.delete(finalInterface as string, project, true).then(() => {
                                 setPending(true);
                                 interfaceActions.delete(finalInterface as string, project, false).then(() => {
@@ -428,7 +428,7 @@ const CardGrid = ({
             </div>
             {interfaces.length == 0 ? (project && pending) ? <div className="flex justify-center">
                 <Loader2 className="animate-spin my-36" />
-            </div> : <></> : interfaces.map((int_, idx) => <TabsContent key={idx} value={int_} className="tutorial-selection-pane px-3">
+            </div> : !project ? <div className="mt-4 flex justify-center font-semibold">Please select a project</div> : <></> : interfaces.map((int_, idx) => <TabsContent key={idx} value={int_} className="tutorial-selection-pane px-3">
                 {pending
                     ? <div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>
                     : interface_1 == int_ ? <ResponsiveReactGridLayout
