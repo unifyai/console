@@ -256,7 +256,7 @@ export default function ChatInView({
                 return (
                   <div
                     key={idx}
-                    className="hover:border hover:border-muted bg-background p-4 rounded shadow-sm w-full"
+                    className="border border-muted bg-background p-4 rounded shadow-sm w-full"
                   >
                     <div className="mb-2 flex items-center justify-between">
                       <p className="font-bold text-sm">{label}</p>
@@ -436,7 +436,7 @@ export default function ChatInView({
                             value={String(m.rowIndex)}
                             className="w-full"
                           >
-                            <div className="hover:border hover:border-muted bg-background p-4 rounded shadow-sm w-full">
+                            <div className="border border-mutedbg-background p-4 rounded shadow-sm w-full">
                               <div className="mb-2 flex items-center justify-between">
                                 <p className="font-bold text-sm">{label}</p>
                                 <CopyButton
@@ -477,7 +477,7 @@ export default function ChatInView({
                             value={String(m.rowIndex)}
                             className="w-full"
                           >
-                            <div className="hover:border hover:border-muted bg-background p-4 rounded shadow-sm w-full">
+                            <div className="border border-muted bg-background p-4 rounded shadow-sm w-full">
                               <div className="mb-2 flex items-center justify-between">
                                 <p className="font-bold text-sm">{label}</p>
                                 <CopyButton
@@ -585,7 +585,7 @@ export default function ChatInView({
                 return (
                   <div
                     key={`${i}-${role}`}
-                    className="hover:border hover:border-muted bg-background p-4 rounded shadow-sm w-full"
+                    className="border border-muted bg-background p-4 rounded shadow-sm w-full"
                   >
                     <div className="mb-2 flex items-center justify-between">
                       <p className="font-bold text-sm">{label}</p>

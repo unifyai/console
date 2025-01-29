@@ -251,7 +251,7 @@ export default function ChatOutView({
                 return (
                   <div
                     key={idx}
-                    className="hover:border hover:border-muted bg-background p-4 rounded shadow-sm w-full"
+                    className="border border-muted bg-background p-4 rounded shadow-sm w-full"
                   >
                     <div className="mb-2 flex items-center justify-between">
                       <p className="font-bold text-sm">{label}</p>
@@ -625,7 +625,7 @@ export default function ChatOutView({
                 return (
                   <div
                     key={`${i}-${role}`}
-                    className="bg-background p-4 rounded shadow-sm hover:border hover:border-muted"
+                    className="bg-background p-4 rounded shadow-sm border border-muted"
                   >
                     <div className="mb-2 flex items-center justify-between">
                       <p className="font-bold text-sm">{label}</p>
