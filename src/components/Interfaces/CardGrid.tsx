@@ -318,7 +318,7 @@ const CardGrid = ({
                         <ActionButton
                             variant="outline"
                             icon={<Trash />}
-                            tooltip={interfaces.length <= 1 ? "Projects need to have atleast one interface" : "Delete current active interface"}
+                            tooltip={interfaces.length <= 1 ? "Projects need to have at least one interface" : "Delete current active interface"}
                             disabled={pending || interfaces.length <= 1}
                             onClick={() => interfaceActions.delete(finalInterface as string, project, true).then(() => {
                                 setPending(true);
