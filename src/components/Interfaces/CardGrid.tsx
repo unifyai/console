@@ -475,7 +475,7 @@ const CardGrid = ({
                                         updateItem={updateItem}
                                         updateInterface={updateInterface}
                                     />
-                                    <div className="w-full px-2 h-20 opacity-0 hover:opacity-100 transition-all absolute -top-3 flex justify-between">
+                                    <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-3 flex justify-between " + (mode == "edit" ? "h-20" : "h-10")}>
                                         <div className="mb-auto">
                                             <Badge
                                                 className="no-drag cursor-pointer"
