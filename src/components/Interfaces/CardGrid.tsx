@@ -7,7 +7,7 @@ import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import { FileProps, ResponseProps } from "@/types/common";
 import { Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
-import { Check, Clipboard, Copy, Eye, EyeOff, Grip, ListRestart, Loader2, Maximize2, Plus, Save, Trash, TriangleAlert, X } from "lucide-react";
+import { Check, Clipboard, Copy, Eye, EyeOff, Grip, ListRestart, Loader2, Maximize2, Plus, RefreshCw, Save, Trash, TriangleAlert, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { Badge } from "../UI/badge";
 import { Dialog, DialogContent } from "../UI/dialog";
@@ -94,6 +94,7 @@ const CardGrid = ({
     );
     const [dataPending, setDataPending] = useState(false);
     const [pending, setPending] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     // other variables
     const gridRef = useRef<HTMLDivElement>(null);
@@ -170,6 +171,7 @@ const CardGrid = ({
     // trigger update when table data changes (server reloaded)
     useEffect(() => {
         setDataPending(false);
+        setRefreshing(false);
         setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, false])));
         if ((pending || resetting) && project && finalInterface)
             getLatestInterface();
@@ -246,6 +248,16 @@ const CardGrid = ({
                         </div>
                     )}
                     {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
+                    <ActionButton
+                        variant="outline"
+                        icon={refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
+                        tooltip={"Refresh Interface"}
+                        disabled={pending || dataPending}
+                        onClick={() => {
+                            setRefreshing(true);
+                            router.refresh();
+                        }}
+                    />
                 </div>
 
                 {project && <div className="flex gap-4">
@@ -300,8 +312,8 @@ const CardGrid = ({
                                         setInterface_2(newInterfaceName);
                                         finalInterface = newInterfaceName;
                                     });
-                                })}
-                            }
+                                })
+                            }}
                         />
                         <ActionButton
                             variant="outline"
