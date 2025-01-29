@@ -49,14 +49,14 @@ const EndpointsTableHeader = ({ header, selectedEndpoints, setSelectedEndpoints,
         content = (
             <div className="flex flex-row justify-between items-center">
                 <p>{"Model"}</p>
-                <ColumnSort column={column}/>
+                <ColumnSort column={column} data={data}/>
             </div>
         );
     } else {
         content = (
             <div className="flex flex-row justify-between items-center">
                 <p>{"Provider"}</p>
-                <ColumnSort column={column}/>
+                <ColumnSort column={column} data={data}/>
             </div>
         );
     }

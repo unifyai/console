@@ -1,17 +1,18 @@
 "use client";
 
 import ActionButton from "@/components/Common/Buttons/Action";
-import { RefreshCw, Power } from "lucide-react";
+import { RefreshCw, Power, Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQueryState, parseAsBoolean } from "nuqs";
-import { BasePopover } from "@/components/Common/Popovers/Base";
+import { LogProps } from "@/types/evals/logs";
 
-const RefreshLogs = ({context, project, filterExpression, sortingExpression, getLatest}: {
+const RefreshLogs = ({context, project, filterExpression, sortingExpression, getLatest, logs}: {
     context: string | null,
     project: string,
     filterExpression: string | null,
     sortingExpression: string | null,
     getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
+    logs: LogProps[]
 }) => {
 
     /* Auto refresh */
@@ -36,44 +37,62 @@ const RefreshLogs = ({context, project, filterExpression, sortingExpression, get
         />
 
     /* Manual refresh */
-    
-    const [lastUpdated, setLastUpdated] = useState<string>("")
-    const [isChecking, setIsChecking] = useState(true);
-    const messages = { updated: "New logs were added to the table!", stale: "Table logs are already up to date" } 
-    const [message, setMessage] = useState("")
 
+    // Display loader when data updates
+    const [refreshClick, setRefreshClick] = useState(false);    // To avoid displaying the check icon when data updates from elsewhere
+    const [loading, setLoading] = useState(false);
+    const [loaded, setLoaded] = useState(false);
+    const displayLoadCheck = () => {
+        setLoading(false);
+        setRefreshClick(false);
+        setLoaded(true);
+        const timeoutId = setTimeout(() => {
+            setLoaded(false);
+        }, 2000);
+        return () => {
+            clearTimeout(timeoutId);
+        };
+    }
+    useEffect(() => {
+        if (refreshClick) displayLoadCheck();
+    }, [logs]);
 
     // We compare the timestamp string returned from the get latest timestamp endpoint
     // with the timestamp saved last time the refresh button was used, except the first
     // time where we compare with the timestamp set on loading the component
+    
+    const [lastUpdated, setLastUpdated] = useState<string>("")
 
     useEffect(() => {getLatest(project, context, filterExpression, sortingExpression, null, null, 0).then(latest => setLastUpdated(latest))}, [])
     
     const onManualClick = () => {
-        setIsChecking(true)
+        setLoading(true)
+        setRefreshClick(true);
         getLatest(project, context, filterExpression, sortingExpression, null, null, 0).then(latest => {
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime()
             if (latestTs > lastCheckTs) {
                 setTimestamp(Date.now().toString())
                 setLastUpdated(latest)
-                setMessage(messages.updated)
             } else {
-                setMessage(messages.stale)
+                displayLoadCheck();
             }
-            setIsChecking(false)
         }
     )}
     
-    const button = 
-        <ActionButton 
-            variant="outline"
-            className="rounded-none rounded-tl-lg rounded-bl-lg h-8"
-            icon={<RefreshCw/>}
-            tooltip="Refresh logs"
-            onClick={() => onManualClick()}
-        />
-    const manualRefresh = <BasePopover button={button}>{isChecking ? "Checking your logs..." : message}</BasePopover>
+    const icon = loading 
+        ? <RefreshCw className="animate-spin text-green"/> 
+        : loaded
+            ?   <Check className="text-green"/>
+            :   <RefreshCw/>
+    const manualRefresh = <ActionButton 
+        variant="outline"
+        className="rounded-none rounded-tl-lg rounded-bl-lg h-8"
+        icon={icon}
+        tooltip="Refresh logs"
+        onClick={() => onManualClick()}
+        disabled={loading}
+    />
 
     return (
         <div className="flex flex-row">

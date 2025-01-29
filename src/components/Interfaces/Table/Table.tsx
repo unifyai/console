@@ -342,6 +342,7 @@ const LogsTable = ({
             type="Contexts"
             data={Object.keys(dataTypes).map(property => ({path: property, type:"file"}))}
             onClick={setContext}
+            logs={logs}
           />
           <GlobalFilter
             interactive={interactive}
@@ -361,6 +362,7 @@ const LogsTable = ({
                   : undefined
               );
             }}
+            logs={logs}
           />
           <VisibilityFilter
             columnVisibility={columnVisibility}
@@ -387,6 +389,7 @@ const LogsTable = ({
             updateItem={updateItem}
             setTableDataItem={setTableDataItem}
             logsActions={logsActions}
+            logs={logs}
           />
         </div>
       )}
@@ -442,6 +445,7 @@ const LogsTable = ({
                     columnFilters={searchParamToFilters(logsFilters, item.context)}
                     column={column.id}
                     dataTypes={dataTypes}
+                    logs={logs}
                   />
                 )}
                 ColumnCreate={
@@ -466,7 +470,7 @@ const LogsTable = ({
                   >
                     {
                       column.columnDef.id === indicesTitle
-                      ? <ColumnMetrics interactive={interactive} metric={state.metric} setMetric={setState.setMetric}/>
+                      ? <ColumnMetrics interactive={interactive} metric={state.metric} setMetric={setState.setMetric} logs={logs}/>
                       : !column.getIsGrouped()
                         ?	<SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} draggingColumns={state.draggingColumns} />
                         : 	null

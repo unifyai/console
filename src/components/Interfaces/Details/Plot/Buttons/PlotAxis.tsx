@@ -1,20 +1,29 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { metrics } from "@/constants/logs";
-import { ChevronDown } from "lucide-react";
-import { LogFieldsResponseProps } from "@/types/evals/logs";
+import { ChevronDown, LoaderCircle } from "lucide-react";
+import { LogProps, LogFieldsResponseProps } from "@/types/evals/logs";
 
-const PlotAxis = ({interactive, fields, axisProperty, setAxisProperty, axis, plotType}: {
+const PlotAxis = ({interactive, fields, axisProperty, setAxisProperty, axis, plotType, logs}: {
     interactive: boolean
     fields: LogFieldsResponseProps,
     axisProperty: string | undefined,
     setAxisProperty: (x: string | undefined) => void,
     axis: string,
-    plotType: string
+    plotType: string,
+    logs: LogProps[] | undefined
 }) => {
+
+    /* Display loader when data updates */
+    const [loading, setLoading] = useState(false);
+    useEffect(() => {
+        setLoading(false);
+    },[logs])
+
     let properties;
     if (plotType === "Bar Chart") {
         properties = Object
@@ -40,21 +49,25 @@ const PlotAxis = ({interactive, fields, axisProperty, setAxisProperty, axis, plo
           : plotType === "Bar Chart"
             ? metrics
             : properties ;
+    const onSelect = (property: string) => {
+        setAxisProperty(property)
+        setLoading(true)
+    }
     return (
         <BaseDropdown
             button={
                 <ActionButton 
                     tooltip="Select property" 
-                    icon={<ChevronDown/>}
+                    icon={loading ? <LoaderCircle className="animate-spin text-green"/> : <ChevronDown/>}
                     text={axisProperty ? axisProperty : `${axis}-axis`} 
-                    disabled={!interactive}
+                    disabled={!interactive || loading}
                 />
             }
             open={interactive ? undefined : false}
         >
             {choices.map((property, index) => {
                 return (
-                    <DropdownMenuItem key={index} onSelect={() => setAxisProperty(property)}>
+                    <DropdownMenuItem key={index} onSelect={() => onSelect(property)}>
                         {property}
                     </DropdownMenuItem>
                 );

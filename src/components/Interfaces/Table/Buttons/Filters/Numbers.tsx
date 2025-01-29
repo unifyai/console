@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Filters, FiltersByColumn } from "@/types/evals/columns";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -12,8 +12,9 @@ import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { Input } from "@/components/UI/input";
 import { Slider } from "@/components/UI/slider";
 import { initFilters, combineFilters } from "@/utils/evals/filters";
-import { Trash, Plus, CircleX } from "lucide-react";
+import { Trash, Plus, CircleX, LoaderCircle } from "lucide-react";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
+import { LogProps } from "@/types/evals/logs";
 
 interface NumericFilter {
     key: number,
@@ -22,13 +23,20 @@ interface NumericFilter {
     value: string
 }
 
-const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, boundaries }: {
+const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, boundaries, logs }: {
     interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
-    boundaries: {minimums: {[key: string]: number;}, maximums: {[key: string]: number}}
+    boundaries: {minimums: {[key: string]: number;}, maximums: {[key: string]: number}},
+    logs: LogProps[]
 }) => {
+
+    /* Display loader when data updates */
+    const [loading, setLoading] = useState(false);
+    useEffect(() => {
+        setLoading(false);
+    },[logs])
 
     /* Initialize filters */
     const options = [
@@ -42,8 +50,12 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
     const modes = options.map(option => option.name)
     const [minValue, maxValue] = [boundaries.minimums[column], boundaries.maximums[column]]
     let defaultFilter : NumericFilter = {key: 0, mode: "==", join: "&&", value: ""}
-    let initialValues : NumericFilter[] = [defaultFilter]
-    if (columnFilters[column]) initFilters(column, columnFilters, initialValues, modes)
+    let initialValues : NumericFilter[] = []
+    if (columnFilters[column]) {
+        initFilters(column, columnFilters, initialValues, modes)
+    } else {
+        initialValues.push(defaultFilter)
+    }
     const [filters, setFilters] = useState(initialValues);
     
     /* Event handlers */
@@ -70,6 +82,7 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
             setFilters([defaultFilter])
         }
         setColumnFilterQuery(newColumnFilters);
+        setLoading(true);
         setOpen(false);
     }
     const onReset = () => {
@@ -78,19 +91,19 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
         );
         setFilters([defaultFilter])
         setColumnFilterQuery(newColumnFilters)
+        setLoading(true);
         setOpen(false)
     }
     const onEnter : KeyboardEventHandler = (event) => {
         if (event.key === "Enter") {
             onSubmit()
-            setOpen(false)
         }
     }
 
     /* Dialog interactions */
     const [open, setOpen] = useState(false);
     const close = <BaseButton size="sm" icon={<CircleX/>} onClick={() => setOpen(false)} className="top-0 right-0 scale-60 absolute" variant="warning"/>
-    const button = <ActionButton icon={<Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} disabled={!interactive} />
+    const button = <ActionButton icon={loading ? <LoaderCircle className="animate-spin text-white"/> : <Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} disabled={!interactive || loading}/>
     const reset = <ActionButton tooltip="Delete all filters" variant="warning" icon={<Trash/>} onClick={() => onReset()}/> 
     const submit = <SubmitButton text="Save" onClick={() => onSubmit()}/>
     const append = 

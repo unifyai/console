@@ -131,6 +131,7 @@ export default function DataTable<TData, TValue>({ className, interactive, data,
                                     <DataTableHeader
                                         key={header.id}
                                         interactive={interactive}
+                                        data={data}
                                         header={header}
                                         isCellSelected={isCellSelected}
                                         cellSelection={cellSelection}

@@ -1,17 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import { Input } from "@/components/UI/input";
-import { Filter, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Input } from "@/components/Common/Input/Content";
+import { LoaderCircle, Trash, Filter, X } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
+import { LogProps } from "@/types/evals/logs";
 
-const GlobalFilter = ({ searchParams, columnNames, commonFilterQuery, setCommonFilterQuery, setLogsFilters }: {
+const GlobalFilter = ({ searchParams, columnNames, commonFilterQuery, setCommonFilterQuery, setLogsFilters, logs }: {
     searchParams: { project?: string, metric?: string, filters?: string, common_filter?: string },
     columnNames: string[]
     commonFilterQuery: string | undefined,
     setCommonFilterQuery: (query: string | null) => void
-    setLogsFilters: (logsFilters: { [key: string]: { [key: string]: string } }) => void
+    setLogsFilters: (logsFilters: { [key: string]: { [key: string]: string } }) => void,
+    logs: LogProps[]
 }) => {
+
+    /* Display loader when data updates */
+    const [loadingReset, setLoadingReset] = useState(false);
+    const [loadingInput, setLoadingInput] = useState(false);
+    useEffect(() => {
+        setLoadingInput(false);
+        setLoadingReset(false);
+    },[logs])
+
     const [commonFilter, setCommonFilter] = useState<string | undefined>(
         commonFilterQuery ? commonFilterQuery.split(",")[0] : undefined
     );
@@ -20,7 +31,7 @@ const GlobalFilter = ({ searchParams, columnNames, commonFilterQuery, setCommonF
         <>
             <div className="relative">
                 <Input
-                    placeholder={"Enter a global filter.."}
+                    placeholder={loadingInput ? "Updating logs.." : "Enter a global filter.."}
                     value={commonFilter || ""}
                     onInput={(input) => setCommonFilter(input.currentTarget.value)}
                     onKeyDown={(e) => {
@@ -30,25 +41,32 @@ const GlobalFilter = ({ searchParams, columnNames, commonFilterQuery, setCommonF
                                     ? commonFilter 
                                     : `"${commonFilter}"`
                                 );
+                                setLoadingInput(true);
                             }
-                            else
+                            else {
                                 setCommonFilterQuery(null);
+                                setLoadingInput(true);
+                            }
                         }
                     }}
-                    className="h-8"
+                    className="h-5"
+                    disabled={loadingInput}
+                    StartContent={loadingInput ? <LoaderCircle className="animate-spin text-primary"/> : null}
                 />
-                {commonFilter?.length ? <div className="absolute right-2 top-[9px]">
+                {commonFilter?.length ? <div className="absolute right-2 top-[6px]">
                     <X size={18} onClick={() => setCommonFilter("")} className="cursor-pointer" />
                 </div> : <></>}
             </div>
             {(searchParams.filters || searchParams.common_filter) && <ActionButton
-                icon={<Filter />}
+                icon={loadingReset ? <LoaderCircle className="animate-spin text-white"/> : <Filter/>}
                 tooltip="Reset All Filters"
                 variant={"destructive"}
+                disabled={loadingReset}
                 onClick={() => {
                     setLogsFilters({});
                     setCommonFilter("");
                     setCommonFilterQuery(null);
+                    setLoadingReset(true)
                 }}
             />}
         </>

@@ -1,16 +1,17 @@
 "use client";
 
-import { KeyboardEventHandler, useState } from "react";
+import { KeyboardEventHandler, useState, useEffect } from "react";
 import { Filters, FiltersByColumn } from "@/types/evals/columns";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import BaseButton from "@/components/Common/Buttons/Base";
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import { Filter, Plus, Trash, CircleX } from "lucide-react";
+import { Filter, Plus, Trash, CircleX, LoaderCircle } from "lucide-react";
 import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { Input } from "@/components/UI/input";
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { combineFilters, initFilters } from "@/utils/evals/filters";
+import { LogProps } from "@/types/evals/logs";
 
 interface StringFilter {
     key: number,
@@ -19,11 +20,18 @@ interface StringFilter {
     value: string
 }
 
-const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
+const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery, logs }: {
     column: string,
     columnFilters: FiltersByColumn
-    setColumnFilterQuery: (columnFilters: FiltersByColumn) => void
+    setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
+    logs: LogProps[]
 }) => {
+
+    /* Display loader when data updates */
+    const [loading, setLoading] = useState(false);
+    useEffect(() => {
+        setLoading(false);
+    },[logs])
 
     /* Init filters */
     const options = [
@@ -32,8 +40,12 @@ const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
     ]
     const modes = options.map(option => option.name)
     let defaultFilter : StringFilter = {key: 0, mode: "in", join: "&&", value: ""};
-    let initialValues : StringFilter[] = [defaultFilter];
-    if (columnFilters[column]) initFilters(column, columnFilters, initialValues, modes);
+    let initialValues : StringFilter[] = [];
+    if (columnFilters[column]) {
+        initFilters(column, columnFilters, initialValues, modes)
+    } else {
+        initialValues.push(defaultFilter)
+    }
     const [filters, setFilters] = useState(initialValues);
     
     /* Event handlers */
@@ -60,6 +72,7 @@ const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
             setFilters([defaultFilter])
         }
         setColumnFilterQuery(newColumnFilters);
+        setLoading(true);
         setOpen(false);
     }
     const onReset = () => {
@@ -68,19 +81,19 @@ const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
         )
         setFilters([defaultFilter])
         setColumnFilterQuery(newColumnFilters)
+        setLoading(true);
         setOpen(false)
     }
     const onEnter : KeyboardEventHandler = (event) => {
         if (event.key === "Enter") {
             onSubmit()
-            setOpen(false)
         }
     }
 
     // Dialog interactions
     const [open, setOpen] = useState(false);
     const close = <BaseButton size="sm" icon={<CircleX/>} onClick={() => setOpen(false)} className="top-0 right-0 scale-60 absolute" variant="warning"/>
-    const button = <ActionButton icon={<Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} />
+    const button = <ActionButton icon={loading ? <LoaderCircle className="animate-spin text-white"/> : <Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} disabled={loading}/>
     const reset = <ActionButton tooltip="Delete all filters" variant="warning" icon={<Trash/>} onClick={() => onReset()}/> 
     const submit = <SubmitButton text="Save" onClick={() => onSubmit()}/>
     const append = 
