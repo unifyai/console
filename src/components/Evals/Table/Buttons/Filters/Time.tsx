@@ -9,7 +9,7 @@ import BaseButton from "@/components/Common/Buttons/Base";
 import { Filter } from "lucide-react";
 import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { KeyboardEventHandler } from "react";
-import { initFilters, combineFilters, rebaseDate, defaultRelativeDate, defaultAbsoluteDate, initDefaultDate } from "@/utils/evals/filters";
+import { initFilters, combineFilters, defaultRelativeDate, defaultAbsoluteDate, initDefaultDate } from "@/utils/evals/filters";
 import { Trash, Plus, CircleX, Clock, History, LoaderCircle } from "lucide-react";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { DateTimeInput } from "@/components/Common/Time/DateTimeInput";
@@ -138,13 +138,9 @@ const TimeColumnFilter = ({ column, columnFilters, setColumnFilterQuery, logs }:
         initialValues.map(initial => initial.value).every(value => value.includes(";"))
     );
     const onRebase = () => {
-        const newFilters = [...filters]
-        const newBase = relative ? "absolute" : "relative"
-        newFilters.map(filter => {
-            const value = initDefaultDate(filter.value, relative)
-            return filter.value = rebaseDate(value, newBase)
-        })
-        setFilters(newFilters)
+        const value = relative ? defaultAbsoluteDate as AbsoluteDateString : defaultRelativeDate as RelativeDateString
+        const filter : TimeFilter = {key: 0, mode: "==", join: "&&", value: value}
+        setFilters([filter])
         setRelative(!relative)
     }
     const basis = <ActionButton 
