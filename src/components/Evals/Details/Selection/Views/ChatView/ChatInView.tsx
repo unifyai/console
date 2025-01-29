@@ -37,6 +37,16 @@ import {
 } from "@/utils/evals/selection";
 
 /******************************************************************************
+ * A tiny helper to capitalize the role for display.
+ */
+function formatRole(role: string) {
+  if (!role) {
+    return "Assistant";
+  }
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+/******************************************************************************
  * pickDataView(value, valueComparables, baseIndex, compIndexes, diffMode, splitView)
  *   => returns the correct *View with multi-diff if needed
  ******************************************************************************/
@@ -48,16 +58,8 @@ function pickDataView(
   diffMode: LogComparisonProps["diffMode"],
   splitView: boolean
 ) {
-  // Decide which specialized view to use. We pass comparables if we want multi-diffs.
-  // If baseValue is a dictionary, we do DictionaryView, etc.
-  // Additional logic can expand as needed.
+  // Decide which specialized view to use.
 
-  // Quick function to skip “comparables” if we definitely want single:
-  function singleView(v: any) {
-    return pickDataView(v, [], baseLogIndex, compLogIndexes, diffMode, splitView);
-  }
-
-  // Decide type from baseValue or from the first available comparable (if base is undefined).
   let finalValue = baseValue;
   if (finalValue === undefined && comparables && comparables.length > 0) {
     finalValue = comparables.find((c) => c !== undefined);
@@ -249,7 +251,7 @@ export default function ChatInView({
             <div className="flex flex-col gap-2">
               {messages.map((m: any, idx: number) => {
                 const role = m.role ?? "assistant";
-                const label = role === "user" ? "User" : "Assistant";
+                const label = formatRole(role);
 
                 return (
                   <div
@@ -338,12 +340,9 @@ export default function ChatInView({
     const cObj = { ...co };
     delete cObj.messages;
     delete cObj.usage;
-    const cModel = cObj.model; // we handle model separately
     delete cObj.model;
     return cObj;
   });
-
-  // For model, we do a string diff
   const compModels = compObjs.map((co) => co.model ?? "");
 
   // unify them
@@ -351,7 +350,7 @@ export default function ChatInView({
 
   /**
    * gatherAll => collects the base (if present) plus each comparable message or (if missing) an empty string,
-   * ensuring the role for missing comps matches the base message's role if possible.
+   * ensuring the role for missing comps is "assistant" if none is known.
    */
   function gatherAll(idxData: { baseMsg?: any; compMsgs: (any | null)[] }) {
     const out: {
@@ -361,23 +360,20 @@ export default function ChatInView({
       content: any;
     }[] = [];
 
-    // The “base” message if it exists
-    const base = idxData.baseMsg;
-    if (base) {
-      const bRole = base.role ?? "assistant";
+    if (idxData.baseMsg) {
+      const bRole = idxData.baseMsg.role ?? "assistant";
       out.push({
         isBase: true,
         role: bRole,
         rowIndex: baseLogIndex,
-        content: base.content,
+        content: idxData.baseMsg.content,
       });
     }
 
-    // Each comparable message
     idxData.compMsgs.forEach((cm, i) => {
       if (!cm) {
-        // If missing, create an empty message with the base’s role if possible
-        const fallbackRole = base ? base.role ?? "assistant" : "assistant";
+        // If missing, create an empty message with a fallback role
+        const fallbackRole = idxData.baseMsg ? idxData.baseMsg.role ?? "assistant" : "assistant";
         out.push({
           isBase: false,
           role: fallbackRole,
@@ -408,12 +404,14 @@ export default function ChatInView({
             const msgs = gatherAll(block);
             if (!msgs.length) return null;
 
+            // We'll keep the existing logic of "userParts" vs. "non-userParts",
+            // but the role label is now generic.
             const userParts = msgs.filter((m) => m.role === "user");
             const asstParts = msgs.filter((m) => m.role !== "user");
 
             return (
               <div key={i} className="flex flex-col gap-6 w-full">
-                {/* Assistant side => align left */}
+                {/* Assistant side => everything that's not user */}
                 {asstParts.length > 0 && (
                   <div className="flex flex-col w-full">
                     <Tabs defaultValue={String(asstParts[0].rowIndex)}>
@@ -431,7 +429,7 @@ export default function ChatInView({
                       </div>
 
                       {asstParts.map((m) => {
-                        const label = m.role === "user" ? "User" : "Assistant";
+                        const label = formatRole(m.role);
                         return (
                           <TabsContent
                             key={m.rowIndex}
@@ -455,7 +453,7 @@ export default function ChatInView({
                   </div>
                 )}
 
-                {/* User side => align right */}
+                {/* User side => those exactly with role==="user" */}
                 {userParts.length > 0 && (
                   <div className="flex flex-col w-full">
                     <Tabs defaultValue={String(userParts[0].rowIndex)}>
@@ -471,24 +469,27 @@ export default function ChatInView({
                           ))}
                         </TabsList>
                       </div>
-                      {userParts.map((m) => (
-                        <TabsContent
-                          key={m.rowIndex}
-                          value={String(m.rowIndex)}
-                          className="w-full"
-                        >
-                          <div className="hover:border hover:border-muted bg-background p-4 rounded shadow-sm w-full">
-                            <div className="mb-2 flex items-center justify-between">
-                              <p className="font-bold text-sm">User</p>
-                              <CopyButton
-                                content={JSON.stringify(m.content ?? "")}
-                                copyMessage="Copied!"
-                              />
+                      {userParts.map((m) => {
+                        const label = formatRole(m.role);
+                        return (
+                          <TabsContent
+                            key={m.rowIndex}
+                            value={String(m.rowIndex)}
+                            className="w-full"
+                          >
+                            <div className="hover:border hover:border-muted bg-background p-4 rounded shadow-sm w-full">
+                              <div className="mb-2 flex items-center justify-between">
+                                <p className="font-bold text-sm">{label}</p>
+                                <CopyButton
+                                  content={JSON.stringify(m.content ?? "")}
+                                  copyMessage="Copied!"
+                                />
+                              </div>
+                              {renderMessageContent(m.content)}
                             </div>
-                            {renderMessageContent(m.content)}
-                          </div>
-                        </TabsContent>
-                      ))}
+                          </TabsContent>
+                        );
+                      })}
                     </Tabs>
                   </div>
                 )}
@@ -563,29 +564,23 @@ export default function ChatInView({
           const msgs = gatherAll(block);
           if (!msgs.length) return null;
 
-          // Group by role => user or assistant
+          // group by role
           const roles = Array.from(new Set(msgs.map((m) => m.role)));
 
           return (
             <div key={i} className="space-y-4 w-full">
               {roles.map((role) => {
-                // All messages for this role at this index
                 const roleMsgs = msgs.filter((m) => m.role === role);
                 if (!roleMsgs.length) return null;
 
-                // The base message (if any)
                 const baseMsg = roleMsgs.find((m) => m.isBase);
                 const compMsgs = roleMsgs.filter((m) => !m.isBase);
 
-                // If no base & no comps => skip
-                if (!baseMsg && compMsgs.length === 0) return null;
-
-                // Base content
                 const baseStr = baseMsg
                   ? JSON.stringify(baseMsg.content ?? "", null, 2)
                   : "";
 
-                let label = role === "user" ? "User" : "Assistant";
+                const label = formatRole(role);
 
                 return (
                   <div
@@ -600,10 +595,14 @@ export default function ChatInView({
                       />
                     </div>
 
-                    {/* Compare each comp against the base (or empty string if no base) */}
+                    {/* Compare each comp against the base */}
                     {compMsgs.length > 0 ? (
                       compMsgs.map((cm, idx2) => {
-                        const cStr = JSON.stringify(cm.content ?? "", null, 2);
+                        const cStr = JSON.stringify(
+                          cm.content ?? "",
+                          null,
+                          2
+                        );
                         const same = cStr === baseStr;
                         const baseBadge = same ? "none" : "delete";
                         const compBadge = same ? "none" : "insert";
@@ -635,7 +634,7 @@ export default function ChatInView({
                         );
                       })
                     ) : (
-                      // No comps => diff base vs empty
+                      /* No comparables => compare with empty */
                       <div className="mt-4 bg-background p-2 rounded text-xs space-y-2 relative">
                         <div className="flex gap-2 text-xxs">
                           {baseMsg && (
@@ -662,7 +661,7 @@ export default function ChatInView({
         })}
       </div>
 
-      {/* Additional data => Model, usage, leftover (multi) */}
+      {/* Additional data => Model, usage, leftover */}
       <Accordion type="multiple" className="space-y-2">
         {/* Model diffs */}
         <AccordionItem value="model">

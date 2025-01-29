@@ -37,6 +37,16 @@ import {
 } from "@/utils/evals/selection";
 
 /******************************************************************************
+ * A tiny helper to capitalize or otherwise format a role for display.
+ */
+function formatRole(role: string) {
+  if (!role) {
+    return "Assistant";
+  }
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+/******************************************************************************
  * pickDataView:
  * multi-diff for leftover/usage, if needed
  ******************************************************************************/
@@ -48,7 +58,6 @@ function pickDataView(
   diffMode: LogComparisonProps["diffMode"],
   splitView: boolean
 ) {
-  // Determine finalValue from baseValue or fallback 
   let finalValue = baseValue;
   if (finalValue === undefined && comparables && comparables.length > 0) {
     finalValue = comparables.find((c) => c !== undefined);
@@ -206,9 +215,6 @@ function unifyChoices(baseArr: any[], compArrs: any[][]) {
   return out;
 }
 
-/******************************************************************************
- * ChatOutView: single vs multi approach
- ******************************************************************************/
 export default function ChatOutView({
   value,
   comparables,
@@ -238,7 +244,7 @@ export default function ChatOutView({
             <div className="flex flex-col gap-3 p-2">
               {choicesArr.map((choice: any, idx: number) => {
                 const role = choice.message?.role || "assistant";
-                const label = role === "system" ? "System" : "Assistant";
+                const label = formatRole(role);
                 const mainContent = choice.message?.content ?? "";
                 const toolCalls = choice.message?.tool_calls ?? [];
 
@@ -344,16 +350,13 @@ export default function ChatOutView({
     const cObj = { ...co };
     delete cObj.choices;
     delete cObj.usage;
-    const cModel = cObj.model; // handled separately
     delete cObj.model;
     return cObj;
   });
-  // model array
   const compModels = compObjs.map((co) => co.model ?? "");
 
   /**
    * gatherAll => returns an array of { isBase, role, rowIndex, content, toolCalls }
-   * so we can do diffs (like in ChatInView).
    */
   function gatherAll(u: { baseChoice?: any; compChoices: (any | null)[] }) {
     const out: {
@@ -403,7 +406,7 @@ export default function ChatOutView({
   }
 
   if (diffMode === "none") {
-    // TAB approach for messages, same as ChatInView
+    // TAB approach for messages, similar to ChatInView
     return (
       <div className="space-y-4 w-full">
         <p className="font-semibold border-b pb-2">Chat Output Comparison</p>
@@ -413,6 +416,8 @@ export default function ChatOutView({
           {unified.map((block, i) => {
             const combined = gatherAll(block);
             if (!combined.length) return null;
+
+            // same user vs. asst approach as minimal tweak
             const userParts = combined.filter((m) => m.role === "user");
             const asstParts = combined.filter((m) => m.role !== "user");
 
@@ -434,40 +439,43 @@ export default function ChatOutView({
                           ))}
                         </TabsList>
                       </div>
-                      {asstParts.map((m) => (
-                        <TabsContent
-                          key={m.rowIndex}
-                          value={String(m.rowIndex)}
-                          className="w-full"
-                        >
-                          <div className="border bg-background p-4 rounded shadow-sm w-full">
-                            <div className="mb-2 flex items-center justify-between">
-                              <p className="font-bold text-sm">Assistant</p>
-                              <CopyButton
-                                content={JSON.stringify(m.content)}
-                                copyMessage="Copied!"
-                              />
-                            </div>
-                            {renderMessageContent(m.content)}
-
-                            {m.toolCalls.length > 0 && (
-                              <div className="mt-2 border-l-2 pl-2">
-                                <p className="font-bold text-sm mb-1">
-                                  Tool Calls
-                                </p>
+                      {asstParts.map((m) => {
+                        const label = formatRole(m.role);
+                        return (
+                          <TabsContent
+                            key={m.rowIndex}
+                            value={String(m.rowIndex)}
+                            className="w-full"
+                          >
+                            <div className="border bg-background p-4 rounded shadow-sm w-full">
+                              <div className="mb-2 flex items-center justify-between">
+                                <p className="font-bold text-sm">{label}</p>
                                 <CopyButton
-                                  className="mb-1"
-                                  content={JSON.stringify(m.toolCalls, null, 2)}
+                                  content={JSON.stringify(m.content)}
                                   copyMessage="Copied!"
                                 />
-                                <pre className="bg-muted p-2 rounded text-xs whitespace-pre-wrap">
-                                  {JSON.stringify(m.toolCalls, null, 2)}
-                                </pre>
                               </div>
-                            )}
-                          </div>
-                        </TabsContent>
-                      ))}
+                              {renderMessageContent(m.content)}
+
+                              {m.toolCalls.length > 0 && (
+                                <div className="mt-2 border-l-2 pl-2">
+                                  <p className="font-bold text-sm mb-1">
+                                    Tool Calls
+                                  </p>
+                                  <CopyButton
+                                    className="mb-1"
+                                    content={JSON.stringify(m.toolCalls, null, 2)}
+                                    copyMessage="Copied!"
+                                  />
+                                  <pre className="bg-muted p-2 rounded text-xs whitespace-pre-wrap">
+                                    {JSON.stringify(m.toolCalls, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+                            </div>
+                          </TabsContent>
+                        );
+                      })}
                     </Tabs>
                   </div>
                 )}
@@ -487,40 +495,43 @@ export default function ChatOutView({
                           ))}
                         </TabsList>
                       </div>
-                      {userParts.map((m) => (
-                        <TabsContent
-                          key={m.rowIndex}
-                          value={String(m.rowIndex)}
-                          className="w-full"
-                        >
-                          <div className="border bg-background p-4 rounded shadow-sm w-full">
-                            <div className="mb-2 flex items-center justify-between">
-                              <p className="font-bold text-sm">User</p>
-                              <CopyButton
-                                content={JSON.stringify(m.content)}
-                                copyMessage="Copied!"
-                              />
-                            </div>
-                            {renderMessageContent(m.content)}
-
-                            {m.toolCalls.length > 0 && (
-                              <div className="mt-2 border-l-2 pl-2">
-                                <p className="font-bold text-sm mb-1">
-                                  Tool Calls
-                                </p>
+                      {userParts.map((m) => {
+                        const label = formatRole(m.role);
+                        return (
+                          <TabsContent
+                            key={m.rowIndex}
+                            value={String(m.rowIndex)}
+                            className="w-full"
+                          >
+                            <div className="border bg-background p-4 rounded shadow-sm w-full">
+                              <div className="mb-2 flex items-center justify-between">
+                                <p className="font-bold text-sm">{label}</p>
                                 <CopyButton
-                                  className="mb-1"
-                                  content={JSON.stringify(m.toolCalls, null, 2)}
+                                  content={JSON.stringify(m.content)}
                                   copyMessage="Copied!"
                                 />
-                                <pre className="bg-muted p-2 rounded text-xs whitespace-pre-wrap">
-                                  {JSON.stringify(m.toolCalls, null, 2)}
-                                </pre>
                               </div>
-                            )}
-                          </div>
-                        </TabsContent>
-                      ))}
+                              {renderMessageContent(m.content)}
+
+                              {m.toolCalls.length > 0 && (
+                                <div className="mt-2 border-l-2 pl-2">
+                                  <p className="font-bold text-sm mb-1">
+                                    Tool Calls
+                                  </p>
+                                  <CopyButton
+                                    className="mb-1"
+                                    content={JSON.stringify(m.toolCalls, null, 2)}
+                                    copyMessage="Copied!"
+                                  />
+                                  <pre className="bg-muted p-2 rounded text-xs whitespace-pre-wrap">
+                                    {JSON.stringify(m.toolCalls, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+                            </div>
+                          </TabsContent>
+                        );
+                      })}
                     </Tabs>
                   </div>
                 )}
@@ -581,36 +592,35 @@ export default function ChatOutView({
     );
   }
 
-  // diffMode !== "none" => we do side-by-side diffs
+  // diffMode !== "none" => side-by-side diffs
   return (
     <div className="space-y-4">
       <p className="font-semibold border-b pb-2">Chat Output Comparison</p>
 
       <div className="space-y-6">
-        {/* message diffs */}
         {unified.map((block, i) => {
           const combined = gatherAll(block);
           if (!combined.length) return null;
 
           const roles = Array.from(new Set(combined.map((m) => m.role)));
+
           return (
             <div key={i} className="space-y-4">
               {roles.map((role) => {
-                const roleMsgs = combined.filter((m) => m.role === role);
+                const roleMsgs = combined.filter((r) => r.role === role);
                 if (!roleMsgs.length) return null;
 
                 const baseMsg = roleMsgs.find((r) => r.isBase);
                 const compMsgs = roleMsgs.filter((r) => !r.isBase);
                 if (!baseMsg && compMsgs.length === 0) return null;
 
-                // main content
                 const baseStr = baseMsg
                   ? JSON.stringify(baseMsg.content, null, 2)
                   : "";
-                // for tool calls
                 const baseToolJSON = baseMsg
                   ? JSON.stringify(baseMsg.toolCalls, null, 2)
                   : "";
+                const label = formatRole(role);
 
                 return (
                   <div
@@ -618,9 +628,7 @@ export default function ChatOutView({
                     className="bg-background p-4 rounded shadow-sm hover:border hover:border-muted"
                   >
                     <div className="mb-2 flex items-center justify-between">
-                      <p className="font-bold text-sm">
-                        {role === "user" ? "User" : "Assistant"}
-                      </p>
+                      <p className="font-bold text-sm">{label}</p>
                       <CopyButton content={baseStr} copyMessage="Copied!" />
                     </div>
 
