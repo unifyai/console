@@ -96,60 +96,69 @@ export function separateFunctionFilters (filter: string) {
 	});
 	if (currentPart) separated.push(currentPart);
 
+	// Filter out empty strings from the beginning (if any)
+	if (separated[0] === "") {
+		separated.shift(); // Remove the first element
+	}
+	
 	return separated
 }
 
 /* 
 	Constructs a filter expression from a list of filters / separators using the same function
 	E.g: 
-		A filter of this format: ["first", "||", "second", "&&", "third", "||", "fourth"]
+		A `separated` filter of this format: ["first", "||", "second", "&&", "third", "||", "fourth"]
 		Is transformed into: "first ${fn} ${cKey} or second ${fn} ${cKey} and third ${fn} ${cKey} or fourth ${fn} ${cKey}"
 */
-export function joinFunctionFilters (filter: string, fn: string,cKey: string) {
-	
-	// Use the resulting list of values / separators 
-	// to construct the final filter expression 
+function joinFunctionFilters (filter: string, fn: string, cKey: string, fields: LogFieldsResponseProps) {
 	let joined = '';
+
+	// Break down a filter into a list of successive joins (&& / ||) and filter values 
 	const separated = separateFunctionFilters(filter)
+
+	/** Combines the list into a single expression and:
+	 * Replace "&&" with "and", and "||" with "or"
+	 * Handle ordering of value / fn / cKey for "in" / "not in" operators and other operators differently
+	 * Converts relative timestamp filters to absolute timestamps (if applicable) 
+	*/
 	separated.forEach(item => {
+		// Append filter value
 		if (item != '||' && item != '&&' ) {
-			joined += `${item} ${fn} ${cKey}`
-		} else {
+			let value = item;
+
+			// Handle relative timestamps
+			if (fields[cKey].data_type === "timestamp" && value.includes(";")) {
+				const date = toAbsoluteDate(value as RelativeDateString)
+				value = `"${date.replace("T", " ").replace("Z", "")}"`
+			}
+
+			if (["in", "not in"].includes(fn))
+				joined += `${value} ${fn} ${cKey}`
+			else
+				joined += `${cKey} ${fn} ${value}`        
+		} 
+		// Append join operator
+		else {
 			const join = item === "&&" ? "and" : "or"
 			joined += ` ${join} `
 		}
 	})
 
-	return joined;
+	return joined
 }
 
 /* 
 	Converts nested filters dict into string filter expression.
-	Join column filters with the corresponding filter functions and values using "and"
 */
 export function filtersToExpression (columnFilters: FiltersByColumn, fields: LogFieldsResponseProps) {
 	if (Object.keys(columnFilters).length === 0) return ""
-	const expression = Object
-		.entries(columnFilters)
-		.map(([cKey, filter]) =>
-			Object.entries(filter).map(([fn, val]) => { 
-				let value = val;
-
-				// Handling relative timestamp filters
-				if (fields[cKey].data_type === "timestamp" && val.includes(";")) {
-					const date = toAbsoluteDate(val as RelativeDateString)
-					value = `"${date.replace("T", " ").replace("Z", "")}"`
-				}
-				
-				return ["in", "not in"].includes(fn) 
-					? value.includes(" && ") || value.includes(" || ")
-						? joinFunctionFilters(value, fn, cKey)
-						: `${value} ${fn} ${cKey}` 
-					: `${cKey} ${fn} ${value}`
-			})
-		)
-		.flat()
-		.join(" and ")
+	let expression = ""
+	Object.entries(columnFilters).forEach(([cKey, filter]) => 
+		Object.entries(filter).forEach(([fn, value]) => {
+		  expression += joinFunctionFilters(value, fn, cKey, fields)
+		})
+	)
+	expression = expression.replace(" and ", "") // Remove first instance of " and "
 	return expression
 }
 
@@ -187,18 +196,19 @@ export function initFilters (
 	initialValues: {key: number, mode: string, join: "&&" | "||", value: string}[],
 	modes: string[]
 ) {
-	modes.forEach(mode => {
-		const filters = columnFilters[column][mode]
-		if (filters) {
-			const array = ["&&"].concat(separateFunctionFilters(filters))
-			for (let i = 0; i < array.length; i += 2) {
-				const key = i
-				const join = array[i] as "&&" || "||"
-				const value = array[i + 1].startsWith('"') && array[i + 1].endsWith('"') ? array[i + 1].slice(1, -1) : array[i + 1]
-				initialValues.push({key, mode, join, value});
-			}
-		}
-	})
+    const filterModes = Object.keys(columnFilters[column]);
+    filterModes.forEach((mode, index) => {
+        const filters = columnFilters[column][mode];
+        if (filters) {
+            const array = separateFunctionFilters(filters);
+            for (let i = 0; i < array.length; i += 2) {
+                const key = index;
+                const join = array[i] as "&&" | "||";
+                const value = array[i + 1].startsWith('"') && array[i + 1].endsWith('"') ? array[i + 1].slice(1, -1) : array[i + 1];
+                initialValues.push({key, mode, join, value});
+            }
+        }
+    });
 }
 
 /* 
@@ -208,16 +218,14 @@ export function combineFilters (
 	newFilters: {key: number, mode: string, join: "&&" | "||", value: string}[],
 	modes: string[]
 ) {
-	const filter : Filters = {}
-	modes.forEach(mode => {
-		const filters = newFilters.filter(f => f.mode === mode)
-		if (filters.length) {
-			let value = filters[0].value
-			for (let i = 1; i < filters.length; i++) {
-				value += " " + filters[i].join + " " + filters[i].value;
-			}
-			filter[mode] = value
-		}
-	})
-	return filter;
+	const filters : Filters = {};
+	newFilters.forEach(filterItem => {
+	  const { mode, join, value } = filterItem;
+	  if (filters[mode]) {
+		filters[mode] += ` ${join} ${value}`;
+	  } else {
+		filters[mode] = ` ${join} ${value}`;
+	  }
+	});
+	return filters;
 }
