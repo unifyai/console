@@ -398,6 +398,7 @@ const LogsTable = ({
             type="Contexts"
             data={Object.keys(dataTypes).map(property => ({path: property, type:"file"}))}
             onClick={setContext}
+            logs={logs}
           />
           <GlobalFilter
             searchParams={searchParams}
@@ -417,6 +418,7 @@ const LogsTable = ({
                   : null
               );
             }}
+            logs={logs}
           />
           <VisibilityFilter
             columnVisibility={columnVisibility}
@@ -492,6 +494,7 @@ const LogsTable = ({
             filterExpression={filterExpression}
             sortingExpression={sortingExpression}
             getLatest={logsActions.getLatest}
+            logs={logs}
           />
         }
       </div>
@@ -532,6 +535,7 @@ const LogsTable = ({
                     columnFilters={searchParamToFilters(logsFiltersQuery ?? undefined, context ?? undefined)}
                     column={column.id}
                     dataTypes={dataTypes}
+                    logs={logs}
                   />
                 )}
                 ColumnCreate={
@@ -548,7 +552,7 @@ const LogsTable = ({
                   >
                     {
                       column.columnDef.id === indicesTitle
-                      ? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric}/>
+                      ? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric} logs={logs}/>
                       : !column.getIsGrouped()
                         ?	<SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} draggingColumns={state.draggingColumns} />
                         : 	null

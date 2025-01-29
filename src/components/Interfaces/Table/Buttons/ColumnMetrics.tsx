@@ -1,12 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { TableCell } from "@/components/UI/table";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { CSSProperties } from "react";
 import { DropdownMenuCheckboxItem, DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { metrics } from "@/constants/logs";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, LoaderCircle } from "lucide-react";
+import { LogProps } from "@/types/evals/logs";
 
 const style: CSSProperties = {
     cursor: "default",
@@ -16,12 +18,24 @@ const style: CSSProperties = {
     zIndex: 1,
 };
 
-const ColumnMetrics = ({interactive, metric, setMetric, colSpan = 1}: {interactive: boolean, metric: string, setMetric: (x: string) => void, colSpan?: number}) => {
+const ColumnMetrics = ({interactive, metric, setMetric, colSpan = 1, logs}: {interactive: boolean, metric: string, setMetric: (x: string) => void, colSpan?: number, logs:LogProps[]}) => {
+    
+    /* Display loader when data updates */
+    const [loading, setLoading] = useState(false);
+    useEffect(() => {
+        setLoading(false);
+    },[logs])
+    
+    const onClick = (metric_: string) => {
+        setMetric(metric_)
+        setLoading(true)
+    }
+
     return (
         <TableCell style={style} colSpan={colSpan} className="text-left">
-            <BaseDropdown button={<ActionButton tooltip="Select metric" text={metric} icon={<ChevronDown />} disabled={!interactive} />} open={interactive ? undefined : false}>
+            <BaseDropdown button={<ActionButton tooltip="Select metric" text={metric} icon={loading ? <LoaderCircle className="animate-spin text-primary"/> : <ChevronDown />} disabled={!interactive || loading} />} open={interactive ? undefined : false}>
                 {metrics.map((metric_, index) =>
-                    <DropdownMenuCheckboxItem checked={metric === metric_} key={index} onClick={() => setMetric(metric_)}>
+                    <DropdownMenuCheckboxItem checked={metric === metric_} key={index} onClick={() => onClick(metric_)}>
                         {metric_}
                     </DropdownMenuCheckboxItem>
                 )}

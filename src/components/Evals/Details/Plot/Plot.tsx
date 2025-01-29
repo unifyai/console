@@ -193,11 +193,12 @@ const LogsPlot = ({ logs, fields}: {
                 axis="X" 
                 axisProperty={selectedXAxisProperty} 
                 plotType={plotType}
+                logs={logs}
             />
         </div>
         {plotType != "Histogram" &&
             <div className="absolute top-0.5 left-1 z-10">
-                <PlotAxis fields={fields} setAxisProperty={setSelectedYAxisProperty} axis="Y" axisProperty={selectedYAxisProperty} plotType={plotType}/>
+                <PlotAxis fields={fields} setAxisProperty={setSelectedYAxisProperty} axis="Y" axisProperty={selectedYAxisProperty} plotType={plotType} logs={logs}/>
             </div>
         }
         <div className="absolute top-0.5 right-1 z-10">

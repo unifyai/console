@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Filters, FiltersByColumn } from "@/types/evals/columns";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -10,10 +10,11 @@ import { Filter } from "lucide-react";
 import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { KeyboardEventHandler } from "react";
 import { initFilters, combineFilters, rebaseDate, defaultRelativeDate, defaultAbsoluteDate, initDefaultDate } from "@/utils/evals/filters";
-import { Trash, Plus, CircleX, Clock, History } from "lucide-react";
+import { Trash, Plus, CircleX, Clock, History, LoaderCircle } from "lucide-react";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { DateTimeInput } from "@/components/Common/Time/DateTimeInput";
 import { AbsoluteDateString, RelativeDateString } from "@/types/evals/filters";
+import { LogProps } from "@/types/evals/logs";
 
 interface TimeFilter {
     key: number,
@@ -22,11 +23,18 @@ interface TimeFilter {
     value: string
 }
 
-const TimeColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
+const TimeColumnFilter = ({ column, columnFilters, setColumnFilterQuery, logs }: {
     column: string,
     columnFilters: FiltersByColumn
-    setColumnFilterQuery: (columnFilters: FiltersByColumn) => void
+    setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
+    logs: LogProps[]
 }) => {
+
+    /* Display loader when data updates */
+    const [loading, setLoading] = useState(false);
+    useEffect(() => {
+        setLoading(false);
+    },[logs])
 
     /* Initialize filters */
     const options = [
@@ -86,6 +94,7 @@ const TimeColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
             setFilters([defaultFilter])
         }
         setColumnFilterQuery(newColumnFilters);
+        setLoading(true);
         setOpen(false);
     }
     const onReset = () => {
@@ -94,19 +103,19 @@ const TimeColumnFilter = ({ column, columnFilters, setColumnFilterQuery }: {
         );
         setFilters([defaultFilter])
         setColumnFilterQuery(newColumnFilters)
+        setLoading(true);
         setOpen(false)
     }
     const onEnter : KeyboardEventHandler = (event) => {
         if (event.key === "Enter") {
             onSubmit()
-            setOpen(false)
         }
     }
 
     /* Dialog interactions */
     const [open, setOpen] = useState(false);
     const close = <BaseButton size="sm" icon={<CircleX/>} onClick={() => setOpen(false)} className="top-0 right-0 scale-60 absolute" variant="warning"/>
-    const button = <ActionButton icon={<Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} />
+    const button = <ActionButton icon={loading ? <LoaderCircle className="animate-spin text-white"/> : <Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} disabled={loading}/>
     const reset = <ActionButton tooltip="Delete all filters" variant="warning" icon={<Trash/>} onClick={() => onReset()}/> 
     const submit = <SubmitButton text="Save" onClick={() => onSubmit()}/>
     const append = 

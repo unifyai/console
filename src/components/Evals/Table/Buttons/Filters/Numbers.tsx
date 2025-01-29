@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useEffect, useState } from "react";
 import { Filters, FiltersByColumn } from "@/types/evals/columns";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -12,8 +12,9 @@ import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { Input }from "@/components/UI/input";
 import { Slider } from "@/components/UI/slider";
 import { initFilters, combineFilters } from "@/utils/evals/filters";
-import { Trash, Plus, CircleX } from "lucide-react";
+import { Trash, Plus, CircleX, LoaderCircle } from "lucide-react";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
+import { LogProps } from "@/types/evals/logs";
 
 interface NumericFilter {
     key: number,
@@ -22,12 +23,19 @@ interface NumericFilter {
     value: string
 }
 
-const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boundaries }: {
+const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boundaries, logs }: {
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
     boundaries: {minimums: {[key: string]: number;}, maximums: {[key: string]: number}}
+    logs: LogProps[]
 }) => {
+
+    /* Display loader when data updates */
+    const [loading, setLoading] = useState(false);
+    useEffect(() => {
+        setLoading(false);
+    },[logs])
 
     /* Initialize filters */
     const options = [
@@ -69,6 +77,7 @@ const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boun
             setFilters([defaultFilter])
         }
         setColumnFilterQuery(newColumnFilters);
+        setLoading(true);
         setOpen(false);
     }
     const onReset = () => {
@@ -77,19 +86,19 @@ const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boun
         );
         setFilters([defaultFilter])
         setColumnFilterQuery(newColumnFilters)
+        setLoading(true);
         setOpen(false)
     }
     const onEnter : KeyboardEventHandler = (event) => {
         if (event.key === "Enter") {
             onSubmit()
-            setOpen(false)
         }
     }
 
     /* Dialog interactions */
     const [open, setOpen] = useState(false);
     const close = <BaseButton size="sm" icon={<CircleX/>} onClick={() => setOpen(false)} className="top-0 right-0 scale-60 absolute" variant="warning"/>
-    const button = <ActionButton icon={<Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} />
+    const button = <ActionButton icon={loading ? <LoaderCircle className="animate-spin text-white"/> : <Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} disabled={loading}/>
     const reset = <ActionButton tooltip="Delete all filters" variant="warning" icon={<Trash/>} onClick={() => onReset()}/> 
     const submit = <SubmitButton text="Save" onClick={() => onSubmit()}/>
     const append = 
