@@ -281,8 +281,8 @@ export default function TimestampView({
                 <div className="font-bold text-xl mx-2">=</div>
 
                 {/* Difference block */}
-                <div className="relative border p-2 rounded">
-                  <p className="font-semibold text-sm">Difference</p>
+                <div className="relative border p-2 rounded min-w-24">
+                  <p className="font-semibold text-sm">Diff</p>
                   <p className="mt-4 text-sm">{diff}</p>
                   <CopyButton
                     className="absolute top-1 right-1"
