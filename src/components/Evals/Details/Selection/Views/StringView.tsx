@@ -160,8 +160,10 @@ export default function StringView({
           <div className="space-y-2">
             <p className="font-semibold">Version</p>
             {baseVerStr ? (
-              <div className="space-y-2 border rounded p-2 relative">
-                <MarkdownRenderer>{baseVerStr}</MarkdownRenderer>
+              <div className="flex border rounded p-2 relative">
+                <div className="mt-1 mb-1">
+                  <MarkdownRenderer>{baseVerStr}</MarkdownRenderer>
+                </div>
                 <CopyButton
                   className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
                   content={baseVerStr}
@@ -180,8 +182,10 @@ export default function StringView({
             {!versionEmpty && (
               <p className="font-semibold">Value</p>
             )}
-            <div className="border rounded p-2 relative">
-              <MarkdownRenderer>{baseStr}</MarkdownRenderer>
+            <div className="flex border rounded p-2 relative">
+              <div className="mt-1 mb-1">
+                <MarkdownRenderer>{baseStr}</MarkdownRenderer>
+              </div>
               <CopyButton
                 className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
                 content={baseStr}
