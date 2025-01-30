@@ -1,7 +1,7 @@
 import React from "react";
 import { DoublePanels } from "../Common/Body/DoublePanels";
 import LogsTable from "./Table/Table";
-import { TableArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
+import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { extractLogsData } from "@/utils/evals/common";
 import Details from "./Details/Details";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
@@ -24,7 +24,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 			project: string, filterExpression: string | null, metricName: string, keyName: string
 		) => Promise<number>,
 		delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
-		derive: (project: string, key: string, equation: string, referenced_logs: TableArguments) => Promise<ResponseProps>
+		derive: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>
 	},
 	fieldsActions: {
 		get: (project: string) => Promise<LogFieldsResponseProps>,
@@ -75,12 +75,6 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 		: ""
 	const sortingExpression = sortingObject ? JSON.stringify(sortingObject) : null
 
-	/* Aggregate table arguments */
-	let tableArguments : TableArguments = { "table": {filter_expr: ""}}
-	if (filterExpression) tableArguments["table"]["filter_expr"] = filterExpression
-	if (sortingExpression) tableArguments["table"]["sorting"] = sortingExpression 
-	if (context) tableArguments["table"]["context"] = context
-	
 	/* Get logs with pagination, and plot logs subset */
 	
 	let logsData: LogsResponseProps = { params: {}, logs: [], count: 0 };
@@ -119,6 +113,20 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 	}
 
 	const { entriesProperties, paramsProperties, logs, params } = extractLogsData(logsData, fields, searchParams.context ?? null, searchParams.sorting ?? null);
+	
+	
+	/* Aggregate table arguments */
+	let tableArguments : TableArguments = { 
+		"table": {
+			getLogs_parameters: {filter_expr: ""}, 
+			available_fields: Object.fromEntries(
+				Object.entries(fields)
+					  .filter((([field, attributes]) => entriesProperties.concat(paramsProperties).includes(field))))
+		}
+	}
+	if (filterExpression) tableArguments["table"].getLogs_parameters["filter_expr"] = filterExpression
+	if (sortingExpression) tableArguments["table"].getLogs_parameters["sorting"] = sortingExpression 
+	if (context) tableArguments["table"].getLogs_parameters["context"] = context
 	
 	/* Handle column metrics */
 	// Getting metrics for filtered logs, and min / max values for full logs. 

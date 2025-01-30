@@ -41,9 +41,14 @@ export interface HeaderNode {
     isLeaf?: boolean; // Indicates if the node corresponds to a path in the input array
   }
 
+export interface getLogsParameters {
+    [parameter: string]: string
+}
+
 export interface TableArguments {
     [table_name: string]: {
-        [table_argument: string]: string
+        available_fields: LogFieldsResponseProps 
+        getLogs_parameters: getLogsParameters
     }
 }
 

@@ -2,7 +2,7 @@
 
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
-import { TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -89,7 +89,7 @@ const LogsTable = ({
       project: string, 
       key: string, 
       equation: string, 
-      referenced_logs: TableArguments
+      referenced_logs: {[table_name: string]: getLogsParameters}
     ) => Promise<ResponseProps>
   };
   filterExpression: string | null,
@@ -449,7 +449,7 @@ const LogsTable = ({
                     project={project} 
                     currentTable={item.i}
                     tableArguments={tableArguments}
-                    fields={fields}
+                    logs={logs}
                     derive={logsActions.derive}
                     setPending={setPending}
                     refresh={() => updateInterface()}

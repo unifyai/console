@@ -1,7 +1,7 @@
 "use server";
 
 import { TileProps } from "@/types/evals/grid";
-import { LogFieldsProps, TableArguments } from "@/types/evals/logs";
+import { LogFieldsProps, getLogsParameters } from "@/types/evals/logs";
 import { sanitizeKey } from "./utils";
 import { ResponseProps } from "@/types/common";
 
@@ -165,7 +165,7 @@ export const deleteLogs = async (apiKey: string) => {
 
 // create derived entry
 export const createDerivedEntry = async (apiKey: string) => {
-    return async (project: string, key: string, equation: string, referenced_logs: TableArguments): Promise<ResponseProps> => {
+    return async (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}): Promise<ResponseProps> => {
         "use server";
 
         try {

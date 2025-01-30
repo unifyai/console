@@ -80,12 +80,12 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
 
     // Aggregate table arguments
     let tableArguments: TableArguments = tableItems.map((item, idx) => {
-        let tableArguments_: TableArguments = { [item.i]: { filter_expr: "" } };
+        let tableArguments_: TableArguments = { [item.i]: {getLogs_parameters: { filter_expr: "" }, available_fields: {}} };
         const filterExpression = filterExpressions[idx];
         const sortingExpression = sortingExpressions[idx];
-        if (filterExpression) tableArguments_[item.i]["filter_expr"] = filterExpression;
-        if (sortingExpression) tableArguments_[item.i]["sorting"] = sortingExpression;
-        if (item.context) tableArguments_[item.i]["context"] = item.context;
+        if (filterExpression) tableArguments_[item.i].getLogs_parameters["filter_expr"] = filterExpression;
+        if (sortingExpression) tableArguments_[item.i].getLogs_parameters["sorting"] = sortingExpression;
+        if (item.context) tableArguments_[item.i].getLogs_parameters["context"] = item.context;
         return tableArguments_;
     }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
@@ -158,6 +158,13 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
                 item, logsData, fields, context, project, filterExpressions[idx], sorting, logsActions
             )
 
+            // Append available fields to the table attributes
+            tableArguments[item.i].available_fields = 
+            Object.fromEntries(
+                Object.entries(fields)
+                    .filter((([field, attributes]) => entriesProperties.concat(paramsProperties).includes(field)))
+            )
+            
             // Get other attributes shared across tables and corresponding views
             const hiddenColumns = item.hidden_columns;
             const columnOrdering = item.column_order;

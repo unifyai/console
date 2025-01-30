@@ -4,7 +4,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
-import { TableArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
+import { getLogsParameters, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { ResponseProps } from "@/types/common";
 import { LogProps } from "@/types/evals/logs";
@@ -50,7 +50,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             project: string, 
             key: string, 
             equation: string, 
-            referenced_logs: TableArguments
+            referenced_logs: {[table_name: string]: getLogsParameters}
         ) => Promise<ResponseProps>
     },
 }) => {

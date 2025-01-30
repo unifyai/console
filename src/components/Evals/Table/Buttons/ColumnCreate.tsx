@@ -1,30 +1,38 @@
 "use client";
 
-import { KeyboardEventHandler, useState } from "react";
+import { KeyboardEventHandler, useState, useEffect } from "react";
 import { Input } from "@/components/UI/input";
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs"
+import { LogProps, TableArguments, getLogsParameters } from "@/types/evals/logs"
 import BaseButton from "@/components/Common/Buttons/Base";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuGroup } from "@/components/UI/dropdown-menu";
-import { Plus } from "lucide-react";
+import { Plus, LoaderCircle } from "lucide-react";
 import { ResponseProps } from "@/types/common";
+import FormulaInput from "@/components/Common/Input/Formula";
 
-const ColumnCreate = ({ project, currentTable, tableArguments, fields, derive, _setTimestamp }: {
+const ColumnCreate = ({ project, logs, currentTable, tableArguments, derive, _setTimestamp }: {
     project: string,
-    currentTable: string,
-    tableArguments: {[table_name:string]: {[table_argument: string]: string}},
-    fields: LogFieldsResponseProps,
-    derive: (project: string, key: string, equation: string, referenced_logs: TableArguments) => Promise<ResponseProps>,
+    logs: LogProps[],
+    currentTable: keyof TableArguments,
+    tableArguments: TableArguments,
+    derive: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
     _setTimestamp: (_timestamp: string) => void
 }) => {
 
-    const tables = Object.keys(tableArguments)
-    const columns = Object.keys(fields);
-    const appendRegex = new RegExp(`(?<!(${tables.join('|')})\\:)(${columns.join('|')})`, 'g'); // Replace standalone column names with current_table.column_name
-    const wrapRegex = new RegExp(`(${tables.join('|')})\\:(${columns.join('|')})`, 'g');        // Wrap all instances of table_name.column_name with curly braces
+    /* Construct autocomplete options list from table arguments and extract tables and columns from the options for regex parsing */
+    const options = Object
+        .entries(tableArguments)
+            .map(([table, args]) => ({name: table, type: "Table Name", children: Object.keys(args.available_fields)}))  // Add all displayed tables
+        .concat(Object.entries(tableArguments[currentTable as keyof TableArguments].available_fields)                   // Add all columns of current table
+            .map(([column, _]) => ({name: column, type: "Column Name", children: []}))
+        )
+    const tables = options.filter(option => option.type === "Table Name").map(option => option.name)
+    const columns = options.filter(option => option.type === "Column Name").map(option => option.name);
+    const appendRegex = new RegExp(`(?<!(${tables.join('|')})[.:])(${columns.join('|')})`, 'g'); // Replace standalone column names with current_table.column_name
+    const wrapRegex = new RegExp(`(${tables.join('|')})[.:](${columns.join('|')})`, 'g');        // Wrap all instances of table_name.column_name with curly braces
 
-    // State tracking
+    /* State tracking */
     const [open, setOpen] = useState<boolean>(false);
     const [name, setName] = useState<string>("");
     const [nameError, setNameError] = useState<string>("");
@@ -32,7 +40,13 @@ const ColumnCreate = ({ project, currentTable, tableArguments, fields, derive, _
     const [equation, setEquation] = useState<string>("");
     const [errorMessage, setErrorMessage] = useState<string>("");
 
-    // Handle inputs
+    /* Display loader when data updates */
+    const [loading, setLoading] = useState(false);
+    useEffect(() => {
+        setLoading(false);
+    },[logs])
+
+    /* Handle inputs */
     const handleName = (value: string) => {
         setName(value)
         if (columns.includes(value)) {
@@ -52,14 +66,18 @@ const ColumnCreate = ({ project, currentTable, tableArguments, fields, derive, _
 
     // Handle submission    
     const onSubmit = () => {
-        let referencedTables = tables.filter(table => equation.includes(table))
+        let referencedTables : (keyof TableArguments)[] = tables.filter(table => equation.includes(table))
         if (!referencedTables.length) referencedTables = [currentTable]
         const referencedArguments = Object.fromEntries(
-            Object.entries(tableArguments).filter(([key, _]) => referencedTables.includes(key))
+            Object.entries(tableArguments)
+                  .filter(([key, _]) => referencedTables.includes(key))
+                  .map(([key, args]) => [key, args.getLogs_parameters])
         );
+        console.log(project, name, equation, referencedArguments)
         derive(project, name, equation, referencedArguments).then(response => {
             if ("info" in response) {
                 setErrorMessage("");
+                setLoading(true);
                 setOpen(false);
                 _setTimestamp(Date.now().toString());
                 return;
@@ -80,58 +98,46 @@ const ColumnCreate = ({ project, currentTable, tableArguments, fields, derive, _
 
     // Subcomponents
     const column =  <Input
-                        className="w-1/2"
+                        className="w-1/2 min-w-[100px]"
                         onClick={(event) => event.stopPropagation()}
                         placeholder={"Enter a column name.."}
                         value={name}
                         onInput={(event) => handleName(event.currentTarget.value)}
                         onKeyDown={onEnter}
                     />
-    const entry =   <Input
-                        className="w-full"
-                        onClick={(event) => event.stopPropagation()}
-                        placeholder={"Enter an expression.."}
-                        value={expression}
-                        disabled={!name || nameError != ""}
-                        onInput={(event) => handleExpression(event.currentTarget.value)}
-                        onKeyDown={onEnter}
-                    />
+    
+    const entry = <FormulaInput options={options} value={expression} setValue={handleExpression} onEnter={onEnter}/>
+
     const warning = (error: string) => 
                     <p className="flex justify-start text-sm text-destructive">{error}</p>
     const submit =  <div className="flex justify-end">
                         <SubmitButton text="Apply" onClick={() => onSubmit()}/>
                     </div>
 
-    const button = <BaseButton variant="ghost" icon={<Plus/>} text={"Create Column"} className={"h-4 pt-2"}/>
+    const button = <BaseButton variant="ghost" icon={loading ? <LoaderCircle className="animate-spin text-white"/> : <Plus/>} text={loading ? "Creating column.." : "Create Column"} className={"h-4 pt-2"}/>
     return (
     <DropdownMenuGroup>
         <DropdownMenuItem className="flex flex-row justify-between">
             <BaseDropdown button={button} open={open} setOpen={setOpen}>
-                <div className="p-2 flex flex-col gap-3 ">
 
-                    <div className="flex flex-col gap-1 max-h-[500px] overflow-y-auto">
-                        <div className="flex flex-col">
-                            <DropdownMenuLabel className="text-sm font-semibold">Column name</DropdownMenuLabel>
+                    <div className="p-2 flex flex-col gap-1 h-full w-[400px]" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex flex-col h-full">
+                            <DropdownMenuLabel className="px-0 text-sm font-semibold">Column name</DropdownMenuLabel>
                             {column}
                             {nameError && warning(nameError)}
                         </div>
 
-                        <div className="flex flex-col">
-                            <DropdownMenuLabel className="text-sm font-semibold">Derived expression</DropdownMenuLabel>
-                            <DropdownMenuLabel className="text-sm font-normal">
-                                <p>Enter a mathematical expression to evaluate. You can use any entry column name as variable.</p>
-                            </DropdownMenuLabel>
+                        <div className="flex flex-col h-full">
+                            <DropdownMenuLabel className="px-0 text-sm font-semibold">Derived expression</DropdownMenuLabel>
                             {entry}
                         </div>
-
                     </div>
                     
-                    <div className="flex flex-row gap-1 justify-between">
+                    <div className="p-2 flex flex-row gap-1 justify-between">
                         {warning(errorMessage)}
                         {name && expression && !nameError && submit}
                     </div>
-
-                </div>
+            
             </BaseDropdown>
         </DropdownMenuItem>
     </DropdownMenuGroup>
@@ -141,7 +147,18 @@ const ColumnCreate = ({ project, currentTable, tableArguments, fields, derive, _
 export default ColumnCreate;
 
 /* TODO: 
+    
     - Add button to refresh the values
     - Add grouping when server side grouping is supported
     - Add option to edit the equation
+    
+    - Prevent issue of unintentional text selection
+    - Add dropdown options for: 
+        (See https://github.com/unifyai/orchestra/blob/main/orchestra/web/api/log/helpers.py#L151 for source)
+        functions: 
+            r"(?<!\w)(?:len|type|exists|version|str(?=\()|to_str)"
+            ["len", "type", "exists", "version", "str", "to_str"]
+        operators: 
+            r"==|!=|<=|>=|<|>|(?<!\w)(?:not in|is not|in|not|and|or|is)(?!\w)|\*\*|//|\+|\-|\*|/|%"
+            ["!=", "<=", ">=", ">", "<", "not in", "is not", "in", "not", "and", "or", "is", "//", "**", "+", "-", "/", "%"]
 */

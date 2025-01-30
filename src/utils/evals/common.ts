@@ -1,4 +1,4 @@
-import { TableArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "../../types/evals/logs";
+import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "../../types/evals/logs";
 
 import _ from "lodash";
 import { formatNumber } from "../formatNumber";
@@ -112,7 +112,7 @@ export const getLogsDetails = async (
       project: string, filterExpression: string | null, metricName: string, keyName: string
     ) => Promise<number>,
     delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
-    derive: (project: string, key: string, equation: string, referenced_logs: TableArguments) => Promise<ResponseProps>
+    derive: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>
   }
 ) => {
   // Unpack log data
