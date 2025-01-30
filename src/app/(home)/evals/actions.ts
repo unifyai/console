@@ -209,7 +209,7 @@ export const getInterface = async (apiKey: string) => {
 
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/interface?temporary=${temporary}&project=${project}`,
-            { method: "GET", headers: { apiKey: apiKey } }
+            { method: "GET", headers: { apiKey: apiKey }, cache: "no-store" }
         );
         if (!response.ok)
             return null;

@@ -25,4 +25,10 @@ export interface DraggingColumnsState {
         transform?: Transform | null;
     };
 }
-  
+
+export interface PinningColumnState {
+    columnId: string | null;
+    isPinning: boolean;
+    direction: 'left' | 'right' | null;
+    transform: Transform | null;
+}

@@ -7,7 +7,7 @@ import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import { FileProps, ResponseProps } from "@/types/common";
 import { Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
-import { Check, Clipboard, Copy, Eye, EyeOff, Grip, ListRestart, Loader2, Maximize2, Plus, Save, Trash, TriangleAlert, X } from "lucide-react";
+import { Check, Clipboard, Copy, Eye, EyeOff, Grip, ListRestart, Loader2, Maximize2, Plus, RefreshCw, Save, Trash, TriangleAlert, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { Badge } from "../UI/badge";
 import { Dialog, DialogContent } from "../UI/dialog";
@@ -20,13 +20,13 @@ import DeleteDialog from "../Common/Dialogs/Delete";
 import CreateProject from "./Table/Buttons/CreateProject";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../UI/tabs";
 import { useQueryState } from "nuqs";
+import { v4 as uuidv4 } from "uuid";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
 
 const CardGrid = ({
     projects,
-    project_,
     interfaces_,
     tableNames,
     tableData,
@@ -43,7 +43,6 @@ const CardGrid = ({
     interfaceActions,
 }: {
     projects: string[] | undefined,
-    project_: string | null,
     interfaces_: string[],
     tableNames: string[]
     tableData: TableDataProps,
@@ -76,14 +75,14 @@ const CardGrid = ({
     const [saveSuccess, setSaveSuccess] = useState<boolean>();
     const [resetting, setResetting] = useState<boolean>(false);
 
-    // modes and copy button
+    // modes, hover and copy button
     const [mode, setMode] = useState<"edit" | "interactive" | "dashboard">("edit");
     const [copied, setCopied] = useState<string>();
 
     // data fields
     const [interfaces, setInterfaces] = useState(interfaces_);
     const [interface_, setInterface] = useQueryState("interface", { shallow: false });
-    const finalInterface = interface_ || interface_1;
+    let finalInterface = interface_ || interface_1;
     const [project, setProject] = useQueryState("project", { shallow: false });
     const [interface_2, setInterface_2] = useState(finalInterface || "");
 
@@ -93,6 +92,7 @@ const CardGrid = ({
     );
     const [dataPending, setDataPending] = useState(false);
     const [pending, setPending] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     // other variables
     const gridRef = useRef<HTMLDivElement>(null);
@@ -108,22 +108,6 @@ const CardGrid = ({
             setItems([...items.map((i) => (i.i === item.i ? item : i))]);
         }
     }
-
-    // reset all attributes when a data field is changed
-    const resetParamsStates = () => {
-        items.filter(item => item.tab == "Table").map(item => {
-            updateItem(item, "selected")("");
-            updateItem(item, "column_order")(undefined);
-            updateItem(item, "hidden_columns")(undefined);
-            updateItem(item, "sorting")(undefined);
-            updateItem(item, "grouping")(undefined);
-            updateItem(item, "columns_pin_left")(undefined);
-            updateItem(item, "columns_pin_right")(undefined);
-            updateItem(item, "metric")("mean");
-            updateItem(item, "page_number")(undefined);
-            updateItem(item, "context")(undefined);
-        })
-    };
 
     // update interface
     const updateInterface = (
@@ -185,6 +169,7 @@ const CardGrid = ({
     // trigger update when table data changes (server reloaded)
     useEffect(() => {
         setDataPending(false);
+        setRefreshing(false);
         setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, false])));
         if ((pending || resetting) && project && finalInterface)
             getLatestInterface();
@@ -215,16 +200,18 @@ const CardGrid = ({
             setInterface_2(value || "");
             setInterface(value || null);
         }} className="w-full tutorial-details-panel">
-            <div className="sticky top-0 z-10 bg-background pt-3 pb-3 shadow-sm pl-4 pr-8 flex justify-between gap-4">
-                <div className="w-fit gap-2 flex flex-row items-center">
+            <div className="sticky top-0 z-10 bg-background shadow-sm p-2 flex justify-between gap-4">
+                <div className="w-fit gap-2 flex flex-row items-center px-4">
                     <FileDirectory
                         data={data}
                         renamingFunction={projectActions.rename}
                         setterFunction={(proj: FileProps | undefined) => {
                             const newProj = proj ? proj.path : null;
-                            resetParamsStates();
                             setPending(true);
                             setDataPending(true);
+                            setInterface(null);
+                            setInterfaces([]);
+                            setInterface_2("");
                             setProject(newProj);
                         }}
                         type="Projects"
@@ -234,9 +221,11 @@ const CardGrid = ({
                         <div className="flex flex-row gap-2">
                             <CloseProject
                                 onClick={() => {
-                                    resetParamsStates();
                                     setPending(true);
                                     setDataPending(true);
+                                    setInterface(null);
+                                    setInterfaces([]);
+                                    setInterface_2("");
                                     setProject(null);
                                 }}
                             />
@@ -246,18 +235,30 @@ const CardGrid = ({
                                 deletingFunction={projectActions.delete}
                                 variant="outline"
                                 onDelete={() => {
-                                    resetParamsStates();
                                     setPending(true);
                                     setDataPending(true);
+                                    setInterface(null);
+                                    setInterfaces([]);
+                                    setInterface_2("");
                                     setProject(null);
                                 }}
                             />
                         </div>
                     )}
                     {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
+                    <ActionButton
+                        variant="outline"
+                        icon={refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
+                        tooltip={"Refresh Interface"}
+                        disabled={pending || dataPending}
+                        onClick={() => {
+                            setRefreshing(true);
+                            router.refresh();
+                        }}
+                    />
                 </div>
 
-                {project && <div className="flex gap-4">
+                {project && <div className="flex gap-4 px-4">
                     {interfaces.length > 0 && <TabsList className="rounded-md justify-between">
                         <div className="flex flex-row gap-3">
                             {interfaces.map((int_, idx) => <TabsTrigger
@@ -275,8 +276,12 @@ const CardGrid = ({
                                             interfaceActions.update(
                                                 int_, project, items, newCounter, interface_2, true
                                             ).then(() => {
-                                                setPending(true);
-                                                setInterface(interface_2);
+                                                interfaceActions.update(
+                                                    int_, project, items, newCounter, interface_2, false
+                                                ).then(() => {
+                                                    setPending(true);
+                                                    setInterface(interface_2);
+                                                });
                                             });
                                         }
                                     }}
@@ -291,30 +296,40 @@ const CardGrid = ({
                             icon={<Plus />}
                             tooltip={"Add new interface"}
                             disabled={pending}
-                            onClick={() => interfaceActions.create(
-                                `interface_${interfaces.length + 1}`, project, [], 0, true
-                            ).then(() => {
-                                setInterfaces([...interfaces, `interface_${interfaces.length + 1}`]);
-                                setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
-                                setInterface(`interface_${interfaces.length + 1}`);
-                                setInterface_2(`interface_${interfaces.length + 1}`);
-                            })}
+                            onClick={() => {
+                                const newInterfaceName = `interface_${uuidv4().slice(0, 2)}`;
+                                interfaceActions.create(
+                                    newInterfaceName, project, [], 0, true
+                                ).then(() => {
+                                    interfaceActions.create(
+                                        newInterfaceName, project, [], 0, false
+                                    ).then(() => {
+                                        setInterfaces([...interfaces, newInterfaceName]);
+                                        setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
+                                        setInterface(newInterfaceName);
+                                        setInterface_2(newInterfaceName);
+                                        finalInterface = newInterfaceName;
+                                    });
+                                })
+                            }}
                         />
                         <ActionButton
                             variant="outline"
                             icon={<Trash />}
-                            tooltip={"Delete current active interface"}
-                            disabled={pending}
+                            tooltip={interfaces.length <= 1 ? "Projects need to have at least one interface" : "Delete current active interface"}
+                            disabled={pending || interfaces.length <= 1}
                             onClick={() => interfaceActions.delete(finalInterface as string, project, true).then(() => {
                                 setPending(true);
-                                setInterface(null);
-                                setInterface_2("");
+                                interfaceActions.delete(finalInterface as string, project, false).then(() => {
+                                    setInterface(null);
+                                    setInterface_2("");
+                                })
                             })}
                         />
                     </div>
                 </div>}
 
-                <div className="flex gap-2 items-center">
+                <div className="flex gap-2 items-center px-4">
                     <ActionButton
                         className="transition-all"
                         tooltip={!project ? "Select a project first" : "Save Interface"}
@@ -415,7 +430,9 @@ const CardGrid = ({
                     />
                 </div>
             </div>
-            {interfaces.map((int_, idx) => <TabsContent key={idx} value={int_} className="tutorial-selection-pane px-3">
+            {interfaces.length == 0 ? (project && pending) ? <div className="flex justify-center">
+                <Loader2 className="animate-spin my-36" />
+            </div> : !project ? <div className="mt-4 flex justify-center font-semibold">Please select a project</div> : <></> : interfaces.map((int_, idx) => <TabsContent key={idx} value={int_} className="tutorial-selection-pane px-3">
                 {pending
                     ? <div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>
                     : interface_1 == int_ ? <ResponsiveReactGridLayout
@@ -459,7 +476,6 @@ const CardGrid = ({
                                         logsActions={logsActions}
                                         index={el.i}
                                         item={el}
-                                        originalItem={{...items.find(i => i.i === el.i) as TileProps}}
                                         items={items}
                                         filterExpressions={filterExpressions}
                                         sortingExpressions={sortingExpressions}
@@ -468,55 +484,59 @@ const CardGrid = ({
                                         updateItem={updateItem}
                                         updateInterface={updateInterface}
                                     />
-                                    <div className={"flex gap-2 absolute top-3 z-10 " + (mode == "edit" ? "right-5" : "left-1/2 ml-2")}>
-                                        <ActionButton
-                                            className="no-drag cursor-pointer"
-                                            onClick={() => setMaxTile(el.i)}
-                                            icon={<Maximize2 />}
-                                            tooltip="Maximize"
-                                            variant="outline"
-                                        />
-                                        {mode == "edit" && <>
-                                            <ActionButton
+                                    <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-3 flex justify-between " + (mode == "edit" ? "h-20" : "h-10")}>
+                                        <div className="mb-auto">
+                                            <Badge
                                                 className="no-drag cursor-pointer"
-                                                onClick={() => {
-                                                    setItems([...items.map(
-                                                        it => it.i == el.i ? { ...it, visible: false } : it
-                                                    )]);
-                                                }}
-                                                icon={<EyeOff />}
-                                                tooltip={"Hide"}
-                                                variant="outline"
-                                            />
+                                                variant="primary"
+                                                onClick={() => mode == "edit" ? setEditTile(el.i) : undefined}
+                                            >
+                                                {el.i}
+                                            </Badge>
+                                        </div>
+                                        <div className="flex gap-2 mb-auto">
                                             <ActionButton
-                                                className="no-drag cursor-pointer"
-                                                onClick={() => setCopied(el.i)}
-                                                icon={<Copy />}
-                                                tooltip={"Copy"}
+                                                className="no-drag cursor-pointer hover:z-10"
+                                                onClick={() => setMaxTile(el.i)}
+                                                icon={<Maximize2 />}
+                                                tooltip="Maximize"
                                                 variant="outline"
                                             />
-                                            <ActionButton
-                                                className="cursor-grab"
-                                                icon={<Grip />}
-                                                tooltip="Drag"
-                                                variant="outline"
-                                            />
-                                            <ActionButton
-                                                className="no-drag remove cursor-pointer"
-                                                onClick={() => setItems([...items.filter(item => item.i != el.i)])}
-                                                icon={<X />}
-                                                tooltip="Remove"
-                                                variant="outline"
-                                            />
-                                        </>}
+                                            {mode == "edit" && <>
+                                                <ActionButton
+                                                    className="no-drag cursor-pointer hover:z-10"
+                                                    onClick={() => {
+                                                        setItems([...items.map(
+                                                            it => it.i == el.i ? { ...it, visible: false } : it
+                                                        )]);
+                                                    }}
+                                                    icon={<EyeOff />}
+                                                    tooltip={"Hide"}
+                                                    variant="outline"
+                                                />
+                                                <ActionButton
+                                                    className="no-drag cursor-pointer hover:z-10"
+                                                    onClick={() => setCopied(el.i)}
+                                                    icon={<Copy />}
+                                                    tooltip={"Copy"}
+                                                    variant="outline"
+                                                />
+                                                <ActionButton
+                                                    className="cursor-grab hover:z-10"
+                                                    icon={<Grip />}
+                                                    tooltip="Drag"
+                                                    variant="outline"
+                                                />
+                                                <ActionButton
+                                                    className="no-drag remove cursor-pointer hover:z-10"
+                                                    onClick={() => setItems([...items.filter(item => item.i != el.i)])}
+                                                    icon={<X />}
+                                                    tooltip="Remove"
+                                                    variant="outline"
+                                                />
+                                            </>}
+                                        </div>
                                     </div>
-                                    <Badge
-                                        className={"no-drag absolute z-10 cursor-pointer " + (mode == "edit" ? "top-3 left-3" : "top-4 right-1/2 mr-2")}
-                                        variant="primary"
-                                        onClick={() => mode == "edit" ? setEditTile(el.i) : undefined}
-                                    >
-                                        {el.i}
-                                    </Badge>
                                 </div>
                             );
                         })}
@@ -540,7 +560,6 @@ const CardGrid = ({
                         logsActions={logsActions}
                         index={maxTileItem.i}
                         item={maxTileItem}
-                        originalItem={items.find(i => i.i === maxTileItem.i) as TileProps}
                         items={items}
                         filterExpressions={filterExpressions}
                         sortingExpressions={sortingExpressions}

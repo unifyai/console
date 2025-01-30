@@ -197,6 +197,7 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                     axis="X"
                     axisProperty={selectedXAxisProperty}
                     plotType={plotType}
+                    logs={logs}
                 />
             </div>
             {plotType != "Histogram" && 
@@ -208,6 +209,7 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                         axis="Y"
                         axisProperty={selectedYAxisProperty}
                         plotType={plotType}
+                        logs={logs}
                     />
                 </div>            
             }

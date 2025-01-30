@@ -5,6 +5,7 @@ import StringColumnFilter from "./Strings";
 import NumericColumnFilter from "./Numbers";
 import TimeColumnFilter from "./Time";
 import { sanitizeId } from "@/utils/evals/columnOperations";
+import { LogProps } from "@/types/evals/logs";
 
 /* 
     Supported operands: "==", "!=", "is", "<", ">", "<=", "=>", "in", "not in"
@@ -12,26 +13,27 @@ import { sanitizeId } from "@/utils/evals/columnOperations";
     Reference: https://github.com/unifyai/orchestra/blob/68f543bb9094a8dffc111e6b1960385fd64459b8/orchestra/web/api/log/helpers.py#L284
 */
 
-const ColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, dataTypes, boundaries }: {
+const ColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, dataTypes, boundaries, logs }: {
     interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
     dataTypes: {[key: string]: string},
-    boundaries: {minimums: {[key: string]: any}, maximums: {[key: string]: any}}
+    boundaries: {minimums: {[key: string]: any}, maximums: {[key: string]: any}},
+    logs: LogProps[]
 }) => {
     
     let filter;
     column = sanitizeId(column);
 
     if (["float", "int"].includes(dataTypes[column])) {
-        filter = <NumericColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} boundaries={boundaries} />
+        filter = <NumericColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} boundaries={boundaries} logs={logs}/>
     }
     else if (dataTypes[column] === "timestamp") {
-        filter = <TimeColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery}/>
+        filter = <TimeColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} logs={logs}/>
     }
     else {
-        filter = <StringColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery}/>
+        filter = <StringColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} logs={logs}/>
     }
 
     return filter;

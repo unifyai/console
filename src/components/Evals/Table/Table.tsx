@@ -37,7 +37,7 @@ import { searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
-import { DraggingColumnsState } from "@/types/evals/columns";
+import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Evals/Table/Buttons/ColumnCreate";
 
 const LogsTable = ({
@@ -257,7 +257,7 @@ const LogsTable = ({
     setGroupingStr(g.length ? g.join(",") : null);
 
   const columnPinning: ColumnPinningState = {
-    left: columnsPinLeft ? [indicesTitle].concat(columnsPinLeft.split(",")) : [indicesTitle],
+    left: columnsPinLeft ? columnsPinLeft.split(",") : [indicesTitle],
     right: columnsPinRight ? columnsPinRight.split(",") : [],
   };
   const setColumnPinning = (pin: ColumnPinningState) => {
@@ -282,6 +282,13 @@ const LogsTable = ({
     },
   });
 
+  const [pinningState, setPinningState] = useState<PinningColumnState>({
+    columnId: null,
+    isPinning: false,
+    direction: null,
+    transform: null
+  });
+
   const [_timestamp, _setTimestamp] = useQueryState("_timestamp", { shallow: false })
 
   const state = {
@@ -296,6 +303,7 @@ const LogsTable = ({
     columnSizing,
     context,
     draggingColumns,
+    pinningState,
     _timestamp
   };
   const setState = {
@@ -310,6 +318,7 @@ const LogsTable = ({
     setColumnSizing,
     setContext,
     setDraggingColumns,
+    setPinningState,
     _setTimestamp
   };
 
@@ -389,6 +398,7 @@ const LogsTable = ({
             type="Contexts"
             data={Object.keys(dataTypes).map(property => ({path: property, type:"file"}))}
             onClick={setContext}
+            logs={logs}
           />
           <GlobalFilter
             searchParams={searchParams}
@@ -408,6 +418,7 @@ const LogsTable = ({
                   : null
               );
             }}
+            logs={logs}
           />
           <VisibilityFilter
             columnVisibility={columnVisibility}
@@ -483,6 +494,7 @@ const LogsTable = ({
             filterExpression={filterExpression}
             sortingExpression={sortingExpression}
             getLatest={logsActions.getLatest}
+            logs={logs}
           />
         }
       </div>
@@ -498,6 +510,7 @@ const LogsTable = ({
             <div className="relative flex-col gap-2">
               {/* “summaryPending” can optionally show a small loader over the table if you like */}
               <DataTable
+                className="LogsTable"
                 data={logs}
                 columns={columns}
                 state={state}
@@ -522,6 +535,7 @@ const LogsTable = ({
                     columnFilters={searchParamToFilters(logsFiltersQuery ?? undefined, context ?? undefined)}
                     column={column.id}
                     dataTypes={dataTypes}
+                    logs={logs}
                   />
                 )}
                 ColumnCreate={
@@ -530,11 +544,15 @@ const LogsTable = ({
                 AggregatedCell={(cell, row) => (
                   <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />
                 )}
-                FooterCell={(column, resizeMap) => 
-                  <FooterCell column={column} resizeMap={resizeMap} draggingColumns={state.draggingColumns}>
+                FooterCell={(column, resizeMap, table) => 
+                  <FooterCell 
+                    column={column} 
+                    resizeMap={resizeMap} 
+                    draggingColumns={state.draggingColumns}
+                  >
                     {
                       column.columnDef.id === indicesTitle
-                      ? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric}/>
+                      ? <ColumnMetrics metric={state.metric} setMetric={setState.setMetric} logs={logs}/>
                       : !column.getIsGrouped()
                         ?	<SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} draggingColumns={state.draggingColumns} />
                         : 	null

@@ -242,7 +242,7 @@ function PatchDetailPanel({
         const realName = bSpan?.span_name || tSpan?.span_name || node.name;
         const baseVal = bSpan?.[field];
         const compsArr = comparisonLogsIndex.map((r) => {
-          const match = findSpanByNameInRow(r, realName);
+          const match = findSpanByNameInRow(allTraces, allRowIndexes, r, realName);
           return match?.[field];
         });
         return { baseVal, comps: compsArr };
@@ -252,10 +252,15 @@ function PatchDetailPanel({
   }
 
   // helper for findSpanByNameInRow
-  function findSpanByNameInRow(rowIndex: number, spanName: string): Span | undefined {
-    const i = allRowIndexes.indexOf(rowIndex);
+  function findSpanByNameInRow(
+    traces: Span[][],
+    rowIndexes: number[],
+    rowIndex: number,
+    spanName: string
+  ): Span | undefined {
+    const i = rowIndexes.indexOf(rowIndex);
     if (i < 0) return undefined;
-    const rowSpans = allTraces[i];
+    const rowSpans = traces[i];
     if (!rowSpans) return undefined;
     const queue = [...rowSpans];
     while (queue.length) {
@@ -266,10 +271,6 @@ function PatchDetailPanel({
     return undefined;
   }
 
-  /**
-   * maybeRenderBlock => optionally skip if all empty,
-   * otherwise calls pickView to generate the content
-   */
   function maybeRenderBlock(
     title: string,
     baseVal: any,
@@ -321,13 +322,13 @@ function PatchDetailPanel({
     }
     if (comparisonLogsIndex.length <= 1) {
       const bId = bSpan?.id ?? "";
-      const tId = tSpan ? (tSpan.id ?? "") : "";
+      const tId = tSpan ? tSpan.id ?? "" : "";
       return tId ? { baseVal: bId, comps: [tId] } : { baseVal: bId, comps: [] };
     }
     const realName = bSpan?.span_name || tSpan?.span_name || node.name;
     const bId = bSpan?.id ?? "";
     const compsArr = comparisonLogsIndex.map((r) => {
-      const match = findSpanByNameInRow(r, realName);
+      const match = findSpanByNameInRow(allTraces, allRowIndexes, r, realName);
       return match?.id ?? "";
     });
     return { baseVal: bId, comps: compsArr };
@@ -554,7 +555,11 @@ export default function UnifiedTraceView({
   splitView = false,
 }: UnifiedTraceViewProps) {
   const [collapsedNodes, setCollapsedNodes] = useState<Record<string, boolean>>({});
+
+  // We store the selected node, but also store its ID in a separate state
+  // so that if we rebuild the patch tree, we can re-find the node.
   const [selectedNode, setSelectedNode] = useState<PatchDiffNode | null>(null);
+  const [selectedSpanId, setSelectedSpanId] = useState<string>("");
 
   const baseRowSpans = useMemo(() => {
     if (!allTraces.length) return [];
@@ -595,7 +600,7 @@ export default function UnifiedTraceView({
     return result;
   }, [allTraces, rowIndexes]);
 
-  function labelForRows(rows: number[]): string {
+  function labelForGroupRows(rows: number[]): string {
     if (!rows.length) return "--";
     if (rows.length === 1) return `Row ${rows[0]}`;
     return "Rows " + rows.join(", ");
@@ -604,7 +609,7 @@ export default function UnifiedTraceView({
   const groupOptions = useMemo(() => {
     const arr = [{ value: "", label: "-- None --" }];
     groupedRows.forEach((g) => {
-      arr.push({ value: g.signature, label: labelForRows(g.rowIndices) });
+      arr.push({ value: g.signature, label: labelForGroupRows(g.rowIndices) });
     });
     return arr;
   }, [groupedRows]);
@@ -620,6 +625,7 @@ export default function UnifiedTraceView({
     if (!allTraces.length) return null;
     const baseWrapped = wrapAsRootSpan(baseRowSpans, "baseRow");
     if (!groupSignature) {
+      // Compare base with itself => no differences
       return computeSpanDiffByName(baseWrapped, baseWrapped);
     }
     const found = groupedRows.find((x) => x.signature === groupSignature);
@@ -638,10 +644,69 @@ export default function UnifiedTraceView({
     return found.rowIndices;
   }, [groupSignature, groupedRows]);
 
+  // Helper to find a patch diff node by span ID with DFS
+  function findNodeBySpanId(node: PatchDiffNode, id: string): PatchDiffNode | null {
+    if (!node) return null;
+    if (node.baseSpanRef?.id === id || node.targetSpanRef?.id === id) return node;
+    for (const child of node.children) {
+      const found = findNodeBySpanId(child, id);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  // If the patch root is "ROOT" and unchanged, we might want the first child as default.
+  function getDefaultNode(root: PatchDiffNode): PatchDiffNode {
+    if (!root) return root;
+    if (root.name !== "ROOT") {
+      return root;
+    }
+    if (root.children && root.children.length > 0) {
+      return root.children[0];
+    }
+    return root;
+  }
+
+  // Whenever we recompute finalPatchRoot, re-check the selectedSpanId
+  // so we can preserve or pick a default selection.
+  useEffect(() => {
+    if (!finalPatchRoot) return;
+    if (!selectedSpanId) {
+      // No selection yet => pick the default node
+      const def = getDefaultNode(finalPatchRoot);
+      const defId = def?.baseSpanRef?.id ?? def?.targetSpanRef?.id ?? "";
+      setSelectedSpanId(defId);
+      setSelectedNode(def);
+    } else {
+      // We have an ID from before => try to find it in the new tree
+      const found = findNodeBySpanId(finalPatchRoot, selectedSpanId);
+      if (!found) {
+        // If not found => pick default
+        const def = getDefaultNode(finalPatchRoot);
+        const defId = def?.baseSpanRef?.id ?? def?.targetSpanRef?.id ?? "";
+        setSelectedSpanId(defId);
+        setSelectedNode(def);
+      } else {
+        setSelectedNode(found);
+      }
+    }
+  }, [finalPatchRoot]);
+
+  function onSelectNode(n: PatchDiffNode | null) {
+    if (!n) {
+      setSelectedSpanId("");
+      setSelectedNode(null);
+    } else {
+      const newId = n.baseSpanRef?.id ?? n.targetSpanRef?.id ?? "";
+      setSelectedSpanId(newId);
+      setSelectedNode(n);
+    }
+  }
+
   function handleGroupChange(val: string) {
     setGroupSignature(val);
     setCollapsedNodes({});
-    setSelectedNode(null);
+    // We remove the previous setSelectedNode(null) so selection is preserved
   }
 
   function renderPatchTree() {
@@ -656,7 +721,7 @@ export default function UnifiedTraceView({
         collapsedNodes={collapsedNodes}
         setCollapsedNodes={setCollapsedNodes}
         selectedNode={selectedNode}
-        onSelectNode={setSelectedNode}
+        onSelectNode={onSelectNode}
       />
     );
   }

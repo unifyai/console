@@ -25,7 +25,6 @@ const Card = ({
     logsActions,
     index,
     item,
-    originalItem,
     items,
     filterExpressions,
     sortingExpressions,
@@ -45,7 +44,6 @@ const Card = ({
     logsActions: LogsActions,
     index: string,
     item: TileProps,
-    originalItem: TileProps,
     items: TileProps[],
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
@@ -63,11 +61,15 @@ const Card = ({
     useEffect(() => {
         if (item.tab != "View" && !initial) {
             updateInterface().then(() => {
-                setPending(true);
                 router.refresh();
             });
         }
     }, [item.tab, item.filters, item.context, item.common_filter, item.sorting, item.page_number, item.metric, item.plot_type, item.x_axis, item.y_axis]);
+
+    useEffect(() => {
+        if (item.tab != "View" && !initial)
+            setPending(true);
+    }, [item.tab, item.context, item.page_number, item.plot_type, item.x_axis, item.y_axis]);
 
     useEffect(() => {
         setInitial(false);
@@ -75,7 +77,7 @@ const Card = ({
 
     return (<div className="no-drag relative flex w-full h-full border rounded-lg">
         <div className={"w-full flex-1 flex flex-col items-center " + (tab ? "mt-2" : "justify-center")}>
-            <div className="flex gap-4">
+            <div className="flex gap-4 z-20">
                 {mode == "edit" && <div className="w-fit">
                     <BaseDropdown
                         button={<ActionButton

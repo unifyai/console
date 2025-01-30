@@ -11,7 +11,8 @@ export async function GET(request: NextRequest) {
             headers: {
                 "Authorization": `Bearer ${request.headers.get("apiKey")}`,
                 "accept": "application/json",
-            }
+            },
+            cache: "no-store"
         },
     );
 }
