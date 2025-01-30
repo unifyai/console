@@ -121,6 +121,7 @@ const Card = ({
                 </div>}
             </div>
             {tab?.includes("View") && <Selection
+                params={item.table ? tableData[item.table]?.params : {}}
                 logs={item.table ? tableData[item.table]?.logs || [] : []}
                 selection_={relevantItem?.selected}
                 baseIndex_={relevantItem?.base_index}
