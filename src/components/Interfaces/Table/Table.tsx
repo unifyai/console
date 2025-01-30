@@ -175,13 +175,13 @@ const LogsTable = ({
   const logsFilters = item.filters;
   const commonFilter = item.common_filter;
   const pageNumber = item.page_number;
+  const sortingStr = item.sorting;
   const columnOrderStr = item.column_order;
   const hiddenColumns = item.hidden_columns;
-  const sortingStr = item.sorting;
   const groupingStr = item.grouping;
   const columnsPinLeft = item.columns_pin_left;
   const columnsPinRight = item.columns_pin_right;
-  const contextStr = item.context;
+  const context = item.context;
 
   // Convert those strings → arrays/objects
   const columnIDs = flattenColumnIDs(columns);
@@ -249,10 +249,6 @@ const LogsTable = ({
     transform: null
   });
 
-  const context = contextStr ? contextStr : null;
-  const setContext = (c: string | null) =>
-    updateItem(item, "context")(c ? c : undefined);
-
   const state = {
     selectedCells,
     metric,
@@ -277,7 +273,7 @@ const LogsTable = ({
     setGrouping,
     setColumnPinning,
     setColumnSizing,
-    setContext,
+    setContext: updateItem(item, "context"),
     setDraggingColumns,
     setPinningState,
   };
@@ -341,7 +337,7 @@ const LogsTable = ({
           <SelectionMenu
             type="Contexts"
             data={Object.keys(dataTypes).map(property => ({path: property, type:"file"}))}
-            onClick={setContext}
+            onClick={updateItem(item, "context")}
             logs={logs}
           />
           <GlobalFilter
