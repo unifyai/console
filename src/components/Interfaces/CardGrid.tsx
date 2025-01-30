@@ -202,8 +202,8 @@ const CardGrid = ({
             setInterface_2(value || "");
             setInterface(value || null);
         }} className="w-full tutorial-details-panel">
-            <div className="sticky top-0 z-10 bg-background pt-3 pb-3 shadow-sm pl-4 pr-8 flex justify-between gap-4">
-                <div className="w-fit gap-2 flex flex-row items-center">
+            <div className="sticky top-0 z-10 bg-background shadow-sm p-2 flex justify-between gap-4">
+                <div className="w-fit gap-2 flex flex-row items-center px-4">
                     <FileDirectory
                         data={data}
                         renamingFunction={projectActions.rename}
@@ -260,7 +260,7 @@ const CardGrid = ({
                     />
                 </div>
 
-                {project && <div className="flex gap-4">
+                {project && <div className="flex gap-4 px-4">
                     {interfaces.length > 0 && <TabsList className="rounded-md justify-between">
                         <div className="flex flex-row gap-3">
                             {interfaces.map((int_, idx) => <TabsTrigger
@@ -331,7 +331,7 @@ const CardGrid = ({
                     </div>
                 </div>}
 
-                <div className="flex gap-2 items-center">
+                <div className="flex gap-2 items-center px-4">
                     <ActionButton
                         className="transition-all"
                         tooltip={!project ? "Select a project first" : "Save Interface"}

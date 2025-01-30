@@ -63,11 +63,15 @@ const Card = ({
     useEffect(() => {
         if (item.tab != "View" && !initial) {
             updateInterface().then(() => {
-                setPending(true);
                 router.refresh();
             });
         }
     }, [item.tab, item.filters, item.context, item.common_filter, item.sorting, item.page_number, item.metric, item.plot_type, item.x_axis, item.y_axis]);
+
+    useEffect(() => {
+        if (item.tab != "View" && !initial)
+            setPending(true);
+    }, [item.tab, item.context, item.page_number, item.plot_type, item.x_axis, item.y_axis]);
 
     useEffect(() => {
         setInitial(false);
