@@ -451,7 +451,7 @@ const LogsTable = ({
                 ColumnCreate={
                   <ColumnCreate 
                     project={project} 
-                    currentTable={item.table ?? "table"}
+                    currentTable={item.i}
                     tableArguments={tableArguments}
                     fields={fields}
                     derive={logsActions.derive}

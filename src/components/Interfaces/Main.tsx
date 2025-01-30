@@ -62,14 +62,12 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
         const columnFiltersExpression = columnFiltersExpressions[idx];
         const commonFiltersExpression = commonFiltersExpressions[idx];
         let filterExpression = null;
-        if (columnFiltersExpression)
-            filterExpression = columnFiltersExpression;
-        if (commonFiltersExpression)
-            filterExpression = filterExpression = filterExpression ? `${commonFiltersExpression} and ${filterExpression}` : commonFiltersExpression;
+        if (columnFiltersExpression) filterExpression = columnFiltersExpression;
+        if (commonFiltersExpression) filterExpression = filterExpression ? `${commonFiltersExpression} and ${filterExpression}` : commonFiltersExpression;
         return filterExpression;
     });
 
-    /* Handle sorting */
+    // Handle sorting
     const sortingObjects = tableItems.map(item => item.sorting ? Object.fromEntries(
         item.sorting.split(",").map(value => [
             item.context ? processContext("merge", item.context, value.split("@")[0]) : value.split("@")[0],
@@ -79,6 +77,17 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
     const sortingExpressions = sortingObjects.map(
         sortingObject => sortingObject ? JSON.stringify(sortingObject) : null
     );
+
+    // Aggregate table arguments
+    let tableArguments: TableArguments = tableItems.map((item, idx) => {
+        let tableArguments_: TableArguments = { [item.i]: { filter_expr: "" } };
+        const filterExpression = filterExpressions[idx];
+        const sortingExpression = sortingExpressions[idx];
+        if (filterExpression) tableArguments_[item.i]["filter_expr"] = filterExpression;
+        if (sortingExpression) tableArguments_[item.i]["sorting"] = sortingExpression;
+        if (item.context) tableArguments_[item.i]["context"] = item.context;
+        return tableArguments_;
+    }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
     // Get logs with pagination, and plot logs subset for all tables
     let allLogsData: LogsResponseProps[] = Array(tableItems.length).fill({ params: {}, logs: [], count: 0 });
@@ -140,9 +149,6 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
         }));
     }
 
-    /* Aggregate table arguments */
-    let tableArguments : TableArguments = {}
-
     const tableData: TableDataProps = (await Promise.all(
         tableItems.map(async (item, idx) => {
             const logsData = allLogsData[idx];
@@ -150,14 +156,6 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
             const context = item.context ?? null
             const sorting = item.sorting ?? null
             
-            const table = item.table
-            if (table) {
-                const [filterExpression, sortingExpression] = [filterExpressions[idx], sortingExpressions[idx]]
-                if (filterExpression) tableArguments[table]["filter_expr"] = filterExpression
-                if (sortingExpression) tableArguments[table]["sorting"] = sortingExpression
-                if (context) tableArguments[table]["context"] = context
-            }
-
             const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
                 item, logsData, fields, context, project, filterExpressions[idx], sorting, logsActions
             )
@@ -203,7 +201,6 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
 
     return <CardGrid
         projects={projects}
-        project_={project}
         interfaces_={Object.keys(interfacesTemp_).sort()}
         tableNames={tableNames}
         tableData={tableData}

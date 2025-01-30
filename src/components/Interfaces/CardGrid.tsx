@@ -27,7 +27,6 @@ const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
 const CardGrid = ({
     projects,
-    project_,
     interfaces_,
     tableNames,
     tableData,
@@ -44,7 +43,6 @@ const CardGrid = ({
     interfaceActions,
 }: {
     projects: string[] | undefined,
-    project_: string | null,
     interfaces_: string[],
     tableNames: string[]
     tableData: TableDataProps,
@@ -478,7 +476,6 @@ const CardGrid = ({
                                         logsActions={logsActions}
                                         index={el.i}
                                         item={el}
-                                        originalItem={{ ...items.find(i => i.i === el.i) as TileProps }}
                                         items={items}
                                         filterExpressions={filterExpressions}
                                         sortingExpressions={sortingExpressions}
@@ -563,7 +560,6 @@ const CardGrid = ({
                         logsActions={logsActions}
                         index={maxTileItem.i}
                         item={maxTileItem}
-                        originalItem={items.find(i => i.i === maxTileItem.i) as TileProps}
                         items={items}
                         filterExpressions={filterExpressions}
                         sortingExpressions={sortingExpressions}
