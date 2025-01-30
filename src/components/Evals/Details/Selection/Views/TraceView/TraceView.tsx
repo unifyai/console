@@ -26,16 +26,16 @@ import StringView from "../StringView";
 import NumberView from "../NumberView";
 import TimestampView from "../TimestampView";
 
-import { isDict, isList, isMatrix, isImage, isTrace, isNumber, isTimestamp, isChat } from "@/utils/evals/selection";
+import { isDict, isList, isMatrix, isImage, isNumber, isTimestamp, isChat } from "@/utils/evals/selection";
 
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 import { LogComparisonProps } from "../types";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ChatView from "../ChatView";
 
-/*--------------------------------------------------------------
-  compressRowNumbers + labelForRows => for grouping row indices
---------------------------------------------------------------*/
+/*------------------------------------------------------------------------
+  Helper functions for compressing row indices => "1-3,5,7-9", etc.
+------------------------------------------------------------------------*/
 function compressRowNumbers(rows: number[]): string {
   if (!rows.length) return "";
   const sorted = [...rows].sort((a, b) => a - b);
@@ -64,6 +64,7 @@ function compressRowNumbers(rows: number[]): string {
   }
   return ranges.join(", ");
 }
+
 function labelForRows(rows: number[]): string {
   if (!rows.length) return "--";
   const compressed = compressRowNumbers(rows);
@@ -71,7 +72,7 @@ function labelForRows(rows: number[]): string {
 }
 
 /*---------------------------------------------------------------------
-  Helper to skip rendering if a base + comps are all empty
+  Basic checks for empty usage
 ---------------------------------------------------------------------*/
 function isEmptyValue(val: any): boolean {
   if (val === null || val === undefined) return true;
@@ -92,7 +93,7 @@ function allEmpty(baseVal: any, comps: any[]): boolean {
 }
 
 /*---------------------------------------------------------------------
-  pickView => local helper that chooses DictionaryView/ListView/etc.
+  pickView => local helper that chooses which specialized component
 ---------------------------------------------------------------------*/
 function pickView(
   baseVal: any,
@@ -102,9 +103,7 @@ function pickView(
   diffMode: LogComparisonProps["diffMode"],
   splitView: LogComparisonProps["splitView"]
 ): JSX.Element {
-  if (isTrace(baseVal)) {
-    return <p className="italic text-sm">(Span data ignored)</p>;
-  } else if (isChat(baseVal)) {
+  if (isChat(baseVal)) {
     return (
       <ChatView
         value={baseVal}
@@ -115,7 +114,8 @@ function pickView(
         splitView={splitView}
       />
     );
-  } else if (isDict(baseVal)) {
+  }
+  if (isDict(baseVal)) {
     return (
       <DictionaryView
         value={baseVal}
@@ -126,7 +126,8 @@ function pickView(
         splitView={splitView}
       />
     );
-  } else if (isList(baseVal)) {
+  }
+  if (isList(baseVal)) {
     return (
       <ListView
         value={baseVal}
@@ -137,7 +138,8 @@ function pickView(
         splitView={splitView}
       />
     );
-  } else if (isImage(baseVal)) {
+  }
+  if (isImage(baseVal)) {
     return (
       <ImageView
         value={baseVal}
@@ -148,7 +150,8 @@ function pickView(
         splitView={splitView}
       />
     );
-  } else if (isMatrix(baseVal)) {
+  }
+  if (isMatrix(baseVal)) {
     return (
       <MatrixView
         value={baseVal}
@@ -159,7 +162,8 @@ function pickView(
         splitView={splitView}
       />
     );
-  } else if (isNumber(baseVal)) {
+  }
+  if (isNumber(baseVal)) {
     return (
       <NumberView
         value={baseVal}
@@ -170,7 +174,8 @@ function pickView(
         splitView={splitView}
       />
     );
-  } else if (isTimestamp(baseVal)) {
+  }
+  if (isTimestamp(baseVal)) {
     return (
       <TimestampView
         value={baseVal}
@@ -182,6 +187,7 @@ function pickView(
       />
     );
   }
+  // Fallback => string
   return (
     <StringView
       value={baseVal}
@@ -220,12 +226,19 @@ function PatchDetailPanel({
   const mainSpan = node.baseSpanRef || node.targetSpanRef;
   const spanId = mainSpan?.id ?? "(no id)";
 
+  /**
+   * gatherField => collects base+comps for a specific field ("inputs","outputs", etc.)
+   */
   function gatherField(field: string) {
     const bSpan = node.baseSpanRef;
     const tSpan = node.targetSpanRef;
+
+    // If both references are actually the same object, just show that once
     if (bSpan && tSpan && bSpan === tSpan) {
       return { baseVal: bSpan[field], comps: [] };
     }
+
+    // Otherwise differ by marker
     switch (node.marker) {
       case "+":
         return { baseVal: tSpan?.[field], comps: [] };
@@ -233,12 +246,13 @@ function PatchDetailPanel({
         return { baseVal: bSpan?.[field], comps: [] };
       case "r":
       case " ":
+        // Possibly multiple comparisons
         if (comparisonLogsIndex.length <= 1) {
           const b = bSpan?.[field];
           const t = tSpan ? tSpan[field] : undefined;
           return { baseVal: b, comps: t !== undefined ? [t] : [] };
         }
-        // multi
+        // If we have multiple comp rows, find that span by name in each row
         const realName = bSpan?.span_name || tSpan?.span_name || node.name;
         const baseVal = bSpan?.[field];
         const compsArr = comparisonLogsIndex.map((r) => {
@@ -251,7 +265,7 @@ function PatchDetailPanel({
     }
   }
 
-  // helper for findSpanByNameInRow
+  // findSpanByNameInRow => BFS in that row's trace looking for matching name
   function findSpanByNameInRow(
     traces: Span[][],
     rowIndexes: number[],
@@ -265,8 +279,12 @@ function PatchDetailPanel({
     const queue = [...rowSpans];
     while (queue.length) {
       const s = queue.shift()!;
-      if (s.span_name === spanName) return s;
-      if (s.child_spans) queue.push(...s.child_spans);
+      if (s.span_name === spanName) {
+        return s;
+      }
+      if (s.child_spans) {
+        queue.push(...s.child_spans);
+      }
     }
     return undefined;
   }
@@ -283,10 +301,9 @@ function PatchDetailPanel({
       comps,
       baseRowIndex,
       comparisonLogsIndex,
-      diffMode,
-      splitView
+      diffMode ?? "none",
+      splitView ?? false
     );
-
     if (isAccordionItem) {
       return (
         <AccordionItem key={title} value={title}>
@@ -296,24 +313,23 @@ function PatchDetailPanel({
           </AccordionContent>
         </AccordionItem>
       );
-    } else {
-      return (
-        <div key={title}>
-          <p className="font-semibold text-sm mb-2">{title}</p>
-          <div className="border border-muted p-2 rounded">
-            {view}
-          </div>
-        </div>
-      );
     }
+    return (
+      <div key={title}>
+        <p className="font-semibold text-sm mb-2">{title}</p>
+        <div className="border border-muted p-2 rounded">{view}</div>
+      </div>
+    );
   }
 
+  // Gather standard fields
   const { baseVal: bInputs, comps: cInputs } = gatherField("inputs");
   const { baseVal: bOutputs, comps: cOutputs } = gatherField("outputs");
   const { baseVal: bExecTime, comps: cExecTime } = gatherField("exec_time");
   const { baseVal: bCode, comps: cCode } = gatherField("code");
   const { baseVal: bErrors, comps: cErrors } = gatherField("errors");
 
+  // Possibly also show ID as a separate block
   function gatherID() {
     const bSpan = node.baseSpanRef;
     const tSpan = node.targetSpanRef;
@@ -322,7 +338,7 @@ function PatchDetailPanel({
     }
     if (comparisonLogsIndex.length <= 1) {
       const bId = bSpan?.id ?? "";
-      const tId = tSpan ? tSpan.id ?? "" : "";
+      const tId = tSpan?.id ?? "";
       return tId ? { baseVal: bId, comps: [tId] } : { baseVal: bId, comps: [] };
     }
     const realName = bSpan?.span_name || tSpan?.span_name || node.name;
@@ -335,8 +351,8 @@ function PatchDetailPanel({
   }
   const { baseVal: bId, comps: cId } = gatherID();
 
+  // Render blocks
   const contentBlocks: JSX.Element[] = [];
-
   const block1 = maybeRenderBlock("Inputs", bInputs, cInputs, false);
   if (block1) contentBlocks.push(block1);
   const block2 = maybeRenderBlock("Outputs", bOutputs, cOutputs, false);
@@ -376,6 +392,7 @@ function PatchDetailPanel({
 
 /*---------------------------------------------------------------------
   CollapsiblePatchLineNode => the left tree node
+  (Single vs multi-mode exec-time logic in "timeLabel"/"timeTooltip")
 ---------------------------------------------------------------------*/
 function CollapsiblePatchLineNode({
   node,
@@ -385,6 +402,7 @@ function CollapsiblePatchLineNode({
   setCollapsedNodes,
   selectedNode,
   onSelectNode,
+  multiMode,
 }: {
   node: PatchDiffNode;
   parentCenterY: number;
@@ -393,6 +411,7 @@ function CollapsiblePatchLineNode({
   setCollapsedNodes: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   selectedNode: PatchDiffNode | null;
   onSelectNode: (n: PatchDiffNode | null) => void;
+  multiMode: boolean;
 }) {
   const nodeRef = useRef<HTMLDivElement>(null);
   const [segmentHeight, setSegmentHeight] = useState(0);
@@ -408,25 +427,7 @@ function CollapsiblePatchLineNode({
     setSegmentHeight(childCenterY - parentCenterY);
   }, [parentCenterY, collapsedNodes]);
 
-  if (depth === 0 && node.name === "ROOT" && node.marker === " " && children.length) {
-    return (
-      <>
-        {children.map((child, idx) => (
-          <CollapsiblePatchLineNode
-            key={idx}
-            node={child}
-            parentCenterY={0}
-            depth={0}
-            collapsedNodes={collapsedNodes}
-            setCollapsedNodes={setCollapsedNodes}
-            selectedNode={selectedNode}
-            onSelectNode={onSelectNode}
-          />
-        ))}
-      </>
-    );
-  }
-
+  // Marker => for color
   const markerColors: Record<string, string> = {
     "+": "text-green-600",
     "-": "text-red-600",
@@ -450,6 +451,7 @@ function CollapsiblePatchLineNode({
       [nodeId]: !prev[nodeId],
     }));
   }
+
   function handleClickSpan() {
     onSelectNode(isSelected ? null : node);
   }
@@ -457,6 +459,52 @@ function CollapsiblePatchLineNode({
   const showLine = depth > 0;
   const spanType = node.baseSpanRef?.type ?? node.targetSpanRef?.type;
   const IconComponent = getIconForSpanType(spanType);
+
+  // Execution time display
+  const baseTime = node.baseSpanRef?.exec_time ?? 0;
+  const targetTime = node.targetSpanRef?.exec_time ?? 0;
+
+  let timeLabel = "";
+  let timeTooltip = "";
+
+  if (!multiMode) {
+    // single-mode => only show baseTime if present
+    if (baseTime) {
+      timeLabel = `${baseTime.toFixed(2)}s`;
+      timeTooltip = `Execution Time ${baseTime.toFixed(2)}s`;
+    }
+  } else {
+    // multi-mode => only show difference if marker is " " or "r".
+    // For "+" or "-", just show the single span's time.
+    if (node.marker === "+") {
+      // only targetSpan
+      if (targetTime) {
+        timeLabel = `${targetTime.toFixed(2)}s`;
+        timeTooltip = `Execution Time (Comparison Only): ${targetTime.toFixed(1)}s`;
+      }
+    } else if (node.marker === "-") {
+      // only baseSpan
+      if (baseTime) {
+        timeLabel = `${baseTime.toFixed(2)}s`;
+        timeTooltip = `Execution Time (Base Only): ${baseTime.toFixed(1)}s`;
+      }
+    } else {
+      // marker " " or "r" => we have both spans, so show difference
+      const diff = targetTime - baseTime;
+      const sign = diff >= 0 ? "+" : "-";
+      const absDiff = Math.abs(diff).toFixed(2);
+      timeLabel = `${sign}${absDiff}s`;
+      timeTooltip =
+        `Execution Times\n` +
+        `Base ${baseTime.toFixed(2)}s\n` +
+        `Comparison ${targetTime.toFixed(2)}s\n` +
+        `Difference ${sign}${absDiff}s`;
+      if (!baseTime && !targetTime) {
+        timeLabel = "";
+        timeTooltip = "";
+      }
+    }
+  }
 
   return (
     <div className="relative" ref={nodeRef} style={{ position: "relative" }}>
@@ -492,7 +540,24 @@ function CollapsiblePatchLineNode({
         <span className="font-medium text-sm w-3">
           {node.marker === " " ? "" : node.marker}
         </span>
-        <span className="truncate">{node.name}</span>
+
+        {/* Span name + optional time label */}
+        <div className="truncate flex items-center">
+          {node.name}
+          {timeLabel && (
+              <Tooltip content={timeTooltip}>
+                {isSelected ? (
+                  <span className="ml-2 text-xs text-muted">
+                    {timeLabel}
+                  </span>
+                ) : (
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {timeLabel}
+                  </span>
+                )}
+              </Tooltip>
+          )}           
+        </div>
 
         {hasChildren && (
           <button
@@ -529,6 +594,7 @@ function CollapsiblePatchLineNode({
                 setCollapsedNodes={setCollapsedNodes}
                 selectedNode={selectedNode}
                 onSelectNode={onSelectNode}
+                multiMode={multiMode}
               />
             );
           })}
@@ -548,6 +614,36 @@ interface UnifiedTraceViewProps {
   splitView?: LogComparisonProps["splitView"];
 }
 
+/**
+ * We flatten out the synthetic "ROOT" node so that the UI never shows "ROOT".
+ */
+function flattenRootNode(root: PatchDiffNode | null): PatchDiffNode[] {
+  if (!root) return [];
+  if (root.name === "ROOT") {
+    // Just return its children, effectively skipping the root node
+    return root.children;
+  }
+  // Otherwise it's a normal node
+  return [root];
+}
+
+/**
+ * BFS to find a node matching the given ID among multiple top-level roots.
+ */
+function findNodeInForest(forest: PatchDiffNode[], spanId: string): PatchDiffNode | null {
+  const queue = [...forest];
+  while (queue.length) {
+    const current = queue.shift()!;
+    if (current.baseSpanRef?.id === spanId || current.targetSpanRef?.id === spanId) {
+      return current;
+    }
+    if (current.children && current.children.length) {
+      queue.push(...current.children);
+    }
+  }
+  return null;
+}
+
 export default function UnifiedTraceView({
   allTraces,
   rowIndexes,
@@ -556,17 +652,20 @@ export default function UnifiedTraceView({
 }: UnifiedTraceViewProps) {
   const [collapsedNodes, setCollapsedNodes] = useState<Record<string, boolean>>({});
 
-  // We store the selected node, but also store its ID in a separate state
-  // so that if we rebuild the patch tree, we can re-find the node.
+  // Keep track of which node is currently selected
   const [selectedNode, setSelectedNode] = useState<PatchDiffNode | null>(null);
   const [selectedSpanId, setSelectedSpanId] = useState<string>("");
 
+  // single vs multi
+  const multiMode = rowIndexes.length > 1;
+
+  // Base row's spans
   const baseRowSpans = useMemo(() => {
     if (!allTraces.length) return [];
     return allTraces[0] ?? [];
   }, [allTraces]);
 
-  // For multi grouping (not strictly about diff)
+  // Grouping logic
   const [groupSignature, setGroupSignature] = useState("");
 
   function minimalSpanHierarchy(span: Span): any {
@@ -603,7 +702,7 @@ export default function UnifiedTraceView({
   function labelForGroupRows(rows: number[]): string {
     if (!rows.length) return "--";
     if (rows.length === 1) return `Row ${rows[0]}`;
-    return "Rows " + rows.join(", ");
+    return `Rows ${rows.join(", ")}`;
   }
 
   const groupOptions = useMemo(() => {
@@ -621,22 +720,26 @@ export default function UnifiedTraceView({
     return allTraces[i] ?? [];
   }
 
+  // Build final patched diff
   const finalPatchRoot = useMemo<PatchDiffNode | null>(() => {
     if (!allTraces.length) return null;
+    // Wrap the base row in the synthetic “ROOT”
     const baseWrapped = wrapAsRootSpan(baseRowSpans, "baseRow");
     if (!groupSignature) {
-      // Compare base with itself => no differences
+      // Compare with itself => minimal changes
       return computeSpanDiffByName(baseWrapped, baseWrapped);
     }
     const found = groupedRows.find((x) => x.signature === groupSignature);
     if (!found) {
       return computeSpanDiffByName(baseWrapped, baseWrapped);
     }
+    // unify those group rows => single array
     const groupSpans = unifyGroupIntoOne(found.rowIndices);
     const groupWrapped = wrapAsRootSpan(groupSpans, "groupRow");
     return computeSpanDiffByName(baseWrapped, groupWrapped);
   }, [groupSignature, groupedRows, baseRowSpans, allTraces, rowIndexes]);
 
+  // Decide which row(s) is the "compare" side
   const groupCompareRows = useMemo(() => {
     if (!groupSignature) return [];
     const found = groupedRows.find((g) => g.signature === groupSignature);
@@ -644,85 +747,87 @@ export default function UnifiedTraceView({
     return found.rowIndices;
   }, [groupSignature, groupedRows]);
 
-  // Helper to find a patch diff node by span ID with DFS
-  function findNodeBySpanId(node: PatchDiffNode, id: string): PatchDiffNode | null {
-    if (!node) return null;
-    if (node.baseSpanRef?.id === id || node.targetSpanRef?.id === id) return node;
-    for (const child of node.children) {
-      const found = findNodeBySpanId(child, id);
-      if (found) return found;
-    }
-    return null;
-  }
-
-  // If the patch root is "ROOT" and unchanged, we might want the first child as default.
-  function getDefaultNode(root: PatchDiffNode): PatchDiffNode {
-    if (!root) return root;
-    if (root.name !== "ROOT") {
-      return root;
-    }
-    if (root.children && root.children.length > 0) {
-      return root.children[0];
-    }
-    return root;
-  }
-
-  // Whenever we recompute finalPatchRoot, re-check the selectedSpanId
-  // so we can preserve or pick a default selection.
+  // Whenever finalPatchRoot changes, flatten out the “ROOT” node,
+  // then find any previously selectedSpanId.
   useEffect(() => {
     if (!finalPatchRoot) return;
+
+    // Flatten root => forest
+    const forest = flattenRootNode(finalPatchRoot);
+
     if (!selectedSpanId) {
-      // No selection yet => pick the default node
-      const def = getDefaultNode(finalPatchRoot);
-      const defId = def?.baseSpanRef?.id ?? def?.targetSpanRef?.id ?? "";
-      setSelectedSpanId(defId);
-      setSelectedNode(def);
-    } else {
-      // We have an ID from before => try to find it in the new tree
-      const found = findNodeBySpanId(finalPatchRoot, selectedSpanId);
-      if (!found) {
-        // If not found => pick default
-        const def = getDefaultNode(finalPatchRoot);
-        const defId = def?.baseSpanRef?.id ?? def?.targetSpanRef?.id ?? "";
-        setSelectedSpanId(defId);
-        setSelectedNode(def);
+      // if nothing is selected, pick the first child if any
+      if (forest.length > 0) {
+        const candidate = forest[0];
+        const newId = candidate.baseSpanRef?.id ?? candidate.targetSpanRef?.id ?? "";
+        setSelectedNode(candidate);
+        setSelectedSpanId(newId);
       } else {
-        setSelectedNode(found);
+        setSelectedNode(null);
+        setSelectedSpanId("");
       }
+      return;
+    }
+
+    // Otherwise see if we can find it
+    const found = findNodeInForest(forest, selectedSpanId);
+    if (!found) {
+      if (forest.length > 0) {
+        const candidate = forest[0];
+        const newId = candidate.baseSpanRef?.id ?? candidate.targetSpanRef?.id ?? "";
+        setSelectedNode(candidate);
+        setSelectedSpanId(newId);
+      } else {
+        setSelectedNode(null);
+        setSelectedSpanId("");
+      }
+    } else {
+      setSelectedNode(found);
     }
   }, [finalPatchRoot]);
 
   function onSelectNode(n: PatchDiffNode | null) {
     if (!n) {
-      setSelectedSpanId("");
       setSelectedNode(null);
+      setSelectedSpanId("");
     } else {
       const newId = n.baseSpanRef?.id ?? n.targetSpanRef?.id ?? "";
-      setSelectedSpanId(newId);
       setSelectedNode(n);
+      setSelectedSpanId(newId);
     }
   }
 
   function handleGroupChange(val: string) {
     setGroupSignature(val);
     setCollapsedNodes({});
-    // We remove the previous setSelectedNode(null) so selection is preserved
+    setSelectedNode(null);
+    setSelectedSpanId("");
   }
 
   function renderPatchTree() {
     if (!finalPatchRoot) {
       return <p className="text-sm italic text-muted-foreground mt-2">No trace data</p>;
     }
+    const forest = flattenRootNode(finalPatchRoot);
+    if (!forest.length) {
+      return <p className="text-sm italic text-muted-foreground mt-2">No top-level spans</p>;
+    }
     return (
-      <CollapsiblePatchLineNode
-        node={finalPatchRoot}
-        parentCenterY={0}
-        depth={0}
-        collapsedNodes={collapsedNodes}
-        setCollapsedNodes={setCollapsedNodes}
-        selectedNode={selectedNode}
-        onSelectNode={onSelectNode}
-      />
+      <>
+        {forest.map((oneRoot, i) => (
+          <CollapsiblePatchLineNode
+            key={i}
+            node={oneRoot}
+            parentCenterY={0}
+            depth={0}
+            collapsedNodes={collapsedNodes}
+            setCollapsedNodes={setCollapsedNodes}
+            selectedNode={selectedNode}
+            onSelectNode={onSelectNode}
+            multiMode={multiMode}
+          />
+        ))}
+      </>
     );
   }
 
