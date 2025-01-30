@@ -110,8 +110,8 @@ function pickView(
         comparables={comps}
         baseLogIndex={baseLogIndex}
         comparisonLogsIndex={comparisonLogsIndex}
-        diffMode={diffMode}
-        splitView={splitView}
+        diffMode={diffMode ?? "none"}
+        splitView={splitView ?? false}
       />
     );
   }
@@ -122,8 +122,8 @@ function pickView(
         comparables={comps}
         baseLogIndex={baseLogIndex}
         comparisonLogsIndex={comparisonLogsIndex}
-        diffMode={diffMode}
-        splitView={splitView}
+        diffMode={diffMode ?? "none"}
+        splitView={splitView ?? false}
       />
     );
   }
@@ -134,8 +134,8 @@ function pickView(
         comparables={comps}
         baseLogIndex={baseLogIndex}
         comparisonLogsIndex={comparisonLogsIndex}
-        diffMode={diffMode}
-        splitView={splitView}
+        diffMode={diffMode ?? "none"}
+        splitView={splitView ?? false}
       />
     );
   }
@@ -146,8 +146,8 @@ function pickView(
         comparables={comps}
         baseLogIndex={baseLogIndex}
         comparisonLogsIndex={comparisonLogsIndex}
-        diffMode={diffMode}
-        splitView={splitView}
+        diffMode={diffMode ?? "none"}
+        splitView={splitView ?? false}
       />
     );
   }
@@ -158,8 +158,8 @@ function pickView(
         comparables={comps}
         baseLogIndex={baseLogIndex}
         comparisonLogsIndex={comparisonLogsIndex}
-        diffMode={diffMode}
-        splitView={splitView}
+        diffMode={diffMode ?? "none"}
+        splitView={splitView ?? false}
       />
     );
   }
@@ -170,8 +170,8 @@ function pickView(
         comparables={comps}
         baseLogIndex={baseLogIndex}
         comparisonLogsIndex={comparisonLogsIndex}
-        diffMode={diffMode}
-        splitView={splitView}
+        diffMode={diffMode ?? "none"}
+        splitView={splitView ?? false}
       />
     );
   }
@@ -182,8 +182,8 @@ function pickView(
         comparables={comps}
         baseLogIndex={baseLogIndex}
         comparisonLogsIndex={comparisonLogsIndex}
-        diffMode={diffMode}
-        splitView={splitView}
+        diffMode={diffMode ?? "none"}
+        splitView={splitView ?? false}
       />
     );
   }
@@ -194,8 +194,8 @@ function pickView(
       comparables={comps}
       baseLogIndex={baseLogIndex}
       comparisonLogsIndex={comparisonLogsIndex}
-      diffMode={diffMode}
-      splitView={splitView}
+      diffMode={diffMode ?? "none"}
+      splitView={splitView ?? false}
     />
   );
 }
@@ -460,7 +460,9 @@ function CollapsiblePatchLineNode({
   const spanType = node.baseSpanRef?.type ?? node.targetSpanRef?.type;
   const IconComponent = getIconForSpanType(spanType);
 
-  // Execution time display
+  //========================
+  // Execution Time
+  //========================
   const baseTime = node.baseSpanRef?.exec_time ?? 0;
   const targetTime = node.targetSpanRef?.exec_time ?? 0;
 
@@ -468,40 +470,87 @@ function CollapsiblePatchLineNode({
   let timeTooltip = "";
 
   if (!multiMode) {
-    // single-mode => only show baseTime if present
     if (baseTime) {
       timeLabel = `${baseTime.toFixed(2)}s`;
       timeTooltip = `Execution Time ${baseTime.toFixed(2)}s`;
     }
   } else {
-    // multi-mode => only show difference if marker is " " or "r".
-    // For "+" or "-", just show the single span's time.
     if (node.marker === "+") {
-      // only targetSpan
       if (targetTime) {
         timeLabel = `${targetTime.toFixed(2)}s`;
-        timeTooltip = `Execution Time (Comparison Only): ${targetTime.toFixed(1)}s`;
+        timeTooltip = `Execution Time (Comparison Only): ${targetTime.toFixed(2)}s`;
       }
     } else if (node.marker === "-") {
-      // only baseSpan
       if (baseTime) {
         timeLabel = `${baseTime.toFixed(2)}s`;
-        timeTooltip = `Execution Time (Base Only): ${baseTime.toFixed(1)}s`;
+        timeTooltip = `Execution Time (Base Only): ${baseTime.toFixed(2)}s`;
       }
     } else {
-      // marker " " or "r" => we have both spans, so show difference
+      // marker " " or "r"
       const diff = targetTime - baseTime;
-      const sign = diff >= 0 ? "+" : "-";
-      const absDiff = Math.abs(diff).toFixed(2);
-      timeLabel = `${sign}${absDiff}s`;
-      timeTooltip =
-        `Execution Times\n` +
-        `Base ${baseTime.toFixed(2)}s\n` +
-        `Comparison ${targetTime.toFixed(2)}s\n` +
-        `Difference ${sign}${absDiff}s`;
-      if (!baseTime && !targetTime) {
-        timeLabel = "";
-        timeTooltip = "";
+      if (baseTime || targetTime) {
+        const sign = diff >= 0 ? "+" : "-";
+        const absDiff = Math.abs(diff).toFixed(2);
+        timeLabel = `${sign}${absDiff}s`;
+        timeTooltip =
+          `Execution Times\n` +
+          `Base ${baseTime.toFixed(2)}s\n` +
+          `Comparison ${targetTime.toFixed(2)}s\n` +
+          `Difference ${sign}${absDiff}s`;
+        if (!baseTime && !targetTime) {
+          timeLabel = "";
+          timeTooltip = "";
+        }
+      }
+    }
+  }
+
+  //========================
+  // Cost (similar to exec_time)
+  //========================
+  const baseCost =
+    node.baseSpanRef?.outputs?.usage?.cost ?? 0;
+  const targetCost =
+    node.targetSpanRef?.outputs?.usage?.cost ?? 0;
+
+  console.log(node);
+  console.log("baseCost", baseCost, "targetCost", targetCost);
+
+  let costLabel = "";
+  let costTooltip = "";
+
+  if (!multiMode) {
+    if (baseCost > 0) {
+      costLabel = `$${baseCost.toFixed(4)}`;
+      costTooltip = `LLM cost $${baseCost.toFixed(4)}`;
+    }
+  } else {
+    if (node.marker === "+") {
+      if (targetCost > 0) {
+        costLabel = `$${targetCost.toFixed(4)}`;
+        costTooltip = `LLM cost (Comparison Only): $${targetCost.toFixed(4)}`;
+      }
+    } else if (node.marker === "-") {
+      if (baseCost > 0) {
+        costLabel = `$${baseCost.toFixed(4)}`;
+        costTooltip = `LLM cost (Base Only): $${baseCost.toFixed(4)}`;
+      }
+    } else {
+      // marker " " or "r"
+      if (baseCost || targetCost) {
+        const diffC = targetCost - baseCost;
+        const signC = diffC >= 0 ? "+" : "-";
+        const absDiffC = Math.abs(diffC).toFixed(4);
+        costLabel = `${signC}$${absDiffC}`;
+        costTooltip =
+          `LLM Costs\n` +
+          `Base $${baseCost.toFixed(4)}\n` +
+          `Comparison $${targetCost.toFixed(4)}\n` +
+          `Difference ${signC}$${absDiffC}`;
+        if (!baseCost && !targetCost) {
+          costLabel = "";
+          costTooltip = "";
+        }
       }
     }
   }
@@ -541,22 +590,23 @@ function CollapsiblePatchLineNode({
           {node.marker === " " ? "" : node.marker}
         </span>
 
-        {/* Span name + optional time label */}
+        {/* Span name + optional time/cost labels */}
         <div className="truncate flex items-center">
           {node.name}
           {timeLabel && (
-              <Tooltip content={timeTooltip}>
-                {isSelected ? (
-                  <span className="ml-2 text-xs text-muted">
-                    {timeLabel}
-                  </span>
-                ) : (
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    {timeLabel}
-                  </span>
-                )}
-              </Tooltip>
-          )}           
+            <Tooltip content={timeTooltip}>
+              <span className="ml-2 text-xs text-muted-foreground">
+                {timeLabel}
+              </span>
+            </Tooltip>
+          )}
+          {costLabel && (
+            <Tooltip content={costTooltip}>
+              <span className="ml-2 text-xs text-muted-foreground">
+                {costLabel}
+              </span>
+            </Tooltip>
+          )}
         </div>
 
         {hasChildren && (
