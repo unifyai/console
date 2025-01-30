@@ -119,14 +119,12 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
                 null,
                 limit,
                 offsets[idx],
-                null
+                Date.now().toString()
             );
             const totalPages = Math.ceil(logsData.count / limit);
-
             allLogsData[idx] = logsData;
             allTotalPages[idx] = totalPages;
-        })
-        );
+        }));
         await Promise.all(plotItems.map(async (item, idx) => {
             const xAxis = item.context ? processContext("merge", item.context, item.x_axis) : item.x_axis;
             const yAxis = item.context ? processContext("merge", item.context, item.y_axis) : item.y_axis;
@@ -137,12 +135,12 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
             if (xAxis) {
                 let subset = xAxis
                 if (item.plot_type === "Bar Chart")
-                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, 0, null);
+                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, 0, Date.now().toString());
                 else {
                     if (yAxis)
                         subset += `%26${yAxis}`
                     if (group) subset += `%26${group}`
-                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, 0, null);
+                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, 0, Date.now().toString());
                 }
             }
             allPlotData[idx] = plotData;

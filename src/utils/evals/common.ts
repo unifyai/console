@@ -60,8 +60,8 @@ export function computeStatistic(statistic: string, data: number[]): string {
       const sortedArray = data.slice().sort((a: number, b: number) => a - b);
       const middleIndex = Math.floor(sortedArray.length / 2);
       const median = sortedArray.length % 2 === 0
-      ? (sortedArray[middleIndex - 1] + sortedArray[middleIndex]) / 2
-      : sortedArray[middleIndex]; 
+        ? (sortedArray[middleIndex - 1] + sortedArray[middleIndex]) / 2
+        : sortedArray[middleIndex];
       return formatNumber(median)
     }
     case "mode": {
@@ -79,58 +79,58 @@ export function computeStatistic(statistic: string, data: number[]): string {
   Extract logs, parameters, and their respective keys, accounting for context and sorting preferences.
 */
 export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFieldsResponseProps, context: string | null, sorting: string | null) {
-  
-    const params = logsResponse.params;
-    let logs = logsResponse.logs;
-    logs = logs.map(log => ({id: log.id, ts: log.ts, params: log.params, derived_entries: {}, entries: {...log.entries, ...log.derived_entries}})) // Bundle derived entries with entries
-    let [paramsProperties, entriesProperties] = [
-      Object.entries(fields).filter(entry => entry[1].field_type === "param").map(entry => entry[0]),
-      Object.entries(fields).filter(entry => entry[1].field_type != "param").map(entry => entry[0])
-    ]
-    if (context){
-      [paramsProperties, entriesProperties] = [
-        paramsProperties.filter(property => property.includes(context)).map(property => processContext("split", context, property)),
-        entriesProperties.filter(property => property.includes(context)).map(property => processContext("split", context, property))
-      ]
-    }
 
-    return { entriesProperties, paramsProperties, logs, params };
+  const params = logsResponse.params;
+  let logs = logsResponse.logs;
+  logs = logs.map(log => ({ id: log.id, ts: log.ts, params: log.params, derived_entries: {}, entries: { ...log.entries, ...log.derived_entries } })) // Bundle derived entries with entries
+  let [paramsProperties, entriesProperties] = [
+    Object.entries(fields).filter(entry => entry[1].field_type === "param").map(entry => entry[0]),
+    Object.entries(fields).filter(entry => entry[1].field_type != "param").map(entry => entry[0])
+  ]
+  if (context) {
+    [paramsProperties, entriesProperties] = [
+      paramsProperties.filter(property => property.includes(context)).map(property => processContext("split", context, property)),
+      entriesProperties.filter(property => property.includes(context)).map(property => processContext("split", context, property))
+    ]
+  }
+
+  return { entriesProperties, paramsProperties, logs, params };
 }
 
 export const getLogsDetails = async (
-    item: TileProps,
-    logsData: LogsResponseProps,
-    fields: LogFieldsResponseProps,
-    context: string | null,
-    project: string | null,
-    filterExpression: string | null,
-    sorting: string | null,
-    logsActions: {
-        get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
-        getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
-        getMetrics: (
-            project: string, filterExpression: string | null, metricName: string, keyName: string
-        ) => Promise<number>,
-        delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
-        derive: (project: string, key: string, equation: string, referenced_logs: TableArguments) => Promise<ResponseProps>
-    }
+  item: TileProps,
+  logsData: LogsResponseProps,
+  fields: LogFieldsResponseProps,
+  context: string | null,
+  project: string | null,
+  filterExpression: string | null,
+  sorting: string | null,
+  logsActions: {
+    get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
+    getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
+    getMetrics: (
+      project: string, filterExpression: string | null, metricName: string, keyName: string
+    ) => Promise<number>,
+    delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
+    derive: (project: string, key: string, equation: string, referenced_logs: TableArguments) => Promise<ResponseProps>
+  }
 ) => {
-    // Unpack log data
-    const { entriesProperties, paramsProperties, logs, params } = extractLogsData(
-        logsData, fields, context, sorting
-    );
+  // Unpack log data
+  const { entriesProperties, paramsProperties, logs, params } = extractLogsData(
+    logsData, fields, context, sorting
+  );
 
-    /* Handle column metrics */
-    // Getting metrics for filtered logs, and min / max values for full logs.
-    // Min / max bounds are used to set the filtering range for numeric columns
-    const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
-    const getColumnMetrics = async (expression: string | null, metric: string | undefined) => {
-      let fullColumns = columns
-      if (context)
-        fullColumns = fullColumns.map(column => processContext("merge", context, column))
-      const metricValues = await Promise.all(
-        fullColumns.map(async (key) => {
-          try {
+  /* Handle column metrics */
+  // Getting metrics for filtered logs, and min / max values for full logs.
+  // Min / max bounds are used to set the filtering range for numeric columns
+  const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
+  const getColumnMetrics = async (expression: string | null, metric: string | undefined) => {
+    let fullColumns = columns
+    if (context)
+      fullColumns = fullColumns.map(column => processContext("merge", context, column))
+    const metricValues = await Promise.all(
+      fullColumns.map(async (key) => {
+        try {
           const result = await logsActions.getMetrics(
             project!,
             expression,
@@ -138,34 +138,34 @@ export const getLogsDetails = async (
             key
           );
           return result;
-          } catch (error) {
+        } catch (error) {
           console.error(`Error fetching metric for key ${key}`);
           return "";
-          }
-        })
-        );
-      const metrics_: { [key: string]: any } = columns.length 
-        ? columns
-          .map((key, index) => ({ [key]: metricValues[index] }))
-          .reduce((acc, curr) => ({...acc, ...curr})) 
-        : {};
-      return metrics_
-    }
-    const [metrics, minimums, maximums] = await Promise.all([
-        getColumnMetrics(filterExpression, item.metric),
-        getColumnMetrics(null, "min"),
-        getColumnMetrics(null, "max")
-    ]);
+        }
+      })
+    );
+    const metrics_: { [key: string]: any } = columns.length
+      ? columns
+        .map((key, index) => ({ [key]: metricValues[index] }))
+        .reduce((acc, curr) => ({ ...acc, ...curr }))
+      : {};
+    return metrics_
+  }
+  const [metrics, minimums, maximums] = await Promise.all([
+    getColumnMetrics(filterExpression, item.metric),
+    getColumnMetrics(null, "min"),
+    getColumnMetrics(null, "max")
+  ]);
 
-    // Min-max boundaries for numeric and time-like column filters
-    const boundaries = { minimums, maximums }
+  // Min-max boundaries for numeric and time-like column filters
+  const boundaries = { minimums, maximums }
 
-    return {
-        entriesProperties,
-        paramsProperties,
-        logs,
-        params,
-        metrics,
-        boundaries
-    }
+  return {
+    entriesProperties,
+    paramsProperties,
+    logs,
+    params,
+    metrics,
+    boundaries
+  }
 }
