@@ -181,6 +181,8 @@ export function extractBaseAndComparisonLogs (selectedCells: string[], logs:LogP
       baseLog.params = getDictSubset(baseLog.params, columnIds)
 
   }
+  else
+    selectedCells = [];
 
   // Fix for case where on row is selected
   const uniqueLogIds = Array.from(new Set(selectedCells.map(cell => cell.split("_")[0])));
