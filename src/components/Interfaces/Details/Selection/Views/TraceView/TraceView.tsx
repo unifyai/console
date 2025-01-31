@@ -513,9 +513,6 @@ function CollapsiblePatchLineNode({
   const targetCost =
     node.targetSpanRef?.outputs?.usage?.cost ?? 0;
 
-  console.log(node);
-  console.log("baseCost", baseCost, "targetCost", targetCost);
-
   let costLabel = "";
   let costTooltip = "";
 
