@@ -29,7 +29,12 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
         Object.keys(interfacesTemp_).length ? Object.keys(interfacesTemp_).sort()[0] : null
     );
     let currentInterface = (interface_1 && interface_1 in interfacesTemp_) ? interfacesTemp_[interface_1] : null;
-    let savedInterface = interfaceCreated ? interfaces_[interface_1 as string] : null;
+    let savedInterface = interfaceCreated ? interfaces_[interface_1 as string] : {
+        name: interface_1 as string,
+        project: project,
+        items: [],
+        new_counter: 0
+    } as Interface;
 
     // Get fields
     let fields: LogFieldsResponseProps = {};
