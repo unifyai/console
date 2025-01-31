@@ -58,12 +58,12 @@ function getValueType(value: any) {
   return "string";
 }
 
-/** Used in the original code to open certain keys by default. */
+
 function defaultOpenFor(keys: string[], obj: Record<string, unknown>) {
   return keys.filter((k) => {
     const val = obj[k];
     const t = getValueType(val);
-    return ["string", "matrix", "image"].includes(t);
+    return ["string", "number", "matrix", "image"].includes(t);
   });
 }
 
