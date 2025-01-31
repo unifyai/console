@@ -43,7 +43,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
         items: [],
         new_counter: 0
     } as Interface;
-    if (!interface_)
+    if (!interface_ && project && interface_1)
         redirect(`/interfaces?project=${project}&interface=${interface_1}`);
 
     // Get fields
