@@ -172,7 +172,7 @@ export const createDerivedEntry = async (apiKey: string) => {
             const response = await fetch(
                 `${process.env.NEXTAUTH_URL}/api/logs/derived`,
                 {
-                    method: "PUT",
+                    method: "POST",
                     headers: { apiKey: apiKey },
                     body: JSON.stringify({ project, key, equation, referenced_logs })
                 }

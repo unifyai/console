@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
-export async function PUT(request: NextRequest) {
+export async function POST(request: NextRequest) {
     const body = await request.json();
     return await fetch(
         `${baseUrl}/logs/derived`,
