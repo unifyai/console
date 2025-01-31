@@ -234,7 +234,7 @@ const DataTableHeader = ({
             onMouseDown={(e) => e.stopPropagation()} // Prevent drag interference
             onMouseUp={(e) => e.stopPropagation()} // Prevent drag interference
           >
-            <ColumnHide column={header.column} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility} />
+            <ColumnHide column={header.column} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility} data={data}/>
           </div>
         )}
 

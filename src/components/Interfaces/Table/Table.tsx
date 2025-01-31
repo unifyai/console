@@ -10,6 +10,7 @@ import {
   ColumnPinningState,
   ColumnSizingState,
 } from "@tanstack/react-table";
+import { useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
@@ -65,6 +66,7 @@ const LogsTable = ({
       filterExpression: string | null,
       sortingExpression: string | null,
       from_fields: string | null,
+      exclude_fields: string | null,
       limit: number | null,
       offset: number,
       _timestamp: string | null
@@ -75,6 +77,7 @@ const LogsTable = ({
       filterExpression: string | null, 
       sortingExpression: string | null,
       from_fields: string | null,
+      exclude_fields: string | null,
       limit: number | null, 
       offset: number
     ) => Promise<string>,
@@ -101,7 +104,7 @@ const LogsTable = ({
   // extract necessary fields
   const [tableDataItem, setTableDataItem] = useState(tableDataItem_);
   const { logs, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
-
+  
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false); // if metric changed
 
@@ -195,8 +198,11 @@ const LogsTable = ({
     : allColumnsVisible;
 
   const setColumnVisibility = (v: { [key: string]: boolean }) => {
-    const hidden = Object.keys(v).filter((k) => !v[k]);
+    const hidden = Object.keys(v).filter((k) => !v[k]).map(id => sanitizeId(id));
     updateItem(item, "hidden_columns")(hidden.length ? hidden.join(",") : undefined);
+    updateInterface().then(() => {
+      router.refresh();
+    });
   };
 
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -277,6 +283,8 @@ const LogsTable = ({
     setDraggingColumns,
     setPinningState,
   };
+
+  const router = useRouter();
 
   // Use refs to detect a *real* page/filter change
   const prevPageRef = useRef(pageNumber);
@@ -361,9 +369,11 @@ const LogsTable = ({
             logs={logs}
           />
           <VisibilityFilter
+            fields={fields}
             columnVisibility={columnVisibility}
             setColumnVisibility={setColumnVisibility}
             context={item.context ?? null}
+            logs={logs}
           />
         </div>
       )}
@@ -382,6 +392,7 @@ const LogsTable = ({
             fields={fields}
             filterExpression={filterExpression}
             sortingExpression={sortingExpression}
+            hiddenColumns={item.hidden_columns}
             updateItem={updateItem}
             setTableDataItem={setTableDataItem}
             logsActions={logsActions}

@@ -78,7 +78,7 @@ export function computeStatistic(statistic: string, data: number[]): string {
 /* 
   Extract logs, parameters, and their respective keys, accounting for context and sorting preferences.
 */
-export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFieldsResponseProps, context: string | null, sorting: string | null) {
+export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFieldsResponseProps, context: string | null, sorting: string | null, hiddenColumns: string | undefined) {
 
   const params = logsResponse.params;
   let logs = logsResponse.logs;
@@ -93,7 +93,13 @@ export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFiel
       entriesProperties.filter(property => property.includes(context)).map(property => processContext("split", context, property))
     ]
   }
-
+  if (hiddenColumns) {
+    const hidden = hiddenColumns.split(",");
+    [paramsProperties, entriesProperties] = [
+      paramsProperties.filter(property => !hidden.includes(property)),
+      entriesProperties.filter(property => !hidden.includes(property))
+    ]
+  }
   return { entriesProperties, paramsProperties, logs, params };
 }
 
@@ -105,9 +111,10 @@ export const getLogsDetails = async (
   project: string | null,
   filterExpression: string | null,
   sorting: string | null,
+  hiddenColumns: string | undefined,
   logsActions: {
-    get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
-    getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
+    get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
+    getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number) => Promise<string>,
     getMetrics: (
       project: string, filterExpression: string | null, metricName: string, keyName: string
     ) => Promise<number>,
@@ -117,7 +124,7 @@ export const getLogsDetails = async (
 ) => {
   // Unpack log data
   const { entriesProperties, paramsProperties, logs, params } = extractLogsData(
-    logsData, fields, context, sorting
+    logsData, fields, context, sorting, hiddenColumns
   );
 
   /* Handle column metrics */

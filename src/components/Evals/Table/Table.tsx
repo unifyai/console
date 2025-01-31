@@ -90,6 +90,7 @@ const LogsTable = ({
       filterExpression: string | null,
       sortingExpression: string | null,
       from_fields: string | null,
+      exclude_fields: string | null, 
       limit: number | null,
       offset: number,
       _timestamp: string | null
@@ -100,6 +101,7 @@ const LogsTable = ({
       filterExpression: string | null,
       sortingExpression: string | null,
       from_fields: string | null,
+      exclude_fields: string | null, 
       limit: number | null,
       offset: number
     ) => Promise<string>;

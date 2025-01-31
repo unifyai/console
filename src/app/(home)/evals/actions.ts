@@ -68,7 +68,7 @@ export const deleteProject = async (apiKey: string) => {
 
 // get logs
 export const getLogs = async (apiKey: string) => {
-    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number | null, _timestamp: string | null) => {
+    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, _timestamp: string | null) => {
         "use server";
 
         const response = await fetch(
@@ -77,6 +77,7 @@ export const getLogs = async (apiKey: string) => {
             + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
             + (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : "")
             + (from_fields ? `&from_fields=${from_fields}` : "")
+            + (exclude_fields ? `&exclude_fields=${encodeURIComponent(exclude_fields)}` : "")
             + (limit ? `&limit=${limit}` : "")
             + (offset ? `&offset=${offset}` : ""),
             { method: "GET", headers: { apiKey: apiKey }, next: { tags: [`logs_${_timestamp}`] } },
@@ -129,7 +130,7 @@ export const getLogMetrics = async (apiKey: string) => {
 
 // get latest timestamp
 export const getLatestTimestamp = async (apiKey: string) => {
-    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number | null) => {
+    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null) => {
         "use server";
 
         const response = await fetch(
@@ -138,6 +139,7 @@ export const getLatestTimestamp = async (apiKey: string) => {
             + (filterExpression ? `&filter_expr=${filterExpression}` : "")
             + (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : "")
             + (from_fields ? `&from_fields=${from_fields}` : "")
+            + (exclude_fields ? `&exclude_fields=${encodeURIComponent(exclude_fields)}` : "")
             + (limit ? `&limit=${limit}` : "")
             + (offset ? `&offset=${offset}` : ""),
             { method: "GET", headers: { apiKey: apiKey } }

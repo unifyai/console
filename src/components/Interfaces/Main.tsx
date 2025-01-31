@@ -126,12 +126,14 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
     );
     if (project) {
         await Promise.all(tableItems.map(async (item, idx) => {
+            const hidden = item.hidden_columns ? item.hidden_columns.split(",").join("&") : null;
             const logsData = await logsActions.get(
                 project,
                 item.context ?? null,
                 filterExpressions[idx],
                 sortingExpressions[idx],
                 null,
+                hidden,
                 limit,
                 offsets[idx],
                 Date.now().toString()
@@ -150,12 +152,12 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
             if (xAxis) {
                 let subset = xAxis
                 if (item.plot_type === "Bar Chart")
-                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, 0, Date.now().toString());
+                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
                 else {
                     if (yAxis)
                         subset += `%26${yAxis}`
                     if (group) subset += `%26${group}`
-                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, 0, Date.now().toString());
+                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
                 }
             }
             allPlotData[idx] = plotData;
@@ -168,9 +170,10 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
             const totalPages = allTotalPages[idx];
             const context = item.context ?? null
             const sorting = item.sorting ?? null
-            
+            const hiddenColumns = item.hidden_columns;
+
             const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
-                item, logsData, fields, context, project, filterExpressions[idx], sorting, logsActions
+                item, logsData, fields, context, project, filterExpressions[idx], sorting, hiddenColumns, logsActions
             )
 
             // Append available fields to the table attributes
@@ -181,7 +184,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
             )
             
             // Get other attributes shared across tables and corresponding views
-            const hiddenColumns = item.hidden_columns;
+
             const columnOrdering = item.column_order;
             const selection = item.selected;
             const baseIndex = item.base_index;
