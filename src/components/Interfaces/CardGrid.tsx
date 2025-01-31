@@ -169,7 +169,6 @@ const CardGrid = ({
             Cookies.remove("project");
         else if (!interface_)
             Cookies.remove("interface");
-
     }, [project, interface_]);
 
     // update interface whenever items change
