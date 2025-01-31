@@ -49,7 +49,7 @@ const CardGrid = ({
     tableArguments: TableArguments,
     fields: LogFieldsResponseProps,
     plotData: PlotDataProps,
-    savedInterface: Interface | null,
+    savedInterface: Interface,
     interfaceCreated: boolean,
     interface_1: string | null,
     filterExpressions: (string | null)[],
