@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
 import Card from "./Card";
 import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
@@ -81,9 +82,9 @@ const CardGrid = ({
 
     // data fields
     const [interfaces, setInterfaces] = useState(interfaces_);
-    const [interface_, setInterface] = useQueryState("interface", { shallow: false });
+    const [interface_, setInterface] = useQueryState("interface", { shallow: false, defaultValue: Cookies.get("interface") || "" });
     let finalInterface = interface_ || interface_1;
-    const [project, setProject] = useQueryState("project", { shallow: false });
+    const [project, setProject] = useQueryState("project", { shallow: false, defaultValue: Cookies.get("project") || "" });
     const [interface_2, setInterface_2] = useState(finalInterface || "");
 
     // pending fields
@@ -157,8 +158,12 @@ const CardGrid = ({
 
     // set the items and new counter whenever project or interface changes
     useEffect(() => {
-        if (project && finalInterface)
+        if (project && finalInterface) {
+            const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+            Cookies.set("project", project, { expires: expirationDate });
+            Cookies.set("interface", finalInterface, { expires: expirationDate });
             getLatestInterface();
+        }
     }, [project, finalInterface]);
 
     // update interface whenever items change
@@ -235,6 +240,7 @@ const CardGrid = ({
                                 deletingFunction={projectActions.delete}
                                 variant="outline"
                                 onDelete={() => {
+                                    Cookies.remove("project");
                                     setPending(true);
                                     setDataPending(true);
                                     setInterface(null);
@@ -279,6 +285,8 @@ const CardGrid = ({
                                                 interfaceActions.update(
                                                     int_, project, items, newCounter, interface_2, false
                                                 ).then(() => {
+                                                    const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                                                    Cookies.set("interface", interface_2, { expires: expirationDate });
                                                     setPending(true);
                                                     setInterface(interface_2);
                                                 });
@@ -304,6 +312,8 @@ const CardGrid = ({
                                     interfaceActions.create(
                                         newInterfaceName, project, [], 0, false
                                     ).then(() => {
+                                        const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                                        Cookies.set("interface", newInterfaceName, { expires: expirationDate });
                                         setInterfaces([...interfaces, newInterfaceName]);
                                         setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
                                         setInterface(newInterfaceName);
@@ -321,6 +331,8 @@ const CardGrid = ({
                             onClick={() => interfaceActions.delete(finalInterface as string, project, true).then(() => {
                                 setPending(true);
                                 interfaceActions.delete(finalInterface as string, project, false).then(() => {
+                                    Cookies.remove("interface");
+                                    setInterfaces(interfaces.filter(i => i != finalInterface));
                                     setInterface(null);
                                     setInterface_2("");
                                 })

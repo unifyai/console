@@ -4,6 +4,7 @@ import { getLogsDetails } from "@/utils/evals/common";
 import { FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
+import { cookies } from "next/headers";
 
 const Main = async ({ interface_, project_, projectsActions, logsActions, fieldsActions, interfaceActions }: {
     interface_: string | undefined,
@@ -13,9 +14,11 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
     fieldsActions: FieldsActions,
     interfaceActions: InterfaceActions
 }) => {
+    const cookies_ = cookies();
+
     // Get projects
     const projects: string[] = await projectsActions.get();
-    const project = projects.find(proj => proj == project_) || null;
+    const project = projects.find(proj => proj == (project_ || cookies_.get("project")?.value)) || null;
 
     // Get interface
     let interfaces_: { [key: string]: Interface } = (
@@ -25,7 +28,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
         (project ? await interfaceActions.get(project, true) : []) || []
     ).reduce((acc, curr) => ({...acc, [curr.name]: curr}), {});
     let interfaceCreated = interface_ != undefined && interface_ in interfaces_;
-    const interface_1 = Object.keys(interfacesTemp_).find(i => i == interface_) || (
+    const interface_1 = Object.keys(interfacesTemp_).find(i => i == (interface_  || cookies_.get("interface")?.value)) || (
         Object.keys(interfacesTemp_).length ? Object.keys(interfacesTemp_).sort()[0] : null
     );
     let currentInterface = (interface_1 && interface_1 in interfacesTemp_) ? interfacesTemp_[interface_1] : null;
