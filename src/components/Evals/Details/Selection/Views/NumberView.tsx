@@ -155,7 +155,7 @@ export default function NumberView({
           {!versionEmpty && <p className="font-semibold">Value</p>}
           <div className="flex border rounded p-2 relative">
             <div>
-              <p className="text-sm p-2">{baseNum}</p>
+              <p className="text-sm">{baseNum}</p>
             </div>
             <CopyButton
               className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
@@ -195,7 +195,7 @@ export default function NumberView({
             <div key={i} className="p-3 space-y-4">
               {!versionEmpty && (
                 <div className="space-y-2">
-                  <p className="font-semibold">Param Version</p>
+                  <p className="font-semibold">Version</p>
                   {verGroups.map((vg, j) => (
                     <div
                       key={j}
@@ -216,14 +216,17 @@ export default function NumberView({
                 </div>
               )}
 
-              <div className="border rounded p-2 bg-background relative">
-                <RowBadge rowNumbers={rowNums} mode="none" />
-                <CopyButton
-                  className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
-                  content={String(numVal)}
-                  copyMessage="Copied number!"
-                />
-                <p className="text-sm font-semibold mt-4">{numVal}</p>
+              <div className="space-y-2">
+                {!versionEmpty && <p className="font-semibold">Value</p>}
+                <div className="border rounded p-2 bg-background relative">
+                  <RowBadge rowNumbers={rowNums} mode="none" />
+                  <CopyButton
+                    className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                    content={String(numVal)}
+                    copyMessage="Copied number!"
+                  />
+                  <p className="text-sm mt-2">{numVal}</p>
+                </div>
               </div>
             </div>
           );
@@ -312,7 +315,7 @@ export default function NumberView({
                 <div className="relative border rounded p-2 w-fit min-w-24 text-start">
                   <div className="flex-col items-start justify-between gap-5">
                     <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
-                    <p className="text-sm font-semibold pt-5">{baseNum}</p>
+                    <p className="text-sm pt-5">{baseNum}</p>
                   </div>
                   <CopyButton
                     className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
@@ -328,7 +331,7 @@ export default function NumberView({
                 <div className="relative border rounded p-2 w-fit min-w-24 text-start">
                   <div className="flex-col items-start justify-between gap-5">
                     <RowBadge rowNumbers={rowNums} mode="none" />
-                    <p className="text-sm font-semibold pt-5">{compVal}</p>
+                    <p className="text-sm pt-5">{compVal}</p>
                   </div>
                   <CopyButton
                     className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
@@ -344,9 +347,9 @@ export default function NumberView({
                   <div className="flex-col items-start justify-between gap-5">
                     <p>Result</p>
                     {Number.isFinite(result) ? (
-                      <p className="text-sm font-semibold pt-5">{result}</p>
+                      <p className="text-sm pt-5">{result}</p>
                     ) : (
-                      <p className="text-sm font-semibold pt-5">∞</p>
+                      <p className="text-sm pt-5">∞</p>
                     )}
                   </div>
                   <CopyButton

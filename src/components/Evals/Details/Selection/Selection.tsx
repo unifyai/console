@@ -20,6 +20,7 @@ import {
   Columns,
   AlignJustify,
   SquareSplitHorizontal,
+  Code
 } from "lucide-react";
 
 /*******************************************************************************
@@ -252,6 +253,12 @@ export default function Selection({
     setPanelCount((prev) => (prev === 3 ? 1 : prev + 1));
   }
 
+  // (NEW) Raw Mode
+  const [rawMode, setRawMode] = useState(false);
+  function toggleRawMode() {
+    setRawMode((prev) => !prev);
+  }
+
   // If user hasn't selected anything, just show hints
   if (!selectedRowIndices.length) {
     return (
@@ -264,18 +271,27 @@ export default function Selection({
   // Return multiple panels side-by-side
   return (
     <div className="flex flex-col w-full h-full overflow-hidden bg-background rounded-md">
-      {/* A top bar just for toggling panelCount */}
+      {/* A top bar */}
       <div className="p-2 border-b border-muted flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           Selected {selectedRowIndices.length} row(s)
         </p>
-        <ActionButton
-          tooltip={`Cycle panel count (currently: ${panelCount})`}
-          icon={<SquareSplitHorizontal className="h-4 w-4" />}
-          onClick={handleCyclePanelCount}
-          variant="ghost"
-          size="icon"
-        />
+        <div className="flex items-center gap-2">
+          <ActionButton
+            tooltip={rawMode ? "Viewing as raw text" : "Viewing with specialized components"}
+            icon={<Code className={`h-4 w-4 ${rawMode ? "bg-primary" : ""}`} />}
+            onClick={toggleRawMode}
+            variant={rawMode ? "primary" : "ghost"}
+            size="icon"
+          />
+          <ActionButton
+            tooltip={`Cycle panel count (currently: ${panelCount})`}
+            icon={<SquareSplitHorizontal className="h-4 w-4" />}
+            onClick={handleCyclePanelCount}
+            variant="ghost"
+            size="icon"
+          />
+        </div>
       </div>
 
       {/* Panels in a horizontal row, each scrollable independently */}
@@ -290,6 +306,8 @@ export default function Selection({
             selectedRowIndices={selectedRowIndices}
             hiddenColumns={hiddenColumns}
             columnOrdering={columnOrdering}
+            // pass rawMode here
+            rawMode={rawMode}
           />
         ))}
       </div>
@@ -299,7 +317,7 @@ export default function Selection({
 
 /*******************************************************************************
  * (E) "SelectionPanel": each panel is fully independent in expansions, base row,
- *     diff mode, etc. We replicate your original logic but scoping it to this panel.
+ *     diff mode, etc.
  ******************************************************************************/
 function SelectionPanel({
   panelId,
@@ -309,6 +327,7 @@ function SelectionPanel({
   selectedRowIndices,
   hiddenColumns,
   columnOrdering,
+  rawMode,
 }: {
   panelId: number;
   params: Record<string, unknown>;
@@ -317,6 +336,7 @@ function SelectionPanel({
   selectedRowIndices: number[];
   hiddenColumns: string[];
   columnOrdering: string[];
+  rawMode: boolean;
 }) {
   // 1) local state: pick a base row among the selected rowIndices
   const [baseIndexParam, setBaseIndexParam] = useState(0);
@@ -356,7 +376,7 @@ function SelectionPanel({
     setSplitView((prev) => !prev);
   }
 
-  // 4) build baseLog & comparison logs for THIS panel
+  // 4) build baseLog & comparison logs
   const baseLog = useMemo<LogProps | undefined>(() => {
     if (baseRowIndex < 0 || baseRowIndex >= logs.length) return undefined;
     return buildLogWithChosenColumns(
@@ -437,7 +457,7 @@ function SelectionPanel({
     setOpenParamItems(everythingOpenParams ? [] : paramKeys);
   }
 
-  // 6) if no base log => show hints, else build sections
+  // 6) if no base log => show hints
   let content: JSX.Element;
   if (!baseLog) {
     content = (
@@ -481,6 +501,8 @@ function SelectionPanel({
                 comparisonLogsIndex={comparisonRowIndices.map(x => x + 1)}
                 diffMode={diffMode}
                 splitView={splitView}
+                // pass rawMode
+                rawMode={rawMode}
               />
             ))}
           </Accordion>
@@ -523,6 +545,7 @@ function SelectionPanel({
                 comparisonLogsIndex={comparisonRowIndices.map(x => x + 1)}
                 diffMode={diffMode}
                 splitView={splitView}
+                rawMode={rawMode}
               />
             ))}
           </Accordion>
@@ -538,7 +561,6 @@ function SelectionPanel({
     );
   }
 
-  // 7) a small top bar for picking base row, toggling diff mode, etc.
   return (
     <div className="flex flex-col w-full h-full overflow-hidden">
       {selectedRowIndices.length > 1 && (

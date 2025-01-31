@@ -38,13 +38,33 @@ import {
   Text,
   Hash,
   Clock,
-  MessagesSquare // icon for "chat"
+  MessagesSquare,
+  FileJson
 } from "lucide-react";
+
+// (NEW) import the RawView
+import RawView from "./Views/RawView";
 
 /** Either "entries" or "params", determining which field of the log object to read from. */
 type SourceType = "entries" | "params";
 type DiffMode = "none" | "lines" | "words" | "characters";
 
+/**
+ * We added a new "rawMode" to treat everything as raw strings.
+ */
+type SelectionEntryProps = {
+  source?: SourceType;
+  property: string;
+  value: any;
+  baseLog: LogProps;
+  baseLogIndex: number;
+  comparisonLogs?: LogProps[];
+  comparisonLogsIndex: number[];
+  diffMode: DiffMode;
+  splitView: boolean;
+  // (NEW) rawMode for toggling raw display
+  rawMode: boolean;
+};
 
 function getValueType(value: any):
   "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat"
@@ -84,7 +104,8 @@ function getTypeIcon(valueType: string) {
 }
 
 /**
- * Decide which specialized component to display based on the data type.
+ * Decide which specialized component to display based on the data type,
+ * unless we are in "rawMode". Then we always show RawView.
  */
 function getSelectionView(
   value: any,
@@ -95,7 +116,25 @@ function getSelectionView(
   comparisonLogsIndex: number[],
   diffMode: DiffMode,
   splitView: boolean,
+  rawMode: boolean
 ) {
+  if (rawMode) {
+    // override: always RawView
+    return (
+      <RawView
+        value={value}
+        comparables={comparables}
+        version={version}
+        comparableVersions={comparableVersions}
+        baseLogIndex={baseLogIndex}
+        comparisonLogsIndex={comparisonLogsIndex}
+        diffMode={diffMode}
+        splitView={splitView}
+      />
+    );
+  }
+
+  // normal logic
   const valueType = getValueType(value);
 
   switch (valueType) {
@@ -223,21 +262,6 @@ function getSelectionView(
   }
 }
 
-/**
- * SelectionEntry:
- */
-type SelectionEntryProps = {
-  source?: SourceType;
-  property: string;
-  value: any;
-  baseLog: LogProps;
-  baseLogIndex: number;
-  comparisonLogs?: LogProps[];
-  comparisonLogsIndex: number[];
-  diffMode: DiffMode;
-  splitView: boolean;
-};
-
 const SelectionEntry: React.FC<SelectionEntryProps> = ({
   source = "entries",
   property,
@@ -247,7 +271,8 @@ const SelectionEntry: React.FC<SelectionEntryProps> = ({
   comparisonLogs,
   comparisonLogsIndex,
   diffMode,
-  splitView
+  splitView,
+  rawMode
 }) => {
   // Gather comparables
   let comparables = (comparisonLogs ?? []).map((cl) => {
@@ -278,15 +303,16 @@ const SelectionEntry: React.FC<SelectionEntryProps> = ({
     baseLogIndex,
     comparisonLogsIndex,
     diffMode,
-    splitView
+    splitView,
+    rawMode
   );
 
   return (
     <AccordionItem value={property}>
       <AccordionTrigger>
         <span className="inline-flex items-center gap-2">
-          <Tooltip content={valueType}>
-            {icon}
+          <Tooltip content={rawMode ? "raw" : valueType}>
+            {rawMode ? <FileJson className="h-4 w-4 text-primary" /> : icon}
           </Tooltip>
           {property}
         </span>
