@@ -7,7 +7,7 @@ export async function PUT(request: NextRequest) {
     return await fetch(
         `${baseUrl}/logs/derived`,
         {
-            method: "PUT",
+            method: "POST",
             headers: {
                 "Authorization": `Bearer ${request.headers.get("apiKey")}`,
                 "Content-Type": "application/json",
