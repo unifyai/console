@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
 import Card from "./Card";
 import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
@@ -246,7 +245,6 @@ const CardGrid = ({
                                 deletingFunction={projectActions.delete}
                                 variant="outline"
                                 onDelete={() => {
-                                    Cookies.remove("project");
                                     setPending(true);
                                     setDataPending(true);
                                     setInterface(null);
@@ -291,8 +289,6 @@ const CardGrid = ({
                                                 interfaceActions.update(
                                                     int_, project, items, newCounter, interface_2, false
                                                 ).then(() => {
-                                                    const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-                                                    Cookies.set("interface", interface_2, { expires: expirationDate });
                                                     setPending(true);
                                                     setInterface(interface_2);
                                                 });
@@ -318,8 +314,6 @@ const CardGrid = ({
                                     interfaceActions.create(
                                         newInterfaceName, project, [], 0, false
                                     ).then(() => {
-                                        const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-                                        Cookies.set("interface", newInterfaceName, { expires: expirationDate });
                                         setInterfaces([...interfaces, newInterfaceName]);
                                         setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
                                         setInterface(newInterfaceName);
