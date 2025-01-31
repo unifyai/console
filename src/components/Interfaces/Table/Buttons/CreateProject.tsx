@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import FormEntry from "@/components/Common/Forms/Entry";
 import { ResponseProps } from "@/types/common";
-import Cookies from "js-cookie";
 
 const CreateProject = ({paths, creationFunction}: {
     paths: string[],
@@ -39,8 +38,6 @@ const CreateProject = ({paths, creationFunction}: {
     
     // Select created project
     const updateProject = (data: z.infer<typeof CreateSchema>) => {
-        const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-        Cookies.set("project", data.toString(), { expires: expirationDate });
         const currentUrl = new URL(window.location.href);
         const params = new URLSearchParams(currentUrl.search);
         params.set("project", data.toString());
