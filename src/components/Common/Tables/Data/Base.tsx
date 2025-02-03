@@ -2,8 +2,8 @@
 
 import { useMemo, ReactNode, MouseEvent, JSX, Ref, Dispatch, SetStateAction, useState } from "react";
 
-import { ColumnFiltersState, ColumnPinningState, GroupingState, Header, SortingState, Updater, useReactTable } from "@tanstack/react-table";
-import { getCoreRowModel, getFilteredRowModel, getExpandedRowModel, getGroupedRowModel, getSortedRowModel } from "@tanstack/react-table";
+import { ColumnFiltersState, ColumnPinningState, ExpandedState, GroupingState, Header, SortingState, Updater, useReactTable } from "@tanstack/react-table";
+import { getFilteredRowModel, getExpandedRowModel } from "@tanstack/react-table";
 import { ColumnDef, Table as TanstackTable, Column as TanstackColumn, Cell as TanstackCell, Row as TanstackRow } from "@tanstack/react-table";
 
 import { useSensors, useSensor, MouseSensor, TouchSensor, KeyboardSensor } from "@dnd-kit/core";
@@ -11,7 +11,7 @@ import { DndContext, closestCenter } from "@dnd-kit/core";
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 
-import { handleDragCancel, handleDragEnd, handleDragMove, handleDragOver, handleDragStart } from "@/utils/evals/table";
+import { getCoreRowModel, handleDragCancel, handleDragEnd, handleDragMove, handleDragOver, handleDragStart } from "@/utils/evals/table";
 import { Table, TableHeader, TableRow, TableBody, TableCell, TableFooter } from "@/components/UI/table";
 
 import DataTableHeader from "./Content/Header";
@@ -19,14 +19,14 @@ import DataTableCell from "./Content/Cell";
 
 import { StateProps } from "@/types/dataTable";
 import { SetStateProps } from "@/types/dataTable";
-import { LogProps } from "@/types/evals/logs";
+import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 import { useCellSelection } from "@/hooks/Logs/useCellSelection";
 
-export default function DataTable<TData, TValue>({ className, interactive, data, columns, state, setState, FooterCell, ColumnCreate, ColumnUpdate, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
+export default function DataTable<TData extends LogProps | GroupedLogProps>({ className, interactive, data, columns, state, setState, FooterCell, ColumnCreate, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
     className?: string,
     interactive?: boolean,
     data: TData[],
-    columns: ColumnDef<TData, TValue>[],
+    columns: ColumnDef<TData, unknown>[],
     state: StateProps,
     setState: SetStateProps,
     FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>) => ReactNode,
@@ -60,6 +60,7 @@ export default function DataTable<TData, TValue>({ className, interactive, data,
             state.columnVisibility, setState.setColumnVisibility, updater
         ),
         onColumnOrderChange: (updater: Updater<string[]>) => setUpdatedState(state.columnOrder, setState.setColumnOrder, updater),
+        // onExpandedChange: (updater: Updater<ExpandedState>) => setUpdatedState(state.expanded, setState.setExpanded, updater),
         onGroupingChange: (updater: Updater<GroupingState>) => setUpdatedState(state.grouping, setState.setGrouping, updater),
         onSortingChange: (updater: Updater<SortingState>) => setUpdatedState(state.sorting, setState.setSorting, updater),
         onColumnFiltersChange: (updater: Updater<ColumnFiltersState>) => setUpdatedState(
@@ -70,10 +71,18 @@ export default function DataTable<TData, TValue>({ className, interactive, data,
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         getExpandedRowModel: getExpandedRowModel(),
-        getGroupedRowModel: getGroupedRowModel(),
+        // manualExpanding: true,
+        manualGrouping: true,
         manualSorting: true,
         getRowId(originalRow, index, parent) {
-            return (originalRow as LogProps).id.toString()
+            return (originalRow as LogProps | GroupedLogProps).id.toString()
+        },
+        getSubRows(originalRow: TData, index: number): TData[] | undefined {
+            if (!('subRows' in originalRow)) return undefined;
+            
+            const row = originalRow as GroupedLogProps;
+            const subRows = row.subRows;
+            return subRows as TData[];
         },
         meta: {
             createColumn: () => {
