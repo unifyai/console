@@ -47,6 +47,7 @@ export interface GroupedLogProps {
     type: string,  // "ungrouped" or "grouped"
     id: string,
     groupingColumnId: string,
+    groupingIndex?: number,  // Index for entries/params groups, ascending within each nesting level
     [groupingValue: string]: unknown,  // Dynamic key for groupingValue
     subRows: GroupedLogProps[] | LogProps[]
 }
@@ -103,6 +104,7 @@ declare module "@tanstack/react-table" {
         isRowSpanned: boolean
     }
     interface Row<TData extends RowData> {
+        groupingIndex: number,
         groupingColumnId: string,
         groupingValue: any
     }

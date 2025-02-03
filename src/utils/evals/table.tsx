@@ -761,6 +761,7 @@ export function getCoreRowModel<TData extends RowData>(): (
 			// Add necessary props to support manual server-side grouping
             row.groupingColumnId = (originalRows[i] as any).groupingColumnId
             row.groupingValue = (originalRows[i] as any)[row.groupingColumnId]
+			row.groupingIndex = (originalRows[i] as any)[row.groupingIndex]
 
             // Keep track of every row in a flat array
             rowModel.flatRows.push(row)

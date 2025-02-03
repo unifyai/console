@@ -184,6 +184,17 @@ export const getLogsDetails = async (
 }
 
 /*
+  Utility functions to check grouping types
+*/
+function isEntriesGroup(groupingColumnId: string): boolean {
+  return groupingColumnId.startsWith("Entries");
+}
+
+function isParamsGroup(groupingColumnId: string): boolean {
+  return groupingColumnId.startsWith("Parameters");
+}
+
+/*
   Convert a GroupedLogPropsRaw object into an array of GroupedLogProps. This is needed for the 
   table to render manually grouped logs.
 
@@ -213,6 +224,10 @@ export function convertRawToGroupedLogs(raw: GroupedLogPropsRaw, parentId: strin
   );
 
   // Build an array of GroupedLogProps for each distinct grouping value
+  // If this is an entries group, we'll assign ascending indices
+  const isEntriesGrouping = isEntriesGroup(groupingColumnId);
+  let currentIndex = 1; // Start index from 1
+
   return groupValues.map((groupingValue) => {
     // Generate the ID for this group - matching TanStack's format
     let id = `${groupingColumnId}:${groupingValue}`;
@@ -225,6 +240,7 @@ export function convertRawToGroupedLogs(raw: GroupedLogPropsRaw, parentId: strin
         type: "grouped",
         id,
         groupingColumnId,
+        index: isEntriesGrouping ? currentIndex++ : undefined,
         [groupingColumnId]: groupingValue,
         subRows: child.map(log => ({
           ...log,
@@ -238,6 +254,7 @@ export function convertRawToGroupedLogs(raw: GroupedLogPropsRaw, parentId: strin
         type: "grouped",
         id,
         groupingColumnId,
+        groupingIndex: isEntriesGrouping ? currentIndex++ : undefined,
         [groupingColumnId]: groupingValue,
         subRows: nested.map(row => ({
           ...row,
@@ -249,6 +266,7 @@ export function convertRawToGroupedLogs(raw: GroupedLogPropsRaw, parentId: strin
         type: "grouped",
         id,
         groupingColumnId,
+        groupingIndex: isEntriesGrouping ? currentIndex++ : undefined,
         [groupingColumnId]: groupingValue,
         subRows: []
       } as GroupedLogProps;
