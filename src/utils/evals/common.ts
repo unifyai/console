@@ -1,4 +1,4 @@
-import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "../../types/evals/logs";
+import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps, GroupedLogProps, LogProps, GroupedLogPropsRaw } from "../../types/evals/logs";
 
 import _ from "lodash";
 import { formatNumber } from "../formatNumber";
@@ -79,27 +79,41 @@ export function computeStatistic(statistic: string, data: number[]): string {
   Extract logs, parameters, and their respective keys, accounting for context and sorting preferences.
 */
 export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFieldsResponseProps, context: string | null, sorting: string | null, hiddenColumns: string | undefined) {
+    const params = logsResponse.params;
+    const rawLogs = logsResponse.logs;
 
-  const params = logsResponse.params;
-  let logs = logsResponse.logs;
-  logs = logs.map(log => ({ id: log.id, ts: log.ts, params: log.params, derived_entries: {}, entries: { ...log.entries, ...log.derived_entries } })) // Bundle derived entries with entries
-  let [paramsProperties, entriesProperties] = [
-    Object.entries(fields).filter(entry => entry[1].field_type === "param").map(entry => entry[0]),
-    Object.entries(fields).filter(entry => entry[1].field_type != "param").map(entry => entry[0])
-  ]
-  if (context) {
-    [paramsProperties, entriesProperties] = [
-      paramsProperties.filter(property => property.includes(context)).map(property => processContext("split", context, property)),
-      entriesProperties.filter(property => property.includes(context)).map(property => processContext("split", context, property))
+    // If logs is an array (non-grouped case), process it directly
+    // If it's GroupedLogPropsRaw (grouped case), convert it first
+    const logs = Array.isArray(rawLogs) 
+        ? rawLogs.map(log => ({
+            type: "ungrouped",
+            id: log.id, 
+            ts: log.ts, 
+            params: log.params, 
+            derived_entries: {}, 
+            entries: {...log.entries, ...log.derived_entries},  // Bundle derived entries with entries
+            clipped_fields: log.clipped_fields,
+          }))
+        : convertRawToGroupedLogs(rawLogs);
+
+    let [paramsProperties, entriesProperties] = [
+      Object.entries(fields).filter(entry => entry[1].field_type === "param").map(entry => entry[0]),
+      Object.entries(fields).filter(entry => entry[1].field_type != "param").map(entry => entry[0])
     ]
-  }
-  if (hiddenColumns) {
-    const hidden = hiddenColumns.split(",");
-    [paramsProperties, entriesProperties] = [
-      paramsProperties.filter(property => !hidden.includes(property)),
-      entriesProperties.filter(property => !hidden.includes(property))
-    ]
-  }
+    if (context){
+      [paramsProperties, entriesProperties] = [
+        paramsProperties.filter(property => property.includes(context)).map(property => processContext("split", context, property)),
+        entriesProperties.filter(property => property.includes(context)).map(property => processContext("split", context, property))
+      ]
+    }
+    if (hiddenColumns) {
+      const hidden = hiddenColumns.split(",");
+      [paramsProperties, entriesProperties] = [
+        paramsProperties.filter(property => !hidden.includes(property)),
+        entriesProperties.filter(property => !hidden.includes(property))
+      ]
+    }
+
   return { entriesProperties, paramsProperties, logs, params };
 }
 
@@ -167,4 +181,113 @@ export const getLogsDetails = async (
     metrics,
     boundaries
   }
+}
+
+/*
+  Convert a GroupedLogPropsRaw object into an array of GroupedLogProps. This is needed for the 
+  table to render manually grouped logs.
+
+  Each top-level key in `raw` is treated as a "grouping column."
+  The value under that key is an object whose keys are grouping values
+  (like "0", "1", "hello"), each mapping either to:
+    - an array of final logs (LogProps[]), or
+    - a deeper grouping object (another GroupedLogPropsRaw).
+
+  If there's only one grouping column, you'll get a single GroupedLogProps
+  in the returned array. If there are multiple grouping columns at the 
+  top level, you'll get multiple siblings in the array.
+*/
+export function convertRawToGroupedLogs(raw: GroupedLogPropsRaw, parentId: string | null = null): GroupedLogProps[] {  
+  // We ignore numeric metadata like "count" or "group_count" at this level
+  const topLevelGroupingColumns = Object.keys(raw).filter(
+    (k) => typeof raw[k] === "object" && !Array.isArray(raw[k]) && raw[k] !== null
+  );
+
+  // There will always be exactly one top-level grouping column (e.g. "Traffic/student/gender")
+  const groupingColumnId = topLevelGroupingColumns[0];
+  const groupingObj = raw[groupingColumnId] as GroupedLogPropsRaw;
+  
+  // Get all values for this grouping column (e.g. "male", "female"), excluding metadata
+  const groupValues = Object.keys(groupingObj).filter(
+    (k) => k !== "count" && k !== "group_count"
+  );
+
+  // Build an array of GroupedLogProps for each distinct grouping value
+  return groupValues.map((groupingValue) => {
+    // Generate the ID for this group - matching TanStack's format
+    let id = `${groupingColumnId}:${groupingValue}`;
+    id = parentId ? `${parentId}>${id}` : id;
+
+    const child = groupingObj[groupingValue];
+    if (Array.isArray(child)) {
+      // child is final logs => produce a grouping node with subRows = these logs
+      return {
+        type: "grouped",
+        id,
+        groupingColumnId,
+        [groupingColumnId]: groupingValue,
+        subRows: child.map(log => ({
+          ...log,
+          type: "ungrouped",
+        }))
+      } as GroupedLogProps;
+    } else if (typeof child === "object" && child !== null) {
+      // child is another nested RawGroupingLevel => recurse
+      const nested = convertRawToGroupedLogs(child, id);
+      return {
+        type: "grouped",
+        id,
+        groupingColumnId,
+        [groupingColumnId]: groupingValue,
+        subRows: nested.map(row => ({
+          ...row,
+        }))
+      } as GroupedLogProps;
+    } else {
+      // child might be a number or undefined (like "count", "group_count") => skip or make an empty group
+      return {
+        type: "grouped",
+        id,
+        groupingColumnId,
+        [groupingColumnId]: groupingValue,
+        subRows: []
+      } as GroupedLogProps;
+    }
+  });
+}
+
+/*
+  Type guards to distinguish between LogProps and GroupedLogProps using the type field.
+*/
+function isLogProps(item: LogProps | GroupedLogProps): item is LogProps {
+  return item.type === "ungrouped";
+}
+
+function isGroupedLogProps(item: LogProps | GroupedLogProps): item is GroupedLogProps {
+  return item.type === "grouped";
+}
+
+/*
+  Takes an array that could be either LogProps[] or GroupedLogProps[] and returns LogProps[].
+  If the input is already LogProps[], returns it as is.
+  If it's GroupedLogProps[], flattens it recursively into LogProps[].
+*/
+export function maybeFlattenGroupedLogs(
+  items: LogProps[] | GroupedLogProps[]
+): LogProps[] {
+  const flattened: LogProps[] = [];
+
+  for (const item of items) {
+    if (isLogProps(item)) {
+      // Item is a LogProps; add it directly.
+      flattened.push(item);
+    } else if (isGroupedLogProps(item)) {
+      // Item is a GroupedLogProps; recursively flatten its subRows.
+      flattened.push(...maybeFlattenGroupedLogs(item.subRows));
+    } else {
+      // The item did not match any expected type.
+      console.warn('Encountered an item that is neither LogProps nor GroupedLogProps:', item);
+    }
+  }
+  return flattened;
 }
