@@ -421,8 +421,24 @@ function SelectionPanel({
   ]);
 
   // 5) gather keys => default expansions
-  const entryKeys = baseLog ? Object.keys(baseLog.entries) : [];
-  const paramKeys = baseLog ? Object.keys(baseLog.params) : [];
+  // Changed: Use the union of base and comparison keys (for entries and params)
+  const baseEntryKeys = baseLog ? Object.keys(baseLog.entries) : [];
+  const compEntryKeys = comparisonLogs.reduce((acc: string[], log) => {
+    if (log && log.entries) {
+      return acc.concat(Object.keys(log.entries));
+    }
+    return acc;
+  }, [] as string[]);
+  const entryKeys = Array.from(new Set([...baseEntryKeys, ...compEntryKeys]));
+
+  const baseParamKeys = baseLog ? Object.keys(baseLog.params) : [];
+  const compParamKeys = comparisonLogs.reduce((acc: string[], log) => {
+    if (log && log.params) {
+      return acc.concat(Object.keys(log.params));
+    }
+    return acc;
+  }, [] as string[]);
+  const paramKeys = Array.from(new Set([...baseParamKeys, ...compParamKeys]));
 
   const defaultOpenEntries = useMemo(() => {
     if (!baseLog) return [];
