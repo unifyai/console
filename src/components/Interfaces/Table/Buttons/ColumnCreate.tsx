@@ -4,7 +4,7 @@ import { KeyboardEventHandler, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/UI/input";
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import { getLogsParameters, TableArguments, LogProps } from "@/types/evals/logs"
+import { getLogsParameters, TableArguments, LogProps, GroupedLogProps } from "@/types/evals/logs"
 import { DropdownMenuLabel, DropdownMenuGroup, DropdownMenuSub, DropdownMenuPortal, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/UI/dropdown-menu";
 import { LoaderCircle } from "lucide-react";
 import { ResponseProps } from "@/types/common";
@@ -15,7 +15,7 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, create, set
     project: string,
     currentTable: string,
     tableArguments: TableArguments,
-    logs: LogProps[]
+    logs: LogProps[] | GroupedLogProps,
     create: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
     setPending: (pending: boolean) => void,
     refresh: () => Promise<ResponseProps>,
