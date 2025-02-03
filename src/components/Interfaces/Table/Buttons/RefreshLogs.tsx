@@ -67,13 +67,13 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             if (!running && !pending) {
                 running = true;
                 logsActions.get(
-                    project, item.context ?? null, filterExpression, sortingExpression, null, hiddenColumns ? hiddenColumns.split(",").join("&") : null, 16, 0, Date.now().toString()
+                    project, item.context ?? null, filterExpression, sortingExpression, null, null, 16, 0, Date.now().toString()
                 ).then(async (logsData: LogsResponseProps) => {
                     const totalPages = Math.ceil(logsData.count / 16);
                     const context = item.context ?? null;
                     const sorting = item.sorting ?? null;
                     const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
-                        item, logsData, fields, context, project, filterExpression, sorting, hiddenColumns, logsActions
+                        item, logsData, fields, context, project, filterExpression, sorting, undefined, logsActions
                     )
                     setTableDataItem((tableDataItem: TableDataItem) => {
                         return {
@@ -130,12 +130,12 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
     // time where we compare with the timestamp set on loading the component
     const [lastUpdated, setLastUpdated] = useState<string>("")
 
-    useEffect(() => { logsActions.getLatest(project, item.context ?? null, filterExpression, sortingExpression, null, hiddenColumns ? hiddenColumns.split(",").join("&") : null, null, 0).then(latest => setLastUpdated(latest)) }, [])
+    useEffect(() => { logsActions.getLatest(project, item.context ?? null, filterExpression, sortingExpression, null, null, null, 0).then(latest => setLastUpdated(latest)) }, [])
 
     const onManualClick = () => {
         setLoading(true);
         setRefreshClick(true);
-        logsActions.getLatest(project, item.context ?? null, filterExpression, sortingExpression, null, hiddenColumns ? hiddenColumns.split(",").join("&") : null, null, 0).then(latest => {
+        logsActions.getLatest(project, item.context ?? null, filterExpression, sortingExpression, null, null, null, 0).then(latest => {
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime();
             if (latestTs > lastCheckTs) {

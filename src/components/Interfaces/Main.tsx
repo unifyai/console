@@ -127,14 +127,13 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
     );
     if (project) {
         await Promise.all(tableItems.map(async (item, idx) => {
-            const hidden = item.hidden_columns ? item.hidden_columns.split(",").join("&") : null;
             const logsData = await logsActions.get(
                 project,
                 item.context ?? null,
                 filterExpressions[idx],
                 sortingExpressions[idx],
                 null,
-                hidden,
+                null,
                 limit,
                 offsets[idx],
                 Date.now().toString()
@@ -174,7 +173,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
             const hiddenColumns = item.hidden_columns;
 
             const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
-                item, logsData, fields, context, project, filterExpressions[idx], sorting, hiddenColumns, logsActions
+                item, logsData, fields, context, project, filterExpressions[idx], sorting, undefined, logsActions
             )
 
             // Append available fields to the table attributes

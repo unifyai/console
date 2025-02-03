@@ -10,7 +10,7 @@ import {
   ColumnPinningState,
   ColumnSizingState,
 } from "@tanstack/react-table";
-import { useRouter } from "next/navigation";
+
 import React, { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
@@ -118,14 +118,8 @@ const LogsTable = ({
   const { baseLog, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, logs)
 
   // Column definitions
-  const [visibleEntriesProperties, setVisibleEntriesProperties] = useState(entriesProperties)
-  const [visibleParamsProperties, setVisibleParamsProperties] = useState(paramsProperties)
-  useEffect(() => {
-    setVisibleEntriesProperties(entriesProperties)
-    setVisibleParamsProperties(paramsProperties)
-  },[entriesProperties, paramsProperties])
-  const entriesTree = buildTree(visibleEntriesProperties);
-  const paramsTree = buildTree(visibleParamsProperties);
+  const entriesTree = buildTree(entriesProperties);
+  const paramsTree = buildTree(paramsProperties);
   const dataTypes = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type]))
   const fieldTypes = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].field_type]))
   const indicesTitle = "RowNumbering";
@@ -199,31 +193,13 @@ const LogsTable = ({
   const columnVisibility = hiddenColumns
     ? {
         ...allColumnsVisible,
-        ...Object.fromEntries(
-          hiddenColumns.length
-            ? hiddenColumns.split(",").map((x) => [
-              fields[x] 
-                ? fields[x].field_type === "param" ? `Parameters/${x}` : `Entries/${x}` 
-                : x,
-              false
-            ])
-            : []
-        ),
+        ...Object.fromEntries(hiddenColumns.split(",").map((x) => [x,false])),
       }
     : allColumnsVisible;
 
   const setColumnVisibility = (v: { [key: string]: boolean }) => {
-    const hidden = Object.keys(v).filter((k) => !v[k]).map(id => sanitizeId(id)).filter(v => !["Parameters", "Entries"].includes(v));
-
-    const newVisibleEntriesProperties = visibleEntriesProperties.filter(id => !hidden.includes(id))
-    const newVisibleParamsProperties = visibleParamsProperties.filter(id => !hidden.includes(id))
-    setVisibleEntriesProperties(newVisibleEntriesProperties)
-    setVisibleParamsProperties(newVisibleParamsProperties)
-
+    const hidden = Object.keys(v).filter((k) => !v[k]);
     updateItem(item, "hidden_columns")(hidden.length ? hidden.join(",") : undefined);
-    updateInterface().then(() => {
-      router.refresh();
-    });
   };
 
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -304,8 +280,6 @@ const LogsTable = ({
     setDraggingColumns,
     setPinningState,
   };
-
-  const router = useRouter();
 
   // Use refs to detect a *real* page/filter change
   const prevPageRef = useRef(pageNumber);
@@ -394,7 +368,6 @@ const LogsTable = ({
             columnVisibility={columnVisibility}
             setColumnVisibility={setColumnVisibility}
             context={item.context ?? null}
-            logs={logs}
           />
         </div>
       )}
