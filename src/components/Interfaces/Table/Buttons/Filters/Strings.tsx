@@ -30,6 +30,7 @@ const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
 
     /* Display loader when data updates */
     const [loading, setLoading] = useState(false);
+    const [spinnerColor, setSpinnerColor] = useState("white");
     useEffect(() => {
         setLoading(false);
     },[logs])
@@ -73,6 +74,7 @@ const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
             setFilters([defaultFilter])
         }
         setColumnFilterQuery(newColumnFilters);
+        setSpinnerColor("white")
         setLoading(true)
         setOpen(false);
     }
@@ -82,6 +84,7 @@ const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
         )
         setFilters([defaultFilter])
         setColumnFilterQuery(newColumnFilters)
+        setSpinnerColor("primary")
         setLoading(true)
         setOpen(false)
     }
@@ -94,7 +97,7 @@ const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
     // Dialog interactions
     const [open, setOpen] = useState(false);
     const close = <BaseButton size="sm" icon={<CircleX/>} onClick={() => setOpen(false)} className="top-0 right-0 scale-60 absolute" variant="warning"/>
-    const button = <ActionButton icon={loading ? <LoaderCircle className="animate-spin text-white"/> : <Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} disabled={!interactive || loading} />
+    const button = <ActionButton icon={loading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : <Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} disabled={!interactive || loading} />
     const reset = <ActionButton tooltip="Delete all filters" variant="warning" icon={<Trash/>} onClick={() => onReset()}/> 
     const submit = <SubmitButton text="Apply" onClick={() => onSubmit()}/>
     const append = 
