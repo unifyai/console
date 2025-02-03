@@ -4,15 +4,15 @@ import { useEffect, useState } from "react";
 import { Input } from "@/components/Common/Input/Content";
 import { LoaderCircle, Trash, Filter, X } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
-import { LogProps } from "@/types/evals/logs";
+import { LogProps, GroupedLogProps } from "@/types/evals/logs";
 
 const GlobalFilter = ({ searchParams, columnNames, commonFilterQuery, setCommonFilterQuery, setLogsFilters, logs }: {
-    searchParams: { project?: string, metric?: string, filters?: string, common_filter?: string },
+    searchParams: { project?: string, metric?: string, filters?: string, common_filter?: string, grouping?: string | null },
     columnNames: string[]
     commonFilterQuery: string | undefined,
     setCommonFilterQuery: (query: string | null) => void
     setLogsFilters: (logsFilters: { [key: string]: { [key: string]: string } }) => void,
-    logs: LogProps[]
+    logs: LogProps[] | GroupedLogProps[]
 }) => {
 
     /* Display loader when data updates */

@@ -14,7 +14,7 @@ import { Slider } from "@/components/UI/slider";
 import { initFilters, combineFilters } from "@/utils/evals/filters";
 import { Trash, Plus, CircleX, LoaderCircle } from "lucide-react";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
-import { LogProps } from "@/types/evals/logs";
+import { LogProps, GroupedLogProps } from "@/types/evals/logs";
 
 interface NumericFilter {
     key: number,
@@ -25,10 +25,10 @@ interface NumericFilter {
 
 const NumericColumnFilter = ({ column, columnFilters, setColumnFilterQuery, boundaries, logs }: {
     column: string,
-    columnFilters: FiltersByColumn
+    columnFilters: FiltersByColumn,
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
-    boundaries: {minimums: {[key: string]: number;}, maximums: {[key: string]: number}}
-    logs: LogProps[]
+    boundaries: {minimums: {[key: string]: any}, maximums: {[key: string]: any}},
+    logs: LogProps[] | GroupedLogProps[]
 }) => {
 
     /* Display loader when data updates */

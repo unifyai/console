@@ -47,6 +47,7 @@ const CardGrid = ({
     interface_1,
     filterExpressions,
     sortingExpressions,
+    groupingExpressions,
     projectActions,
     logsActions,
     derivedEntryActions,
@@ -68,6 +69,7 @@ const CardGrid = ({
     interface_1: string | null,
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
+    groupingExpressions: (string | null)[],
     projectActions: ProjectsActions,
     logsActions: LogsActions,
     derivedEntryActions: DerivedEntryActions,
@@ -347,6 +349,7 @@ const CardGrid = ({
                                         items={items}
                                         filterExpressions={filterExpressions}
                                         sortingExpressions={sortingExpressions}
+                                        groupingExpressions={groupingExpressions}
                                         setPending={(p: boolean) => setTilePending({ ...tilePending, [el.i]: p })}
                                         updateItem={updateItem}
                                         updateInterface={updateInterface}
@@ -441,6 +444,7 @@ const CardGrid = ({
                         items={items}
                         filterExpressions={filterExpressions}
                         sortingExpressions={sortingExpressions}
+                        groupingExpressions={groupingExpressions}
                         updateItem={updateItem}
                         updateInterface={updateInterface}
                     />

@@ -6,7 +6,7 @@ import NumericColumnFilter from "./Numbers";
 import TimeColumnFilter from "./Time";
 import ImageColumnFilter from "./Images";
 import { sanitizeId } from "@/utils/evals/columnOperations";
-import { LogProps } from "@/types/evals/logs";
+import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 
 /* 
     Supported operands: "==", "!=", "is", "<", ">", "<=", "=>", "in", "not in", "exists" (images only)
@@ -21,7 +21,7 @@ const ColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
     dataTypes: {[key: string]: string},
     boundaries: {minimums: {[key: string]: any}, maximums: {[key: string]: any}},
-    logs: LogProps[]
+    logs: LogProps[] | GroupedLogProps[]
 }) => {
     
     let filter;

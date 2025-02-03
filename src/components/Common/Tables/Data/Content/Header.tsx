@@ -222,7 +222,7 @@ const DataTableHeader = ({
                   onMouseDown={(e) => e.stopPropagation()} // Prevent event bubbling for action buttons
                   onMouseUp={(e) => e.stopPropagation()}   // Prevent event bubbling for action buttons
                 >
-                  <ColumnGroupBy interactive={interactive} column={header.column} grouping={grouping} setGrouping={setGrouping}/>
+                  <ColumnGroupBy interactive={interactive} column={header.column} grouping={grouping} setGrouping={setGrouping} data={data}/>
                   <ColumnContext interactive={interactive} column={header.column} context={context} setContext={setContext} data={data}/>
                 </div>
               )}
@@ -244,7 +244,7 @@ const DataTableHeader = ({
         {/* Column actions */}
         {!header.isPlaceholder && isNotUtilColumn &&
           <div className="flex items-center justify-center gap-1 mt-2">
-            {!isParentColumn && <ColumnGroupBy interactive={interactive} column={header.column} grouping={grouping} setGrouping={setGrouping}/>}
+            {!isParentColumn && <ColumnGroupBy interactive={interactive} column={header.column} grouping={grouping} setGrouping={setGrouping} data={data}/>}
             {!isParentColumn && <ColumnSort interactive={interactive} column={header.column} data={data}/>}
             {!isParentColumn && ColumnFilters && ColumnFilters(header.column)}
             {!isParentColumn && isDerivedColumn && ColumnUpdate && ColumnUpdate(header.column.id)}

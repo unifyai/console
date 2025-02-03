@@ -1,20 +1,30 @@
-import { Group } from "lucide-react";
+import { Group, LoaderCircle } from "lucide-react";
 import { Ungroup } from "lucide-react";
 import { Column } from "@tanstack/react-table";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { getAllChildColumns, isAllChildrenGrouped } from "@/utils/evals/columnOperations";
+import { useState, useEffect } from "react";
 
 const ColumnGroupBy = ({
     interactive,
     column,
+    data,
     grouping,
     setGrouping
 }: {
     interactive?: boolean,
     column: Column<any, unknown>,
+    data: any[],
     grouping: string[],
     setGrouping: (grouping: string[]) => void
 }) => {
+
+    /* Display loader when data updates */
+    const [loading, setLoading] = useState(false);
+    useEffect(() => {
+        setLoading(false);
+    },[data])
+
     // Check if column has child columns
     const isParentColumn = column.columnDef.meta?.isParent;
     const isGrouped = isParentColumn 
@@ -37,7 +47,7 @@ const ColumnGroupBy = ({
     const state = states.find(state => state.key === isGrouped)!;
     const tooltip = state.tooltip;
     const variant = isGrouped ? "primary" : undefined;
-    const icon = state.icon;
+    const icon = loading ? <LoaderCircle className="animate-spin text-white"/> : state.icon;
     const onClick = () => {
         if (isParentColumn) {
             const childColumns = getAllChildColumns(column);

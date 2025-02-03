@@ -5,7 +5,7 @@ import Selection from "./Selection/Selection";
 import { LogProps, LogItemProps, LogFieldsResponseProps } from "@/types/evals/logs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/UI/tabs"
 
-const Details = ({ params, logs, plotLogs, fields}: {
+const Details = ({ project, params, logs, plotLogs, fields }: {
     project: string | undefined,
     params: LogItemProps,
     logs: LogProps[],

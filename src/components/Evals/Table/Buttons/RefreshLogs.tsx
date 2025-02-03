@@ -4,15 +4,16 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQueryState, parseAsBoolean } from "nuqs";
-import { LogProps } from "@/types/evals/logs";
+import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 
-const RefreshLogs = ({context, project, filterExpression, sortingExpression, getLatest, logs}: {
+const RefreshLogs = ({context, project, filterExpression, sortingExpression, groupingExpression, getLatest, logs}: {
     context: string | null,
     project: string,
     filterExpression: string | null,
     sortingExpression: string | null,
-    getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number) => Promise<string>,
-    logs: LogProps[]
+    groupingExpression: string | null,
+    getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number) => Promise<string>,
+    logs: LogProps[] | GroupedLogProps[]
 }) => {
 
     /* Auto refresh */
@@ -63,12 +64,12 @@ const RefreshLogs = ({context, project, filterExpression, sortingExpression, get
     
     const [lastUpdated, setLastUpdated] = useState<string>("")
 
-    useEffect(() => {getLatest(project, context, filterExpression, sortingExpression, null, null, null, 0).then(latest => setLastUpdated(latest))}, [])
+    useEffect(() => {getLatest(project, context, filterExpression, sortingExpression, groupingExpression, null, null, null, 0).then(latest => setLastUpdated(latest))}, [])
     
     const onManualClick = () => {
         setLoading(true)
         setRefreshClick(true);
-        getLatest(project, context, filterExpression, sortingExpression, null, null, null, 0).then(latest => {
+        getLatest(project, context, filterExpression, sortingExpression, groupingExpression, null, null, null, 0).then(latest => {
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime()
             if (latestTs > lastCheckTs) {
