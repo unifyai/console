@@ -276,7 +276,6 @@ const CardGrid = ({
                             {interfaces.map((int_, idx) => <TabsTrigger
                                 key={idx}
                                 value={int_}
-                                disabled={pending || dataPending}
                                 className="flex flex-row gap-2 data-[state=active]:text-accent"
                             >
                                 {interface_ == int_ ? <Input
