@@ -1,8 +1,8 @@
 import React from "react";
 import { DoublePanels } from "../Common/Body/DoublePanels";
 import LogsTable from "./Table/Table";
-import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
-import { extractLogsData } from "@/utils/evals/common";
+import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedLogProps } from "@/types/evals/logs";
+import { extractLogsData, maybeFlattenGroupedLogs } from "@/utils/evals/common";
 import Details from "./Details/Details";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { Suspense } from "react";
@@ -11,15 +11,15 @@ import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters
 import { processContext } from "@/utils/evals/columnOperations";
 
 const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions, derivedEntryActions }: {
-	searchParams: { project?: string, page_number?: string, metric?: string, context?: string, filters?: string, common_filter?: string, sorting?: string, plot_type?: string, x_axis?: string, y_axis?: string, plot_group_by?: string, _timestamp?: string },
+	searchParams: { project?: string, page_number?: string, metric?: string, context?: string, filters?: string, common_filter?: string, sorting?: string, plot_type?: string, x_axis?: string, y_axis?: string, plot_group_by?: string, _timestamp?: string, grouping?: string | null },
 	projectsActions: {
 		get: () => Promise<string[]>,
 		create: (name: string) => Promise<ResponseProps>,
 		rename: (name: string, newName: string) => Promise<ResponseProps>,
 		delete: (name: string) => Promise<ResponseProps>},
 	logsActions: {
-		get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
-		getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number) => Promise<string>,
+		get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
+		getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number) => Promise<string>,
 		getMetrics: (
 			project: string, filterExpression: string | null, metricName: string, keyName: string
 		) => Promise<number>,
@@ -78,13 +78,16 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 		: ""
 	const sortingExpression = sortingObject ? JSON.stringify(sortingObject) : null
 
+	/* Handle grouping */
+	const groupingExpression = searchParams.grouping ? searchParams.grouping : null;
+
 	/* Get logs with pagination, and plot logs subset */
 	
-	let logsData: LogsResponseProps = { params: {}, logs: [], count: 0 };
+	let logsData: LogsResponseProps = { params: {}, logs: [], count: 0, grouped_entries: {} };
 	const limit = 100;
 	const offset = (searchParams.page_number ? parseInt(searchParams.page_number) : 0) * limit;
 	let totalPages = 1;
-	let plotData: LogsResponseProps = { params: {}, logs: [], count: 0 };
+	let plotData: LogsResponseProps = { params: {}, logs: [], count: 0, grouped_entries: {} };
 	const plotFields = Object.fromEntries(
 		Object
 			.entries(fields)
@@ -96,7 +99,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 	);
 	if (project) {
 
-		logsData = await logsActions.get(project, context ?? null, filterExpression, sortingExpression, null, null, limit, offset, _timestamp)
+		logsData = await logsActions.get(project, context ?? null, filterExpression, sortingExpression, groupingExpression, null, null, limit, offset, _timestamp)
 		totalPages = Math.ceil(logsData.count / limit);
 
 		const xAxis = context ? processContext("merge", context, searchParams.x_axis)  : searchParams.x_axis
@@ -105,12 +108,12 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 		if (xAxis) {
 			let subset = xAxis
 			if (searchParams.plot_type === "Bar Chart") 
-				plotData = await logsActions.get(project, context ?? null, filterExpression, null, subset, null, null, 0, _timestamp)
+				plotData = await logsActions.get(project, context ?? null, filterExpression, null, null, subset, null, null, 0, _timestamp)
 			else {
 				if (yAxis)
 					subset += `%26${yAxis}`
 					if (group) subset += `%26${group}`
-					plotData = await logsActions.get(project, context ?? null, filterExpression, null, subset, null, null, 0, _timestamp)
+					plotData = await logsActions.get(project, context ?? null, filterExpression, null, null, subset, null, null, 0, _timestamp)
 			}
 		}
 	}
@@ -171,6 +174,8 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 	])
 	const boundaries = { minimums, maximums }
 
+	const flattenedLogs = maybeFlattenGroupedLogs(logs);
+
 	return <DoublePanels
 		isLoading={false}
 		first={
@@ -193,6 +198,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 				boundaries={boundaries}
 				filterExpression={filterExpression}
 				sortingExpression={sortingExpression}
+				groupingExpression={groupingExpression}
 			/>
 		}
 		second={
@@ -200,8 +206,8 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 				<Details
 					project={project}
 					params={params}
-					logs={logs}
-					plotLogs={plotData.logs}
+					logs={flattenedLogs}
+					plotLogs={plotData.logs as LogProps[]}
 					fields={plotFields}
 				/>
 			</Suspense>

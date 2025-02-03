@@ -1,5 +1,5 @@
 import CardGrid from "@/components/Interfaces/CardGrid";
-import { TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, LogItemProps } from "@/types/evals/logs";
+import { TableArguments, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { Context, ContextActions, DerivedEntryActions, FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
@@ -109,6 +109,9 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         sortingObject => sortingObject ? JSON.stringify(sortingObject) : null
     );
 
+    /* Handle grouping */
+	const groupingExpressions = tableItems.map(item => item.grouping ? item.grouping : null);
+
     // Aggregate table arguments
     let tableArguments: TableArguments = tableItems.map((item, idx) => {
         let tableArguments_: TableArguments = { [item.i]: {getLogs_parameters: { filter_expr: "" }, available_fields: {}} };
@@ -146,6 +149,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                 item.context ?? null,
                 filterExpressions[idx],
                 sortingExpressions[idx],
+                groupingExpressions[idx],
                 null,
                 null,
                 limit,
@@ -156,80 +160,22 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
             allLogsData[idx] = logsData;
             allTotalPages[idx] = totalPages;
         }));
-
-        // fetch plot data
-        await Promise.all(plotItems.map(async (item) => {
-            // get all tables that are used in the plot
-            let tableIdx1 = -1;
-            if (item.x_axis && item.x_axis.includes("."))
-                tableIdx1 = tableItems.findIndex(it => it.i == item.x_axis?.split(".")[0]);
-            let tableIdx2 = -1;
-            if (item.y_axis && item.y_axis.includes("."))
-                tableIdx2 = tableItems.findIndex(it => it.i == item.y_axis?.split(".")[0]);
-            const tables = [tableIdx1, tableIdx2 != tableIdx1 ? tableIdx2 : -1].filter(it => it != -1);
-            
-            // fetch plot data for each table
-            const plotData_ = (await Promise.all(tables.map(async (tableIdx) => {
-                const table = tableItems[tableIdx];
-                const context = table?.context;
-                const xAxis = context ? processContext("merge", context, item.x_axis) : item.x_axis;
-                const yAxis = context ? processContext("merge", context, item.y_axis) : item.y_axis;
-                const group = context ? processContext("merge", context, item.plot_group_by) : item.plot_group_by;
-                let data: LogsResponseProps = { params: {}, logs: [], count: 0 };
-                const filterExpression = filterExpressions[tableIdx];
-                if (xAxis) {
-                    let subset = xAxis.split(".").length > 1 ? xAxis.split(".")[1] : null;
-                    if (yAxis && yAxis.split(".").length > 1)
-                        subset += `&${yAxis.split(".")[1]}`
-                    if (group && group.split(".").length > 1)
-                        subset += `&${group.split(".")[1]}`
-                    data = await logsActions.get(project, context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
-
-                    /* Replace param indices with actual param values */
-                    if (Object.entries(data.logs).length && Object.entries(data.params).length) {
-                        const params = data.params
-                        const logs = data.logs
-                        data.logs = logs.map(log => {
-                            const logParams: LogItemProps = {};
-                            Object.entries(log.params).map(([key, value]) => logParams[key] = params[key][value]);
-                            return {...log, params: logParams}
-                        })
-
-                    } 
-
-                }
-                return { [table.i]: {
-                    plotLogs: data.logs || [],
-                    plotFields: plotFields
-                } };
-            }))).reduce((acc, curr) => ({ ...acc, ...curr }), {});
-
-            if (Object.keys(plotData_).length > 0) {
-                // if non-zero tables are used in the plot, merge the plot data
-                const minLogLength = Math.min(...Object.values(plotData_).map(data => data.plotLogs.length));
-                const mergedPlotData = {
-                    plotLogs: minLogLength > 0 ? Object.values(plotData_)[0].plotLogs.slice(0, minLogLength).map((_, i) => {
-                        return Object.entries(plotData_).reduce((acc, [tableId, data]) => {
-                            const prefixedLog = Object.fromEntries(
-                                Object.entries(data.plotLogs[i] || {}).map(([key, value]) => [
-                                    `${tableId}.${key}`,
-                                    (["params", "entries", "derived_entries"].includes(key) && value) 
-                                        ? Object.fromEntries(Object.entries(value).map(([k,v]) => [`${tableId}.${k}`, v])) 
-                                        : value
-                                ])
-                            );
-                            return { ...acc, ...prefixedLog };
-                        }, {}) as LogProps;
-                    }) : [],
-                    plotFields: plotFields
-                };
-                plotData[item.i] = mergedPlotData;
-            }
-            else {
-                // if no tables are used in the plot, return empty plot data
-                plotData[item.i] = {
-                    plotLogs: [],
-                    plotFields: plotFields
+        await Promise.all(plotItems.map(async (item, idx) => {
+            const xAxis = item.context ? processContext("merge", item.context, item.x_axis) : item.x_axis;
+            const yAxis = item.context ? processContext("merge", item.context, item.y_axis) : item.y_axis;
+            const group = item.context ? processContext("merge", item.context, item.plot_group_by) : item.plot_group_by;
+            let plotData: LogsResponseProps = { params: {}, logs: [], count: 0 };
+            const filterExpressionIdx = tableItems.findIndex(it => it.i == item.table);
+            const filterExpression = filterExpressionIdx == -1 ? null : filterExpressions[filterExpressionIdx];
+            if (xAxis) {
+                let subset = xAxis
+                if (item.plot_type === "Bar Chart")
+                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
+                else {
+                    if (yAxis)
+                        subset += `&${yAxis}`
+                    if (group) subset += `&${group}`
+                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
                 }
             }
         }));
@@ -279,6 +225,20 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         })
     )).reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
+    const plotData: PlotDataProps = (await Promise.all(
+        plotItems.map(async (item, idx) => {
+            const plotData = allPlotData[idx];
+            const plotFields = allPlotFields[idx];
+            const plotLogs = plotData?.logs || [];
+            return {
+                [item.i]: {
+                    plotLogs,
+                    plotFields,
+                }
+            }
+        })
+    )).reduce((acc, curr) => ({ ...acc, ...curr }), {});
+
     return <CardGrid
         project_={project}
         projects={projects}
@@ -295,6 +255,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         interface_1={interface_1}
         filterExpressions={filterExpressions}
         sortingExpressions={sortingExpressions}
+        groupingExpressions={groupingExpressions}
         projectActions={projectsActions}
         logsActions={logsActions}
         derivedEntryActions={derivedEntryActions}
