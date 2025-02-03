@@ -127,7 +127,7 @@ function joinFunctionFilters (filter: string, fn: string, cKey: string, fields: 
 			let value = item;
 
 			// Handle relative timestamps
-			if (fields[cKey].data_type === "timestamp" && value.includes(";")) {
+			if (fields[cKey] && fields[cKey].data_type === "timestamp" && value.includes(";")) {
 				const date = toAbsoluteDate(value as RelativeDateString)
 				value = `"${date.replace("T", " ").replace("Z", "")}"`
 			}
