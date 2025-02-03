@@ -192,34 +192,15 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 			/>
 		}
 		second={
-			<DoublePanels
-              	isLoading={false}
-				first={
-					<Suspense fallback={<SkeletonLoader />}>
-						<Details
-							project={project}
-							params={params}
-							logs={logs}
-							plotLogs={plotData.logs}
-							fields={plotFields}
-						/>
-					</Suspense>
-				}
-				second={
-					<Suspense fallback={<SkeletonLoader />}>
-						<Details
-							project={project}
-							params={params}
-							logs={logs}
-							plotLogs={plotData.logs}
-							fields={plotFields}
-						/>
-					</Suspense>
-				}
-				direction="vertical"
-				defaultFirstSize={100}
-				defaultSecondSize={0}
-			/>
+			<Suspense fallback={<SkeletonLoader />}>
+				<Details
+					project={project}
+					params={params}
+					logs={logs}
+					plotLogs={plotData.logs}
+					fields={plotFields}
+				/>
+			</Suspense>
 		}
 	/>
 }
