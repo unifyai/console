@@ -21,11 +21,13 @@ import CreateProject from "./Table/Buttons/CreateProject";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../UI/tabs";
 import { useQueryState } from "nuqs";
 import { v4 as uuidv4 } from "uuid";
+import Cookies from "js-cookie";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
 
 const CardGrid = ({
+    project_,
     projects,
     interfaces_,
     tableNames,
@@ -42,6 +44,7 @@ const CardGrid = ({
     logsActions,
     interfaceActions,
 }: {
+    project_: string | null,
     projects: string[] | undefined,
     interfaces_: string[],
     tableNames: string[]
@@ -49,7 +52,7 @@ const CardGrid = ({
     tableArguments: TableArguments,
     fields: LogFieldsResponseProps,
     plotData: PlotDataProps,
-    savedInterface: Interface | null,
+    savedInterface: Interface,
     interfaceCreated: boolean,
     interface_1: string | null,
     filterExpressions: (string | null)[],
@@ -82,9 +85,8 @@ const CardGrid = ({
     // data fields
     const [interfaces, setInterfaces] = useState(interfaces_);
     const [interface_, setInterface] = useQueryState("interface", { shallow: false });
-    let finalInterface = interface_ || interface_1;
     const [project, setProject] = useQueryState("project", { shallow: false });
-    const [interface_2, setInterface_2] = useState(finalInterface || "");
+    const [interface_2, setInterface_2] = useState(interface_ || "");
 
     // pending fields
     const [tilePending, setTilePending] = useState<{ [key: string]: boolean }>(
@@ -115,11 +117,11 @@ const CardGrid = ({
     ) => {
         const items_1 = savedInterface?.items || items;
         const newCounter_1 = savedInterface?.new_counter || newCounter;
-        if (finalInterface && project && !pending) {
+        if (interface_ && project && interface_ == interface_1 && project == project_ && !pending) {
             if (tempInterfaceCreated)
-                return interfaceActions.update(finalInterface, project, items_1, newCounter_1, undefined, true);
+                return interfaceActions.update(interface_, project, items_1, newCounter_1, undefined, true);
             else
-                return interfaceActions.create(finalInterface, project, items_1, newCounter_1, true);
+                return interfaceActions.create(interface_, project, items_1, newCounter_1, true);
         }
         return Promise.reject();
     }
@@ -145,21 +147,29 @@ const CardGrid = ({
     // get latest interface
     const getLatestInterface = () => {
         interfaceActions.get(project as string, true).then((ints: Interface[]) => {
-            const currentInterface = ints.find(i => i.name == finalInterface);
+            const currentInterface = ints.find(i => i.name == interface_);
             setItems(currentInterface?.items || []);
             setNewCounter(currentInterface?.new_counter || 0);
             setTempInterfaceCreated(Boolean(currentInterface));
             setPending(false);
             setInterfaces(ints.map(int => int.name).sort());
-            setInterface_2(finalInterface as string);
+            setInterface_2(interface_ as string);
         });
     }
 
     // set the items and new counter whenever project or interface changes
     useEffect(() => {
-        if (project && finalInterface)
+        if (project && interface_) {
+            const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+            Cookies.set("project", project, { expires: expirationDate });
+            Cookies.set("interface", interface_, { expires: expirationDate });
             getLatestInterface();
-    }, [project, finalInterface]);
+        }
+        else if (!project)
+            Cookies.remove("project");
+        else if (!interface_)
+            Cookies.remove("interface");
+    }, [project, interface_]);
 
     // update interface whenever items change
     useEffect(() => {
@@ -171,7 +181,7 @@ const CardGrid = ({
         setDataPending(false);
         setRefreshing(false);
         setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, false])));
-        if ((pending || resetting) && project && finalInterface)
+        if ((pending || resetting) && project && interface_)
             getLatestInterface();
         setResetting(false);
     }, [tableData]);
@@ -194,7 +204,7 @@ const CardGrid = ({
     const disabled = JSON.stringify({ items: savedInterface?.items }) == JSON.stringify({ items });
 
     return (<div className="w-full h-full overflow-auto" ref={gridRef}>
-        <Tabs value={finalInterface || undefined} onValueChange={(value: string | undefined) => {
+        <Tabs value={interface_ || undefined} onValueChange={(value: string | undefined) => {
             setPending(true);
             setDataPending(true);
             setInterface_2(value || "");
@@ -209,9 +219,9 @@ const CardGrid = ({
                             const newProj = proj ? proj.path : null;
                             setPending(true);
                             setDataPending(true);
-                            setInterface(null);
                             setInterfaces([]);
                             setInterface_2("");
+                            setInterface(null);
                             setProject(newProj);
                         }}
                         type="Projects"
@@ -267,7 +277,7 @@ const CardGrid = ({
                                 disabled={pending || dataPending}
                                 className="flex flex-row gap-2 data-[state=active]:text-accent"
                             >
-                                {finalInterface == int_ ? <Input
+                                {interface_ == int_ ? <Input
                                     value={interface_2}
                                     disabled={pending || dataPending}
                                     onInput={(event: React.ChangeEvent<HTMLInputElement>) => setInterface_2(event.target.value)}
@@ -308,7 +318,6 @@ const CardGrid = ({
                                         setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
                                         setInterface(newInterfaceName);
                                         setInterface_2(newInterfaceName);
-                                        finalInterface = newInterfaceName;
                                     });
                                 })
                             }}
@@ -318,9 +327,10 @@ const CardGrid = ({
                             icon={<Trash />}
                             tooltip={interfaces.length <= 1 ? "Projects need to have at least one interface" : "Delete current active interface"}
                             disabled={pending || interfaces.length <= 1}
-                            onClick={() => interfaceActions.delete(finalInterface as string, project, true).then(() => {
+                            onClick={() => interfaceActions.delete(interface_ as string, project, true).then(() => {
                                 setPending(true);
-                                interfaceActions.delete(finalInterface as string, project, false).then(() => {
+                                interfaceActions.delete(interface_ as string, project, false).then(() => {
+                                    setInterfaces(interfaces.filter(i => i != interface_));
                                     setInterface(null);
                                     setInterface_2("");
                                 })
@@ -335,7 +345,7 @@ const CardGrid = ({
                         tooltip={!project ? "Select a project first" : "Save Interface"}
                         icon={saveIcon}
                         variant={variant}
-                        disabled={disabled || anyTilePending || !project || !finalInterface || pending}
+                        disabled={disabled || anyTilePending || !project || !interface_ || pending}
                         onClick={async () => setSaveDialog(true)}
                     />
                     <ActionButton
@@ -608,7 +618,7 @@ const CardGrid = ({
             <DialogContent className="w-1/4">
                 <div className="mt-4 flex flex-col gap-4">
                     <div>Are you sure you want to save the changes to <span className="font-semibold">
-                        {finalInterface}
+                        {interface_}
                     </span>?</div>
                     <div className="flex justify-end pr-2">
                         <ActionButton
@@ -617,9 +627,9 @@ const CardGrid = ({
                                 if (saveSuccess == undefined) {
                                     let response: ResponseProps | undefined = undefined;
                                     if (interfaceCreated)
-                                        response = await interfaceActions.update(finalInterface as string, project as string, items, newCounter, undefined, false);
+                                        response = await interfaceActions.update(interface_ as string, project as string, items, newCounter, undefined, false);
                                     else
-                                        response = await interfaceActions.create(finalInterface as string, project as string, items, newCounter, false);
+                                        response = await interfaceActions.create(interface_ as string, project as string, items, newCounter, false);
                                     if (response && "info" in response)
                                         setSaveSuccess(true);
                                     else

@@ -35,11 +35,6 @@ const NavList = (): NavItem[] => {
       href: "/endpoints",
     },
     {
-      title: "Evals",
-      icon: ChartLine,
-      href: "/evals",
-    },
-    {
       title: "Datasets",
       icon: TestTubeDiagonal,
       href: "/datasets",

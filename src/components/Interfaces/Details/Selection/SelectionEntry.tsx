@@ -13,13 +13,21 @@ import ImageView from "./Views/ImageView";
 import MatrixView from "./Views/MatrixView";
 import StringView from "./Views/StringView";
 import TraceView from "./Views/TraceView";
+import NumberView from "./Views/NumberView";
+import TimestampView from "./Views/TimestampView";
+import ChatOutView from "./Views/ChatView/ChatOutView";
+
+import Tooltip from "@/components/Common/Misc/Tooltip";
 
 import {
   isDict,
   isList,
   isMatrix,
   isImage,
-  isSpan
+  isTrace,
+  isNumber,
+  isTimestamp,
+  isChat,
 } from "@/utils/evals/selection";
 import {
   Waypoints,
@@ -27,31 +35,28 @@ import {
   Brackets,
   ImageIcon,
   Grid,
-  Text
+  Text,
+  Hash,
+  Clock,
+  MessagesSquare // icon for "chat"
 } from "lucide-react";
-import { Span } from "@/types/evals/traces";
 
-type SelectionEntryProps = {
-  property: string;
-  value: any;
-  baseLog: LogProps;
-  baseLogIndex: number;
-  comparisonLogs?: LogProps[];
-  comparisonLogsIndex: number[];
-};
+/** Either "entries" or "params", determining which field of the log object to read from. */
+type SourceType = "entries" | "params";
+type DiffMode = "none" | "lines" | "words" | "characters";
 
-function isTrace(x: any): x is Span | Span[] {
-  if (!x) return false;
-  if (isSpan(x)) return true;
-  return Array.isArray(x) && x.every((item) => isSpan(item));
-}
 
-function getValueType(value: any): "trace" | "dict" | "list" | "image" | "matrix" | "string" {
-  if (isTrace(value)) return "trace";
-  if (isDict(value)) return "dict";
-  if (isList(value)) return "list";
-  if (isImage(value)) return "image";
-  if (isMatrix(value)) return "matrix";
+function getValueType(value: any):
+  "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat"
+{
+  if (isTrace(value))   return "trace";
+  if (isDict(value))    return "dict";
+  if (isList(value))    return "list";
+  if (isImage(value))   return "image";
+  if (isMatrix(value))  return "matrix";
+  if (isNumber(value))  return "number";
+  if (isTimestamp(value)) return "timestamp";
+  if (isChat(value))    return "chat";
   return "string";
 }
 
@@ -67,6 +72,12 @@ function getTypeIcon(valueType: string) {
       return <ImageIcon className="h-4 w-4 text-primary" />;
     case "matrix":
       return <Grid className="h-4 w-4 text-primary" />;
+    case "number":
+      return <Hash className="h-4 w-4 text-primary" />;
+    case "timestamp":
+      return <Clock className="h-4 w-4 text-primary" />;
+    case "chat":
+      return <MessagesSquare className="h-4 w-4 text-primary" />;
     default:
       return <Text className="h-4 w-4 text-primary" />;
   }
@@ -74,123 +85,209 @@ function getTypeIcon(valueType: string) {
 
 /**
  * Decide which specialized component to display based on the data type.
- * Each specialized "View" (DictionaryView, ListView, etc.) returns an array
- * of <AccordionItem> elements (instead of creating a new Accordion),
- * so the single top-level Accordion in Selection.tsx can manage expansion.
  */
 function getSelectionView(
   value: any,
   comparables: any[],
+  version: string,
+  comparableVersions: string[],
   baseLogIndex: number,
-  comparisonLogsIndex: number[]
+  comparisonLogsIndex: number[],
+  diffMode: DiffMode,
+  splitView: boolean,
 ) {
-  // If it's a trace
-  if (isTrace(value)) {
-    // Wrap single or multi traces
-    const baseArr = Array.isArray(value) ? value : [value];
-    const compArrs = comparables.map((c) => (Array.isArray(c) ? c : c ? [c] : []));
-    return (
-      <TraceView
-        value={baseArr}
-        comparables={compArrs}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={comparisonLogsIndex}
-      />
-    );
-  }
+  const valueType = getValueType(value);
 
-  // Dictionary
-  if (isDict(value)) {
-    return (
-      <DictionaryView
-        value={value}
-        comparables={comparables}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={comparisonLogsIndex}
-      />
-    );
+  switch (valueType) {
+    case "trace": {
+      const baseArr = Array.isArray(value) ? value : [value];
+      const compArrs = comparables.map((c) => Array.isArray(c) ? c : c ? [c] : []);
+      return (
+        <TraceView
+          value={baseArr}
+          comparables={compArrs}
+          baseLogIndex={baseLogIndex}
+          comparisonLogsIndex={comparisonLogsIndex}
+          diffMode={diffMode}
+          splitView={splitView}
+          version={version}
+          comparableVersions={comparableVersions}
+        />
+      );
+    }
+    case "chat":
+      return (
+        <ChatOutView
+          value={value}
+          comparables={comparables}
+          baseLogIndex={baseLogIndex}
+          comparisonLogsIndex={comparisonLogsIndex}
+          diffMode={diffMode}
+          splitView={splitView}
+          version={version}
+          comparableVersions={comparableVersions}
+        />
+      );
+    case "dict":
+      return (
+        <DictionaryView
+          value={value}
+          comparables={comparables}
+          baseLogIndex={baseLogIndex}
+          comparisonLogsIndex={comparisonLogsIndex}
+          diffMode={diffMode}
+          splitView={splitView}
+          version={version}
+          comparableVersions={comparableVersions}
+        />
+      );
+    case "list":
+      return (
+        <ListView
+          value={value}
+          comparables={comparables}
+          baseLogIndex={baseLogIndex}
+          comparisonLogsIndex={comparisonLogsIndex}
+          diffMode={diffMode}
+          splitView={splitView}
+          version={version}
+          comparableVersions={comparableVersions}
+        />
+      );
+    case "image":
+      return (
+        <ImageView
+          value={value}
+          comparables={comparables}
+          baseLogIndex={baseLogIndex}
+          comparisonLogsIndex={comparisonLogsIndex}
+          diffMode={diffMode}
+          splitView={splitView}
+          version={version}
+          comparableVersions={comparableVersions}
+        />
+      );
+    case "matrix":
+      return (
+        <MatrixView
+          value={value}
+          comparables={comparables}
+          baseLogIndex={baseLogIndex}
+          comparisonLogsIndex={comparisonLogsIndex}
+          diffMode={diffMode}
+          splitView={splitView}
+          version={version}
+          comparableVersions={comparableVersions}
+        />
+      );
+    case "number":
+      return (
+        <NumberView
+          value={value}
+          comparables={comparables}
+          baseLogIndex={baseLogIndex}
+          comparisonLogsIndex={comparisonLogsIndex}
+          diffMode={diffMode}
+          splitView={splitView}
+          version={version}
+          comparableVersions={comparableVersions}
+        />
+      );
+    case "timestamp":
+      return (
+        <TimestampView
+          value={value}
+          comparables={comparables}
+          baseLogIndex={baseLogIndex}
+          comparisonLogsIndex={comparisonLogsIndex}
+          diffMode={diffMode}
+          splitView={splitView}
+          version={version}
+          comparableVersions={comparableVersions}
+        />
+      );
+    default:
+      // fallback => string
+      return (
+        <StringView
+          value={value}
+          comparables={comparables}
+          baseLogIndex={baseLogIndex}
+          comparisonLogsIndex={comparisonLogsIndex}
+          diffMode={diffMode}
+          splitView={splitView}
+          version={version}
+          comparableVersions={comparableVersions}
+        />
+      );
   }
-
-  // List
-  if (isList(value)) {
-    return (
-      <ListView
-        value={value}
-        comparables={comparables}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={comparisonLogsIndex}
-      />
-    );
-  }
-
-  // Image
-  if (isImage(value)) {
-    return (
-      <ImageView
-        value={value}
-        comparables={comparables}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={comparisonLogsIndex}
-      />
-    );
-  }
-
-  // Matrix
-  if (isMatrix(value)) {
-    return (
-      <MatrixView
-        value={value}
-        comparables={comparables}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={comparisonLogsIndex}
-      />
-    );
-  }
-
-  // Fallback => string
-  return (
-    <StringView
-      value={value}
-      comparables={comparables}
-      baseLogIndex={baseLogIndex}
-      comparisonLogsIndex={comparisonLogsIndex}
-    />
-  );
 }
 
 /**
  * SelectionEntry:
- * - Renders an <AccordionItem> for the property.
- * - The specialized content (DictionaryView, ListView, TraceView, etc.)
- *   returns more <AccordionItem> elements if nested, letting the top-level 
- *   Accordion in Selection.tsx handle expansions at all levels.
  */
+type SelectionEntryProps = {
+  source?: SourceType;
+  property: string;
+  value: any;
+  baseLog: LogProps;
+  baseLogIndex: number;
+  comparisonLogs?: LogProps[];
+  comparisonLogsIndex: number[];
+  diffMode: DiffMode;
+  splitView: boolean;
+};
+
 const SelectionEntry: React.FC<SelectionEntryProps> = ({
+  source = "entries",
   property,
   value,
   baseLog,
   baseLogIndex,
   comparisonLogs,
-  comparisonLogsIndex
+  comparisonLogsIndex,
+  diffMode,
+  splitView
 }) => {
-  // Gather parallel values for this property from each comparison log
-  const comparables = comparisonLogs?.map((cl) => cl.entries[property]) ?? [];
+  // Gather comparables
+  let comparables = (comparisonLogs ?? []).map((cl) => {
+    const container = source === "params" ? cl.params ?? {} : cl.entries ?? {};
+    return container[property];
+  });
 
-  const valueType = getValueType(value);
+  // Possibly read paramVersion structure
+  let version = "";
+  let comparableVersions: string[] = [];
+  let rawValue = value;
+
+  if (source === "params" && value && typeof value === "object") {
+    version = value.paramVersion;
+    comparableVersions = comparables.map((c) => c?.paramVersion ?? "");
+    rawValue = value.paramValue;
+    comparables = comparables.map((c) => c?.paramValue);
+  }
+
+  const valueType = getValueType(rawValue);
   const icon = getTypeIcon(valueType);
 
   const renderedContent = getSelectionView(
-    value,
+    rawValue,
     comparables,
+    version,
+    comparableVersions,
     baseLogIndex,
-    comparisonLogsIndex
+    comparisonLogsIndex,
+    diffMode,
+    splitView
   );
 
   return (
     <AccordionItem value={property}>
       <AccordionTrigger>
         <span className="inline-flex items-center gap-2">
-          {icon}
+          <Tooltip content={valueType}>
+            {icon}
+          </Tooltip>
           {property}
         </span>
       </AccordionTrigger>

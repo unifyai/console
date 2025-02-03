@@ -13,9 +13,9 @@ const ColumnSort = ({interactive, column, data}: {interactive?: boolean, column:
     },[data])
 
     const states = [
-        { key: false, tooltip: "Sort ascending", icon: <ArrowUpDown/> },
-        { key: "asc", tooltip: "Sort descending", icon: <SortAsc/> },
-        { key: "desc", tooltip: "Unsort", icon: <SortDesc/> },
+        { key: false, tooltip: "Sort descending", icon: <ArrowUpDown/> },
+        { key: "asc", tooltip: "Unsort", icon: <SortAsc/> },
+        { key: "desc", tooltip: "Sort ascending", icon: <SortDesc/> },
     ];
     const state = states.find(state => state.key === column.getIsSorted())!;
     const tooltip = state.tooltip;

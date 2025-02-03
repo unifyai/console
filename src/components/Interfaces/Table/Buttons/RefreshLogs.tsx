@@ -4,18 +4,19 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
-import { TableArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
+import { getLogsParameters, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { ResponseProps } from "@/types/common";
 import { LogProps } from "@/types/evals/logs";
 
-const RefreshLogs = ({ item, project, pending, fields, filterExpression, sortingExpression, updateItem, setTableDataItem, logs, logsActions }: {
+const RefreshLogs = ({ item, project, pending, fields, filterExpression, sortingExpression, hiddenColumns, updateItem, setTableDataItem, logs, logsActions }: {
     item: TileProps,
     project: string,
     pending: boolean,
     fields: LogFieldsResponseProps,
     filterExpression: string | null,
     sortingExpression: string | null,
+    hiddenColumns: string | undefined,
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
     setTableDataItem: Dispatch<SetStateAction<TableDataItem>>,
     logs: LogProps[],
@@ -26,6 +27,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             filterExpression: string | null,
             sortingExpression: string | null,
             from_fields: string | null,
+            exclude_fields: string | null,
             limit: number | null,
             offset: number,
             _timestamp: string | null
@@ -36,6 +38,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             filterExpression: string | null,
             sortingExpression: string | null,
             from_fields: string | null,
+            exclude_fields: string | null,
             limit: number | null,
             offset: number
         ) => Promise<string>,
@@ -50,7 +53,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             project: string, 
             key: string, 
             equation: string, 
-            referenced_logs: TableArguments
+            referenced_logs: {[table_name: string]: getLogsParameters}
         ) => Promise<ResponseProps>
     },
 }) => {
@@ -64,13 +67,13 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             if (!running && !pending) {
                 running = true;
                 logsActions.get(
-                    project, item.context ?? null, filterExpression, sortingExpression, null, 16, 0, Date.now().toString()
+                    project, item.context ?? null, filterExpression, sortingExpression, null, hiddenColumns ? hiddenColumns.split(",").join("&") : null, 16, 0, Date.now().toString()
                 ).then(async (logsData: LogsResponseProps) => {
                     const totalPages = Math.ceil(logsData.count / 16);
                     const context = item.context ?? null;
                     const sorting = item.sorting ?? null;
                     const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
-                        item, logsData, fields, context, project, filterExpression, sorting, logsActions
+                        item, logsData, fields, context, project, filterExpression, sorting, hiddenColumns, logsActions
                     )
                     setTableDataItem((tableDataItem: TableDataItem) => {
                         return {
@@ -127,12 +130,12 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
     // time where we compare with the timestamp set on loading the component
     const [lastUpdated, setLastUpdated] = useState<string>("")
 
-    useEffect(() => { logsActions.getLatest(project, item.context ?? null, filterExpression, sortingExpression, null, null, 0).then(latest => setLastUpdated(latest)) }, [])
+    useEffect(() => { logsActions.getLatest(project, item.context ?? null, filterExpression, sortingExpression, null, hiddenColumns ? hiddenColumns.split(",").join("&") : null, null, 0).then(latest => setLastUpdated(latest)) }, [])
 
     const onManualClick = () => {
         setLoading(true);
         setRefreshClick(true);
-        logsActions.getLatest(project, item.context ?? null, filterExpression, sortingExpression, null, null, 0).then(latest => {
+        logsActions.getLatest(project, item.context ?? null, filterExpression, sortingExpression, null, hiddenColumns ? hiddenColumns.split(",").join("&") : null, null, 0).then(latest => {
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime();
             if (latestTs > lastCheckTs) {

@@ -11,7 +11,7 @@ const RefreshLogs = ({context, project, filterExpression, sortingExpression, get
     project: string,
     filterExpression: string | null,
     sortingExpression: string | null,
-    getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
+    getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number) => Promise<string>,
     logs: LogProps[]
 }) => {
 
@@ -63,12 +63,12 @@ const RefreshLogs = ({context, project, filterExpression, sortingExpression, get
     
     const [lastUpdated, setLastUpdated] = useState<string>("")
 
-    useEffect(() => {getLatest(project, context, filterExpression, sortingExpression, null, null, 0).then(latest => setLastUpdated(latest))}, [])
+    useEffect(() => {getLatest(project, context, filterExpression, sortingExpression, null, null, null, 0).then(latest => setLastUpdated(latest))}, [])
     
     const onManualClick = () => {
         setLoading(true)
         setRefreshClick(true);
-        getLatest(project, context, filterExpression, sortingExpression, null, null, 0).then(latest => {
+        getLatest(project, context, filterExpression, sortingExpression, null, null, null, 0).then(latest => {
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime()
             if (latestTs > lastCheckTs) {

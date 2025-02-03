@@ -87,10 +87,8 @@ export default function TimestampView({
           <div className="space-y-2">
             <p className="font-semibold text-sm">Version</p>
             {baseVer ? (
-              <div className="flex relative p-2 border rounded">
-                <div>
-                  <MarkdownRenderer>{baseVer}</MarkdownRenderer>
-                </div>
+              <div className="relative p-2">
+                <MarkdownRenderer>{baseVer}</MarkdownRenderer>
                 <CopyButton
                   className="absolute top-1 right-1"
                   content={baseVer}
@@ -106,16 +104,14 @@ export default function TimestampView({
 
         <div className="space-y-2">
           {!versionEmpty && <p className="font-semibold text-sm">Value</p>}
-          <div className="flex border rounded p-2 relative">
-            <div>
-              <p className="text-sm">{formatHumanReadable(baseStr)}</p>
-            </div>
+          <div className="border rounded p-2 relative">
             <CopyButton
               className="absolute top-1 right-1"
               content={baseStr}
               copyMessage="Copied timestamp!"
               tooltipContent="Copy timestamp"
             />
+            <p className="text-sm p-2">{formatHumanReadable(baseStr)}</p>
           </div>
         </div>
       </div>
@@ -151,7 +147,7 @@ export default function TimestampView({
             <div key={idx} className="p-3 space-y-4">
               {!versionEmpty && (
                 <div>
-                  <p className="font-semibold text-sm mb-4">Version</p>
+                  <p className="font-semibold text-sm">Version</p>
                   <div className="space-y-2">
                     {rowNumbers.map((r) => {
                       const isBase = r === baseLogIndex;
@@ -178,7 +174,7 @@ export default function TimestampView({
               )}
 
               {!versionEmpty && (
-                <p className="font-semibold text-sm">Value</p>
+                <p className="font-semibold tesxt-sm">Value</p>
               )}
               <div className="relative border rounded p-2">
                 <RowBadge rowNumbers={rowNumbers} mode="none" />
@@ -187,7 +183,7 @@ export default function TimestampView({
                   content={tsVal}
                   copyMessage="Copied timestamp!"
                 />
-                <p className="text-sm mt-1 mb-1">{formatHumanReadable(tsVal)}</p>
+                <p className="font-semibold mt-6">{formatHumanReadable(tsVal)}</p>
               </div>
             </div>
           );
@@ -281,8 +277,8 @@ export default function TimestampView({
                 <div className="font-bold text-xl mx-2">=</div>
 
                 {/* Difference block */}
-                <div className="relative border p-2 rounded min-w-24">
-                  <p className="font-semibold text-sm">Diff</p>
+                <div className="relative border p-2 rounded">
+                  <p className="font-semibold text-sm">Difference</p>
                   <p className="mt-4 text-sm">{diff}</p>
                   <CopyButton
                     className="absolute top-1 right-1"

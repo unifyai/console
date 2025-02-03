@@ -2,12 +2,12 @@ import { NextRequest } from "next/server";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
-export async function PUT(request: NextRequest) {
+export async function POST(request: NextRequest) {
     const body = await request.json();
     return await fetch(
-        `${baseUrl}/log/derived`,
+        `${baseUrl}/logs/derived`,
         {
-            method: "PUT",
+            method: "POST",
             headers: {
                 "Authorization": `Bearer ${request.headers.get("apiKey")}`,
                 "Content-Type": "application/json",

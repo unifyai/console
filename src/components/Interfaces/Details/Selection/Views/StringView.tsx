@@ -1,153 +1,388 @@
-import React, { useState } from "react";
-import { CodeBlock } from "@/components/UI/Chat/markdown-renderer";
+"use client";
+
+import React from "react";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 import { LogComparisonProps } from "./types";
-import { FileText, CaseLower, Pilcrow, Columns, AlignJustify } from "lucide-react";
-import ActionButton from "@/components/Common/Buttons/Action";
+import MarkdownRenderer from "./MarkdownRenderer";
+import RowBadge from "./RowBadge";
+import { CopyButton } from "@/components/Common/Buttons/Copy";
 
 /**
- * compressRowNumbers:
- * Accepts an array of row indexes like [1,2,3,5,6,7,10]
- * and returns a compressed string like "1-3,5-7,10".
+ * Convert unknown value => string.
  */
-function compressRowNumbers(rows: number[]): string {
-  if (!rows.length) return "";
-  const sorted = [...rows].sort((a, b) => a - b);
-
-  const ranges: string[] = [];
-  let start = sorted[0];
-  let end = start;
-
-  for (let i = 1; i < sorted.length; i++) {
-    const cur = sorted[i];
-    if (cur === end + 1) {
-      end = cur;
-    } else {
-      if (start === end) {
-        ranges.push(String(start));
-      } else {
-        ranges.push(`${start}-${end}`);
-      }
-      start = cur;
-      end = cur;
-    }
-  }
-  if (start === end) {
-    ranges.push(String(start));
-  } else {
-    ranges.push(`${start}-${end}`);
-  }
-  return ranges.join(",");
+function toStringSafe(val: unknown): string {
+  if (typeof val === "string") return val;
+  if (val == null) return "";
+  return String(val);
 }
 
 /**
- * groupComparablesByValue:
- * Takes an array of comparable string values plus their row indexes,
- * then collects identical strings and merges their row indexes.
- * Returns an array of { text, rows }, where "rows" is the list of
- * row indexes that had the string "text".
+ * gatherPresenceDiffs => highlight missing vs. added text
+ * (used for "lines"/"words"/"characters" modes)
  */
-function groupComparablesByValue(comparables: string[], rowIndexes: number[]) {
-  const map = new Map<string, number[]>();
+function gatherPresenceDiffs(
+  baseStr: string,
+  compStrs: string[],
+  baseIdx: number,
+  compIdxs: number[]
+) {
+  const baseHasContent = baseStr !== "";
+  const redSet = new Set<number>();
+  const greenSet = new Set<number>();
 
-  comparables.forEach((txt, i) => {
-    const row = rowIndexes[i];
-    const arr = map.get(txt) || [];
-    arr.push(row);
-    map.set(txt, arr);
+  compStrs.forEach((val, i) => {
+    if (baseHasContent && val === "") {
+      redSet.add(compIdxs[i]);
+    } else if (!baseHasContent && val !== "") {
+      greenSet.add(compIdxs[i]);
+    }
   });
 
-  // Convert each map entry -> { text, rows: number[] }
-  return Array.from(map.entries()).map(([text, rows]) => ({ text, rows }));
+  let labelColor = "";
+  if (baseHasContent && redSet.size > 0) {
+    labelColor = "text-red-600";
+  } else if (!baseHasContent && greenSet.size > 0) {
+    labelColor = "text-green-600";
+  }
+
+  return {
+    labelColor,
+    redRows: Array.from(redSet).sort((a, b) => a - b),
+    greenRows: Array.from(greenSet).sort((a, b) => a - b),
+  };
 }
 
-const StringView: React.FC<LogComparisonProps> = ({
+/**
+ * groupComparablesByValue => for diff="lines"/"words"/"characters" we group
+ * identical strings among comparables => { text, rows } blocks.
+ */
+function groupComparablesByValue(values: string[], rowIndices: number[]) {
+  const map = new Map<string, number[]>();
+  values.forEach((txt, i) => {
+    const row = rowIndices[i];
+    if (!map.has(txt)) {
+      map.set(txt, []);
+    }
+    map.get(txt)!.push(row);
+  });
+  return Array.from(map.entries()).map(([text, rows]) => ({
+    text,
+    rows: rows.sort((a, b) => a - b),
+  }));
+}
+
+/**
+ * groupAllByValue => for diffMode==="none", lumps base + comparables
+ * together so identical strings appear once with combined row badges.
+ */
+function groupAllByValue(
+  baseValue: unknown,
+  comparables: unknown[] | undefined,
+  baseRowIndex: number,
+  comparisonRows: number[]
+) {
+  const allStrings = [baseValue, ...(comparables ?? [])].map(toStringSafe);
+  const allIndices = [baseRowIndex, ...comparisonRows];
+
+  const map = new Map<string, number[]>();
+  allStrings.forEach((txt, i) => {
+    const row = allIndices[i];
+    if (!map.has(txt)) {
+      map.set(txt, []);
+    }
+    map.get(txt)!.push(row);
+  });
+  return Array.from(map.entries()).map(([text, rows]) => ({
+    text,
+    rows: rows.sort((a, b) => a - b),
+  }));
+}
+
+/**
+ * groupVersionsForRows => given a set of rows that share the same main string,
+ * group them by their version text so that identical versions appear once.
+ */
+function groupVersionsForRows(
+  rows: number[],
+  baseLogIndex: number,
+  baseVer: string,
+  compLogIndexes: number[],
+  compVers: string[]
+) {
+  const map = new Map<string, number[]>();
+
+  rows.forEach((r) => {
+    const verStr =
+      r === baseLogIndex
+        ? baseVer
+        : compVers[compLogIndexes.indexOf(r)] ?? "";
+    if (!map.has(verStr)) {
+      map.set(verStr, []);
+    }
+    map.get(verStr)!.push(r);
+  });
+
+  // Return array of objects with the version text and the rows that share it
+  return Array.from(map.entries()).map(([text, rows]) => ({
+    text,
+    rows: rows.sort((a, b) => a - b),
+  }));
+}
+
+export default function StringView({
   value,
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
-}) => {
-  // -------------------------------------------------------------------------
-  // Diff mode logic and toggles
-  // -------------------------------------------------------------------------
-  type DiffMode = "lines" | "words" | "characters";
-  const modes: DiffMode[] = ["lines", "words", "characters"];
-  const modeIcons = [<FileText key="lines" />, <CaseLower key="words" />, <Pilcrow key="chars" />];
+  diffMode = "none",
+  splitView = false,
+  version = "",
+  comparableVersions = [""],
+}: LogComparisonProps) {
+  // Prepare string values
+  const singleMode = !comparables || comparables.length === 0;
+  const baseStr = toStringSafe(value);
+  const compStrs = (comparables ?? []).map(toStringSafe);
 
-  const [modeIndex, setModeIndex] = useState(0);
-  const [splitView, setSplitView] = useState(false);
-  const diffMode = modes[modeIndex];
+  // Prepare version strings
+  const baseVerStr = toStringSafe(version);
+  const compVerStrs = (comparableVersions ?? []).map(toStringSafe);
 
-  const handleCycleMode = () => setModeIndex((prev) => (prev + 1) % modes.length);
-  const handleToggleSplit = () => setSplitView((prev) => !prev);
+  // Check if *all* versions are empty
+  const versionEmpty =
+    baseVerStr === "" && compVerStrs.every((s) => s === "");
 
-  // -------------------------------------------------------------------------
-  // Render base string (no comparables)
-  // -------------------------------------------------------------------------
-  const baseStr = (value ?? "").toString();
-  if (!comparables || comparables.length === 0) {
-    // If it looks like triple-backtick code, render in a code block
-    if (baseStr.startsWith("```") && baseStr.endsWith("```")) {
-      return (
-        <CodeBlock language="python" className="whitespace-pre-wrap ml-4">
-          {baseStr.slice(3, -3)}
-        </CodeBlock>
-      );
-    }
-    // Otherwise, just render plain text
-    return <pre className="whitespace-pre-wrap ml-4">{baseStr}</pre>;
+  // SINGLE MODE => No comparables
+  if (singleMode) {
+    return (
+      <div className="space-y-4">
+        {!versionEmpty && (
+          <div className="space-y-2">
+            <p className="font-semibold">Version</p>
+            {baseVerStr ? (
+              <div className="space-y-2 border rounded p-2 relative">
+                <MarkdownRenderer>{baseVerStr}</MarkdownRenderer>
+                <CopyButton
+                  className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                  content={baseVerStr}
+                  copyMessage="Copied version!"
+                  tooltipContent="Copy version"
+                />
+              </div>
+            ) : (
+              <p className="italic text-sm text-muted-foreground">No version</p>
+            )}
+          </div>
+        )}
+
+        {baseStr ? (
+          <div className="space-y-2">
+            {!versionEmpty && (
+              <p className="font-semibold">Value</p>
+            )}
+            <div className="border rounded p-2 relative">
+              <MarkdownRenderer>{baseStr}</MarkdownRenderer>
+              <CopyButton
+                className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                content={baseStr}
+                copyMessage="Copied string!"
+                tooltipContent="Copy string"
+              />
+            </div>
+          </div>
+        ) : (
+          <p className="italic text-sm text-muted-foreground">No string</p>
+        )}
+      </div>
+    );
   }
 
-  // -------------------------------------------------------------------------
-  // When we have comparables, do grouped diffs
-  // -------------------------------------------------------------------------
-  // 1) Convert each comparable to a string
-  const compStrings = comparables.map((c) => (c ?? "").toString());
-  // 2) Group them by identical text
-  const groups = groupComparablesByValue(compStrings, comparisonLogsIndex ?? []);
+  // MULTI-MODE => We have baseStr + compStrs
+
+  // If diffMode === "none", group everything by main string
+  if (diffMode === "none") {
+    const stringGroups = groupAllByValue(
+      baseStr,
+      compStrs,
+      baseLogIndex,
+      comparisonLogsIndex
+    );
+
+    return (
+      <div className="space-y-4">
+        {stringGroups.map((block, i) => {
+          // block.text => the main string value
+          // block.rows => whichever rows share that string
+          const textValue = block.text;
+          const rowNums = block.rows;
+
+          const versionGroups = groupVersionsForRows(
+            rowNums,
+            baseLogIndex,
+            baseVerStr,
+            comparisonLogsIndex,
+            compVerStrs
+          );
+
+          return (
+            <div key={i} className="p-3 space-y-4">
+              {!versionEmpty && (
+                <div className="space-y-2">
+                  <p className="font-semibold">Version</p>
+                  {versionGroups.map((vg, j) => {
+                    const verText = vg.text;
+                    return (
+                      <div
+                        key={j}
+                        className="space-y-2 border rounded p-2 relative"
+                      >
+                        <RowBadge rowNumbers={vg.rows} mode="none" />
+                        <CopyButton
+                          className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"
+                          content={verText}
+                          copyMessage="Copied version!"
+                          tooltipContent="Copy version"
+                        />
+                        {verText ? (
+                          <div className="pt-2">
+                            <MarkdownRenderer>{verText}</MarkdownRenderer>
+                          </div>
+                        ) : (
+                          <p className="italic text-sm text-muted-foreground border rounded">
+                            No version
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {!versionEmpty && (
+                  <p className="font-semibold">Value</p>
+                )}
+                <div className="border rounded p-2 relative">
+                  <RowBadge rowNumbers={rowNums} mode="none" />
+                  <CopyButton
+                    className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"
+                    content={textValue}
+                    copyMessage="Copied string!"
+                    tooltipContent="Copy string"
+                  />
+                  {textValue ? (
+                    <div className="pt-2">
+                      <MarkdownRenderer>{textValue}</MarkdownRenderer>
+                    </div>
+                  ) : (
+                    <p className="text-sm italic text-muted-foreground">
+                      No data
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // For lines/words/characters => we do a DiffViewer approach
+  const baseStrSafe = toStringSafe(value);
+  const { redRows, greenRows } = gatherPresenceDiffs(
+    baseStrSafe,
+    compStrs,
+    baseLogIndex,
+    comparisonLogsIndex
+  );
+  const stringGroups = groupComparablesByValue(compStrs, comparisonLogsIndex);
 
   return (
-    <div className="flex flex-col border-l pl-4 space-y-4">
-      {/* Diff toolbar */}
-      <div className="flex justify-end gap-2 mb-2">
-        <ActionButton
-          tooltip={`Cycle diff mode (current: ${diffMode})`}
-          icon={modeIcons[modeIndex]}
-          onClick={handleCycleMode}
-          variant="ghost"
-          size="icon"
-        />
-        <ActionButton
-          tooltip={splitView ? "Switch to Inline View" : "Switch to Split View"}
-          icon={splitView ? <Columns /> : <AlignJustify />}
-          onClick={handleToggleSplit}
-          variant="ghost"
-          size="icon"
-        />
-      </div>
+    <div className="space-y-4">
+      {stringGroups.map((block, i) => {
+        const compStr = block.text;
+        const rowNums = block.rows;
+        let baseBadgeMode: "none" | "delete" = "none";
+        if (baseStrSafe !== compStr) {
+          baseBadgeMode = "delete";
+        }
 
-      {/* Render one DiffViewer per group of comparables with identical text */}
-      {groups.map((group, idx) => {
-        const rowSet = compressRowNumbers(group.rows);
+        const versionGroups = groupVersionsForRows(
+          rowNums,
+          baseLogIndex,
+          baseVerStr,
+          comparisonLogsIndex,
+          compVerStrs
+        );
+
         return (
-          <div key={idx} className="mb-4">
-            <p className="text-xs text-muted-foreground mb-1">
-              Diff: Row {baseLogIndex} vs. Row(s) {rowSet}
-            </p>
-            <DiffViewer
-              oldValue={baseStr}
-              newValue={group.text}
-              hideLineNumbers
-              hideMarkers
-              splitView={splitView}
-              showDiffOnly={false}
-              mode={diffMode}
-            />
+          <div key={i} className="border rounded p-3 space-y-4">
+            {!versionEmpty && (
+              <div className="space-y-2">
+                <p className="font-semibold">Param Version</p>
+                {versionGroups.map((vg, j) => {
+                  const verText = vg.text;
+                  let oldVal = baseVerStr;
+                  let newVal = verText;
+                  let oldMode: "none" | "delete" = "none";
+                  let newMode: "none" | "insert" = "none";
+                  if (oldVal !== newVal) {
+                    oldMode = "delete";
+                    newMode = "insert";
+                  }
+
+                  return (
+                    <div key={j} className="p-3 space-y-2">
+                      <div className="flex items-center gap-2 text-xs">
+                        <RowBadge
+                          rowNumbers={[baseLogIndex]}
+                          mode={oldVal !== newVal ? "delete" : "none"}
+                        />
+                        <RowBadge
+                          rowNumbers={vg.rows}
+                          mode={oldVal !== newVal ? "insert" : "none"}
+                        />
+                      </div>
+                      <div className="border rounded p-2">
+                        <DiffViewer
+                          oldValue={oldVal}
+                          newValue={newVal}
+                          splitView={splitView}
+                          hideLineNumbers={false}
+                          hideMarkers
+                          mode={diffMode}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <p className="font-semibold">String Diff</p>
+              <div className="flex items-center gap-2 text-xs">
+                <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadgeMode} />
+                <RowBadge
+                  rowNumbers={rowNums}
+                  mode={baseStrSafe !== compStr ? "insert" : "none"}
+                />
+              </div>
+              <div className="border rounded p-2">
+                <DiffViewer
+                  oldValue={baseStrSafe}
+                  newValue={compStr}
+                  splitView={splitView}
+                  hideLineNumbers={false}
+                  hideMarkers
+                  mode={diffMode}
+                />
+              </div>
+            </div>
           </div>
         );
       })}
     </div>
   );
-};
-
-export default StringView;
+}

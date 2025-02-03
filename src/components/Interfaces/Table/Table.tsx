@@ -2,7 +2,7 @@
 
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
-import { TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -10,6 +10,7 @@ import {
   ColumnPinningState,
   ColumnSizingState,
 } from "@tanstack/react-table";
+import { useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
@@ -65,6 +66,7 @@ const LogsTable = ({
       filterExpression: string | null,
       sortingExpression: string | null,
       from_fields: string | null,
+      exclude_fields: string | null,
       limit: number | null,
       offset: number,
       _timestamp: string | null
@@ -75,6 +77,7 @@ const LogsTable = ({
       filterExpression: string | null, 
       sortingExpression: string | null,
       from_fields: string | null,
+      exclude_fields: string | null,
       limit: number | null, 
       offset: number
     ) => Promise<string>,
@@ -89,7 +92,7 @@ const LogsTable = ({
       project: string, 
       key: string, 
       equation: string, 
-      referenced_logs: TableArguments
+      referenced_logs: {[table_name: string]: getLogsParameters}
     ) => Promise<ResponseProps>
   };
   filterExpression: string | null,
@@ -101,7 +104,7 @@ const LogsTable = ({
   // extract necessary fields
   const [tableDataItem, setTableDataItem] = useState(tableDataItem_);
   const { logs, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
-
+  
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false); // if metric changed
 
@@ -175,13 +178,13 @@ const LogsTable = ({
   const logsFilters = item.filters;
   const commonFilter = item.common_filter;
   const pageNumber = item.page_number;
+  const sortingStr = item.sorting;
   const columnOrderStr = item.column_order;
   const hiddenColumns = item.hidden_columns;
-  const sortingStr = item.sorting;
   const groupingStr = item.grouping;
   const columnsPinLeft = item.columns_pin_left;
   const columnsPinRight = item.columns_pin_right;
-  const contextStr = item.context;
+  const context = item.context;
 
   // Convert those strings → arrays/objects
   const columnIDs = flattenColumnIDs(columns);
@@ -195,8 +198,11 @@ const LogsTable = ({
     : allColumnsVisible;
 
   const setColumnVisibility = (v: { [key: string]: boolean }) => {
-    const hidden = Object.keys(v).filter((k) => !v[k]);
+    const hidden = Object.keys(v).filter((k) => !v[k]).map(id => sanitizeId(id));
     updateItem(item, "hidden_columns")(hidden.length ? hidden.join(",") : undefined);
+    updateInterface().then(() => {
+      router.refresh();
+    });
   };
 
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -249,10 +255,6 @@ const LogsTable = ({
     transform: null
   });
 
-  const context = contextStr ? contextStr : null;
-  const setContext = (c: string | null) =>
-    updateItem(item, "context")(c ? c : undefined);
-
   const state = {
     selectedCells,
     metric,
@@ -277,10 +279,12 @@ const LogsTable = ({
     setGrouping,
     setColumnPinning,
     setColumnSizing,
-    setContext,
+    setContext: updateItem(item, "context"),
     setDraggingColumns,
     setPinningState,
   };
+
+  const router = useRouter();
 
   // Use refs to detect a *real* page/filter change
   const prevPageRef = useRef(pageNumber);
@@ -341,7 +345,7 @@ const LogsTable = ({
           <SelectionMenu
             type="Contexts"
             data={Object.keys(dataTypes).map(property => ({path: property, type:"file"}))}
-            onClick={setContext}
+            onClick={updateItem(item, "context")}
             logs={logs}
           />
           <GlobalFilter
@@ -365,9 +369,11 @@ const LogsTable = ({
             logs={logs}
           />
           <VisibilityFilter
+            fields={fields}
             columnVisibility={columnVisibility}
             setColumnVisibility={setColumnVisibility}
             context={item.context ?? null}
+            logs={logs}
           />
         </div>
       )}
@@ -386,6 +392,7 @@ const LogsTable = ({
             fields={fields}
             filterExpression={filterExpression}
             sortingExpression={sortingExpression}
+            hiddenColumns={item.hidden_columns}
             updateItem={updateItem}
             setTableDataItem={setTableDataItem}
             logsActions={logsActions}
@@ -453,7 +460,7 @@ const LogsTable = ({
                     project={project} 
                     currentTable={item.i}
                     tableArguments={tableArguments}
-                    fields={fields}
+                    logs={logs}
                     derive={logsActions.derive}
                     setPending={setPending}
                     refresh={() => updateInterface()}

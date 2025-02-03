@@ -1,32 +1,38 @@
 import React from "react";
 import { Span } from "@/types/evals/traces";
 import { LogComparisonProps } from "../types";
-import SingleTraceView from "./SingleTraceView";
-import MultiTraceView from "./MultiTraceView";
+import UnifiedTraceView from "./TraceView";
 
-/**
- * TraceView checks if there's more than one trace (in comparables).
- * If no comparables => single view; else => multi-trace diff view.
- */
 const TraceView: React.FC<LogComparisonProps> = ({
   value,
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
+  diffMode = "none",
+  splitView = false,
 }) => {
+  // Ensure the base “value” is an array of spans
   if (!Array.isArray(value)) {
-    return <p className="text-red-500">TraceView: Base value is not an array of spans.</p>;
+    return (
+      <p className="text-red-500">
+        TraceView: Base value is not an array of spans.
+      </p>
+    );
   }
 
-  // Single trace
-  if (!comparables || comparables.length === 0) {
-    return <SingleTraceView spans={value as Span[]} baseLogIndex={baseLogIndex} />
-  }
+  // allTraces => one element if no comparables, or multiple if comparables exist
+  const allTraces = [value, ...(comparables ?? [])] as Span[][];
+  // rowIndexes => correspond to each trace’s row index
+  const rowIndexes = [baseLogIndex, ...(comparisonLogsIndex ?? [])];
 
-  // Multi-trace
-  const allTraces = [value, ...comparables] as Span[][];
-  const rowIndexes = [baseLogIndex, ...comparisonLogsIndex];
-  return <MultiTraceView allTraces={allTraces} rowIndexes={rowIndexes} />;
+  return (
+    <UnifiedTraceView
+      allTraces={allTraces}
+      rowIndexes={rowIndexes}
+      diffMode={diffMode}
+      splitView={splitView}
+    />
+  );
 };
 
 export default TraceView;

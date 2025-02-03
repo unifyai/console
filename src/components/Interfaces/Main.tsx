@@ -4,6 +4,8 @@ import { getLogsDetails } from "@/utils/evals/common";
 import { FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
 const Main = async ({ interface_, project_, projectsActions, logsActions, fieldsActions, interfaceActions }: {
     interface_: string | undefined,
@@ -13,9 +15,13 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
     fieldsActions: FieldsActions,
     interfaceActions: InterfaceActions
 }) => {
+    const cookies_ = cookies();
+    const cookiesProject = cookies_.get("project")?.value;
+    const cookiesInterface = cookies_.get("interface")?.value;
+
     // Get projects
     const projects: string[] = await projectsActions.get();
-    const project = projects.find(proj => proj == project_) || null;
+    const project = projects.find(proj => proj == (project_ || cookiesProject)) || null;
 
     // Get interface
     let interfaces_: { [key: string]: Interface } = (
@@ -25,11 +31,20 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
         (project ? await interfaceActions.get(project, true) : []) || []
     ).reduce((acc, curr) => ({...acc, [curr.name]: curr}), {});
     let interfaceCreated = interface_ != undefined && interface_ in interfaces_;
-    const interface_1 = Object.keys(interfacesTemp_).find(i => i == interface_) || (
+    const interface_1 = Object.keys(interfacesTemp_).find(i => i == (interface_ || (
+        project == cookiesProject ? cookiesInterface : undefined
+    ))) || (
         Object.keys(interfacesTemp_).length ? Object.keys(interfacesTemp_).sort()[0] : null
     );
     let currentInterface = (interface_1 && interface_1 in interfacesTemp_) ? interfacesTemp_[interface_1] : null;
-    let savedInterface = interfaceCreated ? interfaces_[interface_1 as string] : null;
+    let savedInterface = interfaceCreated ? interfaces_[interface_1 as string] : {
+        name: interface_1 as string,
+        project: project,
+        items: [],
+        new_counter: 0
+    } as Interface;
+    if (!interface_ && project && interface_1)
+        redirect(`/interfaces?project=${project}&interface=${interface_1}`);
 
     // Get fields
     let fields: LogFieldsResponseProps = {};
@@ -80,12 +95,12 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
 
     // Aggregate table arguments
     let tableArguments: TableArguments = tableItems.map((item, idx) => {
-        let tableArguments_: TableArguments = { [item.i]: { filter_expr: "" } };
+        let tableArguments_: TableArguments = { [item.i]: {getLogs_parameters: { filter_expr: "" }, available_fields: {}} };
         const filterExpression = filterExpressions[idx];
         const sortingExpression = sortingExpressions[idx];
-        if (filterExpression) tableArguments_[item.i]["filter_expr"] = filterExpression;
-        if (sortingExpression) tableArguments_[item.i]["sorting"] = sortingExpression;
-        if (item.context) tableArguments_[item.i]["context"] = item.context;
+        if (filterExpression) tableArguments_[item.i].getLogs_parameters["filter_expr"] = filterExpression;
+        if (sortingExpression) tableArguments_[item.i].getLogs_parameters["sorting"] = sortingExpression;
+        if (item.context) tableArguments_[item.i].getLogs_parameters["context"] = item.context;
         return tableArguments_;
     }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
@@ -111,22 +126,22 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
     );
     if (project) {
         await Promise.all(tableItems.map(async (item, idx) => {
+            const hidden = item.hidden_columns ? item.hidden_columns.split(",").join("&") : null;
             const logsData = await logsActions.get(
                 project,
                 item.context ?? null,
                 filterExpressions[idx],
                 sortingExpressions[idx],
                 null,
+                hidden,
                 limit,
                 offsets[idx],
-                null
+                Date.now().toString()
             );
             const totalPages = Math.ceil(logsData.count / limit);
-
             allLogsData[idx] = logsData;
             allTotalPages[idx] = totalPages;
-        })
-        );
+        }));
         await Promise.all(plotItems.map(async (item, idx) => {
             const xAxis = item.context ? processContext("merge", item.context, item.x_axis) : item.x_axis;
             const yAxis = item.context ? processContext("merge", item.context, item.y_axis) : item.y_axis;
@@ -137,12 +152,12 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
             if (xAxis) {
                 let subset = xAxis
                 if (item.plot_type === "Bar Chart")
-                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, 0, null);
+                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
                 else {
                     if (yAxis)
                         subset += `%26${yAxis}`
                     if (group) subset += `%26${group}`
-                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, 0, null);
+                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
                 }
             }
             allPlotData[idx] = plotData;
@@ -155,13 +170,21 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
             const totalPages = allTotalPages[idx];
             const context = item.context ?? null
             const sorting = item.sorting ?? null
-            
+            const hiddenColumns = item.hidden_columns;
+
             const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
-                item, logsData, fields, context, project, filterExpressions[idx], sorting, logsActions
+                item, logsData, fields, context, project, filterExpressions[idx], sorting, hiddenColumns, logsActions
             )
 
+            // Append available fields to the table attributes
+            tableArguments[item.i].available_fields = 
+            Object.fromEntries(
+                Object.entries(fields)
+                    .filter((([field, attributes]) => entriesProperties.concat(paramsProperties).includes(field)))
+            )
+            
             // Get other attributes shared across tables and corresponding views
-            const hiddenColumns = item.hidden_columns;
+
             const columnOrdering = item.column_order;
             const selection = item.selected;
             const baseIndex = item.base_index;
@@ -200,6 +223,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
     )).reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
     return <CardGrid
+        project_={project}
         projects={projects}
         interfaces_={Object.keys(interfacesTemp_).sort()}
         tableNames={tableNames}

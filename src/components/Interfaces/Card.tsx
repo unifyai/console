@@ -120,7 +120,8 @@ const Card = ({
                     </BaseDropdown>
                 </div>}
             </div>
-            {tab?.includes("View") && <Selection
+            {tab?.includes("View") && <div className="w-full overflow-auto"><Selection
+                params={item.table ? tableData[item.table]?.params : {}}
                 logs={item.table ? tableData[item.table]?.logs || [] : []}
                 selection_={relevantItem?.selected}
                 baseIndex_={relevantItem?.base_index}
@@ -128,7 +129,7 @@ const Card = ({
                 hiddenColumns_={relevantItem?.hidden_columns}
                 item={item}
                 updateItem={updateItem}
-            />}
+            /></div>}
             {tab?.includes("Plot") && <LogsPlot
                 interactive={["edit", "interactive"].includes(mode)}
                 logs={item.table ? plotData[item.i]?.plotLogs || [] : []}

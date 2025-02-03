@@ -1,5 +1,5 @@
 import { ResponseProps } from "../common";
-import { TableArguments, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps } from "./logs";
+import { getLogsParameters, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps } from "./logs";
 
 export interface TileProps {
     i: string;
@@ -95,13 +95,13 @@ export interface ProjectsActions {
 }
 
 export interface LogsActions {
-    get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
-    getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, limit: number | null, offset: number) => Promise<string>,
+    get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
+    getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number) => Promise<string>,
     getMetrics: (
         project: string, filterExpression: string | null, metricName: string, keyName: string
     ) => Promise<number>,
     delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
-    derive: (project: string, key: string, equation: string, referenced_logs: TableArguments) => Promise<ResponseProps>
+    derive: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>
 }
 
 export interface FieldsActions {

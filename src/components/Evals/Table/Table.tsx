@@ -4,7 +4,7 @@ import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
 import FileDirectory from "@/components/Tree/Directory/FileDirectory";
-import { TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -90,6 +90,7 @@ const LogsTable = ({
       filterExpression: string | null,
       sortingExpression: string | null,
       from_fields: string | null,
+      exclude_fields: string | null, 
       limit: number | null,
       offset: number,
       _timestamp: string | null
@@ -100,6 +101,7 @@ const LogsTable = ({
       filterExpression: string | null,
       sortingExpression: string | null,
       from_fields: string | null,
+      exclude_fields: string | null, 
       limit: number | null,
       offset: number
     ) => Promise<string>;
@@ -114,7 +116,7 @@ const LogsTable = ({
       project: string, 
       key: string, 
       equation: string, 
-      referenced_logs: TableArguments
+      referenced_logs: {[table_name: string]: getLogsParameters}
     ) => Promise<ResponseProps>
   };
   fieldsActions: {
@@ -539,7 +541,7 @@ const LogsTable = ({
                   />
                 )}
                 ColumnCreate={
-                  <ColumnCreate project={project} currentTable="table" tableArguments={tableArguments} fields={fields} derive={logsActions.derive} _setTimestamp={_setTimestamp}/>
+                  <ColumnCreate project={project} currentTable="table" tableArguments={tableArguments} logs={logs} derive={logsActions.derive} _setTimestamp={_setTimestamp}/>
                 }
                 AggregatedCell={(cell, row) => (
                   <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />
