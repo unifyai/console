@@ -536,22 +536,49 @@ function SelectionPanel({
           >
             <SortableContext items={paramOrder} strategy={verticalListSortingStrategy}>
               <Accordion type="multiple" value={openParamItems} onValueChange={setOpenParamItems}>
-                {paramOrder.map((col) => (
-                  <SortableAccordionItem key={col} id={col}>
-                    <SelectionEntry
-                      source="params"
-                      property={col}
-                      value={baseLog.params[col]}
-                      baseLog={baseLog}
-                      baseLogIndex={baseRowIndex + 1}
-                      comparisonLogs={comparisonLogs}
-                      comparisonLogsIndex={comparisonRowIndices.map(x => x + 1)}
-                      diffMode={diffMode}
-                      splitView={splitView}
-                      rawMode={rawMode}
-                    />
-                  </SortableAccordionItem>
-                ))}
+                {paramOrder.map((col) => {
+                  const baseParam = baseLog.params[col];
+                  const baseDisplayValue =
+                    baseParam &&
+                    typeof baseParam === "object" &&
+                    "paramValue" in baseParam &&
+                    "paramVersion" in baseParam
+                      ? baseParam.paramValue
+                      : baseParam;
+                  const baseVersion =
+                    baseParam &&
+                    typeof baseParam === "object" &&
+                    "paramValue" in baseParam &&
+                    "paramVersion" in baseParam
+                      ? baseParam.paramVersion
+                      : "";
+                  const compVersions = comparisonLogs.map((log) => {
+                    const param = log.params[col];
+                    if (param && typeof param === "object" && "paramValue" in param && "paramVersion" in param) {
+                      return param.paramVersion as string;
+                    }
+                    return "";
+                  });
+
+                  return (
+                    <SortableAccordionItem key={col} id={col}>
+                      <SelectionEntry
+                        source="params"
+                        property={col}
+                        value={baseDisplayValue}
+                        version={baseVersion}
+                        comparableVersions={compVersions}
+                        baseLog={baseLog}
+                        baseLogIndex={baseRowIndex + 1}
+                        comparisonLogs={comparisonLogs}
+                        comparisonLogsIndex={comparisonRowIndices.map((x) => x + 1)}
+                        diffMode={diffMode}
+                        splitView={splitView}
+                        rawMode={rawMode}
+                      />
+                    </SortableAccordionItem>
+                  );
+                })}
               </Accordion>
             </SortableContext>
           </DndContext>

@@ -1,4 +1,5 @@
 "use client";
+
 import React from "react";
 import { LogProps } from "@/types/evals/logs";
 import {
@@ -19,15 +20,16 @@ import ChatOutView from "./Views/ChatView/ChatOutView";
 
 import Tooltip from "@/components/Common/Misc/Tooltip";
 
+// These helpers and types help choose which specialized view to show.
 import {
   isDict,
   isList,
   isMatrix,
   isImage,
-  isTrace,
   isNumber,
   isTimestamp,
   isChat,
+  isTrace
 } from "@/utils/evals/selection";
 import {
   Waypoints,
@@ -39,19 +41,30 @@ import {
   Hash,
   Clock,
   MessagesSquare,
-  FileJson
+  X
 } from "lucide-react";
 
-// (NEW) import the RawView
+// Import RawView (for rawMode switching)
 import RawView from "./Views/RawView";
 
-/** Either "entries" or "params", determining which field of the log object to read from. */
+// Remove the Popover import since we no longer use it.
+// import { Popover, PopoverTrigger, PopoverContent } from "@/components/UI/popover";
+
+// Import useQueryState (and helpers) as well as our column helper functions
+import { useQueryState, parseAsArrayOf, parseAsString } from "nuqs";
+import { sanitizeId } from "@/utils/evals/columnOperations";
+import { getPartAfterFirstUnderscore } from "@/utils/evals/selection";
+
+/**
+ * Define types.
+ * – source is either "entries" or "params"
+ * – diffMode controls diffing methods
+ * – rawMode toggles between raw versus specialized views.
+ * In addition, we also pass along version and comparableVersions.
+ */
 type SourceType = "entries" | "params";
 type DiffMode = "none" | "lines" | "words" | "characters";
 
-/**
- * We added a new "rawMode" to treat everything as raw strings.
- */
 type SelectionEntryProps = {
   source?: SourceType;
   property: string;
@@ -62,24 +75,30 @@ type SelectionEntryProps = {
   comparisonLogsIndex: number[];
   diffMode: DiffMode;
   splitView: boolean;
-  // (NEW) rawMode for toggling raw display
   rawMode: boolean;
+  version?: string;              // For param version display
+  comparableVersions?: string[]; // For comparison version information
 };
 
+/**
+ * getValueType returns a type string for determining which view to use.
+ */
 function getValueType(value: any):
-  "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat"
-{
-  if (isTrace(value))   return "trace";
-  if (isDict(value))    return "dict";
-  if (isList(value))    return "list";
-  if (isImage(value))   return "image";
-  if (isMatrix(value))  return "matrix";
-  if (isNumber(value))  return "number";
+  "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat" {
+  if (isTrace(value)) return "trace";
+  if (isDict(value)) return "dict";
+  if (isList(value)) return "list";
+  if (isImage(value)) return "image";
+  if (isMatrix(value)) return "matrix";
+  if (isNumber(value)) return "number";
   if (isTimestamp(value)) return "timestamp";
-  if (isChat(value))    return "chat";
+  if (isChat(value)) return "chat";
   return "string";
 }
 
+/**
+ * getTypeIcon returns a lucide icon based on the value type.
+ */
 function getTypeIcon(valueType: string) {
   switch (valueType) {
     case "trace":
@@ -104,8 +123,8 @@ function getTypeIcon(valueType: string) {
 }
 
 /**
- * Decide which specialized component to display based on the data type,
- * unless we are in "rawMode". Then we always show RawView.
+ * getSelectionView chooses which specialized component to render based on the type.
+ * It passes along comparables, version, and comparableVersions.
  */
 function getSelectionView(
   value: any,
@@ -119,7 +138,7 @@ function getSelectionView(
   rawMode: boolean
 ) {
   if (rawMode) {
-    // override: always RawView
+    // Always show raw view if rawMode is enabled.
     return (
       <RawView
         value={value}
@@ -134,13 +153,13 @@ function getSelectionView(
     );
   }
 
-  // normal logic
   const valueType = getValueType(value);
-
   switch (valueType) {
     case "trace": {
       const baseArr = Array.isArray(value) ? value : [value];
-      const compArrs = comparables.map((c) => Array.isArray(c) ? c : c ? [c] : []);
+      const compArrs = comparables.map((c) =>
+        Array.isArray(c) ? c : c ? [c] : []
+      );
       return (
         <TraceView
           value={baseArr}
@@ -246,7 +265,6 @@ function getSelectionView(
         />
       );
     default:
-      // fallback => string
       return (
         <StringView
           value={value}
@@ -262,7 +280,7 @@ function getSelectionView(
   }
 }
 
-const SelectionEntry: React.FC<SelectionEntryProps> = ({
+const SelectionEntry = ({
   source = "entries",
   property,
   value,
@@ -272,54 +290,71 @@ const SelectionEntry: React.FC<SelectionEntryProps> = ({
   comparisonLogsIndex,
   diffMode,
   splitView,
-  rawMode
-}) => {
-  // Gather comparables
-  let comparables = (comparisonLogs ?? []).map((cl) => {
-    const container = source === "params" ? cl.params ?? {} : cl.entries ?? {};
-    return container[property];
-  });
-
-  // Possibly read paramVersion structure
-  let version = "";
-  let comparableVersions: string[] = [];
-  let rawValue = value;
-
-  if (source === "params" && value && typeof value === "object") {
-    version = value.paramVersion;
-    comparableVersions = comparables.map((c) => c?.paramVersion ?? "");
-    rawValue = value.paramValue;
-    comparables = comparables.map((c) => c?.paramValue);
-  }
-
-  const valueType = getValueType(rawValue);
-  const icon = getTypeIcon(valueType);
-
-  const renderedContent = getSelectionView(
-    rawValue,
-    comparables,
-    version,
-    comparableVersions,
-    baseLogIndex,
-    comparisonLogsIndex,
-    diffMode,
-    splitView,
-    rawMode
+  rawMode,
+  version = "",
+  comparableVersions = []
+}: SelectionEntryProps) => {
+  
+  // Retrieve the "selected" state from the URL via nuqs.
+  const [selectedCells, setSelectedCells] = useQueryState(
+    "selected",
+    parseAsArrayOf(parseAsString).withDefault([])
   );
+
+  // Handler for deselecting this column.
+  const handleDeselectColumn = () => {
+    setSelectedCells((cells: string[]) => {
+      const newCells = cells.filter(cell => {
+        const col = getPartAfterFirstUnderscore(cell);
+        return sanitizeId(col) !== sanitizeId(property);
+      });
+      return newCells;
+    });
+  };
+
+  // Determine the type and corresponding icon.
+  const valueType = getValueType(value);
+  const icon = getTypeIcon(valueType);
+  
+  // Added hover state to toggle the icon on hover.
+  const [hovered, setHovered] = React.useState(false);
 
   return (
     <AccordionItem value={property}>
-      <AccordionTrigger>
-        <span className="inline-flex items-center gap-2">
-          <Tooltip content={rawMode ? "raw" : valueType}>
-            {rawMode ? <FileJson className="h-4 w-4 text-primary" /> : icon}
+      <AccordionTrigger className="flex items-center">
+        <div className="inline-flex items-center gap-2">
+          {/* Updated icon area using a single component that toggles on hover */}
+          <Tooltip content={hovered ? "Deselect" : valueType}>
+            <span
+              className="cursor-pointer inline-flex items-center transition duration-200"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeselectColumn();
+              }}
+              onMouseEnter={() => setHovered(true)}
+              onMouseLeave={() => setHovered(false)}
+            >
+              {hovered ? <X className="h-4 w-4 text-red-500" /> : icon}
+            </span>
           </Tooltip>
-          {property}
-        </span>
+          {/* Updated property text wrapped with tooltip showing the data type */}
+          <Tooltip content={valueType}>
+            <span>{property}</span>
+          </Tooltip>
+        </div>
       </AccordionTrigger>
-
       <AccordionContent>
-        {renderedContent}
+        {getSelectionView(
+          value,
+          comparisonLogs ? comparisonLogs : [],
+          version,
+          comparableVersions ? comparableVersions : [],
+          baseLogIndex,
+          comparisonLogsIndex,
+          diffMode,
+          splitView,
+          rawMode
+        )}
       </AccordionContent>
     </AccordionItem>
   );
