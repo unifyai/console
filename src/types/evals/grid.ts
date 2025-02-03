@@ -12,7 +12,9 @@ export interface TileProps {
     visible?: boolean;
     tab?: string;
     table?: string;
+    table_type?: string;
     context?: string;
+    prev_context?: string;
     auto_update?: string;
     filters?: string;
     common_filter?: string;
@@ -62,6 +64,7 @@ export interface PlotDataProps {
 }
 
 export type ItemType = 
+    | "tab"
     | "bin_count"
     | "plot_type"
     | "plot_scale"
@@ -83,8 +86,10 @@ export type ItemType =
     | "columns_pin_right"
     | "table"
     | "context"
+    | "prev_context"
     | "auto_update"
-    | "visible";
+    | "visible"
+    | "table_type";
 
 
 export interface ProjectsActions {
@@ -106,6 +111,10 @@ export interface LogsActions {
 
 export interface FieldsActions {
     get: (project: string) => Promise<LogFieldsResponseProps>,
+}
+
+export interface ContextActions {
+    create: (name: string, project: string) => Promise<LogFieldsResponseProps>,
 }
 
 export interface InterfaceActions {

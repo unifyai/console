@@ -249,3 +249,20 @@ export const deleteInterface = async (apiKey: string) => {
         return await response.json();
     };
 };
+
+// create context
+export const createContext = async (apiKey: string) => {
+    return async (name: string, project: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/context/${project}`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({ name })
+            }
+        );
+        return await response.json();
+    };
+};

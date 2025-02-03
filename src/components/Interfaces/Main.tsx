@@ -1,18 +1,19 @@
 import CardGrid from "@/components/Interfaces/CardGrid";
 import { TableArguments, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
-import { FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
+import { ContextActions, FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 
-const Main = async ({ interface_, project_, projectsActions, logsActions, fieldsActions, interfaceActions }: {
+const Main = async ({ interface_, project_, projectsActions, logsActions, fieldsActions, contextActions, interfaceActions }: {
     interface_: string | undefined,
     project_: string | undefined,
     projectsActions: ProjectsActions,
     logsActions: LogsActions,
     fieldsActions: FieldsActions,
+    contextActions: ContextActions,
     interfaceActions: InterfaceActions
 }) => {
     const cookies_ = cookies();
@@ -238,6 +239,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
         sortingExpressions={sortingExpressions}
         projectActions={projectsActions}
         logsActions={logsActions}
+        contextActions={contextActions}
         interfaceActions={interfaceActions}
     />;
 };

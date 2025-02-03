@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Card from "./Card";
 import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import { FileProps, ResponseProps } from "@/types/common";
-import { Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
+import { ContextActions, Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
 import { Check, Clipboard, Copy, Eye, EyeOff, Grip, ListRestart, Loader2, Maximize2, Plus, RefreshCw, Save, Trash, TriangleAlert, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
@@ -42,6 +42,7 @@ const CardGrid = ({
     sortingExpressions,
     projectActions,
     logsActions,
+    contextActions,
     interfaceActions,
 }: {
     project_: string | null,
@@ -59,6 +60,7 @@ const CardGrid = ({
     sortingExpressions: (string | null)[],
     projectActions: ProjectsActions,
     logsActions: LogsActions,
+    contextActions: ContextActions,
     interfaceActions: InterfaceActions,
 }) => {
     const router = useRouter();
@@ -484,13 +486,13 @@ const CardGrid = ({
                                         plotData={plotData}
                                         tableArguments={tableArguments}
                                         logsActions={logsActions}
+                                        contextActions={contextActions}
                                         index={el.i}
                                         item={el}
                                         items={items}
                                         filterExpressions={filterExpressions}
                                         sortingExpressions={sortingExpressions}
                                         setPending={(p: boolean) => setTilePending({ ...tilePending, [el.i]: p })}
-                                        setItems={(items: TileProps[]) => setItems(items)}
                                         updateItem={updateItem}
                                         updateInterface={updateInterface}
                                     />
@@ -568,13 +570,13 @@ const CardGrid = ({
                         fields={fields}
                         plotData={plotData}
                         logsActions={logsActions}
+                        contextActions={contextActions}
                         index={maxTileItem.i}
                         item={maxTileItem}
                         items={items}
                         filterExpressions={filterExpressions}
                         sortingExpressions={sortingExpressions}
                         setPending={(p: boolean) => setTilePending({ ...tilePending, [maxTileItem.i]: p })}
-                        setItems={(items: TileProps[]) => setItems(items)}
                         updateItem={updateItem}
                         updateInterface={updateInterface}
                     />

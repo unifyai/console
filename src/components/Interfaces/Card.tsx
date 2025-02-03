@@ -11,7 +11,7 @@ import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import LogsPlot from "@/components/Interfaces/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Interfaces/Table/Table";
-import { ItemType, LogsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
+import { ContextActions, ItemType, LogsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 
 const Card = ({
     mode,
@@ -23,13 +23,13 @@ const Card = ({
     plotData,
     tableArguments,
     logsActions,
+    contextActions,
     index,
     item,
     items,
     filterExpressions,
     sortingExpressions,
     setPending,
-    setItems,
     updateItem,
     updateInterface,
 }: {
@@ -42,13 +42,13 @@ const Card = ({
     plotData: PlotDataProps,
     tableArguments: TableArguments,
     logsActions: LogsActions,
+    contextActions: ContextActions,
     index: string,
     item: TileProps,
     items: TileProps[],
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
     setPending: (pending: boolean) => void,
-    setItems: (items: TileProps[]) => void,
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void
     updateInterface: () => Promise<ResponseProps>,
 }) => {
@@ -64,12 +64,12 @@ const Card = ({
                 router.refresh();
             });
         }
-    }, [item.tab, item.filters, item.context, item.common_filter, item.sorting, item.page_number, item.metric, item.plot_type, item.x_axis, item.y_axis]);
+    }, [item.tab, item.table_type, item.filters, item.context, item.common_filter, item.sorting, item.page_number, item.metric, item.plot_type, item.x_axis, item.y_axis]);
 
     useEffect(() => {
         if (item.tab != "View" && !initial)
             setPending(true);
-    }, [item.tab, item.context, item.page_number, item.plot_type, item.x_axis, item.y_axis]);
+    }, [item.tab, item.table_type, item.context, item.page_number, item.plot_type, item.x_axis, item.y_axis]);
 
     useEffect(() => {
         setInitial(false);
@@ -90,9 +90,11 @@ const Card = ({
                     >
                         {(mode != "edit" ? [] : tabTypes).map((tab, idx) => <DropdownMenuItem
                             key={idx}
-                            onSelect={() => setItems(
-                                [...items.map(item => item.i != index ? item : { ...item, tab: tab })]
-                            )}
+                            onSelect={() => {
+                                if (item.tab == undefined && tab == "Table")
+                                    updateItem(item, "table_type")("Data Table");
+                                updateItem(item, "tab")(tab);
+                            }}
                             className="w-64 no-drag"
                         >
                             {tab}
@@ -116,6 +118,37 @@ const Card = ({
                         >
                             {tile}
                             {(tableData[tile]?.logs || []).length ? "" : " (empty table)"}
+                        </DropdownMenuItem>)}
+                    </BaseDropdown>
+                </div>}
+                {tab && mode == "edit" && tab == "Table" && <div className="w-fit">
+                    <BaseDropdown
+                        button={<ActionButton
+                            tooltip="Select Table Type"
+                            text={item.table_type}
+                            variant="outline"
+                            size="default"
+                        />}
+                    >
+                        {["Data Table", "Derived Table"].map((tableType, idx) => <DropdownMenuItem
+                            key={idx}
+                            onSelect={() => {
+                                if (tableType == "Derived Table") {
+                                    if (!item.prev_context) {
+                                        contextActions.create(`Derived_${item.i}`, project as string);
+                                        updateItem(item, "context")(`Derived_${item.i}`);
+                                        updateItem(item, "prev_context")(`Derived_${item.i}`);
+                                    }
+                                    else
+                                        updateItem(item, "context")(item.prev_context);
+                                }
+                                else
+                                    updateItem(item, "context")(undefined);
+                                updateItem(item, "table_type")(tableType);
+                            }}
+                            className="w-64 no-drag"
+                        >
+                            {tableType}
                         </DropdownMenuItem>)}
                     </BaseDropdown>
                 </div>}
