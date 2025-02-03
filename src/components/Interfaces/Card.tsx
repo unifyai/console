@@ -12,6 +12,7 @@ import LogsPlot from "@/components/Interfaces/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Interfaces/Table/Table";
 import { DerivedEntryActions, ContextActions, ItemType, LogsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/common";
 
 const Card = ({
     mode,
@@ -30,6 +31,7 @@ const Card = ({
     items,
     filterExpressions,
     sortingExpressions,
+    groupingExpressions,
     setPending,
     updateItem,
     updateInterface,
@@ -50,6 +52,7 @@ const Card = ({
     items: TileProps[],
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
+    groupingExpressions: (string | null)[],
     setPending: (pending: boolean) => void,
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
     updateInterface: () => Promise<ResponseProps>,
@@ -77,6 +80,7 @@ const Card = ({
         item.context,
         item.common_filter,
         item.sorting,
+        item.grouping,
         item.page_number,
         item.metric,
         item.plot_type,
@@ -168,7 +172,7 @@ const Card = ({
             </div>
             {tab?.includes("View") && <div className="w-full overflow-auto"><Selection
                 params={item.table ? tableData[item.table]?.params : {}}
-                logs={item.table ? tableData[item.table]?.logs || [] : []}
+                logs={item.table ? maybeFlattenGroupedLogs(tableData[item.table]?.logs || []) : []}
                 selection_={relevantItem?.selected}
                 baseIndex_={relevantItem?.base_index}
                 columnOrdering_={relevantItem?.column_order}
@@ -198,7 +202,7 @@ const Card = ({
                     entriesProperties: tableData[item.i]?.entriesProperties || [],
                     paramsProperties: tableData[item.i]?.paramsProperties || [],
                     metrics: tableData[item.i]?.metrics || {},
-                    logsData: tableData[item.i]?.logsData || { params: {}, logs: [], count: 0 },
+                    logsData: tableData[item.i]?.logsData || { params: {}, logs: [], count: 0, grouped_entries: {} },
                     totalPages: tableData[item.i]?.totalPages || 0,
                     boundaries: tableData[item.i]?.boundaries || { minimus: {}, maximums: {} }
                 }}
@@ -207,6 +211,7 @@ const Card = ({
                 derivedEntryActions={derivedEntryActions}
                 filterExpression={filterExpressions ? filterExpressions[items.findIndex(it => it.i === item.i)] : null}
                 sortingExpression={sortingExpressions ? sortingExpressions[items.findIndex(it => it.i === item.i)] : null}
+                groupingExpression={groupingExpressions ? groupingExpressions[items.findIndex(it => it.i === item.i)] : null}
                 updateInterface={updateInterface}
                 setPending={setPending}
             />}

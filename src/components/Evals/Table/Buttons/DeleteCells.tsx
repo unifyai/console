@@ -4,24 +4,26 @@ import { useKeyPressEvent } from "react-use";
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { useState } from "react";
 import { ResponseProps } from "@/types/common";
-import { LogFieldsProps, LogProps } from "@/types/evals/logs";
+import { GroupedLogProps, LogFieldsProps, LogProps } from "@/types/evals/logs";
 import { getPartAfterFirstUnderscore } from "@/utils/evals/selection";
 import { processContext, sanitizeId } from "@/utils/evals/columnOperations";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/common";
 
 const DeleteCells = ({ selectedCells, logs, deleteLogFields, context }: {
 	selectedCells: string[],
-	logs: LogProps[],
+	logs: LogProps[] | GroupedLogProps[],
 	deleteLogFields: (fields: LogFieldsProps) => Promise<ResponseProps>,
 	context: string | undefined
 }) => {
 	const [showDialog, setShowDialog] = useState(false);
-	
+
+	const flattenedLogs = maybeFlattenGroupedLogs(logs);
 	const deletableCells = selectedCells.filter(cell => {
 		const id = cell.split("_").at(0) as string
 		const column = sanitizeId(getPartAfterFirstUnderscore(cell))
 		const idMatch = (log: LogProps) => parseInt(log.id) === parseInt(id)
 		const valueMatch = (log: LogProps) => log.entries[column] != undefined || log.params[column] != undefined
-		return logs.findIndex(log => idMatch(log) && valueMatch(log)) != -1 
+		return flattenedLogs.findIndex(log => idMatch(log) && valueMatch(log)) != -1 
 	})
 
 	useKeyPressEvent("Backspace", () => {

@@ -4,7 +4,7 @@ import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
 import FileDirectory from "@/components/Tree/Directory/FileDirectory";
-import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps, GroupedLogProps } from "@/types/evals/logs";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -12,6 +12,7 @@ import {
   ColumnPinningState,
   Updater,
   ColumnSizingState,
+  GroupingState,
 } from "@tanstack/react-table";
 import React, { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -39,6 +40,7 @@ import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Evals/Table/Buttons/ColumnCreate";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/common";
 
 const LogsTable = ({
   searchParams,
@@ -59,6 +61,7 @@ const LogsTable = ({
   boundaries,
   filterExpression,
   sortingExpression,
+  groupingExpression
 }: {
   searchParams: {
     project?: string;
@@ -67,10 +70,11 @@ const LogsTable = ({
     context?: string;
     filters?: string;
     common_filter?: string;
+    grouping?: string | null;
   };
   projects: string[] | undefined;
   project: string | undefined;
-  logs: LogProps[];
+  logs: LogProps[] | GroupedLogProps[];
   tableArguments: TableArguments;
   fields: LogFieldsResponseProps;
   entriesProperties: string[];
@@ -90,6 +94,7 @@ const LogsTable = ({
       context: string | null,
       filterExpression: string | null,
       sortingExpression: string | null,
+      groupingExpression: string | null,
       from_fields: string | null,
       exclude_fields: string | null, 
       limit: number | null,
@@ -101,6 +106,7 @@ const LogsTable = ({
       context: string | null,
       filterExpression: string | null,
       sortingExpression: string | null,
+      groupingExpression: string | null,
       from_fields: string | null,
       exclude_fields: string | null, 
       limit: number | null,
@@ -123,7 +129,8 @@ const LogsTable = ({
   },
   boundaries: {minimums: {[key: string]: number}, maximums: {[key: string]: number}}
   filterExpression: string | null,
-  sortingExpression: string | null
+  sortingExpression: string | null,
+  groupingExpression: string | null
 }) => {
   // Basic states for quick feedback
   const [pending, setPending] = useState(false);        // if the project is invalid
@@ -139,7 +146,7 @@ const LogsTable = ({
     "selected", 
     parseAsArrayOf(parseAsString).withDefault([])                    // [logId1_colId1,logId1_colId2,logId2_colId3,...]
   )
-  const { baseLogIndex, baseLog, comparisonLogsIndex, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, logs)
+  const { baseLogIndex, baseLog, comparisonLogsIndex, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, maybeFlattenGroupedLogs(logs))
 
   // Column definitions
   const entriesTree = buildTree(entriesProperties);
@@ -150,7 +157,7 @@ const LogsTable = ({
   const entriesTitle = "Entries";
   const paramsTitle = "Parameters";
 
-  const columns: ColumnDef<LogProps>[] = [
+  const columns: ColumnDef<LogProps | GroupedLogProps>[] = [
     {
       id: indicesTitle,
       cell: ({ row }) => <Badge>{row.index + 1}</Badge>,
@@ -217,10 +224,12 @@ const LogsTable = ({
   const [sortingStr, setSortingStr] = useQueryState("sorting", {
     shallow: false,
   });
+  const [groupingStr, setGroupingStr] = useQueryState("grouping", {
+    shallow: false,
+  });
 
   const [columnOrderStr, setColumnOrderStr] = useQueryState("column_order");
   const [hiddenColumns, setHiddenColumns] = useQueryState("hidden_columns");
-  const [groupingStr, setGroupingStr] = useQueryState("grouping");
   const [columnsPinLeft, setColumnsPinLeft] = useQueryState("columns_pin_left");
   const [columnsPinRight, setColumnsPinRight] = useQueryState("columns_pin_right");
   const [context, setContext] = useQueryState("context", {shallow: false})
@@ -253,8 +262,8 @@ const LogsTable = ({
     : [];
   const setSorting = (s: ColumnSort[]) => 
     setSortingStr(s.map((item) => `${sanitizeId(item.id)}@${item.desc}`).join(","));
-  const grouping = groupingStr ? groupingStr.split(",") : [];
-  const setGrouping = (g: string[]) =>
+  const grouping: GroupingState = groupingStr ? groupingStr.split(",") : [];
+  const setGrouping = (g: GroupingState) =>
     setGroupingStr(g.length ? g.join(",") : null);
 
   const columnPinning: ColumnPinningState = {
@@ -335,6 +344,7 @@ const LogsTable = ({
   const prevFiltersRef = useRef(logsFiltersQuery);
   const prevCommonFilterRef = useRef(commonFilter);
   const prevSortingRef = useRef(sortingStr);
+  const prevGroupingRef = useRef(groupingStr);
 
   // Prune base/comparison IDs if user REALLY changes page or filters
   useEffect(() => {
@@ -342,16 +352,18 @@ const LogsTable = ({
     const filtersChanged = prevFiltersRef.current !== logsFiltersQuery;
     const commonChanged = prevCommonFilterRef.current !== commonFilter;
     const sortingChanged = prevSortingRef.current !== sortingStr;
+    const groupingChanged = prevGroupingRef.current !== groupingStr;
 
-    if (pageChanged || filtersChanged || commonChanged || sortingChanged) {
+    if (pageChanged || filtersChanged || commonChanged || sortingChanged || groupingChanged) {
       // If base no longer valid, remove it
-      if (baseLog && !logs.some((l) => l.id === baseLog.id)) {
+      const flattenedLogs = maybeFlattenGroupedLogs(logs);
+      if (baseLog && !(flattenedLogs).some((l) => l.id === baseLog.id)) {
         setSelectedCells(cells => cells.slice(1));
       }
       // If compare logs not valid, prune them
       if (comparisonLogs) {
         const ids = comparisonLogs.map(cl => cl.id);
-        const validIds = ids.filter((id) => logs.some((l) => l.id === id));
+        const validIds = ids.filter((id) => flattenedLogs.some((l) => l.id === id));
         if (!validIds.length) {
           setSelectedCells(cells => cells.at(0) ? [cells.at(0) as string] : []);
         } else if (validIds.length < ids.length) {
@@ -364,12 +376,14 @@ const LogsTable = ({
     prevFiltersRef.current = logsFiltersQuery;
     prevCommonFilterRef.current = commonFilter;
     prevSortingRef.current = sortingStr
+    prevGroupingRef.current = groupingStr
   }, [
     logs,
     pageNumber,
     logsFiltersQuery,
     commonFilter,
     sortingStr,
+    groupingStr,
     selectedCells
   ]);
 
@@ -494,6 +508,7 @@ const LogsTable = ({
             project={project}
             filterExpression={filterExpression}
             sortingExpression={sortingExpression}
+            groupingExpression={groupingExpression}
             getLatest={logsActions.getLatest}
             logs={logs}
           />

@@ -2,13 +2,14 @@
 
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
-import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps, GroupedLogProps } from "@/types/evals/logs";
 import {
   ColumnDef,
   ColumnFiltersState,
   ColumnSort,
   ColumnPinningState,
   ColumnSizingState,
+  GroupingState,
 } from "@tanstack/react-table";
 import { DerivedEntryActions, LogsActions } from "@/types/evals/grid";
 import React, { useEffect, useRef, useState } from "react";
@@ -35,6 +36,7 @@ import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
 import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/common";
 
 const LogsTable = ({
   interactive,
@@ -49,6 +51,7 @@ const LogsTable = ({
   derivedEntryActions,
   filterExpression,
   sortingExpression,
+  groupingExpression,
   updateInterface,
   setPending
 }: {
@@ -65,6 +68,7 @@ const LogsTable = ({
   derivedEntryActions: DerivedEntryActions,
   filterExpression: string | null,
   sortingExpression: string | null,
+  groupingExpression: string | null,
   updateInterface: () => Promise<ResponseProps>
   setPending: (pending: boolean) => void,
 }) => {
@@ -83,7 +87,7 @@ const LogsTable = ({
 
   // Get base and comparison logs
   const selectedCells = item.selected ? item.selected.split(",") : [];
-  const { baseLog, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, logs)
+  const { baseLog, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, maybeFlattenGroupedLogs(logs))
 
   // Column definitions
   const entriesTree = buildTree(entriesProperties);
@@ -94,7 +98,7 @@ const LogsTable = ({
   const entriesTitle = "Entries";
   const paramsTitle = "Parameters";
 
-  const columns: ColumnDef<LogProps>[] = [
+  const columns: ColumnDef<LogProps | GroupedLogProps>[] = [
     {
       id: indicesTitle,
       cell: ({ row }) => <Badge>{row.index + 1}</Badge>,
@@ -183,8 +187,8 @@ const LogsTable = ({
   const setSorting = (s: ColumnSort[]) =>
     updateItem(item, "sorting")(s.map((item) => `${sanitizeId(item.id)}@${item.desc}`).join(","));
 
-  const grouping = groupingStr ? groupingStr.split(",") : [];
-  const setGrouping = (g: string[]) =>
+  const grouping: GroupingState = groupingStr ? groupingStr.split(",") : [];
+  const setGrouping = (g: GroupingState) =>
     updateItem(item, "grouping")(g.length ? g.join(",") : undefined);
 
   const columnPinning: ColumnPinningState = {
@@ -256,6 +260,7 @@ const LogsTable = ({
   const prevFiltersRef = useRef(logsFilters);
   const prevCommonFilterRef = useRef(commonFilter);
   const prevSortingRef = useRef(sortingStr);
+  const prevGroupingRef = useRef(groupingStr);
 
   // Prune base/comparison IDs if user REALLY changes page or filters
   useEffect(() => {
@@ -263,16 +268,18 @@ const LogsTable = ({
     const filtersChanged = prevFiltersRef.current !== logsFilters;
     const commonChanged = prevCommonFilterRef.current !== commonFilter;
     const sortingChanged = prevSortingRef.current !== sortingStr;
+    const groupingChanged = prevGroupingRef.current !== groupingStr;
 
-    if (pageChanged || filtersChanged || commonChanged || sortingChanged) {
+    if (pageChanged || filtersChanged || commonChanged || sortingChanged || groupingChanged) {
       // If base no longer valid, remove it
-      if (baseLog && !logs.some((l) => l.id === baseLog.id)) {
+      const flattenedLogs = maybeFlattenGroupedLogs(logs);
+      if (baseLog && !(flattenedLogs).some((l) => l.id === baseLog.id)) {
         updateItem(item, "selected")(selectedCells.slice(1).join(","));
       }
       // If compare logs not valid, prune them
       if (comparisonLogs) {
         const ids = comparisonLogs.map(cl => cl.id);
-        const validIds = ids.filter((id) => logs.some((l) => l.id === id));
+        const validIds = ids.filter((id) => flattenedLogs.some((l) => l.id === id));
         if (!validIds.length) {
           updateItem(item, "selected")(
             (selectedCells.at(0) ? [selectedCells.at(0) as string] : []).join(",")
@@ -289,12 +296,14 @@ const LogsTable = ({
     prevFiltersRef.current = logsFilters;
     prevCommonFilterRef.current = commonFilter;
     prevSortingRef.current = sortingStr;
+    prevGroupingRef.current = groupingStr;
   }, [
     logs,
     pageNumber,
     logsFilters,
     commonFilter,
     sortingStr,
+    groupingStr,
     selectedCells
   ]);
 
@@ -357,6 +366,7 @@ const LogsTable = ({
             filterExpression={filterExpression}
             sortingExpression={sortingExpression}
             hiddenColumns={item.hidden_columns}
+            groupingExpression={groupingExpression}
             updateItem={updateItem}
             setTableDataItem={setTableDataItem}
             logsActions={logsActions}
