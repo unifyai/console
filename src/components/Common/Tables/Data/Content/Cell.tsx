@@ -86,7 +86,7 @@ const DataTableCell = ({
   // - Applied background color on any index cell if all non aggregated, non placeholder, non grouped cells in the same row are selected
   const [hovered, setHovered] = useState(false);
   const isSelectableCell = (cell: Cell<any, unknown>) =>
-    !cell.getIsGrouped() && !cell.getIsAggregated() && !cell.getIsPlaceholder()
+    !cell.getIsGrouped() && !cell.getIsAggregated() && !cell.getIsPlaceholder() && cell.column.getIsVisible()
   const isAllRowSelected = (cell: Cell<any, unknown>) => 
     cell.getContext().row.getAllCells()
         .filter(c => isSelectableCell(c) && c.column.id != "RowNumbering")

@@ -186,8 +186,9 @@ export const useCellSelection = ({
     const selectedRow = table.getRow(selectedCell.split("_").at(0) as string);
     const selectedColumnIndex = selectedRow
       .getAllCells()
+      .filter(cell => cell.column.getIsVisible())
       .findIndex((c) => c.id === selectedCell);
-    const previousCell = selectedRow.getAllCells()[selectedColumnIndex - 1];
+    const previousCell = selectedRow.getAllCells().filter(cell => cell.column.getIsVisible())[selectedColumnIndex - 1];
     if (previousCell && isValidSelectionTarget(previousCell)) {
       const previousCellId = getCellSelectionData(previousCell)
       setSelectedCells([previousCellId]);
@@ -225,8 +226,9 @@ export const useCellSelection = ({
 
     const selectedColumnIndex = selectedRow
       .getAllCells()
+      .filter(cell => cell.column.getIsVisible())
       .findIndex((c) => c.id === selectedCell);
-    const nextCell = selectedRow.getAllCells()[selectedColumnIndex + 1];
+    const nextCell = selectedRow.getAllCells().filter(cell => cell.column.getIsVisible())[selectedColumnIndex + 1];
     if (nextCell && isValidSelectionTarget(nextCell)) {
       const nextCellId = getCellSelectionData(nextCell)
       setSelectedCells([nextCellId]);
@@ -308,7 +310,8 @@ export const useCellSelection = ({
   const isValidAdjacentTarget = (cell: Cell<any, any>) =>
     !cell.getIsPlaceholder() &&
     !cell.getIsAggregated() &&
-    !cell.getIsGrouped()
+    !cell.getIsGrouped() &&
+    cell.column.getIsVisible()
   const isValidSelectionTarget = (cell: Cell<any, any>) => isValidAdjacentTarget(cell) && cell.column.id != "RowNumbering";
 
   const isRowIndexCell = (cell: Cell<any, any>) => cell.column.id === "RowNumbering"
@@ -504,6 +507,7 @@ const getCellsBetween = (
 
   const columns = table
     .getAllLeafColumns()
+    .filter(column => column.getIsVisible())
     .slice(
       Math.min(cell1ColumnIndex, cell2ColumnIndex),
       Math.max(cell1ColumnIndex, cell2ColumnIndex) + 1,
