@@ -26,17 +26,23 @@ const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, conte
     const anyHidden = Object.values(columnVisibility).some(bool => !bool);
 
     const handleAllCheck = () => {
-        setLoading(true);
+        
         const state = anyHidden ? true : false;
         const newColumnVisibility = Object.fromEntries(
           Object.entries(columnVisibility).map(([key]) => [key, state])
         );
+
+        // Only trigger loading state when adding new columns
+        const oldVisibleColumns = Object.values(columnVisibility).filter(isVisible => isVisible)
+        const newVisibleColumns = Object.values(newColumnVisibility).filter(isVisible => isVisible)
+        if (newVisibleColumns.length > oldVisibleColumns.length) setLoading(true);
+
         setColumnVisibility(newColumnVisibility);
     };
 
     const handleSingleCheck = (column: string) => {
-        setLoading(true);
         const isVisible = !columnVisibility[column];
+        if (isVisible) setLoading(true);
         const newColumnVisibility = updateColumnVisibility(columnVisibility, column, isVisible);
         setColumnVisibility(newColumnVisibility);
     };

@@ -118,8 +118,14 @@ const LogsTable = ({
   const { baseLog, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, logs)
 
   // Column definitions
-  const entriesTree = buildTree(entriesProperties);
-  const paramsTree = buildTree(paramsProperties);
+  const [visibleEntriesProperties, setVisibleEntriesProperties] = useState(entriesProperties)
+  const [visibleParamsProperties, setVisibleParamsProperties] = useState(paramsProperties)
+  useEffect(() => {
+    setVisibleEntriesProperties(entriesProperties)
+    setVisibleParamsProperties(paramsProperties)
+  },[entriesProperties, paramsProperties])
+  const entriesTree = buildTree(visibleEntriesProperties);
+  const paramsTree = buildTree(visibleParamsProperties);
   const dataTypes = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type]))
   const fieldTypes = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].field_type]))
   const indicesTitle = "RowNumbering";
@@ -193,12 +199,18 @@ const LogsTable = ({
   const columnVisibility = hiddenColumns
     ? {
         ...allColumnsVisible,
-        ...Object.fromEntries(hiddenColumns.split(",").map((x) => [x, false])),
+        ...Object.fromEntries(hiddenColumns.split(",").map((x) => [fields[x].field_type === "param" ? `Parameters/${x}` : `Entries/${x}`, false])),
       }
     : allColumnsVisible;
 
   const setColumnVisibility = (v: { [key: string]: boolean }) => {
     const hidden = Object.keys(v).filter((k) => !v[k]).map(id => sanitizeId(id));
+
+    const newVisibleEntriesProperties = visibleEntriesProperties.filter(id => !hidden.includes(id))
+    const newVisibleParamsProperties = visibleParamsProperties.filter(id => !hidden.includes(id))
+    setVisibleEntriesProperties(newVisibleEntriesProperties)
+    setVisibleParamsProperties(newVisibleParamsProperties)
+
     updateItem(item, "hidden_columns")(hidden.length ? hidden.join(",") : undefined);
     updateInterface().then(() => {
       router.refresh();
