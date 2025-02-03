@@ -199,12 +199,21 @@ const LogsTable = ({
   const columnVisibility = hiddenColumns
     ? {
         ...allColumnsVisible,
-        ...Object.fromEntries(hiddenColumns.split(",").map((x) => [fields[x].field_type === "param" ? `Parameters/${x}` : `Entries/${x}`, false])),
+        ...Object.fromEntries(
+          hiddenColumns.length
+            ? hiddenColumns.split(",").map((x) => [
+              fields[x] 
+                ? fields[x].field_type === "param" ? `Parameters/${x}` : `Entries/${x}` 
+                : x,
+              false
+            ])
+            : []
+        ),
       }
     : allColumnsVisible;
 
   const setColumnVisibility = (v: { [key: string]: boolean }) => {
-    const hidden = Object.keys(v).filter((k) => !v[k]).map(id => sanitizeId(id));
+    const hidden = Object.keys(v).filter((k) => !v[k]).map(id => sanitizeId(id)).filter(v => !["Parameters", "Entries"].includes(v));
 
     const newVisibleEntriesProperties = visibleEntriesProperties.filter(id => !hidden.includes(id))
     const newVisibleParamsProperties = visibleParamsProperties.filter(id => !hidden.includes(id))

@@ -155,9 +155,9 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
         variant="outline"
         className="rounded-none rounded-tl-lg rounded-bl-lg h-8"
         icon={icon}
-        tooltip="Refresh logs"
+        tooltip={loading ? "Refreshing logs.." : item.auto_update === "true" ? "Auto refreshing logs.." : "Refresh logs"}
         onClick={() => onManualClick()}
-        disabled={loading}
+        disabled={loading || item.auto_update === "true"}
     />
 
     return (
