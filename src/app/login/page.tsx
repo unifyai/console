@@ -33,7 +33,7 @@ const Login = () => {
     const session = useSession();
 
     if (session.data) {
-        redirect("/evals");
+        redirect("/interfaces");
     }
 
     const searchParams = useSearchParams();
