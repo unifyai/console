@@ -38,6 +38,7 @@ const CardGrid = ({
     plotData,
     savedInterface,
     interfaceCreated,
+    tempInterfaceCreated_,
     interface_1,
     filterExpressions,
     sortingExpressions,
@@ -57,6 +58,7 @@ const CardGrid = ({
     plotData: PlotDataProps,
     savedInterface: Interface,
     interfaceCreated: boolean,
+    tempInterfaceCreated_: boolean,
     interface_1: string | null,
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
@@ -71,7 +73,7 @@ const CardGrid = ({
     const [context, setContext] = useState<string>();
     const [items, setItems] = useState<TileProps[]>([]);
     const [newCounter, setNewCounter] = useState(0);
-    const [tempInterfaceCreated, setTempInterfaceCreated] = useState(false);
+    const [tempInterfaceCreated, setTempInterfaceCreated] = useState(tempInterfaceCreated_);
 
     // modals
     const [saveDialog, setSaveDialog] = useState(false);

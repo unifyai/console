@@ -36,7 +36,8 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
     let interfacesTemp_: { [key: string]: Interface } = (
         (project ? await interfaceActions.get(project, true) : []) || []
     ).reduce((acc, curr) => ({...acc, [curr.name]: curr}), {});
-    let interfaceCreated = interface_ != undefined && interface_ in interfaces_;
+    const interfaceCreated = interface_ != undefined && interface_ in interfaces_;
+    const tempInterfaceCreated = interface_ != undefined && interface_ in interfacesTemp_;
     const interface_1 = Object.keys(interfacesTemp_).find(i => i == (interface_ || (
         project == cookiesProject ? cookiesInterface : undefined
     ))) || (
@@ -246,6 +247,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
         plotData={plotData}
         savedInterface={savedInterface}
         interfaceCreated={interfaceCreated}
+        tempInterfaceCreated_={tempInterfaceCreated}
         interface_1={interface_1}
         filterExpressions={filterExpressions}
         sortingExpressions={sortingExpressions}
