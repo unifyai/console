@@ -16,6 +16,7 @@ import TraceView from "./Views/TraceView";
 import NumberView from "./Views/NumberView";
 import TimestampView from "./Views/TimestampView";
 import ChatOutView from "./Views/ChatView/ChatOutView";
+import RawView from "./Views/RawView";
 
 import Tooltip from "@/components/Common/Misc/Tooltip";
 
@@ -95,13 +96,32 @@ function getSelectionView(
   comparisonLogsIndex: number[],
   diffMode: DiffMode,
   splitView: boolean,
+  rawMode: boolean
 ) {
+  if (rawMode) {
+    // Always show raw view if rawMode is enabled.
+    return (
+      <RawView
+        value={value}
+        comparables={comparables}
+        version={version}
+        comparableVersions={comparableVersions}
+        baseLogIndex={baseLogIndex}
+        comparisonLogsIndex={comparisonLogsIndex}
+        diffMode={diffMode}
+        splitView={splitView}
+      />
+    );
+  }
+
   const valueType = getValueType(value);
 
   switch (valueType) {
     case "trace": {
       const baseArr = Array.isArray(value) ? value : [value];
-      const compArrs = comparables.map((c) => Array.isArray(c) ? c : c ? [c] : []);
+      const compArrs = comparables.map((c) =>
+        Array.isArray(c) ? c : c ? [c] : []
+      );
       return (
         <TraceView
           value={baseArr}
@@ -207,7 +227,6 @@ function getSelectionView(
         />
       );
     default:
-      // fallback => string
       return (
         <StringView
           value={value}
@@ -236,6 +255,9 @@ type SelectionEntryProps = {
   comparisonLogsIndex: number[];
   diffMode: DiffMode;
   splitView: boolean;
+  rawMode: boolean;
+  version?: string;
+  comparableVersions?: string[];
 };
 
 const SelectionEntry: React.FC<SelectionEntryProps> = ({
@@ -247,7 +269,10 @@ const SelectionEntry: React.FC<SelectionEntryProps> = ({
   comparisonLogs,
   comparisonLogsIndex,
   diffMode,
-  splitView
+  splitView,
+  rawMode,
+  version = "",
+  comparableVersions = []
 }) => {
   // Gather comparables
   let comparables = (comparisonLogs ?? []).map((cl) => {
@@ -256,13 +281,9 @@ const SelectionEntry: React.FC<SelectionEntryProps> = ({
   });
 
   // Possibly read paramVersion structure
-  let version = "";
-  let comparableVersions: string[] = [];
   let rawValue = value;
 
   if (source === "params" && value && typeof value === "object") {
-    version = value.paramVersion;
-    comparableVersions = comparables.map((c) => c?.paramVersion ?? "");
     rawValue = value.paramValue;
     comparables = comparables.map((c) => c?.paramValue);
   }
@@ -278,7 +299,8 @@ const SelectionEntry: React.FC<SelectionEntryProps> = ({
     baseLogIndex,
     comparisonLogsIndex,
     diffMode,
-    splitView
+    splitView,
+    rawMode
   );
 
   return (

@@ -19,7 +19,24 @@ import {
   Columns,
   AlignJustify,
   SquareSplitHorizontal,
+  Code
 } from "lucide-react";
+
+// NEW IMPORTS for drag and drop functionality
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 /*******************************************************************************
  * (A) Basic type checks & helpers that were in the original Selection code
@@ -61,7 +78,7 @@ function defaultOpenFor(keys: string[], obj: Record<string, unknown>) {
   return keys.filter((k) => {
     const val = obj[k];
     const t = getValueType(val);
-    return ["string", "matrix", "image"].includes(t);
+    return ["string", "number", "matrix", "image"].includes(t);
   });
 }
 
@@ -141,7 +158,7 @@ function buildLogWithChosenColumns(
 ): LogProps {
   const chosenCols = indexToColumns[rowIndex] ?? new Set<string>();
 
-  // “entries”
+  // "entries"
   const safeEntries = originalLog.entries ?? {};
   const afterHiddenEntries = Array.from(chosenCols).filter(
     (c) => !hiddenColumns.includes(c)
@@ -160,7 +177,7 @@ function buildLogWithChosenColumns(
     }
   }
 
-  // “params”
+  // "params"
   const safeParams = originalLog.params ?? {};
   const afterHiddenParams = Array.from(chosenCols).filter(
     (c) => !hiddenColumns.includes(c)
@@ -247,8 +264,14 @@ export default function Selection({
 
   // 6) Let user cycle # of side-by-side panels. Each has independent state
   const [panelCount, setPanelCount] = useState(1);
+  const [rawMode, setRawMode] = useState(false);
+
   function handleCyclePanelCount() {
     setPanelCount((prev) => (prev === 3 ? 1 : prev + 1));
+  }
+
+  function toggleRawMode() {
+    setRawMode((prev) => !prev);
   }
 
   // If user hasn't selected anything, just show hints
@@ -268,13 +291,22 @@ export default function Selection({
         <p className="text-sm text-muted-foreground">
           Selected {selectedRowIndices.length} row(s)
         </p>
-        <ActionButton
-          tooltip={`Cycle panel count (currently: ${panelCount})`}
-          icon={<SquareSplitHorizontal className="h-4 w-4" />}
-          onClick={handleCyclePanelCount}
-          variant="ghost"
-          size="icon"
-        />
+        <div className="flex items-center gap-2">
+          <ActionButton
+            tooltip={rawMode ? "Viewing as raw text" : "Viewing with specialized components"}
+            icon={<Code className={`h-4 w-4 ${rawMode ? "bg-primary" : ""}`} />}
+            onClick={toggleRawMode}
+            variant={rawMode ? "primary" : "ghost"}
+            size="icon"
+          />
+          <ActionButton
+            tooltip={`Cycle panel count (currently: ${panelCount})`}
+            icon={<SquareSplitHorizontal className="h-4 w-4" />}
+            onClick={handleCyclePanelCount}
+            variant="ghost"
+            size="icon"
+          />
+        </div>
       </div>
 
       {/* Panels in a horizontal row, each scrollable independently */}
@@ -292,6 +324,7 @@ export default function Selection({
             baseIndex_={baseIndex_}
             item={item}
             updateItem={updateItem}
+            rawMode={rawMode}
           />
         ))}
       </div>
@@ -315,6 +348,7 @@ function SelectionPanel({
   baseIndex_,
   item,
   updateItem,
+  rawMode,
 }: {
   panelId: number;
   params: Record<string, unknown>;
@@ -324,8 +358,9 @@ function SelectionPanel({
   hiddenColumns: string[];
   columnOrdering: string[];
   baseIndex_: string | undefined;
-  item: TileProps,
-  updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void
+  item: TileProps;
+  updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
+  rawMode: boolean;
 }) {
   // 1) local state: pick a base row among the selected rowIndices
   let baseIndexParam = baseIndex_ ? parseInt(baseIndex_, 10) : 0;
@@ -423,6 +458,39 @@ function SelectionPanel({
     return defaultOpenFor(paramKeys, baseLog.params);
   }, [baseLog, paramKeys]);
 
+  // NEW: add drag-and-drop ordering state for entries and params
+  const [entryOrder, setEntryOrder] = useState<string[]>(entryKeys);
+  const [paramOrder, setParamOrder] = useState<string[]>(paramKeys);
+  useEffect(() => {
+    if (entryKeys.length !== entryOrder.length) {
+      setEntryOrder(entryKeys);
+    }
+    if (paramKeys.length !== paramOrder.length) {
+      setParamOrder(paramKeys);
+    }
+  }, [entryKeys, paramKeys]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  function handleEntryDragEnd(event: any) {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      setEntryOrder((items) =>
+        arrayMove(items, items.indexOf(active.id), items.indexOf(over.id))
+      );
+    }
+  }
+  function handleParamDragEnd(event: any) {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      setParamOrder((items) =>
+        arrayMove(items, items.indexOf(active.id), items.indexOf(over.id))
+      );
+    }
+  }
+
   // When baseLog first becomes available, set expansions
   useEffect(() => {
     if (baseLog && !didInit) {
@@ -467,32 +535,40 @@ function SelectionPanel({
               tooltip={everythingOpen ? "Collapse All" : "Expand All"}
               onClick={handleToggleAll}
               icon={
-                everythingOpen
-                  ? <FoldVertical className="h-4 w-4" />
-                  : <UnfoldVertical className="h-4 w-4" />
+                everythingOpen ? (
+                  <FoldVertical className="h-4 w-4" />
+                ) : (
+                  <UnfoldVertical className="h-4 w-4" />
+                )
               }
             />
           </div>
-          <Accordion
-            type="multiple"
-            value={openItems}
-            onValueChange={setOpenItems}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleEntryDragEnd}
           >
-            {entryKeys.map((col) => (
-              <SelectionEntry
-                key={col}
-                source="entries"
-                property={col}
-                value={baseLog.entries[col]}
-                baseLog={baseLog}
-                baseLogIndex={baseRowIndex + 1}
-                comparisonLogs={comparisonLogs}
-                comparisonLogsIndex={comparisonRowIndices.map(x => x + 1)}
-                diffMode={diffMode}
-                splitView={splitView}
-              />
-            ))}
-          </Accordion>
+            <SortableContext items={entryOrder} strategy={verticalListSortingStrategy}>
+              <Accordion type="multiple" value={openItems} onValueChange={setOpenItems}>
+                {entryOrder.map((col) => (
+                  <SortableAccordionItem key={col} id={col}>
+                    <SelectionEntry
+                      source="entries"
+                      property={col}
+                      value={baseLog.entries[col]}
+                      baseLog={baseLog}
+                      baseLogIndex={baseRowIndex + 1}
+                      comparisonLogs={comparisonLogs}
+                      comparisonLogsIndex={comparisonRowIndices.map((x) => x + 1)}
+                      diffMode={diffMode}
+                      splitView={splitView}
+                      rawMode={rawMode}
+                    />
+                  </SortableAccordionItem>
+                ))}
+              </Accordion>
+            </SortableContext>
+          </DndContext>
         </div>
       );
     }
@@ -509,32 +585,71 @@ function SelectionPanel({
               tooltip={everythingOpenParams ? "Collapse All" : "Expand All"}
               onClick={handleToggleAllParams}
               icon={
-                everythingOpenParams
-                  ? <FoldVertical className="h-4 w-4" />
-                  : <UnfoldVertical className="h-4 w-4" />
+                everythingOpenParams ? (
+                  <FoldVertical className="h-4 w-4" />
+                ) : (
+                  <UnfoldVertical className="h-4 w-4" />
+                )
               }
             />
           </div>
-          <Accordion
-            type="multiple"
-            value={openParamItems}
-            onValueChange={setOpenParamItems}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleParamDragEnd}
           >
-            {paramKeys.map((col) => (
-              <SelectionEntry
-                key={col}
-                source="params"
-                property={col}
-                value={baseLog.params[col]}
-                baseLog={baseLog}
-                baseLogIndex={baseRowIndex + 1}
-                comparisonLogs={comparisonLogs}
-                comparisonLogsIndex={comparisonRowIndices.map(x => x + 1)}
-                diffMode={diffMode}
-                splitView={splitView}
-              />
-            ))}
-          </Accordion>
+            <SortableContext items={paramOrder} strategy={verticalListSortingStrategy}>
+              <Accordion type="multiple" value={openParamItems} onValueChange={setOpenParamItems}>
+                {paramOrder.map((col) => {
+                  const baseParam = baseLog.params[col];
+                  const baseDisplayValue =
+                    baseParam &&
+                    typeof baseParam === "object" &&
+                    "paramValue" in baseParam &&
+                    "paramVersion" in baseParam
+                      ? baseParam.paramValue
+                      : baseParam;
+                  const baseVersion =
+                    baseParam &&
+                    typeof baseParam === "object" &&
+                    "paramValue" in baseParam &&
+                    "paramVersion" in baseParam
+                      ? baseParam.paramVersion
+                      : "";
+                  const compVersions = comparisonLogs.map((log) => {
+                    const param = log.params[col];
+                    if (
+                      param &&
+                      typeof param === "object" &&
+                      "paramValue" in param &&
+                      "paramVersion" in param
+                    ) {
+                      return param.paramVersion as string;
+                    }
+                    return "";
+                  });
+                  return (
+                    <SortableAccordionItem key={col} id={col}>
+                      <SelectionEntry
+                        source="params"
+                        property={col}
+                        value={baseDisplayValue}
+                        version={baseVersion}
+                        comparableVersions={compVersions}
+                        baseLog={baseLog}
+                        baseLogIndex={baseRowIndex + 1}
+                        comparisonLogs={comparisonLogs}
+                        comparisonLogsIndex={comparisonRowIndices.map((x) => x + 1)}
+                        diffMode={diffMode}
+                        splitView={splitView}
+                        rawMode={rawMode}
+                      />
+                    </SortableAccordionItem>
+                  );
+                })}
+              </Accordion>
+            </SortableContext>
+          </DndContext>
         </div>
       );
     }
@@ -600,6 +715,26 @@ function SelectionPanel({
       <div className="flex-1 overflow-y-auto px-5 min-h-0">
         {content}
       </div>
+    </div>
+  );
+}
+
+// NEW: SortableAccordionItem for drag-and-drop
+function SortableAccordionItem({
+  id,
+  children,
+}: {
+  id: string;
+  children: React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {children}
     </div>
   );
 }

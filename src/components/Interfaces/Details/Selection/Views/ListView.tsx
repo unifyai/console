@@ -266,13 +266,14 @@ const ListView: React.FC<ListViewProps> = ({
     labelKeys = Array.from({ length: maxLen }, (_, i) => `Item ${i}`);
   }
 
+
   const defaultOpen = useMemo(() => {
     const out: string[] = [];
     if (!multiMode) {
       if (Array.isArray(value)) {
         value.forEach((item, idx) => {
           const t = getValueType(item);
-          if (["string","matrix","image"].includes(t)) {
+          if (["string","number","matrix","image"].includes(t)) {
             out.push(`Item ${idx}`);
           }
         });
@@ -288,7 +289,7 @@ const ListView: React.FC<ListViewProps> = ({
           }
         }
         const t = getValueType(sample);
-        if (["string","matrix","image"].includes(t)) {
+        if (["string","number","matrix","image"].includes(t)) {
           out.push(`Item ${i}`);
         }
       }

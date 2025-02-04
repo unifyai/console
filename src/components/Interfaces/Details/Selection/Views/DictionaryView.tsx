@@ -274,11 +274,11 @@ const DictionaryView: React.FC<DictionaryViewProps> = ({
     return buildKeyToTypeMap(allKeys, value, comparables);
   }, [allKeys, value, comparables]);
 
-  // defaultOpen => for any property whose type is 'string','matrix','image'
+
   const defaultOpenKeys = useMemo(() => {
     return allKeys.filter((k) => {
       const t = keyTypeMap[k];
-      return ["string", "matrix", "image"].includes(t);
+      return ["string","number","matrix","image"].includes(t);
     });
   }, [allKeys, keyTypeMap]);
 
