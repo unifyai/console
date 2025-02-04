@@ -221,7 +221,7 @@ export function checkLogScalability (
     NB: Styling should use regular HTML notation (class instead of className, etc.)
         since the components are parsed through the .html method
 */
-export const hoverTooltip = (data: InfoCardData) => {
+export const tooltipTemplate = (data: InfoCardData) => {
     let template = `
     <p>${data.x.name}</p>
     <p class="font-bold">
@@ -254,6 +254,17 @@ export const keyTemplate = (keys: GroupingColors) => {
     </div>
     `).join("\n")}`)
 }
+
+/* Function to handle tooltip positioning dynamically. Ensuring it remains within the bounds of the plot */
+const positionTooltip = (event: any, svg: any, tooltip: any, width: number, height: number) => {
+    const [x, y] = d3.pointer(event, svg);
+    const leftPadding = x >= width * 0.8 ? -100 : x < width * 0.2 ? 100 : 0;
+    const topPadding = y < height * 0.2 ? 100 : 0;
+  
+    tooltip
+    .style("left", `${x - 50 + leftPadding}px`)
+    .style("top", `${y - 100 + topPadding}px`)
+};
 
 /* 
   Draw bar chart plot
@@ -337,38 +348,40 @@ export const drawBarChart = (
     drawAxes("Bar Chart", svg, dimensions, margins, x, y, [], yTicks, false);
 
     // Draw rectangles
-    g
-        .selectAll("rect.bar-item")
-        .data(data, (d) => `${(d as DataLabel)[0]}-${(d as DataLabel)[1]}`)
-        .join("rect") 
-        .on("mouseover", (event, data) => hoverOnBar(event, data))
-        .on("mousemove", (event, data) => moveOnBar(event, data))
-        .on("mouseout", (event, data) => leaveBar(event, data))
-        .transition()
-        .duration(500)
-        .attr("x", d => x((d as DataLabel)[0]) as number)
-        .attr("y", d => y((d as DataLabel)[1]) as number)
-        .attr("height", (d) => y(minY) - y((d as DataLabel)[1]))
+    const bars = g.selectAll<SVGRectElement, DataLabel>("rect.bar-item")
+        .data(data, (d: DataLabel) => `${d[0]}-${d[1]}`);
+    const enteringBars = bars.enter()
+        .append("rect")
+        .attr("class", "bar-item")
+        .attr("fill", primary)
+        .attr("x", d => x(d[0]) as number)
+        .attr("y", y(0))  // Start from base (y position of 0)
+        .attr("height", 0)  // Start with 0 height
         .attr("width", x.bandwidth())
         .attr("bar-id", d => `bar-${d[0]}-${d[1]}`)
-        .attr("fill", primary)
-        .attr("class", "bar-item");;
+        .on("mouseover", (event, d) => hoverOnBar(event, d))
+        .on("mousemove", (event, d) => moveOnBar(event, d))
+        .on("mouseout", (event, d) => leaveBar(event, d));
+    enteringBars.merge(bars as any)
+        .transition()
+        .duration(200)
+        .attr("x", d => x(d[0]) as number)
+        .attr("y", d => y(d[1]) as number)
+        .attr("height", d => y(0) - y(d[1]))
+        .attr("width", x.bandwidth());
+    bars.exit()
+        .transition()
+        .duration(200)
+        .attr("y", y(0))
+        .attr("height", 0)
+        .remove();
 
     // Add tooltip and hide key
     const tooltip = d3.select(".plotTooltip").style("opacity", 0)
     const key = d3.select(".groupingKey").style("opacity", 0)
 
     // When hovering on a bar. Update tooltip data and add striped contour around the bar
-    function moveOnBar(event: any, data: DataLabel) {
-        const [xPos, yPos] = d3.pointer(event, svg.node());
-        const leftPadding = xPos >= width * 0.8 ? -100 : xPos < width * 0.2 ? 100 : 0;
-        const topPadding = yPos < height * 0.2 ? 100 : 0;
-        tooltip
-          .style("left", `${xPos - 50 + leftPadding}px`)
-          .style("top", `${yPos - 100 + topPadding}px`);
-    }
     function hoverOnBar(event: any, data: DataLabel) {
-        const [xPos, yPos] = d3.pointer(event, svg.node());
         
         const hoverData = {
           "x": {
@@ -380,36 +393,28 @@ export const drawBarChart = (
             "value": data[1]
           }
         };
-      
-        const leftPadding = xPos >= width * 0.8 ? -100 : xPos < width * 0.2 ? 100 : 0;
-        const topPadding = yPos < height * 0.2 ? 100 : 0;
-        
-        tooltip
-          .html(hoverTooltip(hoverData))
-          .style("left", `${xPos - 50 + leftPadding}px`)
-          .style("top", `${yPos - 100 + topPadding}px`)
+              
+        tooltip.html(tooltipTemplate(hoverData)).transition().style("opacity", 1);
+        positionTooltip(event, svg, tooltip, width, height);
+
+        g.selectAll("rect.bar-item")
+          .filter((d: unknown) => (d as DataLabel)[0] !== data[0] || (d as DataLabel)[1] !== data[1])
           .transition()
-          .style("opacity", 1);
-      
-        // Keep existing bar highlight code
-        g.selectAll(`[bar-id="bar-${data[0]}-${data[1]}"]`)
-          .each(function() {
-            d3.select(this)
-              .style("stroke", foreground)
-              .style("stroke-width", "5px")
-              .style("stroke-dasharray", "5, 5");
-          });
+          .duration(200)
+          .style("opacity", 0.5);
+    }
+
+    function moveOnBar(event: any, data: DataLabel) {
+        positionTooltip(event, svg, tooltip, width, height);
     }
 
     // When leaving a bar, hide tooltip and remove striped contour
     function leaveBar (event: any, data: DataLabel) {
         tooltip.transition().style("opacity", 0)
-        g.selectAll(`[bar-id="bar-${data[0]}-${data[1]}"]`)
-            .each(function() {
-                d3.select(this)
-                .style("stroke", "none")
-                .style("stroke-dasharray", "none");
-            });
+        g.selectAll("rect.bar-item")
+        .transition()
+        .duration(200)
+        .style("opacity", 1);
 
     }
 
@@ -517,7 +522,7 @@ export const drawLineChart = (
     const key = d3.select(".groupingKey").style("opacity", 0)
     const tooltip = d3.select(".plotTooltip").style("opacity", 0)
 
-    // Plot lines.
+        // Plot lines.
     // If grouping, plot one line per group, each with their color, and attach the grouping key.
     // Else plot a single line
     const lineGenerator = d3.line().curve(d3.curveLinear).x(d => x(d[0])).y(d => y(d[1]));
@@ -564,7 +569,7 @@ export const drawLineChart = (
     function hoverOnLine (groupValue: string) {
         g.selectAll("path.line-item")
             .transition()
-            .duration(500)
+            .duration(200)
             .style("opacity", d => (d as GroupedDataPoint)[0] === groupValue ? 1 : 0.5);
         key.selectAll(".key")
             .each(function (d, i) {
@@ -572,15 +577,15 @@ export const drawLineChart = (
                 const opacity = id.toString() === groupValue ? 1 : 0.5
                 d3.select(this)
                 .transition()
-                .duration(500)
+                .duration(200)
                 .style("opacity", opacity)
             })
     }
 
     // When leaving a line, restore opacity of all line groups and their corresponding key
     function leaveLine () {
-        g.selectAll("path.line-item").transition().duration(500).style("opacity", 1)
-        key.selectAll(".key").transition().duration(500).style("opacity", 1)
+        g.selectAll("path.line-item").transition().duration(200).style("opacity", 1)
+        key.selectAll(".key").transition().duration(200).style("opacity", 1)
     }
 };
 
@@ -619,7 +624,12 @@ export const drawScatterPlot = (
     const yAxisProperty = selectedYAxisProperty && metrics.includes(selectedYAxisProperty) ? properties.at(0) : selectedYAxisProperty;            
 
     if (xAxisProperty && yAxisProperty) {
-        const filteredData = logs.filter((log) => log.entries[xAxisProperty as keyof LogItemProps] && log.entries[yAxisProperty as keyof LogItemProps]);
+        const filteredData = logs.filter((log) => {
+            const hasGroup = groupBy ? log.entries[groupBy] : true;
+            const hasX = log.entries[xAxisProperty];
+            const hasY = log.entries[yAxisProperty];
+            return hasGroup && hasX && hasY
+        })
         data = filteredData.map((log) => {
             let entries = log.entries;
             entries[yAxisProperty] = parseFloat(entries[yAxisProperty]);
@@ -648,20 +658,30 @@ export const drawScatterPlot = (
     // Add data points
     const points = g
         .selectAll("circle.data-point")
-        .data(data)
-        .join("circle")
+        .data(data, (d: unknown) => (d as LogProps).id); // Use proper key function
+    const enteringPoints = points
+        .enter()
+        .append("circle")
+        .attr("class", "data-point")
+        .attr("fill", primary)
+        .attr("stroke", primary)
+        .attr("cx", d => x(d.entries[xAxisProperty as keyof LogItemProps] as number))
+        .attr("cy", d => y(d.entries[yAxisProperty as keyof LogItemProps] as number))
+        .attr("r", 0) // Start with radius 0
         .on("mouseover", (event, data) => hoverOnPoint(event, data))
-        .on("mousemove", (event, data) => moveOnPoint(event, data))
-        .on("mouseout", (event, data) => leavePoint(event, data))
-        .raise()
+        .on("mouseout", (event, data) => leavePoint(event, data));
+    enteringPoints
+        .merge(points as any)
         .transition()
         .duration(500)
         .attr("cx", d => x(d.entries[xAxisProperty as keyof LogItemProps] as number))
         .attr("cy", d => y(d.entries[yAxisProperty as keyof LogItemProps] as number))
-        .attr("r", 3)
-        .attr("fill", primary)
-        .attr("stroke", primary)
-        .attr("class", "data-point");
+        .attr("r", 3);
+    points.exit()
+        .transition()
+        .duration(500)
+        .attr("r", 0) // Shrink to 0 radius
+        .remove();
 
     // Add hover areas
     g
@@ -724,20 +744,13 @@ export const drawScatterPlot = (
         }
         if (groupBy) hoverData["group"] = {"name": groupBy, value: logData.entries[groupBy]}
 
-        const [x, y] = d3.pointer(event, svg);
-        const leftPadding = x >= width * 0.8 ? -100 : x < width * 0.2 ? 100 : 0;
-        const topPadding = y < height * 0.2 ? 100 : 0;
-        tooltip
-            .html(hoverTooltip(hoverData))
-            .style("left", `${x - 50 + leftPadding}px`)
-            .style("top", `${y - 100 + topPadding}px`)
-            .transition()
-            .style("opacity", 1)
+        tooltip.html(tooltipTemplate(hoverData)).transition().style("opacity", 1)
+        positionTooltip(event, svg, tooltip, width, height);
 
         if (groupBy) {
             g.selectAll("circle.data-point")
                 .transition()
-                .duration(500)
+                .duration(200)
                 .attr("r", d => (d as LogProps).entries[groupBy] === data.entries[groupBy] ? 4 : 2)
                 .style("opacity", d => (d as LogProps).entries[groupBy] === data.entries[groupBy] ? 1 : 0.5);
             key.selectAll(".key")
@@ -746,21 +759,21 @@ export const drawScatterPlot = (
                     const opacity = id.toString() === data.entries[groupBy].toString() ? 1 : 0.5
                     d3.select(this)
                       .transition()
-                      .duration(500)
+                      .duration(200)
                       .style("opacity", opacity)
                 })
+        } else {
+            g.selectAll("circle.data-point")
+                .filter((d: unknown) => (d as LogProps).id !== data.id)
+                .transition()
+                .duration(200)
+                .style("opacity", 0.5);
         }
     
     }
 
-    // When moving on point. Update info card position
-    function moveOnPoint (event: any, data: LogProps) {
-        const [x, y] = d3.pointer(event);
-        const leftPadding = x >= width * 0.8 ? -100 : x < width * 0.2 ? 100 : 0;
-        const topPadding = y < height * 0.2 ? 100 : 0;
-        tooltip
-            .style("left", `${x - 50 + leftPadding}px`)
-            .style("top", `${y - 100 + topPadding}px`)
+    function moveOnPoint(event: any, data: LogProps) {
+        positionTooltip(event, svg, tooltip, width, height);
     }
 
     // When leaving a point. Reset info card data and reset point opacity if grouped
@@ -769,14 +782,19 @@ export const drawScatterPlot = (
         if (groupBy) {
             g.selectAll("circle.data-point")
                 .transition()
-                .duration(500)
+                .duration(200)
                 .attr("r", 3)
                 .style("opacity", 1)
             g.selectAll(".key")
                .transition()
-               .duration(500)
+               .duration(200)
                .style("opacity", 1)
-        }        
+        } else {
+            g.selectAll("circle.data-point")
+            .transition()
+            .duration(200)
+            .style("opacity", 1);
+        }  
     }
 
     // Add line of best fit
@@ -922,30 +940,40 @@ export const drawHistogram = (
     drawAxes("Histogram", svg, dimensions, margins, x, y, xTicks, yTicks, false, xType);
 
     // Add histogram
-    g
-        .selectAll("rect.hist-item")
-        .data(buckets, (d: any) => `${d.x0 as number}-${d.x1 as number}`)
-        .join("rect")
-        .on("mouseover", (event, d) => hoverOnHist(event, d))  
-        .on("mousemove", (event, d) => moveOnHist(event, d))   
-        .on("mouseout", (event, d) => leaveHist(event, d))     
+    const bars = g
+    .selectAll("rect.hist-item")
+    .data(buckets, (d: any) => `${d.x0}-${d.x1}`); // Use bin boundaries as key
+    const enteringBars = bars.enter()
+        .append("rect")
+        .attr("class", "hist-item")
+        .attr("fill", primary)
+        .attr("x", d => x(d.x0 as number))
+        .attr("width", d => Math.max(0, x(d.x1 as number) - x(d.x0 as number) - 1))
+        .attr("y", y(0)) // Start at base
+        .attr("height", 0) // Start with 0 height
+        .on("mouseover", (event, d) => hoverOnHist(event, d))
+        .on("mousemove", (event, d) => moveOnHist(event, d))
+        .on("mouseout", (event, d) => leaveHist(event, d));
+    enteringBars
+        .merge(bars as any)
         .transition()
         .duration(500)
         .attr("x", d => x(d.x0 as number))
-        .attr("y", d => y(d.length))
-        .attr("height", d => y(minY) - y(d.length))
         .attr("width", d => Math.max(0, x(d.x1 as number) - x(d.x0 as number) - 1))
-        .attr("fill", primary)
-        .attr("class", "hist-item");
+        .attr("y", d => y(d.length))
+        .attr("height", d => y(0) - y(d.length));
+    bars.exit()
+        .transition()
+        .duration(500)
+        .attr("y", y(0))
+        .attr("height", 0)
+        .remove();
 
     // Add tooltip
     const tooltip = d3.select(".plotTooltip").style("opacity", 0)
-    const tooltipPadding = 15;
-    const tooltipWidth = 200;
 
     // Add mouse event handlers
     function hoverOnHist(event: any, bin: d3.Bin<number, number>) {
-        const [xPos, yPos] = d3.pointer(event);
         
         const hoverData = {
           group: {
@@ -964,69 +992,42 @@ export const drawHistogram = (
           }
         };
   
-        // Calculate position relative to viewport
-        const svgNode = svg.node() as SVGSVGElement | null;
-        if (!svgNode) return;
-        const svgRect = svgNode.getBoundingClientRect();
-        const left = svgRect ? Math.min(xPos + svgRect.left - tooltipWidth/2, window.innerWidth - tooltipWidth - 10) : xPos - tooltipWidth/2;      
-        const top = svgRect ? yPos + svgRect.top - 100 : yPos - 100;
-            
-        // Show tooltip above other elements
-        tooltip
-          .html(hoverTooltip(hoverData))
-          .style("position", "fixed")
-          .style("left", `${left}px`)
-          .style("top", `${top}px`)
-          .style("pointer-events", "none")
-          .style("z-index", "1000")
-          .transition()
-          .style("opacity", 1);
-        d3.select(event.currentTarget)
-          .raise() // Bring bar to front
-          .style("stroke", foreground)
-          .style("stroke-width", "2px")
-          .style("stroke-linejoin", "round")
-          .style("paint-order", "stroke")
-          .style("vector-effect", "non-scaling-stroke");
-      }
-      
-      function moveOnHist(event: any, bin: d3.Bin<number, number>) {
-        const [xPos, yPos] = d3.pointer(event);
-        const tooltipWidth = 200;
-        
-        const svgNode = svg.node() as SVGSVGElement | null;
-        if (!svgNode) return;
+        tooltip.html(tooltipTemplate(hoverData)).transition().style("opacity", 1);
+        positionTooltip(event, svg, tooltip, width, height);
 
-        const svgRect = svgNode.getBoundingClientRect();  
-        const left = svgRect ? Math.min(xPos + svgRect.left - tooltipWidth/2, window.innerWidth - tooltipWidth - 10) : xPos - tooltipWidth/2;
-        const top = svgRect ? yPos + svgRect.top - 100 : yPos - 100;
-        tooltip
-          .style("left", `${left}px`)
-          .style("top", `${top}px`);
+        g.selectAll("rect.hist-item")
+         .filter((d: any) => d.x0 !== bin.x0 || d.x1 !== bin.x1)
+         .transition()
+         .duration(200)
+         .style("opacity", 0.5);
+      }
+
+      function moveOnHist(event: any, bin: d3.Bin<number, number>) {
+        positionTooltip(event, svg, tooltip, width, height);
       }
       
       function leaveHist(event: any, bin: d3.Bin<number, number>) {
         tooltip
           .transition()
           .style("opacity", 0);
-        d3.select(event.currentTarget)
-          .style("stroke", "none")
-          .style("paint-order", "normal");
+        g.selectAll("rect.hist-item")
+          .transition()
+          .duration(200)
+          .style("opacity", 1);
     }
 };
   
 /* 
     ToDo:
         Scatter:
-            - Better enter / exit / updating of point positions
             - Add zooming
         Line: 
-            - Better enter / exit / updating of lines
             - Add vertical scrolling
         Bar: 
-            - Better enter / exit / updating of bars
             - Add vertical scolling
         Historgram:
-            - Better enter / exit / updating of bars
-            - Change contour with higher contrast on hover
+            - Add vertical scolling
+        General:
+            - Fix inconsistent tooltip positioning
+            - Fix inconsistent plotting in fullscreen mode 
 */

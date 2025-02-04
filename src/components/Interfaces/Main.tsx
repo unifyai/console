@@ -168,8 +168,8 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
                     plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
                 else {
                     if (yAxis)
-                        subset += `%26${yAxis}`
-                    if (group) subset += `%26${group}`
+                        subset += `&${yAxis}`
+                    if (group) subset += `&${group}`
                     plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
                 }
             }

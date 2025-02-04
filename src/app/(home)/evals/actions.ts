@@ -76,7 +76,7 @@ export const getLogs = async (apiKey: string) => {
             + (context ? `&context=${context}` : "")
             + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
             + (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : "")
-            + (from_fields ? `&from_fields=${from_fields}` : "")
+            + (from_fields ? `&from_fields=${encodeURIComponent(from_fields)}` : "")
             + (exclude_fields ? `&exclude_fields=${encodeURIComponent(exclude_fields)}` : "")
             + (limit ? `&limit=${limit}` : "")
             + (offset ? `&offset=${offset}` : ""),
@@ -138,7 +138,7 @@ export const getLatestTimestamp = async (apiKey: string) => {
             + (context ? `&context=${context}` : "")
             + (filterExpression ? `&filter_expr=${filterExpression}` : "")
             + (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : "")
-            + (from_fields ? `&from_fields=${from_fields}` : "")
+            + (from_fields ? `&from_fields=${encodeURIComponent(from_fields)}` : "")
             + (exclude_fields ? `&exclude_fields=${encodeURIComponent(exclude_fields)}` : "")
             + (limit ? `&limit=${limit}` : "")
             + (offset ? `&offset=${offset}` : ""),

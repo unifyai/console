@@ -237,6 +237,7 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                 <>
                     <div className="absolute top-12 right-3 z-10 PlotReset">
                         <PlotReset
+                            svgRef={svgRef}
                             setSelectedXAxisProperty={updateItem(item, "x_axis")}
                             setSelectedYAxisProperty={updateItem(item, "y_axis")}
                             setGroupByProperty={updateItem(item, "plot_group_by")}
@@ -262,6 +263,7 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                                     fields={fields}
                                     groupBy={groupByProperty}
                                     setGroupBy={updateItem(item, "plot_group_by")}
+                                    logs={logs}
                                 />
                             </div>
                     }
@@ -301,7 +303,21 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                 <g className="yAxis" />
             </svg>
             <div
-                style={{ opacity: 0, left: 50, top: 50 }} // Set initial opacity and positioning
+                style={{
+                    position: "fixed",
+                    minWidth: "160px",
+                    maxWidth: "300px",
+                    pointerEvents: "none",
+                    background: "var(--background)",
+                    border: "1px solid var(--foreground)",
+                    padding: "8px",
+                    borderRadius: "4px",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    transition: "opacity 0.2s",
+                    fontSize: "14px",
+                    opacity: 0,
+                    zIndex: 1000
+                }}
                 className="plotTooltip absolute py-4 px-6 z-10 shadow-md rounded-lg bg-white grid grid-cols-2 gap-2 overflow-hidden max-w-[500px] max-h-[300px]"
             />
             <div
