@@ -23,8 +23,8 @@ const SliderWithValue = ({label, ticks, value, setValue, max, min}: {
     else setValue(value)
   }
   return (
-    <div className="flex flex-col gap-2 p-2 pb-3">
-        <div className="flex items-center gap-5 justify-between">            
+    <div className="flex flex-col gap-2 p-2 pb-4">
+        <div className="flex items-center gap-10 justify-between">            
             <Label>{label}</Label>
             <Input 
               min={minimum}
@@ -35,7 +35,23 @@ const SliderWithValue = ({label, ticks, value, setValue, max, min}: {
               className="h-8 max-w-[80px]"
             />
         </div>
-        <Slider value={[value]} max={maximum} min={minimum} aria-label="Slider with ticks" onValueChange={(v) => setValue(v[0])} />
+        <div className="flex flex-col grow w-full px-2">
+            <span
+                className="mb-2 flex w-full items-center justify-between gap-2 text-xs font-medium text-muted-foreground"
+                aria-hidden="true"
+            >
+                <span>{minimum}</span>
+                <span>{maximum}</span>
+            </span>
+            <Slider
+                className="w-full"
+                value={[value]}
+                onValueChange={(value) => setValue(value[0])}
+                min={minimum}
+                max={maximum}
+                aria-label="Slider with input"
+            />
+        </div>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import * as d3 from "d3";
 
 import PlotType from "./Buttons/PlotType";
 import PlotScale from "./Buttons/PlotScale";
+import PlotRegression from "./Buttons/PlotRegression";
 import PlotGroupBy from "./Buttons/PlotGroupBy";
 import PlotReset from "./Buttons/PlotReset";
 import PlotBins from "./Buttons/PlotBins";
@@ -36,6 +37,7 @@ const LogsPlot = ({ logs, fields}: {
     let [isAggregated, setIsAggregated] = useQueryState("aggregated_data")
     let [binCount, setBinCount] = useQueryState("bin_count", parseAsFloat.withDefault(1))
     let [binCounts, setBinCounts] = useState([1])
+    const [showRegression, setShowRegression] = useState("false");
     plotType = plotType ? plotType : "Scatter Plot";
     scale = scale ? scale : "linear";
 
@@ -156,6 +158,7 @@ const LogsPlot = ({ logs, fields}: {
                     selectedXAxisProperty, 
                     selectedYAxisProperty, 
                     groupByProperty || undefined,
+                    showRegression,
                     logs, 
                     fields
                 );
@@ -179,7 +182,8 @@ const LogsPlot = ({ logs, fields}: {
         plotType,
         groupByProperty,
         isAggregated,
-        binCount
+        binCount,
+        showRegression
     ]);
 
     return (
@@ -226,6 +230,14 @@ const LogsPlot = ({ logs, fields}: {
             {plotType != "Histogram" &&
                 <div className="absolute top-36 right-3 z-10 PlotScale">
                     <PlotScale scale={scale} setScale={setScale} logScaleEnabled={logScaleEnabled}/>
+                </div>
+            }
+            {plotType === "Scatter Plot" && 
+                <div className="absolute top-48 right-3 z-10 PlotRegressioncale">
+                    <PlotRegression 
+                        showRegression={showRegression} 
+                        setShowRegression={setShowRegression}
+                    />
                 </div>
             }
         </>

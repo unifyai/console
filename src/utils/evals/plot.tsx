@@ -152,7 +152,7 @@ export const drawBorders = (
 /* 
   Calculate tick spacing for x and y axes
 */
-export const calculateTicks = (length: number, scale: string, minY: number, maxY: number, minX: number = 0, maxX: number = 0) => {
+export const calculateTicks = (length: number, scale: string, minY: number, maxY: number, minX: number = 0, maxX: number = 0, forceIntegerYTicks: boolean = false) => {
     let xTicks = [];
     let yTicks = [];
     const numTicks = length >= 2 ? Math.min(30, length) : 3;
@@ -174,11 +174,24 @@ export const calculateTicks = (length: number, scale: string, minY: number, maxY
             const xTick = minX + i * xTickSpacing;
             xTicks.push(xTick);
         }
-        const yTickSpacing = (maxY - minY) / (numTicks - 1);
-        for (let i = 0; i < numTicks; i++) {
-            const yTick = minY + i * yTickSpacing;
-            yTicks.push(yTick);
+
+        if (forceIntegerYTicks) {
+            const step = Math.ceil(maxY / (numTicks - 1)) || 1;
+            yTicks = [];
+            for (let current = 0; current <= maxY; current += step) {
+                yTicks.push(current);
+            }
+            if (yTicks[yTicks.length - 1] < maxY) {
+                yTicks.push(maxY);
+            }
+        } else {
+            const yTickSpacing = (maxY - minY) / (numTicks - 1);
+            for (let i = 0; i < numTicks; i++) {
+                const yTick = minY + i * yTickSpacing;
+                yTicks.push(yTick);
+            }    
         }
+
     }
     return {xTicks, yTicks};
 };
@@ -261,8 +274,11 @@ export const drawBarChart = (
     // Remove drawings from other plots:
     const g = svg.select(".plotData")
     g.selectAll("circle.data-point").remove();
+    g.selectAll("circle.hover-area").remove();
     g.selectAll("path.line-item").remove();
     g.selectAll("rect.hist-item").remove();
+    g.selectAll("text.correlation").remove();
+    g.selectAll("path.best-fit").remove();
 
     // Prepare data
     let data : DataLabel[] = [];
@@ -326,6 +342,7 @@ export const drawBarChart = (
         .data(data, (d) => `${(d as DataLabel)[0]}-${(d as DataLabel)[1]}`)
         .join("rect") 
         .on("mouseover", (event, data) => hoverOnBar(event, data))
+        .on("mousemove", (event, data) => moveOnBar(event, data))
         .on("mouseout", (event, data) => leaveBar(event, data))
         .transition()
         .duration(500)
@@ -342,35 +359,47 @@ export const drawBarChart = (
     const key = d3.select(".groupingKey").style("opacity", 0)
 
     // When hovering on a bar. Update tooltip data and add striped contour around the bar
-    function hoverOnBar (event: any, data: DataLabel) {
+    function moveOnBar(event: any, data: DataLabel) {
+        const [xPos, yPos] = d3.pointer(event, svg.node());
+        const leftPadding = xPos >= width * 0.8 ? -100 : xPos < width * 0.2 ? 100 : 0;
+        const topPadding = yPos < height * 0.2 ? 100 : 0;
+        tooltip
+          .style("left", `${xPos - 50 + leftPadding}px`)
+          .style("top", `${yPos - 100 + topPadding}px`);
+    }
+    function hoverOnBar(event: any, data: DataLabel) {
+        const [xPos, yPos] = d3.pointer(event, svg.node());
         
         const hoverData = {
-            "x" : {
-                "name": selectedXAxisProperty as string,
-                "value": data[0]
-            },
-            "y" : {
-                "name": selectedYAxisProperty as string, 
-                "value": data[1]
-            }
-        }
-        const position = { x: x(data[0]) as number, y: y(data[1]) as number }
-        const leftPadding = position.x >= width * 0.8 ? -100 : position.x < width * 0.2 ? 100 : 0;
-        const topPadding = position.y < height * 0.2 ? 100 : 0;
+          "x": {
+            "name": selectedXAxisProperty as string,
+            "value": data[0]
+          },
+          "y": {
+            "name": selectedYAxisProperty as string, 
+            "value": data[1]
+          }
+        };
+      
+        const leftPadding = xPos >= width * 0.8 ? -100 : xPos < width * 0.2 ? 100 : 0;
+        const topPadding = yPos < height * 0.2 ? 100 : 0;
+        
         tooltip
-            .html(hoverTooltip(hoverData))
-            .style("left", `${position.x - 50 + leftPadding}px`)
-            .style("top", `${position.y - 100 + topPadding}px`)
-            .transition()
-            .style("opacity", 1)
+          .html(hoverTooltip(hoverData))
+          .style("left", `${xPos - 50 + leftPadding}px`)
+          .style("top", `${yPos - 100 + topPadding}px`)
+          .transition()
+          .style("opacity", 1);
+      
+        // Keep existing bar highlight code
         g.selectAll(`[bar-id="bar-${data[0]}-${data[1]}"]`)
-            .each(function() {
-                d3.select(this)
-                    .style("stroke", foreground)
-                    .style("stroke-width", "5px")
-                    .style("stroke-dasharray", "5, 5");
-            });
-        }
+          .each(function() {
+            d3.select(this)
+              .style("stroke", foreground)
+              .style("stroke-width", "5px")
+              .style("stroke-dasharray", "5, 5");
+          });
+    }
 
     // When leaving a bar, hide tooltip and remove striped contour
     function leaveBar (event: any, data: DataLabel) {
@@ -406,8 +435,11 @@ export const drawLineChart = (
     // Remove drawings from previous plots
     const g = svg.select(".plotData")
     g.selectAll("circle.data-point").remove();
+    g.selectAll("circle.hover-area").remove();
     g.selectAll("rect.bar-item").remove();
     g.selectAll("rect.hist-item").remove();
+    g.selectAll("text.correlation").remove();
+    g.selectAll("path.best-fit").remove();
 
     // Prepare data:
     // 1- Auto set y axis property to the first property if changing plots from bar chart to line chart 
@@ -564,6 +596,7 @@ export const drawScatterPlot = (
   selectedXAxisProperty: string | undefined,
   selectedYAxisProperty: string | undefined,
   groupBy: string | undefined,
+  showRegression: string,
   logs: LogProps[],
   fields: LogFieldsResponseProps
 ) => {
@@ -573,6 +606,8 @@ export const drawScatterPlot = (
     g.selectAll("path.line-item").remove();
     g.selectAll("rect.bar-item").remove();
     g.selectAll("rect.hist-item").remove();
+    g.selectAll("text.correlation").remove();
+    if (showRegression != "true") g.selectAll("path.best-fit").remove()
 
     // Prepare data
     let data : LogProps[] = [];
@@ -618,6 +653,7 @@ export const drawScatterPlot = (
         .on("mouseover", (event, data) => hoverOnPoint(event, data))
         .on("mousemove", (event, data) => moveOnPoint(event, data))
         .on("mouseout", (event, data) => leavePoint(event, data))
+        .raise()
         .transition()
         .duration(500)
         .attr("cx", d => x(d.entries[xAxisProperty as keyof LogItemProps] as number))
@@ -626,6 +662,22 @@ export const drawScatterPlot = (
         .attr("fill", primary)
         .attr("stroke", primary)
         .attr("class", "data-point");
+
+    // Add hover areas
+    g
+        .selectAll("circle.hover-area")
+        .data(data)
+        .join("circle")
+        .on("mouseover", (event, data) => hoverOnPoint(event, data))
+        .on("mousemove", (event, data) => moveOnPoint(event, data))
+        .on("mouseout", (event, data) => leavePoint(event, data))
+        .attr("cx", d => x(d.entries[xAxisProperty!] as number))
+        .attr("cy", d => y(d.entries[yAxisProperty!] as number))
+        .attr("r", 10)
+        .attr("fill", "transparent")
+        .attr("stroke", "none")
+        .style("pointer-events", "all")
+        .attr("class", "hover-area");
 
     // Add tooltip and grouping key
     const tooltip = d3.select(".plotTooltip").style("opacity", 0)
@@ -727,11 +779,83 @@ export const drawScatterPlot = (
         }        
     }
 
+    // Add line of best fit
+    const calculateRegression = (data: DataPoint[]) => {
+        const n = data.length;
+        const xValues = data.map(d => d[0]);
+        const yValues = data.map(d => d[1]);
+        
+        const xMean = d3.mean(xValues) || 0;
+        const yMean = d3.mean(yValues) || 0;
+        
+        const numerator = d3.sum(xValues.map((x, i) => (x - xMean) * (yValues[i] - yMean)));
+        const denominator = d3.sum(xValues.map(x => (x - xMean) ** 2));
+        
+        const m = numerator / denominator;
+        const b = yMean - m * xMean;
+        
+        const r = numerator / (Math.sqrt(denominator) * Math.sqrt(d3.sum(yValues.map(y => (y - yMean) ** 2))));
+        
+        return { m, b, r };
+    };
+
+    if (data.length > 1 && showRegression === "true") {
+        
+        // Draw line
+        const allPoints = data.map(d => [d.entries[xAxisProperty as string], d.entries[yAxisProperty as string]]) as DataPoint[];
+        const regression = calculateRegression(allPoints);
+        const line = d3.line<[number, number]>().x(d => x(d[0])).y(d => y(d[1]));
+        g
+            .selectAll("path.best-fit")
+            .data([regression])
+            .join("path")
+            .attr("d", d => {
+                const xMin = x.domain()[0];
+                const xMax = x.domain()[1];
+                return line([
+                  [xMin, d.m * xMin + d.b],
+                  [xMax, d.m * xMax + d.b]
+                ]);
+            })
+            .attr("stroke", primary)
+            .attr("stroke-width", 2)
+            .attr("fill", "none")
+            .attr("class", "best-fit");
+
+        // Get SVG coordinates of line endpoints
+        const lineStart = [minX, regression.m * minX + regression.b];
+        const lineEnd = [maxX, regression.m * maxX + regression.b];
+        const [xStartPx, yStartPx] = [x(lineStart[0]), y(lineStart[1])];
+        const [xEndPx, yEndPx] = [x(lineEnd[0]), y(lineEnd[1])];
+
+        // Calculate angle in degrees
+        const dx = xEndPx - xStartPx;
+        const dy = yEndPx - yStartPx;
+        const angleRad = Math.atan2(dy, dx);
+        const angleDeg = angleRad * 180 / Math.PI;
+
+        // Position at line tip
+        const textOffset = -60;
+        const textX = xEndPx + (dx / Math.hypot(dx, dy)) * textOffset;
+        const textY = yEndPx + (dy / Math.hypot(dx, dy)) * textOffset - 20;
+        g
+            .selectAll("text.correlation")
+            .data([0])
+            .join("text")
+            .attr("x", textX)
+            .attr("y", textY)
+            .attr("transform", `rotate(${angleDeg},${textX},${textY})`)
+            .attr("text-anchor", dx < 0 ? "end" : "start")
+            .attr("dominant-baseline", "middle")
+            .attr("fill", primary)
+            .text(`r = ${regression.r.toFixed(2)}`)
+            .attr("class", "correlation");
+    }
 };
 
 
 /* 
-  Draw scatter plot
+  Draw histogram
 */
 export const drawHistogram = (
     svg: d3.Selection<null, unknown, null, undefined>,
@@ -749,8 +873,11 @@ export const drawHistogram = (
     // Remove drawings from previous plots
     const g = svg.select(".plotData")
     g.selectAll("circle.data-point").remove();
+    g.selectAll("circle.hover-area").remove();
     g.selectAll("path.line-item").remove();
     g.selectAll("rect.bar-item").remove();
+    g.selectAll("text.correlation").remove();
+    g.selectAll("path.best-fit").remove();
 
     // Prepare data
     let data : number[] = [];
@@ -791,7 +918,7 @@ export const drawHistogram = (
     const y = yScale().domain([minY, maxY]).range(yRange)
 
     // Draw axes
-    const {xTicks, yTicks} = calculateTicks(data.length, scale, minY, maxY, minX, maxX);
+    const {xTicks, yTicks} = calculateTicks(data.length, scale, minY, maxY, minX, maxX, true);
     drawAxes("Histogram", svg, dimensions, margins, x, y, xTicks, yTicks, false, xType);
 
     // Add histogram
@@ -799,6 +926,9 @@ export const drawHistogram = (
         .selectAll("rect.hist-item")
         .data(buckets, (d: any) => `${d.x0 as number}-${d.x1 as number}`)
         .join("rect")
+        .on("mouseover", (event, d) => hoverOnHist(event, d))  
+        .on("mousemove", (event, d) => moveOnHist(event, d))   
+        .on("mouseout", (event, d) => leaveHist(event, d))     
         .transition()
         .duration(500)
         .attr("x", d => x(d.x0 as number))
@@ -807,6 +937,82 @@ export const drawHistogram = (
         .attr("width", d => Math.max(0, x(d.x1 as number) - x(d.x0 as number) - 1))
         .attr("fill", primary)
         .attr("class", "hist-item");
+
+    // Add tooltip
+    const tooltip = d3.select(".plotTooltip").style("opacity", 0)
+    const tooltipPadding = 15;
+    const tooltipWidth = 200;
+
+    // Add mouse event handlers
+    function hoverOnHist(event: any, bin: d3.Bin<number, number>) {
+        const [xPos, yPos] = d3.pointer(event);
+        
+        const hoverData = {
+          group: {
+            name: "Data Range",
+            value: `Min: ${formatNumber(minX)}, Max: ${formatNumber(maxX)}`
+          },
+          x: {
+            name: "Bar Range",
+            value: xType === "timestamp" 
+              ? `${new Date(bin.x0!).toLocaleString()} - ${new Date(bin.x1!).toLocaleString()}`
+              : `${formatNumber(bin.x0!)} - ${formatNumber(bin.x1!)}`
+          },
+          y: {
+            name: "Bar Count",
+            value: bin.length
+          }
+        };
+  
+        // Calculate position relative to viewport
+        const svgNode = svg.node() as SVGSVGElement | null;
+        if (!svgNode) return;
+        const svgRect = svgNode.getBoundingClientRect();
+        const left = svgRect ? Math.min(xPos + svgRect.left - tooltipWidth/2, window.innerWidth - tooltipWidth - 10) : xPos - tooltipWidth/2;      
+        const top = svgRect ? yPos + svgRect.top - 100 : yPos - 100;
+            
+        // Show tooltip above other elements
+        tooltip
+          .html(hoverTooltip(hoverData))
+          .style("position", "fixed")
+          .style("left", `${left}px`)
+          .style("top", `${top}px`)
+          .style("pointer-events", "none")
+          .style("z-index", "1000")
+          .transition()
+          .style("opacity", 1);
+        d3.select(event.currentTarget)
+          .raise() // Bring bar to front
+          .style("stroke", foreground)
+          .style("stroke-width", "2px")
+          .style("stroke-linejoin", "round")
+          .style("paint-order", "stroke")
+          .style("vector-effect", "non-scaling-stroke");
+      }
+      
+      function moveOnHist(event: any, bin: d3.Bin<number, number>) {
+        const [xPos, yPos] = d3.pointer(event);
+        const tooltipWidth = 200;
+        
+        const svgNode = svg.node() as SVGSVGElement | null;
+        if (!svgNode) return;
+
+        const svgRect = svgNode.getBoundingClientRect();  
+        const left = svgRect ? Math.min(xPos + svgRect.left - tooltipWidth/2, window.innerWidth - tooltipWidth - 10) : xPos - tooltipWidth/2;
+        const top = svgRect ? yPos + svgRect.top - 100 : yPos - 100;
+        tooltip
+          .style("left", `${left}px`)
+          .style("top", `${top}px`);
+      }
+      
+      function leaveHist(event: any, bin: d3.Bin<number, number>) {
+        tooltip
+          .transition()
+          .style("opacity", 0);
+        d3.select(event.currentTarget)
+          .style("stroke", "none")
+          .style("paint-order", "normal");
+    }
 };
   
 /* 
@@ -822,4 +1028,5 @@ export const drawHistogram = (
             - Add vertical scolling
         Historgram:
             - Better enter / exit / updating of bars
+            - Change contour with higher contrast on hover
 */
