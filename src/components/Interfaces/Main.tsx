@@ -1,7 +1,7 @@
 import CardGrid from "@/components/Interfaces/CardGrid";
 import { TableArguments, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
-import { ContextActions, FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
+import { Context, ContextActions, FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { redirect } from "next/navigation";
@@ -24,6 +24,11 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
     const projects: string[] = await projectsActions.get();
     const project = projects.find(proj => proj == (project_ || cookiesProject)) || null;
 
+    // Get contexts
+    let contexts: Context[] = [];
+    if (project)
+        contexts = await contextActions.get(project);
+
     // Get interface
     let interfaces_: { [key: string]: Interface } = (
         (project ? await interfaceActions.get(project, false) : []) || []
@@ -38,9 +43,16 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
         Object.keys(interfacesTemp_).length ? Object.keys(interfacesTemp_).sort()[0] : null
     );
     let currentInterface = (interface_1 && interface_1 in interfacesTemp_) ? interfacesTemp_[interface_1] : null;
+    if (currentInterface) {
+        currentInterface = {
+            ...currentInterface,
+            items: currentInterface?.items.map(item => ({...item, context: currentInterface?.context || item.context }))
+        }
+    }
     let savedInterface = interfaceCreated ? interfaces_[interface_1 as string] : {
         name: interface_1 as string,
         project: project,
+        context: undefined,
         items: [],
         new_counter: 0
     } as Interface;
@@ -225,6 +237,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
     return <CardGrid
         project_={project}
         projects={projects}
+        contexts={contexts}
         interfaces_={Object.keys(interfacesTemp_).sort()}
         tableNames={tableNames}
         tableData={tableData}

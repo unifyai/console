@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Card from "./Card";
 import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import { FileProps, ResponseProps } from "@/types/common";
-import { ContextActions, Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
+import { Context, ContextActions, Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
 import { Check, Clipboard, Copy, Eye, EyeOff, Grip, ListRestart, Loader2, Maximize2, Plus, RefreshCw, Save, Trash, TriangleAlert, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
@@ -29,6 +29,7 @@ const ResponsiveReactGridLayout = WidthProvider(Responsive);
 const CardGrid = ({
     project_,
     projects,
+    contexts,
     interfaces_,
     tableNames,
     tableData,
@@ -47,6 +48,7 @@ const CardGrid = ({
 }: {
     project_: string | null,
     projects: string[] | undefined,
+    contexts: Context[],
     interfaces_: string[],
     tableNames: string[]
     tableData: TableDataProps,
@@ -66,6 +68,7 @@ const CardGrid = ({
     const router = useRouter();
 
     // layout structure
+    const [context, setContext] = useState<string>();
     const [items, setItems] = useState<TileProps[]>([]);
     const [newCounter, setNewCounter] = useState(0);
     const [tempInterfaceCreated, setTempInterfaceCreated] = useState(false);
@@ -117,13 +120,14 @@ const CardGrid = ({
     const updateInterface = (
         savedInterface: Interface | null = null,
     ) => {
+        const context_1 = savedInterface != null ? savedInterface?.context : context;
         const items_1 = savedInterface?.items || items;
         const newCounter_1 = savedInterface?.new_counter || newCounter;
         if (interface_ && project && interface_ == interface_1 && project == project_ && !pending) {
             if (tempInterfaceCreated)
-                return interfaceActions.update(interface_, project, items_1, newCounter_1, undefined, true);
+                return interfaceActions.update(interface_, project, context_1, items_1, newCounter_1, undefined, true);
             else
-                return interfaceActions.create(interface_, project, items_1, newCounter_1, true);
+                return interfaceActions.create(interface_, project, context_1, items_1, newCounter_1, true);
         }
         return Promise.reject();
     }
@@ -150,6 +154,7 @@ const CardGrid = ({
     const getLatestInterface = () => {
         interfaceActions.get(project as string, true).then((ints: Interface[]) => {
             const currentInterface = ints.find(i => i.name == interface_);
+            setContext(currentInterface?.context);
             setItems(currentInterface?.items || []);
             setNewCounter(currentInterface?.new_counter || 0);
             setTempInterfaceCreated(Boolean(currentInterface));
@@ -285,10 +290,10 @@ const CardGrid = ({
                                     onKeyDown={(e) => {
                                         if (e.key === "Enter" && int_ != interface_2) {
                                             interfaceActions.update(
-                                                int_, project, items, newCounter, interface_2, true
+                                                int_, project, context, items, newCounter, interface_2, true
                                             ).then(() => {
                                                 interfaceActions.update(
-                                                    int_, project, items, newCounter, interface_2, false
+                                                    int_, project, context, items, newCounter, interface_2, false
                                                 ).then(() => {
                                                     setPending(true);
                                                     setInterface(interface_2);
@@ -310,10 +315,10 @@ const CardGrid = ({
                             onClick={() => {
                                 const newInterfaceName = `interface_${uuidv4().slice(0, 2)}`;
                                 interfaceActions.create(
-                                    newInterfaceName, project, [], 0, true
+                                    newInterfaceName, project, context, [], 0, true
                                 ).then(() => {
                                     interfaceActions.create(
-                                        newInterfaceName, project, [], 0, false
+                                        newInterfaceName, project, context, [], 0, false
                                     ).then(() => {
                                         setInterfaces([...interfaces, newInterfaceName]);
                                         setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
@@ -341,6 +346,35 @@ const CardGrid = ({
                 </div>}
 
                 <div className="flex gap-2 items-center px-4">
+                    <BaseDropdown
+                        button={<ActionButton
+                            tooltip="Select Table"
+                            text={context || "Select Context"}
+                            variant="outline"
+                            size="sm"
+                        />}
+                    >
+                        {[...contexts, { name: "None", description: "" }].map((context, idx) => <DropdownMenuItem
+                            key={idx}
+                            onSelect={() => {
+                                const newContext = context.name == "None" ? undefined : context.name;
+                                updateInterface({
+                                    name: interface_ as string,
+                                    project: project_ as string,
+                                    context: newContext,
+                                    items,
+                                    new_counter: newCounter
+                                }).then(() => {
+                                    setContext(newContext);
+                                    setDataPending(true);
+                                    router.refresh();
+                                });
+                            }}
+                            className="w-64 no-drag"
+                        >
+                            {context.name}
+                        </DropdownMenuItem>)}
+                    </BaseDropdown>
                     <ActionButton
                         className="transition-all"
                         tooltip={!project ? "Select a project first" : "Save Interface"}
@@ -628,9 +662,9 @@ const CardGrid = ({
                                 if (saveSuccess == undefined) {
                                     let response: ResponseProps | undefined = undefined;
                                     if (interfaceCreated)
-                                        response = await interfaceActions.update(interface_ as string, project as string, items, newCounter, undefined, false);
+                                        response = await interfaceActions.update(interface_ as string, project as string, context, items, newCounter, undefined, false);
                                     else
-                                        response = await interfaceActions.create(interface_ as string, project as string, items, newCounter, false);
+                                        response = await interfaceActions.create(interface_ as string, project as string, context, items, newCounter, false);
                                     if (response && "info" in response)
                                         setSaveSuccess(true);
                                     else

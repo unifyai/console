@@ -18,6 +18,7 @@ import {
     deleteInterface,
     createDerivedEntry,
     createContext,
+    getContexts,
 } from "../evals/actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -52,6 +53,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
     }
 
     const contextActions = {
+        get: await getContexts(apiKey),
         create: await createContext(apiKey),
     }
 

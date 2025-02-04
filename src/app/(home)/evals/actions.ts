@@ -189,7 +189,7 @@ export const createDerivedEntry = async (apiKey: string) => {
 
 // create interface
 export const createInterface = async (apiKey: string) => {
-    return async (name: string, project: string, items: TileProps[], new_counter: number, temporary: boolean = false) => {
+    return async (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, temporary: boolean = false) => {
         "use server";
 
         const response = await fetch(
@@ -197,7 +197,7 @@ export const createInterface = async (apiKey: string) => {
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ name, project, items, new_counter, temporary })
+                body: JSON.stringify({ name, project, context: context || null, items, new_counter, temporary })
             }
         );
         return await response.json();
@@ -221,10 +221,10 @@ export const getInterface = async (apiKey: string) => {
 
 // update interface
 export const updateInterface = async (apiKey: string) => {
-    return async (name: string, project: string, items: TileProps[], new_counter: number, new_name: string | undefined = undefined, temporary: boolean = false) => {
+    return async (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, new_name: string | undefined = undefined, temporary: boolean = false) => {
         "use server";
 
-        const body = { name, project, items, new_counter, temporary };
+        const body = { name, project, context: context || null, items, new_counter, temporary };
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/interface`,
             {
@@ -245,6 +245,22 @@ export const deleteInterface = async (apiKey: string) => {
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/interface?name=${name}&project=${project}&temporary=${temporary}`,
             { method: "DELETE", headers: { apiKey: apiKey } },
+        );
+        return await response.json();
+    };
+};
+
+// get contexts
+export const getContexts = async (apiKey: string) => {
+    return async (project: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/context/${project}`,
+            {
+                method: "GET",
+                headers: { apiKey: apiKey },
+            }
         );
         return await response.json();
     };

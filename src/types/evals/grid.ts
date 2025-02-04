@@ -63,7 +63,7 @@ export interface PlotDataProps {
     }
 }
 
-export type ItemType = 
+export type ItemType =
     | "tab"
     | "bin_count"
     | "plot_type"
@@ -92,6 +92,19 @@ export type ItemType =
     | "table_type";
 
 
+export interface Context {
+    name: string,
+    description: string
+}
+
+export interface Interface {
+    name: string,
+    project: string,
+    context: string | undefined,
+    items: TileProps[],
+    new_counter: number,
+}
+
 export interface ProjectsActions {
     get: () => Promise<string[]>,
     create: (name: string) => Promise<ResponseProps>,
@@ -106,7 +119,7 @@ export interface LogsActions {
         project: string, filterExpression: string | null, metricName: string, keyName: string
     ) => Promise<number>,
     delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
-    derive: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>
+    derive: (project: string, key: string, equation: string, referenced_logs: { [table_name: string]: getLogsParameters }) => Promise<ResponseProps>
 }
 
 export interface FieldsActions {
@@ -114,19 +127,13 @@ export interface FieldsActions {
 }
 
 export interface ContextActions {
-    create: (name: string, project: string) => Promise<LogFieldsResponseProps>,
+    get: (project: string) => Promise<Context[]>,
+    create: (name: string, project: string) => Promise<ResponseProps>,
 }
 
 export interface InterfaceActions {
     get: (project: string, temporary: boolean) => Promise<Interface[]>,
-    create: (name: string, project: string, items: TileProps[], new_counter: number, temporary: boolean) => Promise<ResponseProps>,
-    update: (name: string, project: string, items: TileProps[], new_counter: number, new_name: string | undefined, temporary: boolean) => Promise<ResponseProps>,
+    create: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, temporary: boolean) => Promise<ResponseProps>,
+    update: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, new_name: string | undefined, temporary: boolean) => Promise<ResponseProps>,
     delete: (name: string, project: string, temporary: boolean) => Promise<ResponseProps>
-}
-
-export interface Interface {
-    name: string,
-    project: string,
-    items: TileProps[],
-    new_counter: number,
 }
