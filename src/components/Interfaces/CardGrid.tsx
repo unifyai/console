@@ -208,7 +208,6 @@ const CardGrid = ({
     const saveIcon = saveSuccess ? <Check /> : saveSuccess == false ? <TriangleAlert /> : <Save />;
     const resetIcon = resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
     const variant = saveSuccess == false ? "destructive" : "outline";
-    const disabled = JSON.stringify({ items: savedInterface?.items }) == JSON.stringify({ items });
 
     return (<div className="w-full h-full overflow-auto" ref={gridRef}>
         <Tabs value={interface_ || undefined} onValueChange={(value: string | undefined) => {
@@ -380,7 +379,7 @@ const CardGrid = ({
                         tooltip={!project ? "Select a project first" : "Save Interface"}
                         icon={saveIcon}
                         variant={variant}
-                        disabled={disabled || anyTilePending || !project || !interface_ || pending}
+                        disabled={anyTilePending || !project || !interface_ || pending}
                         onClick={async () => setSaveDialog(true)}
                     />
                     <ActionButton
@@ -388,7 +387,7 @@ const CardGrid = ({
                         tooltip={!project ? "Select a project first" : "Return to last saved interface"}
                         icon={resetIcon}
                         variant="outline"
-                        disabled={disabled || anyTilePending || !project || pending}
+                        disabled={anyTilePending || !project || !interface_ || pending}
                         onClick={async () => updateInterface(savedInterface).then(() => {
                             setResetting(true);
                             setMode("edit");
@@ -674,7 +673,7 @@ const CardGrid = ({
                                 }
                             }}
                             text="Save"
-                            tooltip="Save"
+                            tooltip=""
                             variant="primary"
                         />
                     </div>
