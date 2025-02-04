@@ -111,7 +111,7 @@ export default function DataTable<TData, TValue>({ className, interactive, data,
 
     return (<div className="flex flex-col gap-2">
         {TableTop && TableTop}
-        <div className="h-fit w-full">
+        <div className="flex h-fit w-full">
         <DndContext
             collisionDetection={closestCenter}
             modifiers={[restrictToHorizontalAxis]}
