@@ -6,7 +6,7 @@ import { LoaderCircle } from "lucide-react";
 import { LogProps, LogFieldsResponseProps } from "@/types/evals/logs";
 import AutoComplete from "@/components/Common/Misc/AutoComplete";
 
-const PlotAxis = ({interactive, fields, tableNames, axisProperty, setAxisProperty, axis, plotType, logs}: {
+const PlotAxis = ({ interactive, fields, tableNames, axisProperty, setAxisProperty, axis, plotType, logs }: {
     interactive: boolean
     fields: LogFieldsResponseProps,
     tableNames: string[],
@@ -21,7 +21,7 @@ const PlotAxis = ({interactive, fields, tableNames, axisProperty, setAxisPropert
     const [loading, setLoading] = useState(false);
     useEffect(() => {
         setLoading(false);
-    },[logs])
+    }, [logs])
 
     let properties;
     if (plotType === "Bar Chart") {
@@ -40,33 +40,33 @@ const PlotAxis = ({interactive, fields, tableNames, axisProperty, setAxisPropert
             .filter(([name, { data_type, field_type }]) => field_type != "param" && (data_type === "float" || data_type === "int"))
             .map(([name]) => name);
     }
-    const choices = 
-        axis === "X" 
-          ? plotType === "Line Chart" 
-            ? ["Log Time"].concat(properties) 
-            : properties
-          : plotType === "Bar Chart"
-            ? metrics
-            : properties ;
+    const choices =
+        axis === "X"
+            ? plotType === "Line Chart"
+                ? ["Log Time"].concat(properties)
+                : properties
+            : plotType === "Bar Chart"
+                ? metrics
+                : properties;
     const allChoices = (
         tableNames.length > 0
-        ? tableNames.map(tableName => choices.map(choice => `${tableName}.${choice}`)).flat()
-        : choices
+            ? tableNames.map(tableName => choices.map(choice => `${tableName}.${choice}`)).flat()
+            : choices
     );
     const onSelect = (property: string) => {
         setAxisProperty(property)
         setLoading(true)
     }
     return (
-        (interactive && !loading) ? <AutoComplete 
+        (interactive && !loading) ? <AutoComplete
             type={`${axis}-axis`}
-            items={allChoices.map((choice) => ({label: choice.slice(0, 15) + (choice.length > 15 ? "..." : ""), value: choice}))}
+            items={allChoices.map((choice) => ({ label: choice, value: choice }))}
             defaultValue={axisProperty}
             onSelect={(currentValue: string) => onSelect(currentValue)}
             className="h-7 mx-1 text-xs w-[150px] shadow-none"
         /> : <div className="flex items-center justify-between h-7 mx-1 px-3 text-xs font-medium w-[150px] rounded-md truncate ... border border-1 shadow-none">
             {axisProperty ? axisProperty.slice(0, loading ? 15 : 18) + (axisProperty.length > (loading ? 15 : 18) ? "..." : "") : `${axis}-axis`}
-            {loading && <LoaderCircle size={16} className="animate-spin text-primary"/>}
+            {loading && <LoaderCircle size={16} className="animate-spin text-primary" />}
         </div>
     );
 }
