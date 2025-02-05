@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { LogProps } from "@/types/evals/logs";
 import SelectionHints from "./Hints";
 import SelectionEntry from "./SelectionEntry";
@@ -12,13 +12,17 @@ import {
   FoldVertical,
   UnfoldVertical,
   EyeOff,
+  Eye,
   FileText,
   CaseLower,
   Pilcrow,
   Columns,
   AlignJustify,
   SquareSplitHorizontal,
-  Code
+  Code,
+  SquareSlash,
+  Type,
+  RemoveFormatting,
 } from "lucide-react";
 
 import {
@@ -60,19 +64,19 @@ function isNumber(val: any) {
   return typeof val === "number";
 }
 function getValueType(value: any) {
-  if (isTrace(value))   return "trace";
-  if (isDict(value))    return "dict";
-  if (isList(value))    return "list";
-  if (isImage(value))   return "image";
-  if (isMatrix(value))  return "matrix";
-  if (isNumber(value))  return "number";
+  if (isTrace(value)) return "trace";
+  if (isDict(value)) return "dict";
+  if (isList(value)) return "list";
+  if (isImage(value)) return "image";
+  if (isMatrix(value)) return "matrix";
+  if (isNumber(value)) return "number";
   return "string";
 }
 function defaultOpenFor(keys: string[], obj: Record<string, unknown>) {
   const result = keys.filter((k) => {
     const val = obj[k];
     const t = getValueType(val);
-    return ["string","number","matrix","image"].includes(t);
+    return ["string", "number", "matrix", "image"].includes(t);
   });
   return result;
 }
@@ -212,7 +216,14 @@ function buildLogWithChosenColumns(
 *     - each panel is rendered with <SelectionPanel> for independent state
 ******************************************************************************/
 export default function Selection({
-  params, logs, selection_, baseIndex_, columnOrdering_, hiddenColumns_, item, utils
+  params,
+  logs,
+  selection_,
+  baseIndex_,
+  columnOrdering_,
+  hiddenColumns_,
+  item,
+  utils,
 }: {
   params: Record<string, unknown>,
   logs: LogProps[],
@@ -245,21 +256,19 @@ export default function Selection({
     [selectedCells, sortedLogs]
   );
 
-  // 5) Possibly read column order, hidden columns
+  // 5) Possibly read column order
   const columnOrdering = columnOrdering_?.split(",") || [];
-  const hiddenColumns = hiddenColumns_?.split(",") || [];
 
-  // 6) Let user cycle # of side-by-side panels. Each has independent state
+  // 6) Possibly read hidden columns. -------------------------------------------
+  // ADD: local “showHidden” toggle so user can override hidden columns in the selection
+  const [showHidden, setShowHidden] = useState(false);
+  const hiddenColumns = showHidden
+    ? []
+    : hiddenColumns_?.split(",") || [];
+
+  // 7) Let user cycle # of side-by-side panels. Each has independent state
   const [panelCount, setPanelCount] = useState(1);
   const [rawMode, setRawMode] = useState(false);
-
-  function handleCyclePanelCount() {
-    setPanelCount((prev) => (prev === 3 ? 1 : prev + 1));
-  }
-
-  function toggleRawMode() {
-    setRawMode((prev) => !prev);
-  }
 
   // If user hasn't selected anything, just show hints
   if (!selectedRowIndices.length) {
@@ -270,10 +279,9 @@ export default function Selection({
     );
   }
 
-  // Return multiple panels side-by-side
   return (
     <div className="flex flex-col w-full h-full overflow-hidden bg-background rounded-md">
-      {/* A top bar just for toggling panelCount and raw mode */}
+      {/* A top bar just for toggling panelCount, raw mode, etc. */}
       <div className="p-2 border-b border-muted flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           Selected {selectedRowIndices.length} row(s)
@@ -281,17 +289,29 @@ export default function Selection({
         <div className="flex items-center gap-2">
           <ActionButton
             tooltip={rawMode ? "Viewing as raw text" : "Viewing with specialized components"}
-            icon={<Code className={`h-4 w-4 ${rawMode ? "bg-primary" : ""}`} />}
-            onClick={toggleRawMode}
+            icon={rawMode ? <RemoveFormatting className="h-4 w-4" /> : <Type className="h-4 w-4" />}
+            onClick={() => setRawMode((prev) => !prev)}
             variant={rawMode ? "primary" : "ghost"}
             size="icon"
           />
           <ActionButton
             tooltip={`Cycle panel count (currently: ${panelCount})`}
             icon={<SquareSplitHorizontal className="h-4 w-4" />}
-            onClick={handleCyclePanelCount}
+            onClick={() => setPanelCount((prev) => (prev === 3 ? 1 : prev + 1))}
             variant="ghost"
             size="icon"
+          />
+
+          {/* NEW: Toggle button for showing/hiding hidden columns */}
+          <ActionButton
+            tooltip={
+              showHidden
+                ? "Currently showing hidden columns (click to revert)"
+                : "Currently respecting hidden columns (click to show all)"
+            }
+            icon={showHidden ? <Eye /> : <EyeOff />}
+            variant="ghost"
+            onClick={() => setShowHidden((prev) => !prev)}
           />
         </div>
       </div>
@@ -346,7 +366,7 @@ function SelectionPanel({
   utils: {
     getCardById: (tileId: string) => TileProps;
     updateCardById: (tileId: string, partial: Partial<TileProps>) => void;
-  }
+  };
 }) {
 
   // 1) local state: pick a base row among the selected rowIndices
@@ -367,7 +387,7 @@ function SelectionPanel({
   type DiffMode = "none" | "lines" | "words" | "characters";
   const allModes: DiffMode[] = ["none", "lines", "words", "characters"];
   const modeIcons = [
-    <EyeOff key="none" />,
+    <SquareSlash key="none" />,
     <FileText key="lines" />,
     <CaseLower key="words" />,
     <Pilcrow key="characters" />,
@@ -408,7 +428,7 @@ function SelectionPanel({
     params,
     indexToColumns,
     columnOrdering,
-    hiddenColumns
+    hiddenColumns,
   ]);
 
   const comparisonLogs = useMemo(
@@ -502,7 +522,7 @@ function SelectionPanel({
               size="icon"
               tooltip={everythingOpen ? "Collapse All" : "Expand All"}
               onClick={handleToggleAll}
-              icon={everythingOpen ? <FoldVertical/> : <UnfoldVertical/>}
+              icon={everythingOpen ? <FoldVertical /> : <UnfoldVertical />}
             />
           </div>
           <DndContext
@@ -512,7 +532,7 @@ function SelectionPanel({
           >
             <SortableContext items={entryOrder} strategy={verticalListSortingStrategy}>
               <Accordion type="multiple" value={openItems} onValueChange={setOpenItems}>
-                {entryOrder.map(col => (
+                {entryOrder.map((col) => (
                   <SortableAccordionItem key={col} id={col}>
                     <SelectionEntry
                       source="entries"
@@ -521,7 +541,7 @@ function SelectionPanel({
                       baseLog={baseLog}
                       baseLogIndex={baseRowIndex + 1}
                       comparisonLogs={comparisonLogs}
-                      comparisonLogsIndex={comparisonRowIndices.map(x => x + 1)}
+                      comparisonLogsIndex={comparisonRowIndices.map((x) => x + 1)}
                       diffMode={diffMode}
                       splitView={splitView}
                       rawMode={rawMode}
@@ -548,7 +568,7 @@ function SelectionPanel({
               size="icon"
               tooltip={everythingOpenParams ? "Collapse All" : "Expand All"}
               onClick={handleToggleAllParams}
-              icon={everythingOpenParams ? <FoldVertical/> : <UnfoldVertical/>}
+              icon={everythingOpenParams ? <FoldVertical /> : <UnfoldVertical />}
             />
           </div>
           <DndContext
@@ -558,7 +578,7 @@ function SelectionPanel({
           >
             <SortableContext items={paramOrder} strategy={verticalListSortingStrategy}>
               <Accordion type="multiple" value={openParamItems} onValueChange={setOpenParamItems}>
-                {paramOrder.map(col => {
+                {paramOrder.map((col) => {
                   const baseParam = baseLog.params[col];
                   const baseDisplayValue =
                     baseParam &&
@@ -598,7 +618,7 @@ function SelectionPanel({
                         baseLog={baseLog}
                         baseLogIndex={baseRowIndex + 1}
                         comparisonLogs={comparisonLogs}
-                        comparisonLogsIndex={comparisonRowIndices.map(x => x + 1)}
+                        comparisonLogsIndex={comparisonRowIndices.map((x) => x + 1)}
                         diffMode={diffMode}
                         splitView={splitView}
                         rawMode={rawMode}
