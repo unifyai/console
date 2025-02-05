@@ -202,7 +202,7 @@ const Card = ({
                     entriesProperties: tableData[item.i]?.entriesProperties || [],
                     paramsProperties: tableData[item.i]?.paramsProperties || [],
                     metrics: tableData[item.i]?.metrics || {},
-                    logsData: tableData[item.i]?.logsData || { params: {}, logs: [], count: 0, grouped_entries: {} },
+                    logsData: tableData[item.i]?.logsData || { params: {}, logs: [], count: 0, groups: {} },
                     totalPages: tableData[item.i]?.totalPages || 0,
                     boundaries: tableData[item.i]?.boundaries || { minimus: {}, maximums: {} }
                 }}

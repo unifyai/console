@@ -13,9 +13,9 @@ export interface LogProps {
     type: string,  // "ungrouped" or "grouped"
     id: string,
     ts: string,
+    params: LogItemProps,
     entries: LogItemProps,
     derived_entries: LogItemProps,
-    params: LogItemProps,
     clipped_fields: LogItemProps,
 }
 
@@ -61,7 +61,7 @@ export interface LogsResponseProps {
     params: LogItemProps,
     logs: LogProps[] | GroupedLogPropsRaw,
     count: number,
-    grouped_entries: LogItemProps,
+    groups: LogItemProps,
 }
 
 export type LogFieldsProps = [number, string][]
