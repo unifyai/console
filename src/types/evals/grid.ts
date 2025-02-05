@@ -35,6 +35,7 @@ export interface TileProps {
     y_axis?: string;
     plot_group_by?: string;
     bin_count?: string;
+    regression_line?: string;
 }
 
 export interface TableDataItem {
@@ -66,6 +67,7 @@ export interface PlotDataProps {
 export type ItemType =
     | "tab"
     | "bin_count"
+    | "regression_line"
     | "plot_type"
     | "plot_scale"
     | "is_aggregated"

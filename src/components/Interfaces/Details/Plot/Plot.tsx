@@ -5,6 +5,7 @@ import * as d3 from "d3";
 
 import PlotType from "./Buttons/PlotType";
 import PlotScale from "./Buttons/PlotScale";
+import PlotRegression from "./Buttons/PlotRegression";
 import PlotGroupBy from "./Buttons/PlotGroupBy";
 import PlotReset from "./Buttons/PlotReset";
 import PlotBins from "./Buttons/PlotBins";
@@ -24,11 +25,13 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
     item: TileProps,
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void
 }) => {
+    console.log("logs", logs)
+    console.log("fields", fields)
     // Initialize refs and container dimensions
     let svgRef = useRef(null);
     let containerRef = useRef(null);
     const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
-    const margins = { top: 30, right: 100, bottom: 75, left: 60 } // Margin on the sides
+    const margins = { top: 35, right: 100, bottom: 65, left: 60 } // Margin on the sides
     const axisPadding = 20; // Extra padding between axes borders and plot borders
     const placeholderTextRef = useRef(null);
 
@@ -39,6 +42,7 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
     let isAggregated = item.is_aggregated;
     let binCount = item.bin_count ? parseFloat(item.bin_count) : 1;
     let [binCounts, setBinCounts] = useState([1])
+    let showRegression = item.regression_line === "true" ? "true" : "false";
     plotType = plotType ? plotType : "Scatter Plot";
     scale = scale ? scale : "linear";
 
@@ -159,6 +163,7 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                     selectedXAxisProperty,
                     selectedYAxisProperty,
                     groupByProperty,
+                    showRegression,
                     logs,
                     fields
                 );
@@ -182,7 +187,8 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
         plotType,
         groupByProperty,
         isAggregated,
-        binCount
+        binCount,
+        showRegression
     ]);
 
     return (
@@ -201,7 +207,7 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                 />
             </div>
             {plotType != "Histogram" && 
-                <div className="absolute top-0.5 left-1 z-10">
+                <div className="absolute top-0 left-1 z-10">
                     <PlotAxis
                         interactive={interactive}
                         fields={fields}
@@ -213,7 +219,7 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                     />
                 </div>            
             }
-            <div className="absolute top-0.5 right-1 z-10">
+            <div className="absolute top-0 right-1 z-10">
                 <PlotType
                     interactive={interactive}
                     plotType={plotType}
@@ -231,6 +237,7 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                 <>
                     <div className="absolute top-12 right-3 z-10 PlotReset">
                         <PlotReset
+                            svgRef={svgRef}
                             setSelectedXAxisProperty={updateItem(item, "x_axis")}
                             setSelectedYAxisProperty={updateItem(item, "y_axis")}
                             setGroupByProperty={updateItem(item, "plot_group_by")}
@@ -256,6 +263,7 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                                     fields={fields}
                                     groupBy={groupByProperty}
                                     setGroupBy={updateItem(item, "plot_group_by")}
+                                    logs={logs}
                                 />
                             </div>
                     }
@@ -265,6 +273,14 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                                 scale={scale} 
                                 setScale={updateItem(item, "plot_scale")}
                                 logScaleEnabled={logScaleEnabled}
+                            />
+                        </div>
+                    }
+                    {plotType === "Scatter Plot" && 
+                        <div className="absolute top-48 right-3 z-10 PlotRegressioncale">
+                            <PlotRegression 
+                                showRegression={showRegression} 
+                                setShowRegression={updateItem(item, "regression_line")}
                             />
                         </div>
                     }
@@ -287,7 +303,21 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                 <g className="yAxis" />
             </svg>
             <div
-                style={{ opacity: 0, left: 50, top: 50 }} // Set initial opacity and positioning
+                style={{
+                    position: "fixed",
+                    minWidth: "160px",
+                    maxWidth: "300px",
+                    pointerEvents: "none",
+                    background: "var(--background)",
+                    border: "1px solid var(--foreground)",
+                    padding: "8px",
+                    borderRadius: "4px",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    transition: "opacity 0.2s",
+                    fontSize: "14px",
+                    opacity: 0,
+                    zIndex: 1000
+                }}
                 className="plotTooltip absolute py-4 px-6 z-10 shadow-md rounded-lg bg-white grid grid-cols-2 gap-2 overflow-hidden max-w-[500px] max-h-[300px]"
             />
             <div

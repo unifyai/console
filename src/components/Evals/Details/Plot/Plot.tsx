@@ -5,6 +5,7 @@ import * as d3 from "d3";
 
 import PlotType from "./Buttons/PlotType";
 import PlotScale from "./Buttons/PlotScale";
+import PlotRegression from "./Buttons/PlotRegression";
 import PlotGroupBy from "./Buttons/PlotGroupBy";
 import PlotReset from "./Buttons/PlotReset";
 import PlotBins from "./Buttons/PlotBins";
@@ -36,6 +37,7 @@ const LogsPlot = ({ logs, fields}: {
     let [isAggregated, setIsAggregated] = useQueryState("aggregated_data")
     let [binCount, setBinCount] = useQueryState("bin_count", parseAsFloat.withDefault(1))
     let [binCounts, setBinCounts] = useState([1])
+    const [showRegression, setShowRegression] = useState("false");
     plotType = plotType ? plotType : "Scatter Plot";
     scale = scale ? scale : "linear";
 
@@ -156,6 +158,7 @@ const LogsPlot = ({ logs, fields}: {
                     selectedXAxisProperty, 
                     selectedYAxisProperty, 
                     groupByProperty || undefined,
+                    showRegression,
                     logs, 
                     fields
                 );
@@ -179,7 +182,8 @@ const LogsPlot = ({ logs, fields}: {
         plotType,
         groupByProperty,
         isAggregated,
-        binCount
+        binCount,
+        showRegression
     ]);
 
     return (
@@ -228,6 +232,14 @@ const LogsPlot = ({ logs, fields}: {
                     <PlotScale scale={scale} setScale={setScale} logScaleEnabled={logScaleEnabled}/>
                 </div>
             }
+            {plotType === "Scatter Plot" && 
+                <div className="absolute top-48 right-3 z-10 PlotRegressioncale">
+                    <PlotRegression 
+                        showRegression={showRegression} 
+                        setShowRegression={setShowRegression}
+                    />
+                </div>
+            }
         </>
         }
 
@@ -247,7 +259,20 @@ const LogsPlot = ({ logs, fields}: {
             <g className="yAxis"/>
         </svg>
         <div
-            style={{opacity: 0, left: 50, top: 50}} // Set initial opacity and positioning
+            style={{
+                position: "fixed",
+                minWidth: "160px",
+                pointerEvents: "none",
+                background: "var(--background)",
+                border: "1px solid var(--foreground)",
+                padding: "8px",
+                borderRadius: "4px",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                transition: "opacity 0.2s",
+                fontSize: "14px",
+                opacity: 0,
+                zIndex: 1000
+            }}
             className="plotTooltip absolute py-4 px-6 z-10 shadow-md rounded-lg bg-white grid grid-cols-2 gap-2 overflow-hidden max-w-[500px] max-h-[300px]"
         />
         <div

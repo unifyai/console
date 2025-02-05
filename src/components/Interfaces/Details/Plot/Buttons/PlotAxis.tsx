@@ -58,7 +58,7 @@ const PlotAxis = ({interactive, fields, axisProperty, setAxisProperty, axis, plo
             button={
                 <ActionButton 
                     tooltip="Select property" 
-                    icon={loading ? <LoaderCircle className="animate-spin text-green"/> : <ChevronDown/>}
+                    icon={loading ? <LoaderCircle className="animate-spin text-primary"/> : <ChevronDown/>}
                     text={axisProperty ? axisProperty : `${axis}-axis`} 
                     disabled={!interactive || loading}
                 />
