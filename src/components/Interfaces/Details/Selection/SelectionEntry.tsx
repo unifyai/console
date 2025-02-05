@@ -23,17 +23,24 @@ import { X } from "lucide-react";
 
 import RawView from "./Views/RawView";
 import { isTrace, isDict, isList, isImage, isMatrix, isNumber, isTimestamp, isChat } from "@/utils/evals/selection";
-import { Waypoints, CurlyBraces, Brackets, ImageIcon, Grid, Text, Hash, Clock, MessagesSquare } from "lucide-react";
+import { 
+  Waypoints, CurlyBraces, Brackets, ImageIcon, Grid, Text, Hash, Clock, MessagesSquare, 
+  FoldVertical, UnfoldVertical 
+} from "lucide-react";
 
-import { TileProps, ItemType } from "@/types/evals/grid";
+import { TileProps } from "@/types/evals/grid";
 import { sanitizeId } from "@/utils/evals/columnOperations";
+import { Button } from "@/components/UI/button"; // for expand/collapse toggles
 
 /**
- * source is either "entries" or "params"
+ * Type definitions
  */
 type SourceType = "entries" | "params";
 type DiffMode = "none" | "lines" | "words" | "characters";
 
+/**
+ * getValueType: detects top-level type
+ */
 function getValueType(value: any):
   "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat"
 {
@@ -48,6 +55,9 @@ function getValueType(value: any):
   return "string";
 }
 
+/**
+ * getTypeIcon: returns appropriate icon for type
+ */
 function getTypeIcon(valueType: string) {
   switch (valueType) {
     case "trace":
@@ -72,7 +82,7 @@ function getTypeIcon(valueType: string) {
 }
 
 /**
- * getSelectionView: pick specialized component, or raw if rawMode.
+ * getSelectionView: specialized or raw, optionally passing forceExpandAll
  */
 function getSelectionView(
   value: any,
@@ -83,7 +93,8 @@ function getSelectionView(
   comparisonLogsIndex: number[],
   diffMode: DiffMode,
   splitView: boolean,
-  rawMode: boolean
+  rawMode: boolean,
+  forceExpandAll?: boolean
 ) {
   if (rawMode) {
     return (
@@ -101,15 +112,13 @@ function getSelectionView(
   }
   const valueType = getValueType(value);
   switch (valueType) {
-    case "trace": {
-      const baseArr = Array.isArray(value) ? value : [value];
-      const compArrs = comparables.map((c) =>
-        Array.isArray(c) ? c : c ? [c] : []
-      );
+    case "trace":
       return (
         <TraceView
-          value={baseArr}
-          comparables={compArrs}
+          value={Array.isArray(value) ? value : [value]}
+          comparables={comparables.map((c) =>
+            Array.isArray(c) ? c : c ? [c] : []
+          )}
           baseLogIndex={baseLogIndex}
           comparisonLogsIndex={comparisonLogsIndex}
           diffMode={diffMode}
@@ -118,7 +127,6 @@ function getSelectionView(
           comparableVersions={comparableVersions}
         />
       );
-    }
     case "chat":
       return (
         <ChatOutView
@@ -143,6 +151,7 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          forceExpandAll={forceExpandAll}
         />
       );
     case "list":
@@ -156,6 +165,7 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          forceExpandAll={forceExpandAll}
         />
       );
     case "image":
@@ -256,13 +266,19 @@ export default function SelectionEntry({
   version?: string;
   comparableVersions?: string[];
   item: TileProps;
-  utils: {getCardById: (tileId: string) => TileProps, updateCardById: (tileId: string, partial: Partial<TileProps>) => void};
+  utils: {
+    getCardById: (tileId: string) => TileProps;
+    updateCardById: (tileId: string, partial: Partial<TileProps>) => void;
+  };
   onAccordionValueChange?: (value: string[]) => void;
 }) {
   const [hovered, setHovered] = useState(false);
 
+  // local expandAll for top-level dict/list
+  const [expandAll, setExpandAll] = useState(false);
+
   // Gather comparables
-  let comparables = (comparisonLogs ?? []).map((cl) => {
+  let comps = (comparisonLogs ?? []).map((cl) => {
     const container = source === "params" ? cl.params ?? {} : cl.entries ?? {};
     return container[property];
   });
@@ -271,20 +287,20 @@ export default function SelectionEntry({
   let rawValue = value;
   if (source === "params" && value && typeof value === "object") {
     rawValue = value.paramValue;
-    comparables = comparables.map((c) => c?.paramValue);
+    comps = comps.map((c) => c?.paramValue);
   }
 
   const valueType = getValueType(rawValue);
   const icon = getTypeIcon(valueType);
 
-  // Deselect column function
+  // “remove from selection” function
   const handleDeselectColumn = (event: React.MouseEvent) => {
     event.stopPropagation();
     
-    // Find the parent table item that owns this selection
+    // find the parent table item
     const tableItem = utils.getCardById(item.table || "");
     if (!tableItem) {
-      console.warn('Could not find parent table item');
+      console.warn("Could not find parent table item");
       return;
     }
     
@@ -294,36 +310,66 @@ export default function SelectionEntry({
       const underscorePos = cell.indexOf("_");
       if (underscorePos < 1) return true;
       const col = cell.slice(underscorePos + 1);
-      const keep = sanitizeId(col) !== sanitizeId(property);
-      return keep;
+      return sanitizeId(col) !== sanitizeId(property);
     });
     
-    // Update the table item's selected property instead of the current item
-    utils.updateCardById(tableItem.i, { selected: newSelected.length ? newSelected.join(",") : undefined });
+    // update the parent's “selected” property
+    utils.updateCardById(tableItem.i, {
+      selected: newSelected.length ? newSelected.join(",") : undefined
+    });
   };
 
-  // Render the specialized or raw
+  // forcibly open or close the parent's accordion item => ensures dict is mounted
+  const forciblySetAccordionOpen = (open: boolean) => {
+    if (onAccordionValueChange) {
+      if (open) {
+        onAccordionValueChange([property]);
+      } else {
+        onAccordionValueChange([]);
+      }
+    }
+  };
+
+  // Expand/Collapse Toggle
+  const handleExpandToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!expandAll) {
+      // Expand => forcibly open this item if it's closed
+      forciblySetAccordionOpen(true);
+      setExpandAll(true);
+    } else {
+      // Collapse => forcibly close
+      forciblySetAccordionOpen(false);
+      setExpandAll(false);
+    }
+  };
+
+  // specialized or raw
   const renderedContent = getSelectionView(
     rawValue,
-    comparables,
+    comps,
     version,
     comparableVersions,
     baseLogIndex,
     comparisonLogsIndex,
     diffMode || "none",
     splitView,
-    rawMode
+    rawMode,
+    expandAll
   );
 
   return (
-    <AccordionItem value={property} onDragStart={() => {
-      // Collapse this item when dragging starts
-      onAccordionValueChange?.([]);
-    }}>
+    <AccordionItem
+      value={property}
+      onDragStart={() => {
+        // if user drags, close
+        onAccordionValueChange?.([]);
+      }}
+    >
       <AccordionTrigger
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        className="flex items-center"
+        className="flex items-center relative group"
       >
         <div className="inline-flex items-center gap-2">
           <Tooltip content={hovered ? "Remove from selection" : valueType}>
@@ -338,7 +384,26 @@ export default function SelectionEntry({
             <span>{property}</span>
           </Tooltip>
         </div>
+
+        {(valueType === "dict" || valueType === "list") && (
+          <div
+            className="
+              absolute right-5
+              opacity-0 group-hover:opacity-100
+              transition-opacity
+              flex gap-1 items-center
+            "
+          >
+            <Button
+              variant="ghost"
+              onClick={handleExpandToggle}
+            >
+              {expandAll ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+            </Button>
+          </div>
+        )}
       </AccordionTrigger>
+
       <AccordionContent>
         {renderedContent}
       </AccordionContent>
