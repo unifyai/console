@@ -151,8 +151,8 @@ const DataTableCell = ({
                 }}>
                 <ChevronRight/>
               </button>
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}{" "}
-                ({row.subRows.length})
+                ({row.subRows.length}){" "}
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
             </div> ) 
           : cell.getIsAggregated() ? (flexRender(AggregatedCell && AggregatedCell(cell, row), cell.getContext())) 
           : cell.getIsPlaceholder() 
