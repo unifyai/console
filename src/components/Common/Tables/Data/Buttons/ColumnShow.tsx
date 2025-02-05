@@ -1,3 +1,5 @@
+"use client";
+
 import ActionButton from "@/components/Common/Buttons/Action";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuGroup } from "@/components/UI/dropdown-menu";
@@ -5,7 +7,7 @@ import { Table, Header } from "@tanstack/react-table";
 import { CirclePlus } from "lucide-react";
 import { getImmediateHiddenSiblings, getImmediateSiblings, updateColumnVisibility } from "@/utils/evals/columnOperations";
 import { getColumnGroupIDs, moveGroupInColumnOrder } from "@/utils/evals/table";
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 
 const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, columnOrder, setColumnOrder, ColumnCreate }: {
     table: Table<any | unknown>,
@@ -14,7 +16,7 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
     setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void,
     columnOrder: string[],
     setColumnOrder: (columnOrder: string[]) => void,
-    ColumnCreate?: ReactNode,
+    ColumnCreate?: (previousColumn:string, setOpen: (open: boolean) => void) => ReactNode,
 }) => {
     const isParentColumn = header.column.columnDef.meta?.isParent;
     const columnType = header.column.columnDef.meta?.columnType;
@@ -171,10 +173,12 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
                         )}
                     </DropdownMenuGroup>
 
-    const derived = ColumnCreate ? ColumnCreate : null;
+    const [open, setOpen] = useState<boolean>(false);
+    const derived = ColumnCreate ? ColumnCreate(header.column.id, setOpen) : null;
+    
     return (
         <div className="absolute -right-2 z-10 hover:opacity-100 opacity-0 transition-all">
-            <BaseDropdown button={columnButton}>
+            <BaseDropdown button={columnButton} open={open} setOpen={setOpen}>
                 {hiddenColumns.length > 0 && hidden}
                 {header.column.columnDef.meta?.columnType === "entries" && derived}
             </BaseDropdown>

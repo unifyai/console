@@ -61,7 +61,7 @@ const DataTableHeader = ({
   grouping: string[],
   setGrouping: (grouping: string[]) => void,
   ColumnFilters?: (column: Column<any | unknown>) => ReactNode,
-  ColumnCreate?: ReactNode,
+  ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode,
   context: string | null,
   setContext: (context: string | null) => void,
   draggingColumns: DraggingColumnsState,

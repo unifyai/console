@@ -32,7 +32,7 @@ export default function DataTable<TData, TValue>({ className, interactive, data,
     TableTop?: JSX.Element,
     FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>) => ReactNode,
     ColumnFilters?: (column: TanstackColumn<any | unknown>) => ReactNode;
-    ColumnCreate?: ReactNode;
+    ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode;
     AggregatedCell?: (cell: TanstackCell<any, unknown>, row: TanstackRow<any | unknown>) => ReactNode;
     ExtraCellContent?: (cell: TanstackCell<any, unknown>, isCellExpanded: (cell: TanstackCell<any, unknown>) => boolean, setExpandedCells: Dispatch<SetStateAction<{[k: string]: boolean}>>) => ReactNode;
     ExtraComponents?: (table: TanstackTable<any | unknown>) => ReactNode

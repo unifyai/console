@@ -449,7 +449,7 @@ const LogsTable = ({
                     logs={logs}
                   />
                 )}
-                ColumnCreate={
+                ColumnCreate={(previousColumn: string, setOpen: (open: boolean) => void) => (
                   <ColumnCreate 
                     project={project} 
                     currentTable={item.i}
@@ -458,8 +458,12 @@ const LogsTable = ({
                     derive={logsActions.derive}
                     setPending={setPending}
                     refresh={() => updateInterface()}
+                    columnOrder={columnOrder}
+                    setColumnOrder={(order: string[]) => updateItem(item, "column_order")(order.join(","))}
+                    previousColumn={previousColumn}
+                    setOpen={setOpen}
                   />
-                }
+                )}
                 AggregatedCell={(cell, row) => (
                   <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />
                 )}
