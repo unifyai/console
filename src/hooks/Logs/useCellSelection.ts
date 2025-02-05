@@ -310,10 +310,10 @@ export const useCellSelection = ({
   const isValidAdjacentTarget = (cell: Cell<any, any>) =>
     !cell.getIsPlaceholder() &&
     !cell.getIsAggregated() &&
-    !cell.getIsGrouped() &&
-    cell.column.getIsVisible()
-  const isValidSelectionTarget = (cell: Cell<any, any>) => isValidAdjacentTarget(cell) && cell.column.id != "RowNumbering";
-
+    !cell.getIsGrouped()
+  const isVisibleCell = (cell: Cell<any, any>) => cell.column.getIsVisible()
+  const isValidIndexSelectionTarget = (cell: Cell<any, any>) => isValidAdjacentTarget(cell) && cell.column.id != "RowNumbering"; 
+  const isValidSelectionTarget = (cell: Cell<any, any>) => isValidIndexSelectionTarget(cell) && isVisibleCell(cell);
   const isRowIndexCell = (cell: Cell<any, any>) => cell.column.id === "RowNumbering"
 
   const handleCellMouseDown = (
@@ -336,7 +336,7 @@ export const useCellSelection = ({
         let selectedStartCell = getCellSelectionData(cell)
         if (isRowIndexCell(cell)) {
           const rowCells = cell.row.getAllCells();
-          const validCells = rowCells.filter(c => isValidSelectionTarget(c));
+          const validCells = rowCells.filter(c => isValidIndexSelectionTarget(c));
           const firstCell = validCells.at(0);
           if (firstCell) {
             selectedStartCell = getCellSelectionData(firstCell)
@@ -364,7 +364,7 @@ export const useCellSelection = ({
         let selectedStartCell = getCellSelectionData(cell)
         if (isRowIndexCell(cell)) {
           const rowCells = cell.row.getAllCells();
-          const validCells = rowCells.filter(c => isValidSelectionTarget(c));
+          const validCells = rowCells.filter(c => isValidIndexSelectionTarget(c));
           const firstCell = validCells.at(0);
           if (firstCell) {
             selectedStartCell = getCellSelectionData(firstCell)
