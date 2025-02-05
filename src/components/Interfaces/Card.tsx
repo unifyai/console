@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from 'next/navigation';
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -30,7 +30,7 @@ const Card = ({
     filterExpressions,
     sortingExpressions,
     setPending,
-    updateItem,
+    utils,
     updateInterface,
 }: {
     mode: "edit" | "interactive" | "dashboard",
@@ -49,27 +49,57 @@ const Card = ({
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
     setPending: (pending: boolean) => void,
-    updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void
+    utils: {updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void, getCardById: (tileId: string) => TileProps, updateCardById: (tileId: string, partial: Partial<TileProps>) => void},
     updateInterface: () => Promise<ResponseProps>,
 }) => {
+    
     const router = useRouter();
     const [initial, setInitial] = useState(true);
-    const tab = items.find(item => item.i == index)?.tab
+    const tab = items.find(item => item.i == index)?.tab;
     const tabTypes = ["Table", "Plot", "View"];
-    const relevantItem = item.table ? items.find(it => it.i == item.table) : undefined
+    const relevantItem = item.table ? items.find(it => it.i == item.table) : undefined;
 
+    // Use a ref to compare the needed properties so we only update if something truly changed.
+    const prevPropsJson = useRef<string>("");
     useEffect(() => {
-        if (item.tab != "View" && !initial) {
+        const newJson = JSON.stringify({
+            tab: item.tab,
+            table_type: item.table_type,
+            filters: item.filters,
+            context: item.context,
+            common_filter: item.common_filter,
+            sorting: item.sorting,
+            page_number: item.page_number,
+            metric: item.metric,
+            plot_type: item.plot_type,
+            x_axis: item.x_axis,
+            y_axis: item.y_axis,
+        });
+
+        if (item.tab != "View" && !initial && newJson !== prevPropsJson.current) {
+            prevPropsJson.current = newJson;
             updateInterface().then(() => {
                 router.refresh();
+            }).catch(error => {
+                console.error('Error updating interface:', error);
             });
         }
-    }, [item.tab, item.table_type, item.filters, item.context, item.common_filter, item.sorting, item.page_number, item.metric, item.plot_type, item.x_axis, item.y_axis]);
-
-    useEffect(() => {
-        if (item.tab != "View" && !initial)
-            setPending(true);
-    }, [item.tab, item.table_type, item.context, item.page_number, item.plot_type, item.x_axis, item.y_axis]);
+    }, [
+        item.tab,
+        item.table_type,
+        item.filters,
+        item.context,
+        item.common_filter,
+        item.sorting,
+        item.page_number,
+        item.metric,
+        item.plot_type,
+        item.x_axis,
+        item.y_axis,
+        initial,
+        updateInterface,
+        router
+    ]);
 
     useEffect(() => {
         setInitial(false);
@@ -92,8 +122,8 @@ const Card = ({
                             key={idx}
                             onSelect={() => {
                                 if (item.tab == undefined && tab == "Table")
-                                    updateItem(item, "table_type")("Data Table");
-                                updateItem(item, "tab")(tab);
+                                    utils.updateItem(item, "table_type")("Data Table");
+                                utils.updateItem(item, "tab")(tab);
                             }}
                             className="w-64 no-drag"
                         >
@@ -112,7 +142,9 @@ const Card = ({
                     >
                         {(mode != "edit" ? [] : tableNames).map((tile, idx) => <DropdownMenuItem
                             key={idx}
-                            onSelect={() => updateItem(item, "table")(tile)}
+                            onSelect={() => {
+                                utils.updateItem(item, "table")(tile);
+                            }}
                             disabled={(tableData[tile]?.logs || []).length == 0}
                             className="w-64 no-drag"
                         >
@@ -136,15 +168,15 @@ const Card = ({
                                 if (tableType == "Derived Table") {
                                     if (!item.prev_context) {
                                         contextActions.create(`Derived_${item.i}`, project as string);
-                                        updateItem(item, "context")(`Derived_${item.i}`);
-                                        updateItem(item, "prev_context")(`Derived_${item.i}`);
+                                        utils.updateItem(item, "context")(`Derived_${item.i}`);
+                                        utils.updateItem(item, "prev_context")(`Derived_${item.i}`);
                                     }
                                     else
-                                        updateItem(item, "context")(item.prev_context);
+                                        utils.updateItem(item, "context")(item.prev_context);
                                 }
                                 else
-                                    updateItem(item, "context")(undefined);
-                                updateItem(item, "table_type")(tableType);
+                                    utils.updateItem(item, "context")(undefined);
+                                    utils.updateItem(item, "table_type")(tableType);
                             }}
                             className="w-64 no-drag"
                         >
@@ -161,7 +193,7 @@ const Card = ({
                 columnOrdering_={relevantItem?.column_order}
                 hiddenColumns_={relevantItem?.hidden_columns}
                 item={item}
-                updateItem={updateItem}
+                utils={{getCardById: utils.getCardById, updateCardById: utils.updateCardById}}
             /></div>}
             {tab?.includes("Plot") && <LogsPlot
                 interactive={["edit", "interactive"].includes(mode)}
@@ -169,7 +201,7 @@ const Card = ({
                 fields={item.table ? plotData[item.i]?.plotFields || {} : {}}
                 tableNames={tableNames}
                 item={item}
-                updateItem={updateItem}
+                updateItem={utils.updateItem}
             />}
             {tab?.includes("Table") && <LogsTable
                 interactive={["edit", "interactive"].includes(mode)}
@@ -189,7 +221,7 @@ const Card = ({
                     totalPages: tableData[item.i]?.totalPages || 0,
                     boundaries: tableData[item.i]?.boundaries || { minimus: {}, maximums: {} }
                 }}
-                updateItem={updateItem}
+                updateItem={utils.updateItem}
                 logsActions={logsActions}
                 filterExpression={filterExpressions ? filterExpressions[items.findIndex(it => it.i === item.i)] : null}
                 sortingExpression={sortingExpressions ? sortingExpressions[items.findIndex(it => it.i === item.i)] : null}
@@ -197,7 +229,7 @@ const Card = ({
                 setPending={setPending}
             />}
         </div>
-    </div>)
+    </div>);
 };
 
 export default Card;
