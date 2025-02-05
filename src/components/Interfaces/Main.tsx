@@ -163,12 +163,12 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
             const filterExpressionIdx = tableItems.findIndex(it => it.i == item.table);
             const filterExpression = filterExpressionIdx == -1 ? null : filterExpressions[filterExpressionIdx];
             if (xAxis) {
-                let subset = xAxis
+                let subset = xAxis.split(".")[1];
                 if (item.plot_type === "Bar Chart")
                     plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
                 else {
                     if (yAxis)
-                        subset += `&${yAxis}`
+                        subset += `&${yAxis.split(".")[1]}`
                     if (group) subset += `&${group}`
                     plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
                 }

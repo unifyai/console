@@ -18,15 +18,14 @@ import PlotAxis from "./Buttons/PlotAxis";
 import PlotAggregate from "./Buttons/PlotAggregate";
 import { ItemType, TileProps } from "@/types/evals/grid";
 
-const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
+const LogsPlot = ({ interactive, logs, fields, tableNames, item, updateItem }: {
     interactive: boolean,
     logs: LogProps[] | undefined,
     fields: LogFieldsResponseProps,
+    tableNames: string[],
     item: TileProps,
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void
 }) => {
-    console.log("logs", logs)
-    console.log("fields", fields)
     // Initialize refs and container dimensions
     let svgRef = useRef(null);
     let containerRef = useRef(null);
@@ -100,14 +99,14 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
         else if (plotType === "Bar Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                checkLogScalability(logs, selectedXAxisProperty, selectedYAxisProperty, scale, updateItem(item, "plot_scale"), setLogScaleEnabled)    
+                checkLogScalability(logs, selectedXAxisProperty.split(".")[1], selectedYAxisProperty, scale, updateItem(item, "plot_scale"), setLogScaleEnabled)    
                 drawBarChart(
                     svg,
                     scale,
                     dimensions,
                     margins,
                     axisPadding,
-                    selectedXAxisProperty,
+                    selectedXAxisProperty.split(".")[1],
                     selectedYAxisProperty,
                     isAggregated,
                     logs,
@@ -199,6 +198,7 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                 <PlotAxis
                     interactive={interactive}
                     fields={fields}
+                    tableNames={tableNames}
                     setAxisProperty={updateItem(item, "x_axis")}
                     axis="X"
                     axisProperty={selectedXAxisProperty}
@@ -211,6 +211,7 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                     <PlotAxis
                         interactive={interactive}
                         fields={fields}
+                        tableNames={[]}
                         setAxisProperty={updateItem(item, "y_axis")}
                         axis="Y"
                         axisProperty={selectedYAxisProperty}

@@ -101,7 +101,7 @@ const Card = ({
                         </DropdownMenuItem>)}
                     </BaseDropdown>
                 </div>}
-                {tab && mode == "edit" && ["Plot", "View"].includes(tab) && <div className="w-fit">
+                {tab && mode == "edit" && tab == "View" && <div className="w-fit">
                     <BaseDropdown
                         button={<ActionButton
                             tooltip="Select Table"
@@ -167,6 +167,7 @@ const Card = ({
                 interactive={["edit", "interactive"].includes(mode)}
                 logs={item.table ? plotData[item.i]?.plotLogs || [] : []}
                 fields={item.table ? plotData[item.i]?.plotFields || {} : {}}
+                tableNames={tableNames}
                 item={item}
                 updateItem={updateItem}
             />}

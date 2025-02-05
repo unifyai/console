@@ -1,16 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import BaseDropdown from "@/components/Common/Dropdowns/Base";
-import ActionButton from "@/components/Common/Buttons/Action";
-import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { metrics } from "@/constants/logs";
-import { ChevronDown, LoaderCircle } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import { LogProps, LogFieldsResponseProps } from "@/types/evals/logs";
+import AutoComplete from "@/components/Common/Misc/AutoComplete";
 
-const PlotAxis = ({interactive, fields, axisProperty, setAxisProperty, axis, plotType, logs}: {
+const PlotAxis = ({interactive, fields, tableNames, axisProperty, setAxisProperty, axis, plotType, logs}: {
     interactive: boolean
     fields: LogFieldsResponseProps,
+    tableNames: string[],
     axisProperty: string | undefined,
     setAxisProperty: (x: string | undefined) => void,
     axis: string,
@@ -49,32 +48,27 @@ const PlotAxis = ({interactive, fields, axisProperty, setAxisProperty, axis, plo
           : plotType === "Bar Chart"
             ? metrics
             : properties ;
+    const allChoices = (
+        tableNames.length > 0
+        ? tableNames.map(tableName => choices.map(choice => `${tableName}.${choice}`)).flat()
+        : choices
+    );
     const onSelect = (property: string) => {
         setAxisProperty(property)
         setLoading(true)
     }
     return (
-        <BaseDropdown
-            button={
-                <ActionButton 
-                    tooltip="Select property" 
-                    icon={loading ? <LoaderCircle className="animate-spin text-primary"/> : <ChevronDown/>}
-                    text={axisProperty ? axisProperty : `${axis}-axis`} 
-                    disabled={!interactive || loading}
-                />
-            }
-            open={interactive ? undefined : false}
-        >
-            {choices.map((property, index) => {
-                return (
-                    <DropdownMenuItem key={index} onSelect={() => onSelect(property)}>
-                        {property}
-                    </DropdownMenuItem>
-                );
-            })
-          }
-        </BaseDropdown>
-    )
+        (interactive && !loading) ? <AutoComplete 
+            type={`${axis}-axis`}
+            items={allChoices.map((choice) => ({label: choice.slice(0, 15) + (choice.length > 15 ? "..." : ""), value: choice}))}
+            defaultValue={axisProperty}
+            onSelect={(currentValue: string) => onSelect(currentValue)}
+            className="h-7 mx-1 text-xs w-[150px] shadow-none"
+        /> : <div className="flex items-center justify-between h-7 mx-1 px-3 text-xs font-medium w-[150px] rounded-md truncate ... border border-1 shadow-none">
+            {axisProperty ? axisProperty.slice(0, loading ? 15 : 18) + (axisProperty.length > (loading ? 15 : 18) ? "..." : "") : `${axis}-axis`}
+            {loading && <LoaderCircle size={16} className="animate-spin text-primary"/>}
+        </div>
+    );
 }
 
 export default PlotAxis;
