@@ -106,7 +106,6 @@ const LogsTable = ({
       context: string | null,
       filterExpression: string | null,
       sortingExpression: string | null,
-      groupingExpression: string | null,
       from_fields: string | null,
       exclude_fields: string | null, 
       limit: number | null,
@@ -508,7 +507,6 @@ const LogsTable = ({
             project={project}
             filterExpression={filterExpression}
             sortingExpression={sortingExpression}
-            groupingExpression={groupingExpression}
             getLatest={logsActions.getLatest}
             logs={logs}
           />

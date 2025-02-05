@@ -13,7 +13,6 @@ const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, conte
     columnVisibility: { [key: string]: boolean },
     setColumnVisibility: (x: { [key: string]: boolean }) => void,
     context: string | null,
-    logs: LogProps[] | GroupedLogProps[]
 }) => {
 
     const columns = Object.entries(fields).map(([key, value]) => value.field_type === "param" ? `Parameters/${key}` : `Entries/${key}`);
