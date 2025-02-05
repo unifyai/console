@@ -18,6 +18,7 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
     setColumnOrder: (columnOrder: string[]) => void,
     ColumnCreate?: (previousColumn:string, setOpen: (open: boolean) => void) => ReactNode,
 }) => {
+    const [open, setOpen] = useState<boolean>(false);
     const isParentColumn = header.column.columnDef.meta?.isParent;
     const columnType = header.column.columnDef.meta?.columnType;
     const currentDepth = header.column.columnDef.meta?.renderedDepth;
@@ -173,7 +174,6 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
                         )}
                     </DropdownMenuGroup>
 
-    const [open, setOpen] = useState<boolean>(false);
     const derived = ColumnCreate ? ColumnCreate(header.column.id, setOpen) : null;
     
     return (

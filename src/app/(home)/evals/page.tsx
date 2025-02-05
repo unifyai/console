@@ -12,7 +12,8 @@ import {
     getProjects,
     createProject,
     renameProject,
-    createDerivedEntry
+    createDerivedEntry,
+    updateDerivedEntry
 } from "./actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -50,7 +51,11 @@ const EvalsPage = async (
         getMetrics: await getLogMetrics(apiKey),
         delete: await deleteLogs(apiKey),
         getLatest: await getLatestTimestamp(apiKey),
-        derive: await createDerivedEntry(apiKey)
+    }
+
+    const derivedEntryActions = {
+        create: await createDerivedEntry(apiKey),
+        update: await updateDerivedEntry(apiKey)
     }
 
     const fieldsActions = {
@@ -64,6 +69,7 @@ const EvalsPage = async (
                     projectsActions={projectsActions}
                     logsActions={logsActions}
                     fieldsActions={fieldsActions}
+                    derivedEntryActions={derivedEntryActions}
                 />
             </Suspense>
         </div>

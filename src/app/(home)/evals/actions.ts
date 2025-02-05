@@ -187,6 +187,28 @@ export const createDerivedEntry = async (apiKey: string) => {
     }
 }
 
+// update derived entry
+export const updateDerivedEntry = async (apiKey: string) => {
+    return async (project: string, key: string | null, equation: string | null, target_derived_logs: {[table_name: string]: getLogsParameters}): Promise<ResponseProps> => {
+        "use server";
+
+        try {
+            const response = await fetch(
+                `${process.env.NEXTAUTH_URL}/api/logs/derived`,
+                {
+                    method: "PUT",
+                    headers: { apiKey: apiKey },
+                    body: JSON.stringify({ project, key, equation, target_derived_logs })
+                }
+            );
+            return await response.json();
+        } catch (e) {
+            console.log(`Failed to update derived entry with error: ${e}`)
+            return {detail: "Failed to update derived entry, please try again."}
+        }
+    }
+}
+
 // create interface
 export const createInterface = async (apiKey: string) => {
     return async (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, temporary: boolean = false) => {

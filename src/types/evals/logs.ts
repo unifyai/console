@@ -30,7 +30,7 @@ export interface LogsResponseProps {
 export type LogFieldsProps = [number, string][]
 
 export interface LogFieldsResponseProps {
-    [name: string]: {data_type: string, field_type: "entry" | "param" | "derived_entry"}
+    [name: string]: {data_type: string, field_type: "entry" | "param" | "derived_entry", artifacts: string}
 }
 
 export interface HeaderNode {

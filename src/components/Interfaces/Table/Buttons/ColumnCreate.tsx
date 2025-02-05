@@ -9,13 +9,14 @@ import { DropdownMenuLabel, DropdownMenuGroup, DropdownMenuSub, DropdownMenuPort
 import { LoaderCircle } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import FormulaInput from "@/components/Common/Input/Formula";
+import { expressionToDerivedFunction } from "@/utils/evals/derivedColumns";
 
-const ColumnCreate = ({ project, currentTable, tableArguments, logs, derive, setPending, refresh, columnOrder, setColumnOrder, previousColumn, setOpen }: {
+const ColumnCreate = ({ project, currentTable, tableArguments, logs, create, setPending, refresh, columnOrder, setColumnOrder, previousColumn, setOpen }: {
     project: string,
     currentTable: string,
     tableArguments: TableArguments,
     logs: LogProps[]
-    derive: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
+    create: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
     setPending: (pending: boolean) => void,
     refresh: () => Promise<ResponseProps>,
     columnOrder: string[],
@@ -34,8 +35,6 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, derive, set
         )
     const tables = options.filter(option => option.type === "Table Name").map(option => option.name)
     const columns = options.filter(option => option.type === "Column Name").map(option => option.name);
-    const appendRegex = new RegExp(`(?<!(${tables.join('|')})[.:])(${columns.join('|')})`, 'g'); // Replace standalone column names with current_table.column_name
-    const wrapRegex = new RegExp(`(${tables.join('|')})[.:](${columns.join('|')})`, 'g');        // Wrap all instances of table_name.column_name with curly braces
 
     // State tracking
     const [name, setName] = useState<string>("");
@@ -62,9 +61,7 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, derive, set
 
     const handleExpression = (value: string) => {
         setExpression(value);
-        const equation = value
-            .replace(appendRegex, (match, p1, p2) => `${currentTable}:${p2}`)
-            .replace(wrapRegex, '{$1:$2}');
+        const equation = expressionToDerivedFunction(value, currentTable, tables, columns);
         setEquation(equation)
     }
 
@@ -78,7 +75,7 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, derive, set
                   .map(([key, args]) => [key, args.getLogs_parameters])
         );
         setLoading(true);
-        derive(project, name, equation, referencedArguments).then(async (response: ResponseProps) => {
+        create(project, name, equation, referencedArguments).then(async (response: ResponseProps) => {
             if ("info" in response) {
                 
                 // Update states
@@ -184,7 +181,6 @@ export default ColumnCreate;
     
     - Add button to refresh the values
     - Add grouping when server side grouping is supported
-    - Add option to edit the equation
     - Add dropdown options for: 
         (See https://github.com/unifyai/orchestra/blob/main/orchestra/web/api/log/helpers.py#L151 for source)
         functions: 

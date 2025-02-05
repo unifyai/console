@@ -1,17 +1,18 @@
 import CardGrid from "@/components/Interfaces/CardGrid";
 import { TableArguments, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
-import { Context, ContextActions, FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
+import { Context, ContextActions, DerivedEntryActions, FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 
-const Main = async ({ interface_, project_, projectsActions, logsActions, fieldsActions, contextActions, interfaceActions }: {
+const Main = async ({ interface_, project_, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, interfaceActions }: {
     interface_: string | undefined,
     project_: string | undefined,
     projectsActions: ProjectsActions,
     logsActions: LogsActions,
+    derivedEntryActions: DerivedEntryActions,
     fieldsActions: FieldsActions,
     contextActions: ContextActions,
     interfaceActions: InterfaceActions
@@ -80,9 +81,8 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
     const columnFiltersExpressions = logsFilters.map(filter => filtersToExpression(filter, fields));
     const commonFiltersExpressions = tableItems.map(
         item => item.common_filter && fields
-            ? Object.keys(
-                Object.fromEntries(Object.entries(fields).filter(([key, value]) => value.field_type != "derived_entry")) // Exclude derived entries from filters
-            )
+            ? Object
+                .keys(fields)
                 .map(column => `${item.common_filter} in ${item.context ? processContext("merge", item.context, column) : column}`)
                 .join(" or ")
             : ""
@@ -131,9 +131,9 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
                 Object
                     .entries(fields)
                     .filter(([name, { data_type, field_type }]) => context ? name.startsWith(context) : name)
-                    .map(([name, { data_type, field_type }]) => {
+                    .map(([name, { data_type, field_type, artifacts }]) => {
                         const newName = context ? name.replace(context, "") : name;
-                        return [newName, { data_type, field_type }];
+                        return [newName, { data_type, field_type, artifacts }];
                     })
             )
         }
@@ -253,6 +253,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, fields
         sortingExpressions={sortingExpressions}
         projectActions={projectsActions}
         logsActions={logsActions}
+        derivedEntryActions={derivedEntryActions}
         contextActions={contextActions}
         interfaceActions={interfaceActions}
     />;

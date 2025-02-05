@@ -3,7 +3,7 @@
 import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
+import { ItemType, LogsActions, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
 import { getLogsParameters, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { ResponseProps } from "@/types/common";
@@ -20,42 +20,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
     setTableDataItem: Dispatch<SetStateAction<TableDataItem>>,
     logs: LogProps[],
-    logsActions: {
-        get: (
-            project: string,
-            context: string | null,
-            filterExpression: string | null,
-            sortingExpression: string | null,
-            from_fields: string | null,
-            exclude_fields: string | null,
-            limit: number | null,
-            offset: number,
-            _timestamp: string | null
-        ) => Promise<LogsResponseProps>,
-        getLatest: (
-            project: string,
-            context: string | null,
-            filterExpression: string | null,
-            sortingExpression: string | null,
-            from_fields: string | null,
-            exclude_fields: string | null,
-            limit: number | null,
-            offset: number
-        ) => Promise<string>,
-        getMetrics: (
-            project: string,
-            filterExpression: string | null,
-            metricName: string,
-            keyName: string
-        ) => Promise<number>;
-        delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
-        derive: (
-            project: string, 
-            key: string, 
-            equation: string, 
-            referenced_logs: {[table_name: string]: getLogsParameters}
-        ) => Promise<ResponseProps>
-    },
+    logsActions: LogsActions
 }) => {
 
     /* Auto refresh */

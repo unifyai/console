@@ -17,6 +17,7 @@ import {
     getInterface,
     deleteInterface,
     createDerivedEntry,
+    updateDerivedEntry,
     createContext,
     getContexts,
 } from "../evals/actions";
@@ -45,7 +46,11 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
         getMetrics: await getLogMetrics(apiKey),
         delete: await deleteLogs(apiKey),
         getLatest: await getLatestTimestamp(apiKey),
-        derive: await createDerivedEntry(apiKey)
+    }
+
+    const derivedEntryActions = {
+        create: await createDerivedEntry(apiKey),
+        update: await updateDerivedEntry(apiKey)
     }
 
     const fieldsActions = {
@@ -72,6 +77,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
                     interface_={searchParams?.interface}
                     projectsActions={projectsActions}
                     logsActions={logsActions}
+                    derivedEntryActions={derivedEntryActions}
                     contextActions={contextActions}
                     fieldsActions={fieldsActions}
                     interfaceActions={interfaceActions}

@@ -10,7 +10,7 @@ import { ResponseProps } from "@/types/common";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 
-const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions }: {
+const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions, derivedEntryActions }: {
 	searchParams: { project?: string, page_number?: string, metric?: string, context?: string, filters?: string, common_filter?: string, sorting?: string, plot_type?: string, x_axis?: string, y_axis?: string, plot_group_by?: string, _timestamp?: string },
 	projectsActions: {
 		get: () => Promise<string[]>,
@@ -24,8 +24,11 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 			project: string, filterExpression: string | null, metricName: string, keyName: string
 		) => Promise<number>,
 		delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
-		derive: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>
 	},
+	derivedEntryActions: {
+		create: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
+		update: (project: string, key: string | null, equation: string | null, target_derived_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>
+	}
 	fieldsActions: {
 		get: (project: string) => Promise<LogFieldsResponseProps>,
 	}
@@ -86,9 +89,9 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 		Object
 			.entries(fields)
 			.filter(([name, { data_type, field_type }]) => context ? name.startsWith(context) : name)
-			.map(([name, { data_type, field_type }]) => {
+			.map(([name, { data_type, field_type, artifacts }]) => {
 				const newName = context ? processContext("split", context, name) : name;
-				return [newName, { data_type, field_type }];
+				return [newName, { data_type, field_type, artifacts }];
 			})
 	);
 	if (project) {
@@ -183,6 +186,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions 
 				totalPages={totalPages}
 				projectActions={projectsActions}
 				logsActions={logsActions}
+				derivedEntryActions={derivedEntryActions}
 				fields={fields}
 				tableArguments={tableArguments}
 				fieldsActions={fieldsActions}

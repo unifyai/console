@@ -3,7 +3,7 @@ import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponsePro
 import _ from "lodash";
 import { formatNumber } from "../formatNumber";
 import { processContext } from "./columnOperations";
-import { TileProps } from "@/types/evals/grid";
+import { LogsActions, TileProps } from "@/types/evals/grid";
 import { ResponseProps } from "@/types/common";
 
 /* 
@@ -112,15 +112,7 @@ export const getLogsDetails = async (
   filterExpression: string | null,
   sorting: string | null,
   hiddenColumns: string | undefined,
-  logsActions: {
-    get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
-    getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number) => Promise<string>,
-    getMetrics: (
-      project: string, filterExpression: string | null, metricName: string, keyName: string
-    ) => Promise<number>,
-    delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
-    derive: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>
-  }
+  logsActions: LogsActions
 ) => {
   // Unpack log data
   const { entriesProperties, paramsProperties, logs, params } = extractLogsData(

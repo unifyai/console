@@ -11,7 +11,7 @@ import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import LogsPlot from "@/components/Interfaces/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Interfaces/Table/Table";
-import { ContextActions, ItemType, LogsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
+import { DerivedEntryActions, ContextActions, ItemType, LogsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 
 const Card = ({
     mode,
@@ -23,6 +23,7 @@ const Card = ({
     plotData,
     tableArguments,
     logsActions,
+    derivedEntryActions,
     contextActions,
     index,
     item,
@@ -42,6 +43,7 @@ const Card = ({
     plotData: PlotDataProps,
     tableArguments: TableArguments,
     logsActions: LogsActions,
+    derivedEntryActions: DerivedEntryActions,
     contextActions: ContextActions,
     index: string,
     item: TileProps,
@@ -223,6 +225,7 @@ const Card = ({
                 }}
                 updateItem={utils.updateItem}
                 logsActions={logsActions}
+                derivedEntryActions={derivedEntryActions}
                 filterExpression={filterExpressions ? filterExpressions[items.findIndex(it => it.i === item.i)] : null}
                 sortingExpression={sortingExpressions ? sortingExpressions[items.findIndex(it => it.i === item.i)] : null}
                 updateInterface={updateInterface}

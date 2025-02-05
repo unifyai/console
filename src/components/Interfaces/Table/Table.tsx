@@ -10,7 +10,7 @@ import {
   ColumnPinningState,
   ColumnSizingState,
 } from "@tanstack/react-table";
-
+import { DerivedEntryActions, LogsActions } from "@/types/evals/grid";
 import React, { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
@@ -34,6 +34,7 @@ import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
+import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
 
 const LogsTable = ({
   interactive,
@@ -45,6 +46,7 @@ const LogsTable = ({
   tableDataItem_,
   updateItem,
   logsActions,
+  derivedEntryActions,
   filterExpression,
   sortingExpression,
   updateInterface,
@@ -59,42 +61,8 @@ const LogsTable = ({
   fields: LogFieldsResponseProps;
   tableDataItem_: TableDataItem;
   updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
-  logsActions: {
-    get: (
-      project: string,
-      context: string | null,
-      filterExpression: string | null,
-      sortingExpression: string | null,
-      from_fields: string | null,
-      exclude_fields: string | null,
-      limit: number | null,
-      offset: number,
-      _timestamp: string | null
-    ) => Promise<LogsResponseProps>,
-    getLatest: (
-      project: string, 
-      context: string | null, 
-      filterExpression: string | null, 
-      sortingExpression: string | null,
-      from_fields: string | null,
-      exclude_fields: string | null,
-      limit: number | null, 
-      offset: number
-    ) => Promise<string>,
-    getMetrics: (
-      project: string,
-      filterExpression: string | null,
-      metricName: string,
-      keyName: string
-    ) => Promise<number>;
-    delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
-    derive: (
-      project: string, 
-      key: string, 
-      equation: string, 
-      referenced_logs: {[table_name: string]: getLogsParameters}
-    ) => Promise<ResponseProps>
-  };
+  logsActions: LogsActions;
+  derivedEntryActions: DerivedEntryActions,
   filterExpression: string | null,
   sortingExpression: string | null,
   updateInterface: () => Promise<ResponseProps>
@@ -455,13 +423,26 @@ const LogsTable = ({
                     currentTable={item.i}
                     tableArguments={tableArguments}
                     logs={logs}
-                    derive={logsActions.derive}
+                    create={derivedEntryActions.create}
                     setPending={setPending}
                     refresh={() => updateInterface()}
                     columnOrder={columnOrder}
                     setColumnOrder={(order: string[]) => updateItem(item, "column_order")(order.join(","))}
                     previousColumn={previousColumn}
                     setOpen={setOpen}
+                  />
+                )}
+                ColumnUpdate={(key: string) => (
+                  <ColumnUpdate
+                    project={project}
+                    key={key}
+                    previousEquation={fields[sanitizeId(key)].artifacts}
+                    currentTable={item.i}
+                    tableArguments={tableArguments}
+                    logs={logs}
+                    update={derivedEntryActions.update}
+                    setPending={setPending}
+                    refresh={() => updateInterface()}
                   />
                 )}
                 AggregatedCell={(cell, row) => (

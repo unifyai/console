@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Card from "./Card";
 import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import { FileProps, ResponseProps } from "@/types/common";
-import { Context, ContextActions, Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
+import { DerivedEntryActions, Context, ContextActions, Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
 import { Check, Clipboard, Copy, Eye, EyeOff, Grip, ListRestart, Loader2, Maximize2, Plus, RefreshCw, Save, Trash, TriangleAlert, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
@@ -43,6 +43,7 @@ const CardGrid = ({
     sortingExpressions,
     projectActions,
     logsActions,
+    derivedEntryActions,
     contextActions,
     interfaceActions,
 }: {
@@ -63,6 +64,7 @@ const CardGrid = ({
     sortingExpressions: (string | null)[],
     projectActions: ProjectsActions,
     logsActions: LogsActions,
+    derivedEntryActions: DerivedEntryActions,
     contextActions: ContextActions,
     interfaceActions: InterfaceActions
 }) => {
@@ -599,6 +601,7 @@ const CardGrid = ({
                                         tableArguments={tableArguments}
                                         plotData={plotData}
                                         logsActions={logsActions}
+                                        derivedEntryActions={derivedEntryActions}
                                         contextActions={contextActions}
                                         index={el.i}
                                         item={el}
@@ -687,6 +690,7 @@ const CardGrid = ({
                         fields={fields}
                         plotData={plotData}
                         logsActions={logsActions}
+                        derivedEntryActions={derivedEntryActions}
                         contextActions={contextActions}
                         index={maxTileItem.i}
                         item={maxTileItem}

@@ -195,7 +195,7 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
     flex 
     absolute left-8 right-0
     h-9 w-[90%]
-    rounded-md border border-input 
+    rounded-none border border-input 
     px-3 py-1 inset-0
     text-base md:text-sm
     shadow-sm 
@@ -204,8 +204,8 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
     focus:outline-none focus:ring-2 focus:ring-blue-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring
     font-sans leading-none tracking-normal
   `;
-  const containerStyle = "z-10 bg-transparent text-transparent"
-  const overlayStyle   = "z-20 overflow-x-auto whitespace-pre-wrap pointer-events-none"
+  const containerStyle = "z-10 rounded-none rounded-tr-lg rounded-br-lg bg-transparent text-transparent"
+  const overlayStyle   = "z-20 rounded-none rounded-tr-lg rounded-br-lg overflow-x-auto whitespace-pre-wrap pointer-events-none"
 
   /* Invisible formula input container */
   const container = 

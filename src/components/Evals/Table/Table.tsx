@@ -54,6 +54,7 @@ const LogsTable = ({
   totalPages,
   projectActions,
   logsActions,
+  derivedEntryActions,
   fieldsActions,
   boundaries,
   filterExpression,
@@ -112,12 +113,10 @@ const LogsTable = ({
       keyName: string
     ) => Promise<number>;
     delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>;
-    derive: (
-      project: string, 
-      key: string, 
-      equation: string, 
-      referenced_logs: {[table_name: string]: getLogsParameters}
-    ) => Promise<ResponseProps>
+  };
+  derivedEntryActions: {
+    create: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
+    update: (project: string, key: string | null, equation: string | null, target_derived_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>
   };
   fieldsActions: {
     get: (project: string, _timestamp: string | null) => Promise<LogFieldsResponseProps>,
@@ -540,9 +539,9 @@ const LogsTable = ({
                     logs={logs}
                   />
                 )}
-                ColumnCreate={
-                  <ColumnCreate project={project} currentTable="table" tableArguments={tableArguments} logs={logs} derive={logsActions.derive} _setTimestamp={_setTimestamp}/>
-                }
+                ColumnCreate={(previousColumn: string, setOpen: (open:boolean) => void) => (
+                  <ColumnCreate project={project} currentTable="table" tableArguments={tableArguments} logs={logs} derive={derivedEntryActions.create} _setTimestamp={_setTimestamp}/>
+                )}
                 AggregatedCell={(cell, row) => (
                   <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />
                 )}

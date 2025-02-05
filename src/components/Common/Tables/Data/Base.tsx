@@ -22,7 +22,7 @@ import { SetStateProps } from "@/types/dataTable";
 import { LogProps } from "@/types/evals/logs";
 import { useCellSelection } from "@/hooks/Logs/useCellSelection";
 
-export default function DataTable<TData, TValue>({ className, interactive, data, columns, state, setState, TableTop, FooterCell, ColumnCreate, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
+export default function DataTable<TData, TValue>({ className, interactive, data, columns, state, setState, TableTop, FooterCell, ColumnCreate, ColumnUpdate, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
     className?: string,
     interactive?: boolean,
     data: TData[],
@@ -33,6 +33,7 @@ export default function DataTable<TData, TValue>({ className, interactive, data,
     FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>) => ReactNode,
     ColumnFilters?: (column: TanstackColumn<any | unknown>) => ReactNode;
     ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode;
+    ColumnUpdate?: (key: string) => ReactNode;
     AggregatedCell?: (cell: TanstackCell<any, unknown>, row: TanstackRow<any | unknown>) => ReactNode;
     ExtraCellContent?: (cell: TanstackCell<any, unknown>, isCellExpanded: (cell: TanstackCell<any, unknown>) => boolean, setExpandedCells: Dispatch<SetStateAction<{[k: string]: boolean}>>) => ReactNode;
     ExtraComponents?: (table: TanstackTable<any | unknown>) => ReactNode
@@ -143,6 +144,7 @@ export default function DataTable<TData, TValue>({ className, interactive, data,
                                         setGrouping={setState.setGrouping}
                                         ColumnFilters={ColumnFilters}
                                         ColumnCreate={ColumnCreate}
+                                        ColumnUpdate={ColumnUpdate}
                                         context={state.context}
                                         setContext={setState.setContext}
                                         draggingColumns={state.draggingColumns}
