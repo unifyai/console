@@ -29,7 +29,8 @@ export interface TileProps {
     selected?: string;
     base_index?: string;
     plot_type?: string;
-    plot_scale?: string;
+    plot_scale_x?: string;
+    plot_scale_y?: string;
     is_aggregated?: string;
     x_axis?: string;
     y_axis?: string;
@@ -69,7 +70,8 @@ export type ItemType =
     | "bin_count"
     | "regression_line"
     | "plot_type"
-    | "plot_scale"
+    | "plot_scale_x"
+    | "plot_scale_y"
     | "is_aggregated"
     | "x_axis"
     | "y_axis"

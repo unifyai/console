@@ -152,21 +152,17 @@ export const drawBorders = (
 /* 
   Calculate tick spacing for x and y axes
 */
-export const calculateTicks = (length: number, scale: string, minY: number, maxY: number, minX: number = 0, maxX: number = 0, forceIntegerYTicks: boolean = false) => {
+export const calculateTicks = (length: number, scaleX: string, scaleY: string, minY: number, maxY: number, minX: number = 0, maxX: number = 0, forceIntegerYTicks: boolean = false) => {
+    
     let xTicks = [];
     let yTicks = [];
     const numTicks = length >= 2 ? Math.min(30, length) : 3;
 
-    if (scale === "log") {
+    if (scaleX === "log") {
         const xTickSpacing = (Math.log10(maxX) - Math.log10(minX)) / (numTicks - 1);
         for (let i = 0; i < numTicks; i++) {
             const xTick = Math.pow(10, Math.log10(minX) + i * xTickSpacing);
             xTicks.push(xTick);
-        }
-        const yTickSpacing = (Math.log10(maxY) - Math.log10(minY)) / (numTicks - 1);
-        for (let i = 0; i < numTicks; i++) {
-            const yTick = Math.pow(10, Math.log10(minY) + i * yTickSpacing);
-            yTicks.push(yTick);
         }
     } else {
         const xTickSpacing = (maxX - minX) / (numTicks - 1);
@@ -174,7 +170,15 @@ export const calculateTicks = (length: number, scale: string, minY: number, maxY
             const xTick = minX + i * xTickSpacing;
             xTicks.push(xTick);
         }
+    }
 
+    if (scaleY === "log") {
+        const yTickSpacing = (Math.log10(maxY) - Math.log10(minY)) / (numTicks - 1);
+        for (let i = 0; i < numTicks; i++) {
+            const yTick = Math.pow(10, Math.log10(minY) + i * yTickSpacing);
+            yTicks.push(yTick);
+        }
+    } else {
         if (forceIntegerYTicks) {
             const step = Math.ceil(maxY / (numTicks - 1)) || 1;
             yTicks = [];
@@ -191,7 +195,6 @@ export const calculateTicks = (length: number, scale: string, minY: number, maxY
                 yTicks.push(yTick);
             }    
         }
-
     }
     return {xTicks, yTicks};
 };
@@ -201,13 +204,13 @@ export const calculateTicks = (length: number, scale: string, minY: number, maxY
 */
 export function checkLogScalability (
     logs: LogProps[], 
-    selectedXAxisProperty: string, 
-    selectedYAxisProperty: string, 
+    axisProperty: string,
     scale: string,
     setScale: (scale: string) => void,
     setLogScaleEnabled: (enabled: boolean) => void
 ) {
-    if (logs.some(log => log.entries[selectedXAxisProperty] <= 0) || logs.some(log => log.entries[selectedYAxisProperty] <= 0)) {
+    const condition = logs.every(log => log.entries[axisProperty] > 0)
+    if (!condition) {
         setLogScaleEnabled(false)
         if (scale === "log") setScale("linear")
     } else {
@@ -271,7 +274,8 @@ const positionTooltip = (event: any, svg: any, tooltip: any, width: number, heig
 */
 export const drawBarChart = (
   svg: d3.Selection<null, unknown, null, undefined>,
-  scale: string,
+  scaleX: string,
+  scaleY: string,
   dimensions: {width: number, height: number},
   margins: {[key: string]: number},
   axisPadding: number,
@@ -328,7 +332,7 @@ export const drawBarChart = (
         let step = (maxY - minY) / (Math.min(30, data.length))
         minY -= step
         maxY += step
-        minY = scale === "log" ? 0.001 : minY
+        minY = scaleY === "log" ? 0.001 : minY
     }
     const [xRange, yRange] = [
         [margins.left, width - margins.right],
@@ -336,7 +340,7 @@ export const drawBarChart = (
     ];
     const [xScale, yScale] = [
         d3.scaleBand,
-        scale === "log" ? d3.scaleLog : d3.scaleLinear
+        scaleY === "log" ? d3.scaleLog : d3.scaleLinear
     ];
     const [x, y] = [
         xScale().domain(xDomain).range(xRange).padding(0.2),
@@ -344,7 +348,7 @@ export const drawBarChart = (
     ];
 
     // Draw axes
-    const {xTicks, yTicks} = calculateTicks(data.length, scale, minY, maxY);
+    const {xTicks, yTicks} = calculateTicks(data.length, scaleX, scaleY, minY, maxY);
     drawAxes("Bar Chart", svg, dimensions, margins, x, y, [], yTicks, false);
 
     // Draw rectangles
@@ -426,7 +430,8 @@ export const drawBarChart = (
 
 export const drawLineChart = (
   svg: d3.Selection<null, unknown, null, undefined>,
-  scale: string,
+  scaleX: string,
+  scaleY: string,
   dimensions: {width: number, height: number},
   margins: {[key: string]: number},
   axisPadding: number,
@@ -506,8 +511,8 @@ export const drawLineChart = (
     const [minX = 0, maxX = 0] = d3.extent(xValues);
     const [minY = 0, maxY = 0] = d3.extent(yValues);
     const [xAxisScale, yAxisScale] = [
-        xTime ? d3.scaleTime : scale === "log" ? d3.scaleLog : d3.scaleLinear as any,
-        scale === "log" ? d3.scaleLog : d3.scaleLinear
+        xTime ? d3.scaleTime : scaleX === "log" ? d3.scaleLog : d3.scaleLinear as any,
+        scaleY === "log" ? d3.scaleLog : d3.scaleLinear
     ];
     const [x, y] = [
         xAxisScale().domain([minX, maxX]).range([margins.left + axisPadding, width - margins.right - axisPadding]),
@@ -515,7 +520,7 @@ export const drawLineChart = (
     ];
 
     // Draw axes
-    const {xTicks, yTicks} = calculateTicks(xValues.length, scale, minY, maxY, minX, maxX);
+    const {xTicks, yTicks} = calculateTicks(xValues.length, scaleX, scaleY, minY, maxY, minX, maxX);
     drawAxes("Line Chart", svg, dimensions, margins, x, y, xTicks, yTicks, xTime);
 
     // Add grouping key and hide tooltip
@@ -594,7 +599,8 @@ export const drawLineChart = (
 */
 export const drawScatterPlot = (
   svg: d3.Selection<null, unknown, null, undefined>,
-  scale: string,
+  scaleX: string,
+  scaleY: string,
   dimensions: {width: number, height: number},
   margins: {[key: string]: number},
   axisPadding: number,
@@ -643,8 +649,8 @@ export const drawScatterPlot = (
     const [minX = 0, maxX = 0] = d3.extent(data, d => d.entries[xAxisProperty as keyof LogItemProps] as number);
     const [minY = 0, maxY = 0] = d3.extent(data, d =>  d.entries[yAxisProperty as keyof LogItemProps] as number); 
     const [xScale, yScale] = [
-        scale === "log" ? d3.scaleLog : d3.scaleLinear,
-        scale === "log" ? d3.scaleLog : d3.scaleLinear
+        scaleX === "log" ? d3.scaleLog : d3.scaleLinear,
+        scaleY === "log" ? d3.scaleLog : d3.scaleLinear
     ]
     const [x, y] = [
         xScale().domain([minX, maxX]).range([margins.left + axisPadding, width - margins.right - axisPadding]),
@@ -652,7 +658,7 @@ export const drawScatterPlot = (
     ]
 
     // Draw axes
-    const {xTicks, yTicks} = calculateTicks(data.length, scale, minY, maxY, minX, maxX);
+    const {xTicks, yTicks} = calculateTicks(data.length, scaleX, scaleY, minY, maxY, minX, maxX);
     drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, false);
 
     // Add data points
@@ -877,7 +883,8 @@ export const drawScatterPlot = (
 */
 export const drawHistogram = (
     svg: d3.Selection<null, unknown, null, undefined>,
-    scale: string,
+    scaleX: string,
+    scaleY: string,
     dimensions: {width: number, height: number},
     margins: {[key: string]: number},
     axisPadding: number,
@@ -936,7 +943,7 @@ export const drawHistogram = (
     const y = yScale().domain([minY, maxY]).range(yRange)
 
     // Draw axes
-    const {xTicks, yTicks} = calculateTicks(data.length, scale, minY, maxY, minX, maxX, true);
+    const {xTicks, yTicks} = calculateTicks(data.length, scaleX, scaleY, minY, maxY, minX, maxX, true);
     drawAxes("Histogram", svg, dimensions, margins, x, y, xTicks, yTicks, false, xType);
 
     // Add histogram

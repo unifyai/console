@@ -32,14 +32,17 @@ const LogsPlot = ({ logs, fields}: {
 
     // Plot settings
     let [plotType, setPlotType] = useQueryState("plot_type", { shallow: false });
-    let [scale, setScale] = useQueryState("plot_scale");
-    let [logScaleEnabled, setLogScaleEnabled] = useState(true);
     let [isAggregated, setIsAggregated] = useQueryState("aggregated_data")
     let [binCount, setBinCount] = useQueryState("bin_count", parseAsFloat.withDefault(1))
     let [binCounts, setBinCounts] = useState([1])
     const [showRegression, setShowRegression] = useState("false");
     plotType = plotType ? plotType : "Scatter Plot";
-    scale = scale ? scale : "linear";
+    let [scaleX, setScaleX] = useQueryState("plot_scale_x");
+    let [scaleY, setScaleY] = useQueryState("plot_scale_y");
+    let [logScaleXEnabled, setLogScaleXEnabled] = useState(true);
+    let [logScaleYEnabled, setLogScaleYEnabled] = useState(true);
+    scaleX = scaleX ? scaleX : "linear";
+    scaleY = scaleY ? scaleY : "linear";
 
     // Axes and grouping selected on the plot
     const [selectedXAxisProperty, setSelectedXAxisProperty] = useQueryState("x_axis", { shallow: false });
@@ -68,10 +71,12 @@ const LogsPlot = ({ logs, fields}: {
         if (plotType === "Line Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                checkLogScalability(logs, selectedXAxisProperty, selectedYAxisProperty, scale, setScale, setLogScaleEnabled)
+                checkLogScalability(logs, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
+                checkLogScalability(logs, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawLineChart(
                     svg, 
-                    scale, 
+                    scaleX,
+                    scaleY,
                     dimensions, 
                     margins, 
                     axisPadding, 
@@ -95,10 +100,12 @@ const LogsPlot = ({ logs, fields}: {
         else if (plotType  === "Bar Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                checkLogScalability(logs, selectedXAxisProperty, selectedYAxisProperty, scale, setScale, setLogScaleEnabled)
+                checkLogScalability(logs, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
+                checkLogScalability(logs, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawBarChart(
                     svg, 
-                    scale, 
+                    scaleX,
+                    scaleY,
                     dimensions, 
                     margins, 
                     axisPadding, 
@@ -124,7 +131,8 @@ const LogsPlot = ({ logs, fields}: {
                 d3.select(placeholderTextRef.current).text("");
                 drawHistogram(
                     svg, 
-                    scale, 
+                    scaleX,
+                    scaleY,
                     dimensions, 
                     margins, 
                     axisPadding, 
@@ -148,10 +156,12 @@ const LogsPlot = ({ logs, fields}: {
         else {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                checkLogScalability(logs, selectedXAxisProperty, selectedYAxisProperty, scale, setScale, setLogScaleEnabled)
+                checkLogScalability(logs, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
+                checkLogScalability(logs, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawScatterPlot(
                     svg, 
-                    scale, 
+                    scaleX,
+                    scaleY,
                     dimensions, 
                     margins, 
                     axisPadding, 
@@ -176,7 +186,8 @@ const LogsPlot = ({ logs, fields}: {
     }, [
         logs,
         dimensions,
-        scale,
+        scaleX,
+        scaleY,
         selectedXAxisProperty,
         selectedYAxisProperty,
         plotType,
@@ -229,7 +240,7 @@ const LogsPlot = ({ logs, fields}: {
             }
             {plotType != "Histogram" &&
                 <div className="absolute top-36 right-3 z-10 PlotScale">
-                    <PlotScale scale={scale} setScale={setScale} logScaleEnabled={logScaleEnabled}/>
+                    <PlotScale scaleX={scaleX} scaleY={scaleY} setScaleX={setScaleX} setScaleY={setScaleY} logScaleXEnabled={logScaleXEnabled} logScaleYEnabled={logScaleYEnabled} selectedXAxisProperty={selectedXAxisProperty} fields={fields}/>
                 </div>
             }
             {plotType === "Scatter Plot" && 
