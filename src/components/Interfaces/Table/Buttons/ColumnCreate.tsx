@@ -7,7 +7,7 @@ import SubmitButton from "@/components/Common/Buttons/Submit";
 import { getLogsParameters, TableArguments, LogProps } from "@/types/evals/logs"
 import BaseButton from "@/components/Common/Buttons/Base";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
-import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuGroup } from "@/components/UI/dropdown-menu";
+import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuGroup, DropdownMenuSub, DropdownMenuPortal, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/UI/dropdown-menu";
 import { Plus, LoaderCircle } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import FormulaInput from "@/components/Common/Input/Formula";
@@ -108,6 +108,8 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, derive, set
                         placeholder={"Enter a column name.."}
                         value={name}
                         onInput={(event) => handleName(event.currentTarget.value)}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onMouseMove={(e) => e.stopPropagation()}
                         onKeyDown={onEnter}
                     />
 
@@ -119,37 +121,40 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, derive, set
                         <SubmitButton text="Apply" onClick={() => onSubmit()}/>
                     </div>
 
-    const button = <BaseButton variant="ghost" icon={<Plus/>} text={"Create Column"} className={"h-4 pt-2"}/>
+    const button =  <BaseButton variant="ghost" icon={<Plus/>} text={"Create Column"} className={"h-4 pt-2"}/>
+    const body =    <div className="p-2 flex flex-col gap-1 h-full w-[400px]" onClick={(e) => e.stopPropagation()}>
+
+                        <div className="flex flex-col h-full">
+                            <DropdownMenuLabel className="text-sm font-semibold">Column name</DropdownMenuLabel>
+                            {column}
+                            {nameError && warning(nameError)}
+                        </div>
+
+                        <div className="flex flex-col h-full">
+                            <DropdownMenuLabel className="text-sm font-semibold">Derived expression</DropdownMenuLabel>
+                            <DropdownMenuLabel className="text-sm font-normal">
+                                <p>Enter a mathematical expression to evaluate. You can use any entry column name as variable.</p>
+                            </DropdownMenuLabel>
+                            {entry}
+                        </div>
+
+                    </div>
+    const footer =  <div className="p-2 flex flex-row gap-1 justify-between">
+                        {warning(errorMessage)}
+                        {name && expression && !nameError && submit}
+                    </div>
+
     return (
     <DropdownMenuGroup>
-        <DropdownMenuItem className="flex flex-row justify-between">
-            <BaseDropdown button={button} open={open} setOpen={setOpen}>
-
-                <div className="p-2 flex flex-col gap-1 h-full w-[400px]" onClick={(e) => e.stopPropagation()}>
-
-                    <div className="flex flex-col h-full">
-                        <DropdownMenuLabel className="text-sm font-semibold">Column name</DropdownMenuLabel>
-                        {column}
-                        {nameError && warning(nameError)}
-                    </div>
-
-                    <div className="flex flex-col h-full">
-                        <DropdownMenuLabel className="text-sm font-semibold">Derived expression</DropdownMenuLabel>
-                        <DropdownMenuLabel className="text-sm font-normal">
-                            <p>Enter a mathematical expression to evaluate. You can use any entry column name as variable.</p>
-                        </DropdownMenuLabel>
-                        {entry}
-                    </div>
-
-                </div>
-                    
-                <div className="p-2 flex flex-row gap-1 justify-between">
-                    {warning(errorMessage)}
-                    {name && expression && !nameError && submit}
-                </div>
-
-            </BaseDropdown>
-        </DropdownMenuItem>
+        <DropdownMenuSub>
+            <DropdownMenuSubTrigger>New Column</DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+                <DropdownMenuSubContent>
+                    {body}
+                    {footer}
+                </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+        </DropdownMenuSub>
     </DropdownMenuGroup>
     );
 }
