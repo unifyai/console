@@ -35,30 +35,6 @@ import { Button } from "@/components/UI/button";
 import { FoldVertical, UnfoldVertical } from "lucide-react";
 
 /*────────────────────────────────────────────────────────────────────────────
-  buildKeyToTypeMap => figure out type for each key (string, dict, etc.)
-────────────────────────────────────────────────────────────────────────────*/
-function buildKeyToTypeMap(
-  allKeys: string[],
-  baseValue: any,
-  comparables: any[] | undefined
-): Record<string, string> {
-  const map: Record<string, string> = {};
-  allKeys.forEach((k) => {
-    let sample = baseValue ? baseValue[k] : undefined;
-    if (sample === undefined && comparables) {
-      for (const c of comparables) {
-        if (c && isDict(c) && c[k] !== undefined) {
-          sample = c[k];
-          break;
-        }
-      }
-    }
-    map[k] = getValueType(sample);
-  });
-  return map;
-}
-
-/*────────────────────────────────────────────────────────────────────────────
   pickView => specialized or raw
   Accepts forceExpandAll? for child expansions
 ────────────────────────────────────────────────────────────────────────────*/
@@ -142,59 +118,73 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
     forceExpandAll = false,
   } = props;
 
-  if (!isDict(value)) {
-    return <p className="text-red-500">DictionaryView: Value is not a dictionary.</p>;
-  }
+  // local state hooks - must be called unconditionally at the top level
+  const [openItems, setOpenItems] = useState<string[]>([]);
+  const [childForceExpand, setChildForceExpand] = useState<string[]>([]);
+  const didExpandRef = useRef(false);
 
   // build the union set of property keys
-  let allKeys: string[] = [];
-  let allDicts: any[] = [];
-  let allIndexes: number[] = [];
+  const allKeysAndData = useMemo(() => {
+    let keys: string[] = [];
+    let dicts: any[] = [];
+    let indexes: number[] = [];
 
-  if (!comparables || comparables.length === 0) {
-    allKeys = Object.keys(value).sort();
-    allDicts = [value];
-    allIndexes = [baseLogIndex];
-  } else {
-    const joined = [value, ...comparables];
-    allDicts = joined;
-    allIndexes = [baseLogIndex, ...comparisonLogsIndex];
+    if (!comparables || comparables.length === 0) {
+      keys = Object.keys(value || {}).sort();
+      dicts = [value];
+      indexes = [baseLogIndex];
+    } else {
+      const joined = [value, ...comparables];
+      dicts = joined;
+      indexes = [baseLogIndex, ...comparisonLogsIndex];
 
-    const union = new Set<string>();
-    joined.forEach((obj) => {
-      if (obj && isDict(obj)) {
-        Object.keys(obj).forEach((k) => union.add(k));
-      }
-    });
-    allKeys = Array.from(union).sort();
-  }
+      const union = new Set<string>();
+      joined.forEach((obj) => {
+        if (obj && isDict(obj)) {
+          Object.keys(obj).forEach((k) => union.add(k));
+        }
+      });
+      keys = Array.from(union).sort();
+    }
+
+    return { allKeys: keys, allDicts: dicts, allIndexes: indexes };
+  }, [value, comparables, baseLogIndex, comparisonLogsIndex]);
 
   // figure out default expansions for string/number/matrix/image
-  const keyTypeMap = useMemo(() => buildKeyToTypeMap(allKeys, value, comparables), [
-    allKeys,
-    value,
-    comparables
-  ]);
+  const keyTypeMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    allKeysAndData.allKeys.forEach((k) => {
+      let sample = value ? value[k] : undefined;
+      if (sample === undefined && comparables) {
+        for (const c of comparables) {
+          if (c && isDict(c) && c[k] !== undefined) {
+            sample = c[k];
+            break;
+          }
+        }
+      }
+      map[k] = getValueType(sample);
+    });
+    return map;
+  }, [allKeysAndData.allKeys, value, comparables]);
 
   const defaultOpenKeys = useMemo(() => {
-    return allKeys.filter((k) =>
+    return allKeysAndData.allKeys.filter((k) =>
       ["string", "number", "matrix", "image"].includes(keyTypeMap[k])
     );
-  }, [allKeys, keyTypeMap]);
+  }, [allKeysAndData.allKeys, keyTypeMap]);
 
-  // local open items
-  const [openItems, setOpenItems] = useState(defaultOpenKeys);
-
-  // track which props are forcibly expanded for their child dictionary/list
-  const [childForceExpand, setChildForceExpand] = useState<string[]>([]);
+  // Set initial open items
+  useEffect(() => {
+    setOpenItems(defaultOpenKeys);
+  }, [defaultOpenKeys]);
 
   // handle symmetrical force expansions => open or close everything
-  const didExpandRef = useRef(false);
   useEffect(() => {
     if (forceExpandAll && !didExpandRef.current) {
       // open everything
-      setOpenItems(allKeys);
-      setChildForceExpand(allKeys);
+      setOpenItems(allKeysAndData.allKeys);
+      setChildForceExpand(allKeysAndData.allKeys);
       didExpandRef.current = true;
     } else if (!forceExpandAll && didExpandRef.current) {
       // close everything
@@ -202,7 +192,11 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
       setChildForceExpand([]);
       didExpandRef.current = false;
     }
-  }, [forceExpandAll, allKeys]);
+  }, [forceExpandAll, allKeysAndData.allKeys]);
+
+  if (!isDict(value)) {
+    return <p className="text-red-500">DictionaryView: Value is not a dictionary.</p>;
+  }
 
   // render single-mode property
   function renderSingleProperty(propKey: string, val: any) {
@@ -261,7 +255,7 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
 
   // render multi-mode property
   function renderMultiProperty(propKey: string) {
-    const subValues = allDicts.map((d) => (d && isDict(d) ? d[propKey] : undefined));
+    const subValues = allKeysAndData.allDicts.map((d) => (d && isDict(d) ? d[propKey] : undefined));
     const baseVal = subValues[0];
     const compVals = subValues.slice(1);
 
@@ -278,8 +272,8 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
     const childProps: LogComparisonProps & { forceExpandAll?: boolean } = {
       value: baseVal,
       comparables: compVals,
-      baseLogIndex: allIndexes[0],
-      comparisonLogsIndex: allIndexes.slice(1),
+      baseLogIndex: allKeysAndData.allIndexes[0],
+      comparisonLogsIndex: allKeysAndData.allIndexes.slice(1),
       nestingLevel: nestingLevel + 1,
       diffMode: props.diffMode,
       splitView: props.splitView,
@@ -324,7 +318,7 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
   }
 
   function renderProperties() {
-    return allKeys.map((propKey) => {
+    return allKeysAndData.allKeys.map((propKey) => {
       if (!comparables || comparables.length === 0) {
         const val = value[propKey];
         return renderSingleProperty(propKey, val);

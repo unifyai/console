@@ -114,12 +114,6 @@ const ListView: React.FC<ListViewProps> = (props) => {
     forceExpandAll = false,
   } = props;
 
-  if (!isList(value)) {
-    return (
-      <p className="text-red-500">ListView: Value is not a valid list.</p>
-    );
-  }
-
   // single vs multi
   const singleMode = !comparables || comparables.length === 0;
 
@@ -131,9 +125,7 @@ const ListView: React.FC<ListViewProps> = (props) => {
   }
 
   // label them "Item <i>"
-  const allItemLabels = useMemo(() => {
-    return Array.from({ length: itemCount }, (_, i) => `Item ${i}`);
-  }, [itemCount]);
+  const allItemLabels = Array.from({ length: itemCount }, (_, i) => `Item ${i}`);
 
   // guess item type => default expansions
   function guessItemType(index: number): string {
@@ -150,12 +142,10 @@ const ListView: React.FC<ListViewProps> = (props) => {
   }
 
   // default open items => string/number/matrix/image
-  const defaultOpenItems = useMemo(() => {
-    return allItemLabels.filter((lbl, i) => {
-      const t = guessItemType(i);
-      return ["string", "number", "matrix", "image"].includes(t);
-    });
-  }, [allItemLabels, value, comparables]);
+  const defaultOpenItems = allItemLabels.filter((lbl, i) => {
+    const t = guessItemType(i);
+    return ["string", "number", "matrix", "image"].includes(t);
+  });
 
   // local open items
   const [openItems, setOpenItems] = useState(defaultOpenItems);
@@ -178,6 +168,12 @@ const ListView: React.FC<ListViewProps> = (props) => {
       didExpandRef.current = false;
     }
   }, [forceExpandAll, allItemLabels]);
+
+  if (!isList(value)) {
+    return (
+      <p className="text-red-500">ListView: Value is not a valid list.</p>
+    );
+  }
 
   // single-mode item
   function renderSingleItem(index: number) {
