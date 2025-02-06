@@ -11,7 +11,7 @@ const PlotAggregate = ({isAggregated, setIsAggregated}: {
     return (
         <SettingButton
             icon={isAggregated === "true" ? <Ungroup/> : <Group/>}
-            tooltip={`${Boolean(isAggregated) ? "Split data" : "Aggregate data"}`}
+            tooltip={`${isAggregated === "true" ? "Split data" : "Aggregate data"}`}
             onClick={() => setIsAggregated(aggregated  => aggregated === "true" ? "false" : "true")}
         />
     );

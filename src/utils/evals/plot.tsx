@@ -24,95 +24,78 @@ export const drawAxes = (
     xTicks: number[], 
     yTicks: number[],
     xTime: boolean,
+    reverseX: boolean = false,
+    reverseY: boolean = false,
     xType?: string
 ) => {
 
-    const width = dimensions.width;
-    const height = dimensions.height;
-    
+    /* Initialize variables */
     let xAxis : d3.Selection<d3.BaseType, unknown, null, undefined>;
+    let yAxis : d3.Selection<d3.BaseType, unknown, null, undefined>;
+    let xTickFormatter: any;
+    let yTickFormatter: any;
+
+    /* Initialize x and y axes */
+    const height = dimensions.height;    
+    xAxis = svg.select(".xAxis").attr("transform", `translate(0,${height - margins.bottom})`)
+    yAxis = svg.select(".yAxis").attr("transform", `translate(${margins.left},0)`)
+
+    /* Adjust tick formatting */
     if (plotType === "Bar Chart") {
-        xAxis = svg
-            .select(".xAxis")
-            .attr("transform", `translate(0,${height - margins.bottom})`)
-            .call(
-                d3.axisBottom(x as d3.ScaleBand<string>)
-                .tickSizeOuter(0)
-                .tickFormat(d => 
-                    typeof d === "number" 
-                        ? formatNumber(d) 
-                        : JSON.stringify(d).slice(0, 5).replace(/^"|"$/g, '')
-                ) as any
-            );
+        xTickFormatter = d3.axisBottom(x as d3.ScaleBand<string>).tickSizeOuter(0).tickFormat(d => {
+            if (typeof d === "number") return reverseX ? formatNumber(-d) : formatNumber(d) 
+            return JSON.stringify(d).slice(0, 5).replace(/^"|"$/g, '')
+        }) as any
     } else if (plotType === "Histogram") {
-        xAxis = svg
-            .select(".xAxis")
-            .attr("transform", `translate(0,${height - margins.bottom})`)
-            .call(
-                d3.axisBottom(x as d3.ScaleLinear<number, number, never>)
-                .tickSizeOuter(0)
-                .tickFormat(d => 
-                    xType === "timestamp"
-                        ? new Date(d as number).toISOString().replace("Z", "").replace("T", " ")
-                        : formatNumber(d as number)
-                ) as any
-            ); 
-    }
-    else {
+        xTickFormatter = d3.axisBottom(x as d3.ScaleLinear<number, number, never>).tickSizeOuter(0).tickFormat(d => {
+            if (xType === "timestamp") return new Date(d as number).toISOString().replace("Z", "").replace("T", " ")
+            return reverseX ? formatNumber(-d as number) : formatNumber(d as number)
+        }) as any
+    } else if (plotType === "Line Chart") {
         const allDates = xTicks.map(tick => new Date(tick as number).toLocaleDateString());
-        xAxis = svg
-            .select(".xAxis")
-            .attr("transform", `translate(0,${height - margins.bottom})`)
-            .call(
-                d3.axisBottom(x as d3.ScaleLinear<number, number, never> | d3.ScaleLogarithmic<number, number, never>)
-                .tickValues(xTicks)
-                .tickFormat((d, i) => {
-                    if (xTime) {
-                        const date = new Date(d as number);
-                        if (i != 0 && allDates[i-1] === date.toLocaleDateString())
-                            return date.toTimeString().split(" ").at(0) as string;
-                        else
-                            return date.toLocaleDateString();
-                    } else {
-                        return formatNumber(parseFloat(d.toString()));
-                    }
-                }) as any
-            );   
+        xTickFormatter = d3.axisBottom(x as d3.ScaleLinear<number, number, never> | d3.ScaleLogarithmic<number, number, never>).tickValues(xTicks).tickFormat((d, i) => {
+            if (xTime) {
+                const date = new Date(d as number);
+                if (i != 0 && allDates[i-1] === date.toLocaleDateString())
+                    return date.toTimeString().split(" ").at(0) as string;
+                else
+                    return date.toLocaleDateString();
+            } else {
+                let value = parseFloat(d.toString())
+                value = reverseX ? -value : value
+                return formatNumber(value);
+            }
+        }) as any
+    } else {
+        xTickFormatter = d3.axisBottom(x as d3.ScaleLinear<number, number, never> | d3.ScaleLogarithmic<number, number, never>).tickValues(xTicks).tickFormat((d, i) => {
+            let value = parseFloat(d.toString())
+            value = reverseX ? -value : value
+            return formatNumber(value);
+        }) as any   
     }
-    
-    xAxis.selectAll("text") // Axis labels style
-        .attr("stroke", "black") 
-        .attr("stroke-width", 0.1)
-        .attr("transform", "rotate(-20) translate(0, 5)") // Combine rotate and translate
-        .attr("text-anchor", "end")
-        .attr("font-size", "10px");
-    xAxis.select("path") // Axis line style
-        .attr("stroke", "rgba(243, 244, 246, 1)");        
-    xAxis.selectAll("line") // Ticks style
-        .attr("stroke", "black")
-        .attr("stroke-width", 0.5);
- 
-    const yAxis = svg
-        .select(".yAxis")
-        .attr("transform", `translate(${margins.left},0)`)
-        .call(
-            d3.axisLeft(y as d3.ScaleLinear<number, number, never> | d3.ScaleLinear<number, number, never>)
-            .tickValues(plotType === "Bar Chart" || plotType === "Histogram"
-                ? yTicks.length > 1 ? yTicks.slice(1) : yTicks 
-                : yTicks as number[]
-            )
-            .tickFormat((d) => formatNumber(parseFloat((d as any)))) as any
-        );
-    yAxis.selectAll("text") // Axis labels style
-        .attr("stroke", "black") 
-        .attr("stroke-width", 0.1)
-        .attr("text-anchor", "end")
-        .attr("font-size", `10px`);
-    yAxis.select("path") // Axis line style
-        .attr("stroke", "rgba(243, 244, 246, 1)");        
-    yAxis.selectAll("line") // Ticks style
-        .attr("stroke", "black")
-        .attr("stroke-width", 0.5);
+    yTickFormatter = d3
+        .axisLeft(y as d3.ScaleLinear<number, number, never> | d3.ScaleLinear<number, number, never>)
+        .tickValues(plotType === "Bar Chart" || plotType === "Histogram"
+            ? yTicks.length > 1 ? yTicks.slice(1) : yTicks 
+            : yTicks as number[]
+        )
+        .tickFormat((d) => {
+            let value = parseFloat(d as any)
+            value = reverseY ? -value : value
+            return formatNumber(value)
+        }) as any
+
+    /* Format ticks */
+    xAxis = xAxis.call(xTickFormatter);
+    yAxis = yAxis.call(yTickFormatter);
+
+    /* Style ticks, axis and line */
+    xAxis.selectAll("text").attr("stroke", "black") .attr("stroke-width", 0.1).attr("transform", "rotate(-20) translate(0, 5)").attr("text-anchor", "end").attr("font-size", "10px");
+    yAxis.selectAll("text").attr("stroke", "black") .attr("stroke-width", 0.1).attr("text-anchor", "end").attr("font-size", `10px`);
+    xAxis.selectAll("line").attr("stroke", "black").attr("stroke-width", 0.5);
+    yAxis.selectAll("line").attr("stroke", "black").attr("stroke-width", 0.5);
+    xAxis.select("path").attr("stroke", "rgba(243, 244, 246, 1)");
+    yAxis.select("path").attr("stroke", "rgba(243, 244, 246, 1)");
 
     return {xAxis, yAxis}
 };
@@ -156,12 +139,14 @@ export const calculateTicks = (length: number, scaleX: string, scaleY: string, m
     
     let xTicks = [];
     let yTicks = [];
+    const [absMinX, absMaxX] = [Math.abs(minX), Math.abs(maxX)]
+    const [absMinY, absMaxY] = [Math.abs(minY), Math.abs(maxY)]
     const numTicks = length >= 2 ? Math.min(30, length) : 3;
 
     if (scaleX === "log") {
-        const xTickSpacing = (Math.log10(maxX) - Math.log10(minX)) / (numTicks - 1);
+        const xTickSpacing = (Math.log10(absMaxX) - Math.log10(absMinX)) / (numTicks - 1);
         for (let i = 0; i < numTicks; i++) {
-            const xTick = Math.pow(10, Math.log10(minX) + i * xTickSpacing);
+            const xTick = Math.pow(10, Math.log10(absMinX) + i * xTickSpacing);
             xTicks.push(xTick);
         }
     } else {
@@ -173,9 +158,9 @@ export const calculateTicks = (length: number, scaleX: string, scaleY: string, m
     }
 
     if (scaleY === "log") {
-        const yTickSpacing = (Math.log10(maxY) - Math.log10(minY)) / (numTicks - 1);
+        const yTickSpacing = (Math.log10(absMaxY) - Math.log10(absMinY)) / (numTicks - 1);
         for (let i = 0; i < numTicks; i++) {
-            const yTick = Math.pow(10, Math.log10(minY) + i * yTickSpacing);
+            const yTick = Math.pow(10, Math.log10(absMinY) + i * yTickSpacing);
             yTicks.push(yTick);
         }
     } else {
@@ -209,15 +194,32 @@ export function checkLogScalability (
     setScale: (scale: string) => void,
     setLogScaleEnabled: (enabled: boolean) => void
 ) {
-    const condition = logs.every(log => log.entries[axisProperty] > 0)
+    const entries = logs.map(log => log.entries[axisProperty]);
+    const allPositive = entries.every(v => v > 0);
+    const allNegative = entries.every(v => v < 0);
+    const hasZero = entries.some(v => v === 0);
+    const condition = (allPositive || allNegative) && !hasZero;
     if (!condition) {
         setLogScaleEnabled(false)
-        if (scale === "log") setScale("linear")
+        if (scale === "log") {
+            setScale("linear"); 
+            return "linear";
+        }
     } else {
         setLogScaleEnabled(true)
     }
+    return scale;
 }
 
+/* Reverse the axis domain to compute log scales if all numbers are strictly negative */
+export const reverseOrKeepDomain = (values: number[], domain: number[], reverseX: boolean) => {
+    if (reverseX) {
+        const absXValues = values.map(v => Math.abs(v));
+        const [absMinX, absMaxX] = d3.extent(absXValues) as number[];
+        return [absMaxX, absMinX];
+    }
+    return domain
+}
 
 /* 
     Hover tooltip and grouping key templates
@@ -273,155 +275,239 @@ const positionTooltip = (event: any, svg: any, tooltip: any, width: number, heig
   Draw bar chart plot
 */
 export const drawBarChart = (
-  svg: d3.Selection<null, unknown, null, undefined>,
-  scaleX: string,
-  scaleY: string,
-  dimensions: {width: number, height: number},
-  margins: {[key: string]: number},
-  axisPadding: number,
-  selectedXAxisProperty: string | undefined,
-  selectedYAxisProperty: string | undefined,
-  isAggregated: string | undefined,
-  logs: LogProps[],
-  fields: LogFieldsResponseProps
+    svg: d3.Selection<null, unknown, null, undefined>,
+    scaleX: string,
+    scaleY: string,
+    dimensions: {width: number, height: number},
+    margins: {[key: string]: number},
+    axisPadding: number,
+    selectedXAxisProperty: string | undefined,
+    selectedYAxisProperty: string | undefined,
+    isAggregated: string | undefined,
+    logs: LogProps[],
+    fields: LogFieldsResponseProps
 ) => {
-
-    // Remove drawings from other plots:
-    const g = svg.select(".plotData")
-    g.selectAll("circle.data-point").remove();
-    g.selectAll("circle.hover-area").remove();
-    g.selectAll("path.line-item").remove();
-    g.selectAll("rect.hist-item").remove();
-    g.selectAll("text.correlation").remove();
-    g.selectAll("path.best-fit").remove();
+    
+    // Clear previous elements
+    const g = svg.select(".plotData");
+    g.selectAll("*").remove();
 
     // Prepare data
-    let data : DataLabel[] = [];
+    let data: DataLabel[] | GroupedDataLabel[] = [];
     const properties = Object
-            .entries(fields)
-            .filter(([name, { data_type, field_type }]) => field_type != "param")
-            .map(([name]) => name);
-    const xAxis = selectedXAxisProperty === "Log Time" ? properties.at(0)! : selectedXAxisProperty;
-    const yAxis = selectedYAxisProperty && !metrics.includes(selectedYAxisProperty) ? metrics.at(0) : selectedYAxisProperty;
+        .entries(fields)
+        .filter(([name, { field_type }]) => field_type !== "param")
+        .map(([name]) => name);
+    
+    const xAxis = selectedXAxisProperty === "Log Time" ? properties[0] : selectedXAxisProperty;
+    const yAxis = selectedYAxisProperty && !metrics.includes(selectedYAxisProperty) 
+        ? metrics[0] 
+        : selectedYAxisProperty;
+
+    const aggregated = isAggregated === "true";
+
+    let colorKeys: string[] = [];
+    const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+    const key = d3.select(".groupingKey").style("opacity", 0);
+
     if (xAxis && yAxis) {
-        const filteredData = logs.filter((log) => log.entries[xAxis] != undefined);
-        const statistic = (values: LogProps[]) => computeStatistic(yAxis, values.map(d => toComputableValue(d.entries[xAxis]))) 
-        data = isAggregated === "true"
-            ? [ [xAxis, parseFloat(statistic(filteredData))] ]
-            : d3
-            .groups(filteredData, d => d.entries[xAxis])
-            .map(([groupKey, groupData]) => {
-                const label = groupKey.toString();
-                const value = d3.rollups(groupData, v => statistic(v));
-                return [label, parseFloat(value)];
-            }) as DataLabel[];
+        const filteredData = logs.filter(log => log.entries[xAxis] !== undefined);
+        const statistic = (vals: number[]) => computeStatistic(yAxis, vals);
+
+        if (aggregated) {
+            const groups = d3.rollup(
+                filteredData,
+                v => parseFloat(statistic(v.map(l => toComputableValue(l.entries[xAxis])))),
+                d => d.entries[xAxis].toString()
+            );
+            data = Array.from(groups, ([group, value]) => [group, value]) as DataLabel[];
+        } else {
+            const groups = d3.group(filteredData, d => d.entries[xAxis].toString());
+            const keys = properties.filter(k => k !== xAxis && k !== yAxis);
+            colorKeys = [...Array.from(new Set(keys))];
+            data = Array.from(groups).map(([group, logs]) => [
+                group,
+                keys.map(key => [
+                    key,
+                    parseFloat(statistic(logs.map(l => toComputableValue(l.entries[key]))))
+                ]) as DataLabel[]
+            ]) as GroupedDataLabel[];
+        }
     }
 
     // Define scales
-    // We also adjust the y scale with by adding an extra lower / higher bound increment
-    // Or, when there is only one value, specifying an arbitrary range,
-    // accounting for negative values when using a log scale
     const [width, height] = [dimensions.width, dimensions.height];
-    let [xDomain, [minY = 0, maxY = 0]] = [
-        data.map(d => d[0]),
-        d3.extent((data as DataLabel[]).map((d) => d[1]))
-    ];
-    if (minY === maxY) {
-        [minY, maxY] = [0.001, maxY * 2]
+    const xDomain = aggregated 
+        ? (data as DataLabel[]).map(d => d[0]) 
+        : (data as GroupedDataLabel[]).map(d => d[0]);
+    
+    const xScale = d3.scaleBand()
+        .domain(xDomain)
+        .range([margins.left, width - margins.right])
+        .padding(aggregated ? 0.2 : 0.1);
+
+    const subXScale = d3.scaleBand()
+        .domain(aggregated ? [yAxis!] : colorKeys)
+        .range([0, xScale.bandwidth()])
+        .padding(0.1);
+
+    // Calculate Y scale
+    const allValues = aggregated 
+        ? (data as DataLabel[]).map(d => d[1]) 
+        : (data as GroupedDataLabel[]).flatMap(d => d[1].map(v => v[1]));
+    
+    let [minY, maxY] = d3.extent(allValues) as [number, number];
+    let yRange: [number, number];
+    if (scaleY === "log") {
+        minY = minY <= 0 ? 0.001 : minY;
+        yRange = [height - margins.bottom, margins.top + axisPadding];
     } else {
-        let step = (maxY - minY) / (Math.min(30, data.length))
-        minY -= step
-        maxY += step
-        minY = scaleY === "log" ? 0.001 : minY
+        if (aggregated) {
+            minY = Math.min(minY, 0);
+            maxY = Math.max(maxY, 0);
+            yRange = [height - margins.bottom, margins.top + axisPadding];
+        } else {
+            const hasNegative = minY < 0;
+            const hasPositive = maxY > 0;
+            if (hasNegative && hasPositive) {
+                const absMax = Math.max(Math.abs(minY), maxY);
+                minY = -absMax;
+                maxY = absMax;
+                yRange = [height - margins.bottom, margins.top + axisPadding];
+            } else if (hasNegative) {
+                yRange = [margins.top + axisPadding, height - margins.bottom];
+                [minY, maxY] = [minY, 0];
+            } else {
+                yRange = [height - margins.bottom, margins.top + axisPadding];
+                [minY, maxY] = [0, maxY];
+            }
+        }
     }
-    const [xRange, yRange] = [
-        [margins.left, width - margins.right],
-        [height - margins.bottom, margins.top + 2 * axisPadding]
-    ];
-    const [xScale, yScale] = [
-        d3.scaleBand,
-        scaleY === "log" ? d3.scaleLog : d3.scaleLinear
-    ];
-    const [x, y] = [
-        xScale().domain(xDomain).range(xRange).padding(0.2),
-        yScale().domain([minY, maxY]).range(yRange)
-    ];
+
+    const yScale = (scaleY === "log" ? d3.scaleLog() : d3.scaleLinear())
+        .domain([minY, maxY]).nice()
+        .range(yRange);
 
     // Draw axes
-    const {xTicks, yTicks} = calculateTicks(data.length, scaleX, scaleY, minY, maxY);
-    drawAxes("Bar Chart", svg, dimensions, margins, x, y, [], yTicks, false);
+    const {xTicks, yTicks} = calculateTicks(xDomain.length, scaleX, scaleY, minY, maxY);
+    drawAxes("Bar Chart", svg, dimensions, margins, xScale, yScale, xTicks, yTicks, false);
 
-    // Draw rectangles
-    const bars = g.selectAll<SVGRectElement, DataLabel>("rect.bar-item")
-        .data(data, (d: DataLabel) => `${d[0]}-${d[1]}`);
-    const enteringBars = bars.enter()
-        .append("rect")
-        .attr("class", "bar-item")
-        .attr("fill", primary)
-        .attr("x", d => x(d[0]) as number)
-        .attr("y", y(0))  // Start from base (y position of 0)
-        .attr("height", 0)  // Start with 0 height
-        .attr("width", x.bandwidth())
-        .attr("bar-id", d => `bar-${d[0]}-${d[1]}`)
-        .on("mouseover", (event, d) => hoverOnBar(event, d))
-        .on("mousemove", (event, d) => moveOnBar(event, d))
-        .on("mouseout", (event, d) => leaveBar(event, d));
-    enteringBars.merge(bars as any)
-        .transition()
-        .duration(200)
-        .attr("x", d => x(d[0]) as number)
-        .attr("y", d => y(d[1]) as number)
-        .attr("height", d => y(0) - y(d[1]))
-        .attr("width", x.bandwidth());
-    bars.exit()
-        .transition()
-        .duration(200)
-        .attr("y", y(0))
-        .attr("height", 0)
-        .remove();
+    // Unified bar drawing function
+    const drawBars = (selection: d3.Selection<SVGRectElement, DataLabel, any, any>) => {
+        selection
+            .attr("y", d => {
+                const value = d[1];
+                if (aggregated)
+                    return Math.min(yScale(value), yScale(0));
+                return value >= 0 ? yScale(value) : yScale(0);
+            })
+            .attr("height", d => {
+                const value = d[1];
+                const baseline = aggregated ? yScale(0) : (scaleY === "log" ? yScale(0.001) : yScale(0));
+                if (aggregated) return Math.abs(yScale(value) - baseline);
+                return value >= 0 
+                    ? baseline - yScale(value)  // Positive bars grow upward
+                    : yScale(value) - baseline; // Negative bars grow downward
+            });
+    };
 
-    // Add tooltip and hide key
-    const tooltip = d3.select(".plotTooltip").style("opacity", 0)
-    const key = d3.select(".groupingKey").style("opacity", 0)
+    // Draw bars
+    const t = svg.transition().duration(500);
+    if (aggregated) {
+        g
+            .selectAll<SVGRectElement, DataLabel>("rect.bar-item")
+            .data(data as DataLabel[], d => d[0])
+            .join(
+                enter => enter.append("rect")
+                    .attr("class", "bar-item")
+                    .attr("x", d => xScale(d[0])!)
+                    .attr("width", xScale.bandwidth())
+                    .attr("y", yScale(0))
+                    .attr("height", 0)
+                    .attr("fill", primary)
+                    .call(enter => enter.transition(t as any)
+                    .call(drawBars as any)),
+                update => update,
+                exit => exit.transition(t as any)
+                    .attr("height", 0)
+                    .attr("y", yScale(0))
+                    .remove()
+            );
+    } else {
+        const groups = g
+            .selectAll("rect.bar-group")
+            .data(data as GroupedDataLabel[], d => (d as GroupedDataLabel)[0])
+            .join(
+                enter => enter.append("g")
+                    .attr("class", "bar-group")
+                    .attr("transform", d => `translate(${xScale(d[0])},0)`)
+                    .call(enter => enter.transition(t as any)),
+                update => update.transition(t as any),
+                exit => exit.transition(t as any)
+                    .attr("transform", d => `translate(${xScale(d[0])},${height})`)
+                    .remove()
+            );
+        groups.selectAll<SVGRectElement, DataLabel>("rect.bar-item")
+            .data(d => d[1], (d: DataLabel) => d[0])
+            .join(
+                enter => enter.append("rect")
+                    .attr("class", "bar-item")
+                    .attr("x", d => subXScale(d[0])!)
+                    .attr("width", subXScale.bandwidth())
+                    .attr("y", yScale(0))
+                    .attr("height", 0)
+                    .attr("fill", d => colorScale(d[0]))
+                    .call(enter => enter.transition(t as any)
+                        .call(drawBars as any)),
+                update => update.call(update => update.transition(t as any)
+                    .attr("x", d => subXScale(d[0])!)
+                    .attr("width", subXScale.bandwidth())),
+                exit => exit.transition(t as any)
+                    .attr("height", 0)
+                    .attr("y", yScale(0))
+                    .remove()
+            );
+        if (colorKeys.length > 0) {
+            const keyItems = colorKeys.map(k => ({ key: k, color: colorScale(k) }));
+            key.html(keyTemplate(keyItems)).transition().style("opacity", 1);
+        }
+    }
 
-    // When hovering on a bar. Update tooltip data and add striped contour around the bar
-    function hoverOnBar(event: any, data: DataLabel) {
+    // Hover events
+    const tooltip = d3.select(".plotTooltip").style("opacity", 0);
+    const handleMouseOver = (event: any, d: DataLabel) => {
+        const currentKey = d[0];
+        tooltip.html(tooltipTemplate({
+            x: { 
+                name: xAxis!, 
+                value: aggregated ? d[0] : currentKey 
+            },
+            y: { name: yAxis!, value: d[1] }
+        })).transition().style("opacity", 1);
         
-        const hoverData = {
-          "x": {
-            "name": selectedXAxisProperty as string,
-            "value": data[0]
-          },
-          "y": {
-            "name": selectedYAxisProperty as string, 
-            "value": data[1]
-          }
-        };
-              
-        tooltip.html(tooltipTemplate(hoverData)).transition().style("opacity", 1);
-        positionTooltip(event, svg, tooltip, width, height);
-
+        // Dim all bars except hovered one
         g.selectAll("rect.bar-item")
-          .filter((d: unknown) => (d as DataLabel)[0] !== data[0] || (d as DataLabel)[1] !== data[1])
-          .transition()
-          .duration(200)
-          .style("opacity", 0.5);
-    }
-
-    function moveOnBar(event: any, data: DataLabel) {
-        positionTooltip(event, svg, tooltip, width, height);
-    }
-
-    // When leaving a bar, hide tooltip and remove striped contour
-    function leaveBar (event: any, data: DataLabel) {
-        tooltip.transition().style("opacity", 0)
-        g.selectAll("rect.bar-item")
-        .transition()
-        .duration(200)
-        .style("opacity", 1);
-
-    }
-
+            .transition()
+            .style("opacity", bar => (bar as DataLabel)[0] === currentKey ? 1 : 0.3);
+        
+        // Dim keys only in non-aggregated mode
+        if (!aggregated) {
+            key.selectAll(".key")
+                .transition()
+                .style("opacity", k => (k as string) === currentKey ? 1 : 0.3);
+        }
+    };
+    const handleMouseOut = () => {
+        tooltip.transition().style("opacity", 0);
+        g.selectAll("rect.bar-item").transition().style("opacity", 1);
+        if (!aggregated) {
+            key.selectAll(".key").transition().style("opacity", 1);
+        }
+    };
+    g.selectAll("rect.bar-item")
+        .on("mouseover", (event, d) => handleMouseOver(event, d as DataLabel))
+        .on("mousemove", (event) => positionTooltip(event, svg, tooltip, width, height))
+        .on("mouseout", handleMouseOut);
 };
 
 /* 
@@ -501,6 +587,7 @@ export const drawLineChart = (
     // 1- Extract all x and y values as separate arrays
     // 2- Find the min and max values for both arrays
     // 3- Setup the axis scales
+    // 4- If all values are negative and the scale is log, convert to positive values
     // 4- Map x and y values to the plot pixel range
     const width = dimensions.width;
     const height = dimensions.height;
@@ -508,20 +595,25 @@ export const drawLineChart = (
         groupBy ? (data as GroupedDataPoint[]).flatMap((group) => group[1].map((d) => d[0])) : (data as DataPoint[]).map((d) => d[0]),
         groupBy ? (data as GroupedDataPoint[]).flatMap((group) => group[1].map((d) => d[1])) : (data as DataPoint[]).map((d) => d[1])
     ]
-    const [minX = 0, maxX = 0] = d3.extent(xValues);
-    const [minY = 0, maxY = 0] = d3.extent(yValues);
+    const [[minX = 0, maxX = 0], [minY = 0, maxY = 0]] = [d3.extent(xValues), d3.extent(yValues)];
     const [xAxisScale, yAxisScale] = [
         xTime ? d3.scaleTime : scaleX === "log" ? d3.scaleLog : d3.scaleLinear as any,
         scaleY === "log" ? d3.scaleLog : d3.scaleLinear
     ];
+    const reverseX = scaleX === "log" && xValues.every(v => v < 0);
+    const reverseY = scaleY === "log" && yValues.every(v => v < 0);
+    const [xDomain, yDomain] = [
+        reverseOrKeepDomain(xValues, [minX, maxX], reverseX), 
+        reverseOrKeepDomain(yValues, [minY, maxY], reverseY)
+    ]
     const [x, y] = [
-        xAxisScale().domain([minX, maxX]).range([margins.left + axisPadding, width - margins.right - axisPadding]),
-        yAxisScale().domain([minY, maxY]).range([height - margins.bottom - axisPadding, margins.top + axisPadding])
+        xAxisScale().domain(xDomain).range([margins.left + axisPadding, width - margins.right - axisPadding]),
+        yAxisScale().domain(yDomain).range([height - margins.bottom - axisPadding, margins.top + axisPadding])
     ];
 
     // Draw axes
     const {xTicks, yTicks} = calculateTicks(xValues.length, scaleX, scaleY, minY, maxY, minX, maxX);
-    drawAxes("Line Chart", svg, dimensions, margins, x, y, xTicks, yTicks, xTime);
+    drawAxes("Line Chart", svg, dimensions, margins, x, y, xTicks, yTicks, xTime, reverseX, reverseY);
 
     // Add grouping key and hide tooltip
     const key = d3.select(".groupingKey").style("opacity", 0)
@@ -530,7 +622,16 @@ export const drawLineChart = (
         // Plot lines.
     // If grouping, plot one line per group, each with their color, and attach the grouping key.
     // Else plot a single line
-    const lineGenerator = d3.line().curve(d3.curveLinear).x(d => x(d[0])).y(d => y(d[1]));
+    const lineGenerator = d3.line<number[]>()
+    .curve(d3.curveLinear)
+    .x(d => {
+      const value = d[0];
+      return reverseX ? x(Math.abs(value)) : x(value);
+    })
+    .y(d => {
+      const value = d[1];
+      return reverseY ? y(Math.abs(value)) : y(value);
+    });
     if (groupBy) {        
         let domain = (data as GroupedDataPoint[]).map((d) => JSON.stringify(d[0]));
         domain = Array.from(new Set(domain))
@@ -646,20 +747,29 @@ export const drawScatterPlot = (
 
     // Define scales
     const [width, height] = [dimensions.width, dimensions.height];
-    const [minX = 0, maxX = 0] = d3.extent(data, d => d.entries[xAxisProperty as keyof LogItemProps] as number);
-    const [minY = 0, maxY = 0] = d3.extent(data, d =>  d.entries[yAxisProperty as keyof LogItemProps] as number); 
+    const [xValues, yValues] = [
+        data.map(d => d.entries[xAxisProperty as keyof LogItemProps] as number),
+        data.map(d => d.entries[yAxisProperty as keyof LogItemProps] as number)
+    ]
+    const [[minX = 0, maxX = 0], [minY = 0, maxY = 0]] = [d3.extent(xValues), d3.extent(yValues)];
     const [xScale, yScale] = [
         scaleX === "log" ? d3.scaleLog : d3.scaleLinear,
         scaleY === "log" ? d3.scaleLog : d3.scaleLinear
     ]
+    const reverseX = scaleX === "log" && xValues.every(v => v < 0);
+    const reverseY = scaleY === "log" && yValues.every(v => v < 0);
+    const [xDomain, yDomain] = [
+        reverseOrKeepDomain(xValues, [minX, maxX], reverseX), 
+        reverseOrKeepDomain(yValues, [minY, maxY], reverseY)
+    ]
     const [x, y] = [
-        xScale().domain([minX, maxX]).range([margins.left + axisPadding, width - margins.right - axisPadding]),
-        yScale().domain([minY, maxY]).range([height - margins.bottom - axisPadding, margins.top + axisPadding])
+        xScale().domain(xDomain).range([margins.left + axisPadding, width - margins.right - axisPadding]),
+        yScale().domain(yDomain).range([height - margins.bottom - axisPadding, margins.top + axisPadding])
     ]
 
     // Draw axes
     const {xTicks, yTicks} = calculateTicks(data.length, scaleX, scaleY, minY, maxY, minX, maxX);
-    drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, false);
+    drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, false, reverseX, reverseY);
 
     // Add data points
     const points = g
@@ -671,8 +781,8 @@ export const drawScatterPlot = (
         .attr("class", "data-point")
         .attr("fill", primary)
         .attr("stroke", primary)
-        .attr("cx", d => x(d.entries[xAxisProperty as keyof LogItemProps] as number))
-        .attr("cy", d => y(d.entries[yAxisProperty as keyof LogItemProps] as number))
+        .attr("cx", d => x(reverseX ? Math.abs(d.entries[xAxisProperty as keyof LogItemProps] as number) : d.entries[xAxisProperty!] as number))
+        .attr("cy", d => y(reverseY ? Math.abs(d.entries[yAxisProperty as keyof LogItemProps] as number) : d.entries[yAxisProperty!] as number))
         .attr("r", 0) // Start with radius 0
         .on("mouseover", (event, data) => hoverOnPoint(event, data))
         .on("mouseout", (event, data) => leavePoint(event, data));
@@ -680,8 +790,8 @@ export const drawScatterPlot = (
         .merge(points as any)
         .transition()
         .duration(500)
-        .attr("cx", d => x(d.entries[xAxisProperty as keyof LogItemProps] as number))
-        .attr("cy", d => y(d.entries[yAxisProperty as keyof LogItemProps] as number))
+        .attr("cx", d => x(reverseX ? Math.abs(d.entries[xAxisProperty as keyof LogItemProps] as number) : d.entries[xAxisProperty!] as number))
+        .attr("cy", d => y(reverseY ? Math.abs(d.entries[yAxisProperty as keyof LogItemProps] as number) : d.entries[yAxisProperty!] as number))
         .attr("r", 3);
     points.exit()
         .transition()
@@ -697,8 +807,8 @@ export const drawScatterPlot = (
         .on("mouseover", (event, data) => hoverOnPoint(event, data))
         .on("mousemove", (event, data) => moveOnPoint(event, data))
         .on("mouseout", (event, data) => leavePoint(event, data))
-        .attr("cx", d => x(d.entries[xAxisProperty!] as number))
-        .attr("cy", d => y(d.entries[yAxisProperty!] as number))
+        .attr("cx", d => x(reverseX ? Math.abs(d.entries[xAxisProperty as keyof LogItemProps] as number) : d.entries[xAxisProperty!] as number))
+        .attr("cy", d => y(reverseY ? Math.abs(d.entries[yAxisProperty as keyof LogItemProps] as number) : d.entries[yAxisProperty!] as number))
         .attr("r", 10)
         .attr("fill", "transparent")
         .attr("stroke", "none")
@@ -944,7 +1054,7 @@ export const drawHistogram = (
 
     // Draw axes
     const {xTicks, yTicks} = calculateTicks(data.length, scaleX, scaleY, minY, maxY, minX, maxX, true);
-    drawAxes("Histogram", svg, dimensions, margins, x, y, xTicks, yTicks, false, xType);
+    drawAxes("Histogram", svg, dimensions, margins, x, y, xTicks, yTicks, false, false, false, xType);
 
     // Add histogram
     const bars = g
