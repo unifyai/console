@@ -871,7 +871,7 @@ export default function UnifiedTraceView({
           }}
         >
           {rowIndexes.length > 1 && (
-            <div className="sticky top-0 bg-background p-2 z-10 border-b border-muted space-y-2">
+            <div className="sticky top-0 bg-background p-2 border-b border-muted space-y-2">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground font-semibold block">
                   Compare with:
