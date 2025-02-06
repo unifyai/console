@@ -148,7 +148,7 @@ export default function ImageView({
               <div className="border rounded p-2 relative">
                 <MarkdownRenderer>{baseVer}</MarkdownRenderer>
                 <CopyButton
-                  className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                  className="absolute top-1 right-1"
                   content={baseVer}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
@@ -206,7 +206,7 @@ export default function ImageView({
                     >
                       <RowBadge rowNumbers={vg.rows} mode="none" />
                       <CopyButton
-                        className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"
+                        className="absolute top-2 right-2"
                         content={vg.text}
                         copyMessage="Copied version!"
                         tooltipContent="Copy version"

@@ -25,6 +25,7 @@ import MatrixView from "../MatrixView";
 import StringView from "../StringView";
 import NumberView from "../NumberView";
 import TimestampView from "../TimestampView";
+import ExecutionTimeView from "../ExecutionTimeView";
 
 import { isDict, isList, isMatrix, isImage, isNumber, isTimestamp, isChat } from "@/utils/evals/selection";
 
@@ -357,8 +358,25 @@ function PatchDetailPanel({
   if (block1) contentBlocks.push(block1);
   const block2 = maybeRenderBlock("Outputs", bOutputs, cOutputs, false);
   if (block2) contentBlocks.push(block2);
-  const block3 = maybeRenderBlock("Execution Time", bExecTime, cExecTime, false);
-  if (block3) contentBlocks.push(block3);
+
+  // Add execution time with consistent block styling
+  if (!allEmpty(bExecTime, cExecTime)) {
+    contentBlocks.push(
+      <div key="execution-time">
+        <p className="font-semibold text-sm mb-2">Execution Time</p>
+        <div className="border border-muted p-2 rounded">
+          <ExecutionTimeView
+            value={bExecTime}
+            comparables={cExecTime}
+            baseLogIndex={baseRowIndex}
+            comparisonLogsIndex={comparisonLogsIndex}
+            diffMode={diffMode}
+            splitView={splitView}
+          />
+        </div>
+      </div>
+    );
+  }
 
   const accordionItems: JSX.Element[] = [];
   const codeBlock = maybeRenderBlock("Code", bCode, cCode, true);
@@ -770,7 +788,7 @@ export default function UnifiedTraceView({
   // Build final patched diff
   const finalPatchRoot = useMemo<PatchDiffNode | null>(() => {
     if (!allTraces.length) return null;
-    // Wrap the base row in the synthetic “ROOT”
+    // Wrap the base row in the synthetic "ROOT"
     const baseWrapped = wrapAsRootSpan(baseRowSpans, "baseRow");
     if (!groupSignature) {
       // Compare with itself => minimal changes
@@ -794,7 +812,7 @@ export default function UnifiedTraceView({
     return found.rowIndices;
   }, [groupSignature, groupedRows]);
 
-  // Whenever finalPatchRoot changes, flatten out the “ROOT” node,
+  // Whenever finalPatchRoot changes, flatten out the "ROOT" node,
   // then find any previously selectedSpanId.
   useEffect(() => {
     if (!finalPatchRoot) return;

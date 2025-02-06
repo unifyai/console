@@ -130,7 +130,7 @@ export default function RawView({
                     <p className="text-sm whitespace-pre-wrap">{baseVer}</p>
                 </div>
                 <CopyButton
-                  className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                  className="absolute top-1 right-1"
                   content={baseVer}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
@@ -152,7 +152,7 @@ export default function RawView({
             <p className="text-sm whitespace-pre-wrap">{baseStr}</p>
           </div>
           <CopyButton
-              className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+              className="absolute top-1 right-1"
               content={baseStr}
               copyMessage="Copied!"
               tooltipContent="Copy raw text"
@@ -196,7 +196,7 @@ export default function RawView({
                       <div key={idx} className="space-y-2 border rounded p-2 relative">
                         <RowBadge rowNumbers={vg.rows} mode="none" />
                         <CopyButton
-                          className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                          className="absolute top-1 right-1"
                           content={vStr}
                           copyMessage="Copied!"
                           tooltipContent="Copy version"
@@ -224,7 +224,7 @@ export default function RawView({
               <div className="border rounded p-2 relative">
                 <RowBadge rowNumbers={rowNums} mode="none" />
                 <CopyButton
-                  className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                  className="absolute top-1 right-1"
                   content={g.rawText}
                   copyMessage="Copied!"
                   tooltipContent="Copy raw text"

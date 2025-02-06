@@ -165,7 +165,7 @@ export default function StringView({
                   <MarkdownRenderer>{baseVerStr}</MarkdownRenderer>
                 </div>
                 <CopyButton
-                  className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                  className="absolute top-1 right-1"
                   content={baseVerStr}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
@@ -187,7 +187,7 @@ export default function StringView({
                 <MarkdownRenderer>{baseStr}</MarkdownRenderer>
               </div>
               <CopyButton
-                className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                className="absolute top-1 right-1"
                 content={baseStr}
                 copyMessage="Copied string!"
                 tooltipContent="Copy string"
@@ -246,7 +246,7 @@ export default function StringView({
                       >
                         <RowBadge rowNumbers={vg.rows} mode="none" />
                         <CopyButton
-                          className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                          className="absolute top-1 right-1"
                           content={verText}
                           copyMessage="Copied version!"
                           tooltipContent="Copy version"
@@ -273,7 +273,7 @@ export default function StringView({
                 <div className="border rounded p-2 relative">
                   <RowBadge rowNumbers={rowNums} mode="none" />
                   <CopyButton
-                    className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                    className="absolute top-1 right-1"
                     content={textValue}
                     copyMessage="Copied string!"
                     tooltipContent="Copy string"

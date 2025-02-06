@@ -139,7 +139,7 @@ export default function NumberView({
                   <MarkdownRenderer>{baseVer}</MarkdownRenderer>
                 </div>
                 <CopyButton
-                  className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                  className="absolute top-1 right-1"
                   content={baseVer}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
@@ -158,7 +158,7 @@ export default function NumberView({
               <p className="text-sm">{baseNum}</p>
             </div>
             <CopyButton
-              className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+              className="absolute top-1 right-1"
               content={String(baseNum)}
               copyMessage="Copied number!"
               tooltipContent="Copy number"
@@ -221,7 +221,7 @@ export default function NumberView({
                 <div className="border rounded p-2 bg-background relative">
                   <RowBadge rowNumbers={rowNums} mode="none" />
                   <CopyButton
-                    className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                    className="absolute top-1 right-1"
                     content={String(numVal)}
                     copyMessage="Copied number!"
                   />
@@ -318,7 +318,7 @@ export default function NumberView({
                     <p className="text-sm pt-5">{baseNum}</p>
                   </div>
                   <CopyButton
-                    className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                    className="absolute top-1 right-1"
                     content={String(baseNum)}
                     copyMessage="Copied base!"
                   />
@@ -334,7 +334,7 @@ export default function NumberView({
                     <p className="text-sm pt-5">{compVal}</p>
                   </div>
                   <CopyButton
-                    className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                    className="absolute top-1 right-1"
                     content={String(compVal)}
                     copyMessage="Copied comp!"
                   />
@@ -353,7 +353,7 @@ export default function NumberView({
                     )}
                   </div>
                   <CopyButton
-                    className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                    className="absolute top-1 right-1"
                     content={String(result)}
                     copyMessage="Copied result!"
                   />
