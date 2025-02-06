@@ -287,8 +287,8 @@ function PatchDetailPanel({
       comps,
       baseRowIndex,
       comparisonLogsIndex,
-      diffMode ?? "none",
-      splitView ?? false
+      diffMode,
+      splitView
     );
     if (isAccordionItem) {
       return (
@@ -313,6 +313,9 @@ function PatchDetailPanel({
   const { baseVal: bExecTime, comps: cExecTime } = gatherField("exec_time");
   const { baseVal: bCode, comps: cCode } = gatherField("code");
   const { baseVal: bErrors, comps: cErrors } = gatherField("errors");
+
+  const { baseVal: bCost, comps: cCost } = gatherField("cost");
+  const { baseVal: bCostIncCache, comps: cCostIncCache } = gatherField("cost_inc_cache");
 
   function gatherID() {
     const bSpan = node.baseSpanRef;
@@ -364,6 +367,51 @@ function PatchDetailPanel({
   if (codeBlock) accordionItems.push(codeBlock);
   const errorsBlock = maybeRenderBlock("Errors", bErrors, cErrors, true);
   if (errorsBlock) accordionItems.push(errorsBlock);
+
+  if (!allEmpty(bCost, cCost) || !allEmpty(bCostIncCache, cCostIncCache)) {
+    const content = (
+      <div className="flex flex-col gap-2">
+        <div>
+          <p className="font-semibold text-sm mb-2">Cost ($)</p>
+          <div className="border border-muted p-2 rounded">
+            <NumberView
+              value={bCost}
+              comparables={cCost}
+              baseLogIndex={baseRowIndex}
+              comparisonLogsIndex={comparisonLogsIndex}
+              diffMode={diffMode}
+              splitView={splitView}
+            />
+          </div>
+        </div>
+        <div>
+          <p className="font-semibold text-sm mb-2">Cost including cache ($)</p>
+          <div className="border border-muted p-2 rounded">
+            <NumberView
+              value={bCostIncCache}
+              comparables={cCostIncCache}
+              baseLogIndex={baseRowIndex}
+              comparisonLogsIndex={comparisonLogsIndex}
+              diffMode={diffMode}
+              splitView={splitView}
+            />
+          </div>
+        </div>
+      </div>
+    );
+
+    const costBlock = (
+      <AccordionItem key="cost" value="cost">
+        <AccordionTrigger className="font-medium">Cost</AccordionTrigger>
+        <AccordionContent className="pl-2 border-l">
+          {content}
+        </AccordionContent>
+      </AccordionItem>
+    );
+
+    accordionItems.push(costBlock);
+  }
+
   const idsBlock = maybeRenderBlock("IDs", bId, cId, true);
   if (idsBlock) accordionItems.push(idsBlock);
 
