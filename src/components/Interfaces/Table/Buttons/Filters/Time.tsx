@@ -18,7 +18,7 @@ import { LogProps } from "@/types/evals/logs";
 
 interface TimeFilter {
     key: number,
-    mode: "==" | "!=" | ">=" | "=<" | ">" | "<",
+    mode: ">" | "<",
     join: "&&" | "||",
     value: string
 }
@@ -40,15 +40,11 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
 
     /* Initialize filters */
     const options = [
-        {name: "==", label: "="  , description: "Filter for values equal to.."},
-        {name: "!=", label: "!=" , description: "Filter for values not equal to.."},
         {name: ">",  label: ">"  , description: "Filter for values greater than.."},
-        {name: ">=", label: ">=" , description: "Filter for values greater or equal to.."},
-        {name: "<",  label: "<"  , description: "Filter for values less than.."},
-        {name: "<=", label: "<=" , description: "Filter for values less or equal to.."}
+        {name: "<",  label: "<"  , description: "Filter for values less than.."}
     ]
     const modes = options.map(option => option.name)
-    let defaultFilter : TimeFilter = {key: 0, mode: "==", join: "&&", value: defaultAbsoluteDate}
+    let defaultFilter : TimeFilter = {key: 0, mode: ">", join: "&&", value: defaultAbsoluteDate}
     let initialValues : TimeFilter[] = []
     if (columnFilters[column]) {
         initFilters(column, columnFilters, initialValues, modes)
@@ -134,7 +130,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
                     className="p-2 hover:text-white hover:bg-primary cursor-pointer" 
                     onClick={() => {
                         const newFilters = [...filters]
-                        newFilters.push({key: filters.length, mode: "==", join: method === "And" ? "&&" : "||", value: ""})
+                        newFilters.push({key: filters.length, mode: ">", join: method === "And" ? "&&" : "||", value: ""})
                         setFilters(newFilters)
                     }}            
                 >
@@ -147,7 +143,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
     );
     const onRebase = () => {
         const value = relative ? defaultAbsoluteDate as AbsoluteDateString : defaultRelativeDate as RelativeDateString
-        const filter : TimeFilter = {key: 0, mode: "==", join: "&&", value: value}
+        const filter : TimeFilter = {key: 0, mode: ">", join: "&&", value: value}
         setFilters([filter])
         setRelative(!relative)
     }
@@ -197,7 +193,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
                 option={option}
                 onOptionChange={(option) => {
                     const newFilters = [...filters]
-                    newFilters.find(f => f.key === filter.key)!.mode = option.name as "==" | "!="
+                    newFilters.find(f => f.key === filter.key)!.mode = option.name as ">" | "<"
                 }}
             >
                 <div className="flex flex-row">
