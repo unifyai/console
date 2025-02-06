@@ -33,6 +33,7 @@ import { CopyButton } from "@/components/Common/Buttons/Copy";
 import { LogComparisonProps } from "../types";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ChatView from "../ChatView";
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/UI/hover-card";
 
 /*------------------------------------------------------------------------
   Helper functions for compressing row indices => "1-3,5,7-9", etc.
@@ -506,23 +507,32 @@ function CollapsiblePatchLineNode({
   const targetTime = node.targetSpanRef?.exec_time ?? 0;
 
   let timeLabel = "";
-  let timeTooltip = "";
+  let timeData: any = null;
 
   if (!multiMode) {
     if (baseTime) {
       timeLabel = `${baseTime.toFixed(2)}s`;
-      timeTooltip = `Execution Time ${baseTime.toFixed(2)}s`;
+      timeData = {
+        title: "Execution Time",
+        baseTime,
+      };
     }
   } else {
     if (node.marker === "+") {
       if (targetTime) {
         timeLabel = `${targetTime.toFixed(2)}s`;
-        timeTooltip = `Execution Time (Comparison Only): ${targetTime.toFixed(2)}s`;
+        timeData = {
+          title: "Execution Time (Comparison Only)",
+          targetTime,
+        };
       }
     } else if (node.marker === "-") {
       if (baseTime) {
         timeLabel = `${baseTime.toFixed(2)}s`;
-        timeTooltip = `Execution Time (Base Only): ${baseTime.toFixed(2)}s`;
+        timeData = {
+          title: "Execution Time (Base Only)",
+          baseTime,
+        };
       }
     } else {
       const diff = targetTime - baseTime;
@@ -530,14 +540,16 @@ function CollapsiblePatchLineNode({
         const sign = diff >= 0 ? "+" : "-";
         const absDiff = Math.abs(diff).toFixed(2);
         timeLabel = `${sign}${absDiff}s`;
-        timeTooltip =
-          `Execution Times\n` +
-          `Base ${baseTime.toFixed(2)}s\n` +
-          `Comparison ${targetTime.toFixed(2)}s\n` +
-          `Difference ${sign}${absDiff}s`;
+        timeData = {
+          title: "Execution Times",
+          baseTime,
+          targetTime,
+          diffSign: sign,
+          diffAbs: absDiff,
+        };
         if (!baseTime && !targetTime) {
           timeLabel = "";
-          timeTooltip = "";
+          timeData = null;
         }
       }
     }
@@ -549,38 +561,68 @@ function CollapsiblePatchLineNode({
   const targetCostIncCache = node.targetSpanRef?.cost_inc_cache ?? 0;
 
   let costLabel = "";
-  let costTooltip = "";
+  let costData: any = null;
 
   if (!multiMode) {
     if (baseCost > 0 || baseCostIncCache > 0) {
       costLabel = `$${baseCost.toFixed(4)}`;
-      costTooltip = `LLM cost $${baseCost.toFixed(4)}\nIncluding cache: $${baseCostIncCache.toFixed(4)}`;
+      costData = {
+        title: "LLM Cost Details",
+        baseCost,
+        baseCostIncCache,
+      };
     }
   } else {
     if (node.marker === "+") {
       if (targetCost > 0 || targetCostIncCache > 0) {
         costLabel = `$${targetCost.toFixed(4)}`;
-        costTooltip = `LLM cost (Comparison Only): $${targetCost.toFixed(4)}\nIncluding cache: $${targetCostIncCache.toFixed(4)}`;
+        costData = {
+          title: "LLM Cost (Comparison Only)",
+          targetCost,
+          targetCostIncCache,
+        };
       }
     } else if (node.marker === "-") {
       if (baseCost > 0 || baseCostIncCache > 0) {
         costLabel = `$${baseCost.toFixed(4)}`;
-        costTooltip = `LLM cost (Base Only): $${baseCost.toFixed(4)}\nIncluding cache: $${baseCostIncCache.toFixed(4)}`;
+        costData = {
+          title: "LLM Cost (Base Only)",
+          baseCost,
+          baseCostIncCache,
+        };
       }
     } else {
       if (baseCost || targetCost || baseCostIncCache || targetCostIncCache) {
         const diffC = targetCost - baseCost;
         const signC = diffC >= 0 ? "+" : "-";
         const absDiffC = Math.abs(diffC).toFixed(4);
+
+        const diffCIC = targetCostIncCache - baseCostIncCache;
+        const signCIC = diffCIC >= 0 ? "+" : "-";
+        const absDiffCIC = Math.abs(diffCIC).toFixed(4);
+
         costLabel = `${signC}$${absDiffC}`;
-        costTooltip =
-          `LLM Costs\n` +
-          `Base $${baseCost.toFixed(4)} (Including cache: $${baseCostIncCache.toFixed(4)})\n` +
-          `Comparison $${targetCost.toFixed(4)} (Including cache: $${targetCostIncCache.toFixed(4)})\n` +
-          `Difference ${signC}$${absDiffC}`;
-        if (!(baseCost || targetCost || baseCostIncCache || targetCostIncCache)) {
+        costData = {
+          title: "LLM Costs",
+          baseCost,
+          baseCostIncCache,
+          targetCost,
+          targetCostIncCache,
+          diffSign: signC,
+          diffAbs: absDiffC,
+          diffSignIncCache: signCIC,
+          diffAbsIncCache: absDiffCIC,
+        };
+        if (
+          !(
+            baseCost ||
+            targetCost ||
+            baseCostIncCache ||
+            targetCostIncCache
+          )
+        ) {
           costLabel = "";
-          costTooltip = "";
+          costData = null;
         }
       }
     }
@@ -624,19 +666,68 @@ function CollapsiblePatchLineNode({
         {/* Span name + optional time/cost labels */}
         <div className="truncate flex items-center">
           {node.name}
-          {timeLabel && (
-            <Tooltip content={timeTooltip}>
-              <span className="ml-2 text-xs text-muted-foreground">
-                {timeLabel}
-              </span>
-            </Tooltip>
+          {timeLabel && timeData && (
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <span className="ml-2 text-xs text-muted-foreground underline cursor-pointer">
+                  {timeLabel}
+                </span>
+              </HoverCardTrigger>
+              <HoverCardContent className="p-2 w-fit">
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p className="font-semibold">{timeData.title}</p>
+                  {timeData.baseTime !== undefined && (
+                    <p>Base Execution Time: {timeData.baseTime.toFixed(2)}s</p>
+                  )}
+                  {timeData.targetTime !== undefined && (
+                    <p>
+                      Comparison Execution Time:{" "}
+                      {timeData.targetTime.toFixed(2)}s
+                    </p>
+                  )}
+                  {timeData.diffSign && (
+                    <p>
+                      Difference: {timeData.diffSign}
+                      {timeData.diffAbs}s
+                    </p>
+                  )}
+                </div>
+              </HoverCardContent>
+            </HoverCard>
           )}
-          {costLabel && (
-            <Tooltip content={costTooltip}>
-              <span className="ml-2 text-xs text-muted-foreground">
-                {costLabel}
-              </span>
-            </Tooltip>
+          {costLabel && costData && (
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <span className="ml-2 text-xs text-muted-foreground underline cursor-pointer">
+                  {costLabel}
+                </span>
+              </HoverCardTrigger>
+              <HoverCardContent className="p-2 w-fit">
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p className="font-semibold">{costData.title}</p>
+                  {costData.baseCost !== undefined && (
+                    <p>
+                      Base Cost: ${costData.baseCost.toFixed(4)} (Including
+                      cache: ${costData.baseCostIncCache.toFixed(4)})
+                    </p>
+                  )}
+                  {costData.targetCost !== undefined && (
+                    <p>
+                      Comparison Cost: ${costData.targetCost.toFixed(4)}{" "}
+                      (Including cache: ${costData.targetCostIncCache.toFixed(4)}
+                      )
+                    </p>
+                  )}
+                  {costData.diffSign && (
+                    <p>
+                      Difference: {costData.diffSign}${costData.diffAbs}{" "}
+                      (Including cache: {costData.diffSignIncCache}$
+                      {costData.diffAbsIncCache})
+                    </p>
+                  )}
+                </div>
+              </HoverCardContent>
+            </HoverCard>
           )}
         </div>
 
