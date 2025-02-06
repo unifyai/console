@@ -526,43 +526,43 @@ function CollapsiblePatchLineNode({
   //========================
   // Cost (similar to exec_time)
   //========================
-  const baseCost =
-    node.baseSpanRef?.outputs?.usage?.cost ?? 0;
-  const targetCost =
-    node.targetSpanRef?.outputs?.usage?.cost ?? 0;
+  const baseCost = node.baseSpanRef?.cost ?? 0;
+  const baseCostIncCache = node.baseSpanRef?.cost_inc_cache ?? 0;
+  const targetCost = node.targetSpanRef?.cost ?? 0;
+  const targetCostIncCache = node.targetSpanRef?.cost_inc_cache ?? 0;
 
   let costLabel = "";
   let costTooltip = "";
 
   if (!multiMode) {
-    if (baseCost > 0) {
+    if (baseCost > 0 || baseCostIncCache > 0) {
       costLabel = `$${baseCost.toFixed(4)}`;
-      costTooltip = `LLM cost $${baseCost.toFixed(4)}`;
+      costTooltip = `LLM cost $${baseCost.toFixed(4)}\nIncluding cache: $${baseCostIncCache.toFixed(4)}`;
     }
   } else {
     if (node.marker === "+") {
-      if (targetCost > 0) {
+      if (targetCost > 0 || targetCostIncCache > 0) {
         costLabel = `$${targetCost.toFixed(4)}`;
-        costTooltip = `LLM cost (Comparison Only): $${targetCost.toFixed(4)}`;
+        costTooltip = `LLM cost (Comparison Only): $${targetCost.toFixed(4)}\nIncluding cache: $${targetCostIncCache.toFixed(4)}`;
       }
     } else if (node.marker === "-") {
-      if (baseCost > 0) {
+      if (baseCost > 0 || baseCostIncCache > 0) {
         costLabel = `$${baseCost.toFixed(4)}`;
-        costTooltip = `LLM cost (Base Only): $${baseCost.toFixed(4)}`;
+        costTooltip = `LLM cost (Base Only): $${baseCost.toFixed(4)}\nIncluding cache: $${baseCostIncCache.toFixed(4)}`;
       }
     } else {
       // marker " " or "r"
-      if (baseCost || targetCost) {
+      if (baseCost || targetCost || baseCostIncCache || targetCostIncCache) {
         const diffC = targetCost - baseCost;
         const signC = diffC >= 0 ? "+" : "-";
         const absDiffC = Math.abs(diffC).toFixed(4);
         costLabel = `${signC}$${absDiffC}`;
         costTooltip =
           `LLM Costs\n` +
-          `Base $${baseCost.toFixed(4)}\n` +
-          `Comparison $${targetCost.toFixed(4)}\n` +
+          `Base $${baseCost.toFixed(4)} (Including cache: $${baseCostIncCache.toFixed(4)})\n` +
+          `Comparison $${targetCost.toFixed(4)} (Including cache: $${targetCostIncCache.toFixed(4)})\n` +
           `Difference ${signC}$${absDiffC}`;
-        if (!baseCost && !targetCost) {
+        if (!(baseCost || targetCost || baseCostIncCache || targetCostIncCache)) {
           costLabel = "";
           costTooltip = "";
         }
@@ -715,6 +715,8 @@ export default function UnifiedTraceView({
   diffMode = "none",
   splitView = false,
 }: UnifiedTraceViewProps) {
+
+  console.log("allTraces", allTraces);
   const [collapsedNodes, setCollapsedNodes] = useState<Record<string, boolean>>({});
 
   // Keep track of which node is currently selected
