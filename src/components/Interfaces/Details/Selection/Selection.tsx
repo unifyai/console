@@ -148,6 +148,8 @@ function buildLogWithChosenColumns(
   columnOrdering: string[],
   hiddenColumns: string[]
 ): LogProps {
+
+
   const chosenCols = indexToColumns[rowIndex] ?? new Set<string>();
 
   // "entries"
@@ -165,6 +167,13 @@ function buildLogWithChosenColumns(
   for (const c of finalColsEntries) {
     if (safeEntries.hasOwnProperty(c)) {
       newEntries[c] = safeEntries[c];
+    } else {
+      console.error(
+        "[buildLogWithChosenColumns] Missing key in safeEntries:",
+        c,
+        "Available keys:",
+        Object.keys(safeEntries)
+      );
     }
   }
 
@@ -237,7 +246,6 @@ export default function Selection({
     updateCardById: (tileId: string, partial: Partial<TileProps>) => void;
 }
 }) {
-
   // 1) Possibly reorder logs or just keep them
   const sortedLogs = useMemo(() => [...logs], [logs]);
 
@@ -260,7 +268,7 @@ export default function Selection({
   const columnOrdering = columnOrdering_?.split(",") || [];
 
   // 6) Possibly read hidden columns. -------------------------------------------
-  // ADD: local “showHidden” toggle so user can override hidden columns in the selection
+  // ADD: local "showHidden" toggle so user can override hidden columns in the selection
   const [showHidden, setShowHidden] = useState(false);
   const hiddenColumns = showHidden
     ? []
@@ -454,10 +462,38 @@ function SelectionPanel({
   const [entryOrder, setEntryOrder] = useState<string[]>(entryKeys);
   const [paramOrder, setParamOrder] = useState<string[]>(paramKeys);
 
+  // Use refs to store the previous base log id and key signatures.
+  const prevBaseLogId = useRef<string | null>(null);
+  const prevEntryKeySignature = useRef<string>("");
+  const prevParamKeySignature = useRef<string>("");
+  
   useEffect(() => {
-    if (entryKeys.length !== entryOrder.length) setEntryOrder(entryKeys);
-    if (paramKeys.length !== paramOrder.length) setParamOrder(paramKeys);
-  }, [entryKeys, paramKeys]);
+    if (baseLog) {
+      // Compute the new available keys.
+      const newEntryKeys = Object.keys(baseLog.entries);
+      const newParamKeys = Object.keys(baseLog.params);
+
+      // Merge the new keys with the current ordering state:
+      // • Keep keys already in order that still exist in the new log.
+      // • Append any new keys (or drop ones that are no longer available).
+      setEntryOrder((prevOrder) => {
+        const common = prevOrder.filter((k) => newEntryKeys.includes(k));
+        const appended = newEntryKeys.filter((k) => !common.includes(k));
+        return [...common, ...appended];
+      });
+
+      setParamOrder((prevOrder) => {
+        const common = prevOrder.filter((k) => newParamKeys.includes(k));
+        const appended = newParamKeys.filter((k) => !common.includes(k));
+        return [...common, ...appended];
+      });
+
+      // Update refs for comparison next time.
+      prevBaseLogId.current = baseLog.id;
+      prevEntryKeySignature.current = [...newEntryKeys].sort().join(",");
+      prevParamKeySignature.current = [...newParamKeys].sort().join(",");
+    }
+  }, [baseLog]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -471,6 +507,7 @@ function SelectionPanel({
       );
     }
   }
+  
   function handleParamDragEnd(event: any) {
     const { active, over } = event;
     if (active.id !== over?.id) {
