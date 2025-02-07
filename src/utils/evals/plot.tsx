@@ -195,7 +195,10 @@ export function checkLogScalability (
     setScale: (scale: string) => void,
     setLogScaleEnabled: (enabled: boolean) => void
 ) {
-    const entries = logs.map(log => (log[`${table.length ? (table + ".") : ""}entries`] as LogItemProps)[axisProperty]);
+    const entries = logs.map(log => {
+        const logEntries = log[`${table.length ? (table + ".") : ""}entries`] as LogItemProps;
+        return logEntries ? logEntries[axisProperty] : undefined
+    });
     const allPositive = entries.every(v => v > 0);
     const allNegative = entries.every(v => v < 0);
     const hasZero = entries.some(v => v === 0);
@@ -792,7 +795,7 @@ export const drawScatterPlot = (
         .attr("cx", d => x(reverseX ? Math.abs(d.entries[xAxisProperty as keyof LogItemProps] as number) : d.entries[xAxisProperty!] as number))
         .attr("cy", d => y(reverseY ? Math.abs(d.entries[yAxisProperty as keyof LogItemProps] as number) : d.entries[yAxisProperty!] as number))
         .attr("r", 0) // Start with radius 0
-        .on("mouseover", (event, data) => hoverOnPoint(event, data))
+        .on("mouseover", (event, data) => hoverOnPoint(event, data, xTable, yTable))
         .on("mouseout", (event, data) => leavePoint(event, data));
     enteringPoints
         .merge(points as any)
@@ -812,7 +815,7 @@ export const drawScatterPlot = (
         .selectAll("circle.hover-area")
         .data(data)
         .join("circle")
-        .on("mouseover", (event, data) => hoverOnPoint(event, data))
+        .on("mouseover", (event, data) => hoverOnPoint(event, data, xTable, yTable))
         .on("mousemove", (event, data) => moveOnPoint(event, data))
         .on("mouseout", (event, data) => leavePoint(event, data))
         .attr("cx", d => x(reverseX ? Math.abs(d.entries[xAxisProperty as keyof LogItemProps] as number) : d.entries[xAxisProperty!] as number))
@@ -851,7 +854,7 @@ export const drawScatterPlot = (
     // When hovering on point.
     // - Set info card position and content
     // - If grouping is set, lower the opacity and radius of all points and groupding keys that don't belong to the same category
-    function hoverOnPoint (event: any, data: LogProps) {
+    function hoverOnPoint (event: any, data: LogProps, xTable: string, yTable: string) {
 
         const logData = logs ? logs.find((log)=>log.id === data.id)! : data;
         const hoverData : InfoCardData = {
@@ -859,11 +862,11 @@ export const drawScatterPlot = (
                 "name": selectedXAxisProperty as string,
                 "value": selectedXAxisProperty === "Log Time" 
                     ?   data.ts
-                    :   logData.entries[selectedXAxisProperty as keyof LogItemProps]
+                    :   (logData[`${xTable}.entries`] as LogItemProps)[selectedXAxisProperty as keyof LogItemProps]
             },
             "y" : {
                 "name": selectedYAxisProperty as string, 
-                "value": logData.entries[selectedYAxisProperty as keyof LogItemProps]
+                "value": (logData[`${yTable}.entries`] as LogItemProps)[selectedYAxisProperty as keyof LogItemProps]
             }
         }
         if (groupBy) hoverData["group"] = {"name": groupBy, value: logData.entries[groupBy]}
