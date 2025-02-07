@@ -71,8 +71,8 @@ const LogsPlot = ({ logs, fields}: {
         if (plotType === "Line Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                const adjustedScaleX = checkLogScalability(logs, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
+                const adjustedScaleX = checkLogScalability(logs, "", selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
+                const adjustedScaleY = checkLogScalability(logs, "", selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawLineChart(
                     svg, 
                     adjustedScaleX,
@@ -83,6 +83,8 @@ const LogsPlot = ({ logs, fields}: {
                     selectedXAxisProperty, 
                     selectedYAxisProperty, 
                     groupByProperty || undefined,
+                    "",
+                    "",
                     logs, 
                     fields
                 );
@@ -100,8 +102,8 @@ const LogsPlot = ({ logs, fields}: {
         else if (plotType  === "Bar Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                const adjustedScaleX = checkLogScalability(logs, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
+                const adjustedScaleX = checkLogScalability(logs, "", selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
+                const adjustedScaleY = checkLogScalability(logs, "", selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawBarChart(
                     svg, 
                     adjustedScaleX,
@@ -111,7 +113,8 @@ const LogsPlot = ({ logs, fields}: {
                     axisPadding, 
                     selectedXAxisProperty, 
                     selectedYAxisProperty, 
-                    isAggregated || undefined,
+                    groupByProperty || undefined,
+                    "",
                     logs, 
                     fields
                 );
@@ -139,7 +142,8 @@ const LogsPlot = ({ logs, fields}: {
                     selectedXAxisProperty, 
                     binCount,
                     setBinCounts,
-                    logs, 
+                    "",
+                    logs,
                     fields,
                 )
             } else {
@@ -156,8 +160,8 @@ const LogsPlot = ({ logs, fields}: {
         else {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                const adjustedScaleX = checkLogScalability(logs, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
+                const adjustedScaleX = checkLogScalability(logs, "", selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
+                const adjustedScaleY = checkLogScalability(logs, "", selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawScatterPlot(
                     svg, 
                     adjustedScaleX,
@@ -169,6 +173,8 @@ const LogsPlot = ({ logs, fields}: {
                     selectedYAxisProperty, 
                     groupByProperty || undefined,
                     showRegression,
+                    "",
+                    "",
                     logs, 
                     fields
                 );
