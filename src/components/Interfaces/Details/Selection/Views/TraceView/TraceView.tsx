@@ -34,6 +34,7 @@ import { LogComparisonProps } from "../types";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ChatView from "../ChatView";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/UI/hover-card";
+import TimelineViewButton from "./TimelineView";
 
 /*------------------------------------------------------------------------
   Helper functions for compressing row indices => "1-3,5,7-9", etc.
@@ -416,15 +417,16 @@ function PatchDetailPanel({
   const idsBlock = maybeRenderBlock("IDs", bId, cId, true);
   if (idsBlock) accordionItems.push(idsBlock);
 
+  const showTimelineButton = allRowIndexes.length === 1 || (allTraces.length > 1 && comparisonLogsIndex.length === 0);
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="font-bold text-sm">{node.name}</p>
-        <CopyButton
-          content={spanId}
-          copyMessage="Copied trace ID!"
-          tooltipContent="Copy Base Span ID"
-        />
+        {showTimelineButton && (
+          console.log("showTimelineButton", allTraces[0]),
+          <TimelineViewButton baseTrace={allTraces[0]} />
+        )}
       </div>
 
       {contentBlocks.map((blockEl) => blockEl)}
