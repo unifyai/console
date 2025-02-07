@@ -38,9 +38,7 @@ export default function TimelineViewButton({
 
   // Prepare chart data for the base trace.
   const chartData = useMemo(() => {
-    console.log("Processing base trace:", baseTrace);
     const data = unifyTracesForChart([baseTrace]);
-    console.log("Chart data:", data);
     return data;
   }, [baseTrace]);
 

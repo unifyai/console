@@ -7,7 +7,7 @@ import {
   AccordionContent,
 } from "@/components/UI/accordion";
 import { Combobox } from "@/components/UI/Combobox";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Inbox, Clock, Code, DollarSign, Hash, AlertTriangle, FileInput, FileOutput, IdCard } from "lucide-react";
 
 import { Span } from "@/types/evals/traces";
 import {
@@ -277,100 +277,68 @@ function PatchDetailPanel({
     return undefined;
   }
 
-  function maybeRenderBlock(
-    title: string,
-    baseVal: any,
-    comps: any[],
-    isAccordionItem?: boolean
-  ) {
-    if (allEmpty(baseVal, comps)) return null;
-    const view = pickView(
-      baseVal,
-      comps,
-      baseRowIndex,
-      comparisonLogsIndex,
-      diffMode,
-      splitView
-    );
-    if (isAccordionItem) {
-      return (
-        <AccordionItem key={title} value={title}>
-          <AccordionTrigger className="font-medium">{title}</AccordionTrigger>
-          <AccordionContent className="pl-2 border-l">
-            {view}
-          </AccordionContent>
-        </AccordionItem>
-      );
+  // Define section icons mapping
+  const sectionIcons: Record<string, JSX.Element> = {
+    "Inputs": <FileInput className="h-4 w-4 text-primary" />,
+    "Outputs": <FileOutput className="h-4 w-4 text-primary" />,
+    "Execution Time": <Clock className="h-4 w-4 text-primary" />,
+    "Code": <Code className="h-4 w-4 text-primary" />,
+    "Errors": <AlertTriangle className="h-4 w-4 text-primary" />,
+    "Cost": <DollarSign className="h-4 w-4 text-primary" />,
+    "IDs": <IdCard className="h-4 w-4 text-primary" />,
+  };
+
+  // Helper to render a standard accordion item
+  function maybeRenderBlock(title: string, baseVal: any, comps: any[]): JSX.Element | null {
+    if (allEmpty(baseVal, comps)) {
+      return null;
     }
+
+    const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView);
+
     return (
-      <div key={title}>
-        <p className="font-semibold text-sm mb-2">{title}</p>
-        <div className="border border-muted p-2 rounded">{view}</div>
-      </div>
+      <AccordionItem key={title} value={title}>
+        <AccordionTrigger className="relative group flex items-center justify-between">
+          <span className="inline-flex items-center gap-2">
+            {sectionIcons[title] || null}<span>{title}</span>
+          </span>
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="border-l ml-4 pl-1">{view}</div>
+        </AccordionContent>
+      </AccordionItem>
     );
   }
 
-  const { baseVal: bInputs, comps: cInputs } = gatherField("inputs");
-  const { baseVal: bOutputs, comps: cOutputs } = gatherField("outputs");
-  const { baseVal: bExecTime, comps: cExecTime } = gatherField("exec_time");
-  const { baseVal: bCode, comps: cCode } = gatherField("code");
-  const { baseVal: bErrors, comps: cErrors } = gatherField("errors");
-
-  const { baseVal: bCost, comps: cCost } = gatherField("cost");
-  const { baseVal: bCostIncCache, comps: cCostIncCache } = gatherField("cost_inc_cache");
-
-  function gatherID() {
-    const bSpan = node.baseSpanRef;
-    const tSpan = node.targetSpanRef;
-    if (bSpan && tSpan && bSpan === tSpan) {
-      return { baseVal: bSpan.id ?? "", comps: [] };
-    }
-    if (comparisonLogsIndex.length <= 1) {
-      const bId = bSpan?.id ?? "";
-      const tId = tSpan?.id ?? "";
-      return tId ? { baseVal: bId, comps: [tId] } : { baseVal: bId, comps: [] };
-    }
-    const realName = bSpan?.span_name || tSpan?.span_name || node.name;
-    const bId = bSpan?.id ?? "";
-    const compsArr = comparisonLogsIndex.map((r) => {
-      const match = findSpanByNameInRow(allTraces, allRowIndexes, r, realName);
-      return match?.id ?? "";
-    });
-    return { baseVal: bId, comps: compsArr };
-  }
-  const { baseVal: bId, comps: cId } = gatherID();
-
-  const contentBlocks: JSX.Element[] = [];
-  const block1 = maybeRenderBlock("Inputs", bInputs, cInputs, false);
-  if (block1) contentBlocks.push(block1);
-  const block2 = maybeRenderBlock("Outputs", bOutputs, cOutputs, false);
-  if (block2) contentBlocks.push(block2);
-
-  if (!allEmpty(bExecTime, cExecTime)) {
-    contentBlocks.push(
-      <div key="execution-time">
-        <p className="font-semibold text-sm mb-2">Execution Time</p>
-        <div className="border border-muted p-2 rounded">
-          <ExecutionTimeView
-            value={bExecTime}
-            comparables={cExecTime}
-            baseLogIndex={baseRowIndex}
-            comparisonLogsIndex={comparisonLogsIndex}
-            diffMode={diffMode}
-            splitView={splitView}
-          />
-        </div>
-      </div>
+  // Specialized renderer for execution time
+  function renderExecutionTime(): JSX.Element | null {
+    if (allEmpty(bExecTime, cExecTime)) return null;
+    return (
+      <AccordionItem key="Execution Time" value="Execution Time">
+        <AccordionTrigger className="relative group flex items-center justify-between">
+          <span className="inline-flex items-center gap-2">
+            {sectionIcons["Execution Time"]} <span>Execution Time</span>
+          </span>
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="border-l ml-4 pl-1">
+            <ExecutionTimeView
+              value={bExecTime}
+              comparables={cExecTime}
+              baseLogIndex={baseRowIndex}
+              comparisonLogsIndex={comparisonLogsIndex}
+              diffMode={diffMode}
+              splitView={splitView}
+            />
+          </div>
+        </AccordionContent>
+      </AccordionItem>
     );
   }
 
-  const accordionItems: JSX.Element[] = [];
-  const codeBlock = maybeRenderBlock("Code", bCode, cCode, true);
-  if (codeBlock) accordionItems.push(codeBlock);
-  const errorsBlock = maybeRenderBlock("Errors", bErrors, cErrors, true);
-  if (errorsBlock) accordionItems.push(errorsBlock);
-
-  if (!allEmpty(bCost, cCost) || !allEmpty(bCostIncCache, cCostIncCache)) {
+  // Specialized renderer for cost section
+  function renderCostBlock(): JSX.Element | null {
+    if (allEmpty(bCost, cCost) && allEmpty(bCostIncCache, cCostIncCache)) return null;
     const content = (
       <div className="flex flex-col gap-2">
         <div>
@@ -401,21 +369,49 @@ function PatchDetailPanel({
         </div>
       </div>
     );
-
-    const costBlock = (
-      <AccordionItem key="cost" value="cost">
-        <AccordionTrigger className="font-medium">Cost</AccordionTrigger>
-        <AccordionContent className="pl-2 border-l">
-          {content}
+    return (
+      <AccordionItem key="Cost" value="Cost">
+        <AccordionTrigger className="relative group flex items-center justify-between">
+          <span className="inline-flex items-center gap-2">
+            {sectionIcons["Cost"]} <span>Cost</span>
+          </span>
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="border-l ml-4 pl-1">{content}</div>
         </AccordionContent>
       </AccordionItem>
     );
-
-    accordionItems.push(costBlock);
   }
 
-  const idsBlock = maybeRenderBlock("IDs", bId, cId, true);
-  if (idsBlock) accordionItems.push(idsBlock);
+  // Get all field values
+  const { baseVal: bInputs, comps: cInputs } = gatherField("inputs");
+  const { baseVal: bOutputs, comps: cOutputs } = gatherField("outputs");
+  const { baseVal: bCode, comps: cCode } = gatherField("code");
+  const { baseVal: bErrors, comps: cErrors } = gatherField("errors");
+  const { baseVal: bExecTime, comps: cExecTime } = gatherField("exec_time");
+  const { baseVal: bCost, comps: cCost } = gatherField("cost");
+  const { baseVal: bCostIncCache, comps: cCostIncCache } = gatherField("cost_inc_cache");
+
+  function gatherID() {
+    const bSpan = node.baseSpanRef;
+    const tSpan = node.targetSpanRef;
+    if (bSpan && tSpan && bSpan === tSpan) {
+      return { baseVal: bSpan.id ?? "", comps: [] };
+    }
+    if (comparisonLogsIndex.length <= 1) {
+      const bId = bSpan?.id ?? "";
+      const tId = tSpan?.id ?? "";
+      return tId ? { baseVal: bId, comps: [tId] } : { baseVal: bId, comps: [] };
+    }
+    const realName = bSpan?.span_name || tSpan?.span_name || node.name;
+    const bId = bSpan?.id ?? "";
+    const compsArr = comparisonLogsIndex.map((r) => {
+      const match = findSpanByNameInRow(allTraces, allRowIndexes, r, realName);
+      return match?.id ?? "";
+    });
+    return { baseVal: bId, comps: compsArr };
+  }
+  const { baseVal: bId, comps: cId } = gatherID();
 
   const showTimelineButton = allRowIndexes.length === 1 || (allTraces.length > 1 && comparisonLogsIndex.length === 0);
 
@@ -423,19 +419,18 @@ function PatchDetailPanel({
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="font-bold text-sm">{node.name}</p>
-        {showTimelineButton && (
-          console.log("showTimelineButton", allTraces[0]),
-          <TimelineViewButton baseTrace={allTraces[0]} />
-        )}
+        {showTimelineButton && TimelineViewButton && <TimelineViewButton baseTrace={allTraces[0]} />}
       </div>
-
-      {contentBlocks.map((blockEl) => blockEl)}
-
-      {accordionItems.length > 0 && (
-        <Accordion type="multiple" defaultValue={[]} className="mt-3">
-          {accordionItems}
-        </Accordion>
-      )}
+      
+      <Accordion type="multiple" defaultValue={["Inputs", "Outputs"]} className="mt-3">
+        {maybeRenderBlock("Inputs", bInputs, cInputs)}
+        {maybeRenderBlock("Outputs", bOutputs, cOutputs)}
+        {renderExecutionTime()}
+        {maybeRenderBlock("Code", bCode, cCode)}
+        {maybeRenderBlock("Errors", bErrors, cErrors)}
+        {renderCostBlock()}
+        {maybeRenderBlock("IDs", bId, cId)}
+      </Accordion>
     </div>
   );
 }
@@ -813,8 +808,6 @@ export default function UnifiedTraceView({
   diffMode = "none",
   splitView = false,
 }: UnifiedTraceViewProps) {
-
-  console.log("allTraces", allTraces);
   const [collapsedNodes, setCollapsedNodes] = useState<Record<string, boolean>>({});
 
   const [selectedNode, setSelectedNode] = useState<PatchDiffNode | null>(null);
