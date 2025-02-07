@@ -179,6 +179,7 @@ export default function DataTable<TData, TValue>({ className, interactive, data,
                                                     isCellExpanded={isCellExpanded}
                                                     setExpandedCells={setExpandedCells}
                                                     draggingColumns={state.draggingColumns}
+                                                    state={state}
                                                 />
                                             </SortableContext>
                                         );

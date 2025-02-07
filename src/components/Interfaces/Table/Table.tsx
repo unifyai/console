@@ -221,6 +221,7 @@ const LogsTable = ({
   });
 
   const state = {
+    tableDataItem,
     selectedCells,
     metric,
     sorting,
@@ -235,6 +236,7 @@ const LogsTable = ({
     pinningState,
   };
   const setState = {
+    setTableDataItem,
     setSelectedCells: (cells: string[]) => updateItem(item, "selected")(cells.join(",")),
     setMetric: updateItem(item, "metric"),
     setSorting,
