@@ -259,7 +259,7 @@ export const keyTemplate = (keys: GroupingColors) => {
     ${keys.map((entry, index) => `
     <div id=${entry.key} class="key flex flex-row gap-2 items-center">
         <div class="rounded-full h-2 w-2" style="background-color: ${entry.color}; color: ${entry.color}"></div>
-        <p class="text-xs text-foreground">${entry.key.split(".")[1].slice(0, 7)}</p>
+        <p class="text-xs text-foreground">${entry.key.split(".").length > 1 ? entry.key.split(".")[1].slice(0, 7) : entry.key}</p>
     </div>
     `).join("\n")}`)
 }
@@ -869,7 +869,7 @@ export const drawScatterPlot = (
                 "value": (logData[`${yTable}.entries`] as LogItemProps)[selectedYAxisProperty as keyof LogItemProps]
             }
         }
-        if (groupBy) hoverData["group"] = {"name": groupBy, value: logData.entries[groupBy]}
+        if (groupBy) hoverData["group"] = {"name": groupBy, value: (logData[`${xTable}.entries`] as LogItemProps)[groupBy]}
 
         tooltip.html(tooltipTemplate(hoverData)).transition().style("opacity", 1)
         positionTooltip(event, svg, tooltip, width, height);
@@ -878,12 +878,12 @@ export const drawScatterPlot = (
             g.selectAll("circle.data-point")
                 .transition()
                 .duration(200)
-                .attr("r", d => (d as LogProps).entries[groupBy] === data.entries[groupBy] ? 4 : 2)
-                .style("opacity", d => (d as LogProps).entries[groupBy] === data.entries[groupBy] ? 1 : 0.5);
+                .attr("r", d => ((d as LogProps)[`${xTable}.entries`] as LogItemProps)[groupBy] === (data[`${xTable}.entries`] as LogItemProps)[groupBy] ? 4 : 2)
+                .style("opacity", d => ((d as LogProps)[`${xTable}.entries`] as LogItemProps)[groupBy] === (data[`${xTable}.entries`] as LogItemProps)[groupBy] ? 1 : 0.5);
             key.selectAll(".key")
                 .each(function (d, i) {
                     const id = d3.select(this).attr("id")
-                    const opacity = id.toString() === data.entries[groupBy].toString() ? 1 : 0.5
+                    const opacity = id.toString() === (data[`${xTable}.entries`] as LogItemProps)[groupBy].toString() ? 1 : 0.5
                     d3.select(this)
                       .transition()
                       .duration(200)
