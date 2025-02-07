@@ -1,5 +1,5 @@
 import CardGrid from "@/components/Interfaces/CardGrid";
-import { TableArguments, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
+import { TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { Context, ContextActions, DerivedEntryActions, FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
@@ -123,22 +123,21 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
     const limit = 100;
     const offsets: number[] = tableItems.map(item => (item.page_number ? parseInt(item.page_number) : 0) * limit);
     let allTotalPages: number[] = Array(tableItems.length).fill(1);
-    let allPlotData: LogsResponseProps[] = Array(plotItems.length).fill(({ params: {}, logs: [], count: 0 }));
-    const allPlotFields: LogFieldsResponseProps[] = plotItems.map(
-        item => {
-            const context = tableItems.find(it => it.i == item.table)?.context;
-            return Object.fromEntries(
-                Object
-                    .entries(fields)
-                    .filter(([name, { data_type, field_type }]) => context ? name.startsWith(context) : name)
-                    .map(([name, { data_type, field_type, artifacts }]) => {
-                        const newName = context ? name.replace(context, "") : name;
-                        return [newName, { data_type, field_type, artifacts }];
-                    })
-            )
-        }
-    );
+    let plotData: PlotDataProps = {};
+    const plotFields: LogFieldsResponseProps = tableItems.map(item => {
+        const context = item.context;
+        return Object.fromEntries(
+            Object
+                .entries(fields)
+                .filter(([name, { data_type, field_type, artifacts }]) => context ? name.startsWith(context) : name)
+                .map(([name, { data_type, field_type, artifacts }]) => {
+                    const newName = context ? name.replace(context, "") : name;
+                    return [`${item.i}.${newName}`, { data_type, field_type, artifacts }];
+                })
+        )
+    }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
     if (project) {
+        // fetch table data
         await Promise.all(tableItems.map(async (item, idx) => {
             const logsData = await logsActions.get(
                 project,
@@ -155,25 +154,73 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
             allLogsData[idx] = logsData;
             allTotalPages[idx] = totalPages;
         }));
-        await Promise.all(plotItems.map(async (item, idx) => {
-            const xAxis = item.context ? processContext("merge", item.context, item.x_axis) : item.x_axis;
-            const yAxis = item.context ? processContext("merge", item.context, item.y_axis) : item.y_axis;
-            const group = item.context ? processContext("merge", item.context, item.plot_group_by) : item.plot_group_by;
-            let plotData: LogsResponseProps = { params: {}, logs: [], count: 0 };
-            const filterExpressionIdx = tableItems.findIndex(it => it.i == item.table);
-            const filterExpression = filterExpressionIdx == -1 ? null : filterExpressions[filterExpressionIdx];
-            if (xAxis) {
-                let subset = xAxis.split(".")[1];
-                if (item.plot_type === "Bar Chart")
-                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
-                else {
-                    if (yAxis)
-                        subset += `&${yAxis.split(".")[1]}`
-                    if (group) subset += `&${group}`
-                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
+
+        // fetch plot data
+        await Promise.all(plotItems.map(async (item) => {
+            // get all tables that are used in the plot
+            let tableIdx1 = -1;
+            if (item.x_axis && item.x_axis.includes("."))
+                tableIdx1 = tableItems.findIndex(it => it.i == item.x_axis?.split(".")[0]);
+            let tableIdx2 = -1;
+            if (item.y_axis && item.y_axis.includes(".") && item.plot_type != "Bar Chart")
+                tableIdx2 = tableItems.findIndex(it => it.i == item.y_axis?.split(".")[0]);
+            const tables = [tableIdx1, tableIdx2 != tableIdx1 ? tableIdx2 : -1].filter(it => it != -1);
+
+            // fetch plot data for each table
+            const plotData_ = (await Promise.all(tables.map(async (tableIdx) => {
+                const table = tableItems[tableIdx];
+                const context = table?.context;
+                const xAxis = context ? processContext("merge", context, item.x_axis) : item.x_axis;
+                const yAxis = context ? processContext("merge", context, item.y_axis) : item.y_axis;
+                const group = context ? processContext("merge", context, item.plot_group_by) : item.plot_group_by;
+                let data: LogsResponseProps = { params: {}, logs: [], count: 0 };
+                const filterExpression = filterExpressions[tableIdx];
+                if (xAxis) {
+                    let subset = xAxis.split(".").length > 1 ? xAxis.split(".")[1] : null;
+                    if (item.plot_type === "Bar Chart")
+                        data = await logsActions.get(project, context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
+                    else {
+                        if (yAxis && yAxis.split(".").length > 1)
+                            subset += `&${yAxis.split(".")[1]}`
+                        if (group && group.split(".").length > 1)
+                            subset += `&${group.split(".")[1]}`
+                        data = await logsActions.get(project, context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
+                    }
+                }
+                return { [table.i]: {
+                    plotLogs: data.logs || [],
+                    plotFields: plotFields
+                } };
+            }))).reduce((acc, curr) => ({ ...acc, ...curr }), {});
+
+            if (Object.keys(plotData_).length > 0) {
+                // if non-zero tables are used in the plot, merge the plot data
+                const minLogLength = Math.min(...Object.values(plotData_).map(data => data.plotLogs.length));
+                const mergedPlotData = {
+                    plotLogs: minLogLength > 0 ? Object.values(plotData_)[0].plotLogs.slice(0, minLogLength).map((_, i) => {
+                        return Object.entries(plotData_).reduce((acc, [tableId, data]) => {
+                            const prefixedLog = Object.fromEntries(
+                                Object.entries(data.plotLogs[i] || {}).map(([key, value]) => [
+                                    `${tableId}.${key}`,
+                                    (key == "entries" && value) ? Object.fromEntries(
+                                        Object.entries(value).map(([k,v]) => [`${tableId}.${k}`, v])
+                                    ) : value
+                                ])
+                            );
+                            return { ...acc, ...prefixedLog };
+                        }, {}) as LogProps;
+                    }) : [],
+                    plotFields: plotFields
+                };
+                plotData[item.i] = mergedPlotData;
+            }
+            else {
+                // if no tables are used in the plot, return empty plot data
+                plotData[item.i] = {
+                    plotLogs: [],
+                    plotFields: plotFields
                 }
             }
-            allPlotData[idx] = plotData;
         }));
     }
 
@@ -216,20 +263,6 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                     params,
                     metrics,
                     boundaries,
-                }
-            }
-        })
-    )).reduce((acc, curr) => ({ ...acc, ...curr }), {});
-
-    const plotData: PlotDataProps = (await Promise.all(
-        plotItems.map(async (item, idx) => {
-            const plotData = allPlotData[idx];
-            const plotFields = allPlotFields[idx];
-            const plotLogs = plotData?.logs || [];
-            return {
-                [item.i]: {
-                    plotLogs,
-                    plotFields,
                 }
             }
         })

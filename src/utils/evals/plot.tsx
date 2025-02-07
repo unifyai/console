@@ -45,7 +45,7 @@ export const drawAxes = (
         xTickFormatter = d3.axisBottom(x as d3.ScaleBand<string>).tickSizeOuter(0).tickFormat(d => {
             if (typeof d === "number") return reverseX ? formatNumber(-d) : formatNumber(d) 
             return JSON.stringify(d).slice(0, 5).replace(/^"|"$/g, '')
-        }) as any
+        }) as any;
     } else if (plotType === "Histogram") {
         xTickFormatter = d3.axisBottom(x as d3.ScaleLinear<number, number, never>).tickSizeOuter(0).tickFormat(d => {
             if (xType === "timestamp") return new Date(d as number).toISOString().replace("Z", "").replace("T", " ")
@@ -71,7 +71,7 @@ export const drawAxes = (
             let value = parseFloat(d.toString())
             value = reverseX ? -value : value
             return formatNumber(value);
-        }) as any   
+        }) as any
     }
     yTickFormatter = d3
         .axisLeft(y as d3.ScaleLinear<number, number, never> | d3.ScaleLinear<number, number, never>)
@@ -188,13 +188,14 @@ export const calculateTicks = (length: number, scaleX: string, scaleY: string, m
     Check if values can be plotted using log scale
 */
 export function checkLogScalability (
-    logs: LogProps[], 
+    logs: LogProps[],
+    table: string,
     axisProperty: string,
     scale: string,
     setScale: (scale: string) => void,
     setLogScaleEnabled: (enabled: boolean) => void
 ) {
-    const entries = logs.map(log => log.entries[axisProperty]);
+    const entries = logs.map(log => (log[`${table.length ? (table + ".") : ""}entries`] as LogItemProps)[axisProperty]);
     const allPositive = entries.every(v => v > 0);
     const allNegative = entries.every(v => v < 0);
     const hasZero = entries.some(v => v === 0);
@@ -255,7 +256,7 @@ export const keyTemplate = (keys: GroupingColors) => {
     ${keys.map((entry, index) => `
     <div id=${entry.key} class="key flex flex-row gap-2 items-center">
         <div class="rounded-full h-2 w-2" style="background-color: ${entry.color}; color: ${entry.color}"></div>
-        <p class="text-xs text-foreground">${entry.key.slice(0, 7)}</p>
+        <p class="text-xs text-foreground">${entry.key.split(".")[1].slice(0, 7)}</p>
     </div>
     `).join("\n")}`)
 }
@@ -284,10 +285,11 @@ export const drawBarChart = (
     selectedXAxisProperty: string | undefined,
     selectedYAxisProperty: string | undefined,
     isAggregated: string | undefined,
+    table: string,
     logs: LogProps[],
     fields: LogFieldsResponseProps
 ) => {
-    
+
     // Clear previous elements
     const g = svg.select(".plotData");
     g.selectAll("*").remove();
@@ -298,7 +300,7 @@ export const drawBarChart = (
         .entries(fields)
         .filter(([name, { field_type }]) => field_type !== "param")
         .map(([name]) => name);
-    
+
     const xAxis = selectedXAxisProperty === "Log Time" ? properties[0] : selectedXAxisProperty;
     const yAxis = selectedYAxisProperty && !metrics.includes(selectedYAxisProperty) 
         ? metrics[0] 
@@ -311,25 +313,25 @@ export const drawBarChart = (
     const key = d3.select(".groupingKey").style("opacity", 0);
 
     if (xAxis && yAxis) {
-        const filteredData = logs.filter(log => log.entries[xAxis] !== undefined);
+        const filteredData = logs.filter(log => (log[`${table}.entries`] as LogItemProps) !== undefined);
         const statistic = (vals: number[]) => computeStatistic(yAxis, vals);
-
+        
         if (aggregated) {
             const groups = d3.rollup(
                 filteredData,
-                v => parseFloat(statistic(v.map(l => toComputableValue(l.entries[xAxis])))),
-                d => d.entries[xAxis].toString()
+                v => parseFloat(statistic(v.map(l => toComputableValue((l[`${table}.entries`] as LogItemProps)[xAxis])))),
+                d => (d[`${table}.entries`] as LogItemProps)[xAxis].toString()
             );
             data = Array.from(groups, ([group, value]) => [group, value]) as DataLabel[];
         } else {
-            const groups = d3.group(filteredData, d => d.entries[xAxis].toString());
+            const groups = d3.group(filteredData, d => (d[`${table}.entries`] as LogItemProps)[xAxis].toString());
             const keys = properties.filter(k => k !== xAxis && k !== yAxis);
             colorKeys = [...Array.from(new Set(keys))];
             data = Array.from(groups).map(([group, logs]) => [
                 group,
                 keys.map(key => [
                     key,
-                    parseFloat(statistic(logs.map(l => toComputableValue(l.entries[key]))))
+                    parseFloat(statistic(logs.map(l => toComputableValue((l[`${table}.entries`] as LogItemProps)[key]))))
                 ]) as DataLabel[]
             ]) as GroupedDataLabel[];
         }
@@ -340,12 +342,12 @@ export const drawBarChart = (
     const xDomain = aggregated 
         ? (data as DataLabel[]).map(d => d[0]) 
         : (data as GroupedDataLabel[]).map(d => d[0]);
-    
+
     const xScale = d3.scaleBand()
         .domain(xDomain)
         .range([margins.left, width - margins.right])
         .padding(aggregated ? 0.2 : 0.1);
-
+    
     const subXScale = d3.scaleBand()
         .domain(aggregated ? [yAxis!] : colorKeys)
         .range([0, xScale.bandwidth()])
@@ -484,12 +486,12 @@ export const drawBarChart = (
             },
             y: { name: yAxis!, value: d[1] }
         })).transition().style("opacity", 1);
-        
+
         // Dim all bars except hovered one
         g.selectAll("rect.bar-item")
             .transition()
             .style("opacity", bar => (bar as DataLabel)[0] === currentKey ? 1 : 0.3);
-        
+
         // Dim keys only in non-aggregated mode
         if (!aggregated) {
             key.selectAll(".key")
@@ -524,10 +526,12 @@ export const drawLineChart = (
   selectedXAxisProperty: string | undefined,
   selectedYAxisProperty: string | undefined,
   groupBy: string | undefined,
+  xTable: string,
+  yTable: string,
   logs: LogProps[],
   fields: LogFieldsResponseProps
 ) => {
-    
+
     // Remove drawings from previous plots
     const g = svg.select(".plotData")
     g.selectAll("circle.data-point").remove();
@@ -553,16 +557,17 @@ export const drawLineChart = (
     const xTime = xAxis === "Log Time";
     if (xAxis && yAxis) {
         const filteredData = logs.filter((log) => {
-            const hasGroup = groupBy ? log.entries[groupBy] : true;
-            const hasX = xTime ? true : log.entries[xAxis];
-            const hasY = log.entries[yAxis];
+            const hasGroup = groupBy ? (log[`${xTable}.entries`] as LogItemProps)[groupBy] : true;
+            const hasX = xTime ? true : (log[`${xTable}.entries`] as LogItemProps)[xAxis];
+            const hasY = (log[`${yTable}.entries`] as LogItemProps)[yAxis];
             return hasGroup && hasX && hasY;
         });
         const convertedData = filteredData.map((log) => {
-            let entries = log.entries;
-            entries[yAxis] = parseFloat(entries[yAxis]);
-            if (!xTime) entries[xAxis] = parseFloat(entries[xAxis]); 
-            return ({...log, entries});
+            let xEntries = log[`${xTable}.entries`] as LogItemProps;
+            let yEntries = log[`${yTable}.entries`] as LogItemProps;
+            yEntries[yAxis] = parseFloat(yEntries[yAxis]);
+            if (!xTime) xEntries[xAxis] = parseFloat(xEntries[xAxis]);
+            return {...log, entries: { ...xEntries, ...yEntries }};
         });
         const sortedData = convertedData.sort((a, b) => {
             const valueA = xTime ? new Date(a.ts).getTime() : a.entries[xAxis];
@@ -709,6 +714,8 @@ export const drawScatterPlot = (
   selectedYAxisProperty: string | undefined,
   groupBy: string | undefined,
   showRegression: string,
+  xTable: string,
+  yTable: string,
   logs: LogProps[],
   fields: LogFieldsResponseProps
 ) => {
@@ -732,16 +739,17 @@ export const drawScatterPlot = (
 
     if (xAxisProperty && yAxisProperty) {
         const filteredData = logs.filter((log) => {
-            const hasGroup = groupBy ? log.entries[groupBy] : true;
-            const hasX = log.entries[xAxisProperty];
-            const hasY = log.entries[yAxisProperty];
+            const hasGroup = groupBy ? (log[`${xTable}.entries`] as LogItemProps)[groupBy] : true;
+            const hasX = (log[`${xTable}.entries`] as LogItemProps)[xAxisProperty];
+            const hasY = (log[`${yTable}.entries`] as LogItemProps)[yAxisProperty];
             return hasGroup && hasX && hasY
         })
         data = filteredData.map((log) => {
-            let entries = log.entries;
-            entries[yAxisProperty] = parseFloat(entries[yAxisProperty]);
-            entries[xAxisProperty] = parseFloat(entries[xAxisProperty]); 
-            return ({...log, entries});
+            let xEntries = log[`${xTable}.entries`] as LogItemProps;
+            let yEntries = log[`${yTable}.entries`] as LogItemProps;
+            yEntries[yAxisProperty] = parseFloat(yEntries[yAxisProperty]);
+            xEntries[xAxisProperty] = parseFloat(xEntries[xAxisProperty]);
+            return ({...log, entries: { ...xEntries, ...yEntries }});
         })
     }
 
@@ -1001,6 +1009,7 @@ export const drawHistogram = (
     selectedXAxisProperty: string | undefined,
     binCount: number,
     setbinCounts: (binCounts: number[]) => void,
+    table: string,
     logs: LogProps[],
     fields: LogFieldsResponseProps,
 ) => {
@@ -1024,9 +1033,9 @@ export const drawHistogram = (
     let xType : string | undefined;
     if (xAxisProperty) {
         xType = fields[xAxisProperty].data_type
-        const filteredData = logs.filter((log) => log.entries[xAxisProperty as keyof LogItemProps]);
+        const filteredData = logs.filter((log) => (log[`${table}.entries`] as LogItemProps)[xAxisProperty as keyof LogItemProps]);
         data = filteredData.map((log) => {
-            let entries = log.entries;
+            let entries = log[`${table}.entries`] as LogItemProps;
             const entry = xType === "timestamp"
                 ? new Date(entries[xAxisProperty]).getTime()
                 : parseFloat(entries[xAxisProperty])

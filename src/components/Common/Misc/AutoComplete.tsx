@@ -25,7 +25,6 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, onOp
     setOpen(o);
   }
   const label = items.find((item) => item.value === value)?.label;
-  console.log(type, type.includes("axis"));
   return (
     <Popover open={open} onOpenChange={(o) => onOpenChange(o)}>
       <PopoverTrigger asChild>

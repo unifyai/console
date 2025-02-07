@@ -9,6 +9,7 @@ export interface LogItemProps {
 }
 
 export interface LogProps {
+    [key: string]: string | LogItemProps
     id: string,
     ts: string,
     entries: LogItemProps,

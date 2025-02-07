@@ -199,9 +199,8 @@ const Card = ({
             /></div>}
             {tab?.includes("Plot") && <LogsPlot
                 interactive={["edit", "interactive"].includes(mode)}
-                logs={item.table ? plotData[item.i]?.plotLogs || [] : []}
-                fields={item.table ? plotData[item.i]?.plotFields || {} : {}}
-                tableNames={tableNames}
+                logs={plotData[item.i]?.plotLogs || []}
+                fields={plotData[item.i]?.plotFields || {}}
                 item={item}
                 updateItem={utils.updateItem}
             />}

@@ -6,10 +6,9 @@ import { LoaderCircle } from "lucide-react";
 import { LogProps, LogFieldsResponseProps } from "@/types/evals/logs";
 import AutoComplete from "@/components/Common/Misc/AutoComplete";
 
-const PlotAxis = ({ interactive, fields, tableNames, axisProperty, setAxisProperty, axis, plotType, logs }: {
+const PlotAxis = ({ interactive, fields, axisProperty, setAxisProperty, axis, plotType, logs }: {
     interactive: boolean
     fields: LogFieldsResponseProps,
-    tableNames: string[],
     axisProperty: string | undefined,
     setAxisProperty: (x: string | undefined) => void,
     axis: string,
@@ -48,11 +47,6 @@ const PlotAxis = ({ interactive, fields, tableNames, axisProperty, setAxisProper
             : plotType === "Bar Chart"
                 ? metrics
                 : properties;
-    const allChoices = (
-        tableNames.length > 0
-            ? tableNames.map(tableName => choices.map(choice => `${tableName}.${choice}`)).flat()
-            : choices
-    );
     const onSelect = (property: string) => {
         setAxisProperty(property)
         setLoading(true)
@@ -60,7 +54,7 @@ const PlotAxis = ({ interactive, fields, tableNames, axisProperty, setAxisProper
     return (
         (interactive && !loading) ? <AutoComplete
             type={`${axis}-axis`}
-            items={allChoices.map((choice) => ({ label: choice, value: choice }))}
+            items={choices.map((choice) => ({ label: choice, value: choice }))}
             defaultValue={axisProperty}
             onSelect={(currentValue: string) => onSelect(currentValue)}
             className="h-7 mx-1 text-xs w-[150px] shadow-none"
