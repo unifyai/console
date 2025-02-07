@@ -41,6 +41,19 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
                         item, logsData, fields, context, project, filterExpression, sorting, undefined, logsActions
                     )
                     setTableDataItem((tableDataItem: TableDataItem) => {
+                        const previousCells = tableDataItem.logs.flatMap(log => {
+                            const entryCells = Object.keys(log.entries).map(key => `${log.id}_${key}`)
+                            const paramCells = Object.keys(log.params).map(key => `${log.id}_${key}`)
+                            return entryCells.concat(paramCells)
+                          }
+                        );
+                        let newCells = logs.flatMap(log => {
+                            const entryCells = Object.keys(log.entries).map(key => `${log.id}_${key}`)
+                            const paramCells = Object.keys(log.params).map(key => `${log.id}_${key}`)
+                            return entryCells.concat(paramCells)
+                          }
+                        );
+                        newCells = newCells.filter(id => !previousCells.includes(id))
                         return {
                             ...tableDataItem,
                             logsData,
@@ -50,7 +63,8 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
                             logs,
                             params,
                             metrics,
-                            boundaries
+                            boundaries,
+                            newCells
                         };
                     });
                     running = false;
@@ -111,7 +125,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
         });
     }
 
-    const icon = loading 
+    const icon = loading || item.auto_update === "true"
     ? <RefreshCw className="animate-spin text-green"/> 
     : loaded
         ?   <Check className="text-green"/>

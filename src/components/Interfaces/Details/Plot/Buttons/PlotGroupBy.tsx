@@ -6,6 +6,7 @@ import { Group, Ungroup, LoaderCircle } from "lucide-react";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import SettingButton from "@/components/Common/Buttons/Setting";
 import { LogProps, LogFieldsResponseProps } from "@/types/evals/logs";
+import AutoComplete from "@/components/Common/Misc/AutoComplete";
 
 const PlotGroupBy = ({fields, groupBy, setGroupBy, logs}: {
     fields: LogFieldsResponseProps, 
@@ -40,18 +41,20 @@ const PlotGroupBy = ({fields, groupBy, setGroupBy, logs}: {
                 <SettingButton icon={icon} tooltip={"Group by"} variant={variant} disabled={loading}/>
             }
         >
+            <div className="overflow-auto max-h-[200px]">
             {
-            options.map(option => {
-                return (
-                    <DropdownMenuItem 
-                        key={option} 
-                        onClick={() => onClick(option)}
-                    >
-                        {option}
-                    </DropdownMenuItem>
-                );
-            })
-          }
+                options.map(option => {
+                    return (
+                        <DropdownMenuItem
+                            key={option}
+                            onClick={() => onClick(option)}
+                        >
+                            {option}
+                        </DropdownMenuItem>
+                    );
+                })
+            }
+            </div>
         </BaseDropdown>
     );
 }

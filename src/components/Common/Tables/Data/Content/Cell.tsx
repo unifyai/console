@@ -8,9 +8,10 @@ import { CSS, Transform } from "@dnd-kit/utilities";
 
 import { TableCell } from "@/components/UI/table";
 import { DraggingColumnsState } from "@/types/evals/columns";
-
+import { sanitizeId } from "@/utils/evals/columnOperations";
 import { ChevronRight, CornerDownLeft } from "lucide-react";
 import ColumnResizer from "../Buttons/ColumnResize";
+import { StateProps } from "@/types/dataTable";
 
 const DataTableCell = ({
   cell,
@@ -24,6 +25,7 @@ const DataTableCell = ({
   isCellExpanded,
   setExpandedCells,
   draggingColumns,
+  state,
   children,
 }: {
   cell: Cell<any, unknown>,
@@ -42,6 +44,7 @@ const DataTableCell = ({
   isCellExpanded: (cell: Cell<any, unknown>) => boolean,
   setExpandedCells: Dispatch<SetStateAction<{[k: string]: boolean}>>,
   draggingColumns: DraggingColumnsState,
+  state: StateProps,
   children?: ReactNode,
 }) => {
   const { isDragging, setNodeRef, transform } = useSortable({
@@ -49,6 +52,8 @@ const DataTableCell = ({
   });
 
   const columnID = cell.column.columnDef.id!;
+  const cellID = `${cell.row.id}_${sanitizeId(columnID)}`
+  const isNewCell = state.tableDataItem.newCells ? state.tableDataItem.newCells.includes(cellID) : undefined;
 
   // Pre-calculate checks for active and over states
   const isInActiveGroup = draggingColumns.active.ids?.includes(columnID);
@@ -134,7 +139,7 @@ const DataTableCell = ({
       style={style}
       tabIndex={0}  // Needed to ensure the table is focusable and the keyboard actions are working
       ref={setNodeRef}
-      className={`group/cell relative select-none`}
+      className={`group/cell relative select-none ${isNewCell ? 'animate-fade-accent' : ''}`}
     >
       <div className="overflow-hidden text-nowrap text-ellipsis ...">
         {cell.getIsGrouped() 
