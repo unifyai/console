@@ -118,12 +118,7 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
     forceExpandAll = false,
   } = props;
 
-  // local state hooks - must be called unconditionally at the top level
-  const [openItems, setOpenItems] = useState<string[]>([]);
-  const [childForceExpand, setChildForceExpand] = useState<string[]>([]);
-  const didExpandRef = useRef(false);
-
-  // build the union set of property keys
+  // Memoize allKeysAndData to prevent unnecessary recalculations
   const allKeysAndData = useMemo(() => {
     let keys: string[] = [];
     let dicts: any[] = [];
@@ -150,6 +145,12 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
     return { allKeys: keys, allDicts: dicts, allIndexes: indexes };
   }, [value, comparables, baseLogIndex, comparisonLogsIndex]);
 
+  // Fix: Memoize the array itself, using join only in the dependency
+  const memoizedKeys = useMemo(
+    () => allKeysAndData.allKeys,
+    [allKeysAndData.allKeys.join(",")]
+  );
+
   // figure out default expansions for string/number/matrix/image
   const keyTypeMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -174,25 +175,19 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
     );
   }, [allKeysAndData.allKeys, keyTypeMap]);
 
-  // Set initial open items
-  useEffect(() => {
-    setOpenItems(defaultOpenKeys);
-  }, [defaultOpenKeys]);
+  // Initialize state once with default keys
+  const [openItems, setOpenItems] = useState<string[]>(defaultOpenKeys);
+  const [childForceExpand, setChildForceExpand] = useState<string[]>([]);
 
-  // handle symmetrical force expansions => open or close everything
+  // Track previous forceExpandAll value to only update on real changes
+  const prevForce = useRef(forceExpandAll);
+
+  // Now the effect will work with the array
   useEffect(() => {
-    if (forceExpandAll && !didExpandRef.current) {
-      // open everything
-      setOpenItems(allKeysAndData.allKeys);
-      setChildForceExpand(allKeysAndData.allKeys);
-      didExpandRef.current = true;
-    } else if (!forceExpandAll && didExpandRef.current) {
-      // close everything
-      setOpenItems([]);
-      setChildForceExpand([]);
-      didExpandRef.current = false;
-    }
-  }, [forceExpandAll, allKeysAndData.allKeys]);
+    const newVal = forceExpandAll ? memoizedKeys : [];
+    setOpenItems(newVal);
+    setChildForceExpand(newVal);
+  }, [forceExpandAll, memoizedKeys]);
 
   if (!isDict(value)) {
     return <p className="text-red-500">DictionaryView: Value is not a dictionary.</p>;
@@ -237,7 +232,6 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
               <Button
                 variant="ghost"
                 onClick={(e) => {
-                  e.stopPropagation();
                   toggleOnePropertyExpand(propKey, openItems, setOpenItems, childForceExpand, setChildForceExpand);
                 }}
               >
@@ -301,7 +295,6 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
               <Button
                 variant="ghost"
                 onClick={(e) => {
-                  e.stopPropagation();
                   toggleOnePropertyExpand(propKey, openItems, setOpenItems, childForceExpand, setChildForceExpand);
                 }}
               >
@@ -330,7 +323,12 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
 
   return (
     <div className="flex flex-col gap-2">
-      <Accordion type="multiple" value={openItems} onValueChange={setOpenItems}>
+      <Accordion 
+        key={`dict-${forceExpandAll ? "open" : "closed"}`}
+        type="multiple" 
+        value={openItems} 
+        onValueChange={setOpenItems}
+      >
         {renderProperties()}
       </Accordion>
     </div>

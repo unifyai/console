@@ -124,8 +124,17 @@ const ListView: React.FC<ListViewProps> = (props) => {
     itemCount = Math.max(itemCount, ...compLens);
   }
 
-  // label them "Item <i>"
-  const allItemLabels = Array.from({ length: itemCount }, (_, i) => `Item ${i}`);
+  // Memoize allItemLabels with stable reference
+  const allItemLabels = useMemo(
+    () => Array.from({ length: itemCount }, (_, i) => `Item ${i}`),
+    [itemCount]
+  );
+
+  // Add additional memoization for stability
+  const memoizedLabels = useMemo(
+    () => allItemLabels,
+    [allItemLabels.join(",")]
+  );
 
   // guess item type => default expansions
   function guessItemType(index: number): string {
@@ -141,33 +150,24 @@ const ListView: React.FC<ListViewProps> = (props) => {
     return getValueType(sample);
   }
 
-  // default open items => string/number/matrix/image
-  const defaultOpenItems = allItemLabels.filter((lbl, i) => {
-    const t = guessItemType(i);
-    return ["string", "number", "matrix", "image"].includes(t);
-  });
+  // Memoize defaultOpenItems to prevent unnecessary recreations
+  const defaultOpenItems = useMemo(() => {
+    return allItemLabels.filter((_, i) => {
+      const t = guessItemType(i);
+      return ["string", "number", "matrix", "image"].includes(t);
+    });
+  }, [allItemLabels]);
 
-  // local open items
+  // Initialize state with default items
   const [openItems, setOpenItems] = useState(defaultOpenItems);
-
-  // track forced expansions for child items
   const [childForceExpand, setChildForceExpand] = useState<string[]>([]);
 
-  // symmetrical expand/collapse all 
-  const didExpandRef = useRef(false);
+  // Update effect to use memoizedLabels
   useEffect(() => {
-    if (forceExpandAll && !didExpandRef.current) {
-      // expand all once
-      setOpenItems(allItemLabels);
-      setChildForceExpand(allItemLabels);
-      didExpandRef.current = true;
-    } else if (!forceExpandAll && didExpandRef.current) {
-      // collapse all once
-      setOpenItems([]);
-      setChildForceExpand([]);
-      didExpandRef.current = false;
-    }
-  }, [forceExpandAll, allItemLabels]);
+    const newVal = forceExpandAll ? memoizedLabels : [];
+    setOpenItems(newVal);
+    setChildForceExpand(newVal);
+  }, [forceExpandAll, memoizedLabels]);
 
   if (!isList(value)) {
     return (
@@ -215,7 +215,6 @@ const ListView: React.FC<ListViewProps> = (props) => {
               <Button
                 variant="ghost"
                 onClick={(e) => {
-                  e.stopPropagation();
                   toggleOneItemExpand(
                     label,
                     openItems,
@@ -289,7 +288,6 @@ const ListView: React.FC<ListViewProps> = (props) => {
               <Button
                 variant="ghost"
                 onClick={(e) => {
-                  e.stopPropagation();
                   toggleOneItemExpand(
                     label,
                     openItems,
@@ -322,7 +320,12 @@ const ListView: React.FC<ListViewProps> = (props) => {
 
   return (
     <div className="flex flex-col gap-2">
-      <Accordion type="multiple" value={openItems} onValueChange={setOpenItems}>
+      <Accordion 
+        key={`list-${forceExpandAll ? "open" : "closed"}`}
+        type="multiple" 
+        value={openItems} 
+        onValueChange={setOpenItems}
+      >
         {renderAllItems()}
       </Accordion>
     </div>

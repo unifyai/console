@@ -332,7 +332,6 @@ export default function SelectionEntry({
 
   // Expand/Collapse Toggle
   const handleExpandToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
     if (!expandAll) {
       // Expand => forcibly open this item if it's closed
       forciblySetAccordionOpen(true);
