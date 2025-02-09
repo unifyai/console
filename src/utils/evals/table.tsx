@@ -445,6 +445,7 @@ export const nestedColumns = (
 			return log.params?.[node.path];
 			}
 		},
+		sortDescFirst: true,
 		filterFn: "includesString" as FilterFnOption<LogProps> | undefined,
 		header: node.name,
 		cell: ({ cell }: { cell: Cell<LogProps, unknown> }) => {
