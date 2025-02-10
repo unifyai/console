@@ -252,6 +252,7 @@ export default function SelectionEntry({
   item,
   utils,
   onAccordionValueChange,
+  onHideColumn,
 }: {
   source?: SourceType;
   property: string;
@@ -271,6 +272,7 @@ export default function SelectionEntry({
     updateCardById: (tileId: string, partial: Partial<TileProps>) => void;
   };
   onAccordionValueChange?: (value: string[]) => void;
+  onHideColumn?: (prop: string) => void;
 }) {
   const [hovered, setHovered] = useState(false);
 
@@ -299,27 +301,9 @@ export default function SelectionEntry({
   // “remove from selection” function
   const handleDeselectColumn = (event: React.MouseEvent) => {
     event.stopPropagation();
-    
-    // find the parent table item
-    const tableItem = utils.getCardById(item.table || "");
-    if (!tableItem) {
-      console.warn("Could not find parent table item");
-      return;
+    if (onHideColumn) {
+      onHideColumn(property);
     }
-    
-    const selectedCells = tableItem.selected ? tableItem.selected.split(",") : [];
-    
-    const newSelected = selectedCells.filter((cell) => {
-      const underscorePos = cell.indexOf("_");
-      if (underscorePos < 1) return true;
-      const col = cell.slice(underscorePos + 1);
-      return sanitizeId(col) !== sanitizeId(property);
-    });
-    
-    // update the parent's “selected” property
-    utils.updateCardById(tableItem.i, {
-      selected: newSelected.length ? newSelected.join(",") : undefined
-    });
   };
 
   // forcibly open or close the parent's accordion item => ensures dict is mounted
@@ -379,7 +363,7 @@ export default function SelectionEntry({
         className="flex items-center relative group"
       >
         <div className="inline-flex items-center gap-2">
-          <Tooltip content={hovered ? "Remove from selection" : valueType}>
+          <Tooltip content={hovered ? "Hide column" : valueType}>
             <span
               className="cursor-pointer inline-flex items-center transition duration-200"
               onClick={handleDeselectColumn}

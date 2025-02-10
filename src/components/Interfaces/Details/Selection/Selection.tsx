@@ -23,7 +23,11 @@ import {
   SquareSlash,
   Type,
   RemoveFormatting,
+  Filter,
+  Columns3,
 } from "lucide-react";
+import { BasePopover } from "@/components/Common/Popovers/Base";
+import { Switch } from "@/components/UI/switch";
 
 import {
   DndContext,
@@ -267,6 +271,19 @@ export default function Selection({
   // 5) Possibly read column order
   const columnOrdering = columnOrdering_?.split(",") || [];
 
+  // NEW: Create an ordered list for entries.
+  // If a columnOrdering is provided, use that.
+  // Otherwise, use the order from the base log's entries.
+  const orderedEntryKeys = useMemo(() => {
+    if (columnOrdering.length > 0) return columnOrdering;
+    return sortedLogs[0] && sortedLogs[0].entries ? Object.keys(sortedLogs[0].entries) : [];
+  }, [columnOrdering, sortedLogs]);
+  
+  // Similarly for params, preserve natural order from base log.
+  const orderedParamKeys = useMemo(() => {
+    return sortedLogs[0] && sortedLogs[0].params ? Object.keys(sortedLogs[0].params) : [];
+  }, [sortedLogs]);
+
   // 6) Possibly read hidden columns. -------------------------------------------
   // ADD: local "showHidden" toggle so user can override hidden columns in the selection
   const [showHidden, setShowHidden] = useState(false);
@@ -278,6 +295,67 @@ export default function Selection({
   const [panelCount, setPanelCount] = useState(1);
   const [rawMode, setRawMode] = useState(false);
 
+  // NEW: New local filter state for this Selection view:
+  const [entriesFilter, setEntriesFilter] = useState<Record<string, boolean>>({});
+  const [paramsFilter, setParamsFilter] = useState<Record<string, boolean>>({});
+  // Override flag: when true, the filter toggles are ignored (to "peek" hidden columns).
+  const [overrideFilter, setOverrideFilter] = useState(false);
+  
+  // Compute a base log from the first selected row (if available)
+  const baseLog = selectedRowIndices.length > 0 ? sortedLogs[selectedRowIndices[0]] : null;
+  // Compute the keys for entries and params from the base log.
+  const entryKeys = useMemo(() => {
+    return baseLog && baseLog.entries ? Object.keys(baseLog.entries) : [];
+  }, [baseLog]);
+
+  const paramKeys = useMemo(() => {
+    return baseLog && baseLog.params ? Object.keys(baseLog.params) : [];
+  }, [baseLog]);
+
+  useEffect(() => {
+    // Initialize the filter maps only when entryKeys/paramKeys change.
+    const newEntries: Record<string, boolean> = {};
+    entryKeys.forEach(k => { newEntries[k] = true });
+    // Only update if the new object is different (shallow compare by JSON)
+    if (JSON.stringify(newEntries) !== JSON.stringify(entriesFilter)) {
+       setEntriesFilter(newEntries);
+    }
+
+    const newParams: Record<string, boolean> = {};
+    paramKeys.forEach(k => { newParams[k] = true });
+    if (JSON.stringify(newParams) !== JSON.stringify(paramsFilter)) {
+       setParamsFilter(newParams);
+    }
+  }, [entryKeys, paramKeys]);
+
+  // If user hasn't selected anything, just show hints
+  if (!selectedRowIndices.length) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-background rounded-md">
+        <SelectionHints />
+      </div>
+    );
+  }
+ 
+  // Helper to determine if a column is an entry or param.
+  const getSectionType = (column: string, baseLog: LogProps | null) => {
+    if (!baseLog) return null;
+    if (baseLog.entries && column in baseLog.entries) return 'entries';
+    if (baseLog.params && column in baseLog.params) return 'params';
+    return null;
+  };
+ 
+  // Determine the section order based on the first selected cell.
+  const sectionOrder = useMemo(() => {
+    if (!selectedCells.length || !baseLog) return ['entries', 'params'];
+    const firstCell = selectedCells[0];
+    const underscorePos = firstCell.indexOf("_");
+    if (underscorePos < 1) return ['entries', 'params'];
+    const firstColumn = firstCell.slice(underscorePos + 1);
+    const firstType = getSectionType(firstColumn, baseLog);
+    return firstType === 'params' ? ['params', 'entries'] : ['entries', 'params'];
+  }, [selectedCells, baseLog]);
+ 
   // If user hasn't selected anything, just show hints
   if (!selectedRowIndices.length) {
     return (
@@ -294,12 +372,75 @@ export default function Selection({
         <p className="text-sm text-muted-foreground">
           Selected {selectedRowIndices.length} row(s)
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 relative">
           <ActionButton
             tooltip={rawMode ? "Viewing as raw text" : "Viewing with specialized components"}
             icon={rawMode ? <RemoveFormatting className="h-4 w-4" /> : <Type className="h-4 w-4" />}
             onClick={() => setRawMode((prev) => !prev)}
-            variant={rawMode ? "primary" : "ghost"}
+            variant="ghost"
+            size="icon"
+          />
+          {/* Filter Menu using BasePopover */}
+          <BasePopover
+            button={
+              <ActionButton
+                tooltip="Show / hide columns"
+                icon={<Filter className="h-4 w-4" />}
+                variant="ghost"
+                size="icon"
+              />
+            }
+          >
+            <div className="flex flex-col gap-1 p-3">
+              <p className="font-bold text-medium pb-1">Select visible columns</p>
+              
+              <div className="max-h-[300px] overflow-y-auto pr-2">
+                {sectionOrder.map((section) => {
+                  if (section === 'entries') {
+                    return (
+                      <div key="entries" className="mt-2">
+                        <p className="font-bold text-sm mb-1">Entries</p>
+                        {orderedEntryKeys.map((key) => (
+                          <div key={key} className="flex flex-row gap-2 items-center justify-between py-1">
+                            <span className="text-sm max-w-[200px] truncate" title={key}>{key}</span>
+                            <Switch
+                              checked={entriesFilter[key] !== false}
+                              onCheckedChange={(checked) =>
+                                setEntriesFilter(prev => ({ ...prev, [key]: checked }))
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  } else {
+                    return paramKeys.length > 0 ? (
+                      <div key="params" className="mt-4">
+                        <p className="font-bold text-sm mb-1">Params</p>
+                        {orderedParamKeys.map((key) => (
+                          <div key={key} className="flex flex-row gap-2 items-center justify-between py-1">
+                            <span className="text-sm max-w-[200px] truncate" title={key}>{key}</span>
+                            <Switch
+                              checked={paramsFilter[key] !== false}
+                              onCheckedChange={(checked) =>
+                                setParamsFilter(prev => ({ ...prev, [key]: checked }))
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : null;
+                  }
+                })}
+              </div>
+            </div>
+          </BasePopover>
+          {/* NEW: Override button to temporarily show all columns */}
+          <ActionButton
+            tooltip={overrideFilter ? "Showing all columns" : "Only show enabled columns"}
+            icon={overrideFilter ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            onClick={() => setOverrideFilter(prev => !prev)}
+            variant="ghost"
             size="icon"
           />
           <ActionButton
@@ -308,18 +449,6 @@ export default function Selection({
             onClick={() => setPanelCount((prev) => (prev === 3 ? 1 : prev + 1))}
             variant="ghost"
             size="icon"
-          />
-
-          {/* NEW: Toggle button for showing/hiding hidden columns */}
-          <ActionButton
-            tooltip={
-              showHidden
-                ? "Currently showing hidden columns (click to revert)"
-                : "Currently respecting hidden columns (click to show all)"
-            }
-            icon={showHidden ? <Eye /> : <EyeOff />}
-            variant="ghost"
-            onClick={() => setShowHidden((prev) => !prev)}
           />
         </div>
       </div>
@@ -339,6 +468,16 @@ export default function Selection({
             rawMode={rawMode}
             item={item}
             utils={utils}
+            entriesFilter={entriesFilter}
+            paramsFilter={paramsFilter}
+            overrideFilter={overrideFilter}
+            selectionOrder={sectionOrder}
+            onHideEntry={(prop) =>
+              setEntriesFilter((prev) => ({ ...prev, [prop]: false }))
+            }
+            onHideParam={(prop) =>
+              setParamsFilter((prev) => ({ ...prev, [prop]: false }))
+            }
           />
         ))}
       </div>
@@ -361,6 +500,12 @@ function SelectionPanel({
   rawMode,
   item,
   utils,
+  entriesFilter,
+  paramsFilter,
+  overrideFilter,
+  selectionOrder,
+  onHideEntry,
+  onHideParam,
 }: {
   panelId: number;
   params: Record<string, unknown>;
@@ -375,6 +520,12 @@ function SelectionPanel({
     getCardById: (tileId: string) => TileProps;
     updateCardById: (tileId: string, partial: Partial<TileProps>) => void;
   };
+  entriesFilter: Record<string, boolean>;
+  paramsFilter: Record<string, boolean>;
+  overrideFilter: boolean;
+  selectionOrder: string[];
+  onHideEntry: (prop: string) => void;
+  onHideParam: (prop: string) => void;
 }) {
 
   // 1) local state: pick a base row among the selected rowIndices
@@ -569,7 +720,9 @@ function SelectionPanel({
           >
             <SortableContext items={entryOrder} strategy={verticalListSortingStrategy}>
               <Accordion type="multiple" value={openItems} onValueChange={setOpenItems}>
-                {entryOrder.map((col) => (
+                {entryOrder
+                  .filter(col => overrideFilter || entriesFilter[col] !== false)
+                  .map((col) => (
                   <SortableAccordionItem key={col} id={col}>
                     <SelectionEntry
                       source="entries"
@@ -584,6 +737,7 @@ function SelectionPanel({
                       rawMode={rawMode}
                       item={item}
                       utils={utils}
+                      onHideColumn={onHideEntry}
                     />
                   </SortableAccordionItem>
                 ))}
@@ -615,7 +769,9 @@ function SelectionPanel({
           >
             <SortableContext items={paramOrder} strategy={verticalListSortingStrategy}>
               <Accordion type="multiple" value={openParamItems} onValueChange={setOpenParamItems}>
-                {paramOrder.map((col) => {
+                {paramOrder
+                  .filter(col => overrideFilter || paramsFilter[col] !== false)
+                  .map((col) => {
                   const baseParam = baseLog.params[col];
                   const baseDisplayValue =
                     baseParam &&
@@ -661,6 +817,7 @@ function SelectionPanel({
                         rawMode={rawMode}
                         item={item}
                         utils={utils}
+                        onHideColumn={onHideParam}
                       />
                     </SortableAccordionItem>
                   );
@@ -674,8 +831,9 @@ function SelectionPanel({
 
     content = (
       <div className="flex flex-col gap-6">
-        {paramsSection}
-        {entriesSection}
+        {selectionOrder.map(section =>
+          section === 'entries' ? entriesSection : paramsSection
+        )}
       </div>
     );
   }

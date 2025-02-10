@@ -200,7 +200,7 @@ const ListView: React.FC<ListViewProps> = (props) => {
             {icon} {label}
           </span>
 
-          {(typ === "dict" || typ === "list") && (
+          {isOpen && (typ === "dict" || typ === "list") && (
             <div
               className="
               absolute right-5
