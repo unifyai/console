@@ -28,7 +28,7 @@ import {
   FoldVertical, UnfoldVertical 
 } from "lucide-react";
 
-import { TileProps } from "@/types/evals/grid";
+import { ItemType, TileProps } from "@/types/evals/grid";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import { Button } from "@/components/UI/button"; // for expand/collapse toggles
 
@@ -249,8 +249,8 @@ export default function SelectionEntry({
   rawMode,
   version = "",
   comparableVersions = [],
-  item,
-  utils,
+  tableItem,
+  updateItem,
   onAccordionValueChange,
   onHideColumn,
 }: {
@@ -266,11 +266,8 @@ export default function SelectionEntry({
   rawMode: boolean;
   version?: string;
   comparableVersions?: string[];
-  item: TileProps;
-  utils: {
-    getCardById: (tileId: string) => TileProps;
-    updateCardById: (tileId: string, partial: Partial<TileProps>) => void;
-  };
+  tableItem: TileProps | undefined;
+  updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
   onAccordionValueChange?: (value: string[]) => void;
   onHideColumn?: (prop: string) => void;
 }) {

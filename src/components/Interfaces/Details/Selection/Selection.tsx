@@ -235,8 +235,9 @@ export default function Selection({
   baseIndex_,
   columnOrdering_,
   hiddenColumns_,
+  tableItem,
   item,
-  utils,
+  updateItem,
 }: {
   params: Record<string, unknown>,
   logs: LogProps[],
@@ -244,11 +245,9 @@ export default function Selection({
   baseIndex_: string | undefined,
   columnOrdering_: string | undefined,
   hiddenColumns_: string | undefined,
+  tableItem: TileProps | undefined,
   item: TileProps,
-  utils: {
-    getCardById: (tileId: string) => TileProps;
-    updateCardById: (tileId: string, partial: Partial<TileProps>) => void;
-}
+  updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void
 }) {
   // 1) Possibly reorder logs or just keep them
   const sortedLogs = useMemo(() => [...logs], [logs]);
@@ -466,8 +465,8 @@ export default function Selection({
             hiddenColumns={hiddenColumns}
             columnOrdering={columnOrdering}
             rawMode={rawMode}
+            tableItem={tableItem}
             item={item}
-            utils={utils}
             entriesFilter={entriesFilter}
             paramsFilter={paramsFilter}
             overrideFilter={overrideFilter}
@@ -478,6 +477,7 @@ export default function Selection({
             onHideParam={(prop) =>
               setParamsFilter((prev) => ({ ...prev, [prop]: false }))
             }
+            updateItem={updateItem}
           />
         ))}
       </div>
@@ -498,14 +498,15 @@ function SelectionPanel({
   hiddenColumns,
   columnOrdering,
   rawMode,
+  tableItem,
   item,
-  utils,
   entriesFilter,
   paramsFilter,
   overrideFilter,
   selectionOrder,
   onHideEntry,
   onHideParam,
+  updateItem,
 }: {
   panelId: number;
   params: Record<string, unknown>;
@@ -515,17 +516,15 @@ function SelectionPanel({
   hiddenColumns: string[];
   columnOrdering: string[];
   rawMode: boolean;
+  tableItem: TileProps | undefined;
   item: TileProps;
-  utils: {
-    getCardById: (tileId: string) => TileProps;
-    updateCardById: (tileId: string, partial: Partial<TileProps>) => void;
-  };
   entriesFilter: Record<string, boolean>;
   paramsFilter: Record<string, boolean>;
   overrideFilter: boolean;
   selectionOrder: string[];
   onHideEntry: (prop: string) => void;
   onHideParam: (prop: string) => void;
+  updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
 }) {
 
   // 1) local state: pick a base row among the selected rowIndices
@@ -735,9 +734,9 @@ function SelectionPanel({
                       diffMode={diffMode}
                       splitView={splitView}
                       rawMode={rawMode}
-                      item={item}
-                      utils={utils}
                       onHideColumn={onHideEntry}
+                      tableItem={tableItem}
+                      updateItem={updateItem}
                     />
                   </SortableAccordionItem>
                 ))}
@@ -815,9 +814,9 @@ function SelectionPanel({
                         diffMode={diffMode}
                         splitView={splitView}
                         rawMode={rawMode}
-                        item={item}
-                        utils={utils}
                         onHideColumn={onHideParam}
+                        tableItem={tableItem}
+                        updateItem={updateItem}
                       />
                     </SortableAccordionItem>
                   );
@@ -858,8 +857,8 @@ function SelectionPanel({
                 const found = selectedRowIndices.findIndex(
                   (r) => rowLabel(r) === newLabel
                 );
-                if (found >= 0) {
-                  utils.updateCardById(item.i, { base_index: String(found) });
+                if (found >= 0 && String(found) !== item.base_index) {
+                  updateItem(item, "base_index")(String(found));
                 }
               }}
               placeholder="Pick base row"

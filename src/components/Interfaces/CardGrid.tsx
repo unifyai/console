@@ -7,7 +7,7 @@ import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import { FileProps, ResponseProps } from "@/types/common";
 import { DerivedEntryActions, Context, ContextActions, Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
-import { Check, Clipboard, Copy, Eye, EyeOff, Grip, ListRestart, Loader2, Maximize2, Plus, RefreshCw, Save, Trash, TriangleAlert, X } from "lucide-react";
+import { Check, Clipboard, Copy, Eye, EyeOff, Focus, Grip, ListRestart, Loader2, Maximize2, Plus, RefreshCw, Save, Trash, TriangleAlert, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { Badge } from "../UI/badge";
 import { Dialog, DialogContent } from "../UI/dialog";
@@ -119,73 +119,6 @@ const CardGrid = ({
         }
     }
 
-    const getCardById = (tileId: string): TileProps => {
-        const item = items.find(item => item.i == tileId);
-        if (!item) {
-            return {
-                i: tileId,
-                x: -1, // Invalid coordinates to indicate failure case
-                y: -1,
-                w: -1, 
-                h: -1,
-                moved: false,
-                static: false,
-                visible: false, // Hidden by default in failure case
-                tab: undefined,
-                table: undefined,
-                table_type: undefined,
-                context: undefined,
-                prev_context: undefined,
-                auto_update: undefined,
-                filters: undefined,
-                common_filter: undefined,
-                page_number: undefined,
-                metric: undefined,
-                column_order: undefined,
-                hidden_columns: undefined,
-                sorting: undefined,
-                grouping: undefined,
-                columns_pin_left: undefined,
-                columns_pin_right: undefined,
-                selected: undefined,
-                base_index: undefined,
-                plot_type: undefined,
-                plot_scale_x: undefined,
-                plot_scale_y: undefined,
-                is_aggregated: undefined,
-                x_axis: undefined,
-                y_axis: undefined,
-                plot_group_by: undefined,
-                bin_count: undefined
-            };
-        }
-        return item;
-    };
-
-    // MINIMAL FIX: updateCardById now checks if the new value actually differs
-    const updateCardById = (tileId: string, partial: Partial<TileProps>) => {
-        setItems((prevItems) => {
-            const newItems = prevItems.map((it) => {
-                if (it.i === tileId) {
-                    // Check keys in partial; if no change, return the original
-                    let unchanged = true;
-                    for (const key in partial) {
-                        if (it[key as keyof TileProps] !== partial[key as keyof TileProps]) {
-                            unchanged = false;
-                            break;
-                        }
-                    }
-                    if (unchanged) {
-                        return it;
-                    }
-                    return { ...it, ...partial };
-                }
-                return it;
-            });
-            return newItems;
-        });
-    };
-
     // update interface – preserves context functionality
     const updateInterface = (
         savedInterface: Interface | null = null,
@@ -194,11 +127,10 @@ const CardGrid = ({
         const items_1 = savedInterface?.items || items;
         const newCounter_1 = savedInterface?.new_counter || newCounter;
         if (interface_ && project && interface_ == interface_1 && project == project_ && !pending) {
-            if (tempInterfaceCreated) {
+            if (tempInterfaceCreated)
                 return interfaceActions.update(interface_, project, context_1, items_1, newCounter_1, undefined, true);
-            } else {
-                return interfaceActions.create(interface_, project, context_1, items_1, newCounter_1, true);
-            }
+            else
+                return interfaceActions.create(interface_, project, context_1, items_1, newCounter_1, true)
         }
         return Promise.reject();
     };
@@ -251,13 +183,8 @@ const CardGrid = ({
 
     // Only call updateInterface when items have truly changed.
     useEffect(() => {
-        if (!savedInterface) return;
-        const savedJson = JSON.stringify(savedInterface.items);
-        const currentJson = JSON.stringify(items);
-        if (savedJson !== currentJson) {
-            updateInterface();
-        }
-    }, [items, savedInterface]); 
+        updateInterface();
+    }, [items]);
 
     // trigger update when table data changes (server reloaded)
     useEffect(() => {
@@ -278,15 +205,12 @@ const CardGrid = ({
     }, [newCounter]);
 
     // end success green after 3 seconds
-    useEffect(() => { 
-        setTimeout(() => setSaveSuccess(undefined), 3000); 
-    }, [saveSuccess]);
+    useEffect(() => { setTimeout(() => setSaveSuccess(undefined), 3000); }, [saveSuccess]);
 
     // icons, variants and a new disabled check that compares current items with the saved interface's items
     const saveIcon = saveSuccess ? <Check /> : saveSuccess == false ? <TriangleAlert /> : <Save />;
     const resetIcon = resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
     const variant = saveSuccess == false ? "destructive" : "outline";
-    const disabled = JSON.stringify({ items: savedInterface?.items }) === JSON.stringify({ items });
 
     return (<div className="w-full h-full overflow-auto" ref={gridRef}>
         <Tabs value={interface_ || undefined} onValueChange={(value: string | undefined) => {
@@ -425,7 +349,7 @@ const CardGrid = ({
                     </div>
                 </div>}
 
-                <div className="flex gap-2 items-center px-4">
+                <div className="flex gap-2 items-center pl-4 pr-10">
                     <BaseDropdown
                         button={<ActionButton
                             tooltip="Select Context"
@@ -460,7 +384,7 @@ const CardGrid = ({
                         tooltip={!project ? "Select a project first" : "Save Interface"}
                         icon={saveIcon}
                         variant={variant}
-                        disabled={disabled || anyTilePending || !project || !interface_ || pending}
+                        disabled={anyTilePending || !project || !interface_ || pending}
                         onClick={async () => setSaveDialog(true)}
                     />
                     <ActionButton
@@ -468,7 +392,7 @@ const CardGrid = ({
                         tooltip={!project ? "Select a project first" : "Return to last saved interface"}
                         icon={resetIcon}
                         variant="outline"
-                        disabled={disabled || anyTilePending || !project || pending}
+                        disabled={anyTilePending || !project || pending}
                         onClick={async () => updateInterface(savedInterface).then(() => {
                             setResetting(true);
                             setMode("edit");
@@ -609,7 +533,7 @@ const CardGrid = ({
                                         filterExpressions={filterExpressions}
                                         sortingExpressions={sortingExpressions}
                                         setPending={(p: boolean) => setTilePending({ ...tilePending, [el.i]: p })}
-                                        utils={{updateItem, getCardById, updateCardById}}
+                                        updateItem={updateItem}
                                         updateInterface={updateInterface}
                                     />
                                     <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-3 flex justify-between " + (mode == "edit" ? "h-20" : "h-10")}>
@@ -633,20 +557,16 @@ const CardGrid = ({
                                             {mode == "edit" && <>
                                                 <ActionButton
                                                     className="no-drag cursor-pointer hover:z-10"
-                                                    onClick={() => {
-                                                        setItems([...items.map(
-                                                            it => it.i == el.i ? { ...it, visible: false } : it
-                                                        )]);
-                                                    }}
+                                                    onClick={() => setItems([...items.map(
+                                                        it => it.i == el.i ? { ...it, visible: false } : it
+                                                    )])}
                                                     icon={<EyeOff />}
                                                     tooltip={"Hide"}
                                                     variant="outline"
                                                 />
                                                 <ActionButton
                                                     className="no-drag cursor-pointer hover:z-10"
-                                                    onClick={() => {
-                                                        setCopied(el.i);
-                                                    }}
+                                                    onClick={() => setCopied(el.i)}
                                                     icon={<Copy />}
                                                     tooltip={"Copy"}
                                                     variant="outline"
@@ -659,9 +579,7 @@ const CardGrid = ({
                                                 />
                                                 <ActionButton
                                                     className="no-drag remove cursor-pointer hover:z-10"
-                                                    onClick={() => {
-                                                        setItems([...items.filter(item => item.i != el.i)]);
-                                                    }}
+                                                    onClick={() => setItems([...items.filter(item => item.i != el.i)])}
                                                     icon={<X />}
                                                     tooltip="Remove"
                                                     variant="outline"
@@ -698,7 +616,7 @@ const CardGrid = ({
                         filterExpressions={filterExpressions}
                         sortingExpressions={sortingExpressions}
                         setPending={(p: boolean) => setTilePending({ ...tilePending, [maxTileItem.i]: p })}
-                        utils={{updateItem, getCardById, updateCardById}}
+                        updateItem={updateItem}
                         updateInterface={updateInterface}
                     />
                 </div>
