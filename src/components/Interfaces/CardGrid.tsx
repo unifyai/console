@@ -425,7 +425,7 @@ const CardGrid = ({
                     </div>
                 </div>}
 
-                <div className="flex gap-2 items-center px-4">
+                <div className="flex gap-2 items-center pl-4 pr-10">
                     <BaseDropdown
                         button={<ActionButton
                             tooltip="Select Context"
