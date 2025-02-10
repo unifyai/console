@@ -4,7 +4,7 @@ import SettingButton from "@/components/Common/Buttons/Setting";
 import { MdLinearScale } from "react-icons/md";
 
 const PlotRegression = ({showRegression, setShowRegression}: {showRegression: string, setShowRegression: (x: string | undefined) => void}) => {
-    const tooltip = showRegression ? "Hide line of best fit" : "Show line of best fit" 
+    const tooltip = showRegression === "true" ? "Hide line of best fit" : "Show line of best fit" 
     const variant = showRegression === "true" ? "primary" : "outline"
     return (
         <SettingButton
