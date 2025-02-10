@@ -2,9 +2,10 @@ import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponsePro
 
 import _ from "lodash";
 import { formatNumber } from "../formatNumber";
-import { processContext } from "./columnOperations";
+import { processContext, sanitizeId } from "./columnOperations";
 import { LogsActions, TileProps } from "@/types/evals/grid";
 import { ResponseProps } from "@/types/common";
+import { Row } from "@tanstack/react-table";
 
 /* 
     Convert object / string inputs to their length value and return the value of numeric inputs. 
@@ -94,7 +95,7 @@ export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFiel
             entries: {...log.entries, ...log.derived_entries},  // Bundle derived entries with entries
             clipped_fields: log.clipped_fields,
           }))
-        : convertRawToGroupedLogs(rawLogs);
+        : maybeConvertRawToGroupedLogs(rawLogs, [], null);  // Pass empty array for groupBy when no grouping is active
 
     let [paramsProperties, entriesProperties] = [
       Object.entries(fields).filter(entry => entry[1].field_type === "param").map(entry => entry[0]),
@@ -208,70 +209,120 @@ function isParamsGroup(groupingColumnId: string): boolean {
   in the returned array. If there are multiple grouping columns at the 
   top level, you'll get multiple siblings in the array.
 */
-export function convertRawToGroupedLogs(raw: GroupedLogPropsRaw, parentId: string | null = null): GroupedLogProps[] {  
-  // We ignore numeric metadata like "count" or "group_count" at this level
-  const topLevelGroupingColumns = Object.keys(raw).filter(
-    (k) => typeof raw[k] === "object" && !Array.isArray(raw[k]) && raw[k] !== null
-  );
+export function maybeConvertRawToGroupedLogs(
+    raw: GroupedLogPropsRaw | LogProps[],
+    groupBy: string[],
+    parentId: string | null = null
+): GroupedLogProps[] | LogProps[] {
 
-  // There will always be exactly one top-level grouping column (e.g. "Traffic/student/gender")
-  const groupingColumnId = topLevelGroupingColumns[0];
-  const groupingObj = raw[groupingColumnId] as GroupedLogPropsRaw;
-  
-  // Get all values for this grouping column (e.g. "male", "female"), excluding metadata
-  const groupValues = Object.keys(groupingObj).filter(
-    (k) => k !== "count" && k !== "group_count"
-  );
-
-  // Build an array of GroupedLogProps for each distinct grouping value
-  // If this is an entries group, we'll assign ascending indices
-  const isEntriesGrouping = isEntriesGroup(groupingColumnId);
-  let currentIndex = 1; // Start index from 1
-
-  return groupValues.map((groupingValue) => {
-    // Generate the ID for this group - matching TanStack's format
-    let id = `${groupingColumnId}:${groupingValue}`;
-    id = parentId ? `${parentId}>${id}` : id;
-
-    const child = groupingObj[groupingValue];
-    if (Array.isArray(child)) {
-      // child is final logs => produce a grouping node with subRows = these logs
-      return {
-        type: "grouped",
-        id,
-        groupingColumnId,
-        index: isEntriesGrouping ? currentIndex++ : undefined,
-        [groupingColumnId]: groupingValue,
-        subRows: child.map(log => ({
-          ...log,
-          type: "ungrouped",
-        }))
-      } as GroupedLogProps;
-    } else if (typeof child === "object" && child !== null) {
-      // child is another nested RawGroupingLevel => recurse
-      const nested = convertRawToGroupedLogs(child, id);
-      return {
-        type: "grouped",
-        id,
-        groupingColumnId,
-        groupingIndex: isEntriesGrouping ? currentIndex++ : undefined,
-        [groupingColumnId]: groupingValue,
-        subRows: nested.map(row => ({
-          ...row,
-        }))
-      } as GroupedLogProps;
-    } else {
-      // child might be a number or undefined (like "count", "group_count") => skip or make an empty group
-      return {
-        type: "grouped",
-        id,
-        groupingColumnId,
-        groupingIndex: isEntriesGrouping ? currentIndex++ : undefined,
-        [groupingColumnId]: groupingValue,
-        subRows: []
-      } as GroupedLogProps;
+    // If raw is an array of LogProps (no more grouping needed), return it with type and isPlaceholder fields
+    if (Array.isArray(raw)) {
+        return raw.map(log => ({
+            ...log,
+            type: "ungrouped",
+            isPlaceholder: false
+        }));
     }
-  });
+
+    // Find the first grouping column in the raw data
+    const groupingColumnId = Object.keys(raw).find(key => 
+        key !== 'group_count' && key !== 'count'
+    );
+
+    if (!groupingColumnId) {
+        return [];
+    }
+
+    const groupValues = raw[groupingColumnId] as { [groupValue: string]: number };
+
+    let groupingIndex = 0;
+
+    return Object.entries(groupValues)
+        .filter(([value]) => value !== 'group_count' && value !== 'count')
+        .map(([groupValue, count]) => {
+            let id = `${groupingColumnId}:${groupValue}`;
+            if (parentId)
+              id = `${parentId}>${id}`;
+            const remainingGroupBy = groupBy.slice(1);
+            const isEntries = isEntriesGroup(groupingColumnId);
+            const isParams = isParamsGroup(groupingColumnId);
+            
+            // Assign groupingIndex for entries/params groups
+            const currentGroupingIndex = (isEntries || isParams) ? groupingIndex++ : undefined;
+
+            const groupNode = {
+                type: "grouped",
+                id,
+                groupingColumnId,
+                groupingIndex: currentGroupingIndex,
+                [groupingColumnId]: groupValue,
+                subRows: [],  // Initially empty, will be populated when expanded
+                isPopulated: false,
+                groupCount: count,
+                remainingGroupBy
+            } as GroupedLogProps;
+
+            return groupNode;
+        });
+}
+
+/*
+  Efficiently updates the subRows of a specific group in a nested grouping structure with new data.
+
+ @param existingLogs - The current nested group structure (GroupedLogProps[])
+ @param newLogs - The newly fetched group data to insert as subRows
+ @param groupFilters - Array of [column, value] pairs identifying the target group
+                        (e.g., [["gender", "female"]] to identify the "female" gender group)
+ @returns Updated group structure with the new subRows inserted at the correct location
+*/
+export function updateGroupedSubRows(
+  existingLogs: GroupedLogProps[],
+  newLogs: GroupedLogProps[] | LogProps[],
+  groupFilters: [string, string][]
+): GroupedLogProps[] {
+  /*
+    Recursive function to find and update the target group without deep cloning the entire structure.
+    It immutably updates only the affected nodes.
+   
+    @param logs - Current level of grouped logs
+    @param filters - Remaining filters to identify the nested group
+    @returns Updated logs with modifications applied
+  */
+  function findAndReplaceSubRows(
+    logs: GroupedLogProps[],
+    filters: [string, string][]
+  ): GroupedLogProps[] {
+    if (filters.length === 0) return logs;
+
+    const [currentColumn, currentValue] = filters[0];
+
+    return logs.map((log) => {
+      // Check if this log matches the current filter condition
+      if (sanitizeId(log.groupingColumnId) === currentColumn && log[log.groupingColumnId] === currentValue) {
+        if (filters.length === 1) {
+          // Target group found - immutably update subRows if not already populated
+          if (!log.isPopulated) {
+            return {
+              ...log,
+              subRows: Array.isArray(newLogs) && newLogs.length > 0 && newLogs[0].type === "ungrouped" 
+                ? (newLogs as LogProps[]) // 🆕 Handle case when newLogs are LogProps[]
+                : (newLogs as GroupedLogProps[]), // Existing behavior for GroupedLogProps[]
+              isPopulated: true
+            };
+          }
+        } else if (Array.isArray(log.subRows)) {
+          // Recursively update subRows for deeper levels
+          return {
+            ...log,
+            subRows: findAndReplaceSubRows(log.subRows as GroupedLogProps[], filters.slice(1))
+          };
+        }
+      }
+      return log; // Return unchanged if not matched
+    });
+  }
+
+  return findAndReplaceSubRows(existingLogs, groupFilters);
 }
 
 /*
@@ -300,12 +351,50 @@ export function maybeFlattenGroupedLogs(
       // Item is a LogProps; add it directly.
       flattened.push(item);
     } else if (isGroupedLogProps(item)) {
-      // Item is a GroupedLogProps; recursively flatten its subRows.
-      flattened.push(...maybeFlattenGroupedLogs(item.subRows));
+      // Item is a GroupedLogProps; recursively flatten its subRows if they have been populated.
+      if (item.isPopulated) {
+        flattened.push(...maybeFlattenGroupedLogs(item.subRows));
+      }
     } else {
       // The item did not match any expected type.
       console.warn('Encountered an item that is neither LogProps nor GroupedLogProps:', item);
     }
   }
   return flattened;
+}
+
+/*
+  Extracts leaf rows (LogProps) from a given row, handling multi-level grouping.
+
+  row: The parent row which may contain nested subRows.
+  returns An array of LogProps representing the leaf rows.
+*/
+export function getLeafRows(row: Row<GroupedLogProps | LogProps>): Row<LogProps>[] {
+  const result: Row<LogProps>[] = [];
+
+  function traverse(currentRow: Row<GroupedLogProps | LogProps>) {
+    const { type } = currentRow.original;
+
+    // If it's a grouped row
+    if (type === "grouped") {
+      const groupedRow = currentRow as Row<GroupedLogProps>;
+
+      // Check if the grouped row is populated
+      if (!groupedRow.original.isPopulated) {
+        // Skip traversal for unpopulated rows
+        return;
+      }
+
+      // Recursively traverse each subRow
+      for (const subRow of groupedRow.subRows) {
+        traverse(subRow as Row<GroupedLogProps | LogProps>);
+      }
+    } else {
+      // It's a leaf node (LogProps), add to the result
+      result.push(currentRow as Row<LogProps>);
+    }
+  }
+
+  traverse(row);
+  return result;
 }
