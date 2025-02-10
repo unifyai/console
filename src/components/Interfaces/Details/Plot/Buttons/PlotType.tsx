@@ -19,7 +19,7 @@ const PlotType = ({ interactive, plotType, setPlotType, fields, selectedXAxisPro
 
     const properties = Object
         .entries(fields)
-        .filter(([name, { data_type, field_type }]) => field_type != "param" && (data_type === "float" || data_type === "int"))
+        .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int"))
         .map(([name]) => name);
     
     // Update plot type and

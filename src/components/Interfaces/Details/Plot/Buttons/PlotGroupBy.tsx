@@ -23,7 +23,6 @@ const PlotGroupBy = ({fields, groupBy, setGroupBy, logs}: {
     /* Available options */
     const properties = Object
         .entries(fields)
-        .filter(([name, { data_type, field_type }]) => field_type != "param")
         .map(([name]) => name);
     let options = properties.reduce((acc: {[key: string]: string[]}, item) => {
         const [table, column] = item.split(".");

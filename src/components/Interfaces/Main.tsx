@@ -1,5 +1,5 @@
 import CardGrid from "@/components/Interfaces/CardGrid";
-import { TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps } from "@/types/evals/logs";
+import { TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, LogItemProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { Context, ContextActions, DerivedEntryActions, FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
@@ -184,6 +184,19 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                     if (group && group.split(".").length > 1)
                         subset += `&${group.split(".")[1]}`
                     data = await logsActions.get(project, context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
+
+                    /* Replace param indices with actual param values */
+                    if (Object.entries(data.logs).length && Object.entries(data.params).length) {
+                        const params = data.params
+                        const logs = data.logs
+                        data.logs = logs.map(log => {
+                            const logParams: LogItemProps = {};
+                            Object.entries(log.params).map(([key, value]) => logParams[key] = params[key][value]);
+                            return {...log, params: logParams}
+                        })
+
+                    } 
+
                 }
                 return { [table.i]: {
                     plotLogs: data.logs || [],
@@ -200,9 +213,9 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                             const prefixedLog = Object.fromEntries(
                                 Object.entries(data.plotLogs[i] || {}).map(([key, value]) => [
                                     `${tableId}.${key}`,
-                                    (key == "entries" && value) ? Object.fromEntries(
-                                        Object.entries(value).map(([k,v]) => [`${tableId}.${k}`, v])
-                                    ) : value
+                                    (["params", "entries", "derived_entries"].includes(key) && value) 
+                                        ? Object.fromEntries(Object.entries(value).map(([k,v]) => [`${tableId}.${k}`, v])) 
+                                        : value
                                 ])
                             );
                             return { ...acc, ...prefixedLog };

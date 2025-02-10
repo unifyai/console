@@ -31,17 +31,16 @@ const PlotAxis = ({ interactive, fields, axisProperty, setAxisProperty, axis, pl
     if (plotType === "Bar Chart") {
         properties = Object
             .entries(fields)
-            .filter(([name, { data_type, field_type }]) => field_type != "param")
             .map(([name]) => name);
     } else if (plotType === "Histogram") {
         properties = Object
             .entries(fields)
-            .filter(([name, { data_type, field_type }]) => field_type != "param" && (data_type === "float" || data_type === "int" || data_type === "timestamp"))
+            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp"))
             .map(([name]) => name);
     } else {
         properties = Object
             .entries(fields)
-            .filter(([name, { data_type, field_type }]) => field_type != "param" && (data_type === "float" || data_type === "int"))
+            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int"))
             .map(([name]) => name);
     }
     const choices = properties.reduce((acc: {[key: string]: string[]}, item) => {

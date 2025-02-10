@@ -225,6 +225,28 @@ export const reverseOrKeepDomain = (values: number[], domain: number[], reverseX
     return domain
 }
 
+/* Check if a log has values for a selected axis property */
+const hasProperty = (fields: LogFieldsResponseProps, axisProperty: string, log: LogProps, table: string) => {
+    const fieldType = fields[axisProperty] ? fields[axisProperty].field_type : "entry"
+    const hasValues = fieldType === "derived_entry"
+        ? log[`${table}.derived_entries`] && (log[`${table}.derived_entries`] as LogItemProps)[axisProperty] !== undefined
+        : fieldType === "param"
+            ? log[`${table}.params`] && (log[`${table}.params`] as LogItemProps)[axisProperty] !== undefined
+            : log[`${table}.entries`] && (log[`${table}.entries`] as LogItemProps)[axisProperty] !== undefined
+    return hasValues
+}
+
+/* Get value of a selected axis property from a log */
+const getValue = (fields: LogFieldsResponseProps, axisProperty: string, log: LogProps, table: string) => {
+    const fieldType = fields[axisProperty] ? fields[axisProperty].field_type : "entry"
+    const values = fieldType === "derived_entry"
+        ? (log[`${table}.derived_entries`] as LogItemProps)[axisProperty]
+        : fieldType === "param"
+            ? (log[`${table}.params`] as LogItemProps)[axisProperty]
+            : (log[`${table}.entries`] as LogItemProps)[axisProperty]
+    return values
+}
+
 /* 
     Hover tooltip and grouping key templates
     NB: Styling should use regular HTML notation (class instead of className, etc.)
@@ -304,26 +326,22 @@ export const drawBarChart = (
     g.selectAll("path.best-fit").remove()
 
     // Prepare data
-    const properties = Object.entries(fields)
-        .filter(([name, { field_type }]) => field_type !== "param")
-        .map(([name]) => name);
+    const properties = Object.entries(fields).map(([name]) => name);
     const xAxis = selectedXAxisProperty === "Log Time" ? properties[0] : selectedXAxisProperty;
     const yAxis = selectedYAxisProperty;
 
     let data: DataLabel[] = [];
     if (xAxis && yAxis) {
         const filteredData = logs.filter(log => {
-            const hasX = (log[`${xTable}.entries`] as LogItemProps) && (log[`${xTable}.entries`] as LogItemProps)[xAxis] !== undefined;
-            const hasY = (log[`${yTable}.entries`] as LogItemProps) && (log[`${yTable}.entries`] as LogItemProps)[yAxis] !== undefined;
+            const hasX = hasProperty(fields, xAxis, log, xTable)
+            const hasY = hasProperty(fields, yAxis, log, yTable)
             return hasX && hasY
         });
         const statistic = (vals: number[]) => parseFloat(computeStatistic(metric, vals));
-        const getXValue = (log: LogProps) => (log[`${xTable}.entries`] as LogItemProps)[xAxis]
-        const getYValue = (log: LogProps) => (log[`${yTable}.entries`] as LogItemProps)[yAxis]
         const groups = d3.rollup(
             filteredData,
-            v => statistic(v.map(log => toComputableValue(getYValue(log)))),
-            d => JSON.stringify(getXValue(d))
+            v => statistic(v.map(log => toComputableValue(getValue(fields, yAxis, log, yTable)))),
+            d => JSON.stringify(getValue(fields, xAxis, d, xTable))
         );
         data = Array.from(groups, ([group, value]) => [group, value]) as DataLabel[];
         data.sort((a, b) => {
@@ -460,38 +478,29 @@ export const drawLineChart = (
     let data : DataPoint[] | GroupedDataPoint[] = [];
     const properties = Object
             .entries(fields)
-            .filter(([name, { data_type, field_type }]) => field_type != "param" && (data_type === "float" || data_type === "int"))
+            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int"))
             .map(([name]) => name);
     const xAxis = selectedXAxisProperty;
     const yAxis = selectedYAxisProperty && metrics.includes(selectedYAxisProperty) ? properties.at(0) : selectedYAxisProperty;
     const xTime = xAxis === "Log Time";
     if (xAxis && yAxis) {
         const filteredData = logs.filter((log) => {
-            const hasGroup = groupBy 
-                ? (log[`${xTable}.entries`] as LogItemProps) && (log[`${xTable}.entries`] as LogItemProps)[groupBy] !== undefined
-                : true;
-            const hasX = (log[`${xTable}.entries`] as LogItemProps) && (log[`${xTable}.entries`] as LogItemProps)[xAxis] !== undefined;
-            const hasY = (log[`${yTable}.entries`] as LogItemProps) && (log[`${yTable}.entries`] as LogItemProps)[yAxis] !== undefined;
+            const hasGroup = groupBy ? hasProperty(fields, groupBy, log, xTable) : true
+            const hasX = hasProperty(fields, xAxis, log, xTable)
+            const hasY = hasProperty(fields, yAxis, log, yTable)    
             return hasGroup && hasX && hasY;
         });
-        const convertedData = filteredData.map((log) => {
-            let xEntries = log[`${xTable}.entries`] as LogItemProps;
-            let yEntries = log[`${yTable}.entries`] as LogItemProps;
-            yEntries[yAxis] = parseFloat(yEntries[yAxis]);
-            if (!xTime) xEntries[xAxis] = parseFloat(xEntries[xAxis]);
-            return {...log, entries: { ...xEntries, ...yEntries }};
-        });
-        const sortedData = convertedData.sort((a, b) => {
-            const valueA = xTime ? new Date(a.ts).getTime() : a.entries[xAxis];
-            const valueB = xTime ? new Date(b.ts).getTime() : b.entries[xAxis];
+        const sortedData = filteredData.sort((a, b) => {
+            const valueA = getValue(fields, xAxis, a, xTable)
+            const valueB = getValue(fields, yAxis, b, yTable)
             return valueA - valueB;
         });
         const getData = (logs: LogProps[]) => logs.map(d => [
-            xTime ? new Date(d.ts).getTime() : d.entries[xAxis], 
-            d.entries[yAxis] as number
+            getValue(fields, xAxis, d, xTable),
+            getValue(fields, yAxis, d, yTable)
         ])  as DataPoint[]
         data = groupBy 
-            ?   d3  .groups(sortedData, d => d.entries[groupBy])
+            ?   d3  .groups(sortedData, d => getValue(fields, groupBy, d, xTable))
                     .map(([groupKey, groupData]) => {
                         const group = groupKey as string;
                         const values = getData(groupData);
@@ -644,35 +653,25 @@ export const drawScatterPlot = (
     let data : LogProps[] = [];
     const properties = Object
             .entries(fields)
-            .filter(([name, { data_type, field_type }]) => field_type != "param" && (data_type === "float" || data_type === "int"))
+            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int"))
             .map(([name]) => name);
     const xAxisProperty = selectedXAxisProperty === "Log Time" ? properties.at(0) : selectedXAxisProperty;
     const yAxisProperty = selectedYAxisProperty && metrics.includes(selectedYAxisProperty) ? properties.at(0) : selectedYAxisProperty;            
 
     if (xAxisProperty && yAxisProperty) {
-        const filteredData = logs.filter((log) => {
-            const hasGroup = groupBy 
-                ? (log[`${xTable}.entries`] as LogItemProps) && (log[`${xTable}.entries`] as LogItemProps)[groupBy] !== undefined 
-                : true;
-            const hasX = (log[`${xTable}.entries`] as LogItemProps) && (log[`${xTable}.entries`] as LogItemProps)[xAxisProperty] !== undefined;
-            const hasY = (log[`${yTable}.entries`] as LogItemProps) && (log[`${yTable}.entries`] as LogItemProps)[yAxisProperty] !== undefined;
+        data = logs.filter((log) => {
+            const hasGroup = groupBy ? hasProperty(fields, groupBy, log, xTable) : true
+            const hasX = hasProperty(fields, xAxisProperty, log, xTable)
+            const hasY = hasProperty(fields, yAxisProperty, log, yTable)
             return hasGroup && hasX && hasY
-        })
-        data = filteredData.map((log) => {
-            const id = `${xTable}.id`
-            let xEntries = log[`${xTable}.entries`] as LogItemProps;
-            let yEntries = log[`${yTable}.entries`] as LogItemProps;
-            yEntries[yAxisProperty] = parseFloat(yEntries[yAxisProperty]);
-            xEntries[xAxisProperty] = parseFloat(xEntries[xAxisProperty]);
-            return ({...log, id, entries: { ...xEntries, ...yEntries }});
         })
     }
 
     // Define scales
     const [width, height] = [dimensions.width, dimensions.height];
     const [xValues, yValues] = [
-        data.map(d => d.entries[xAxisProperty as keyof LogItemProps] as number),
-        data.map(d => d.entries[yAxisProperty as keyof LogItemProps] as number)
+        data.map(d => getValue(fields, xAxisProperty as string, d, xTable) as number),
+        data.map(d => getValue(fields, yAxisProperty as string, d, yTable) as number)
     ]
     const [[minX = 0, maxX = 0], [minY = 0, maxY = 0]] = [d3.extent(xValues), d3.extent(yValues)];
     const [xScale, yScale] = [
@@ -689,7 +688,6 @@ export const drawScatterPlot = (
         xScale().domain(xDomain).range([margins.left + axisPadding, width - margins.right - axisPadding]),
         yScale().domain(yDomain).range([height - margins.bottom - axisPadding, margins.top + axisPadding])
     ]
-
     // Draw axes
     const {xTicks, yTicks} = calculateTicks(data.length, scaleX, scaleY, minY, maxY, minX, maxX);
     drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, false, reverseX, reverseY);
@@ -704,8 +702,8 @@ export const drawScatterPlot = (
         .attr("class", "data-point")
         .attr("fill", primary)
         .attr("stroke", primary)
-        .attr("cx", d => x(reverseX ? Math.abs(d.entries[xAxisProperty as keyof LogItemProps] as number) : d.entries[xAxisProperty!] as number))
-        .attr("cy", d => y(reverseY ? Math.abs(d.entries[yAxisProperty as keyof LogItemProps] as number) : d.entries[yAxisProperty!] as number))
+        .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable) as number) : getValue(fields, xAxisProperty as string, d, xTable) as number))
+        .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable) as number) : getValue(fields, yAxisProperty as string, d, yTable) as number))
         .attr("r", 0)
         .on("mouseover", (event, data) => hoverOnPoint(event, data, xTable, yTable))
         .on("mouseout", (event, data) => leavePoint(event, data));
@@ -713,8 +711,8 @@ export const drawScatterPlot = (
         .merge(points as any)
         .transition()
         .duration(500)
-        .attr("cx", d => x(reverseX ? Math.abs(d.entries[xAxisProperty as keyof LogItemProps] as number) : d.entries[xAxisProperty!] as number))
-        .attr("cy", d => y(reverseY ? Math.abs(d.entries[yAxisProperty as keyof LogItemProps] as number) : d.entries[yAxisProperty!] as number))
+        .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable) as number) : getValue(fields, xAxisProperty as string, d, xTable) as number))
+        .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable) as number) : getValue(fields, yAxisProperty as string, d, yTable) as number))
         .attr("r", 3);
     points.exit()
         .transition()
@@ -730,8 +728,8 @@ export const drawScatterPlot = (
         .on("mouseover", (event, data) => hoverOnPoint(event, data, xTable, yTable))
         .on("mousemove", (event, data) => moveOnPoint(event, data))
         .on("mouseout", (event, data) => leavePoint(event, data))
-        .attr("cx", d => x(reverseX ? Math.abs(d.entries[xAxisProperty as keyof LogItemProps] as number) : d.entries[xAxisProperty!] as number))
-        .attr("cy", d => y(reverseY ? Math.abs(d.entries[yAxisProperty as keyof LogItemProps] as number) : d.entries[yAxisProperty!] as number))
+        .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable) as number) : getValue(fields, xAxisProperty as string, d, xTable) as number))
+        .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable) as number) : getValue(fields, yAxisProperty as string, d, yTable) as number))
         .attr("r", 10)
         .attr("fill", "transparent")
         .attr("stroke", "none")
@@ -748,7 +746,7 @@ export const drawScatterPlot = (
     // Pass the color info to the grouping key
     if (groupBy) {
 
-        let domain = data.map(d => JSON.stringify(d.entries[groupBy]) as string);
+        let domain = data.map(d => JSON.stringify(getValue(fields, groupBy, d, xTable) as string));
         domain = Array.from(new Set(domain));
         const color = d3.scaleOrdinal().domain(domain).range(d3.schemeSet3);
         const colors = domain.map((key) => ({key: key, color: color(key) as string}));
@@ -758,8 +756,8 @@ export const drawScatterPlot = (
             .style("opacity", 1)
 
         points
-            .attr("fill", (d: LogProps) => color(JSON.stringify(d.entries[groupBy])) as string)
-            .attr("stroke", (d: LogProps) => color(JSON.stringify(d.entries[groupBy])) as string)
+            .attr("fill", (d: LogProps) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) as string)
+            .attr("stroke", (d: LogProps) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) as string)
 
     }
 
@@ -771,16 +769,16 @@ export const drawScatterPlot = (
         const hoverData : InfoCardData = {
             "x" : {
                 "name":  selectedXAxisProperty as string,
-                "value": (data[`entries`] as LogItemProps) ? (data[`entries`] as LogItemProps)[selectedXAxisProperty as keyof LogItemProps] : "-"
+                "value": getValue(fields, selectedXAxisProperty as string, data, xTable)
             },
             "y" : {
                 "name":  selectedYAxisProperty as string, 
-                "value": (data[`entries`] as LogItemProps) ? (data[`entries`] as LogItemProps)[selectedYAxisProperty as keyof LogItemProps] : "-"
+                "value": getValue(fields, selectedYAxisProperty as string, data, yTable)
             }
         }
         if (groupBy) hoverData["group"] = {
             "name": groupBy, 
-            value: (data[`entries`] as LogItemProps) ? (data[`entries`] as LogItemProps)[groupBy] : "-"
+            value: getValue(fields, groupBy as string, data, xTable)
         }
 
         tooltip.html(tooltipTemplate(hoverData)).transition().style("opacity", 1)
@@ -790,12 +788,12 @@ export const drawScatterPlot = (
             g.selectAll("circle.data-point")
                 .transition()
                 .duration(200)
-                .attr("r", d => ((d as LogProps)[`${xTable}.entries`] as LogItemProps)[groupBy] === (data[`${xTable}.entries`] as LogItemProps)[groupBy] ? 4 : 2)
-                .style("opacity", d => ((d as LogProps)[`${xTable}.entries`] as LogItemProps)[groupBy] === (data[`${xTable}.entries`] as LogItemProps)[groupBy] ? 1 : 0.5);
+                .attr("r", d => getValue(fields, groupBy, d as LogProps, xTable) === getValue(fields, groupBy, data, xTable) ? 4 : 2)
+                .style("opacity", d => getValue(fields, groupBy, d as LogProps, xTable) === getValue(fields, groupBy, data, xTable) ? 1 : 0.5);
             key.selectAll(".key")
                 .each(function (d, i) {
                     const id = d3.select(this).attr("id")
-                    const opacity = id.toString() === (data[`${xTable}.entries`] as LogItemProps)[groupBy].toString() ? 1 : 0.5
+                    const opacity = id.toString() === getValue(fields, groupBy, data, xTable).toString() ? 1 : 0.5
                     d3.select(this)
                       .transition()
                       .duration(200)
@@ -863,7 +861,7 @@ export const drawScatterPlot = (
     if (data.length > 1 && showRegression === "true") {
         
         // Draw line
-        const allPoints = data.map(d => [d.entries[xAxisProperty as string], d.entries[yAxisProperty as string]]) as DataPoint[];
+        const allPoints = data.map(d => [getValue(fields, xAxisProperty as string, d, xTable), getValue(fields, yAxisProperty as string, d, yTable)]) as DataPoint[];
         const regression = calculateRegression(allPoints);
         const line = d3.line<[number, number]>().x(d => x(d[0])).y(d => y(d[1]));
         g
@@ -946,19 +944,17 @@ export const drawHistogram = (
     let data : number[] = [];
     const properties = Object
         .entries(fields)
-        .filter(([name, { data_type, field_type }]) => field_type != "param" && (data_type === "float" || data_type === "int" || data_type === "timestamp"))
+        .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp"))
         .map(([name]) => name);
     const xAxisProperty = selectedXAxisProperty === "Log Time" ? properties.at(0) : selectedXAxisProperty;
     let xType : string | undefined;
     if (xAxisProperty) {
         xType = fields[xAxisProperty].data_type
-        const filteredData = logs.filter((log) => (log[`${table}.entries`] as LogItemProps) && (log[`${table}.entries`] as LogItemProps)[xAxisProperty] !== undefined);
+        const filteredData = logs.filter((log) => hasProperty(fields, xAxisProperty, log, table));
         data = filteredData.map((log) => {
-            let entries = log[`${table}.entries`] as LogItemProps;
-            const entry = xType === "timestamp"
-                ? new Date(entries[xAxisProperty]).getTime()
-                : parseFloat(entries[xAxisProperty])
-            return entry;
+            let value = getValue(fields, xAxisProperty, log, table);
+            value = xType === "timestamp" ? new Date(value).getTime() : parseFloat(value)
+            return value;
         })
     }
 
