@@ -31,7 +31,7 @@ const Card = ({
     filterExpressions,
     sortingExpressions,
     setPending,
-    utils,
+    updateItem,
     updateInterface,
 }: {
     mode: "edit" | "interactive" | "dashboard",
@@ -51,7 +51,7 @@ const Card = ({
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
     setPending: (pending: boolean) => void,
-    utils: {updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void, getCardById: (tileId: string) => TileProps, updateCardById: (tileId: string, partial: Partial<TileProps>) => void},
+    updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
     updateInterface: () => Promise<ResponseProps>,
 }) => {
     
@@ -124,8 +124,8 @@ const Card = ({
                             key={idx}
                             onSelect={() => {
                                 if (item.tab == undefined && tab == "Table")
-                                    utils.updateItem(item, "table_type")("Data Table");
-                                utils.updateItem(item, "tab")(tab);
+                                    updateItem(item, "table_type")("Data Table");
+                                updateItem(item, "tab")(tab);
                             }}
                             className="w-64 no-drag"
                         >
@@ -144,9 +144,7 @@ const Card = ({
                     >
                         {(mode != "edit" ? [] : tableNames).map((tile, idx) => <DropdownMenuItem
                             key={idx}
-                            onSelect={() => {
-                                utils.updateItem(item, "table")(tile);
-                            }}
+                            onSelect={() => updateItem(item, "table")(tile)}
                             disabled={(tableData[tile]?.logs || []).length == 0}
                             className="w-64 no-drag"
                         >
@@ -170,15 +168,15 @@ const Card = ({
                                 if (tableType == "Derived Table") {
                                     if (!item.prev_context) {
                                         contextActions.create(`Derived_${item.i}`, project as string);
-                                        utils.updateItem(item, "context")(`Derived_${item.i}`);
-                                        utils.updateItem(item, "prev_context")(`Derived_${item.i}`);
+                                        updateItem(item, "context")(`Derived_${item.i}`);
+                                        updateItem(item, "prev_context")(`Derived_${item.i}`);
                                     }
                                     else
-                                        utils.updateItem(item, "context")(item.prev_context);
+                                        updateItem(item, "context")(item.prev_context);
                                 }
                                 else
-                                    utils.updateItem(item, "context")(undefined);
-                                    utils.updateItem(item, "table_type")(tableType);
+                                    updateItem(item, "context")(undefined);
+                                    updateItem(item, "table_type")(tableType);
                             }}
                             className="w-64 no-drag"
                         >
@@ -194,15 +192,16 @@ const Card = ({
                 baseIndex_={relevantItem?.base_index}
                 columnOrdering_={relevantItem?.column_order}
                 hiddenColumns_={relevantItem?.hidden_columns}
+                tableItem={items.find(it => it.i == item.table) || {i: item.table, x: -1, y: -1, w: -1, h: -1} as TileProps}
                 item={item}
-                utils={{getCardById: utils.getCardById, updateCardById: utils.updateCardById}}
+                updateItem={updateItem}
             /></div>}
             {tab?.includes("Plot") && <LogsPlot
                 interactive={["edit", "interactive"].includes(mode)}
                 logs={plotData[item.i]?.plotLogs || []}
                 fields={plotData[item.i]?.plotFields || {}}
                 item={item}
-                updateItem={utils.updateItem}
+                updateItem={updateItem}
             />}
             {tab?.includes("Table") && <LogsTable
                 interactive={["edit", "interactive"].includes(mode)}
@@ -222,7 +221,7 @@ const Card = ({
                     totalPages: tableData[item.i]?.totalPages || 0,
                     boundaries: tableData[item.i]?.boundaries || { minimus: {}, maximums: {} }
                 }}
-                updateItem={utils.updateItem}
+                updateItem={updateItem}
                 logsActions={logsActions}
                 derivedEntryActions={derivedEntryActions}
                 filterExpression={filterExpressions ? filterExpressions[items.findIndex(it => it.i === item.i)] : null}

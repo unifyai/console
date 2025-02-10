@@ -28,7 +28,7 @@ import {
   FoldVertical, UnfoldVertical 
 } from "lucide-react";
 
-import { TileProps } from "@/types/evals/grid";
+import { ItemType, TileProps } from "@/types/evals/grid";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import { Button } from "@/components/UI/button"; // for expand/collapse toggles
 
@@ -249,8 +249,8 @@ export default function SelectionEntry({
   rawMode,
   version = "",
   comparableVersions = [],
-  item,
-  utils,
+  tableItem,
+  updateItem,
   onAccordionValueChange,
 }: {
   source?: SourceType;
@@ -265,11 +265,8 @@ export default function SelectionEntry({
   rawMode: boolean;
   version?: string;
   comparableVersions?: string[];
-  item: TileProps;
-  utils: {
-    getCardById: (tileId: string) => TileProps;
-    updateCardById: (tileId: string, partial: Partial<TileProps>) => void;
-  };
+  tableItem: TileProps | undefined;
+  updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
   onAccordionValueChange?: (value: string[]) => void;
 }) {
   const [hovered, setHovered] = useState(false);
@@ -301,7 +298,6 @@ export default function SelectionEntry({
     event.stopPropagation();
     
     // find the parent table item
-    const tableItem = utils.getCardById(item.table || "");
     if (!tableItem) {
       console.warn("Could not find parent table item");
       return;
@@ -317,9 +313,9 @@ export default function SelectionEntry({
     });
     
     // update the parent's “selected” property
-    utils.updateCardById(tableItem.i, {
-      selected: newSelected.length ? newSelected.join(",") : undefined
-    });
+    const newSelectedStr = newSelected.length ? newSelected.join(",") : undefined;
+    if (tableItem.selected != newSelectedStr)
+      updateItem(tableItem, "selected")(newSelectedStr);
   };
 
   // forcibly open or close the parent's accordion item => ensures dict is mounted
