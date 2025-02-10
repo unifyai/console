@@ -71,18 +71,24 @@ export const getLogs = async (apiKey: string) => {
     return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, _timestamp: string | null) => {
         "use server";
 
-        const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/logs?project=${project}`
-            + (context ? `&context=${context}` : "")
-            + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
-            + (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : "")
-            + (from_fields ? `&from_fields=${encodeURIComponent(from_fields)}` : "")
-            + (exclude_fields ? `&exclude_fields=${encodeURIComponent(exclude_fields)}` : "")
-            + (limit ? `&limit=${limit}` : "")
-            + (offset ? `&offset=${offset}` : ""),
-            { method: "GET", headers: { apiKey: apiKey }, next: { tags: [`logs_${_timestamp}`] } },
-        );
-        return await response.json();
+        try {
+            const response = await fetch(
+                `${process.env.NEXTAUTH_URL}/api/logs?project=${project}`
+                + (context ? `&context=${context}` : "")
+                + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
+                + (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : "")
+                + (from_fields ? `&from_fields=${encodeURIComponent(from_fields)}` : "")
+                + (exclude_fields ? `&exclude_fields=${encodeURIComponent(exclude_fields)}` : "")
+                + (limit ? `&limit=${limit}` : "")
+                + (offset ? `&offset=${offset}` : ""),
+                { method: "GET", headers: { apiKey: apiKey }, next: { tags: [`logs_${_timestamp}`] } },
+            );
+            return await response.json();
+        } catch (e) {
+            console.log(`Failed to get logs error: ${e}`)
+            return {"params":{},"logs":[],"count":0}
+        }
+
     };
 };
 
