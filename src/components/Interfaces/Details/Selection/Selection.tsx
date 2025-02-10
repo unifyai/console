@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { LogProps } from "@/types/evals/logs";
 import SelectionHints from "./Hints";
 import SelectionEntry from "./SelectionEntry";
@@ -252,8 +252,8 @@ export default function Selection({
   // 1) Possibly reorder logs or just keep them
   const sortedLogs = useMemo(() => [...logs], [logs]);
 
-  // 2) Which cells are selected
-  const selectedCells = selection_ ? selection_.split(",") : [];
+  // 2) Which cells are selected (memoized)
+  const selectedCells = useMemo(() => (selection_ ? selection_.split(",") : []), [selection_]);
 
   // 3) Build rowIndex -> columns
   const indexToColumns = useMemo(
@@ -267,18 +267,15 @@ export default function Selection({
     [selectedCells, sortedLogs]
   );
 
-  // 5) Possibly read column order
-  const columnOrdering = columnOrdering_?.split(",") || [];
+  // 5) Possibly read column order (memoized)
+  const columnOrdering = useMemo(() => columnOrdering_?.split(",") || [], [columnOrdering_]);
 
-  // NEW: Create an ordered list for entries.
-  // If a columnOrdering is provided, use that.
-  // Otherwise, use the order from the base log's entries.
+  // Move the useMemo hooks above the conditional return
   const orderedEntryKeys = useMemo(() => {
     if (columnOrdering.length > 0) return columnOrdering;
     return sortedLogs[0] && sortedLogs[0].entries ? Object.keys(sortedLogs[0].entries) : [];
   }, [columnOrdering, sortedLogs]);
   
-  // Similarly for params, preserve natural order from base log.
   const orderedParamKeys = useMemo(() => {
     return sortedLogs[0] && sortedLogs[0].params ? Object.keys(sortedLogs[0].params) : [];
   }, [sortedLogs]);
@@ -312,30 +309,41 @@ export default function Selection({
   }, [baseLog]);
 
   useEffect(() => {
-    // Initialize the filter maps only when entryKeys/paramKeys change.
-    const newEntries: Record<string, boolean> = {};
-    entryKeys.forEach(k => { newEntries[k] = true });
-    // Only update if the new object is different (shallow compare by JSON)
-    if (JSON.stringify(newEntries) !== JSON.stringify(entriesFilter)) {
-       setEntriesFilter(newEntries);
-    }
+    setEntriesFilter((prev) => {
+      const updated = { ...prev };
+      // For each key from the new entryKeys, add it if missing (default true).
+      entryKeys.forEach((key) => {
+        if (!(key in updated)) {
+          updated[key] = true;
+        }
+      });
+      // Remove keys no longer present in entryKeys.
+      Object.keys(updated).forEach((key) => {
+        if (!entryKeys.includes(key)) {
+          delete updated[key];
+        }
+      });
+      return updated;
+    });
 
-    const newParams: Record<string, boolean> = {};
-    paramKeys.forEach(k => { newParams[k] = true });
-    if (JSON.stringify(newParams) !== JSON.stringify(paramsFilter)) {
-       setParamsFilter(newParams);
-    }
+    setParamsFilter((prev) => {
+      const updated = { ...prev };
+      // For each key from the new paramKeys, add it if missing (default true).
+      paramKeys.forEach((key) => {
+        if (!(key in updated)) {
+          updated[key] = true;
+        }
+      });
+      // Remove keys no longer present in paramKeys.
+      Object.keys(updated).forEach((key) => {
+        if (!paramKeys.includes(key)) {
+          delete updated[key];
+        }
+      });
+      return updated;
+    });
   }, [entryKeys, paramKeys]);
 
-  // If user hasn't selected anything, just show hints
-  if (!selectedRowIndices.length) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-background rounded-md">
-        <SelectionHints />
-      </div>
-    );
-  }
- 
   // Helper to determine if a column is an entry or param.
   const getSectionType = (column: string, baseLog: LogProps | null) => {
     if (!baseLog) return null;
@@ -343,7 +351,7 @@ export default function Selection({
     if (baseLog.params && column in baseLog.params) return 'params';
     return null;
   };
- 
+  
   // Determine the section order based on the first selected cell.
   const sectionOrder = useMemo(() => {
     if (!selectedCells.length || !baseLog) return ['entries', 'params'];
@@ -354,8 +362,8 @@ export default function Selection({
     const firstType = getSectionType(firstColumn, baseLog);
     return firstType === 'params' ? ['params', 'entries'] : ['entries', 'params'];
   }, [selectedCells, baseLog]);
- 
-  // If user hasn't selected anything, just show hints
+  
+  // If no rows are selected, just show hints
   if (!selectedRowIndices.length) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-background rounded-md">
@@ -568,7 +576,7 @@ function SelectionPanel({
     (_, i) => i !== baseIndexParam
   );
 
-  function buildLogIfValid(ri: number) {
+  const buildLogIfValid = useCallback((ri: number) => {
     if (ri < 0 || ri >= logs.length) return null;
     return buildLogWithChosenColumns(
       logs[ri],
@@ -578,20 +586,13 @@ function SelectionPanel({
       columnOrdering,
       hiddenColumns
     );
-  }
+  }, [logs, params, indexToColumns, columnOrdering, hiddenColumns]);
 
-  const baseLog = useMemo(() => buildLogIfValid(baseRowIndex), [
-    baseRowIndex,
-    logs,
-    params,
-    indexToColumns,
-    columnOrdering,
-    hiddenColumns,
-  ]);
+  const baseLog = useMemo(() => buildLogIfValid(baseRowIndex), [baseRowIndex, buildLogIfValid]);
 
   const comparisonLogs = useMemo(
     () => comparisonRowIndices.map((ri) => buildLogIfValid(ri)).filter((x) => x),
-    [comparisonRowIndices, logs, params, indexToColumns, columnOrdering, hiddenColumns]
+    [comparisonRowIndices, buildLogIfValid]
   ) as LogProps[];
 
   // gather keys => default expansions
