@@ -96,15 +96,15 @@ export const useCellSelection = ({
     const previousRow = table.getRowModel().rows[nextRowIndex];
 
     // Check if entire row is selected (implies row index cell was clicked)
-    const visibleLeafColumns = table.getVisibleLeafColumns().filter(col => col.id !== "RowNumbering");
-    const visibleLeafColumnIds = visibleLeafColumns.map(col => col.id);
-    const visibleSelectedCells = selectedCells.filter(cell => visibleLeafColumnIds.includes(getPartAfterFirstUnderscore(cell)));
-    const isEntireRowSelected = visibleSelectedCells.length === visibleLeafColumns.length &&
-      visibleSelectedCells.every(cell => cell.split("_")[0] === selectedCell.split("_")[0]);
+    const leafColumns = table.getAllLeafColumns().filter(col => col.id !== "RowNumbering");
+    const leafColumnIds = leafColumns.map(col => col.id);
+    const selected = selectedCells.filter(cell => leafColumnIds.includes(getPartAfterFirstUnderscore(cell)));
+    const isEntireRowSelected = selected.length === leafColumns.length &&
+      selected.every(cell => cell.split("_")[0] === selectedCell.split("_")[0]);
 
     if (isEntireRowSelected) {
       const rowCells = previousRow.getAllCells();
-      const validCells = rowCells.filter(c => isValidSelectionTarget(c));
+      const validCells = rowCells.filter(c => isValidIndexSelectionTarget(c));
       setSelectedCells(validCells.map(c => getCellSelectionData(c)));
       scrollToRow?.(nextRowIndex);
       return;
@@ -137,15 +137,15 @@ export const useCellSelection = ({
     const nextRow = table.getRowModel().rows[nextRowIndex];
     
     // Check if entire row is selected (implies row index cell was clicked)
-    const visibleLeafColumns = table.getVisibleLeafColumns().filter(col => col.id !== "RowNumbering");
-    const visibleLeafColumnIds = visibleLeafColumns.map(col => col.id);
-    const visibleSelectedCells = selectedCells.filter(cell => visibleLeafColumnIds.includes(getPartAfterFirstUnderscore(cell)));
-    const isEntireRowSelected = visibleSelectedCells.length === visibleLeafColumns.length &&
-      visibleSelectedCells.every(cell => cell.split("_")[0] === selectedCell.split("_")[0]);
+    const leafColumns = table.getAllLeafColumns().filter(col => col.id !== "RowNumbering");
+    const leafColumnIds = leafColumns.map(col => col.id);
+    const selected = selectedCells.filter(cell => leafColumnIds.includes(getPartAfterFirstUnderscore(cell)));
+    const isEntireRowSelected = selected.length === leafColumns.length &&
+    selected.every(cell => cell.split("_")[0] === selectedCell.split("_")[0]);
 
     if (isEntireRowSelected && nextRow) {
       const rowCells = nextRow.getAllCells();
-      const validCells = rowCells.filter(c => isValidSelectionTarget(c));
+      const validCells = rowCells.filter(c => isValidIndexSelectionTarget(c));
       setSelectedCells(validCells.map(c => getCellSelectionData(c)));
       scrollToRow?.(nextRowIndex);
       return;
