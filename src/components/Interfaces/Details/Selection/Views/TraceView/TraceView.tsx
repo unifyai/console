@@ -7,7 +7,7 @@ import {
   AccordionContent,
 } from "@/components/UI/accordion";
 import { Combobox } from "@/components/UI/Combobox";
-import { ChevronDown, ChevronRight, Inbox, Clock, Code, DollarSign, Hash, AlertTriangle, FileInput, FileOutput, IdCard } from "lucide-react";
+import { ChevronDown, ChevronRight, Clock, Code, DollarSign, AlertTriangle, FileInput, FileOutput, IdCard } from "lucide-react";
 
 import { Span } from "@/types/evals/traces";
 import {
@@ -35,6 +35,7 @@ import Tooltip from "@/components/Common/Misc/Tooltip";
 import ChatView from "../ChatView";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/UI/hover-card";
 import TimelineViewButton from "./TimelineView";
+import { formatTime } from "@/utils/evals/format";
 
 /*------------------------------------------------------------------------
   Helper functions for compressing row indices => "1-3,5,7-9", etc.
@@ -508,7 +509,8 @@ function CollapsiblePatchLineNode({
 
   if (!multiMode) {
     if (baseTime) {
-      timeLabel = `${baseTime.toFixed(2)}s`;
+      const { value, unit } = formatTime(baseTime);
+      timeLabel = `${value.toFixed(2)}${unit}`;
       timeData = {
         title: "Execution Time",
         baseTime,
@@ -517,7 +519,8 @@ function CollapsiblePatchLineNode({
   } else {
     if (node.marker === "+") {
       if (targetTime) {
-        timeLabel = `${targetTime.toFixed(2)}s`;
+        const { value, unit } = formatTime(targetTime);
+        timeLabel = `${value.toFixed(2)}${unit}`;
         timeData = {
           title: "Execution Time (Comparison Only)",
           targetTime,
@@ -525,7 +528,8 @@ function CollapsiblePatchLineNode({
       }
     } else if (node.marker === "-") {
       if (baseTime) {
-        timeLabel = `${baseTime.toFixed(2)}s`;
+        const { value, unit } = formatTime(baseTime);
+        timeLabel = `${value.toFixed(2)}${unit}`;
         timeData = {
           title: "Execution Time (Base Only)",
           baseTime,
@@ -534,15 +538,16 @@ function CollapsiblePatchLineNode({
     } else {
       const diff = targetTime - baseTime;
       if (baseTime || targetTime) {
+        const { value, unit } = formatTime(Math.abs(diff));
         const sign = diff >= 0 ? "+" : "-";
-        const absDiff = Math.abs(diff).toFixed(2);
-        timeLabel = `${sign}${absDiff}s`;
+        timeLabel = `${sign}${value.toFixed(2)}${unit}`;
         timeData = {
           title: "Execution Times",
           baseTime,
           targetTime,
           diffSign: sign,
-          diffAbs: absDiff,
+          diffValue: value,
+          diffUnit: unit,
         };
         if (!baseTime && !targetTime) {
           timeLabel = "";
@@ -674,18 +679,22 @@ function CollapsiblePatchLineNode({
                 <div className="space-y-1 text-xs text-muted-foreground">
                   <p className="font-semibold">{timeData.title}</p>
                   {timeData.baseTime !== undefined && (
-                    <p>Base Execution Time: {timeData.baseTime.toFixed(2)}s</p>
+                    <p>Base Execution Time: {(() => {
+                      const { value, unit } = formatTime(timeData.baseTime);
+                      return `${value.toFixed(2)}${unit}`;
+                    })()}</p>
                   )}
                   {timeData.targetTime !== undefined && (
                     <p>
-                      Comparison Execution Time:{" "}
-                      {timeData.targetTime.toFixed(2)}s
+                      Comparison Execution Time: {(() => {
+                        const { value, unit } = formatTime(timeData.targetTime);
+                        return `${value.toFixed(2)}${unit}`;
+                      })()}
                     </p>
                   )}
                   {timeData.diffSign && (
                     <p>
-                      Difference: {timeData.diffSign}
-                      {timeData.diffAbs}s
+                      Difference: {timeData.diffSign}{timeData.diffValue.toFixed(2)}{timeData.diffUnit}
                     </p>
                   )}
                 </div>
