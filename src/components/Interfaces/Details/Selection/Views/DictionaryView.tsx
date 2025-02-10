@@ -82,14 +82,9 @@ function toggleOnePropertyExpand(
   childForceExpand: string[],
   setChildForceExpand: React.Dispatch<React.SetStateAction<string[]>>
 ) {
-  const isOpen = openItems.includes(propertyKey);
-  if (!isOpen) {
-    // expand just this property
-    setOpenItems((prev) => [...prev, propertyKey]);
+  if (!childForceExpand.includes(propertyKey)) {
     setChildForceExpand((prev) => [...prev, propertyKey]);
   } else {
-    // collapse just this property
-    setOpenItems((prev) => prev.filter((k) => k !== propertyKey));
     setChildForceExpand((prev) => prev.filter((k) => k !== propertyKey));
   }
 }
@@ -220,22 +215,27 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
             {icon} {propKey}
           </span>
 
-          {(valType === "dict" || valType === "list") && (
+          {isOpen && (valType === "dict" || valType === "list") && (
             <div
               className="
               absolute right-5
-              opacity-0 group-hover:opacity-100
-              transition-opacity
               flex gap-1 items-center
               "
             >
               <Button
                 variant="ghost"
                 onClick={(e) => {
-                  toggleOnePropertyExpand(propKey, openItems, setOpenItems, childForceExpand, setChildForceExpand);
+                  e.stopPropagation();
+                  toggleOnePropertyExpand(
+                    propKey,
+                    openItems,
+                    setOpenItems,
+                    childForceExpand,
+                    setChildForceExpand
+                  );
                 }}
               >
-                {isOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+                {childForceExpand.includes(propKey) ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
               </Button>
             </div>
           )}
@@ -283,22 +283,27 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
             {icon} {propKey}
           </span>
 
-          {(valType === "dict" || valType === "list") && (
+          {isOpen && (valType === "dict" || valType === "list") && (
             <div
               className="
               absolute right-5
-              opacity-0 group-hover:opacity-100
-              transition-opacity
               flex gap-1 items-center
               "
             >
               <Button
                 variant="ghost"
                 onClick={(e) => {
-                  toggleOnePropertyExpand(propKey, openItems, setOpenItems, childForceExpand, setChildForceExpand);
+                  e.stopPropagation();
+                  toggleOnePropertyExpand(
+                    propKey,
+                    openItems,
+                    setOpenItems,
+                    childForceExpand,
+                    setChildForceExpand
+                  );
                 }}
               >
-                {isOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+                {childForceExpand.includes(propKey) ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
               </Button>
             </div>
           )}

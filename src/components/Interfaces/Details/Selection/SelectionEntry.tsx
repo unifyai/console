@@ -277,6 +277,9 @@ export default function SelectionEntry({
   // local expandAll for top-level dict/list
   const [expandAll, setExpandAll] = useState(false);
 
+  // Add a state to track if this accordion item is open
+  const [isOpen, setIsOpen] = useState(false);
+
   // Gather comparables
   let comps = (comparisonLogs ?? []).map((cl) => {
     const container = source === "params" ? cl.params ?? {} : cl.entries ?? {};
@@ -330,15 +333,15 @@ export default function SelectionEntry({
     }
   };
 
-  // Expand/Collapse Toggle
+  // Modify the expand/collapse toggle function
   const handleExpandToggle = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent trigger's onClick from firing
     if (!expandAll) {
-      // Expand => forcibly open this item if it's closed
+      // Expand: force the accordion open (if needed) and expand all child items
       forciblySetAccordionOpen(true);
       setExpandAll(true);
     } else {
-      // Collapse => forcibly close
-      forciblySetAccordionOpen(false);
+      // Collapse All: collapse the child items but do not fold the parent entry
       setExpandAll(false);
     }
   };
@@ -368,6 +371,11 @@ export default function SelectionEntry({
       <AccordionTrigger
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        onClick={() => {
+          // Toggle open state when clicked
+          setIsOpen(!isOpen);
+          setExpandAll(false);
+        }}
         className="flex items-center relative group"
       >
         <div className="inline-flex items-center gap-2">
@@ -384,12 +392,11 @@ export default function SelectionEntry({
           </Tooltip>
         </div>
 
-        {(valueType === "dict" || valueType === "list") && (
+        {/* Only show expand/collapse button when open */}
+        {isOpen && (valueType === "dict" || valueType === "list") && (
           <div
             className="
               absolute right-5
-              opacity-0 group-hover:opacity-100
-              transition-opacity
               flex gap-1 items-center
             "
           >

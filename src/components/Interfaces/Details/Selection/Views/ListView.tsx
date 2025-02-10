@@ -78,16 +78,13 @@ function toggleOneItemExpand(
   openItems: string[],
   setOpenItems: React.Dispatch<React.SetStateAction<string[]>>,
   childForceExpand: string[],
-  setChildForceExpand: React.Dispatch<React.SetStateAction<string[]>>,
+  setChildForceExpand: React.Dispatch<React.SetStateAction<string[]>>
 ) {
-  const isOpen = openItems.includes(label);
-  if (!isOpen) {
-    // expand
-    setOpenItems((prev) => [...prev, label]);
+  if (!childForceExpand.includes(label)) {
+    // Toggle: expand children only
     setChildForceExpand((prev) => [...prev, label]);
   } else {
-    // collapse
-    setOpenItems((prev) => prev.filter((it) => it !== label));
+    // Toggle: collapse children but leave item open
     setChildForceExpand((prev) => prev.filter((it) => it !== label));
   }
 }
@@ -207,14 +204,13 @@ const ListView: React.FC<ListViewProps> = (props) => {
             <div
               className="
               absolute right-5
-              opacity-0 group-hover:opacity-100
-              transition-opacity
               flex gap-1 items-center
               "
             >
               <Button
                 variant="ghost"
                 onClick={(e) => {
+                  e.stopPropagation();
                   toggleOneItemExpand(
                     label,
                     openItems,
@@ -224,7 +220,7 @@ const ListView: React.FC<ListViewProps> = (props) => {
                   );
                 }}
               >
-                {isOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+                {childForceExpand.includes(label) ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
               </Button>
             </div>
           )}
@@ -276,18 +272,17 @@ const ListView: React.FC<ListViewProps> = (props) => {
             {icon} {label}
           </span>
 
-          {(typ === "dict" || typ === "list") && (
+          {isOpen && (typ === "dict" || typ === "list") && (
             <div
               className="
               absolute right-5
-              opacity-0 group-hover:opacity-100
-              transition-opacity
               flex gap-1 items-center
               "
             >
               <Button
                 variant="ghost"
                 onClick={(e) => {
+                  e.stopPropagation();
                   toggleOneItemExpand(
                     label,
                     openItems,
@@ -297,7 +292,7 @@ const ListView: React.FC<ListViewProps> = (props) => {
                   );
                 }}
               >
-                {isOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+                {childForceExpand.includes(label) ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
               </Button>
             </div>
           )}
