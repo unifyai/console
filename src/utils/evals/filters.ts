@@ -113,6 +113,14 @@ export function separateFunctionFilters (filter: string) {
 function joinFunctionFilters (filter: string, fn: string, cKey: string, fields: LogFieldsResponseProps) {
 	let joined = '';
 
+	/* Single filters: Filters with a single value per function */
+	// Handle images
+	if (fields[cKey] && fields[cKey].data_type === "image") {
+		joined = filter === "true" ? `exists(${cKey})` : `not exists(${cKey})` 
+		return " and " + joined
+	}
+
+	/* Cumulative filters: Filters that can have more than one value for a given function */
 	// Break down a filter into a list of successive joins (&& / ||) and filter values 
 	const separated = separateFunctionFilters(filter)
 
@@ -132,10 +140,12 @@ function joinFunctionFilters (filter: string, fn: string, cKey: string, fields: 
 				value = `"${date.replace("T", " ").replace("Z", "")}"`
 			}
 
+			// Handle inclusion
 			if (["in", "not in"].includes(fn))
 				joined += `${value} ${fn} ${cKey}`
 			else
-				joined += `${cKey} ${fn} ${value}`        
+				joined += `${cKey} ${fn} ${value}`
+
 		} 
 		// Append join operator
 		else {

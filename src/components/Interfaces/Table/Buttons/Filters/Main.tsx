@@ -4,12 +4,13 @@ import { FiltersByColumn } from "@/types/evals/columns";
 import StringColumnFilter from "./Strings";
 import NumericColumnFilter from "./Numbers";
 import TimeColumnFilter from "./Time";
+import ImageColumnFilter from "./Images";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import { LogProps } from "@/types/evals/logs";
 
 /* 
-    Supported operands: "==", "!=", "is", "<", ">", "<=", "=>", "in", "not in"
-    Inferred types: "list", "dict", "tuple", "str", "bool", "float", "int"
+    Supported operands: "==", "!=", "is", "<", ">", "<=", "=>", "in", "not in", "exists" (images only)
+    Inferred types: "list", "dict", "tuple", "str", "bool", "float", "int", "image"
     Reference: https://github.com/unifyai/orchestra/blob/68f543bb9094a8dffc111e6b1960385fd64459b8/orchestra/web/api/log/helpers.py#L284
 */
 
@@ -31,6 +32,9 @@ const ColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery
     }
     else if (dataTypes[column] === "timestamp") {
         filter = <TimeColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} logs={logs}/>
+    }
+    else if (dataTypes[column] === "image") {
+        filter = <ImageColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} logs={logs}/>
     }
     else {
         filter = <StringColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} logs={logs}/>
