@@ -82,8 +82,10 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
     const commonFiltersExpressions = tableItems.map(
         item => item.common_filter && fields
             ? Object
-                .keys(fields)
-                .map(column => `${item.common_filter} in ${item.context ? processContext("merge", item.context, column) : column}`)
+                .keys(
+                    Object.fromEntries(Object.entries(fields).filter(([_, attributes]) => attributes.data_type != "image")) // Exclude images
+                )
+                .map(column => `${item.common_filter} in to_str(${item.context ? processContext("merge", item.context, column) : column})`)
                 .join(" or ")
             : ""
     );
