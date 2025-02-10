@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { metrics } from "@/constants/logs";
-import { LoaderCircle } from "lucide-react";
+import { ChevronDown, LoaderCircle } from "lucide-react";
 import { LogProps, LogFieldsResponseProps } from "@/types/evals/logs";
-import AutoComplete from "@/components/Common/Misc/AutoComplete";
+import BaseDropdown from "@/components/Common/Dropdowns/Base";
+import ActionButton from "@/components/Common/Buttons/Action";
+import { DropdownMenuItem, DropdownMenuGroup, DropdownMenuSub, DropdownMenuPortal, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/UI/dropdown-menu";
 
-const PlotAxis = ({ interactive, fields, axisProperty, setAxisProperty, axis, plotType, logs }: {
+const PlotAxis = ({ interactive, fields, axisProperty, setAxisProperty, axis, plotType, logs, metric, setMetric }: {
     interactive: boolean
     fields: LogFieldsResponseProps,
     axisProperty: string | undefined,
@@ -14,6 +16,8 @@ const PlotAxis = ({ interactive, fields, axisProperty, setAxisProperty, axis, pl
     axis: string,
     plotType: string,
     logs: LogProps[] | undefined
+    metric: string,
+    setMetric: (metric: string) => void
 }) => {
 
     /* Display loader when data updates */
@@ -22,7 +26,8 @@ const PlotAxis = ({ interactive, fields, axisProperty, setAxisProperty, axis, pl
         setLoading(false);
     }, [logs])
 
-    let properties;
+    /* Available options */
+    let properties: string[];
     if (plotType === "Bar Chart") {
         properties = Object
             .entries(fields)
@@ -39,29 +44,82 @@ const PlotAxis = ({ interactive, fields, axisProperty, setAxisProperty, axis, pl
             .filter(([name, { data_type, field_type }]) => field_type != "param" && (data_type === "float" || data_type === "int"))
             .map(([name]) => name);
     }
-    const choices =
-        axis === "X"
-            ? plotType === "Line Chart"
-                ? ["Log Time"].concat(properties)
-                : properties
-            : plotType === "Bar Chart"
-                ? metrics
-                : properties;
-    const onSelect = (property: string) => {
-        setAxisProperty(property)
+    const choices = properties.reduce((acc: {[key: string]: string[]}, item) => {
+        const [table, column] = item.split(".");
+        acc[table] = acc[table] || [];
+        acc[table].push(column);
+        return acc;
+    }, {}) as {[key: string]: string[]};
+
+    /* Selection handler */
+    const onSelect = (selection: string, metric?: string) => {
+        if (metric) {
+            setAxisProperty(selection)
+            setMetric(metric)
+        } 
+        else {
+            setAxisProperty(selection)
+        } 
         setLoading(true)
     }
+
+    /* Dropdown button */
+    const icon = loading ? <LoaderCircle className="animate-spin text-primary"/> : <ChevronDown/>
+    const tooltip = "Select property"
+    const text = axisProperty 
+        ? (plotType === "Bar Chart" && axis === "Y") ? `${axisProperty}(${metric})` : axisProperty
+        : `${axis}-axis`
+    const disabled = !interactive || loading    
+    const button = <ActionButton tooltip={tooltip} icon={icon} text={text} disabled={disabled}/>
+
+    /** Main dropdown component
+     * Properties are selected by first navigating to a desired table item to open a sub dropdown with its available fields
+     * In the case of bar charts, an extra layer is added to select the metric to compute for the desired Y axis property
+    */
     return (
-        (interactive && !loading) ? <AutoComplete
-            type={`${axis}-axis`}
-            items={choices.map((choice) => ({ label: choice, value: choice }))}
-            defaultValue={axisProperty}
-            onSelect={(currentValue: string) => onSelect(currentValue)}
-            className="h-7 mx-1 text-xs w-[150px] shadow-none"
-        /> : <div className="flex items-center justify-between h-7 mx-1 px-3 text-xs font-medium w-[150px] rounded-md truncate ... border border-1 shadow-none">
-            {axisProperty ? axisProperty.slice(0, loading ? 15 : 18) + (axisProperty.length > (loading ? 15 : 18) ? "..." : "") : `${axis}-axis`}
-            {loading && <LoaderCircle size={16} className="animate-spin text-primary" />}
-        </div>
+        <BaseDropdown button={button} open={interactive ? undefined : false}>
+            {Object.entries(choices).map(([table, columns], choiceIndex) => {
+                const tableTrigger = <DropdownMenuSubTrigger disabled={loading} className="hover:text-white data-[state=open]:text-white">{table}</DropdownMenuSubTrigger>
+                const tableOptions = columns.map((column, optionIndex) => {
+
+                    const selection = `${table}.${column}`
+
+                    if (plotType === "Bar Chart" && axis === "Y") {
+                        const metricsTrigger = <DropdownMenuSubTrigger className="hover:text-white data-[state=open]:text-white">{column}</DropdownMenuSubTrigger>
+                        const columnOptions = metrics.map((metric, metricIndex) => {
+                            return <DropdownMenuItem key={metricIndex} onSelect={() => onSelect(selection, metric)}>{metric}</DropdownMenuItem>
+                        }) 
+                        return (
+                            <DropdownMenuGroup key={optionIndex}> 
+                                <DropdownMenuSub>
+                                    {metricsTrigger}
+                                    <DropdownMenuPortal>
+                                        <DropdownMenuSubContent>
+                                            {columnOptions}
+                                        </DropdownMenuSubContent>
+                                    </DropdownMenuPortal>
+                                </DropdownMenuSub>
+                            </DropdownMenuGroup>
+                    )}
+
+                    return <DropdownMenuItem key={optionIndex} onSelect={() => onSelect(selection)}>{column}</DropdownMenuItem>
+
+                })
+                return (
+                    <DropdownMenuGroup key={choiceIndex}> 
+                        <DropdownMenuSub>
+                            {tableTrigger}
+                            <DropdownMenuPortal>
+                                <DropdownMenuSubContent>
+                                    {tableOptions}
+                                </DropdownMenuSubContent>
+                            </DropdownMenuPortal>
+                        </DropdownMenuSub>
+                    </DropdownMenuGroup>
+                )
+            })
+        }
+        </BaseDropdown>
     );
 }
 

@@ -44,7 +44,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
         {name: "<",  label: "<"  , description: "Filter for values less than.."}
     ]
     const modes = options.map(option => option.name)
-    let defaultFilter : TimeFilter = {key: 0, mode: ">", join: "&&", value: defaultAbsoluteDate}
+    let defaultFilter : TimeFilter = {key: 0, mode: ">", join: "&&", value: defaultRelativeDate}
     let initialValues : TimeFilter[] = []
     if (columnFilters[column]) {
         initFilters(column, columnFilters, initialValues, modes)

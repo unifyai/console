@@ -287,196 +287,109 @@ export const drawBarChart = (
     axisPadding: number,
     selectedXAxisProperty: string | undefined,
     selectedYAxisProperty: string | undefined,
-    isAggregated: string | undefined,
-    table: string,
+    metric: string,
+    xTable: string,
+    yTable: string,
     logs: LogProps[],
     fields: LogFieldsResponseProps
 ) => {
 
     // Clear previous elements
     const g = svg.select(".plotData");
-    g.selectAll("*").remove();
+    g.selectAll("circle.data-point").remove();
+    g.selectAll("circle.hover-area").remove();
+    g.selectAll("path.line-item").remove();
+    g.selectAll("rect.hist-item").remove();
+    g.selectAll("text.correlation").remove();
+    g.selectAll("path.best-fit").remove()
 
     // Prepare data
-    let data: DataLabel[] | GroupedDataLabel[] = [];
-    const properties = Object
-        .entries(fields)
+    const properties = Object.entries(fields)
         .filter(([name, { field_type }]) => field_type !== "param")
         .map(([name]) => name);
-
     const xAxis = selectedXAxisProperty === "Log Time" ? properties[0] : selectedXAxisProperty;
-    const yAxis = selectedYAxisProperty && !metrics.includes(selectedYAxisProperty) 
-        ? metrics[0] 
-        : selectedYAxisProperty;
+    const yAxis = selectedYAxisProperty;
 
-    const aggregated = isAggregated === "true";
-
-    let colorKeys: string[] = [];
-    const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
-    const key = d3.select(".groupingKey").style("opacity", 0);
-
+    let data: DataLabel[] = [];
     if (xAxis && yAxis) {
-        const filteredData = logs.filter(log => (log[`${table}.entries`] as LogItemProps) !== undefined);
-        const statistic = (vals: number[]) => computeStatistic(yAxis, vals);
-        
-        if (aggregated) {
-            const groups = d3.rollup(
-                filteredData,
-                v => parseFloat(statistic(v.map(l => toComputableValue((l[`${table}.entries`] as LogItemProps)[xAxis])))),
-                d => (d[`${table}.entries`] as LogItemProps)[xAxis].toString()
-            );
-            data = Array.from(groups, ([group, value]) => [group, value]) as DataLabel[];
-        } else {
-            const groups = d3.group(filteredData, d => (d[`${table}.entries`] as LogItemProps)[xAxis].toString());
-            const keys = properties.filter(k => k !== xAxis && k !== yAxis);
-            colorKeys = [...Array.from(new Set(keys))];
-            data = Array.from(groups).map(([group, logs]) => [
-                group,
-                keys.map(key => [
-                    key,
-                    parseFloat(statistic(logs.map(l => toComputableValue((l[`${table}.entries`] as LogItemProps)[key]))))
-                ]) as DataLabel[]
-            ]) as GroupedDataLabel[];
-        }
+        const filteredData = logs.filter(log => {
+            const hasX = (log[`${xTable}.entries`] as LogItemProps) && (log[`${xTable}.entries`] as LogItemProps)[xAxis] !== undefined;
+            const hasY = (log[`${yTable}.entries`] as LogItemProps) && (log[`${yTable}.entries`] as LogItemProps)[yAxis] !== undefined;
+            return hasX && hasY
+        });
+        const statistic = (vals: number[]) => parseFloat(computeStatistic(metric, vals));
+        const getXValue = (log: LogProps) => (log[`${xTable}.entries`] as LogItemProps)[xAxis]
+        const getYValue = (log: LogProps) => (log[`${yTable}.entries`] as LogItemProps)[yAxis]
+        const groups = d3.rollup(
+            filteredData,
+            v => statistic(v.map(log => toComputableValue(getYValue(log)))),
+            d => JSON.stringify(getXValue(d))
+        );
+        data = Array.from(groups, ([group, value]) => [group, value]) as DataLabel[];
+        data.sort((a, b) => {
+            const aStr = a[0];
+            const bStr = b[0];
+            const isANumeric = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test(aStr);
+            const isBNumeric = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test(bStr);
+            if (isANumeric && isBNumeric) {
+              const aNum = Number(aStr);
+              const bNum = Number(bStr);
+              return aNum - bNum;
+            } else if (isANumeric) {
+              return -1;
+            } else if (isBNumeric) {
+              return 1;
+            } else {
+              return aStr.localeCompare(bStr);
+            }
+        });
     }
 
     // Define scales
     const [width, height] = [dimensions.width, dimensions.height];
-    const xDomain = aggregated 
-        ? (data as DataLabel[]).map(d => d[0]) 
-        : (data as GroupedDataLabel[]).map(d => d[0]);
-
-    const xScale = d3.scaleBand()
-        .domain(xDomain)
-        .range([margins.left, width - margins.right])
-        .padding(aggregated ? 0.2 : 0.1);
-    
-    const subXScale = d3.scaleBand()
-        .domain(aggregated ? [yAxis!] : colorKeys)
-        .range([0, xScale.bandwidth()])
-        .padding(0.1);
-
-    // Calculate Y scale
-    const allValues = aggregated 
-        ? (data as DataLabel[]).map(d => d[1]) 
-        : (data as GroupedDataLabel[]).flatMap(d => d[1].map(v => v[1]));
-    
-    let [minY, maxY] = d3.extent(allValues) as [number, number];
-    let yRange: [number, number];
-    if (scaleY === "log") {
-        minY = minY <= 0 ? 0.001 : minY;
-        yRange = [height - margins.bottom, margins.top + axisPadding];
-    } else {
-        if (aggregated) {
-            minY = Math.min(minY, 0);
-            maxY = Math.max(maxY, 0);
-            yRange = [height - margins.bottom, margins.top + axisPadding];
-        } else {
-            const hasNegative = minY < 0;
-            const hasPositive = maxY > 0;
-            if (hasNegative && hasPositive) {
-                const absMax = Math.max(Math.abs(minY), maxY);
-                minY = -absMax;
-                maxY = absMax;
-                yRange = [height - margins.bottom, margins.top + axisPadding];
-            } else if (hasNegative) {
-                yRange = [margins.top + axisPadding, height - margins.bottom];
-                [minY, maxY] = [minY, 0];
-            } else {
-                yRange = [height - margins.bottom, margins.top + axisPadding];
-                [minY, maxY] = [0, maxY];
-            }
-        }
+    const xDomain = data.map(d => d[0])
+    let [minY, maxY] = d3.extent(data.map(d => d[1])) as [number, number];
+    if (minY === maxY) {
+        minY = minY - 1
+        maxY = maxY + 1
     }
-
-    const yScale = (scaleY === "log" ? d3.scaleLog() : d3.scaleLinear())
-        .domain([minY, maxY]).nice()
-        .range(yRange);
+    let yDomain = [minY, maxY]
+    const xScale = d3.scaleBand().domain(xDomain).range([margins.left, width - margins.right]).padding(0.2);
+    const yScale = (scaleY === "log" ? d3.scaleLog() : d3.scaleLinear()).domain(yDomain).range([height - margins.bottom, margins.top + axisPadding]).nice();
 
     // Draw axes
-    const {xTicks, yTicks} = calculateTicks(xDomain.length, scaleX, scaleY, minY, maxY);
+    const {xTicks, yTicks} = calculateTicks(data.length, scaleX, scaleY, minY, maxY);
     drawAxes("Bar Chart", svg, dimensions, margins, xScale, yScale, xTicks, yTicks, false);
-
-    // Unified bar drawing function
-    const drawBars = (selection: d3.Selection<SVGRectElement, DataLabel, any, any>) => {
-        selection
-            .attr("y", d => {
-                const value = d[1];
-                if (aggregated)
-                    return Math.min(yScale(value), yScale(0));
-                return value >= 0 ? yScale(value) : yScale(0);
-            })
-            .attr("height", d => {
-                const value = d[1];
-                const baseline = aggregated ? yScale(0) : (scaleY === "log" ? yScale(0.001) : yScale(0));
-                if (aggregated) return Math.abs(yScale(value) - baseline);
-                return value >= 0 
-                    ? baseline - yScale(value)  // Positive bars grow upward
-                    : yScale(value) - baseline; // Negative bars grow downward
-            });
-    };
 
     // Draw bars
     const t = svg.transition().duration(500);
-    if (aggregated) {
-        g
-            .selectAll<SVGRectElement, DataLabel>("rect.bar-item")
-            .data(data as DataLabel[], d => d[0])
-            .join(
-                enter => enter.append("rect")
-                    .attr("class", "bar-item")
+    g
+        .selectAll<SVGRectElement, DataLabel>("rect.bar-item")
+        .data(data as DataLabel[], d => d[0])
+        .join(
+            enter => enter.append("rect")
+                .attr("class", "bar-item")
+                .attr("x", d => xScale(d[0])!)
+                .attr("width", xScale.bandwidth())
+                .attr("y", yScale(0))
+                .attr("height", 0)
+                .attr("fill", primary)
+                .call(
+                    enter => enter.transition(t as any)
+                        .attr("y", d => yScale(Math.max(0, d[1])))
+                        .attr("height", d => Math.abs(yScale(d[1]) - yScale(0)))
+                ),
+            update => update
+                .call(update => update.transition(t as any)
                     .attr("x", d => xScale(d[0])!)
                     .attr("width", xScale.bandwidth())
-                    .attr("y", yScale(0))
-                    .attr("height", 0)
-                    .attr("fill", primary)
-                    .call(enter => enter.transition(t as any)
-                    .call(drawBars as any)),
-                update => update,
-                exit => exit.transition(t as any)
-                    .attr("height", 0)
-                    .attr("y", yScale(0))
-                    .remove()
-            );
-    } else {
-        const groups = g
-            .selectAll("rect.bar-group")
-            .data(data as GroupedDataLabel[], d => (d as GroupedDataLabel)[0])
-            .join(
-                enter => enter.append("g")
-                    .attr("class", "bar-group")
-                    .attr("transform", d => `translate(${xScale(d[0])},0)`)
-                    .call(enter => enter.transition(t as any)),
-                update => update.transition(t as any),
-                exit => exit.transition(t as any)
-                    .attr("transform", d => `translate(${xScale(d[0])},${height})`)
-                    .remove()
-            );
-        groups.selectAll<SVGRectElement, DataLabel>("rect.bar-item")
-            .data(d => d[1], (d: DataLabel) => d[0])
-            .join(
-                enter => enter.append("rect")
-                    .attr("class", "bar-item")
-                    .attr("x", d => subXScale(d[0])!)
-                    .attr("width", subXScale.bandwidth())
-                    .attr("y", yScale(0))
-                    .attr("height", 0)
-                    .attr("fill", d => colorScale(d[0]))
-                    .call(enter => enter.transition(t as any)
-                        .call(drawBars as any)),
-                update => update.call(update => update.transition(t as any)
-                    .attr("x", d => subXScale(d[0])!)
-                    .attr("width", subXScale.bandwidth())),
-                exit => exit.transition(t as any)
-                    .attr("height", 0)
-                    .attr("y", yScale(0))
-                    .remove()
-            );
-        if (colorKeys.length > 0) {
-            const keyItems = colorKeys.map(k => ({ key: k, color: colorScale(k) }));
-            key.html(keyTemplate(keyItems)).transition().style("opacity", 1);
-        }
-    }
+                    .attr("y", d => yScale(Math.max(0, d[1])))
+                    .attr("height", d => Math.abs(yScale(d[1]) - yScale(0)))),
+            exit => exit.transition(t as any)
+                .attr("height", 0)
+                .attr("y", yScale(0))
+                .remove()
+        );
 
     // Hover events
     const tooltip = d3.select(".plotTooltip").style("opacity", 0);
@@ -485,9 +398,12 @@ export const drawBarChart = (
         tooltip.html(tooltipTemplate({
             x: { 
                 name: xAxis!, 
-                value: aggregated ? d[0] : currentKey 
+                value: d[0] 
             },
-            y: { name: yAxis!, value: d[1] }
+            y: { 
+                name: `${yAxis}(${metric})`,
+                value: d[1] 
+            }
         })).transition().style("opacity", 1);
 
         // Dim all bars except hovered one
@@ -495,19 +411,10 @@ export const drawBarChart = (
             .transition()
             .style("opacity", bar => (bar as DataLabel)[0] === currentKey ? 1 : 0.3);
 
-        // Dim keys only in non-aggregated mode
-        if (!aggregated) {
-            key.selectAll(".key")
-                .transition()
-                .style("opacity", k => (k as string) === currentKey ? 1 : 0.3);
-        }
     };
     const handleMouseOut = () => {
         tooltip.transition().style("opacity", 0);
         g.selectAll("rect.bar-item").transition().style("opacity", 1);
-        if (!aggregated) {
-            key.selectAll(".key").transition().style("opacity", 1);
-        }
     };
     g.selectAll("rect.bar-item")
         .on("mouseover", (event, d) => handleMouseOver(event, d as DataLabel))
@@ -560,9 +467,11 @@ export const drawLineChart = (
     const xTime = xAxis === "Log Time";
     if (xAxis && yAxis) {
         const filteredData = logs.filter((log) => {
-            const hasGroup = groupBy ? (log[`${xTable}.entries`] as LogItemProps)[groupBy] : true;
-            const hasX = xTime ? true : (log[`${xTable}.entries`] as LogItemProps)[xAxis];
-            const hasY = (log[`${yTable}.entries`] as LogItemProps)[yAxis];
+            const hasGroup = groupBy 
+                ? (log[`${xTable}.entries`] as LogItemProps) && (log[`${xTable}.entries`] as LogItemProps)[groupBy] !== undefined
+                : true;
+            const hasX = (log[`${xTable}.entries`] as LogItemProps) && (log[`${xTable}.entries`] as LogItemProps)[xAxis] !== undefined;
+            const hasY = (log[`${yTable}.entries`] as LogItemProps) && (log[`${yTable}.entries`] as LogItemProps)[yAxis] !== undefined;
             return hasGroup && hasX && hasY;
         });
         const convertedData = filteredData.map((log) => {
@@ -627,7 +536,7 @@ export const drawLineChart = (
     const key = d3.select(".groupingKey").style("opacity", 0)
     const tooltip = d3.select(".plotTooltip").style("opacity", 0)
 
-        // Plot lines.
+    // Plot lines.
     // If grouping, plot one line per group, each with their color, and attach the grouping key.
     // Else plot a single line
     const lineGenerator = d3.line<number[]>()
@@ -742,17 +651,20 @@ export const drawScatterPlot = (
 
     if (xAxisProperty && yAxisProperty) {
         const filteredData = logs.filter((log) => {
-            const hasGroup = groupBy ? (log[`${xTable}.entries`] as LogItemProps)[groupBy] : true;
-            const hasX = (log[`${xTable}.entries`] as LogItemProps)[xAxisProperty];
-            const hasY = (log[`${yTable}.entries`] as LogItemProps)[yAxisProperty];
+            const hasGroup = groupBy 
+                ? (log[`${xTable}.entries`] as LogItemProps) && (log[`${xTable}.entries`] as LogItemProps)[groupBy] !== undefined 
+                : true;
+            const hasX = (log[`${xTable}.entries`] as LogItemProps) && (log[`${xTable}.entries`] as LogItemProps)[xAxisProperty] !== undefined;
+            const hasY = (log[`${yTable}.entries`] as LogItemProps) && (log[`${yTable}.entries`] as LogItemProps)[yAxisProperty] !== undefined;
             return hasGroup && hasX && hasY
         })
         data = filteredData.map((log) => {
+            const id = `${xTable}.id`
             let xEntries = log[`${xTable}.entries`] as LogItemProps;
             let yEntries = log[`${yTable}.entries`] as LogItemProps;
             yEntries[yAxisProperty] = parseFloat(yEntries[yAxisProperty]);
             xEntries[xAxisProperty] = parseFloat(xEntries[xAxisProperty]);
-            return ({...log, entries: { ...xEntries, ...yEntries }});
+            return ({...log, id, entries: { ...xEntries, ...yEntries }});
         })
     }
 
@@ -785,7 +697,7 @@ export const drawScatterPlot = (
     // Add data points
     const points = g
         .selectAll("circle.data-point")
-        .data(data, (d: unknown) => (d as LogProps).id); // Use proper key function
+        .data(data, (d: unknown) => (d as LogProps).id); // Use unique identifier to track point transitions
     const enteringPoints = points
         .enter()
         .append("circle")
@@ -794,7 +706,7 @@ export const drawScatterPlot = (
         .attr("stroke", primary)
         .attr("cx", d => x(reverseX ? Math.abs(d.entries[xAxisProperty as keyof LogItemProps] as number) : d.entries[xAxisProperty!] as number))
         .attr("cy", d => y(reverseY ? Math.abs(d.entries[yAxisProperty as keyof LogItemProps] as number) : d.entries[yAxisProperty!] as number))
-        .attr("r", 0) // Start with radius 0
+        .attr("r", 0)
         .on("mouseover", (event, data) => hoverOnPoint(event, data, xTable, yTable))
         .on("mouseout", (event, data) => leavePoint(event, data));
     enteringPoints
@@ -807,7 +719,7 @@ export const drawScatterPlot = (
     points.exit()
         .transition()
         .duration(500)
-        .attr("r", 0) // Shrink to 0 radius
+        .attr("r", 0)
         .remove();
 
     // Add hover areas
@@ -856,20 +768,20 @@ export const drawScatterPlot = (
     // - If grouping is set, lower the opacity and radius of all points and groupding keys that don't belong to the same category
     function hoverOnPoint (event: any, data: LogProps, xTable: string, yTable: string) {
 
-        const logData = logs ? logs.find((log)=>log.id === data.id)! : data;
         const hoverData : InfoCardData = {
             "x" : {
-                "name": selectedXAxisProperty as string,
-                "value": selectedXAxisProperty === "Log Time" 
-                    ?   data.ts
-                    :   (logData[`${xTable}.entries`] as LogItemProps)[selectedXAxisProperty as keyof LogItemProps]
+                "name":  selectedXAxisProperty as string,
+                "value": (data[`entries`] as LogItemProps) ? (data[`entries`] as LogItemProps)[selectedXAxisProperty as keyof LogItemProps] : "-"
             },
             "y" : {
-                "name": selectedYAxisProperty as string, 
-                "value": (logData[`${yTable}.entries`] as LogItemProps)[selectedYAxisProperty as keyof LogItemProps]
+                "name":  selectedYAxisProperty as string, 
+                "value": (data[`entries`] as LogItemProps) ? (data[`entries`] as LogItemProps)[selectedYAxisProperty as keyof LogItemProps] : "-"
             }
         }
-        if (groupBy) hoverData["group"] = {"name": groupBy, value: (logData[`${xTable}.entries`] as LogItemProps)[groupBy]}
+        if (groupBy) hoverData["group"] = {
+            "name": groupBy, 
+            value: (data[`entries`] as LogItemProps) ? (data[`entries`] as LogItemProps)[groupBy] : "-"
+        }
 
         tooltip.html(tooltipTemplate(hoverData)).transition().style("opacity", 1)
         positionTooltip(event, svg, tooltip, width, height);
@@ -916,6 +828,10 @@ export const drawScatterPlot = (
                .transition()
                .duration(200)
                .style("opacity", 1)
+            key.selectAll(".key")
+                .transition()
+                .duration(200)
+                .style("opacity", 1)
         } else {
             g.selectAll("circle.data-point")
             .transition()
@@ -1036,7 +952,7 @@ export const drawHistogram = (
     let xType : string | undefined;
     if (xAxisProperty) {
         xType = fields[xAxisProperty].data_type
-        const filteredData = logs.filter((log) => (log[`${table}.entries`] as LogItemProps)[xAxisProperty as keyof LogItemProps]);
+        const filteredData = logs.filter((log) => (log[`${table}.entries`] as LogItemProps) && (log[`${table}.entries`] as LogItemProps)[xAxisProperty] !== undefined);
         data = filteredData.map((log) => {
             let entries = log[`${table}.entries`] as LogItemProps;
             const entry = xType === "timestamp"

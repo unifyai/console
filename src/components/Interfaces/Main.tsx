@@ -162,10 +162,10 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
             if (item.x_axis && item.x_axis.includes("."))
                 tableIdx1 = tableItems.findIndex(it => it.i == item.x_axis?.split(".")[0]);
             let tableIdx2 = -1;
-            if (item.y_axis && item.y_axis.includes(".") && item.plot_type != "Bar Chart")
+            if (item.y_axis && item.y_axis.includes("."))
                 tableIdx2 = tableItems.findIndex(it => it.i == item.y_axis?.split(".")[0]);
             const tables = [tableIdx1, tableIdx2 != tableIdx1 ? tableIdx2 : -1].filter(it => it != -1);
-
+            
             // fetch plot data for each table
             const plotData_ = (await Promise.all(tables.map(async (tableIdx) => {
                 const table = tableItems[tableIdx];
@@ -177,15 +177,11 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                 const filterExpression = filterExpressions[tableIdx];
                 if (xAxis) {
                     let subset = xAxis.split(".").length > 1 ? xAxis.split(".")[1] : null;
-                    if (item.plot_type === "Bar Chart")
-                        data = await logsActions.get(project, context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
-                    else {
-                        if (yAxis && yAxis.split(".").length > 1)
-                            subset += `&${yAxis.split(".")[1]}`
-                        if (group && group.split(".").length > 1)
-                            subset += `&${group.split(".")[1]}`
-                        data = await logsActions.get(project, context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
-                    }
+                    if (yAxis && yAxis.split(".").length > 1)
+                        subset += `&${yAxis.split(".")[1]}`
+                    if (group && group.split(".").length > 1)
+                        subset += `&${group.split(".")[1]}`
+                    data = await logsActions.get(project, context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
                 }
                 return { [table.i]: {
                     plotLogs: data.logs || [],

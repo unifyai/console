@@ -12,17 +12,15 @@ const PlotReset = ({svgRef, setSelectedXAxisProperty, setSelectedYAxisProperty, 
 }) => {
     const svg = d3.select(svgRef.current)
     const g = svg.select(".plotData")
+    const xAxis = svg.select(".xAxis")
+    const yAxis = svg.select(".yAxis")
     const onClick = () => {
         setSelectedXAxisProperty(undefined);
         setSelectedYAxisProperty(undefined);
         setGroupByProperty(undefined);
-        g.selectAll("circle.data-point").remove();
-        g.selectAll("circle.hover-area").remove();
-        g.selectAll("path.line-item").remove();
-        g.selectAll("rect.bar-item").remove();
-        g.selectAll("rect.hist-item").remove();
-        g.selectAll("text.correlation").remove();
-        g.selectAll("path.best-fit").remove();
+        g.selectAll("*").remove();
+        xAxis.selectAll("*").remove();
+        yAxis.selectAll("*").remove();
     };
     return (
         <SettingButton
