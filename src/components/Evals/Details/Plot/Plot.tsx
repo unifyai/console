@@ -16,7 +16,6 @@ import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogra
 
 import PlotAxis from "./Buttons/PlotAxis";
 import { useQueryState, parseAsFloat } from "nuqs";
-import PlotAggregate from "./Buttons/PlotAggregate";
 
 const LogsPlot = ({ logs, fields}: {
     logs: LogProps[] | undefined,
@@ -32,7 +31,7 @@ const LogsPlot = ({ logs, fields}: {
 
     // Plot settings
     let [plotType, setPlotType] = useQueryState("plot_type", { shallow: false });
-    let [isAggregated, setIsAggregated] = useQueryState("aggregated_data")
+    let [metric, setMetric] = useQueryState("plot_metric", {shallow: false, defaultValue: "mean"})
     let [binCount, setBinCount] = useQueryState("bin_count", parseAsFloat.withDefault(1))
     let [binCounts, setBinCounts] = useState([1])
     const [showRegression, setShowRegression] = useState("false");
@@ -66,6 +65,9 @@ const LogsPlot = ({ logs, fields}: {
         
         // Draw plot borders
         drawBorders(svg, dimensions.height, dimensions.width, margins);
+
+        const xTable = selectedXAxisProperty?.split(".")[0] || "";
+        const yTable = selectedYAxisProperty?.split(".")[0] || "";
         
         // Draw selected plot type 
         if (plotType === "Line Chart") {
@@ -83,8 +85,8 @@ const LogsPlot = ({ logs, fields}: {
                     selectedXAxisProperty, 
                     selectedYAxisProperty, 
                     groupByProperty || undefined,
-                    "",
-                    "",
+                    xTable,
+                    yTable,
                     logs, 
                     fields
                 );
@@ -113,8 +115,9 @@ const LogsPlot = ({ logs, fields}: {
                     axisPadding, 
                     selectedXAxisProperty, 
                     selectedYAxisProperty, 
-                    groupByProperty || undefined,
-                    "",
+                    metric as string,
+                    xTable,
+                    yTable,
                     logs, 
                     fields
                 );
@@ -142,7 +145,7 @@ const LogsPlot = ({ logs, fields}: {
                     selectedXAxisProperty, 
                     binCount,
                     setBinCounts,
-                    "",
+                    xTable,
                     logs,
                     fields,
                 )
@@ -160,8 +163,8 @@ const LogsPlot = ({ logs, fields}: {
         else {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                const adjustedScaleX = checkLogScalability(logs, "", selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, "", selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
+                const adjustedScaleX = checkLogScalability(logs, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
+                const adjustedScaleY = checkLogScalability(logs, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawScatterPlot(
                     svg, 
                     adjustedScaleX,
@@ -173,8 +176,8 @@ const LogsPlot = ({ logs, fields}: {
                     selectedYAxisProperty, 
                     groupByProperty || undefined,
                     showRegression,
-                    "",
-                    "",
+                    xTable,
+                    yTable,
                     logs, 
                     fields
                 );
@@ -198,7 +201,7 @@ const LogsPlot = ({ logs, fields}: {
         selectedYAxisProperty,
         plotType,
         groupByProperty,
-        isAggregated,
+        metric,
         binCount,
         showRegression
     ]);
@@ -215,11 +218,13 @@ const LogsPlot = ({ logs, fields}: {
                 axisProperty={selectedXAxisProperty} 
                 plotType={plotType}
                 logs={logs}
+                setMetric={setMetric}
+                metric={metric}
             />
         </div>
         {plotType != "Histogram" &&
             <div className="absolute top-0.5 left-1 z-10">
-                <PlotAxis fields={fields} setAxisProperty={setSelectedYAxisProperty} axis="Y" axisProperty={selectedYAxisProperty} plotType={plotType} logs={logs}/>
+                <PlotAxis metric={metric} setMetric={setMetric} fields={fields} setAxisProperty={setSelectedYAxisProperty} axis="Y" axisProperty={selectedYAxisProperty} plotType={plotType} logs={logs}/>
             </div>
         }
         <div className="absolute top-0.5 right-1 z-10">
@@ -230,19 +235,17 @@ const LogsPlot = ({ logs, fields}: {
         {selectedXAxisProperty && selectedYAxisProperty &&
         <>
             <div className="absolute top-12 right-3 z-10 PlotReset">
-                <PlotReset setSelectedXAxisProperty={setSelectedXAxisProperty} setSelectedYAxisProperty={setSelectedYAxisProperty} setGroupByProperty={setGroupByProperty}/>
+                <PlotReset svgRef={svgRef} setSelectedXAxisProperty={setSelectedXAxisProperty} setSelectedYAxisProperty={setSelectedYAxisProperty} setGroupByProperty={setGroupByProperty}/>
             </div>
-            {plotType === "Bar Chart" 
-                ?   <div className="absolute top-24 right-3 z-10 PlotAggregated">
-                        <PlotAggregate isAggregated={isAggregated} setIsAggregated={setIsAggregated}/>
-                    </div>
-                :   plotType === "Histogram"
+            {plotType === "Histogram"
                     ?   <div className="absolute top-24 right-3 z-10 PlotBins">
                             <PlotBins binCount={binCount} binCounts={binCounts} setBinCount={setBinCount} />
                         </div>
-                    :   <div className="absolute top-24 right-3 z-10 PlotGroupBy">
-                            <PlotGroupBy fields={fields} groupBy={groupByProperty} setGroupBy={setGroupByProperty}/>
-                        </div>
+                    :   plotType != "Bar Chart"
+                        ?   <div className="absolute top-24 right-3 z-10 PlotGroupBy">
+                                <PlotGroupBy logs={logs} fields={fields} groupBy={groupByProperty} setGroupBy={setGroupByProperty}/>
+                            </div>
+                        :   null
             }
             {!["Histogram", "Bar Chart"].includes(plotType) &&
                 <div className="absolute top-36 right-3 z-10 PlotScale">

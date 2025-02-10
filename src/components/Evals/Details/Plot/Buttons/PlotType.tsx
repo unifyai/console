@@ -26,15 +26,10 @@ const PlotType = ({plotType, setPlotType, fields, selectedXAxisProperty, setSele
     // - Set x axis to the current x axis, or the first numeric property if the current x axis isn't numeric
     const onClick = (type: string) => {
         setPlotType(type)
-        let yAxis: string;
-        if (type === "Bar Chart") {
-            yAxis = "count"
-        } else {
-            yAxis = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : properties[0];
-        }
-        setSelectedYAxisProperty(yAxis)
+        const yAxis = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : properties[0];
         const xAxis = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties[0];
         setSelectedXAxisProperty(xAxis)
+        setSelectedYAxisProperty(yAxis)
     } 
     return (
         <BaseDropdown
