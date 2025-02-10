@@ -154,8 +154,10 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                 null,
                 limit,
                 offsets[idx],
-                Date.now().toString()
+                groupingExpressions[idx] ? 0 : null,
+                Date.now().toString(),
             );
+
             const totalPages = Math.ceil(logsData.count / limit);
             allLogsData[idx] = logsData;
             allTotalPages[idx] = totalPages;
@@ -170,12 +172,12 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
             if (xAxis) {
                 let subset = xAxis
                 if (item.plot_type === "Bar Chart")
-                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
+                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, null, subset, null, null, 0, null, Date.now().toString());
                 else {
                     if (yAxis)
                         subset += `&${yAxis}`
                     if (group) subset += `&${group}`
-                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, subset, null, null, 0, Date.now().toString());
+                    plotData = await logsActions.get(project, item.context ?? null, filterExpression, null, null, subset, null, null, 0, null, Date.now().toString());
                 }
             }
         }));

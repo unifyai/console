@@ -17,21 +17,21 @@ export interface LogProps {
     entries: LogItemProps,
     derived_entries: LogItemProps,
     clipped_fields: LogItemProps,
+    isPlaceholder?: boolean,
 }
 
 /*
  Represents a single "level" of the raw grouping `logs` object from the backend.
  The keys can be:
-  - A **grouping column** (e.g. "entries/i") whose value is another GroupedLogPropsRaw object
-  - A **group value** (e.g. "0", "1") whose value is either an array of LogProps or another nested object
+  - A **grouping column** (e.g. "entries/i") whose value is an object containing group values and their counts
   - Metadata like "group_count", "count" which are numbers
 */
 export interface GroupedLogPropsRaw {
-    [key: string]:
-      | GroupedLogPropsRaw       // Further nested grouping
-      | LogProps[]             // An array of final logs at this grouping level
-      | number                 // Possibly group_count, count, etc.
-      | undefined;             // Not all keys must exist
+    [key: string]: {
+        [groupValue: string]: number  // Count for each group value
+        group_count: number,  // Total number of unique groups
+        count: number  // Total number of logs in all groups
+    } | number | undefined;  // For metadata fields
 }
 
 /*
@@ -49,7 +49,10 @@ export interface GroupedLogProps {
     groupingColumnId: string,
     groupingIndex?: number,  // Index for entries/params groups, ascending within each nesting level
     [groupingValue: string]: unknown,  // Dynamic key for groupingValue
-    subRows: GroupedLogProps[] | LogProps[]
+    subRows: GroupedLogProps[] | LogProps[],
+    isPopulated: boolean,  // Whether subRows have been populated
+    groupCount: number,  // Number of unique groups under this group
+    remainingGroupBy: string[],  // Remaining group by columns after this level
 }
 
 export interface LogGroupsProps {

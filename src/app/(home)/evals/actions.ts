@@ -68,7 +68,7 @@ export const deleteProject = async (apiKey: string) => {
 
 // get logs
 export const getLogs = async (apiKey: string) => {
-    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, _timestamp: string | null) => {
+    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, _timestamp: string | null) => {
         "use server";
 
         try {
@@ -86,7 +86,8 @@ export const getLogs = async (apiKey: string) => {
                 + (from_fields ? `&from_fields=${encodeURIComponent(from_fields)}` : "")
                 + (exclude_fields ? `&exclude_fields=${encodeURIComponent(exclude_fields)}` : "")
                 + (limit ? `&limit=${limit}` : "")
-                + (offset ? `&offset=${offset}` : ""),
+                + (offset ? `&offset=${offset}` : "")
+                + (group_depth !== null && group_depth !== undefined ? `&group_depth=${group_depth}` : ""),
                 { method: "GET", headers: { apiKey: apiKey }, next: { tags: [`logs_${_timestamp}`] } },
             );
             return await response.json();

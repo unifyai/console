@@ -33,7 +33,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             if (!running && !pending) {
                 running = true;
                 logsActions.get(
-                    project, item.context ?? null, filterExpression, sortingExpression, groupingExpression, null, null, 16, 0, Date.now().toString()
+                    project, item.context ?? null, filterExpression, sortingExpression, groupingExpression, null, null, 16, 0, null, Date.now().toString()
                 ).then(async (logsData: LogsResponseProps) => {
                     const totalPages = Math.ceil(logsData.count / 16);
                     const context = item.context ?? null;
