@@ -195,7 +195,7 @@ export const createDerivedEntry = async (apiKey: string) => {
 
 // update derived entry
 export const updateDerivedEntry = async (apiKey: string) => {
-    return async (project: string, key: string | null, equation: string | null, target_derived_logs: {[table_name: string]: getLogsParameters}): Promise<ResponseProps> => {
+    return async (project: string, key: string | null, equation: string | null, target_derived_logs: {[table_name: string]: getLogsParameters}, referenced_logs: {[table_name: string]: getLogsParameters} | null): Promise<ResponseProps> => {
         "use server";
 
         try {
@@ -204,7 +204,7 @@ export const updateDerivedEntry = async (apiKey: string) => {
                 {
                     method: "PUT",
                     headers: { apiKey: apiKey },
-                    body: JSON.stringify({ project, key, equation, target_derived_logs })
+                    body: JSON.stringify({ project, key, equation, target_derived_logs, referenced_logs })
                 }
             );
             return await response.json();

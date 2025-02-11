@@ -20,7 +20,7 @@ const ColumnUpdate = ({ project, key, previousEquation, currentTable, tableArgum
     currentTable: string,
     tableArguments: TableArguments,
     logs: LogProps[]
-    update: (project: string, key: string | null, equation: string | null, target_derived_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
+    update: (project: string, key: string | null, equation: string | null, target_derived_logs: {[table_name: string]: getLogsParameters}, referenced_logs: {[table_name: string]: getLogsParameters} | null) => Promise<ResponseProps>,
     setPending: (pending: boolean) => void,
     refresh: () => Promise<ResponseProps>,
 }) => {
@@ -38,7 +38,8 @@ const ColumnUpdate = ({ project, key, previousEquation, currentTable, tableArgum
 
     // State tracking
     const [open, setOpen] = useState(false);
-    const [expression, setExpression] = useState<string>(derivedFunctionToExpression(previousEquation));
+    const previousExpression = derivedFunctionToExpression(previousEquation)
+    const [expression, setExpression] = useState<string>(previousExpression);
     const [equation, setEquation] = useState<string>("");
     const [errorMessage, setErrorMessage] = useState<string>("");
 
@@ -57,15 +58,25 @@ const ColumnUpdate = ({ project, key, previousEquation, currentTable, tableArgum
 
     // Handle submission    
     const onSubmit = () => {
-        let referencedTables : (keyof TableArguments)[] = tables.filter(table => equation.includes(table))
-        if (!referencedTables.length) referencedTables = [currentTable]
+
+        let previousReferencedTables : (keyof TableArguments)[] = tables.filter(table => previousEquation.includes(table))
+        if (!previousReferencedTables.length) previousReferencedTables = [currentTable]
         const target_derived_logs = Object.fromEntries(
             Object.entries(tableArguments)
-                  .filter(([key, _]) => referencedTables.includes(key))
+                  .filter(([key, _]) => previousReferencedTables.includes(key))
                   .map(([key, args]) => [key, args.getLogs_parameters])
         );
+        
+        let newReferencedTables : (keyof TableArguments)[] = tables.filter(table => equation.includes(table))
+        if (!newReferencedTables.length) newReferencedTables = [currentTable]
+        const referenced_logs = Object.fromEntries(
+            Object.entries(tableArguments)
+                  .filter(([key, _]) => newReferencedTables.includes(key))
+                  .map(([key, args]) => [key, args.getLogs_parameters])
+        );
+
         setLoading(true);
-        update(project, key, equation, target_derived_logs).then(async (response: ResponseProps) => {
+        update(project, key, equation, target_derived_logs, referenced_logs).then(async (response: ResponseProps) => {
             if ("info" in response) {
                 
                 // Update states
