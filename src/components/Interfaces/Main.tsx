@@ -242,27 +242,28 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
     )).reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
     return <CardGrid
-        project_={project}
-        projects={projects}
-        contexts={contexts}
-        interfaces_={Object.keys(interfacesTemp_).sort()}
-        tableNames={tableNames}
-        tableData={tableData}
-        tableArguments={tableArguments}
-        fields={fields}
-        plotData={plotData}
-        savedInterface={savedInterface}
-        interfaceCreated={interfaceCreated}
-        tempInterfaceCreated_={tempInterfaceCreated}
-        interface_1={interface_1}
-        filterExpressions={filterExpressions}
-        sortingExpressions={sortingExpressions}
-        groupingExpressions={groupingExpressions}
-        projectActions={projectsActions}
-        logsActions={logsActions}
-        derivedEntryActions={derivedEntryActions}
-        contextActions={contextActions}
-        interfaceActions={interfaceActions}
+                project_={project}
+                projects={projects}
+                contexts={contexts}
+                interfaces_={Object.keys(interfacesTemp_).sort()}
+                tableNames={tableNames}
+                tableData={tableData}
+                tableArguments={tableArguments}
+                fields={fields}
+                plotData={plotData}
+                savedInterface={savedInterface}
+                interfaceCreated={interfaceCreated}
+                tempInterfaceCreated_={tempInterfaceCreated}
+                interface_1={interface_1}
+                filterExpressions={filterExpressions}
+                sortingExpressions={sortingExpressions}
+                groupingExpressions={groupingExpressions}
+                limit={limit}
+                offsets={offsets}
+                projectActions={projectsActions}
+                logsActions={logsActions}
+                contextActions={contextActions}
+                interfaceActions={interfaceActions}
     />;
 };
 

@@ -17,7 +17,6 @@ export interface LogProps {
     entries: LogItemProps,
     derived_entries: LogItemProps,
     clipped_fields: LogItemProps,
-    isPlaceholder?: boolean,
 }
 
 /*

@@ -32,9 +32,12 @@ const Card = ({
     filterExpressions,
     sortingExpressions,
     groupingExpressions,
+    limit,
+    offsets,
     setPending,
     updateItem,
     updateInterface,
+    setTableData,
 }: {
     mode: "edit" | "interactive" | "dashboard",
     project: string | undefined,
@@ -53,9 +56,12 @@ const Card = ({
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
     groupingExpressions: (string | null)[],
+    limit: number,
+    offsets: number[],
     setPending: (pending: boolean) => void,
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
     updateInterface: () => Promise<ResponseProps>,
+    setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void,
 }) => {
     
     const router = useRouter();
@@ -206,12 +212,15 @@ const Card = ({
                     totalPages: tableData[item.i]?.totalPages || 0,
                     boundaries: tableData[item.i]?.boundaries || { minimus: {}, maximums: {} }
                 }}
+                setTableData={setTableData}
                 updateItem={updateItem}
                 logsActions={logsActions}
                 derivedEntryActions={derivedEntryActions}
                 filterExpression={filterExpressions ? filterExpressions[items.findIndex(it => it.i === item.i)] : null}
                 sortingExpression={sortingExpressions ? sortingExpressions[items.findIndex(it => it.i === item.i)] : null}
                 groupingExpression={groupingExpressions ? groupingExpressions[items.findIndex(it => it.i === item.i)] : null}
+                limit={limit}
+                offset={offsets ? offsets[items.findIndex(it => it.i === item.i)] : 0}
                 updateInterface={updateInterface}
                 setPending={setPending}
             />}
