@@ -22,6 +22,7 @@ import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 import { useCellSelection } from "@/hooks/Logs/useCellSelection";
 import { useTableGrouping } from "@/hooks/useTableGrouping";
 import { RowExpandingProps } from "./Buttons/RowExpanding";
+import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
 
 interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     className?: string;

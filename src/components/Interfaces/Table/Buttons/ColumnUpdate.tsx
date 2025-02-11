@@ -3,7 +3,7 @@
 import { KeyboardEventHandler, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import { getLogsParameters, TableArguments, LogProps } from "@/types/evals/logs"
+import { getLogsParameters, TableArguments, LogProps, GroupedLogProps } from "@/types/evals/logs"
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { BasePopover } from "@/components/Common/Popovers/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -19,7 +19,7 @@ const ColumnUpdate = ({ project, key, previousEquation, currentTable, tableArgum
     previousEquation: string,
     currentTable: string,
     tableArguments: TableArguments,
-    logs: LogProps[]
+    logs: LogProps[] | GroupedLogProps[]
     update: (project: string, key: string | null, equation: string | null, target_derived_logs: {[table_name: string]: getLogsParameters}, referenced_logs: {[table_name: string]: getLogsParameters} | null) => Promise<ResponseProps>,
     setPending: (pending: boolean) => void,
     refresh: () => Promise<ResponseProps>,

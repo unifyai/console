@@ -4,14 +4,14 @@ import { useState, useEffect } from "react";
 import { FiltersByColumn } from "@/types/evals/columns";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { Filter, LoaderCircle, Circle, CircleSlash2 } from "lucide-react";
-import { LogProps } from "@/types/evals/logs";
+import { LogProps, GroupedLogProps } from "@/types/evals/logs";
 
 const ImageColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, logs }: {
     interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
-    logs: LogProps[]
+    logs: LogProps[] | GroupedLogProps[]
 }) => {
 
     /* Display loader when data updates */
