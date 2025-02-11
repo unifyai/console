@@ -94,6 +94,20 @@ function allEmpty(baseVal: any, comps: any[]): boolean {
   return true;
 }
 
+// New helper function to format costs using scientific notation for very small numbers
+function formatCost(value: any): string {
+  // Convert the input value to a number
+  const num = Number(value);
+  if (isNaN(num)) return String(value);
+  if (num === 0) return "0"; // if value is exactly zero, just return "0"
+  // Use threshold 0.01 (as used in NumberView) to switch to exponential notation
+  if (Math.abs(num) < 0.01) {
+    return num.toExponential(2);
+  }
+  // Format with exactly 4 decimals then convert to a number to remove trailing zeros
+  return parseFloat(num.toFixed(4)).toString();
+}
+
 function pickView(
   baseVal: any,
   comps: any[],
@@ -351,6 +365,7 @@ function PatchDetailPanel({
               comparisonLogsIndex={comparisonLogsIndex}
               diffMode={diffMode}
               splitView={splitView}
+              scientificNotation={true}
             />
           </div>
         </div>
@@ -364,6 +379,7 @@ function PatchDetailPanel({
               comparisonLogsIndex={comparisonLogsIndex}
               diffMode={diffMode}
               splitView={splitView}
+              scientificNotation={true}
             />
           </div>
         </div>
@@ -566,7 +582,7 @@ function CollapsiblePatchLineNode({
 
   if (!multiMode) {
     if (baseCost > 0 || baseCostIncCache > 0) {
-      costLabel = `$${baseCost.toFixed(4)}`;
+      costLabel = `$${formatCost(baseCost)}`;
       costData = {
         title: "LLM Cost Details",
         baseCost,
@@ -576,7 +592,7 @@ function CollapsiblePatchLineNode({
   } else {
     if (node.marker === "+") {
       if (targetCost > 0 || targetCostIncCache > 0) {
-        costLabel = `$${targetCost.toFixed(4)}`;
+        costLabel = `$${formatCost(targetCost)}`;
         costData = {
           title: "LLM Cost (Comparison Only)",
           targetCost,
@@ -585,7 +601,7 @@ function CollapsiblePatchLineNode({
       }
     } else if (node.marker === "-") {
       if (baseCost > 0 || baseCostIncCache > 0) {
-        costLabel = `$${baseCost.toFixed(4)}`;
+        costLabel = `$${formatCost(baseCost)}`;
         costData = {
           title: "LLM Cost (Base Only)",
           baseCost,
@@ -596,12 +612,7 @@ function CollapsiblePatchLineNode({
       if (baseCost || targetCost || baseCostIncCache || targetCostIncCache) {
         const diffC = targetCost - baseCost;
         const signC = diffC >= 0 ? "+" : "-";
-        const absDiffC = Math.abs(diffC).toFixed(4);
-
-        const diffCIC = targetCostIncCache - baseCostIncCache;
-        const signCIC = diffCIC >= 0 ? "+" : "-";
-        const absDiffCIC = Math.abs(diffCIC).toFixed(4);
-
+        const absDiffC = formatCost(Math.abs(diffC));
         costLabel = `${signC}$${absDiffC}`;
         costData = {
           title: "LLM Costs",
@@ -611,8 +622,8 @@ function CollapsiblePatchLineNode({
           targetCostIncCache,
           diffSign: signC,
           diffAbs: absDiffC,
-          diffSignIncCache: signCIC,
-          diffAbsIncCache: absDiffCIC,
+          diffSignIncCache: signC,
+          diffAbsIncCache: absDiffC,
         };
         if (
           !(
@@ -712,22 +723,22 @@ function CollapsiblePatchLineNode({
                   <p className="font-semibold">{costData.title}</p>
                   {costData.baseCost !== undefined && (
                     <p>
-                      Base Cost: ${costData.baseCost.toFixed(4)} (Including
-                      cache: ${costData.baseCostIncCache.toFixed(4)})
+                      Base Cost: ${formatCost(costData.baseCost)} (Including
+                      cache: ${formatCost(costData.baseCostIncCache)})
                     </p>
                   )}
                   {costData.targetCost !== undefined && (
                     <p>
-                      Comparison Cost: ${costData.targetCost.toFixed(4)}{" "}
-                      (Including cache: ${costData.targetCostIncCache.toFixed(4)}
+                      Comparison Cost: ${formatCost(costData.targetCost)}{" "}
+                      (Including cache: ${formatCost(costData.targetCostIncCache)}
                       )
                     </p>
                   )}
                   {costData.diffSign && (
                     <p>
-                      Difference: {costData.diffSign}${costData.diffAbs}{" "}
+                      Difference: {costData.diffSign}${formatCost(costData.diffAbs)}{" "}
                       (Including cache: {costData.diffSignIncCache}$
-                      {costData.diffAbsIncCache})
+                      {formatCost(costData.diffAbsIncCache)})
                     </p>
                   )}
                 </div>

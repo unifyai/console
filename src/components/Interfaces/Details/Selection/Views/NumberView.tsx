@@ -105,7 +105,8 @@ export default function NumberView({
   splitView = false, // not used further, just included for parity
   version = "",
   comparableVersions = [],
-}: LogComparisonProps) {
+  scientificNotation = false,
+}: LogComparisonProps & { scientificNotation?: boolean }) {
   // Single vs. multiple
   const singleMode = !comparables || comparables.length === 0;
 
@@ -116,6 +117,14 @@ export default function NumberView({
 
   // Always show base if single-mode
   const baseNum = asFiniteNumber(value);
+
+  // Helper function to format numbers when scientificNotation is enabled
+  function formatNumberVal(val: number): string {
+    if (scientificNotation && val !== 0 && Math.abs(val) < 0.01) {
+      return val.toExponential(2);
+    }
+    return val.toString();
+  }
 
   // Operation: cycle through symbols
   const [opIndex, setOpIndex] = useState(0);
@@ -155,7 +164,7 @@ export default function NumberView({
           {!versionEmpty && <p className="font-semibold">Value</p>}
           <div className="flex border rounded p-2 relative group">
             <div>
-              <p className="text-sm">{baseNum}</p>
+              <p className="text-sm">{formatNumberVal(baseNum)}</p>
             </div>
             <CopyButton
               className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
@@ -225,7 +234,7 @@ export default function NumberView({
                     content={String(numVal)}
                     copyMessage="Copied number!"
                   />
-                  <p className="text-sm mt-2">{numVal}</p>
+                  <p className="text-sm mt-2">{formatNumberVal(numVal)}</p>
                 </div>
               </div>
             </div>
@@ -315,7 +324,7 @@ export default function NumberView({
                 <div className="relative border rounded p-2 w-fit min-w-24 text-start group">
                   <div className="flex-col items-start justify-between gap-5">
                     <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
-                    <p className="text-sm pt-5">{baseNum}</p>
+                    <p className="text-sm pt-5">{formatNumberVal(baseNum)}</p>
                   </div>
                   <CopyButton
                     className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
@@ -331,7 +340,7 @@ export default function NumberView({
                 <div className="relative border rounded p-2 w-fit min-w-24 text-start group">
                   <div className="flex-col items-start justify-between gap-5">
                     <RowBadge rowNumbers={rowNums} mode="none" />
-                    <p className="text-sm pt-5">{compVal}</p>
+                    <p className="text-sm pt-5">{formatNumberVal(compVal)}</p>
                   </div>
                   <CopyButton
                     className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
@@ -347,7 +356,7 @@ export default function NumberView({
                   <div className="flex-col items-start justify-between gap-5">
                     <p>Result</p>
                     {Number.isFinite(result) ? (
-                      <p className="text-sm pt-5">{result}</p>
+                      <p className="text-sm pt-5">{formatNumberVal(result)}</p>
                     ) : (
                       <p className="text-sm pt-5">∞</p>
                     )}

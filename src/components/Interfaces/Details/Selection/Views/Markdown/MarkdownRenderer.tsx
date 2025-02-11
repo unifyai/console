@@ -28,13 +28,6 @@ function CodeBlock({
   const codeString = String(children).replace(/\n$/, "");
   const isInline =
     providedInline !== undefined ? providedInline : (!codeString.includes("\n") && !className);
-  console.log("CodeBlock rendering:", {
-    providedInline,
-    computedInline: isInline,
-    className,
-    codeString,
-  });
-
   const { theme } = useTheme();
   const style = theme === "dark" ? oneDark : oneLight;
   const match = /language-(\w+)/.exec(className || "");
