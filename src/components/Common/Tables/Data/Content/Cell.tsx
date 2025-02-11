@@ -2,15 +2,18 @@
 
 import { useState, CSSProperties, ReactNode, Dispatch, SetStateAction } from "react";
 
-import { Header, Cell, Row, flexRender, Table } from "@tanstack/react-table";
+import { Header, Cell, Row, flexRender } from "@tanstack/react-table";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS, Transform } from "@dnd-kit/utilities";
 
 import { TableCell } from "@/components/UI/table";
 import { DraggingColumnsState } from "@/types/evals/columns";
-import { sanitizeId } from "@/utils/evals/columnOperations";
-import { ChevronRight, CornerDownLeft } from "lucide-react";
+
+import { CornerDownLeft } from "lucide-react";
 import ColumnResizer from "../Buttons/ColumnResize";
+import { Skeleton } from "@/components/UI/skeleton";
+import { sanitizeId } from "@/utils/evals/columnOperations";
+import { RowExpandingProps } from "../Buttons/RowExpanding";
 import { StateProps } from "@/types/dataTable";
 
 const DataTableCell = ({
@@ -25,6 +28,9 @@ const DataTableCell = ({
   isCellExpanded,
   setExpandedCells,
   draggingColumns,
+  RowExpanding,
+  isAnimating,
+  setExpandingRowId,
   state,
   children,
 }: {
@@ -44,6 +50,9 @@ const DataTableCell = ({
   isCellExpanded: (cell: Cell<any, unknown>) => boolean,
   setExpandedCells: Dispatch<SetStateAction<{[k: string]: boolean}>>,
   draggingColumns: DraggingColumnsState,
+  RowExpanding?: (props: RowExpandingProps) => ReactNode,
+  isAnimating: boolean,
+  setExpandingRowId: (id: string | null) => void,
   state: StateProps,
   children?: ReactNode,
 }) => {
@@ -119,13 +128,20 @@ const DataTableCell = ({
       : isSelectableCell(cell) && isAllRowSelected(cell) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : "",
   };
 
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Check if this row is grouped and has subrows that have not been populated yet
+  const hasSkeletonLogs = 'groupCount' in row.original && 
+        row.original.groupCount > 0 &&
+        !row.original.isPopulated;
+
+  // Check if this cell should show grouping controls
+  const shouldShowGrouping = cell.getIsGrouped() || 
+    ('groupCount' in row.original && row.original.groupCount > 0 && columnID === sanitizeId(row.original.groupingColumnId));
+
   if (cell.isRowSpanned) return null;
 
-  const nestedExpand = (row: Row<any>, expanded: boolean) => {
-    row.toggleExpanded(expanded)
-    if (row.subRows.length > 0)
-      row.subRows.forEach(r => nestedExpand(r, expanded))
-  }
+  const isNotUtilColumn = cell.column.columnDef.meta?.columnType !== "util";
 
   return (
     <TableCell 
@@ -142,34 +158,48 @@ const DataTableCell = ({
       className={`group/cell relative select-none ${isNewCell ? 'animate-fade-accent' : ''}`}
     >
       <div className="overflow-hidden text-nowrap text-ellipsis ...">
-        {cell.getIsGrouped() 
-          ? ( properties.includes(columnID) &&
+        {shouldShowGrouping 
+          ? (properties.includes(columnID) &&
             <div className="flex flex-row gap-2 items-center text-left truncate ... overflow-hidden">
-              <button className={`${row.getIsExpanded() ? "rotate-90" : ""} cursor-pointer`} onClick={(e) => {
-                  e.stopPropagation();
-                  nestedExpand(row, !row.getIsExpanded());
-                }}>
-                <ChevronRight/>
-              </button>
-                ({row.subRows.length}){" "}
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-            </div> ) 
-          : cell.getIsAggregated() ? (flexRender(AggregatedCell && AggregatedCell(cell, row), cell.getContext())) 
-          : cell.getIsPlaceholder() 
-              ? null // For cells with repeated values, render null 
+              {RowExpanding && (
+                RowExpanding({
+                  row,
+                  groupingColumnId: row.original.groupingColumnId,
+                  isLoading,
+                  isAnimating,
+                  onExpand: () => Promise.resolve(),
+                  setExpandingRowId,
+                })
+              )}
+              {isLoading ? (
+                <div className="flex-1">
+                  <Skeleton className="h-4 w-[100px]" />
+                </div>
+              ) : (
+                <>
+                  ({row.original.groupCount}){" "}
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </>
+              )}
+            </div>
+          ) 
+          : cell.getIsAggregated() && isNotUtilColumn
+            ? (flexRender(AggregatedCell && AggregatedCell(cell, row), cell.getContext())) 
+            : cell.getIsPlaceholder() 
+                ? null // For cells with repeated values, render null 
               : (flexRender(cell.column.columnDef.cell, cell.getContext()))
         }
       </div>
 
       <ColumnResizer column={cell.column} resizeHandler={resizeMap[cell.column.id]}/>
 
-      {ExtraCellContent && isSelectableCell(cell) && ExtraCellContent(cell, isCellExpanded, setExpandedCells)}
+      {ExtraCellContent && !hasSkeletonLogs && isSelectableCell(cell) && ExtraCellContent(cell, isCellExpanded, setExpandedCells)}
 
       {selectedCells.length > 0 && selectedCells.indexOf(cell.id) === selectedCells.length - 1 &&
         <CornerDownLeft className="absolute z-20 text-white bottom-1 right-0.5 w-5 h-3 font-bold"/>
       }
 
-      {children} 
+      {children}
     </TableCell>
   );
 };

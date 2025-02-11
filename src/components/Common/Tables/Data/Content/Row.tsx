@@ -70,6 +70,7 @@ export default function DataTableRow<TData extends LogProps | GroupedLogProps>({
                             RowExpanding={RowExpanding}
                             isAnimating={isAnimating}
                             setExpandingRowId={setExpandingRowId}
+                            state={state}
                         />
                     </SortableContext>
                 ))}
