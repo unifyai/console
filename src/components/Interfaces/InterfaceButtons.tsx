@@ -1,0 +1,217 @@
+"use client";
+
+import { Interface, TileProps } from "@/types/evals/grid";
+import { Eye } from "lucide-react";
+import { Plus } from "lucide-react";
+import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon } from "lucide-react";
+import ActionButton from "../Common/Buttons/Action";
+import BaseDropdown from "../Common/Dropdowns/Base";
+import { DropdownMenuItem } from "../UI/dropdown-menu";
+import { Context } from "@/types/evals/grid";
+import { useRouter } from "next/navigation";
+import { SetStateAction } from "react";
+import { ResponseProps } from "@/types/common";
+
+const InterfaceButtons = ({
+    mode,
+    project_,
+    interface_,
+    project,
+    pending,
+    anyTilePending,
+    context,
+    contexts,
+    items,
+    newCounter,
+    copied,
+    resetting,
+    saveSuccess,
+    hiddenItems,
+    savedInterface,
+    setItems,
+    setNewCounter,
+    setCopied,
+    setResetting,
+    setMode,
+    setFocusDialog,
+    setDataPending,
+    setContext,
+    setSaveDialog,
+    updateInterface,
+}: {
+    mode: "edit" | "interactive" | "dashboard",
+    project_: string | null,
+    interface_: string | null,
+    project: string | null,
+    pending: boolean,
+    anyTilePending: boolean,
+    context: string | undefined,
+    contexts: Context[],
+    items: TileProps[],
+    newCounter: number,
+    copied: string | undefined,
+    resetting: boolean,
+    saveSuccess: boolean | undefined,
+    hiddenItems: TileProps[],
+    savedInterface: Interface,
+    setItems: (value: SetStateAction<TileProps[]>) => void,
+    setNewCounter: (value: SetStateAction<number>) => void,
+    setCopied: (value: SetStateAction<string | undefined>) => void,
+    setResetting: (value: SetStateAction<boolean>) => void,
+    setMode: (value: SetStateAction<"edit" | "interactive" | "dashboard">) => void,
+    setFocusDialog: (value: SetStateAction<boolean>) => void,
+    setDataPending: (value: SetStateAction<boolean>) => void,
+    setContext: (value: SetStateAction<string | undefined>) => void,
+    setSaveDialog: (value: SetStateAction<boolean>) => void,
+    updateInterface: (savedInterface?: Interface | null) => Promise<ResponseProps>
+}) => {
+    const router = useRouter();
+
+    const saveIcon = saveSuccess ? <Check /> : saveSuccess == false ? <TriangleAlert /> : <Save />;
+    const resetIcon = resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
+    const variant = saveSuccess == false ? "destructive" : "outline";
+
+    return (
+        <div className="flex gap-2 items-center pl-4 pr-10">
+            <ActionButton
+                className="transition-all"
+                tooltip="Open Focus Pane"
+                icon={<FocusIcon />}
+                variant={"outline"}
+                disabled={anyTilePending || !project || !interface_ || pending}
+                onClick={() => setFocusDialog(true)}
+            />
+            <BaseDropdown
+                button={<ActionButton
+                    tooltip="Select Context"
+                    text={context || "Select Context"}
+                    variant="outline"
+                    size="sm"
+                />}
+            >
+                {[...contexts, { name: "None", description: "" }].map((ctx, idx) => <DropdownMenuItem
+                    key={idx}
+                    onSelect={() => {
+                        const newContext = ctx.name == "None" ? undefined : ctx.name;
+                        updateInterface({
+                            name: interface_ as string,
+                            project: project_ as string,
+                            context: newContext,
+                            items,
+                            new_counter: newCounter
+                        }).then(() => {
+                            setContext(newContext);
+                            setDataPending(true);
+                            router.refresh();
+                        });
+                    }}
+                    className="w-64 no-drag"
+                >
+                    {ctx.name}
+                </DropdownMenuItem>)}
+            </BaseDropdown>
+            <ActionButton
+                className="transition-all"
+                tooltip={!project ? "Select a project first" : "Save Interface"}
+                icon={saveIcon}
+                variant={variant}
+                disabled={anyTilePending || !project || !interface_ || pending}
+                onClick={async () => setSaveDialog(true)}
+            />
+            <ActionButton
+                className="transition-all"
+                tooltip={!project ? "Select a project first" : "Return to last saved interface"}
+                icon={resetIcon}
+                variant="outline"
+                disabled={anyTilePending || !project || pending}
+                onClick={async () => updateInterface(savedInterface).then(() => {
+                    setResetting(true);
+                    setMode("edit");
+                    router.refresh();
+                })}
+            />
+            <ActionButton
+                className="transition-all"
+                tooltip={(mode != "edit" || !project) ? "Select a project first" : "Add new tile"}
+                icon={<Plus />}
+                text="Add Tile"
+                variant="outline"
+                disabled={mode != "edit" || !project || pending}
+                onClick={() => {
+                    setItems([
+                        ...items,
+                        {
+                            i: "Tile_" + newCounter,
+                            x: (items.length * 2) % 12,
+                            y: (items.length * 2) / 12,
+                            w: 4,
+                            h: 4,
+                            tab: undefined,
+                            visible: true,
+                        }
+                    ]);
+                    setNewCounter(newCounter + 1);
+                }}
+            />
+            <BaseDropdown
+                button={<ActionButton
+                    variant="outline"
+                    icon={<Eye />}
+                    tooltip="Show Hidden"
+                    size="sm"
+                    disabled={hiddenItems.length == 0 || pending}
+                />}
+            >
+                {hiddenItems.map((item, idx) => <DropdownMenuItem
+                    key={idx}
+                    onSelect={() => {
+                        setItems([...items.map(
+                            it => it.i == item.i ? {
+                                ...it,
+                                x: (items.length * 2) % 12,
+                                y: (items.length * 2) / 12,
+                                w: 4,
+                                h: 4,
+                                visible: true
+                            } : { ...it }
+                        )]);
+                    }}
+                    disabled={hiddenItems.length == 0}
+                    className="w-64 no-drag"
+                >
+                    {item.i}
+                </DropdownMenuItem>)}
+            </BaseDropdown>
+            <ActionButton
+                variant="outline"
+                icon={<Clipboard />}
+                tooltip="Paste"
+                disabled={!copied || pending}
+                onClick={() => {
+                    const copiedItem = items.find(item => item.i == copied) as TileProps;
+                    setItems([
+                        ...items,
+                        { ...copiedItem, i: "Tile_" + newCounter }
+                    ]);
+                    setNewCounter(newCounter + 1);
+                    setCopied(undefined);
+                }}
+            />
+            <ActionButton
+                tooltip="Switch mode"
+                text={mode}
+                variant="outline"
+                onClick={() => {
+                    const newMode = mode == "edit"
+                        ? "interactive"
+                        : mode == "interactive"
+                            ? "dashboard"
+                            : "edit";
+                    setMode(newMode);
+                }}
+            />
+        </div>
+    )
+};
+
+export default InterfaceButtons;

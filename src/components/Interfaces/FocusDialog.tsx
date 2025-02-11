@@ -1,3 +1,5 @@
+"use client";
+
 import { DoublePanels } from "../Common/Body/DoublePanels";
 import Card from "./Card";
 import { Badge } from "../UI/badge";
