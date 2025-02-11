@@ -29,7 +29,7 @@ import {
   getEndpointChat,
   iterateStreamResponse,
 } from "@/utils/chat/chat/client";
-import MarkdownRender from "./MarkdownRender";
+import MarkdownRender from "../../Common/Code/MarkdownRender";
 import MessageHeader from "./MessageHeader";
 import { Sheet, SheetTrigger, SheetContent } from "@/components/UI/sheet";
 import EndpointsTable from "../Endpoints/Main";
