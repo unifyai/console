@@ -19,7 +19,7 @@ import TimestampView from "./Views/TimestampView";
 import ChatOutView from "./Views/ChatView/ChatOutView";
 
 import Tooltip from "@/components/Common/Misc/Tooltip";
-import { X } from "lucide-react";
+import { CircleMinus } from "lucide-react";
 
 import RawView from "./Views/RawView";
 import { isTrace, isDict, isList, isImage, isMatrix, isNumber, isTimestamp, isChat } from "@/utils/evals/selection";
@@ -253,6 +253,7 @@ export default function SelectionEntry({
   updateItem,
   onAccordionValueChange,
   onHideColumn,
+  editMode = false,
 }: {
   source?: SourceType;
   property: string;
@@ -270,6 +271,7 @@ export default function SelectionEntry({
   updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
   onAccordionValueChange?: (value: string[]) => void;
   onHideColumn?: (prop: string) => void;
+  editMode?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
 
@@ -278,6 +280,9 @@ export default function SelectionEntry({
 
   // Add a state to track if this accordion item is open
   const [isOpen, setIsOpen] = useState(false);
+
+  // New state to store previous accordion values
+  const [prevAccordionValues, setPrevAccordionValues] = useState<string[]>([]);
 
   // Gather comparables
   let comps = (comparisonLogs ?? []).map((cl) => {
@@ -295,7 +300,7 @@ export default function SelectionEntry({
   const valueType = getValueType(rawValue);
   const icon = getTypeIcon(valueType);
 
-  // “remove from selection” function
+  // "remove from selection" function
   const handleDeselectColumn = (event: React.MouseEvent) => {
     event.stopPropagation();
     if (onHideColumn) {
@@ -345,17 +350,24 @@ export default function SelectionEntry({
     <AccordionItem
       value={property}
       onDragStart={() => {
-        // if user drags, close
+        // Save the current expanded accordion values (optionally)
+        setPrevAccordionValues(typeof onAccordionValueChange === "function" ? /* read your current expanded values */ [] : []);
+        // Collapse this accordion item (and others if desired)
         onAccordionValueChange?.([]);
+      }}
+      onDragEnd={() => {
+        // Optionally restore the previous accordion expansion
+        onAccordionValueChange?.(prevAccordionValues);
       }}
     >
       <AccordionTrigger
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onClick={() => {
-          // Toggle open state when clicked
-          setIsOpen(!isOpen);
-          setExpandAll(false);
+          if (!editMode) { // In edit mode, do not allow toggling expansion.
+            setIsOpen(!isOpen);
+            setExpandAll(false);
+          }
         }}
         className="flex items-center relative group"
       >
@@ -365,7 +377,7 @@ export default function SelectionEntry({
               className="cursor-pointer inline-flex items-center transition duration-200"
               onClick={handleDeselectColumn}
             >
-              {hovered ? <X className="h-4 w-4 text-red-500" /> : icon}
+              {hovered ? <CircleMinus className="h-4 w-4 text-red-500" /> : icon}
             </span>
           </Tooltip>
           <Tooltip content={valueType}>
@@ -373,14 +385,8 @@ export default function SelectionEntry({
           </Tooltip>
         </div>
 
-        {/* Only show expand/collapse button when open */}
-        {isOpen && (valueType === "dict" || valueType === "list") && (
-          <div
-            className="
-              absolute right-5
-              flex gap-1 items-center
-            "
-          >
+        {(!editMode && isOpen && (valueType === "dict" || valueType === "list")) && (
+          <div className="absolute right-5 flex gap-1 items-center">
             <Button
               variant="ghost"
               onClick={handleExpandToggle}

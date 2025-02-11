@@ -25,7 +25,9 @@ import {
   RemoveFormatting,
   Filter,
   Columns3,
-  Rows3
+  Rows3,
+  GripVertical,
+  Grab,
 } from "lucide-react";
 import { BasePopover } from "@/components/Common/Popovers/Base";
 import { Switch } from "@/components/UI/switch";
@@ -287,6 +289,10 @@ export default function Selection({
   // 7) Let user cycle # of side-by-side panels. Each has independent state
   const [panelCount, setPanelCount] = useState(1);
   const [rawMode, setRawMode] = useState(false);
+  // NEW: Edit mode: when active, all accordions are collapsed and locked.
+  const [editMode, setEditMode] = useState(false);
+  // Save the current open accordions state so we can restore later when turning off edit mode
+  const [prevOpenAccordions, setPrevOpenAccordions] = useState<string[]>([]);
 
   // NEW: New local filter state for this Selection view:
   const [entriesFilter, setEntriesFilter] = useState<Record<string, boolean>>({});
@@ -298,12 +304,12 @@ export default function Selection({
   const baseLog = selectedRowIndices.length > 0 ? sortedLogs[selectedRowIndices[0]] : null;
   // Compute the keys for entries and params from the base log.
   const entryKeys = useMemo(() => {
-    return baseLog && baseLog.entries ? Object.keys(baseLog.entries) : [];
-  }, [baseLog]);
+    return baseLog ? Object.keys(baseLog.entries ?? {}) : [];
+  }, [baseLog, baseLog?.entries]);
 
   const paramKeys = useMemo(() => {
-    return baseLog && baseLog.params ? Object.keys(baseLog.params) : [];
-  }, [baseLog]);
+    return baseLog ? Object.keys(baseLog.params ?? {}) : [];
+  }, [baseLog, baseLog?.params]);
 
   useEffect(() => {
     setEntriesFilter((prev) => {
@@ -360,7 +366,7 @@ export default function Selection({
     return firstType === 'params' ? ['params', 'entries'] : ['entries', 'params'];
   }, [selectedCells, baseLog]);
   
-  // If no rows are selected, just show hints
+  const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
   if (!selectedRowIndices.length) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-background rounded-md">
@@ -486,7 +492,7 @@ export default function Selection({
           {/* NEW: Override button to temporarily show all columns */}
           <ActionButton
             tooltip={overrideFilter ? "Showing all columns" : "Only show enabled columns"}
-            icon={overrideFilter ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            icon={overrideFilter ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             onClick={() => setOverrideFilter(prev => !prev)}
             variant="ghost"
             size="icon"
@@ -496,6 +502,25 @@ export default function Selection({
             icon={<SquareSplitHorizontal className="h-4 w-4" />}
             onClick={() => setPanelCount((prev) => (prev === 3 ? 1 : prev + 1))}
             variant="ghost"
+            size="icon"
+          />
+          {/* NEW: Edit mode button */}
+          <ActionButton
+            tooltip={editMode ? "Edit mode active – drag and drop enabled" : "Activate edit mode for drag and drop"}
+            icon={<Grab className="h-4 w-4" />}
+            onClick={() => {
+              if (!editMode) {
+                // On entering edit mode, save current open accordions and collapse them
+                setPrevOpenAccordions(openAccordionItems);
+                setOpenAccordionItems([]);
+                setEditMode(true);
+              } else {
+                // Restore previous open states when turning off edit mode
+                setOpenAccordionItems(prevOpenAccordions);
+                setEditMode(false);
+              }
+            }}
+            variant={editMode ? "primary" : "ghost"}
             size="icon"
           />
         </div>
@@ -520,13 +545,12 @@ export default function Selection({
             paramsFilter={paramsFilter}
             overrideFilter={overrideFilter}
             selectionOrder={sectionOrder}
-            onHideEntry={(prop) =>
-              setEntriesFilter((prev) => ({ ...prev, [prop]: false }))
-            }
-            onHideParam={(prop) =>
-              setParamsFilter((prev) => ({ ...prev, [prop]: false }))
-            }
+            onHideEntry={(prop) => setEntriesFilter((prev) => ({ ...prev, [prop]: false }))}
+            onHideParam={(prop) => setParamsFilter((prev) => ({ ...prev, [prop]: false }))}
             updateItem={updateItem}
+            openAccordionItems={openAccordionItems}
+            setOpenAccordionItems={setOpenAccordionItems}
+            editMode={editMode}
           />
         ))}
       </div>
@@ -556,6 +580,9 @@ function SelectionPanel({
   onHideEntry,
   onHideParam,
   updateItem,
+  openAccordionItems,
+  setOpenAccordionItems,
+  editMode,
 }: {
   panelId: number;
   params: Record<string, unknown>;
@@ -574,6 +601,9 @@ function SelectionPanel({
   onHideEntry: (prop: string) => void;
   onHideParam: (prop: string) => void;
   updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
+  openAccordionItems: string[];
+  setOpenAccordionItems: React.Dispatch<React.SetStateAction<string[]>>;
+  editMode: boolean;
 }) {
 
   // 1) local state: pick a base row among the selected rowIndices
@@ -637,8 +667,13 @@ function SelectionPanel({
   ) as LogProps[];
 
   // gather keys => default expansions
-  const entryKeys = baseLog ? Object.keys(baseLog.entries) : [];
-  const paramKeys = baseLog ? Object.keys(baseLog.params) : [];
+  const entryKeys = useMemo(() => {
+    return baseLog ? Object.keys(baseLog.entries ?? {}) : [];
+  }, [baseLog, baseLog?.entries]);
+
+  const paramKeys = useMemo(() => {
+    return baseLog ? Object.keys(baseLog.params ?? {}) : [];
+  }, [baseLog, baseLog?.params]);
 
   const defaultOpenEntries = useMemo(() => {
     if (!baseLog) return [];
@@ -760,11 +795,11 @@ function SelectionPanel({
           </div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleEntryDragEnd}>
             <SortableContext items={entryOrder} strategy={verticalListSortingStrategy}>
-              <Accordion type="multiple" value={openItems} onValueChange={setOpenItems}>
+              <Accordion type="multiple" value={openAccordionItems} onValueChange={editMode ? () => {} : setOpenAccordionItems}>
                 {entryOrder
                   .filter(col => overrideFilter || entriesFilter[col] !== false)
                   .map((col) => (
-                    <SortableAccordionItem key={col} id={col}>
+                    <SortableAccordionItem key={col} id={col} editMode={editMode}>
                       <SelectionEntry
                         source="entries"
                         property={col}
@@ -779,6 +814,8 @@ function SelectionPanel({
                         onHideColumn={onHideEntry}
                         tableItem={tableItem}
                         updateItem={updateItem}
+                        onAccordionValueChange={setOpenAccordionItems}
+                        editMode={editMode}
                       />
                     </SortableAccordionItem>
                   ))}
@@ -805,7 +842,7 @@ function SelectionPanel({
           </div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleParamDragEnd}>
             <SortableContext items={paramOrder} strategy={verticalListSortingStrategy}>
-              <Accordion type="multiple" value={openParamItems} onValueChange={setOpenParamItems}>
+              <Accordion type="multiple" value={openAccordionItems} onValueChange={editMode ? () => {} : setOpenAccordionItems}>
                 {paramOrder
                   .filter(col => overrideFilter || paramsFilter[col] !== false)
                   .map((col) => {
@@ -837,7 +874,7 @@ function SelectionPanel({
                       return "";
                     });
                     return (
-                      <SortableAccordionItem key={col} id={col}>
+                      <SortableAccordionItem key={col} id={col} editMode={editMode}>
                         <SelectionEntry
                           source="params"
                           property={col}
@@ -854,6 +891,8 @@ function SelectionPanel({
                           onHideColumn={onHideParam}
                           tableItem={tableItem}
                           updateItem={updateItem}
+                          onAccordionValueChange={setOpenAccordionItems}
+                          editMode={editMode}
                         />
                       </SortableAccordionItem>
                     );
@@ -941,18 +980,31 @@ function SelectionPanel({
 function SortableAccordionItem({
   id,
   children,
+  editMode,
 }: {
   id: string;
   children: React.ReactNode;
+  editMode?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    minHeight: "48px",
   };
+
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      {children}
+    <div ref={setNodeRef} style={style} className="flex items-center">
+      {/* DRAG HANDLE: shown when edit mode is active */}
+      {editMode && (
+        <div className="drag-handle p-2 cursor-grab" {...attributes} {...listeners}>
+          <GripVertical className="h-4 w-4 text-primary" />
+        </div>
+      )}
+      {/* Accordion content */}
+      <div className={editMode ? "flex-1 ml-0" : "flex-1 ml-2"}>
+        {children}
+      </div>
     </div>
   );
 }
