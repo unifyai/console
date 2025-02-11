@@ -35,6 +35,7 @@ import ChatView from "../ChatView";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/UI/hover-card";
 import TimelineViewButton from "./TimelineView";
 import { formatTime } from "@/utils/evals/format";
+import { DoublePanels } from "@/components/Common/Body/DoublePanels";
 
 /*------------------------------------------------------------------------
   Helper functions for compressing row indices => "1-3,5,7-9", etc.
@@ -1013,46 +1014,54 @@ export default function UnifiedTraceView({
 
   return (
     <div className="bg-background rounded-md w-full h-full p-4 flex flex-col gap-4">
-      <div style={{ display: "flex", gap: "1rem", height: "600px" }}>
-        <div
-          style={{
-            flex: "0 0 300px",
-            border: "1px solid var(--muted)",
-            borderRadius: "0.25rem",
-            position: "relative",
-            overflowY: "auto",
-          }}
-        >
-          {rowIndexes.length > 1 && (
-            <div className="sticky top-0 bg-background p-2 border-b border-muted space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground font-semibold block">
-                  Compare with:
-                </span>
-                <Combobox
-                  items={groupOptions}
-                  value={groupSignature}
-                  onValueChange={handleGroupChange}
-                  placeholder="Pick a group..."
-                  className="w-fit items-center"
-                />
-              </div>
+      <div style={{ height: "600px" }}>
+        <DoublePanels
+          isLoading={false}
+          defaultFirstSize={30}
+          defaultSecondSize={70}
+          first={
+            <div
+              style={{
+                height: "100%",
+                border: "1px solid var(--muted)",
+                borderRadius: "0.25rem",
+                position: "relative",
+                overflowY: "auto",
+              }}
+            >
+              {rowIndexes.length > 1 && (
+                <div className="sticky top-0 bg-background p-2 border-b border-muted space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground font-semibold block">
+                      Compare with:
+                    </span>
+                    <Combobox
+                      items={groupOptions}
+                      value={groupSignature}
+                      onValueChange={handleGroupChange}
+                      placeholder="Pick a group..."
+                      className="w-fit items-center"
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="p-2">{renderPatchTree()}</div>
             </div>
-          )}
-          <div className="p-2">{renderPatchTree()}</div>
-        </div>
-
-        <div
-          style={{
-            flex: "1 1 auto",
-            border: "1px solid var(--muted)",
-            borderRadius: "0.25rem",
-            overflowY: "auto",
-            padding: "0.5rem",
-          }}
-        >
-          {renderDetail()}
-        </div>
+          }
+          second={
+            <div
+              style={{
+                height: "100%",
+                border: "1px solid var(--muted)",
+                borderRadius: "0.25rem",
+                overflowY: "auto",
+                padding: "0.5rem",
+              }}
+            >
+              {renderDetail()}
+            </div>
+          }
+        />
       </div>
     </div>
   );
