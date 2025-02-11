@@ -62,24 +62,8 @@ const Card = ({
     const relevantItem = item.table ? items.find(it => it.i == item.table) : undefined;
 
     // Use a ref to compare the needed properties so we only update if something truly changed.
-    const prevPropsJson = useRef<string>("");
     useEffect(() => {
-        const newJson = JSON.stringify({
-            tab: item.tab,
-            table_type: item.table_type,
-            filters: item.filters,
-            context: item.context,
-            common_filter: item.common_filter,
-            sorting: item.sorting,
-            page_number: item.page_number,
-            metric: item.metric,
-            plot_type: item.plot_type,
-            x_axis: item.x_axis,
-            y_axis: item.y_axis,
-        });
-
-        if (item.tab != "View" && !initial && newJson !== prevPropsJson.current) {
-            prevPropsJson.current = newJson;
+        if (item.tab != "View" && !initial) {
             updateInterface().then(() => {
                 router.refresh();
             }).catch(error => {
@@ -98,9 +82,6 @@ const Card = ({
         item.plot_type,
         item.x_axis,
         item.y_axis,
-        initial,
-        updateInterface,
-        router
     ]);
 
     useEffect(() => {
