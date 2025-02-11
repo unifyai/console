@@ -425,8 +425,8 @@ function PatchDetailPanel({
       <Accordion type="multiple" defaultValue={["Inputs", "Outputs"]} className="mt-3">
         {maybeRenderBlock("Inputs", bInputs, cInputs)}
         {maybeRenderBlock("Outputs", bOutputs, cOutputs)}
-        {renderExecutionTime()}
         {maybeRenderBlock("Code", bCode, cCode)}
+        {renderExecutionTime()}
         {maybeRenderBlock("Errors", bErrors, cErrors)}
         {renderCostBlock()}
         {maybeRenderBlock("IDs", bId, cId)}
