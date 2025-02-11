@@ -287,14 +287,9 @@ export const keyTemplate = (keys: GroupingColors) => {
 }
 
 /* Function to handle tooltip positioning dynamically. Ensuring it remains within the bounds of the plot */
-const positionTooltip = (event: any, svg: any, tooltip: any, width: number, height: number) => {
-    const [x, y] = d3.pointer(event, svg);
-    const leftPadding = x >= width * 0.8 ? -100 : x < width * 0.2 ? 100 : 0;
-    const topPadding = y < height * 0.2 ? 100 : 0;
-  
-    tooltip
-    .style("left", `${x - 50 + leftPadding}px`)
-    .style("top", `${y - 100 + topPadding}px`)
+const positionTooltip = (event: any, target: any, tooltip: any) => {
+    const [x, y] = d3.pointer(event, target);  
+    tooltip.style("left", `${x - 100}px`).style("top", `${y - 50}px`)
 };
 
 /* 
@@ -436,7 +431,7 @@ export const drawBarChart = (
     };
     g.selectAll("rect.bar-item")
         .on("mouseover", (event, d) => handleMouseOver(event, d as DataLabel))
-        .on("mousemove", (event) => positionTooltip(event, svg, tooltip, width, height))
+        .on("mousemove", (event) => positionTooltip(event, event.target, tooltip))
         .on("mouseout", handleMouseOut);
 };
 
@@ -782,7 +777,7 @@ export const drawScatterPlot = (
         }
 
         tooltip.html(tooltipTemplate(hoverData)).transition().style("opacity", 1)
-        positionTooltip(event, svg, tooltip, width, height);
+        positionTooltip(event, event.target, tooltip);
 
         if (groupBy) {
             g.selectAll("circle.data-point")
@@ -810,7 +805,7 @@ export const drawScatterPlot = (
     }
 
     function moveOnPoint(event: any, data: LogProps) {
-        positionTooltip(event, svg, tooltip, width, height);
+        positionTooltip(event, event.target, tooltip);
     }
 
     // When leaving a point. Reset info card data and reset point opacity if grouped
@@ -925,6 +920,8 @@ export const drawHistogram = (
     axisPadding: number,
     selectedXAxisProperty: string | undefined,
     binCount: number,
+    setbinCount: (binCount: string) => void,
+    binCounts: number[],
     setbinCounts: (binCounts: number[]) => void,
     table: string,
     logs: LogProps[],
@@ -971,7 +968,12 @@ export const drawHistogram = (
     // Set bins
     const bins = d3.bin().thresholds(binCount)
     const buckets = bins(data)
-    setbinCounts([1, data.length])
+    if (binCounts[1] != data.length) {
+        const count = Math.min(10, data.length)
+        setbinCount(count.toString())
+        setbinCounts([1, data.length])
+        return;
+    }
 
     const [minY, maxY] = [0, d3.max(buckets, d => d.length) ?? 0]
     const y = yScale().domain([minY, maxY]).range(yRange)
@@ -1034,7 +1036,7 @@ export const drawHistogram = (
         };
   
         tooltip.html(tooltipTemplate(hoverData)).transition().style("opacity", 1);
-        positionTooltip(event, svg, tooltip, width, height);
+        positionTooltip(event, event.target, tooltip);
 
         g.selectAll("rect.hist-item")
          .filter((d: any) => d.x0 !== bin.x0 || d.x1 !== bin.x1)
@@ -1044,7 +1046,7 @@ export const drawHistogram = (
       }
 
       function moveOnHist(event: any, bin: d3.Bin<number, number>) {
-        positionTooltip(event, svg, tooltip, width, height);
+        positionTooltip(event, event.target, tooltip);
       }
       
       function leaveHist(event: any, bin: d3.Bin<number, number>) {

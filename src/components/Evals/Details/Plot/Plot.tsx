@@ -15,7 +15,7 @@ import { LogFieldsResponseProps, LogProps } from "@/types/evals/logs";
 import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram, checkLogScalability } from "@/utils/evals/plot";
 
 import PlotAxis from "./Buttons/PlotAxis";
-import { useQueryState, parseAsFloat } from "nuqs";
+import { useQueryState, parseAsFloat, parseAsString } from "nuqs";
 
 const LogsPlot = ({ logs, fields}: {
     logs: LogProps[] | undefined,
@@ -32,8 +32,8 @@ const LogsPlot = ({ logs, fields}: {
     // Plot settings
     let [plotType, setPlotType] = useQueryState("plot_type", { shallow: false });
     let [metric, setMetric] = useQueryState("plot_metric", {shallow: false, defaultValue: "mean"})
-    let [binCount, setBinCount] = useQueryState("bin_count", parseAsFloat.withDefault(1))
-    let [binCounts, setBinCounts] = useState([1])
+    let [binCount, setBinCount] = useQueryState("bin_count", parseAsString.withDefault("10"))
+    let [binCounts, setBinCounts] = useState([1, 100])
     const [showRegression, setShowRegression] = useState("false");
     plotType = plotType ? plotType : "Scatter Plot";
     let [scaleX, setScaleX] = useQueryState("plot_scale_x");
@@ -143,7 +143,9 @@ const LogsPlot = ({ logs, fields}: {
                     margins, 
                     axisPadding, 
                     selectedXAxisProperty, 
-                    binCount,
+                    +binCount,
+                    setBinCount,
+                    binCounts,
                     setBinCounts,
                     xTable,
                     logs,
@@ -203,6 +205,7 @@ const LogsPlot = ({ logs, fields}: {
         groupByProperty,
         metric,
         binCount,
+        binCounts,
         showRegression
     ]);
 
@@ -239,7 +242,7 @@ const LogsPlot = ({ logs, fields}: {
             </div>
             {plotType === "Histogram"
                     ?   <div className="absolute top-24 right-3 z-10 PlotBins">
-                            <PlotBins binCount={binCount} binCounts={binCounts} setBinCount={setBinCount} />
+                            <PlotBins binCount={+binCount} binCounts={binCounts} setBinCount={setBinCount} />
                         </div>
                     :   plotType != "Bar Chart"
                         ?   <div className="absolute top-24 right-3 z-10 PlotGroupBy">

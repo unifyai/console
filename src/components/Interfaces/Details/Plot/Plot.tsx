@@ -38,8 +38,8 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
 
     let metric = item.metric ? item.metric : "mean";
 
-    let binCount = item.bin_count ? parseFloat(item.bin_count) : 1;
-    let [binCounts, setBinCounts] = useState([1])
+    let binCount = item.bin_count ? parseFloat(item.bin_count) : 10;
+    let [binCounts, setBinCounts] = useState([1, 100])
     let showRegression = item.regression_line === "true" ? "true" : "false";
 
     let scaleX = item.plot_scale_x;
@@ -148,6 +148,8 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                     axisPadding, 
                     selectedXAxisProperty, 
                     binCount,
+                    updateItem(item, "bin_count"),
+                    binCounts,
                     setBinCounts,
                     xTable,
                     logs, 
@@ -207,6 +209,7 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
         groupByProperty,
         metric,
         binCount,
+        binCounts,
         showRegression
     ]);
 
@@ -332,7 +335,7 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                     opacity: 0,
                     zIndex: 1000
                 }}
-                className="plotTooltip absolute py-4 px-6 z-10 shadow-md rounded-lg bg-white grid grid-cols-2 gap-2 overflow-hidden max-w-[500px] max-h-[300px]"
+                className="plotTooltip grid grid-cols-2 gap-2 overflow-hidden"
             />
             <div
                 style={{ opacity: 0 }}

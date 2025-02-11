@@ -1,7 +1,7 @@
 "use client";
 
 import SettingButton from "@/components/Common/Buttons/Setting";
-import { RefreshCcw } from "lucide-react";
+import { X } from "lucide-react";
 import * as d3 from "d3";
 
 const PlotReset = ({svgRef, setSelectedXAxisProperty, setSelectedYAxisProperty, setGroupByProperty}: {
@@ -24,7 +24,7 @@ const PlotReset = ({svgRef, setSelectedXAxisProperty, setSelectedYAxisProperty, 
     };
     return (
         <SettingButton
-            icon={<RefreshCcw/>}
+            icon={<X/>}
             tooltip="Reset settings"
             onClick={onClick}
         />
