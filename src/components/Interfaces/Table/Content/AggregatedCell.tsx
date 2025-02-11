@@ -10,6 +10,8 @@ import { extractParamsValues } from "@/utils/evals/table";
 
 import { Badge } from "@/components/UI/badge";
 
+import { getLeafRows } from "@/utils/evals/common";
+
 const AggregatedCell = ({cell, row, params, metric}: {
   cell: Cell<LogProps | GroupedLogProps, unknown>, 
   row: Row<LogProps | GroupedLogProps>,
@@ -18,13 +20,13 @@ const AggregatedCell = ({cell, row, params, metric}: {
 }) => {
     const columnID = cell.column.columnDef.id!;
     const metricTooltip = `${metric} ${["dict", "list", "tuple", "str"].includes(cell.column.columnDef.meta?.dataType!) ? "length" : "value"}`;
+    const isNotUtilColumn = cell.column.columnDef.meta?.columnType !== "util";
 
     // Handle multi-level grouping
-    let leafRows;
-    if (row.subRows.some(subRow => subRow.getLeafRows().length > 0))
-      leafRows = row.subRows.map(subRow => subRow.getLeafRows()).flat()
-    else
-      leafRows = row.subRows
+    const leafRows = getLeafRows(row);
+    if (leafRows.length === 0) {
+      return null;
+    }
 
     const data = leafRows.map((leafRow) => {
       const parent = cell.column.columnDef.meta?.columnType
@@ -34,7 +36,7 @@ const AggregatedCell = ({cell, row, params, metric}: {
     const statistic = columnStatistic(columnID, metric, data);
     return (
       <div className="h-[25px] overflow-hidden text-center truncate ...">
-        {!cell.getIsPlaceholder() && cell.column.columnDef.meta?.columnType != "util" && 
+        {!cell.getIsPlaceholder() && isNotUtilColumn && 
           <Tooltip content={metricTooltip}>
             <Badge variant="primary">{`${metric[0].toUpperCase() + metric.slice(1)}:  ${statistic}`}</Badge>
           </Tooltip>

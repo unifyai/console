@@ -444,7 +444,7 @@ export const nestedColumns = (
 		const fieldType = fieldTypes[node.path] || "entry";
 		return {
 			id: `${prependPath}/${node.path}`,  // needed for grouping, showing, hiding multiple column nests
-			accessorFn: (log) => {
+			accessorFn: (log, index) => {
 				// If grouping, return the value from the log
 				if ("groupingColumnId" in log) {
 					return (log as GroupedLogProps)[(log as GroupedLogProps).groupingColumnId];
@@ -462,7 +462,14 @@ export const nestedColumns = (
 			cell: ({ cell }: { cell: Cell<LogProps | GroupedLogProps, unknown> }) => {
 				let cellValue = cell.getValue();
 
-				// Attempt to map param-based lookups if needed
+				// For grouped logs, if we haven't yet expanded a grouped row,
+				// we haven't fetched any logs for that group yet, and so we
+				// cannot display aggregated values. Thus, we simply display
+				// nothing
+				if ("groupingColumnId" in cell.row.original && !cell.row.original.isPopulated && cell.row.groupingColumnId !== cell.column.id) {
+					return null;
+				}
+
 				if (type === "params" && cellValue !== undefined && cellValue !== null) {
 					cellValue = data.params?.[node.path]?.[cellValue as string] ?? cellValue;
 				}
@@ -474,57 +481,57 @@ export const nestedColumns = (
 
 				// Depending on the dataType, format the incoming value
 				switch (dataType) {
-				case "image": {
-					if (typeof cellValue === "string") {
-						let value = cellValue.trim();
-						if (value.startsWith('"') && value.endsWith('"')) {
-							// Trim the outer quotes if they exist
-							value = value.slice(1, -1);
+					case "image": {
+						if (typeof cellValue === "string") {
+							let value = cellValue.trim();
+							if (value.startsWith('"') && value.endsWith('"')) {
+								// Trim the outer quotes if they exist
+								value = value.slice(1, -1);
+							}
+							return <ImageDisplay value={value} className="object-scale-down h-5 w-5" />;
 						}
-						return <ImageDisplay value={value} className="object-scale-down h-5 w-5" />;
+						// If not a string, fallback
+						return "Invalid Image";
 					}
-					// If not a string, fallback
-					return "Invalid Image";
-				}
 
-				case "int":
-				case "float": {
-					// Safely parse to float, if invalid or NaN display fallback
-					const numericValue = parseFloat(String(cellValue));
-					if (isNaN(numericValue)) {
-						return "–";
-					}
-					// Use a numeric formatting function if desired
-					return formatNumber(numericValue);
-				}
-
-				case "timestamp":
-				case "str": {
-					// For timestamps or generally string data, handle leading/trailing quotes
-					if (typeof cellValue === "string") {
-						let value = cellValue.trim();
-						if (value.startsWith('"') && value.endsWith('"')) {
-							value = value.slice(1, -1);
+					case "int":
+					case "float": {
+						// Safely parse to float, if invalid or NaN display fallback
+						const numericValue = parseFloat(String(cellValue));
+						if (isNaN(numericValue)) {
+							return "–";
 						}
-						return value;
+						// Use a numeric formatting function if desired
+						return formatNumber(numericValue);
 					}
-					// If not a string, at least convert to string
-					return String(cellValue);
-				}
 
-				default: {
-					// Fallback for unrecognized data types
-					// If it's an object, try JSON stringify or just display as string
+					case "timestamp":
+					case "str": {
+						// For timestamps or generally string data, handle leading/trailing quotes
+						if (typeof cellValue === "string") {
+							let value = cellValue.trim();
+							if (value.startsWith('"') && value.endsWith('"')) {
+								value = value.slice(1, -1);
+							}
+							return value;
+						}
+						// If not a string, at least convert to string
+						return String(cellValue);
+					}
+
+					default: {
+						// Fallback for unrecognized data types
+						// If it's an object, try JSON stringify or just display as string
 					if (typeof cellValue === "object") {
-						try {
-							return JSON.stringify(cellValue);
-						} catch {
+							try {
+								return JSON.stringify(cellValue);
+							} catch {
 							return String(cellValue);
+							}
 						}
+						// If it's anything else, just convert to string
+						return String(cellValue);
 					}
-					// If it's anything else, just convert to string
-					return String(cellValue);
-				}
 				}
 			},
 			meta: {

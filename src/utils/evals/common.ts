@@ -215,12 +215,11 @@ export function maybeConvertRawToGroupedLogs(
     parentId: string | null = null
 ): GroupedLogProps[] | LogProps[] {
 
-    // If raw is an array of LogProps (no more grouping needed), return it with type and isPlaceholder fields
+    // If raw is an array of LogProps (no more grouping needed), return it with type "ungrouped"
     if (Array.isArray(raw)) {
         return raw.map(log => ({
             ...log,
             type: "ungrouped",
-            isPlaceholder: false
         }));
     }
 
@@ -294,7 +293,12 @@ export function updateGroupedSubRows(
   ): GroupedLogProps[] {
     if (filters.length === 0) return logs;
 
-    const [currentColumn, currentValue] = filters[0];
+    let [currentColumn, currentValue] = filters[0];
+
+    if (currentValue.startsWith('"') && currentValue.endsWith('"')) {
+      // Trim the outer quotes if they exist
+      currentValue = currentValue.slice(1, -1);
+    }
 
     return logs.map((log) => {
       // Check if this log matches the current filter condition
