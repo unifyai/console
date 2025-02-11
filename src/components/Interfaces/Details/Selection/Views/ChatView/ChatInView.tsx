@@ -16,7 +16,7 @@ import {
 } from "@/components/UI/tabs";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 import RowBadge from "../RowBadge";
-import MarkdownRenderer from "../MarkdownRenderer";
+import MarkdownRenderer from "../Markdown/MarkdownRenderer";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 import { MessageSquare, BarChart2, FileText, Component } from "lucide-react";
 

@@ -4,7 +4,7 @@ import { ImageDisplay } from "@/utils/evals/selection";
 import { LogComparisonProps } from "./types";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 import RowBadge from "./RowBadge";
-import MarkdownRenderer from "./MarkdownRenderer";
+import MarkdownRenderer from "./Markdown/MarkdownRenderer";
 
 /**
  * Compress array of row indices (e.g. [1,2,3,5,6,8]) into "1-3,5-6,8".
@@ -85,7 +85,7 @@ function groupVersionsForRows(
 }
 
 /**
- * Minimal presence “diff” marker for images:
+ * Minimal presence "diff" marker for images:
  * If base has content, but comp = "",
  * or base is "", but comp has content => highlight as red/green.
  */
@@ -145,10 +145,10 @@ export default function ImageView({
           <div className="space-y-2">
             <p className="font-semibold">Version</p>
             {baseVer ? (
-              <div className="border rounded p-2 relative">
+              <div className="border rounded p-2 relative group">
                 <MarkdownRenderer>{baseVer}</MarkdownRenderer>
                 <CopyButton
-                  className="absolute top-1 right-1"
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   content={baseVer}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
@@ -165,7 +165,7 @@ export default function ImageView({
           {!hasImg ? (
             <p className="text-sm italic text-muted-foreground">No image</p>
           ) : (
-            <div className="border rounded p-2 bg-background">
+            <div className="border rounded p-2 bg-background group">
               <ImageDisplay value={baseSrc} />
             </div>
           )}
@@ -202,11 +202,11 @@ export default function ImageView({
                   {verGroups.map((vg, j) => (
                     <div
                       key={j}
-                      className="space-y-2 border rounded p-2 relative"
+                      className="space-y-2 border rounded p-2 relative group"
                     >
                       <RowBadge rowNumbers={vg.rows} mode="none" />
                       <CopyButton
-                        className="absolute top-2 right-2"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                         content={vg.text}
                         copyMessage="Copied version!"
                         tooltipContent="Copy version"
@@ -227,7 +227,7 @@ export default function ImageView({
 
               <div className="space-y-2">
                 <p className="font-semibold">Image</p>
-                <div className="border rounded p-2 bg-background relative">
+                <div className="border rounded p-2 bg-background relative group">
                   <RowBadge rowNumbers={rowNums} mode="none" />
                   {isValidImage(src) ? (
                     <div className="pt-2">
@@ -245,7 +245,7 @@ export default function ImageView({
     );
   }
 
-  // For lines/words/characters diff => “presence” highlight only
+  // For lines/words/characters diff => "presence" highlight only
   const { redRows, greenRows } = gatherPresenceDiffs(
     baseSrc,
     compSrcs,
@@ -294,7 +294,7 @@ export default function ImageView({
                 <p className="font-semibold">Param Version</p>
                 {verGroups.map((vg, j) => {
                   return (
-                    <div key={j} className="p-3 space-y-2 border rounded relative">
+                    <div key={j} className="p-3 space-y-2 border rounded relative group">
                       <div className="flex items-center gap-2 text-xs">
                         {vg.rows.includes(baseLogIndex) && (
                           <RowBadge
@@ -328,7 +328,7 @@ export default function ImageView({
                 <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadgeMode} />
                 <RowBadge rowNumbers={rowNums} mode={compBadgeMode} />
               </div>
-              <div className="border rounded p-2 bg-background">
+              <div className="border rounded p-2 bg-background group">
                 {isValidImage(compSrc) || isValidImage(baseSrc) ? (
                   <div className="flex flex-col gap-4">
                     {isValidImage(baseSrc) && (

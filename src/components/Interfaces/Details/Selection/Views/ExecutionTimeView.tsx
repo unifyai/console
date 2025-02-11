@@ -116,10 +116,10 @@ export default function ExecutionTimeView({
           <div className="space-y-2">
             <p className="font-semibold text-sm">Version</p>
             {version ? (
-              <div className="flex border rounded p-2 relative">
+              <div className="flex border rounded p-2 relative group">
                 <p className="text-sm">{version}</p>
                 <CopyButton
-                  className="absolute top-1 right-1"
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   content={version}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
@@ -134,10 +134,10 @@ export default function ExecutionTimeView({
           {version && (
             <p className="font-semibold text-sm">Value</p>
           )}
-          <div className="flex border rounded p-2 relative">
+          <div className="flex border rounded p-2 relative group">
             <p className="text-sm">{formatTimeNumber(baseTime)}</p>
             <CopyButton
-              className="absolute top-1 right-1"
+              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
               content={baseTime.toString()}
               copyMessage="Copied execution time!"
               tooltipContent="Copy execution time"
@@ -175,7 +175,7 @@ export default function ExecutionTimeView({
                 const isBase = r === baseLogIndex;
                 const verText = isBase ? version : (comparableVersions[comparisonLogsIndex.indexOf(r)] || "");
                 return (
-                  <div key={r} className="border rounded p-2 relative">
+                  <div key={r} className="border rounded p-2 relative group">
                     <RowBadge rowNumbers={[r]} mode="none" />
                     {verText ? (
                       <div className="pt-2">
@@ -192,10 +192,10 @@ export default function ExecutionTimeView({
         )}
         {groups.map((grp, idx) => (
           <div key={idx} className="p-3 space-y-4">
-            <div className="relative border rounded p-2">
+            <div className="relative border rounded p-2 group">
               <RowBadge rowNumbers={grp.rows} mode="none" />
               <CopyButton
-                className="absolute top-1 right-1"
+                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                 content={grp.time}
                 copyMessage="Copied execution time!"
                 tooltipContent="Copy execution time"
@@ -222,7 +222,7 @@ export default function ExecutionTimeView({
               const isBase = r === baseLogIndex;
               const verText = isBase ? version : (comparableVersions[comparisonLogsIndex.indexOf(r)] || "");
               return (
-                <div key={r} className="border rounded p-2 relative">
+                <div key={r} className="border rounded p-2 relative group">
                   <RowBadge rowNumbers={[r]} mode="none" />
                   {verText ? (
                     <div className="pt-2">
@@ -244,11 +244,11 @@ export default function ExecutionTimeView({
           return (
             <div key={idx} className="flex items-center gap-2">
               {/* Base block */}
-              <div className="flex-col min-w-24 relative border rounded p-2">
+              <div className="flex-col min-w-24 relative border rounded p-2 group">
                 <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
                 <p className="text-sm">{formatTimeNumber(baseTime)}</p>
                 <CopyButton
-                  className="absolute top-1 right-1"
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   content={baseTime.toString()}
                   copyMessage="Copied base execution time!"
                   tooltipContent="Copy base execution time"
@@ -256,23 +256,23 @@ export default function ExecutionTimeView({
               </div>
               <div className="font-bold text-xl mx-2">→</div>
               {/* Comparable block */}
-              <div className="flex-col min-w-24 relative border rounded p-2">
+              <div className="flex-col min-w-24 relative border rounded p-2 group">
                 <RowBadge rowNumbers={grp.rows} mode="none" />
                 <p className="text-sm">{grp.formatted}</p>
                 <CopyButton
-                  className="absolute top-1 right-1"
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   content={grp.formatted}
                   copyMessage="Copied execution time!"
                   tooltipContent="Copy execution time"
                 />
               </div>
               <div className="font-bold text-xl mx-2">=</div>
-              {/* Diff block - simplified to just show the diff string */}
-              <div className="flex-col min-w-24 relative border rounded p-2">
+              {/* Diff block */}
+              <div className="flex-col min-w-24 relative border rounded p-2 group">
                 <p className="text-sm">Diff</p>
                 <p className="text-sm">{diffStr}</p>
                 <CopyButton
-                  className="absolute top-1 right-1"
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   content={diffStr}
                   copyMessage="Copied diff!"
                   tooltipContent="Copy diff"

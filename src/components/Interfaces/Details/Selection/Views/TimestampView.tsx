@@ -4,7 +4,7 @@ import React from "react";
 import { LogComparisonProps } from "./types";
 import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
-import MarkdownRenderer from "./MarkdownRenderer";
+import MarkdownRenderer from "./Markdown/MarkdownRenderer";
 
 /**
  * parseTimestamp: Convert a string to a Date. If invalid, returns null.
@@ -87,12 +87,12 @@ export default function TimestampView({
           <div className="space-y-2">
             <p className="font-semibold text-sm">Version</p>
             {baseVer ? (
-              <div className="flex relative p-2 border rounded">
+              <div className="flex relative p-2 border rounded group">
                 <div>
                   <MarkdownRenderer>{baseVer}</MarkdownRenderer>
                 </div>
                 <CopyButton
-                  className="absolute top-1 right-1"
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   content={baseVer}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
@@ -106,12 +106,12 @@ export default function TimestampView({
 
         <div className="space-y-2">
           {!versionEmpty && <p className="font-semibold text-sm">Value</p>}
-          <div className="flex border rounded p-2 relative">
+          <div className="flex border rounded p-2 relative group">
             <div>
               <p className="text-sm">{formatHumanReadable(baseStr)}</p>
             </div>
             <CopyButton
-              className="absolute top-1 right-1"
+              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
               content={baseStr}
               copyMessage="Copied timestamp!"
               tooltipContent="Copy timestamp"
@@ -159,7 +159,7 @@ export default function TimestampView({
                         ? baseVer
                         : compVers[comparisonLogsIndex.indexOf(r)] ?? "";
                       return (
-                        <div key={r} className="border rounded p-2 relative">
+                        <div key={r} className="border rounded p-2 relative group">
                           <RowBadge rowNumbers={[r]} mode="none" />
                           {verText ? (
                             <div className="pt-2">
@@ -180,10 +180,10 @@ export default function TimestampView({
               {!versionEmpty && (
                 <p className="font-semibold text-sm">Value</p>
               )}
-              <div className="relative border rounded p-2">
+              <div className="relative border rounded p-2 group">
                 <RowBadge rowNumbers={rowNumbers} mode="none" />
                 <CopyButton
-                  className="absolute top-1 right-1"
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   content={tsVal}
                   copyMessage="Copied timestamp!"
                 />
@@ -230,7 +230,7 @@ export default function TimestampView({
                     ? baseVer
                     : compVers[comparisonLogsIndex.indexOf(r)] ?? "";
                   return (
-                    <div key={r} className="border rounded p-2 relative">
+                    <div key={r} className="border rounded p-2 relative group">
                       <RowBadge rowNumbers={[r]} mode="none" />
                       {verText ? (
                         <div className="pt-2">
@@ -253,11 +253,11 @@ export default function TimestampView({
               )}
               <div className="flex items-center gap-2">
                 {/* Base block */}
-                <div className="relative border p-2 rounded">
+                <div className="relative border p-2 rounded group">
                   <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
                   <p className="mt-4 text-sm">{formatHumanReadable(baseStr)}</p>
                   <CopyButton
-                    className="absolute top-1 right-1"
+                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     content={baseStr}
                     copyMessage="Copied timestamp!"
                   />
@@ -267,11 +267,11 @@ export default function TimestampView({
                 <div className="font-bold text-xl mx-2">→</div>
 
                 {/* Comparable block */}
-                <div className="relative border p-2 rounded">
+                <div className="relative border p-2 rounded group">
                   <RowBadge rowNumbers={rowNumbers} mode="none" />
                   <p className="mt-4 text-sm">{formatHumanReadable(compStr)}</p>
                   <CopyButton
-                    className="absolute top-1 right-1"
+                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     content={compStr}
                     copyMessage="Copied timestamp!"
                   />
@@ -281,11 +281,11 @@ export default function TimestampView({
                 <div className="font-bold text-xl mx-2">=</div>
 
                 {/* Difference block */}
-                <div className="relative border p-2 rounded min-w-24">
+                <div className="relative border p-2 rounded min-w-24 group">
                   <p className="font-semibold text-sm">Diff</p>
                   <p className="mt-4 text-sm">{diff}</p>
                   <CopyButton
-                    className="absolute top-1 right-1"
+                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     content={diff}
                     copyMessage="Copied diff!"
                   />

@@ -125,12 +125,12 @@ export default function RawView({
           <div className="space-y-2">
             <p className="font-semibold">Version</p>
             {baseVer ? (
-              <div className="flex border rounded p-2 relative">
-                <div className=" mt-1 mb-1">
-                    <p className="text-sm whitespace-pre-wrap">{baseVer}</p>
+              <div className="flex border rounded p-2 relative group">
+                <div className="mt-1 mb-1">
+                  <p className="text-sm whitespace-pre-wrap">{baseVer}</p>
                 </div>
                 <CopyButton
-                  className="absolute top-1 right-1"
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   content={baseVer}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
@@ -147,19 +147,19 @@ export default function RawView({
           {!versionEmpty && (
             <p className="font-semibold">Value</p>
           )}
-          <div className="flex border rounded p-2 relative">
-          <div className="mt-1 mb-1">
-            <p className="text-sm whitespace-pre-wrap">{baseStr}</p>
-          </div>
-          <CopyButton
-              className="absolute top-1 right-1"
+          <div className="flex border rounded p-2 relative group">
+            <div className="mt-1 mb-1">
+              <p className="text-sm whitespace-pre-wrap">{baseStr}</p>
+            </div>
+            <CopyButton
+              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
               content={baseStr}
               copyMessage="Copied!"
               tooltipContent="Copy raw text"
-          />
+            />
+          </div>
         </div>
       </div>
-    </div>
     );
   }
 
@@ -193,10 +193,10 @@ export default function RawView({
                   {versionGroups.map((vg, idx) => {
                     const vStr = vg.verText;
                     return (
-                      <div key={idx} className="space-y-2 border rounded p-2 relative">
+                      <div key={idx} className="space-y-2 border rounded p-2 relative group">
                         <RowBadge rowNumbers={vg.rows} mode="none" />
                         <CopyButton
-                          className="absolute top-1 right-1"
+                          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                           content={vStr}
                           copyMessage="Copied!"
                           tooltipContent="Copy version"
@@ -219,24 +219,23 @@ export default function RawView({
               {/* Raw text block */}
               <div className="space-y-2">
                 {!versionEmpty && (
-                    <p className="font-semibold">Value</p>
+                  <p className="font-semibold">Value</p>
                 )}
-              <div className="border rounded p-2 relative">
-                <RowBadge rowNumbers={rowNums} mode="none" />
-                <CopyButton
-                  className="absolute top-1 right-1"
-                  content={g.rawText}
-                  copyMessage="Copied!"
-                  tooltipContent="Copy raw text"
-                />
-                <div className="pt-2">
-                  <p className="text-sm whitespace-pre-wrap">{g.rawText}</p>
+                <div className="border rounded p-2 relative group">
+                  <RowBadge rowNumbers={rowNums} mode="none" />
+                  <CopyButton
+                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    content={g.rawText}
+                    copyMessage="Copied!"
+                    tooltipContent="Copy raw text"
+                  />
+                  <div className="pt-2">
+                    <p className="text-sm whitespace-pre-wrap">{g.rawText}</p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
           );
-        
         })}
       </div>
     );
@@ -282,22 +281,22 @@ export default function RawView({
                   // for any that differ from base
                   return (
                     <div key={j} className="borderspace-y-2">
-                        <div className="border rounded p-2">
+                      <div className="border rounded p-2">
                         <div className="flex items-centergap-2 gap-2 text-xs">
-                            {baseRowPresent && <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadge} />}
-                            <RowBadge rowNumbers={vg.rows.filter(r => r !== baseLogIndex)} mode={changed ? "insert" : "none"} />
+                          {baseRowPresent && <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadge} />}
+                          <RowBadge rowNumbers={vg.rows.filter(r => r !== baseLogIndex)} mode={changed ? "insert" : "none"} />
                         </div>
                         <div>
-                            <DiffViewer
+                          <DiffViewer
                             oldValue={baseVer}
                             newValue={textVal}
                             splitView={splitView}
                             hideLineNumbers={false}
                             hideMarkers
                             mode={diffMode}
-                            />
+                          />
                         </div>
-                        </div>
+                      </div>
                     </div>
                   );
                 })}
@@ -306,24 +305,24 @@ export default function RawView({
 
             {/* Diff of raw text itself */}
             <div className="space-y-2">
-                {!versionEmpty && (
-                    <p className="font-semibold">Raw Diff</p>
-                )}
-            <div className="border rounded p-2">
-            <div className="flex items-center gap-2 text-xs">
-                <RowBadge rowNumbers={[baseLogIndex]} mode={oldMode} />
-                <RowBadge rowNumbers={block.rows} mode={newMode} />
-              </div>
-              <div>
-                <DiffViewer
+              {!versionEmpty && (
+                <p className="font-semibold">Raw Diff</p>
+              )}
+              <div className="border rounded p-2">
+                <div className="flex items-center gap-2 text-xs">
+                  <RowBadge rowNumbers={[baseLogIndex]} mode={oldMode} />
+                  <RowBadge rowNumbers={block.rows} mode={newMode} />
+                </div>
+                <div>
+                  <DiffViewer
                     oldValue={baseStr}
                     newValue={block.text}
                     splitView={splitView}
                     hideLineNumbers={false}
                     hideMarkers
                     mode={diffMode}
-                />
-              </div>
+                  />
+                </div>
               </div>
             </div>
           </div>

@@ -3,7 +3,7 @@
 import React from "react";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 import { LogComparisonProps } from "./types";
-import MarkdownRenderer from "./MarkdownRenderer";
+import MarkdownRenderer from "./Markdown/MarkdownRenderer";
 import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 
@@ -160,12 +160,12 @@ export default function StringView({
           <div className="space-y-2">
             <p className="font-semibold">Version</p>
             {baseVerStr ? (
-              <div className="flex border rounded p-2 relative">
+              <div className="flex border rounded p-2 relative group">
                 <div className="mt-1 mb-1">
                   <MarkdownRenderer>{baseVerStr}</MarkdownRenderer>
                 </div>
                 <CopyButton
-                  className="absolute top-1 right-1"
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   content={baseVerStr}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
@@ -182,12 +182,12 @@ export default function StringView({
             {!versionEmpty && (
               <p className="font-semibold">Value</p>
             )}
-            <div className="flex border rounded p-2 relative">
+            <div className="flex border rounded p-2 relative group">
               <div className="mt-1 mb-1">
                 <MarkdownRenderer>{baseStr}</MarkdownRenderer>
               </div>
               <CopyButton
-                className="absolute top-1 right-1"
+                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                 content={baseStr}
                 copyMessage="Copied string!"
                 tooltipContent="Copy string"
@@ -235,18 +235,14 @@ export default function StringView({
                   <p className="font-semibold">Version</p>
                   {versionGroups.map((vg, j) => {
                     const verText = vg.text;
-                    console.log("here")
-                    console.log(verText)
-                    console.log(vg.rows)
-                    console.log(vg)
                     return (
                       <div
                         key={j}
-                        className="space-y-2 border rounded p-2 relative"
+                        className="space-y-2 border rounded p-2 relative group"
                       >
                         <RowBadge rowNumbers={vg.rows} mode="none" />
                         <CopyButton
-                          className="absolute top-1 right-1"
+                          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                           content={verText}
                           copyMessage="Copied version!"
                           tooltipContent="Copy version"
@@ -270,10 +266,10 @@ export default function StringView({
                 {!versionEmpty && (
                   <p className="font-semibold">Value</p>
                 )}
-                <div className="border rounded p-2 relative">
+                <div className="border rounded p-2 relative group">
                   <RowBadge rowNumbers={rowNums} mode="none" />
                   <CopyButton
-                    className="absolute top-1 right-1"
+                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     content={textValue}
                     copyMessage="Copied string!"
                     tooltipContent="Copy string"

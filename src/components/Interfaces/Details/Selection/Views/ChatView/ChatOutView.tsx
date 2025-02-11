@@ -16,7 +16,7 @@ import {
 } from "@/components/UI/tabs";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 import RowBadge from "../RowBadge";
-import MarkdownRenderer from "../MarkdownRenderer";
+import MarkdownRenderer from "../Markdown/MarkdownRenderer";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 
 import DictionaryView from "../DictionaryView";

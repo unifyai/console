@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { LogComparisonProps } from "./types";
 import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
-import MarkdownRenderer from "./MarkdownRenderer";
+import MarkdownRenderer from "./Markdown/MarkdownRenderer";
 
 /**
  * Convert unknown => finite number, defaulting to 0 if not finite.
@@ -18,7 +18,7 @@ function asFiniteNumber(val: unknown) {
 
 /**
  * If diffMode === "none," we show everything grouped by numeric value
- * (like StringView “none” mode). We'll gather base + comparables => map<number, rowIndices>.
+ * (like StringView "none" mode). We'll gather base + comparables => map<number, rowIndices>.
  */
 function groupAllNumbersByValue(
   baseVal: unknown,
@@ -74,10 +74,10 @@ function groupVersionsForRows(
 
 /**
  * Apply the selected symbol operation:
- * - For “−”: result = compVal − baseVal
- * - For “+”: result = compVal + baseVal
- * - For “×”: result = compVal × baseVal
- * - For “÷”: result = compVal / baseVal   (if baseVal=0 => Infinity)
+ * - For "−": result = compVal − baseVal
+ * - For "+": result = compVal + baseVal
+ * - For "×": result = compVal × baseVal
+ * - For "÷": result = compVal / baseVal   (if baseVal=0 => Infinity)
  */
 function applySymbol(baseVal: number, compVal: number, symbol: string): number {
   switch (symbol) {
@@ -134,12 +134,12 @@ export default function NumberView({
           <div className="space-y-2">
             <p className="font-semibold">Version</p>
             {baseVer ? (
-              <div className="flex p-2 relative">
+              <div className="flex p-2 relative border rounded group">
                 <div>
                   <MarkdownRenderer>{baseVer}</MarkdownRenderer>
                 </div>
                 <CopyButton
-                  className="absolute top-1 right-1"
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   content={baseVer}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
@@ -153,12 +153,12 @@ export default function NumberView({
 
         <div className="space-y-2">
           {!versionEmpty && <p className="font-semibold">Value</p>}
-          <div className="flex border rounded p-2 relative">
+          <div className="flex border rounded p-2 relative group">
             <div>
               <p className="text-sm">{baseNum}</p>
             </div>
             <CopyButton
-              className="absolute top-1 right-1"
+              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
               content={String(baseNum)}
               copyMessage="Copied number!"
               tooltipContent="Copy number"
@@ -199,7 +199,7 @@ export default function NumberView({
                   {verGroups.map((vg, j) => (
                     <div
                       key={j}
-                      className="flex border rounded p-2 relative"
+                      className="flex border rounded p-2 relative group"
                     >
                       <RowBadge rowNumbers={vg.rows} mode="none" />
                       {vg.text ? (
@@ -218,10 +218,10 @@ export default function NumberView({
 
               <div className="space-y-2">
                 {!versionEmpty && <p className="font-semibold">Value</p>}
-                <div className="border rounded p-2 bg-background relative">
+                <div className="border rounded p-2 bg-background relative group">
                   <RowBadge rowNumbers={rowNums} mode="none" />
                   <CopyButton
-                    className="absolute top-1 right-1"
+                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     content={String(numVal)}
                     copyMessage="Copied number!"
                   />
@@ -291,7 +291,7 @@ export default function NumberView({
                   return (
                     <div
                       key={j}
-                      className="p-3 border rounded relative"
+                      className="p-3 border rounded relative group"
                     >
                       <RowBadge rowNumbers={vg.rows} mode="none" />
                       {vg.text ? (
@@ -312,13 +312,13 @@ export default function NumberView({
             <div className="space-y-2">
               <div className="flex gap-4 items-center">
                 {/* Base */}
-                <div className="relative border rounded p-2 w-fit min-w-24 text-start">
+                <div className="relative border rounded p-2 w-fit min-w-24 text-start group">
                   <div className="flex-col items-start justify-between gap-5">
                     <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
                     <p className="text-sm pt-5">{baseNum}</p>
                   </div>
                   <CopyButton
-                    className="absolute top-1 right-1"
+                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     content={String(baseNum)}
                     copyMessage="Copied base!"
                   />
@@ -328,13 +328,13 @@ export default function NumberView({
                 <span className="text-xl font-bold">{currentSymbol}</span>
 
                 {/* Comparable */}
-                <div className="relative border rounded p-2 w-fit min-w-24 text-start">
+                <div className="relative border rounded p-2 w-fit min-w-24 text-start group">
                   <div className="flex-col items-start justify-between gap-5">
                     <RowBadge rowNumbers={rowNums} mode="none" />
                     <p className="text-sm pt-5">{compVal}</p>
                   </div>
                   <CopyButton
-                    className="absolute top-1 right-1"
+                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     content={String(compVal)}
                     copyMessage="Copied comp!"
                   />
@@ -343,7 +343,7 @@ export default function NumberView({
                 <span className="mx-2 text-xl font-bold">=</span>
 
                 {/* Result */}
-                <div className="relative border rounded p-2 w-fit min-w-24 text-start bg-background">
+                <div className="relative border rounded p-2 w-fit min-w-24 text-start bg-background group">
                   <div className="flex-col items-start justify-between gap-5">
                     <p>Result</p>
                     {Number.isFinite(result) ? (
@@ -353,7 +353,7 @@ export default function NumberView({
                     )}
                   </div>
                   <CopyButton
-                    className="absolute top-1 right-1"
+                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     content={String(result)}
                     copyMessage="Copied result!"
                   />

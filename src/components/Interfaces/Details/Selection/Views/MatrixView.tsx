@@ -5,7 +5,7 @@ import { LogComparisonProps } from "./types";
 import { MatrixDisplay } from "@/utils/evals/selection";
 import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
-import MarkdownRenderer from "./MarkdownRenderer";
+import MarkdownRenderer from "./Markdown/MarkdownRenderer";
 
 /**
  * Convert a matrix (array of arrays) into a single string for diffing or grouping.
@@ -127,10 +127,10 @@ export default function MatrixView({
           <div className="space-y-2">
             <p className="font-semibold">Version</p>
             {baseVer ? (
-              <div className="border rounded p-2 relative">
+              <div className="border rounded p-2 relative group">
                 <MarkdownRenderer>{baseVer}</MarkdownRenderer>
                 <CopyButton
-                  className="absolute top-1 right-1"
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   content={baseVer}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
@@ -144,8 +144,14 @@ export default function MatrixView({
 
         <div className="flex flex-col gap-2">
           <p className="font-semibold">Matrix</p>
-          <div className="space-y-2 border rounded p-2">
+          <div className="space-y-2 border rounded p-2 relative group">
             <MatrixDisplay value={value} />
+            <CopyButton
+              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              content={matrixStr}
+              copyMessage="Copied matrix!"
+              tooltipContent="Copy matrix"
+            />
           </div>
         </div>
       </div>
@@ -176,10 +182,10 @@ export default function MatrixView({
                 <div className="space-y-2">
                   <p className="font-semibold">Param Version</p>
                   {verGroups.map((vg, j) => (
-                    <div key={j} className="border rounded p-2 relative mb-2">
+                    <div key={j} className="border rounded p-2 relative group mb-2">
                       <RowBadge rowNumbers={vg.rows} mode="none" />
                       <CopyButton
-                        className="absolute top-2 right-2"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                         content={vg.text}
                         copyMessage="Copied version!"
                         tooltipContent="Copy version"
@@ -203,12 +209,18 @@ export default function MatrixView({
                 <div className="flex items-center gap-2 text-xs">
                   <RowBadge rowNumbers={rowNums} mode="none" />
                 </div>
-                <div className="border rounded p-2">
+                <div className="border rounded p-2 relative group">
                   {isValidMatrix(mat) ? (
                     <MatrixDisplay value={mat} />
                   ) : (
                     <p className="text-destructive">(Invalid matrix)</p>
                   )}
+                  <CopyButton
+                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    content={matStr}
+                    copyMessage="Copied matrix!"
+                    tooltipContent="Copy matrix"
+                  />
                 </div>
               </div>
             </div>
@@ -229,7 +241,19 @@ export default function MatrixView({
     <div className="space-y-4">
       <div>
         <h4 className="font-bold mb-2">Base Matrix (Row {baseLogIndex})</h4>
-        {isValidMatrix(value) ? <MatrixDisplay value={value} /> : <p>(Invalid)</p>}
+        {isValidMatrix(value) ? (
+          <div className="relative group">
+            <MatrixDisplay value={value} />
+            <CopyButton
+              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              content={matrixToString(value)}
+              copyMessage="Copied matrix!"
+              tooltipContent="Copy matrix"
+            />
+          </div>
+        ) : (
+          <p>(Invalid)</p>
+        )}
       </div>
 
       <div className="space-y-4 border-l pl-4 mt-2">

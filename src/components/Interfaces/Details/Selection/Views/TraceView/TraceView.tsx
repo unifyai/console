@@ -29,7 +29,6 @@ import ExecutionTimeView from "../ExecutionTimeView";
 
 import { isDict, isList, isMatrix, isImage, isNumber, isTimestamp, isChat } from "@/utils/evals/selection";
 
-import { CopyButton } from "@/components/Common/Buttons/Copy";
 import { LogComparisonProps } from "../types";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ChatView from "../ChatView";
