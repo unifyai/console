@@ -297,9 +297,7 @@ export default function Selection({
   // NEW: New local filter state for this Selection view:
   const [entriesFilter, setEntriesFilter] = useState<Record<string, boolean>>({});
   const [paramsFilter, setParamsFilter] = useState<Record<string, boolean>>({});
-  // Override flag: when true, the filter toggles are ignored (to "peek" hidden columns).
-  const [overrideFilter, setOverrideFilter] = useState(false);
-  
+
   // Compute a base log from the first selected row (if available)
   const baseLog = selectedRowIndices.length > 0 ? sortedLogs[selectedRowIndices[0]] : null;
   // Compute the keys for entries and params from the base log.
@@ -489,14 +487,6 @@ export default function Selection({
               </div>
             </div>
           </BasePopover>
-          {/* NEW: Override button to temporarily show all columns */}
-          <ActionButton
-            tooltip={overrideFilter ? "Showing all columns" : "Only show enabled columns"}
-            icon={overrideFilter ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            onClick={() => setOverrideFilter(prev => !prev)}
-            variant="ghost"
-            size="icon"
-          />
           <ActionButton
             tooltip={`Cycle panel count (currently: ${panelCount})`}
             icon={<SquareSplitHorizontal className="h-4 w-4" />}
@@ -543,7 +533,6 @@ export default function Selection({
             item={item}
             entriesFilter={entriesFilter}
             paramsFilter={paramsFilter}
-            overrideFilter={overrideFilter}
             selectionOrder={sectionOrder}
             onHideEntry={(prop) => setEntriesFilter((prev) => ({ ...prev, [prop]: false }))}
             onHideParam={(prop) => setParamsFilter((prev) => ({ ...prev, [prop]: false }))}
@@ -575,7 +564,6 @@ function SelectionPanel({
   item,
   entriesFilter,
   paramsFilter,
-  overrideFilter,
   selectionOrder,
   onHideEntry,
   onHideParam,
@@ -596,7 +584,6 @@ function SelectionPanel({
   item: TileProps;
   entriesFilter: Record<string, boolean>;
   paramsFilter: Record<string, boolean>;
-  overrideFilter: boolean;
   selectionOrder: string[];
   onHideEntry: (prop: string) => void;
   onHideParam: (prop: string) => void;
@@ -760,9 +747,9 @@ function SelectionPanel({
     setOpenParamItems(everythingOpenParams ? [] : paramKeys);
   }
 
-  // Compute visible keys based on the current filters (or override).
-  const visibleEntryKeys = entryOrder.filter(key => overrideFilter || entriesFilter[key] !== false);
-  const visibleParamKeys = paramOrder.filter(key => overrideFilter || paramsFilter[key] !== false);
+  // Update visible keys filtering by removing the override condition:
+  const visibleEntryKeys = entryOrder.filter(key => entriesFilter[key] !== false);
+  const visibleParamKeys = paramOrder.filter(key => paramsFilter[key] !== false);
 
   // if no base => show hints
   let content: JSX.Element;
@@ -795,7 +782,7 @@ function SelectionPanel({
                 onValueChange={editMode ? () => {} : setOpenItems}
               >
                 {entryOrder
-                  .filter((col) => overrideFilter || entriesFilter[col] !== false)
+                  .filter((col) => entriesFilter[col] !== false)
                   .map((col) => (
                     <SortableAccordionItem key={col} id={col} editMode={editMode}>
                       <SelectionEntry
@@ -846,7 +833,7 @@ function SelectionPanel({
                 onValueChange={editMode ? () => {} : setOpenParamItems}
               >
                 {paramOrder
-                  .filter((col) => overrideFilter || paramsFilter[col] !== false)
+                  .filter((col) => paramsFilter[col] !== false)
                   .map((col) => {
                     const baseParam = baseLog.params[col];
                     const baseDisplayValue =
