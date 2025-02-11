@@ -19,7 +19,7 @@ import TimestampView from "./Views/TimestampView";
 import ChatOutView from "./Views/ChatView/ChatOutView";
 
 import Tooltip from "@/components/Common/Misc/Tooltip";
-import { X } from "lucide-react";
+import { CircleMinus } from "lucide-react";
 
 import RawView from "./Views/RawView";
 import { isTrace, isDict, isList, isImage, isMatrix, isNumber, isTimestamp, isChat } from "@/utils/evals/selection";
@@ -377,7 +377,7 @@ export default function SelectionEntry({
               className="cursor-pointer inline-flex items-center transition duration-200"
               onClick={handleDeselectColumn}
             >
-              {hovered ? <X className="h-4 w-4 text-red-500" /> : icon}
+              {hovered ? <CircleMinus className="h-4 w-4 text-red-500" /> : icon}
             </span>
           </Tooltip>
           <Tooltip content={valueType}>
