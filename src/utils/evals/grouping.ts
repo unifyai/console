@@ -56,14 +56,19 @@ export async function onGroupExpand(
     const columnFilters: FiltersByColumn = {};
     let filterKeyCounter = 0;
 
-    // Handle Parent Filters (if any)
-    if (parentId) {
-      // Parse parent ID path to build filter parts
-      // Format: "column1:value1>column2:value2>..."
-      const parentFilters = parentId.split('>').map((part) => {
-        const [col, val] = part.split(':');
-        const sanitizedCol = sanitizeId(col);
-        const dataType = dataTypes[sanitizedCol] || "str";
+    const handleFilter = (col: string, val: string) => {
+      const sanitizedCol = sanitizeId(col);
+      const dataType = dataTypes[sanitizedCol] || "str";
+
+      if (val === '"null"') {
+        return {
+          key: filterKeyCounter++,
+          mode: "is",
+          join: "&&" as "&&" | "||",
+          value: "None",
+          column: sanitizedCol,
+        };
+      } else {
         const castedValue = castValue(val, dataType);
         return {
           key: filterKeyCounter++,
@@ -72,12 +77,22 @@ export async function onGroupExpand(
           value: castedValue,
           column: sanitizedCol,
         };
+      }
+    };
+
+    // Handle Parent Filters (if any)
+    if (parentId) {
+      // Parse parent ID path to build filter parts
+      // Format: "column1:value1>column2:value2>..."
+      const parentFilters = parentId.split('>').map((part) => {
+        const [col, val] = part.split(":");
+        return handleFilter(col, val);
       });
 
       parentFilters.forEach((filter) => {
         const combinedFilter = combineFilters(
           [{ key: filter.key, mode: filter.mode, join: filter.join, value: filter.value }],
-          ["=="]
+          [filter.mode]
         );
 
         columnFilters[filter.column] = {
@@ -88,17 +103,17 @@ export async function onGroupExpand(
     }
 
     // Add current group filter
-    const sanitizedGroupingColumnId = sanitizeId(groupingColumnId);
-    const castedGroupingValue = castValue(groupingValue, dataTypes[sanitizedGroupingColumnId] || "str");
+    const currentGroupFilter = handleFilter(groupingColumnId, groupingValue);
 
-    const currentGroupFilter = combineFilters(
-      [{ key: filterKeyCounter++, mode: "==", join: "&&", value: castedGroupingValue }],
-      ["=="]
+    const combinedCurrentFilter = combineFilters(
+      [{ key: currentGroupFilter.key, mode: currentGroupFilter.mode, join: currentGroupFilter.join, value: currentGroupFilter.value }],
+      [currentGroupFilter.mode]
     );
 
+    const sanitizedGroupingColumnId = sanitizeId(groupingColumnId);
     columnFilters[sanitizedGroupingColumnId] = {
       ...(columnFilters[sanitizedGroupingColumnId] || {}),
-      ...currentGroupFilter,
+      ...combinedCurrentFilter,
     };
 
     // Step 2: Generate Filter Expression
@@ -150,10 +165,11 @@ export async function onGroupExpand(
       logs as GroupedLogProps[],
       convertedFreshLogs,
       Object.entries(columnFilters).map(([column, value]) => {
-        const cleanedValue = value["=="]
+        const rawValue = value["=="] || value["is"];
+        const cleanedValue = rawValue
           ?.replace(/\s*(&&|\|\|)\s*/g, '')  // Remove "&&" or "||" with surrounding spaces
           .trim();                           // Trim leading/trailing whitespace
-        return [column, cleanedValue] as [string, string];
+        return [column, cleanedValue === "None" ? "null" : cleanedValue] as [string, string];
       })
     );
 
