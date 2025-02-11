@@ -24,6 +24,7 @@ const ColumnGroupBy = ({
     useEffect(() => {
         setLoading(false);
     },[data])
+    const [spinnerColor, setSpinnerColor] = useState("white");
 
     // Check if column has child columns
     const isParentColumn = column.columnDef.meta?.isParent;
@@ -34,12 +35,12 @@ const ColumnGroupBy = ({
     const states = [
         { 
             key: false, 
-            tooltip: isParentColumn ? "Group All" : "Group by", 
+            tooltip: isParentColumn ? "Group All" : "Group by",
             icon: <Group/>
         },
         { 
             key: true, 
-            tooltip: isParentColumn ? "Ungroup All" : "Ungroup by", 
+            tooltip: isParentColumn ? "Ungroup All" : "Ungroup by",
             icon: <Ungroup/>
         },
     ];
@@ -47,7 +48,7 @@ const ColumnGroupBy = ({
     const state = states.find(state => state.key === isGrouped)!;
     const tooltip = state.tooltip;
     const variant = isGrouped ? "primary" : undefined;
-    const icon = loading ? <LoaderCircle className="animate-spin text-white"/> : state.icon;
+    const icon = loading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon;
     const onClick = () => {
         if (isParentColumn) {
             const childColumns = getAllChildColumns(column);
@@ -57,6 +58,8 @@ const ColumnGroupBy = ({
                 const newGrouping = grouping.filter(
                     id => !childColumns.some(col => col.columnDef.id === id)
                 );
+                setSpinnerColor("primary");
+                setLoading(true);
                 setGrouping(newGrouping);
             } else {
                 // Add all child columns to grouping at once
@@ -64,6 +67,8 @@ const ColumnGroupBy = ({
                     ...grouping,
                     ...childColumns.map(col => col.columnDef.id).filter(id => !grouping.includes(id as string))
                 ];
+                setSpinnerColor("white");
+                setLoading(true);
                 setGrouping(newGrouping as string[]);
             }
         } else {
@@ -71,6 +76,8 @@ const ColumnGroupBy = ({
                 ? grouping.filter(id => id !== column.columnDef.id)
                 : [...grouping, column.columnDef.id];
 
+            setSpinnerColor("white");
+            setLoading(true);
             setGrouping(newGrouping as string[]);
         }
     };
