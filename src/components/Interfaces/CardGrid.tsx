@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Card from "./Card";
 import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import { FileProps, ResponseProps } from "@/types/common";
 import { DerivedEntryActions, Context, ContextActions, Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
-import { Check, Clipboard, Copy, Eye, EyeOff, Focus, Grip, ListRestart, Loader2, Maximize2, Plus, RefreshCw, Save, Trash, TriangleAlert, X } from "lucide-react";
+import { Check, Clipboard, Copy, Eye, EyeOff, FocusIcon, Grip, ListRestart, Loader2, Plus, RefreshCw, Save, Trash, TriangleAlert, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { Badge } from "../UI/badge";
 import { Dialog, DialogContent } from "../UI/dialog";
@@ -22,6 +22,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../UI/tabs";
 import { useQueryState } from "nuqs";
 import { v4 as uuidv4 } from "uuid";
 import Cookies from "js-cookie";
+import FocusDialog from "./FocusDialog";
+import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -78,7 +80,8 @@ const CardGrid = ({
 
     // modals
     const [saveDialog, setSaveDialog] = useState(false);
-    const [maxTile, setMaxTile] = useState<string>();
+    const [focusDialog, setFocusDialog] = useState(false);
+    const [maxTiles, setMaxTiles] = useState<string[]>([]);
     const [editTile, setEditTile] = useState<string>();
     const [newTileName, setNewTileName] = useState<string>();
 
@@ -107,7 +110,9 @@ const CardGrid = ({
     // other variables
     const gridRef = useRef<HTMLDivElement>(null);
     const anyTilePending = Object.entries(tilePending).some(([_, value]) => value);
-    const maxTileItem = items.find(item => item.i == maxTile) as TileProps;
+    const maxTileItems = maxTiles.map(tile => items.find(item => item.i == tile) as TileProps).concat(
+        Array(2 - maxTiles.length).fill(undefined)
+    );
     const hiddenItems = items.filter(item => !item.visible);
     const data = (projects || []).map((p) => ({ path: p, type: "file" }));
 
@@ -350,6 +355,14 @@ const CardGrid = ({
                 </div>}
 
                 <div className="flex gap-2 items-center pl-4 pr-10">
+                    <ActionButton
+                        className="transition-all"
+                        tooltip="Open Focus Pane"
+                        icon={<FocusIcon />}
+                        variant={"outline"}
+                        disabled={anyTilePending || !project || !interface_ || pending}
+                        onClick={() => setFocusDialog(true)}
+                    />
                     <BaseDropdown
                         button={<ActionButton
                             tooltip="Select Context"
@@ -549,10 +562,19 @@ const CardGrid = ({
                                         <div className="flex gap-2 mb-auto">
                                             <ActionButton
                                                 className="no-drag cursor-pointer hover:z-10"
-                                                onClick={() => setMaxTile(el.i)}
-                                                icon={<Maximize2 />}
-                                                tooltip="Maximize"
-                                                variant="outline"
+                                                onClick={() => {
+                                                    if (maxTiles.includes(el.i))
+                                                        setMaxTiles(maxTiles.filter(t => t != el.i));
+                                                    else {
+                                                        const newMaxTiles = [...maxTiles, el.i];
+                                                        if (newMaxTiles.length > 2)
+                                                            newMaxTiles.shift();
+                                                        setMaxTiles(newMaxTiles);
+                                                    }
+                                                }}
+                                                icon={<FocusIcon />}
+                                                tooltip="Add to Focus Pane"
+                                                variant={maxTiles.includes(el.i) ? "primary" : "outline"}
                                             />
                                             {mode == "edit" && <>
                                                 <ActionButton
@@ -595,13 +617,17 @@ const CardGrid = ({
                     </div>}
             </TabsContent>)}
         </Tabs>
-        {maxTile && <Dialog open={true} onOpenChange={() => setMaxTile(undefined)}>
-            <DialogContent className="min-w-full h-full">
-                <div className="p-4 overflow-auto">
-                    <Card
+        {focusDialog && <Dialog open={true} onOpenChange={() => setFocusDialog(false)}>
+            <DialogContent className="min-w-full h-full overflow-y-auto">
+                <Suspense fallback={<SkeletonLoader />}>
+                    <FocusDialog
+                        maxTileItems={maxTileItems}
                         mode={mode}
                         project={project || undefined}
-                        pending={pending || dataPending || (maxTileItem.tab == "Table" ? tilePending[maxTileItem.i] : false)}
+                        pending={pending}
+                        dataPending={dataPending}
+                        tilePending={tilePending}
+                        setTilePending={setTilePending}
                         tableNames={tableNames}
                         tableData={tableData}
                         tableArguments={tableArguments}
@@ -610,23 +636,13 @@ const CardGrid = ({
                         logsActions={logsActions}
                         derivedEntryActions={derivedEntryActions}
                         contextActions={contextActions}
-                        index={maxTileItem.i}
-                        item={maxTileItem}
                         items={items}
                         filterExpressions={filterExpressions}
                         sortingExpressions={sortingExpressions}
-                        setPending={(p: boolean) => setTilePending({ ...tilePending, [maxTileItem.i]: p })}
                         updateItem={updateItem}
                         updateInterface={updateInterface}
                     />
-                </div>
-                <Badge
-                    className="no-drag absolute top-3 left-3 z-10 cursor-pointer"
-                    variant="primary"
-                    onClick={() => mode == "edit" ? setEditTile(maxTileItem.i) : undefined}
-                >
-                    {maxTileItem.i}
-                </Badge>
+                </Suspense>
             </DialogContent>
         </Dialog>}
         {mode == "edit" && editTile && <Dialog open={true} onOpenChange={() => {
