@@ -22,14 +22,13 @@ import { SetStateProps } from "@/types/dataTable";
 import { LogProps } from "@/types/evals/logs";
 import { useCellSelection } from "@/hooks/Logs/useCellSelection";
 
-export default function DataTable<TData, TValue>({ className, interactive, data, columns, state, setState, TableTop, FooterCell, ColumnCreate, ColumnUpdate, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
+export default function DataTable<TData, TValue>({ className, interactive, data, columns, state, setState, FooterCell, ColumnCreate, ColumnUpdate, ColumnFilters, ExtraCellContent, AggregatedCell, ExtraComponents }: {
     className?: string,
     interactive?: boolean,
     data: TData[],
     columns: ColumnDef<TData, TValue>[],
     state: StateProps,
     setState: SetStateProps,
-    TableTop?: JSX.Element,
     FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>) => ReactNode,
     ColumnFilters?: (column: TanstackColumn<any | unknown>) => ReactNode;
     ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode;
@@ -110,9 +109,7 @@ export default function DataTable<TData, TValue>({ className, interactive, data,
         setSelectedCells: setState.setSelectedCells
     });
 
-    return (<div className="flex flex-col gap-2">
-        {TableTop && TableTop}
-        <div className="flex h-fit w-full">
+    return (<div className="relative flex h-fit w-full gap-2">
         <DndContext
             collisionDetection={closestCenter}
             modifiers={[restrictToHorizontalAxis]}
@@ -207,6 +204,5 @@ export default function DataTable<TData, TValue>({ className, interactive, data,
             </Table>
         </DndContext>
         {ExtraComponents && ExtraComponents(table)}
-        </div>
     </div>);
 }
