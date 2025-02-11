@@ -1,6 +1,6 @@
 "use client";
 
-import type { Cell, Header, Table } from "@tanstack/react-table";
+import type { Column, Cell, Header, Table } from "@tanstack/react-table";
 import { useState } from "react";
 import { useQueryState } from "nuqs";
 import { parseAsArrayOf, parseAsString } from "nuqs";
@@ -12,6 +12,16 @@ export type UseCellSelectionProps = {
   selectedCells: string[],
   setSelectedCells: (selectedCells: string[]) => void,
 };
+
+const isValidAdjacentTarget = (cell: Cell<any, any>) =>
+  !cell.getIsPlaceholder() &&
+  !cell.getIsAggregated() &&
+  !cell.getIsGrouped()
+const isVisibleCell = (cell: Cell<any, any>) => cell.column.getIsVisible()
+const isValidIndexSelectionTarget = (cell: Cell<any, any>) => isValidAdjacentTarget(cell) && cell.column.id != "RowNumbering"; 
+const isValidSelectionTarget = (cell: Cell<any, any>) => isValidIndexSelectionTarget(cell) && isVisibleCell(cell);
+const isRowIndexCell = (cell: Cell<any, any>) => cell.column.id === "RowNumbering"
+
 
 export const useCellSelection = ({
   table,
@@ -274,7 +284,7 @@ export const useCellSelection = ({
       const cell = target as Cell<any, any>
       if (isRowIndexCell(cell)) {
         const rowCells = cell.row.getAllCells()
-        const validCells = rowCells.filter(c => isValidSelectionTarget(c));
+        const validCells = rowCells.filter(c => isValidIndexSelectionTarget(c));
         const lastCell = validCells.at(-1)
         if (lastCell)
           selectedEndCell = getCellSelectionData(lastCell);
@@ -306,15 +316,6 @@ export const useCellSelection = ({
     );
     setSelectedCells([...prevSelectedCells, selectedStartCell, ...newCellSelection]);
   };
-
-  const isValidAdjacentTarget = (cell: Cell<any, any>) =>
-    !cell.getIsPlaceholder() &&
-    !cell.getIsAggregated() &&
-    !cell.getIsGrouped()
-  const isVisibleCell = (cell: Cell<any, any>) => cell.column.getIsVisible()
-  const isValidIndexSelectionTarget = (cell: Cell<any, any>) => isValidAdjacentTarget(cell) && cell.column.id != "RowNumbering"; 
-  const isValidSelectionTarget = (cell: Cell<any, any>) => isValidIndexSelectionTarget(cell) && isVisibleCell(cell);
-  const isRowIndexCell = (cell: Cell<any, any>) => cell.column.id === "RowNumbering"
 
   const handleCellMouseDown = (
     e: React.MouseEvent<HTMLElement>,
@@ -496,22 +497,32 @@ const getCellsBetween = (
 
   const cell1RowIndex = rows.findIndex(({ id }) => id === cell1Data.row.id);
   const cell2RowIndex = rows.findIndex(({ id }) => id === cell2Data.row.id);
-
-  const cell1ColumnIndex = cell1Data.column.getIndex();
-  const cell2ColumnIndex = cell2Data.column.getIndex();
-
   const selectedRows = rows.slice(
     Math.min(cell1RowIndex, cell2RowIndex),
     Math.max(cell1RowIndex, cell2RowIndex) + 1,
   );
 
-  const columns = table
-    .getAllLeafColumns()
-    .filter(column => column.getIsVisible())
-    .slice(
-      Math.min(cell1ColumnIndex, cell2ColumnIndex),
-      Math.max(cell1ColumnIndex, cell2ColumnIndex) + 1,
-    );
+  let cell1ColumnIndex = cell1Data.column.getIndex();
+  let cell2ColumnIndex = cell2Data.column.getIndex();
+  let columns: Column<any, unknown>[]; 
+  if ((cell2ColumnIndex < 0)) {
+    cell1ColumnIndex = 0;
+    cell2ColumnIndex = rows[0].getAllCells().length
+    columns = table
+      .getAllLeafColumns()
+      .slice(
+        Math.min(cell1ColumnIndex, cell2ColumnIndex),
+        Math.max(cell1ColumnIndex, cell2ColumnIndex) + 1,
+      );
+  } else {
+    columns = table
+      .getAllLeafColumns()
+      .filter(column => column.getIsVisible())
+      .slice(
+        Math.min(cell1ColumnIndex, cell2ColumnIndex),
+        Math.max(cell1ColumnIndex, cell2ColumnIndex) + 1,
+      );
+  }
 
   return selectedRows.flatMap((row) =>
     columns.map((column) => {
