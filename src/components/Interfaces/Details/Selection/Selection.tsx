@@ -68,7 +68,7 @@ function isTrace(val: any) {
   return false; // originally always false
 }
 function isNumber(val: any) {
-  return typeof val === "number";
+  return typeof val === "number" || val instanceof Number;
 }
 function getValueType(value: any) {
   if (isTrace(value)) return "trace";
@@ -618,7 +618,6 @@ function SelectionPanel({
   // 2) local expansions: openItems, openParamItems
   const [openItems, setOpenItems] = useState<string[]>([]);
   const [openParamItems, setOpenParamItems] = useState<string[]>([]);
-  const [didInit, setDidInit] = useState(false);
 
   // 3) diff mode & split
   type DiffMode = "none" | "lines" | "words" | "characters";
@@ -745,16 +744,11 @@ function SelectionPanel({
   }
 
   useEffect(() => {
-    if (baseLog && !didInit) {
-      if (defaultOpenEntries.length > 0) {
-        setOpenItems(defaultOpenEntries);
-      }
-      if (defaultOpenParams.length > 0) {
-        setOpenParamItems(defaultOpenParams);
-      }
-      setDidInit(true);
+    if (baseLog) {
+      setOpenItems(defaultOpenEntries);
+      setOpenParamItems(defaultOpenParams);
     }
-  }, [baseLog, didInit, defaultOpenEntries, defaultOpenParams]);
+  }, [baseLog, defaultOpenEntries, defaultOpenParams]);
 
   const everythingOpen = entryKeys.length > 0 && openItems.length === entryKeys.length;
   const everythingOpenParams = paramKeys.length > 0 && openParamItems.length === paramKeys.length;
@@ -795,9 +789,13 @@ function SelectionPanel({
           </div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleEntryDragEnd}>
             <SortableContext items={entryOrder} strategy={verticalListSortingStrategy}>
-              <Accordion type="multiple" value={openAccordionItems} onValueChange={editMode ? () => {} : setOpenAccordionItems}>
+              <Accordion
+                type="multiple"
+                value={editMode ? openAccordionItems : openItems}
+                onValueChange={editMode ? () => {} : setOpenItems}
+              >
                 {entryOrder
-                  .filter(col => overrideFilter || entriesFilter[col] !== false)
+                  .filter((col) => overrideFilter || entriesFilter[col] !== false)
                   .map((col) => (
                     <SortableAccordionItem key={col} id={col} editMode={editMode}>
                       <SelectionEntry
@@ -814,7 +812,7 @@ function SelectionPanel({
                         onHideColumn={onHideEntry}
                         tableItem={tableItem}
                         updateItem={updateItem}
-                        onAccordionValueChange={setOpenAccordionItems}
+                        onAccordionValueChange={editMode ? setOpenAccordionItems : setOpenItems}
                         editMode={editMode}
                       />
                     </SortableAccordionItem>
@@ -842,9 +840,13 @@ function SelectionPanel({
           </div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleParamDragEnd}>
             <SortableContext items={paramOrder} strategy={verticalListSortingStrategy}>
-              <Accordion type="multiple" value={openAccordionItems} onValueChange={editMode ? () => {} : setOpenAccordionItems}>
+              <Accordion
+                type="multiple"
+                value={editMode ? openAccordionItems : openParamItems}
+                onValueChange={editMode ? () => {} : setOpenParamItems}
+              >
                 {paramOrder
-                  .filter(col => overrideFilter || paramsFilter[col] !== false)
+                  .filter((col) => overrideFilter || paramsFilter[col] !== false)
                   .map((col) => {
                     const baseParam = baseLog.params[col];
                     const baseDisplayValue =
@@ -891,7 +893,7 @@ function SelectionPanel({
                           onHideColumn={onHideParam}
                           tableItem={tableItem}
                           updateItem={updateItem}
-                          onAccordionValueChange={setOpenAccordionItems}
+                          onAccordionValueChange={editMode ? setOpenAccordionItems : setOpenParamItems}
                           editMode={editMode}
                         />
                       </SortableAccordionItem>
