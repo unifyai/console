@@ -47,8 +47,8 @@ export default function DataTableRow<TData extends LogProps | GroupedLogProps>({
     isAnimating
 }: DataTableRowProps<TData>) {
     const isExpanding = expandingRowId === row.original.id;
-    const hasSkeletonSubRows = isExpanding && 'groupCount' in row.original &&  row.original.groupCount > 0 && !row.original.isPopulated;
-    const skeletonCount = hasSkeletonSubRows && 'groupCount' in row.original ? row.original.groupCount : 0;
+    const hasSkeletonSubRows = isExpanding && 'groupCount' in row.original && typeof row.original.groupCount === 'number' && row.original.groupCount > 0 && !row.original.isPopulated;
+    const skeletonCount = hasSkeletonSubRows && 'groupCount' in row.original && typeof row.original.groupCount === 'number' ? row.original.groupCount : 0;
 
     return (
         <>
@@ -78,4 +78,4 @@ export default function DataTableRow<TData extends LogProps | GroupedLogProps>({
             {hasSkeletonSubRows && renderSkeletonRows(skeletonCount)}
         </>
     );
-} 
+}

@@ -268,11 +268,11 @@ export function maybeConvertRawToGroupedLogs(
 /*
   Efficiently updates the subRows of a specific group in a nested grouping structure with new data.
 
- @param existingLogs - The current nested group structure (GroupedLogProps[])
- @param newLogs - The newly fetched group data to insert as subRows
- @param groupFilters - Array of [column, value] pairs identifying the target group
-                        (e.g., [["gender", "female"]] to identify the "female" gender group)
- @returns Updated group structure with the new subRows inserted at the correct location
+  existingLogs - The current nested group structure (GroupedLogProps[])
+  newLogs - The newly fetched group data to insert as subRows
+  groupFilters - Array of [column, value] pairs identifying the target group
+                (e.g., [["gender", "female"]] to identify the "female" gender group)
+  returns Updated group structure with the new subRows inserted at the correct location
 */
 export function updateGroupedSubRows(
   existingLogs: GroupedLogProps[],
@@ -283,9 +283,9 @@ export function updateGroupedSubRows(
     Recursive function to find and update the target group without deep cloning the entire structure.
     It immutably updates only the affected nodes.
    
-    @param logs - Current level of grouped logs
-    @param filters - Remaining filters to identify the nested group
-    @returns Updated logs with modifications applied
+    logs - Current level of grouped logs
+    filters - Remaining filters to identify the nested group
+    returns Updated logs with modifications applied
   */
   function findAndReplaceSubRows(
     logs: GroupedLogProps[],
@@ -309,7 +309,7 @@ export function updateGroupedSubRows(
             return {
               ...log,
               subRows: Array.isArray(newLogs) && newLogs.length > 0 && newLogs[0].type === "ungrouped" 
-                ? (newLogs as LogProps[]) // 🆕 Handle case when newLogs are LogProps[]
+                ? (newLogs as LogProps[]) // Handle case when newLogs are LogProps[]
                 : (newLogs as GroupedLogProps[]), // Existing behavior for GroupedLogProps[]
               isPopulated: true
             };

@@ -19,4 +19,4 @@ export function useTableGrouping(
         isGroupingUpdating,
         setIsGroupingUpdating,
     };
-} 
+}

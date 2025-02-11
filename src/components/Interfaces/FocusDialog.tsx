@@ -8,7 +8,7 @@ import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
 import { ContextActions, DerivedEntryActions, Interface, ItemType, LogsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 
-const FocusDialog = ({
+const   FocusDialog = ({
     maxTileItems,
     mode,
     project,
@@ -27,8 +27,12 @@ const FocusDialog = ({
     items,
     filterExpressions,
     sortingExpressions,
+    groupingExpressions,
+    limit,
+    offsets,
     updateItem,
     updateInterface,
+    setTableData,
 }: {
     maxTileItems: (TileProps | undefined)[],
     mode: "edit" | "interactive" | "dashboard",
@@ -48,8 +52,12 @@ const FocusDialog = ({
     items: TileProps[],
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
+    groupingExpressions: (string | null)[],
+    limit: number,
+    offsets: number[],
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: any | undefined) => void,
     updateInterface: (savedInterface?: Interface | null) => Promise<ResponseProps>,
+    setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void,
 }) => {
     const tiles = maxTileItems.map((item: TileProps | undefined) => {
         return (
@@ -72,9 +80,13 @@ const FocusDialog = ({
                     items={items}
                     filterExpressions={filterExpressions}
                     sortingExpressions={sortingExpressions}
+                    groupingExpressions={groupingExpressions}
+                    limit={limit}
+                    offsets={offsets}
                     setPending={(p: boolean) => setTilePending({ ...tilePending, [item.i]: p })}
                     updateItem={updateItem}
                     updateInterface={updateInterface}
+                    setTableData={setTableData}
                 />
                 <div className={"w-full px-2 transition-all absolute top-5 flex justify-between " + (mode == "edit" ? "h-20" : "h-10")}>
                     <div className="mb-auto">

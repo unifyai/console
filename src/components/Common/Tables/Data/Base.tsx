@@ -2,7 +2,7 @@
 
 import { useMemo, ReactNode, MouseEvent, JSX, Ref, Dispatch, SetStateAction, useState, useEffect } from "react";
 
-import { ColumnFiltersState, ColumnPinningState, ExpandedState, GroupingState, Header, SortingState, Updater, useReactTable } from "@tanstack/react-table";
+import { ColumnFiltersState, ColumnPinningState, GroupingState, Header, SortingState, Updater, useReactTable } from "@tanstack/react-table";
 import { getFilteredRowModel, getExpandedRowModel } from "@tanstack/react-table";
 import { ColumnDef, Table as TanstackTable, Column as TanstackColumn, Cell as TanstackCell, Row as TanstackRow } from "@tanstack/react-table";
 
@@ -22,7 +22,6 @@ import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 import { useCellSelection } from "@/hooks/Logs/useCellSelection";
 import { useTableGrouping } from "@/hooks/useTableGrouping";
 import { RowExpandingProps } from "./Buttons/RowExpanding";
-import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
 
 interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     className?: string;
@@ -31,7 +30,6 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     columns: ColumnDef<TData, unknown>[];
     state: StateProps;
     setState: SetStateProps;
-    TableTop?: JSX.Element;
     FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>) => ReactNode;
     ColumnFilters?: (column: TanstackColumn<any | unknown>) => ReactNode;
     ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode;
@@ -49,10 +47,10 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     columns,
     state,
     setState,
-    TableTop,
     FooterCell,
     ColumnFilters,
     ColumnCreate,
+    ColumnUpdate,
     AggregatedCell,
     ExtraCellContent,
     ExtraComponents,
@@ -96,7 +94,6 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
             state.columnVisibility, setState.setColumnVisibility, updater
         ),
         onColumnOrderChange: (updater: Updater<string[]>) => setUpdatedState(state.columnOrder, setState.setColumnOrder, updater),
-        // onExpandedChange: (updater: Updater<ExpandedState>) => setUpdatedState(state.expanded, setState.setExpanded, updater),
         // onGroupingChange: (updater: Updater<GroupingState>) => setUpdatedState(state.grouping, setState.setGrouping, updater),
         onSortingChange: (updater: Updater<SortingState>) => setUpdatedState(state.sorting, setState.setSorting, updater),
         onColumnFiltersChange: (updater: Updater<ColumnFiltersState>) => setUpdatedState(
@@ -107,7 +104,6 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         getExpandedRowModel: getExpandedRowModel(),
-        // manualExpanding: true,
         manualGrouping: true,
         manualSorting: true,
         getRowId(originalRow, index, parent) {
@@ -169,14 +165,14 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
 
     return (<div className="relative flex h-fit w-full gap-2">
                 <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                modifiers={[restrictToHorizontalAxis]}
-                onDragStart={(event) => handleDragStart(event, state.draggingColumns, setState.setDraggingColumns, table.getAllFlatColumns())}
-                onDragMove={(event) => handleDragMove(event, state.draggingColumns, setState.setDraggingColumns, table.getAllFlatColumns())}
-                onDragOver={(event) => handleDragOver(event, state.draggingColumns, setState.setDraggingColumns, table.getAllFlatColumns())}
-                onDragEnd={(event) => handleDragEnd(event, state.columnOrder, setState.setColumnOrder, state.grouping, setState.setGrouping, setState.setDraggingColumns, table.getAllFlatColumns())}
-                onDragCancel={(event) => handleDragCancel(setState.setDraggingColumns)}
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    modifiers={[restrictToHorizontalAxis]}
+                    onDragStart={(event) => handleDragStart(event, state.draggingColumns, setState.setDraggingColumns, table.getAllFlatColumns())}
+                    onDragMove={(event) => handleDragMove(event, state.draggingColumns, setState.setDraggingColumns, table.getAllFlatColumns())}
+                    onDragOver={(event) => handleDragOver(event, state.draggingColumns, setState.setDraggingColumns, table.getAllFlatColumns())}
+                    onDragEnd={(event) => handleDragEnd(event, state.columnOrder, setState.setColumnOrder, state.grouping, setState.setGrouping, setState.setDraggingColumns, table.getAllFlatColumns())}
+                    onDragCancel={(event) => handleDragCancel(setState.setDraggingColumns)}
                 >
                     <Table className={`relative w-full ${className}`} style={{ width: table.getTotalSize() }}>
                         <TableHeader className="sticky top-0 z-20 bg-background" style={{ boxShadow: '0 -4px 4px -4px gray inset' }}>
@@ -245,6 +241,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                         {/* Show skeletons under the expanding row */}
                                         {expandingRowId === row.id && 
                                          'groupCount' in row.original && 
+                                         typeof row.original.groupCount === 'number' &&
                                          row.original.groupCount > 0 &&
                                          !row.original.isPopulated &&
                                          renderSkeletonRows(row.original.groupCount)}

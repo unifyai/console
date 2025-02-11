@@ -15,7 +15,7 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, create, set
     project: string,
     currentTable: string,
     tableArguments: TableArguments,
-    logs: LogProps[] | GroupedLogProps,
+    logs: LogProps[] | GroupedLogProps[],
     create: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
     setPending: (pending: boolean) => void,
     refresh: () => Promise<ResponseProps>,

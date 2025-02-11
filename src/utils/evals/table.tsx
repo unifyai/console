@@ -13,8 +13,7 @@ import { Transform } from "@dnd-kit/utilities";
 import _ from "lodash";
 
 import { toComputableValue, computeStatistic } from "./common";
-import { LogProps, LogsResponseProps, LogItemProps, HeaderNode, GroupedLogProps, GroupedLogPropsRaw } from "@/types/evals/logs";
-import { SetStateProps, StateProps } from "@/types/dataTable";
+import { LogProps, LogsResponseProps, LogItemProps, HeaderNode, GroupedLogProps } from "@/types/evals/logs";
 import { Table } from "@tanstack/react-table";
 
 import { ImageDisplay, isImage } from "./selection";
@@ -470,7 +469,9 @@ export const nestedColumns = (
 					return null;
 				}
 
+				// Attempt to map param-based lookups if needed
 				if (type === "params" && cellValue !== undefined && cellValue !== null) {
+					// If data.params[node.path] does not exist or is undefined, handle gracefully
 					cellValue = data.params?.[node.path]?.[cellValue as string] ?? cellValue;
 				}
 

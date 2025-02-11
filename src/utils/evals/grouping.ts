@@ -1,5 +1,5 @@
 import { LogsResponseProps, LogProps, GroupedLogProps, LogFieldsResponseProps, LogFieldsProps, getLogsParameters } from "@/types/evals/logs";
-import { TileProps, TableDataProps } from "@/types/evals/grid";
+import { TileProps, TableDataProps, LogsActions } from "@/types/evals/grid";
 import { maybeConvertRawToGroupedLogs, updateGroupedSubRows } from "@/utils/evals/common";
 import { ResponseProps } from "@/types/common";
 import { sanitizeId } from "@/utils/evals/columnOperations";
@@ -17,13 +17,7 @@ export async function onGroupExpand(
   groupingExpression: string | null,
   limit: number,
   offset: number,
-  logsActions: {
-    get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number, group_depth: number | null, _timestamp: string | null) => Promise<LogsResponseProps>;
-    getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number) => Promise<string>;
-    getMetrics: (project: string, filterExpression: string | null, metricName: string, keyName: string) => Promise<number>;
-    delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>;
-    derive: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>;
-  },
+  logsActions: LogsActions,
   setExpandingRowId: (id: string | null) => void,
   setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void,
   item: TileProps,

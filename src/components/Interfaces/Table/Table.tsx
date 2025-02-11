@@ -90,6 +90,7 @@ const LogsTable = ({
 
   // We skip complicated "loading" checks to avoid the stuck spinner:
   // just show a spinner if logs are truly undefined or project is pending
+  // (for example, remove "loading" if you want). 
   const showSpinner = pending || !logs;
 
   // Get base and comparison logs
