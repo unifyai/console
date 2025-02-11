@@ -2,7 +2,7 @@
 
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
-import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps, GroupedLogProps } from "@/types/evals/logs";
+import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps, GroupedLogProps, GroupedLogPropsRaw } from "@/types/evals/logs";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -30,13 +30,15 @@ import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
 import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
-import { ItemType, TableDataItem, TileProps } from "@/types/evals/grid";
+import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
 import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
+import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data/Buttons/RowExpanding";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/common";
+import { onGroupExpand } from "@/utils/evals/grouping";
 
 const LogsTable = ({
   interactive,
@@ -46,14 +48,17 @@ const LogsTable = ({
   tableArguments,
   fields,
   tableDataItem_,
+  setTableData,
   updateItem,
   logsActions,
   derivedEntryActions,
   filterExpression,
   sortingExpression,
   groupingExpression,
+  limit,
+  offset,
   updateInterface,
-  setPending
+  setPending,
 }: {
   interactive: boolean;
   project: string | undefined;
@@ -63,13 +68,16 @@ const LogsTable = ({
   tableArguments: TableArguments;
   fields: LogFieldsResponseProps;
   tableDataItem_: TableDataItem;
+  setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void;
   updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
   logsActions: LogsActions;
   derivedEntryActions: DerivedEntryActions,
   filterExpression: string | null,
   sortingExpression: string | null,
   groupingExpression: string | null,
-  updateInterface: () => Promise<ResponseProps>
+  limit: number,
+  offset: number,
+  updateInterface: () => Promise<ResponseProps>,
   setPending: (pending: boolean) => void,
 }) => {
 
@@ -82,12 +90,14 @@ const LogsTable = ({
 
   // We skip complicated "loading" checks to avoid the stuck spinner:
   // just show a spinner if logs are truly undefined or project is pending
-  // (for example, remove "loading" if you want). 
   const showSpinner = pending || !logs;
 
   // Get base and comparison logs
   const selectedCells = item.selected ? item.selected.split(",") : [];
-  const { baseLog, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, maybeFlattenGroupedLogs(logs))
+  const { baseLog, comparisonLogs } = extractBaseAndComparisonLogs(
+    selectedCells, 
+    maybeFlattenGroupedLogs(logs)
+  );
 
   // Column definitions
   const entriesTree = buildTree(entriesProperties);
@@ -398,8 +408,8 @@ const LogsTable = ({
           {tableTop && tableTop}
           {project ? (
             <div className="relative flex-col gap-2">
-              {/* “summaryPending” can optionally show a small loader over the table if you like */}
-              <DataTable
+              {/* "summaryPending" can optionally show a small loader over the table if you like */}
+              <DataTable<LogProps | GroupedLogProps>
                 className="LogsTable"
                 interactive={interactive}
                 data={logs}
@@ -455,6 +465,36 @@ const LogsTable = ({
                     update={derivedEntryActions.update}
                     setPending={setPending}
                     refresh={() => updateInterface()}
+                  />
+                )}
+                RowExpanding={(props: RowExpandingProps) => (
+                  <RowExpanding 
+                    row={props.row}
+                    groupingColumnId={props.groupingColumnId}
+                    isLoading={props.isLoading}
+                    isAnimating={props.isAnimating}
+                    setExpandingRowId={props.setExpandingRowId}
+                    onExpand={async (groupingColumnId: string, groupingValue: string, parentId: string, setExpandingRowId: (id: string | null) => void) => {
+                      await onGroupExpand(
+                        groupingColumnId,
+                        groupingValue,
+                        parentId,
+                        project!,
+                        item.context ?? null,
+                        filterExpression,
+                        sortingExpression,
+                        groupingExpression,
+                        limit,
+                        offset,
+                        logsActions,
+                        setExpandingRowId,
+                        setTableData,
+                        item,
+                        dataTypes,
+                        fields,
+                        logs,
+                      );
+                    }}
                   />
                 )}
                 AggregatedCell={(cell, row) => (
