@@ -304,7 +304,7 @@ const LogsTable = ({
 
   // Top area: filters, page, etc.
   const tableTop = (
-    <div className="flex flex-row justify-between gap-3 LogsTablePreferences">
+    <div className="mb-2 mx-1 sticky left-0 flex flex-row justify-between gap-3 LogsTablePreferences">
       {project && columns.length > 0 && (
         <div className="flex flex-row gap-2 items-center">
           <SelectionMenu
@@ -385,6 +385,7 @@ const LogsTable = ({
         </div>
       ) : (
         <div ref={tableRef} className="w-full h-fit overflow-y-auto tutorial-logs-table">
+          {tableTop && tableTop}
           {project ? (
             <div className="relative flex-col gap-2">
               {/* “summaryPending” can optionally show a small loader over the table if you like */}
@@ -395,7 +396,6 @@ const LogsTable = ({
                 columns={columns}
                 state={state}
                 setState={setState}
-                TableTop={tableTop}
                 ColumnFilters={(column) => (
                   <ColumnFilter
                     interactive={interactive}
