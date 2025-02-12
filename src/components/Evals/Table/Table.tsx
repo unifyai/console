@@ -40,8 +40,8 @@ import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Evals/Table/Buttons/ColumnCreate";
-import { maybeFlattenGroupedLogs } from "@/utils/evals/common";
 import { DerivedEntryActions, LogsActions } from "@/types/evals/grid";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 
 const LogsTable = ({
   searchParams,

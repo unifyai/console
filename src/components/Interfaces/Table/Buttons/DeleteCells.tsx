@@ -7,7 +7,7 @@ import { ResponseProps } from "@/types/common";
 import { GroupedLogProps, LogFieldsProps, LogProps } from "@/types/evals/logs";
 import { getPartAfterFirstUnderscore } from "@/utils/evals/selection";
 import { processContext, sanitizeId } from "@/utils/evals/columnOperations";
-import { maybeFlattenGroupedLogs } from "@/utils/evals/common";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 
 const DeleteCells = ({ selectedCells, logs, deleteLogFields, context }: {
 	selectedCells: string[],

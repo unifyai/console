@@ -37,8 +37,7 @@ import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns"
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
 import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
 import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data/Buttons/RowExpanding";
-import { maybeFlattenGroupedLogs } from "@/utils/evals/common";
-import { onGroupExpand } from "@/utils/evals/grouping";
+import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 
 const LogsTable = ({
   interactive,

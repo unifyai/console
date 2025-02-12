@@ -2,7 +2,7 @@ import React from "react";
 import { DoublePanels } from "../Common/Body/DoublePanels";
 import LogsTable from "./Table/Table";
 import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedLogProps } from "@/types/evals/logs";
-import { extractLogsData, maybeFlattenGroupedLogs } from "@/utils/evals/common";
+import { extractLogsData } from "@/utils/evals/common";
 import Details from "./Details/Details";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { Suspense } from "react";
@@ -10,6 +10,7 @@ import { ResponseProps } from "@/types/common";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { DerivedEntryActions, LogsActions } from "@/types/evals/grid";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 
 const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions, derivedEntryActions }: {
 	searchParams: { project?: string, page_number?: string, metric?: string, context?: string, filters?: string, common_filter?: string, sorting?: string, plot_type?: string, x_axis?: string, y_axis?: string, plot_group_by?: string, _timestamp?: string, grouping?: string | null },

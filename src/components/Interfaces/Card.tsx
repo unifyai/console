@@ -12,7 +12,7 @@ import LogsPlot from "@/components/Interfaces/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Interfaces/Table/Table";
 import { DerivedEntryActions, ContextActions, ItemType, LogsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
-import { maybeFlattenGroupedLogs } from "@/utils/evals/common";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 
 const Card = ({
     mode,

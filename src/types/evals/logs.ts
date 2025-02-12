@@ -51,7 +51,6 @@ export interface GroupedLogProps {
     subRows: GroupedLogProps[] | LogProps[],
     isPopulated: boolean,  // Whether subRows have been populated
     groupCount: number,  // Number of unique groups under this group
-    remainingGroupBy: string[],  // Remaining group by columns after this level
 }
 
 export interface LogGroupsProps {
