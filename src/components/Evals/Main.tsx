@@ -9,6 +9,7 @@ import { Suspense } from "react";
 import { ResponseProps } from "@/types/common";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
+import { DerivedEntryActions, LogsActions } from "@/types/evals/grid";
 
 const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions, derivedEntryActions }: {
 	searchParams: { project?: string, page_number?: string, metric?: string, context?: string, filters?: string, common_filter?: string, sorting?: string, plot_type?: string, x_axis?: string, y_axis?: string, plot_group_by?: string, _timestamp?: string, grouping?: string | null },
@@ -17,18 +18,8 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 		create: (name: string) => Promise<ResponseProps>,
 		rename: (name: string, newName: string) => Promise<ResponseProps>,
 		delete: (name: string) => Promise<ResponseProps>},
-	logsActions: {
-		get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
-		getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number) => Promise<string>,
-		getMetrics: (
-			project: string, filterExpression: string | null, metricName: string, keyName: string
-		) => Promise<number>,
-		delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
-	},
-	derivedEntryActions: {
-		create: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
-		update: (project: string, key: string | null, equation: string | null, target_derived_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>
-	}
+	logsActions: LogsActions,
+	derivedEntryActions: DerivedEntryActions,
 	fieldsActions: {
 		get: (project: string) => Promise<LogFieldsResponseProps>,
 	}
@@ -99,7 +90,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 	);
 	if (project) {
 
-		logsData = await logsActions.get(project, context ?? null, filterExpression, sortingExpression, groupingExpression, null, null, limit, offset, _timestamp)
+		logsData = await logsActions.get(project, context ?? null, filterExpression, sortingExpression, groupingExpression, null, null, limit, offset, groupingExpression ? 0 : null, _timestamp)
 		totalPages = Math.ceil(logsData.count / limit);
 
 		const xAxis = context ? processContext("merge", context, searchParams.x_axis)  : searchParams.x_axis
@@ -108,12 +99,12 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 		if (xAxis) {
 			let subset = xAxis
 			if (searchParams.plot_type === "Bar Chart") 
-				plotData = await logsActions.get(project, context ?? null, filterExpression, null, null, subset, null, null, 0, _timestamp)
+				plotData = await logsActions.get(project, context ?? null, filterExpression, null, null, subset, null, null, 0, null, _timestamp)
 			else {
 				if (yAxis)
 					subset += `%26${yAxis}`
 					if (group) subset += `%26${group}`
-					plotData = await logsActions.get(project, context ?? null, filterExpression, null, null, subset, null, null, 0, _timestamp)
+					plotData = await logsActions.get(project, context ?? null, filterExpression, null, null, subset, null, null, 0, null, _timestamp)
 			}
 		}
 	}

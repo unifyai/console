@@ -41,6 +41,7 @@ import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Evals/Table/Buttons/ColumnCreate";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/common";
+import { DerivedEntryActions, LogsActions } from "@/types/evals/grid";
 
 const LogsTable = ({
   searchParams,
@@ -88,41 +89,8 @@ const LogsTable = ({
     rename: (oldName: string, newName: string) => Promise<ResponseProps>;
     delete: (name: string) => Promise<ResponseProps>;
   };
-  logsActions: {
-    get: (
-      project: string,
-      context: string | null,
-      filterExpression: string | null,
-      sortingExpression: string | null,
-      groupingExpression: string | null,
-      from_fields: string | null,
-      exclude_fields: string | null, 
-      limit: number | null,
-      offset: number,
-      _timestamp: string | null
-    ) => Promise<LogsResponseProps>;
-    getLatest: (
-      project: string,
-      context: string | null,
-      filterExpression: string | null,
-      sortingExpression: string | null,
-      from_fields: string | null,
-      exclude_fields: string | null, 
-      limit: number | null,
-      offset: number
-    ) => Promise<string>;
-    getMetrics: (
-      project: string,
-      filterExpression: string | null,
-      metricName: string,
-      keyName: string
-    ) => Promise<number>;
-    delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>;
-  };
-  derivedEntryActions: {
-    create: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
-    update: (project: string, key: string | null, equation: string | null, target_derived_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>
-  };
+  logsActions: LogsActions;
+  derivedEntryActions: DerivedEntryActions;
   fieldsActions: {
     get: (project: string, _timestamp: string | null) => Promise<LogFieldsResponseProps>,
   },
