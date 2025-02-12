@@ -377,7 +377,7 @@ export default function SelectionEntry({
               className="cursor-pointer inline-flex items-center transition duration-200"
               onClick={handleDeselectColumn}
             >
-              {hovered ? <CircleMinus className="h-4 w-4 text-red-500" /> : icon}
+              {hovered ? <CircleMinus className="h-4 w-4 text-muted-foreground2" /> : icon}
             </span>
           </Tooltip>
           <Tooltip content={valueType}>
