@@ -95,6 +95,11 @@ const Card = ({
     ]);
 
     useEffect(() => {
+        if (item.tab != "View" && !initial)
+            setPending(true);
+    }, [item.tab, item.table_type]);
+
+    useEffect(() => {
         setInitial(false);
     }, []);
 
