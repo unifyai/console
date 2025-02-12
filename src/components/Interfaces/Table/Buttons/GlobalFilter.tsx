@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Input } from "@/components/Common/Input/Content";
-import { Filter, X, LoaderCircle } from "lucide-react";
+import { FilterX, X, LoaderCircle } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 
@@ -57,10 +57,10 @@ const GlobalFilter = ({ interactive, logsFilters, commonFilter_, setLogsFilters,
                     <X size={18} onClick={() => setCommonFilter("")} className="cursor-pointer" />
                 </div> : <></>}
             </div>
-            {(logsFilters || commonFilter_) && <ActionButton
-                icon={loadingReset ? <LoaderCircle className="animate-spin text-white"/> : <Filter/>}
+            <ActionButton
+                icon={loadingReset ? <LoaderCircle className="animate-spin text-primary"/> : <FilterX/>}
                 tooltip="Reset All Filters"
-                variant={"destructive"}
+                variant={"warning_outline"}
                 onClick={() => {
                     setLogsFilters({});
                     setCommonFilter("");
@@ -68,7 +68,7 @@ const GlobalFilter = ({ interactive, logsFilters, commonFilter_, setLogsFilters,
                     setLoadingReset(true);
                 }}
                 disabled={!interactive || loadingReset}
-            />}
+            />
         </>
     );
 }
