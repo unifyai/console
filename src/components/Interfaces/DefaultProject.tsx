@@ -62,7 +62,7 @@ const DefaultProject = ({ projects, logsActions, projectActions, interfaceAction
         w: 6.0,
         h: 6.0,
         tab: "Table",
-        table: "Data Table",
+        table_type: "Data Table",
     }] as TileProps[];
     const defaultNewCounter = 1;
     const disabled = !projects || projects.includes(defaultProject);
