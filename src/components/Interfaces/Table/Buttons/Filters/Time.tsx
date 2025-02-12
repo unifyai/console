@@ -18,7 +18,7 @@ import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 
 interface TimeFilter {
     key: number,
-    mode: ">" | "<",
+    mode: ">" | "<" | "exists" | "isNone",
     join: "&&" | "||",
     value: string
 }
@@ -41,7 +41,9 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
     /* Initialize filters */
     const options = [
         {name: ">",  label: ">"  , description: "Filter for values greater than.."},
-        {name: "<",  label: "<"  , description: "Filter for values less than.."}
+        {name: "<",  label: "<"  , description: "Filter for values less than.."},
+        {name: "exists", label: "exists" , description: "Filter for existing values.."},
+        {name: "isNone", label: "isNone" , description: "Filter for none values.."}
     ]
     const modes = options.map(option => option.name)
     let defaultFilter : TimeFilter = {key: 0, mode: ">", join: "&&", value: defaultRelativeDate}
@@ -181,6 +183,56 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
         {name: "milliseconds", className: "w-[68px] border-l-0 rounded-tr-md rounded-br-md"},
     ]
     const filterRefs = useRef<Record<string, Record<string, HTMLInputElement | null>>>({});
+    const valueInput = (filter: TimeFilter, refs: Record<string, HTMLInputElement | null>) => 
+        <div className="flex flex-row">
+            {times.map((time, index) => {
+                const picker = time.name as ("year" | "month" | "day" | "hours" | "minutes" | "seconds" | "milliseconds")
+                const date = initDefaultDate(filter.value, relative)
+                const setDate = (date: AbsoluteDateString | RelativeDateString) => onInput(date, filter)
+                const ref = (element:HTMLInputElement | null) => {
+                    refs[time.name] = element
+                }
+                const prevIndex = index > 0 ? index - 1 : -1;
+                const nextIndex = index < times.length - 1 ? index + 1 : -1;
+                const onLeftFocus = () => {
+                    if (prevIndex !== -1) {
+                        refs[times[prevIndex].name]?.focus();
+                    }
+                };
+                const onRightFocus = () => {
+                    if (nextIndex !== -1) {
+                        refs[times[nextIndex].name]?.focus();
+                    }
+                };
+                const className = time.className
+                return (
+                    <DateTimeInput
+                        key={index}
+                        picker={picker}
+                        date={date}
+                        setDate={setDate}
+                        ref={ref}
+                        onLeftFocus={onLeftFocus}
+                        onRightFocus={onRightFocus}
+                        relative={relative}
+                        className={className}
+                        onEnter={onEnter}
+                    />
+                )
+            })}
+        </div>
+    const toggleInput = (filter: TimeFilter) =>     
+        <BaseButton 
+            text={filter.value} 
+            variant="outline" 
+            className="rounded-none rounded-tr-lg rounded-br-lg" 
+            onClick={() => {
+                const newFilters = [...filters]
+                newFilters.find(f => f.key === filter.key)!.value === "true" 
+                    ? newFilters.find(f => f.key === filter.key)!.value = "false"
+                    : newFilters.find(f => f.key === filter.key)!.value = "true"
+            }}
+        />
     const filterInput = (filter: TimeFilter) => {
         if (!filterRefs.current[filter.key]) {
             filterRefs.current[filter.key] = {};
@@ -194,45 +246,12 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
                 onOptionChange={(option) => {
                     const newFilters = [...filters]
                     newFilters.find(f => f.key === filter.key)!.mode = option.name as ">" | "<"
+                    if (["exists", "isNone"].includes(option.name)) {
+                        newFilters.find(f => f.key === filter.key)!.value = "true"
+                    }
                 }}
             >
-                <div className="flex flex-row">
-                    {times.map((time, index) => {
-                        const picker = time.name as ("year" | "month" | "day" | "hours" | "minutes" | "seconds" | "milliseconds")
-                        const date = initDefaultDate(filter.value, relative)
-                        const setDate = (date: AbsoluteDateString | RelativeDateString) => onInput(date, filter)
-                        const ref = (element:HTMLInputElement | null) => {
-                            refs[time.name] = element
-                        }
-                        const prevIndex = index > 0 ? index - 1 : -1;
-                        const nextIndex = index < times.length - 1 ? index + 1 : -1;
-                        const onLeftFocus = () => {
-                            if (prevIndex !== -1) {
-                                refs[times[prevIndex].name]?.focus();
-                            }
-                        };
-                        const onRightFocus = () => {
-                            if (nextIndex !== -1) {
-                                refs[times[nextIndex].name]?.focus();
-                            }
-                        };
-                        const className = time.className
-                        return (
-                        <DateTimeInput
-                            key={index}
-                            picker={picker}
-                            date={date}
-                            setDate={setDate}
-                            ref={ref}
-                            onLeftFocus={onLeftFocus}
-                            onRightFocus={onRightFocus}
-                            relative={relative}
-                            className={className}
-                            onEnter={onEnter}
-                        />
-                    )
-                    })}
-                </div>
+                {["exists", "isNone"].includes(option.name) ? toggleInput(filter) : valueInput(filter, refs)}
             </InputWithStartSelect>
         )}
     const remove = (filter: TimeFilter) =>

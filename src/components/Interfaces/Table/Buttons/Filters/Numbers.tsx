@@ -18,7 +18,7 @@ import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 
 interface NumericFilter {
     key: number,
-    mode: "==" | "!=" | ">=" | "=<" | ">" | "<",
+    mode: "==" | "!=" | ">=" | "=<" | ">" | "<" | "exists" | "isNone",
     join: "&&" | "||",
     value: string
 }
@@ -46,7 +46,9 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
         {name: ">",  label: ">"  , description: "Filter for values greater than.."},
         {name: ">=", label: ">=" , description: "Filter for values greater or equal to.."},
         {name: "<",  label: "<"  , description: "Filter for values less than.."},
-        {name: "<=", label: "<=" , description: "Filter for values less or equal to.."}
+        {name: "<=", label: "<=" , description: "Filter for values less or equal to.."},
+        {name: "exists", label: "exists" , description: "Filter for existing values.."},
+        {name: "isNone", label: "isNone" , description: "Filter for none values.."}
     ]
     const modes = options.map(option => option.name)
     const [minValue, maxValue] = [boundaries.minimums[column], boundaries.maximums[column]]
@@ -144,6 +146,28 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
                 </DropdownMenuItem>
             )}
         </BaseDropdown>
+    const valueInput = (filter: NumericFilter, option: {name: string, label: string, description: string} ) => 
+        <Input
+            className="-ms-px rounded-s-none shadow-none focus-visible:z-10"
+            placeholder={option.description}
+            type="text"
+            value={filter.value}
+            onInput={(input: any) => onInput(input.currentTarget.value, filter)}
+            onKeyDown={onEnter}
+            inputMode="decimal"
+        />
+    const toggleInput = (filter: NumericFilter) =>     
+        <BaseButton 
+            text={filter.value} 
+            variant="outline" 
+            className="rounded-none rounded-tr-lg rounded-br-lg" 
+            onClick={() => {
+                const newFilters = [...filters]
+                newFilters.find(f => f.key === filter.key)!.value === "true" 
+                    ? newFilters.find(f => f.key === filter.key)!.value = "false"
+                    : newFilters.find(f => f.key === filter.key)!.value = "true"
+            }}
+        />
     const filterInput = (filter: NumericFilter, withSlider: boolean) => {
         const option = options.find(option => option.name === filter.mode)!;
         return (
@@ -154,17 +178,12 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
                     onOptionChange={(option) => {
                         const newFilters = [...filters]
                         newFilters.find(f => f.key === filter.key)!.mode = option.name as "==" | "!="
+                        if (["exists", "isNone"].includes(option.name)) {
+                            newFilters.find(f => f.key === filter.key)!.value = "true"
+                        }
                     }}
                 >
-                    <Input
-                        className="-ms-px rounded-s-none shadow-none focus-visible:z-10"
-                        placeholder={option.description}
-                        type="text"
-                        value={filter.value}
-                        onInput={(input: any) => onInput(input.currentTarget.value, filter)}
-                        onKeyDown={onEnter}
-                        inputMode="decimal"
-                    />
+                    {["exists", "isNone"].includes(option.name) ? toggleInput(filter) : valueInput(filter, option)}
                 </InputWithStartSelect>
                 {withSlider && 
                     <div className="flex flex-col grow w-full px-2">
@@ -205,7 +224,7 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
                 {filters.map((filter, index) => 
                     <div key={index} className="grid grid-cols-8 items-center">
                         {filters.length > 0 && filter.key != 0 && <div className="col-span-1">{join(filter)}</div>}
-                        <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-6" : "col-span-7"}`}>{filterInput(filter, !["==", "!="].includes(filter.mode))}</div>
+                        <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-6" : "col-span-7"}`}>{filterInput(filter, !["==", "!=", "exists", "isNone"].includes(filter.mode))}</div>
                         <div className="col-span-1 text-center">{remove(filter)}</div>
                     </div>
                 )}

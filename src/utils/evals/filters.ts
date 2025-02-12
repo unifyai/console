@@ -116,7 +116,7 @@ function joinFunctionFilters (filter: string, fn: string, cKey: string, fields: 
 	/* Single filters: Filters with a single value per function */
 	// Handle images
 	if (fields[cKey] && fields[cKey].data_type === "image") {
-		joined = filter === "true" ? `exists(${cKey})` : `not exists(${cKey})` 
+		joined = filter === "false" ? `isNone(${cKey})` : `not isNone(${cKey})` 
 		return " and " + joined
 	}
 
@@ -139,13 +139,20 @@ function joinFunctionFilters (filter: string, fn: string, cKey: string, fields: 
 				const date = toAbsoluteDate(value as RelativeDateString)
 				value = `"${date.replace("T", " ").replace("Z", "")}"`
 			}
-
-			// Handle inclusion
-			if (["in", "not in"].includes(fn))
+			console.log("value", value)
+			// Handle isNone / exists / inclusion
+			if (fn === "isNone") {
+				joined += value.includes("true") ? `isNone(${cKey})` : `not isNone(${cKey})` 
+			}
+			else if (fn === "exists") {
+				joined += value.includes("true") ? `exists(${cKey})` : `not exists(${cKey})` 
+			}
+			else if (["in", "not in"].includes(fn)) {
 				joined += `${value} ${fn} ${cKey}`
-			else
+			}
+			else {
 				joined += `${cKey} ${fn} ${value}`
-
+			}
 		} 
 		// Append join operator
 		else {

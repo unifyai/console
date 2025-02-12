@@ -15,7 +15,7 @@ import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 
 interface StringFilter {
     key: number,
-    mode: "in" | "not in",
+    mode: "in" | "not in" | "exists" | "isNone",
     join: "&&" | "||",
     value: string
 }
@@ -38,7 +38,9 @@ const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
     /* Init filters */
     const options = [
         {name: "in", label: "Includes", description: "Filter for values included in.."},
-        {name: "not in", label: "Excludes", description: "Filter for values not included in.."}
+        {name: "not in", label: "Excludes", description: "Filter for values not included in.."},
+        {name: "exists", label: "Exists" , description: "Filter for existing values.."},
+        {name: "isNone", label: "Is None" , description: "Filter for none values.."}
     ]
     const modes = options.map(option => option.name)
     let defaultFilter : StringFilter = {key: 0, mode: "in", join: "&&", value: ""}
@@ -135,6 +137,27 @@ const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
                 </DropdownMenuItem>
             )}
         </BaseDropdown>
+    const valueInput = (filter: StringFilter, option: {name: string, label: string, description: string} ) => 
+        <Input
+            className="-ms-px rounded-s-none shadow-none focus-visible:z-10"
+            placeholder={option.description}
+            type="text"
+            value={filter.value}
+            onInput={(input: any) => onInput(input, filter)}
+            onKeyDown={onEnter}
+        />
+    const toggleInput = (filter: StringFilter) =>     
+        <BaseButton 
+            text={filter.value} 
+            variant="outline" 
+            className="rounded-none rounded-tr-lg rounded-br-lg" 
+            onClick={() => {
+                const newFilters = [...filters]
+                newFilters.find(f => f.key === filter.key)!.value === "true" 
+                    ? newFilters.find(f => f.key === filter.key)!.value = "false"
+                    : newFilters.find(f => f.key === filter.key)!.value = "true"
+            }}
+        />
     const filterInput = (filter: StringFilter) => {
         const option = options.find(option => option.name === filter.mode)!;
         return (
@@ -144,16 +167,12 @@ const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
                 onOptionChange={(option) => {
                     const newFilters = [...filters]
                     newFilters.find(f => f.key === filter.key)!.mode = option.name as "in" | "not in"
+                    if (["exists", "isNone"].includes(option.name)) {
+                        newFilters.find(f => f.key === filter.key)!.value = "true"
+                    }
                 }}
             >
-                <Input
-                    className="-ms-px rounded-s-none shadow-none focus-visible:z-10"
-                    placeholder={option.description}
-                    type="text"
-                    value={filter.value}
-                    onInput={(input: any) => onInput(input, filter)}
-                    onKeyDown={onEnter}
-                />
+                {["exists", "isNone"].includes(option.name) ? toggleInput(filter) : valueInput(filter, option)}
             </InputWithStartSelect>
         )
     }

@@ -22,7 +22,7 @@ const ImageColumnFilter = ({ interactive, column, columnFilters, setColumnFilter
     },[logs])
 
     /* Init filter */
-    const initialValue = columnFilters[column] &&columnFilters[column]["exists"] ? columnFilters[column]["exists"] : "None"
+    const initialValue = columnFilters[column] &&columnFilters[column]["isNone"] ? columnFilters[column]["isNone"] : "None"
     const [filter, setFilter] = useState<string>(initialValue);
     
     /* Event handlers */
@@ -36,7 +36,7 @@ const ImageColumnFilter = ({ interactive, column, columnFilters, setColumnFilter
             setSpinnerColor("primary")
         }
         else {
-            newColumnFilters = {...columnFilters, [column]: {"exists": newFilter}}
+            newColumnFilters = {...columnFilters, [column]: {"isNone": newFilter}}
             setSpinnerColor("white")
         }
         setFilter(newFilter)
