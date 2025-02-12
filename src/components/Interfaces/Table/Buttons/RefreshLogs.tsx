@@ -4,7 +4,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { ItemType, LogsActions, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
-import { getLogsParameters, GroupedLogProps, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
+import { getLogsParameters, GroupedLogProps, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { ResponseProps } from "@/types/common";
 import { LogProps } from "@/types/evals/logs";
@@ -43,14 +43,13 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
                     )
                     setTableDataItem((tableDataItem: TableDataItem) => {
                         const previousCells = tableDataItem.logs.flatMap(log => {
-                            const entryCells = Object.keys(log.entries).map(key => `${log.id}_${key}`)
-                            const paramCells = Object.keys(log.params).map(key => `${log.id}_${key}`)
+                            const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`)
+                            const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`)
                             return entryCells.concat(paramCells)
-                          }
-                        );
+                        });
                         let newCells = logs.flatMap(log => {
-                            const entryCells = Object.keys(log.entries).map(key => `${log.id}_${key}`)
-                            const paramCells = Object.keys(log.params).map(key => `${log.id}_${key}`)
+                            const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`)
+                            const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`)
                             return entryCells.concat(paramCells)
                           }
                         );

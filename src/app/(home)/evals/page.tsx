@@ -13,7 +13,8 @@ import {
     createProject,
     renameProject,
     createDerivedEntry,
-    updateDerivedEntry
+    updateDerivedEntry,
+    createLogs
 } from "./actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -48,6 +49,7 @@ const EvalsPage = async (
     };
 
     const logsActions = {
+        create: await createLogs(apiKey),
         get: await getLogs(apiKey),
         getMetrics: await getLogMetrics(apiKey),
         delete: await deleteLogs(apiKey),
