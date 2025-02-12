@@ -5,18 +5,20 @@ import CloseProject from "./Table/Buttons/CloseProject";
 import FileDirectory from "../Tree/Directory/FileDirectory";
 import DeleteDialog from "../Common/Dialogs/Delete";
 import { FileProps } from "@/types/common";
-import { ProjectsActions } from "@/types/evals/grid";
+import { InterfaceActions, ProjectsActions } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
 import { SetStateAction } from "react";
 
 const ProjectButtons = ({
     project,
     projects,
+    interfaces,
     data,
     refreshing,
     pending,
     dataPending,
     projectActions,
+    interfaceActions,
     setRefreshing,
     setPending,
     setDataPending,
@@ -27,11 +29,13 @@ const ProjectButtons = ({
 }: {
     project: string | null,
     projects: string[] | undefined,
+    interfaces: string[],
     data: FileProps[],
     refreshing: boolean,
     pending: boolean,
     dataPending: boolean,
     projectActions: ProjectsActions,
+    interfaceActions: InterfaceActions,
     setRefreshing: (value: SetStateAction<boolean>) => void,
     setPending: (value: SetStateAction<boolean>) => void,
     setDataPending: (value: SetStateAction<boolean>) => void,
@@ -74,7 +78,15 @@ const ProjectButtons = ({
                     <DeleteDialog
                         type="project"
                         resource={project}
-                        deletingFunction={projectActions.delete}
+                        deletingFunction={async (name: string) => {
+                            await Promise.all(interfaces.map(interface_ => interfaceActions.delete(
+                                interface_, project, true
+                            )))
+                            await Promise.all(interfaces.map(interface_ => interfaceActions.delete(
+                                interface_, project, false
+                            )))
+                            return await projectActions.delete(name);
+                        }}
                         variant="outline"
                         onDelete={() => {
                             setPending(true);

@@ -1,6 +1,9 @@
-import { Play } from "lucide-react";
+import { Loader2, Play } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import MarkdownRender from "../Common/Code/MarkdownRender";
+import { InterfaceActions, LogsActions, ProjectsActions, TileProps } from "@/types/evals/grid";
+import { defaultLogs } from "@/constants/logs";
+import { useState } from "react";
 
 const code = `
 \`\`\`python
@@ -43,16 +46,51 @@ with unify.Project("Maths Assistant"):
 \`\`\`
 `;
 
-const DefaultProject = () => {
+const DefaultProject = ({ projects, logsActions, projectActions, interfaceActions, setProject, setInterface }: {
+    projects: string[] | undefined,
+    logsActions: LogsActions,
+    projectActions: ProjectsActions,
+    interfaceActions: InterfaceActions,
+    setProject: (project: string) => void,
+    setInterface: (interface_: string) => void
+}) => {
+    const defaultProject = "maths_assistant";
+    const defaultItems = [{
+        i: "Tile_0",
+        x: 0.0,
+        y: 0.0,
+        w: 6.0,
+        h: 6.0,
+    }] as TileProps[];
+    const defaultNewCounter = 1;
+    const disabled = !projects || projects.includes(defaultProject);
+    const [pending, setPending] = useState(false);
+
     return (
         <div className="flex flex-col gap-4 justify-center items-center">
             <div className="mt-4 flex justify-center font-semibold">Please select a project, create a project or get started with the example below</div>
             <div className="relative w-1/2 h-[700px] overflow-y-auto rounded-md">
                 <div className="absolute z-10 top-1 right-9">
                     <ActionButton
-                        icon={<Play />}
-                        tooltip="Run Example"
-                        onClick={() => {}}
+                        icon={pending ? <Loader2 className="animate-spin" /> : <Play />}
+                        tooltip={disabled ? "A project with this name already exists" : "Run Example"}
+                        onClick={() => {
+                            setPending(true);
+                            projectActions.create(defaultProject).then(() => {
+                                interfaceActions.create(
+                                    "interface_1", defaultProject, undefined, defaultItems, defaultNewCounter, true
+                                ).then(() => {
+                                    logsActions.create(
+                                        defaultProject, defaultLogs.params, defaultLogs.entries
+                                    ).then(() => {
+                                        setPending(false);
+                                        setProject(defaultProject);
+                                        setInterface("interface_1");
+                                    });
+                                });
+                            });
+                        }}
+                        disabled={disabled}
                     />
                 </div>
                 <MarkdownRender content={code} />

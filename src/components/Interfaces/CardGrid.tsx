@@ -4,23 +4,16 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Card from "./Card";
 import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
-import { FileProps, ResponseProps } from "@/types/common";
+import { ResponseProps } from "@/types/common";
 import { DerivedEntryActions, Context, ContextActions, Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
-import { Check, Clipboard, Copy, Eye, EyeOff, FocusIcon, Grip, ListRestart, Loader2, Plus, RefreshCw, Save, Trash, TriangleAlert, X } from "lucide-react";
+import { Copy, EyeOff, FocusIcon, Grip, Loader2, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { Badge } from "../UI/badge";
 import { Dialog, DialogContent } from "../UI/dialog";
 import { Input } from "../UI/input";
-import BaseDropdown from "../Common/Dropdowns/Base";
-import { DropdownMenuItem } from "../UI/dropdown-menu";
-import FileDirectory from "../Tree/Directory/FileDirectory";
-import CloseProject from "./Table/Buttons/CloseProject";
-import DeleteDialog from "../Common/Dialogs/Delete";
-import CreateProject from "./Table/Buttons/CreateProject";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../UI/tabs";
+import { Tabs, TabsContent } from "../UI/tabs";
 import { useQueryState } from "nuqs";
-import { v4 as uuidv4 } from "uuid";
 import Cookies from "js-cookie";
 import FocusDialog from "./FocusDialog";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
@@ -216,11 +209,6 @@ const CardGrid = ({
     // end success green after 3 seconds
     useEffect(() => { setTimeout(() => setSaveSuccess(undefined), 3000); }, [saveSuccess]);
 
-    // icons, variants and a new disabled check that compares current items with the saved interface's items
-    const saveIcon = saveSuccess ? <Check /> : saveSuccess == false ? <TriangleAlert /> : <Save />;
-    const resetIcon = resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
-    const variant = saveSuccess == false ? "destructive" : "outline";
-
     return (<div className="w-full h-full overflow-auto" ref={gridRef}>
         <Tabs value={interface_ || undefined} onValueChange={(value: string | undefined) => {
             setPending(true);
@@ -233,11 +221,13 @@ const CardGrid = ({
                 <ProjectButtons
                     project={project}
                     projects={projects}
+                    interfaces={interfaces}
                     data={data}
                     refreshing={refreshing}
                     pending={pending}
                     dataPending={dataPending}
                     projectActions={projectActions}
+                    interfaceActions={interfaceActions}
                     setRefreshing={setRefreshing}
                     setPending={setPending}
                     setDataPending={setDataPending}
@@ -298,7 +288,14 @@ const CardGrid = ({
             </div>
             {interfaces.length == 0 ? (project && pending) ? <div className="flex justify-center">
                 <Loader2 className="animate-spin my-36" />
-            </div> : !project ? <DefaultProject /> : <></> : interfaces.map((int_, idx) => <TabsContent key={idx} value={int_} className="tutorial-selection-pane px-3">
+            </div> : !project ? <DefaultProject
+                projects={projects}
+                logsActions={logsActions}
+                projectActions={projectActions}
+                interfaceActions={interfaceActions}
+                setProject={setProject}
+                setInterface={setInterface}
+            /> : <></> : interfaces.map((int_, idx) => <TabsContent key={idx} value={int_} className="tutorial-selection-pane px-3">
                 {pending
                     ? <div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>
                     : interface_1 == int_ ? <ResponsiveReactGridLayout

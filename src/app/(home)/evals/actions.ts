@@ -66,6 +66,27 @@ export const deleteProject = async (apiKey: string) => {
     };
 };
 
+// create logs
+export const createLogs = async (apiKey: string) => {
+    return async (
+        project: string,
+        params: { system_message: string }[],
+        entries: { question: string, response: string, score: number }[]
+    ) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/logs`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({ project, params, entries })
+            }
+        );
+        return await response.json();
+    }
+}
+
 // get logs
 export const getLogs = async (apiKey: string) => {
     return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, _timestamp: string | null) => {

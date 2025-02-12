@@ -20,6 +20,7 @@ import {
     updateDerivedEntry,
     createContext,
     getContexts,
+    createLogs,
 } from "../evals/actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -42,6 +43,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
     };
 
     const logsActions = {
+        create: await createLogs(apiKey),
         get: await getLogs(apiKey),
         getMetrics: await getLogMetrics(apiKey),
         delete: await deleteLogs(apiKey),

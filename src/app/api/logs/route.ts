@@ -30,3 +30,18 @@ export async function DELETE(request: NextRequest) {
         },
     );
 }
+
+export async function POST(request: NextRequest) {
+    const body = await request.json();
+    return await fetch(
+        `${baseUrl}/logs`,
+        {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body)
+        },
+    );
+}
