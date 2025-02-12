@@ -25,19 +25,47 @@ export const MatrixDisplay = ({value}:{value: number[][]}) => {
 }
 
 export const ImageDisplay = ({value, className}: {value: string, className?: string}) => {
-  const isBase64 = isBase64Image(value);
-  const url = isBase64 ? `data:image/png;base64,${value}` : value;
-
-  if (isBase64) {
-    // For base64 images, just display without a link
-    return <Image src={url} alt="Image" width={500} height={500} className={className} />
-  } else {
-    // For URL images, make it clickable
+  // If the value already starts with a data URI prefix, render the image directly.
+  if (value.startsWith("data:image/")) {
     return (
-      <a href={url} target="_blank" rel="noopener noreferrer">
-        <Image src={url} alt="Image" width={500} height={500} className={className} />
-      </a>
-    )
+      <Image
+        src={value}
+        alt="Inline base64 (data) image"
+        width={500}
+        height={500}
+        className={className}
+      />
+    );
+  } else {
+    // For raw base64 or normal URL values.
+    const isBase64 = isBase64Image(value);
+    const url = isBase64 ? `data:image/png;base64,${value}` : value;
+  
+    if (isBase64) {
+      // For raw base64 images, display as inline <Image/>
+      return (
+        <Image
+          src={url}
+          alt="Base64 image"
+          width={500}
+          height={500}
+          className={className}
+        />
+      );
+    } else {
+      // For actual URLs, make it clickable  
+      return (
+        <a href={url} target="_blank" rel="noopener noreferrer">
+          <Image
+            src={url}
+            alt="Image link"
+            width={500}
+            height={500}
+            className={className}
+          />
+        </a>
+      );
+    }
   }
 }
 
@@ -58,12 +86,22 @@ export const isURLImage = (value: string) => {
   }
 }
 export const isBase64Image = (value: string) => {
-  /* Check if it's a Base64 image 
-     Example value: "iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAIAAADwf7zUAAA552NhQlgAADnnanVtYgAAAB5qdW1kYzJwYQARABCAAACqADibcQNjMnBhAAAAOcFqdW1iAAAAR2p1bWRjMm1hABEAEIAAAKoAOJtxA3Vybjp1dWlkOjE1ZDQ0YjJlLTUxMGUtNGUyMC1iMWJiLTJhNDA2NTMyOWFlMAAAAAGhanVtYgAAAClqdW1kYzJhcwARABCAAACqADibcQNjMnBhLmFzc2VydGlvbnMAAAAAxWp1bWIAAAAmanVtZGNib3IAEQAQgAAAqgA4m3EDYzJwYS5hY3Rpb25zAAAAAJdjYm9yoWdhY3Rpb25zgaNmYWN0aW9ubGMycGEuY3JlYXRlZG1zb2Z0d2FyZUFnZW50Z0RBTEzCt0VxZGlnaXRhbFNvdXJjZVR5cGV4Rmh0dHA6Ly9jdi5pcHRjLm9yZy9uZXdzY29kZXMvZGlnaXRhbHNvdXJ...."
-  */
   try {
-    const decoded = atob(value);
-    return decoded.includes('\x89\x50\x4E\x47') || decoded.includes('\xFF\xD8\xFF'); // Checks for PNG and JPEG headers
+    /*
+     * If the string starts with "data:image" then parse out the actual base64 portion.
+     * Otherwise, assume it's raw base64 (no prefix).
+     */
+    let raw64 = value;
+    // If it has "data:image/xxxx;base64," then parse out just the raw base64
+    const match = raw64.match(/^data:image\/\w+;base64,(.*)$/);
+    if (match) {
+      raw64 = match[1]; // store only the base64 part
+    }
+
+    const decoded = atob(raw64);
+
+    // Check PNG (header = 0x89 0x50 0x4e 0x47) or JPEG (header = 0xff 0xd8 0xff)
+    return decoded.includes('\x89\x50\x4E\x47') || decoded.includes('\xFF\xD8\xFF');
   } catch (e) {
     return false;
   }
