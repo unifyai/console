@@ -1,4 +1,4 @@
-import { LogProps } from "@/types/evals/logs";
+import { LogProps, GroupedLogProps } from "@/types/evals/logs";
 import { Column, ColumnDef, Table } from "@tanstack/react-table";
 
 /*
@@ -54,18 +54,18 @@ export function processContext(
 /*
   Flatten columns recursively to include all parent and child columns
 */
-export const flattenColumnIDs = (columns: ColumnDef<LogProps>[]): string[] =>
+export const flattenColumnIDs = (columns: ColumnDef<LogProps | GroupedLogProps>[]): string[] =>
     columns.flatMap((column) => {
         // Include the current column's id
         const currentIDs = column.id || "";
 
         // Recursively flatten child columns, if they exist
         const childPaths = (column as any).columns
-        ? flattenColumnIDs((column as any).columns as ColumnDef<LogProps>[])
+        ? flattenColumnIDs((column as any).columns as ColumnDef<LogProps | GroupedLogProps>[])
         : [];
 
-    // Return the current path along with child paths
-    return [currentIDs, ...childPaths];
+        // Return the current path along with child paths
+        return [currentIDs, ...childPaths];
     });
 
 export function getAllChildColumns(column: Column<any>):  Column<any>[] {

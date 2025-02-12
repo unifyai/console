@@ -5,7 +5,7 @@ import StringColumnFilter from "./Strings";
 import NumericColumnFilter from "./Numbers";
 import TimeColumnFilter from "./Time";
 import { sanitizeId } from "@/utils/evals/columnOperations";
-import { LogProps } from "@/types/evals/logs";
+import { LogProps, GroupedLogProps } from "@/types/evals/logs";
 
 /* 
     Supported operands: "==", "!=", "is", "<", ">", "<=", "=>", "in", "not in"
@@ -15,11 +15,11 @@ import { LogProps } from "@/types/evals/logs";
 
 const ColumnFilter = ({ column, columnFilters, setColumnFilterQuery, dataTypes, boundaries, logs }: {
     column: string,
-    columnFilters: FiltersByColumn
+    columnFilters: FiltersByColumn,
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
     dataTypes: {[key: string]: string},
     boundaries: {minimums: {[key: string]: any}, maximums: {[key: string]: any}},
-    logs: LogProps[]
+    logs: LogProps[] | GroupedLogProps[]
 }) => {
     
     let filter;

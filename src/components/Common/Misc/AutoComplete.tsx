@@ -24,6 +24,7 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, onOp
     if (onOpen && o) onOpen();
     setOpen(o);
   }
+  const label = items.find((item) => item.value === value)?.label;
   return (
     <Popover open={open} onOpenChange={(o) => onOpenChange(o)}>
       <PopoverTrigger asChild>
@@ -33,8 +34,8 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, onOp
           aria-expanded={open}
           className={`h-8 px-3 w-[200px] justify-between truncate ... ${className}`}
         >
-          {value
-            ? items.find((item) => item.value === value)?.label
+          {value && label
+            ? (type.includes("axis") ? label?.slice(0, 15) + (label?.length > 15 ? "..." : "") : label)
             : `Select ${type}...`}
           <ChevronsUpDown className="opacity-50" />
         </Button>

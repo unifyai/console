@@ -24,7 +24,7 @@ export default function Home() {
         const user = await initializeUser();
         const isNewUser =
           new Date().getTime() - new Date(user.createdAt).getTime() < 10 * 60 * 1000;
-        const redirectUrl = `/evals${isNewUser ? "?tutorial=start" : ""}`;
+        const redirectUrl = `/interfaces${isNewUser ? "?tutorial=start" : ""}`;
         router.push(redirectUrl);
       } catch (error) {
         console.error("Error initializing user:", error);

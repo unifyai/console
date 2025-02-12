@@ -16,7 +16,7 @@ import {
 } from "@/components/UI/tabs";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 import RowBadge from "../RowBadge";
-import MarkdownRenderer from "../MarkdownRenderer";
+import MarkdownRenderer from "../Markdown/MarkdownRenderer";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 
 import DictionaryView from "../DictionaryView";
@@ -35,6 +35,7 @@ import {
   isNumber,
   isTimestamp,
 } from "@/utils/evals/selection";
+import { MessageSquare, BarChart2, FileText, Component } from "lucide-react";
 
 /******************************************************************************
  * A tiny helper to capitalize or otherwise format a role for display.
@@ -236,85 +237,113 @@ export default function ChatOutView({
     delete leftover.model;
 
     return (
-      <div className="space-y-4">
-        {/* PART 1: conversation from choices */}
-        {choicesArr.length > 0 && (
-          <div className="space-y-2">
-            <p className="font-semibold border-b pb-2">Chat Output</p>
-            <div className="flex flex-col gap-3 p-2">
-              {choicesArr.map((choice: any, idx: number) => {
-                const role = choice.message?.role || "assistant";
-                const label = formatRole(role);
-                const mainContent = choice.message?.content ?? "";
-                const toolCalls = choice.message?.tool_calls ?? [];
+      <div className="space-y-4 w-full">
+        <Accordion type="multiple" defaultValue={["chat"]} className="space-y-2">
+          {/* PART 1: conversation from choices */}
+          {choicesArr.length > 0 && (
+            <AccordionItem value="chat">
+              <AccordionTrigger className="relative group flex items-center justify-between">
+                <span className="inline-flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                  <span>Chat Output</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="border-l ml-4 pl-1 space-y-4">
+                  {choicesArr.map((choice: any, idx: number) => {
+                    const role = choice.message?.role || "assistant";
+                    const label = formatRole(role);
+                    const mainContent = choice.message?.content ?? "";
+                    const toolCalls = choice.message?.tool_calls ?? [];
 
-                return (
-                  <div
-                    key={idx}
-                    className="border border-muted bg-background p-4 rounded shadow-sm w-full"
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="font-bold text-sm">{label}</p>
-                      <CopyButton
-                        content={JSON.stringify(mainContent)}
-                        copyMessage="Copied!"
-                      />
-                    </div>
-                    {renderMessageContent(mainContent)}
+                    return (
+                      <div
+                        key={idx}
+                        className="border border-muted bg-background p-4 rounded shadow-sm w-full"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <p className="font-bold text-sm">{label}</p>
+                          <CopyButton
+                            content={JSON.stringify(mainContent)}
+                            copyMessage="Copied!"
+                          />
+                        </div>
+                        {renderMessageContent(mainContent)}
 
-                    {/* Plain JSON for tool calls (if any) */}
-                    {toolCalls.length > 0 && (
-                      <div className="mt-2 border-l-2 pl-2">
-                        <p className="font-bold text-sm mb-1">Tool Calls</p>
-                        <CopyButton
-                          className="mb-1"
-                          content={JSON.stringify(toolCalls, null, 2)}
-                          copyMessage="Copied!"
-                        />
-                        <pre className="bg-muted p-2 rounded text-xs whitespace-pre-wrap">
-                          {JSON.stringify(toolCalls, null, 2)}
-                        </pre>
+                        {/* Tool calls section */}
+                        {toolCalls.length > 0 && (
+                          <div className="mt-2 border-l-2 pl-2">
+                            <p className="font-bold text-sm mb-1">Tool Calls</p>
+                            <CopyButton
+                              className="mb-1"
+                              content={JSON.stringify(toolCalls, null, 2)}
+                              copyMessage="Copied!"
+                            />
+                            <pre className="bg-muted p-2 rounded text-xs whitespace-pre-wrap">
+                              {JSON.stringify(toolCalls, null, 2)}
+                            </pre>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+                    );
+                  })}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )}
 
-        {/* PART 2: Model, usage, leftover metadata */}
-        <Accordion type="multiple" className="space-y-2">
+          {/* PART 2: Model, usage, leftover metadata */}
           {model && (
             <AccordionItem value="model">
-              <AccordionTrigger>Model</AccordionTrigger>
+              <AccordionTrigger className="relative group flex items-center justify-between">
+                <span className="inline-flex items-center gap-2">
+                  <Component className="h-4 w-4 text-primary" />
+                  <span>Model</span>
+                </span>
+              </AccordionTrigger>
               <AccordionContent>
-                <StringView
-                  value={model}
-                  comparables={[]}
-                  baseLogIndex={baseLogIndex}
-                  comparisonLogsIndex={[]}
-                  diffMode={diffMode}
-                  splitView={splitView}
-                />
+                <div className="border-l ml-4 pl-1">
+                  <StringView
+                    value={model}
+                    comparables={[]}
+                    baseLogIndex={baseLogIndex}
+                    comparisonLogsIndex={[]}
+                    diffMode={diffMode}
+                    splitView={splitView}
+                  />
+                </div>
               </AccordionContent>
             </AccordionItem>
           )}
 
           {usage !== undefined && (
             <AccordionItem value="usage">
-              <AccordionTrigger>Usage</AccordionTrigger>
+              <AccordionTrigger className="relative group flex items-center justify-between">
+                <span className="inline-flex items-center gap-2">
+                  <BarChart2 className="h-4 w-4 text-primary" />
+                  <span>Usage</span>
+                </span>
+              </AccordionTrigger>
               <AccordionContent>
-                {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView)}
+                <div className="border-l ml-4 pl-1">
+                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView)}
+                </div>
               </AccordionContent>
             </AccordionItem>
           )}
 
           {Object.keys(leftover).length > 0 && (
             <AccordionItem value="metadata">
-              <AccordionTrigger>Metadata</AccordionTrigger>
+              <AccordionTrigger className="relative group flex items-center justify-between">
+                <span className="inline-flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" />
+                  <span>Metadata</span>
+                </span>
+              </AccordionTrigger>
               <AccordionContent>
-                {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView)}
+                <div className="border-l ml-4 pl-1">
+                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView)}
+                </div>
               </AccordionContent>
             </AccordionItem>
           )}
@@ -329,7 +358,7 @@ export default function ChatOutView({
     co && typeof co === "object" ? co : {}
   );
 
-  // unify “choices”
+  // unify "choices"
   const baseChoices = Array.isArray(baseObj.choices) ? baseObj.choices : [];
   const compChoiceArrays = compObjs.map((o) =>
     Array.isArray(o.choices) ? o.choices : []
@@ -406,184 +435,211 @@ export default function ChatOutView({
   }
 
   if (diffMode === "none") {
-    // TAB approach for messages, similar to ChatInView
     return (
       <div className="space-y-4 w-full">
-        <p className="font-semibold border-b pb-2">Chat Output Comparison</p>
-
-        {/* message blocks */}
-        <div className="space-y-6 w-full">
-          {unified.map((block, i) => {
-            const combined = gatherAll(block);
-            if (!combined.length) return null;
-
-            // same user vs. asst approach as minimal tweak
-            const userParts = combined.filter((m) => m.role === "user");
-            const asstParts = combined.filter((m) => m.role !== "user");
-
-            return (
-              <div key={i} className="flex flex-col gap-6 w-full">
-                {/* assistant */}
-                {asstParts.length > 0 && (
-                  <div className="flex flex-col w-full">
-                    <Tabs defaultValue={String(asstParts[0].rowIndex)}>
-                      <div className="flex items-center justify-start text-sm mb-2 w-full">
-                        <TabsList className="justify-start">
-                          {asstParts.map((m) => (
-                            <TabsTrigger
-                              key={m.rowIndex}
-                              value={String(m.rowIndex)}
-                            >
-                              Row {m.rowIndex}
-                            </TabsTrigger>
-                          ))}
-                        </TabsList>
-                      </div>
-                      {asstParts.map((m) => {
-                        const label = formatRole(m.role);
-                        return (
-                          <TabsContent
-                            key={m.rowIndex}
-                            value={String(m.rowIndex)}
-                            className="w-full"
-                          >
-                            <div className="border bg-background p-4 rounded shadow-sm w-full">
-                              <div className="mb-2 flex items-center justify-between">
-                                <p className="font-bold text-sm">{label}</p>
-                                <CopyButton
-                                  content={JSON.stringify(m.content)}
-                                  copyMessage="Copied!"
-                                />
-                              </div>
-                              {renderMessageContent(m.content)}
-
-                              {m.toolCalls.length > 0 && (
-                                <div className="mt-2 border-l-2 pl-2">
-                                  <p className="font-bold text-sm mb-1">
-                                    Tool Calls
-                                  </p>
-                                  <CopyButton
-                                    className="mb-1"
-                                    content={JSON.stringify(m.toolCalls, null, 2)}
-                                    copyMessage="Copied!"
-                                  />
-                                  <pre className="bg-muted p-2 rounded text-xs whitespace-pre-wrap">
-                                    {JSON.stringify(m.toolCalls, null, 2)}
-                                  </pre>
-                                </div>
-                              )}
-                            </div>
-                          </TabsContent>
-                        );
-                      })}
-                    </Tabs>
-                  </div>
-                )}
-                {/* user */}
-                {userParts.length > 0 && (
-                  <div className="flex flex-col w-full">
-                    <Tabs defaultValue={String(userParts[0].rowIndex)}>
-                      <div className="flex items-center justify-between text-sm mb-2 w-full">
-                        <TabsList className="justify-end">
-                          {userParts.map((m) => (
-                            <TabsTrigger
-                              key={m.rowIndex}
-                              value={String(m.rowIndex)}
-                            >
-                              Row {m.rowIndex}
-                            </TabsTrigger>
-                          ))}
-                        </TabsList>
-                      </div>
-                      {userParts.map((m) => {
-                        const label = formatRole(m.role);
-                        return (
-                          <TabsContent
-                            key={m.rowIndex}
-                            value={String(m.rowIndex)}
-                            className="w-full"
-                          >
-                            <div className="border bg-background p-4 rounded shadow-sm w-full">
-                              <div className="mb-2 flex items-center justify-between">
-                                <p className="font-bold text-sm">{label}</p>
-                                <CopyButton
-                                  content={JSON.stringify(m.content)}
-                                  copyMessage="Copied!"
-                                />
-                              </div>
-                              {renderMessageContent(m.content)}
-
-                              {m.toolCalls.length > 0 && (
-                                <div className="mt-2 border-l-2 pl-2">
-                                  <p className="font-bold text-sm mb-1">
-                                    Tool Calls
-                                  </p>
-                                  <CopyButton
-                                    className="mb-1"
-                                    content={JSON.stringify(m.toolCalls, null, 2)}
-                                    copyMessage="Copied!"
-                                  />
-                                  <pre className="bg-muted p-2 rounded text-xs whitespace-pre-wrap">
-                                    {JSON.stringify(m.toolCalls, null, 2)}
-                                  </pre>
-                                </div>
-                              )}
-                            </div>
-                          </TabsContent>
-                        );
-                      })}
-                    </Tabs>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* multi leftover diffs */}
-        <Accordion type="multiple" className="space-y-2">
-          <AccordionItem value="model">
-            <AccordionTrigger>Model</AccordionTrigger>
+        <Accordion
+          type="multiple"
+          defaultValue={["chat"]}
+          className="space-y-2"
+        >
+          <AccordionItem value="chat">
+            <AccordionTrigger className="relative group flex items-center justify-between">
+              <span className="inline-flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-primary" />
+                <span>Chat Output Comparison</span>
+              </span>
+            </AccordionTrigger>
             <AccordionContent>
-              <StringView
-                value={baseModel}
-                comparables={compModels}
-                baseLogIndex={baseLogIndex}
-                comparisonLogsIndex={comparisonLogsIndex}
-                diffMode={diffMode}
-                splitView={splitView}
-              />
+              <div className="space-y-6 w-full">
+                {unified.map((block, i) => {
+                  const combined = gatherAll(block);
+                  if (!combined.length) return null;
+
+                  // same user vs. asst approach as minimal tweak
+                  const userParts = combined.filter((m) => m.role === "user");
+                  const asstParts = combined.filter((m) => m.role !== "user");
+
+                  return (
+                    <div key={i} className="flex flex-col gap-6 w-full">
+                      {/* assistant */}
+                      {asstParts.length > 0 && (
+                        <div className="flex flex-col w-full">
+                          <Tabs defaultValue={String(asstParts[0].rowIndex)}>
+                            <div className="flex items-center justify-start text-sm mb-2 w-full">
+                              <TabsList className="justify-start">
+                                {asstParts.map((m) => (
+                                  <TabsTrigger
+                                    key={m.rowIndex}
+                                    value={String(m.rowIndex)}
+                                  >
+                                    Row {m.rowIndex}
+                                  </TabsTrigger>
+                                ))}
+                              </TabsList>
+                            </div>
+                            {asstParts.map((m) => {
+                              const label = formatRole(m.role);
+                              return (
+                                <TabsContent
+                                  key={m.rowIndex}
+                                  value={String(m.rowIndex)}
+                                  className="w-full"
+                                >
+                                  <div className="border bg-background p-4 rounded shadow-sm w-full">
+                                    <div className="mb-2 flex items-center justify-between">
+                                      <p className="font-bold text-sm">{label}</p>
+                                      <CopyButton
+                                        content={JSON.stringify(m.content)}
+                                        copyMessage="Copied!"
+                                      />
+                                    </div>
+                                    {renderMessageContent(m.content)}
+
+                                    {m.toolCalls.length > 0 && (
+                                      <div className="mt-2 border-l-2 pl-2">
+                                        <p className="font-bold text-sm mb-1">
+                                          Tool Calls
+                                        </p>
+                                        <CopyButton
+                                          className="mb-1"
+                                          content={JSON.stringify(m.toolCalls, null, 2)}
+                                          copyMessage="Copied!"
+                                        />
+                                        <pre className="bg-muted p-2 rounded text-xs whitespace-pre-wrap">
+                                          {JSON.stringify(m.toolCalls, null, 2)}
+                                        </pre>
+                                      </div>
+                                    )}
+                                  </div>
+                                </TabsContent>
+                              );
+                            })}
+                          </Tabs>
+                        </div>
+                      )}
+                      {/* user */}
+                      {userParts.length > 0 && (
+                        <div className="flex flex-col w-full">
+                          <Tabs defaultValue={String(userParts[0].rowIndex)}>
+                            <div className="flex items-center justify-between text-sm mb-2 w-full">
+                              <TabsList className="justify-end">
+                                {userParts.map((m) => (
+                                  <TabsTrigger
+                                    key={m.rowIndex}
+                                    value={String(m.rowIndex)}
+                                  >
+                                    Row {m.rowIndex}
+                                  </TabsTrigger>
+                                ))}
+                              </TabsList>
+                            </div>
+                            {userParts.map((m) => {
+                              const label = formatRole(m.role);
+                              return (
+                                <TabsContent
+                                  key={m.rowIndex}
+                                  value={String(m.rowIndex)}
+                                  className="w-full"
+                                >
+                                  <div className="border bg-background p-4 rounded shadow-sm w-full">
+                                    <div className="mb-2 flex items-center justify-between">
+                                      <p className="font-bold text-sm">{label}</p>
+                                      <CopyButton
+                                        content={JSON.stringify(m.content)}
+                                        copyMessage="Copied!"
+                                      />
+                                    </div>
+                                    {renderMessageContent(m.content)}
+
+                                    {m.toolCalls.length > 0 && (
+                                      <div className="mt-2 border-l-2 pl-2">
+                                        <p className="font-bold text-sm mb-1">
+                                          Tool Calls
+                                        </p>
+                                        <CopyButton
+                                          className="mb-1"
+                                          content={JSON.stringify(m.toolCalls, null, 2)}
+                                          copyMessage="Copied!"
+                                        />
+                                        <pre className="bg-muted p-2 rounded text-xs whitespace-pre-wrap">
+                                          {JSON.stringify(m.toolCalls, null, 2)}
+                                        </pre>
+                                      </div>
+                                    )}
+                                  </div>
+                                </TabsContent>
+                              );
+                            })}
+                          </Tabs>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </AccordionContent>
           </AccordionItem>
-
+          <AccordionItem value="model">
+            <AccordionTrigger className="relative group flex items-center justify-between">
+              <span className="inline-flex items-center gap-2">
+                <Component className="h-4 w-4 text-primary" />
+                <span>Model</span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="border-l ml-4 pl-1">
+                <StringView
+                  value={baseModel}
+                  comparables={compModels}
+                  baseLogIndex={baseLogIndex}
+                  comparisonLogsIndex={comparisonLogsIndex}
+                  diffMode={diffMode}
+                  splitView={splitView}
+                />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
           {usageBase !== undefined && (
             <AccordionItem value="usage">
-              <AccordionTrigger>Usage</AccordionTrigger>
+              <AccordionTrigger className="relative group flex items-center justify-between">
+                <span className="inline-flex items-center gap-2">
+                  <BarChart2 className="h-4 w-4 text-primary" />
+                  <span>Usage</span>
+                </span>
+              </AccordionTrigger>
               <AccordionContent>
-                {pickDataView(
-                  usageBase,
-                  usageComps,
-                  baseLogIndex,
-                  comparisonLogsIndex,
-                  diffMode,
-                  splitView
-                )}
+                <div className="border-l ml-4 pl-1">
+                  {pickDataView(
+                    usageBase,
+                    usageComps,
+                    baseLogIndex,
+                    comparisonLogsIndex,
+                    diffMode,
+                    splitView
+                  )}
+                </div>
               </AccordionContent>
             </AccordionItem>
           )}
-
           {Object.keys(leftover).length > 0 && (
             <AccordionItem value="metadata">
-              <AccordionTrigger>Metadata</AccordionTrigger>
+              <AccordionTrigger className="relative group flex items-center justify-between">
+                <span className="inline-flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" />
+                  <span>Metadata</span>
+                </span>
+              </AccordionTrigger>
               <AccordionContent>
-                {pickDataView(
-                  leftover,
-                  leftoverComparables,
-                  baseLogIndex,
-                  comparisonLogsIndex,
-                  diffMode,
-                  splitView
-                )}
+                <div className="border-l ml-4 pl-1">
+                  {pickDataView(
+                    leftover,
+                    leftoverComparables,
+                    baseLogIndex,
+                    comparisonLogsIndex,
+                    diffMode,
+                    splitView
+                  )}
+                </div>
               </AccordionContent>
             </AccordionItem>
           )}
@@ -595,215 +651,244 @@ export default function ChatOutView({
   // diffMode !== "none" => side-by-side diffs
   return (
     <div className="space-y-4">
-      <p className="font-semibold border-b pb-2">Chat Output Comparison</p>
+      <Accordion
+        type="multiple"
+        defaultValue={["chat"]}
+        className="space-y-2"
+      >
+        <AccordionItem value="chat">
+          <AccordionTrigger className="relative group flex items-center justify-between">
+            <span className="inline-flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-primary" />
+              <span>Chat Output Comparison</span>
+            </span>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-6">
+              {unified.map((block, i) => {
+                const combined = gatherAll(block);
+                if (!combined.length) return null;
 
-      <div className="space-y-6">
-        {unified.map((block, i) => {
-          const combined = gatherAll(block);
-          if (!combined.length) return null;
-
-          const roles = Array.from(new Set(combined.map((m) => m.role)));
-
-          return (
-            <div key={i} className="space-y-4">
-              {roles.map((role) => {
-                const roleMsgs = combined.filter((r) => r.role === role);
-                if (!roleMsgs.length) return null;
-
-                const baseMsg = roleMsgs.find((r) => r.isBase);
-                const compMsgs = roleMsgs.filter((r) => !r.isBase);
-                if (!baseMsg && compMsgs.length === 0) return null;
-
-                const baseStr = baseMsg
-                  ? JSON.stringify(baseMsg.content, null, 2)
-                  : "";
-                const baseToolJSON = baseMsg
-                  ? JSON.stringify(baseMsg.toolCalls, null, 2)
-                  : "";
-                const label = formatRole(role);
+                const roles = Array.from(new Set(combined.map((m) => m.role)));
 
                 return (
-                  <div
-                    key={`${i}-${role}`}
-                    className="bg-background p-4 rounded shadow-sm border border-muted"
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="font-bold text-sm">{label}</p>
-                      <CopyButton content={baseStr} copyMessage="Copied!" />
-                    </div>
+                  <div key={i} className="space-y-4">
+                    {roles.map((role) => {
+                      const roleMsgs = combined.filter((r) => r.role === role);
+                      if (!roleMsgs.length) return null;
 
-                    {/* content diffs */}
-                    {compMsgs.length > 0 ? (
-                      compMsgs.map((cm, idx2) => {
-                        const cStr = JSON.stringify(cm.content, null, 2);
-                        const same = cStr === baseStr;
-                        const baseMode = same ? "none" : "delete";
-                        const compMode = same ? "none" : "insert";
-                        return (
-                          <div
-                            key={idx2}
-                            className="mt-4 bg-background p-2 rounded text-xs space-y-2 relative"
-                          >
-                            <div className="flex gap-2 text-xxs">
-                              {baseMsg && (
-                                <RowBadge
-                                  rowNumbers={[baseMsg.rowIndex]}
-                                  mode={baseMode}
-                                />
-                              )}
-                              <RowBadge
-                                rowNumbers={[cm.rowIndex]}
-                                mode={compMode}
-                              />
-                            </div>
-                            <DiffViewer
-                              oldValue={baseStr}
-                              newValue={cStr}
-                              splitView={splitView}
-                              mode={diffMode}
-                            />
+                      const baseMsg = roleMsgs.find((r) => r.isBase);
+                      const compMsgs = roleMsgs.filter((r) => !r.isBase);
+                      if (!baseMsg && compMsgs.length === 0) return null;
+
+                      const baseStr = baseMsg
+                        ? JSON.stringify(baseMsg.content, null, 2)
+                        : "";
+                      const baseToolJSON = baseMsg
+                        ? JSON.stringify(baseMsg.toolCalls, null, 2)
+                        : "";
+                      const label = formatRole(role);
+
+                      return (
+                        <div
+                          key={`${i}-${role}`}
+                          className="bg-background p-4 rounded shadow-sm border border-muted"
+                        >
+                          <div className="mb-2 flex items-center justify-between">
+                            <p className="font-bold text-sm">{label}</p>
+                            <CopyButton content={baseStr} copyMessage="Copied!" />
                           </div>
-                        );
-                      })
-                    ) : (
-                      <div className="mt-4 bg-background p-2 rounded text-xs space-y-2 relative">
-                        <div className="flex gap-2 text-xxs">
-                          {baseMsg && (
-                            <RowBadge
-                              rowNumbers={[baseMsg.rowIndex]}
-                              mode="delete"
-                            />
-                          )}
-                          <RowBadge rowNumbers={[-1]} mode="insert" />
-                        </div>
-                        <DiffViewer
-                          oldValue={baseStr}
-                          newValue=""
-                          splitView={splitView}
-                          mode={diffMode}
-                        />
-                      </div>
-                    )}
 
-                    {/* tool call diffs */}
-                    {(() => {
-                      const hasBaseTools =
-                        baseMsg && baseMsg.toolCalls && baseMsg.toolCalls.length > 0;
-                      const anyCompTools = compMsgs.some(
-                        (c) => c.toolCalls && c.toolCalls.length > 0
-                      );
-                      if (hasBaseTools || anyCompTools) {
-                        return (
-                          <div className="mt-6 pt-2 border-t border-muted space-y-2">
-                            <p className="font-bold text-xs">Tool Calls Diff</p>
-                            {compMsgs.length > 0 ? (
-                              compMsgs.map((cm, idx3) => {
-                                const cTools = JSON.stringify(cm.toolCalls, null, 2);
-                                const sameTools = cTools === baseToolJSON;
-                                const baseBadge = sameTools ? "none" : "delete";
-                                const compBadge = sameTools ? "none" : "insert";
-                                return (
-                                  <div
-                                    key={idx3}
-                                    className="bg-background p-2 rounded text-xs space-y-2 relative"
-                                  >
-                                    <div className="flex gap-2 text-xxs">
-                                      {baseMsg && (
-                                        <RowBadge
-                                          rowNumbers={[baseMsg.rowIndex]}
-                                          mode={baseBadge}
-                                        />
-                                      )}
+                          {/* content diffs */}
+                          {compMsgs.length > 0 ? (
+                            compMsgs.map((cm, idx2) => {
+                              const cStr = JSON.stringify(cm.content, null, 2);
+                              const same = cStr === baseStr;
+                              const baseMode = same ? "none" : "delete";
+                              const compMode = same ? "none" : "insert";
+                              return (
+                                <div
+                                  key={idx2}
+                                  className="mt-4 bg-background p-2 rounded text-xs space-y-2 relative border border-muted"
+                                >
+                                  <div className="flex gap-2 text-xxs">
+                                    {baseMsg && (
                                       <RowBadge
-                                        rowNumbers={[cm.rowIndex]}
-                                        mode={compBadge}
+                                        rowNumbers={[baseMsg.rowIndex]}
+                                        mode={baseMode}
                                       />
-                                    </div>
-                                    <DiffViewer
-                                      oldValue={baseToolJSON}
-                                      newValue={cTools}
-                                      splitView={splitView}
-                                      mode={diffMode}
+                                    )}
+                                    <RowBadge
+                                      rowNumbers={[cm.rowIndex]}
+                                      mode={compMode}
                                     />
                                   </div>
-                                );
-                              })
-                            ) : (
-                              <div className="bg-background p-2 rounded text-xs space-y-2 relative">
-                                <div className="flex gap-2 text-xxs">
-                                  {baseMsg && (
-                                    <RowBadge
-                                      rowNumbers={[baseMsg.rowIndex]}
-                                      mode="delete"
-                                    />
-                                  )}
-                                  <RowBadge rowNumbers={[-1]} mode="insert" />
+                                  <DiffViewer
+                                    oldValue={baseStr}
+                                    newValue={cStr}
+                                    splitView={splitView}
+                                    mode={diffMode}
+                                  />
                                 </div>
-                                <DiffViewer
-                                  oldValue={baseToolJSON}
-                                  newValue=""
-                                  splitView={splitView}
-                                  mode={diffMode}
-                                />
+                              );
+                            })
+                          ) : (
+                            <div className="mt-4 bg-background p-2 rounded text-xs space-y-2 relative border border-muted">
+                              <div className="flex gap-2 text-xxs">
+                                {baseMsg && (
+                                  <RowBadge
+                                    rowNumbers={[baseMsg.rowIndex]}
+                                    mode="delete"
+                                  />
+                                )}
+                                <RowBadge rowNumbers={[-1]} mode="insert" />
                               </div>
-                            )}
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
+                              <DiffViewer
+                                oldValue={baseStr}
+                                newValue=""
+                                splitView={splitView}
+                                mode={diffMode}
+                              />
+                            </div>
+                          )}
+
+                          {/* tool call diffs */}
+                          {(() => {
+                            const hasBaseTools =
+                              baseMsg && baseMsg.toolCalls && baseMsg.toolCalls.length > 0;
+                            const anyCompTools = compMsgs.some(
+                              (c) => c.toolCalls && c.toolCalls.length > 0
+                            );
+                            if (hasBaseTools || anyCompTools) {
+                              return (
+                                <div className="mt-6 pt-2 border-t border-muted space-y-2">
+                                  <p className="font-bold text-xs">Tool Calls Diff</p>
+                                  {compMsgs.length > 0 ? (
+                                    compMsgs.map((cm, idx3) => {
+                                      const cTools = JSON.stringify(cm.toolCalls, null, 2);
+                                      const sameTools = cTools === baseToolJSON;
+                                      const baseBadge = sameTools ? "none" : "delete";
+                                      const compBadge = sameTools ? "none" : "insert";
+                                      return (
+                                        <div
+                                          key={idx3}
+                                          className="bg-background p-2 rounded text-xs space-y-2 relative"
+                                        >
+                                          <div className="flex gap-2 text-xxs">
+                                            {baseMsg && (
+                                              <RowBadge
+                                                rowNumbers={[baseMsg.rowIndex]}
+                                                mode={baseBadge}
+                                              />
+                                            )}
+                                            <RowBadge
+                                              rowNumbers={[cm.rowIndex]}
+                                              mode={compBadge}
+                                            />
+                                          </div>
+                                          <DiffViewer
+                                            oldValue={baseToolJSON}
+                                            newValue={cTools}
+                                            splitView={splitView}
+                                            mode={diffMode}
+                                          />
+                                        </div>
+                                      );
+                                    })
+                                  ) : (
+                                    <div className="bg-background p-2 rounded text-xs space-y-2 relative">
+                                      <div className="flex gap-2 text-xxs">
+                                        {baseMsg && (
+                                          <RowBadge
+                                            rowNumbers={[baseMsg.rowIndex]}
+                                            mode="delete"
+                                          />
+                                        )}
+                                        <RowBadge rowNumbers={[-1]} mode="insert" />
+                                      </div>
+                                      <DiffViewer
+                                        oldValue={baseToolJSON}
+                                        newValue=""
+                                        splitView={splitView}
+                                        mode={diffMode}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}
             </div>
-          );
-        })}
-      </div>
-
-      {/* leftover diffs => model, usage, leftover */}
-      <Accordion type="multiple" className="space-y-2">
-        <AccordionItem value="model">
-          <AccordionTrigger>Model</AccordionTrigger>
-          <AccordionContent>
-            <StringView
-              value={baseModel}
-              comparables={compModels}
-              baseLogIndex={baseLogIndex}
-              comparisonLogsIndex={comparisonLogsIndex}
-              diffMode={diffMode}
-              splitView={splitView}
-            />
           </AccordionContent>
         </AccordionItem>
-
+        <AccordionItem value="model">
+          <AccordionTrigger className="relative group flex items-center justify-between">
+            <span className="inline-flex items-center gap-2">
+              <Component className="h-4 w-4 text-primary" />
+              <span>Model</span>
+            </span>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="border-l ml-4 pl-1">
+              <StringView
+                value={baseModel}
+                comparables={compModels}
+                baseLogIndex={baseLogIndex}
+                comparisonLogsIndex={comparisonLogsIndex}
+                diffMode={diffMode}
+                splitView={splitView}
+              />
+            </div>
+          </AccordionContent>
+        </AccordionItem>
         {usageBase !== undefined && (
           <AccordionItem value="usage">
-            <AccordionTrigger>Usage</AccordionTrigger>
+            <AccordionTrigger className="relative group flex items-center justify-between">
+              <span className="inline-flex items-center gap-2">
+                <BarChart2 className="h-4 w-4 text-primary" />
+                <span>Usage</span>
+              </span>
+            </AccordionTrigger>
             <AccordionContent>
-              {pickDataView(
-                usageBase,
-                usageComps,
-                baseLogIndex,
-                comparisonLogsIndex,
-                diffMode,
-                splitView
-              )}
+              <div className="border-l ml-4 pl-1">
+                {pickDataView(
+                  usageBase,
+                  usageComps,
+                  baseLogIndex,
+                  comparisonLogsIndex,
+                  diffMode,
+                  splitView
+                )}
+              </div>
             </AccordionContent>
           </AccordionItem>
         )}
-
         {Object.keys(leftover).length > 0 && (
           <AccordionItem value="metadata">
-            <AccordionTrigger>Metadata</AccordionTrigger>
+            <AccordionTrigger className="relative group flex items-center justify-between">
+              <span className="inline-flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                <span>Metadata</span>
+              </span>
+            </AccordionTrigger>
             <AccordionContent>
-              {pickDataView(
-                leftover,
-                leftoverComparables,
-                baseLogIndex,
-                comparisonLogsIndex,
-                diffMode,
-                splitView
-              )}
+              <div className="border-l ml-4 pl-1">
+                {pickDataView(
+                  leftover,
+                  leftoverComparables,
+                  baseLogIndex,
+                  comparisonLogsIndex,
+                  diffMode,
+                  splitView
+                )}
+              </div>
             </AccordionContent>
           </AccordionItem>
         )}

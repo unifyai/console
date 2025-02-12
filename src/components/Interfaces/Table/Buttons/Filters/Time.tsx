@@ -14,11 +14,11 @@ import { Trash, Plus, CircleX, Clock, History, LoaderCircle } from "lucide-react
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { DateTimeInput } from "@/components/Common/Time/DateTimeInput";
 import { AbsoluteDateString, RelativeDateString } from "@/types/evals/filters";
-import { LogProps } from "@/types/evals/logs";
+import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 
 interface TimeFilter {
     key: number,
-    mode: "==" | "!=" | ">=" | "=<" | ">" | "<",
+    mode: ">" | "<",
     join: "&&" | "||",
     value: string
 }
@@ -28,26 +28,23 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
-    logs: LogProps[]
+    logs: LogProps[] | GroupedLogProps[]
 }) => {
 
     /* Display loader when data updates */
     const [loading, setLoading] = useState(false);
+    const [spinnerColor, setSpinnerColor] = useState("white");
     useEffect(() => {
         setLoading(false);
     },[logs])
 
     /* Initialize filters */
     const options = [
-        {name: "==", label: "="  , description: "Filter for values equal to.."},
-        {name: "!=", label: "!=" , description: "Filter for values not equal to.."},
         {name: ">",  label: ">"  , description: "Filter for values greater than.."},
-        {name: ">=", label: ">=" , description: "Filter for values greater or equal to.."},
-        {name: "<",  label: "<"  , description: "Filter for values less than.."},
-        {name: "<=", label: "<=" , description: "Filter for values less or equal to.."}
+        {name: "<",  label: "<"  , description: "Filter for values less than.."}
     ]
     const modes = options.map(option => option.name)
-    let defaultFilter : TimeFilter = {key: 0, mode: "==", join: "&&", value: defaultAbsoluteDate}
+    let defaultFilter : TimeFilter = {key: 0, mode: ">", join: "&&", value: defaultRelativeDate}
     let initialValues : TimeFilter[] = []
     if (columnFilters[column]) {
         initFilters(column, columnFilters, initialValues, modes)
@@ -99,6 +96,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
             setFilters([defaultFilter])
         }
         setColumnFilterQuery(newColumnFilters);
+        setSpinnerColor("white")
         setLoading(true)
         setOpen(false);
     }
@@ -108,6 +106,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
         );
         setFilters([defaultFilter])
         setColumnFilterQuery(newColumnFilters)
+        setSpinnerColor("primary")
         setLoading(true)
         setOpen(false)
     }
@@ -120,7 +119,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
     /* Dialog interactions */
     const [open, setOpen] = useState(false);
     const close = <BaseButton size="sm" icon={<CircleX/>} onClick={() => setOpen(false)} className="top-0 right-0 scale-60 absolute" variant="warning"/>
-    const button = <ActionButton icon={loading ? <LoaderCircle className="animate-spin text-white"/> : <Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} disabled={!interactive || loading}/>
+    const button = <ActionButton icon={loading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : <Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} disabled={!interactive || loading}/>
     const reset = <ActionButton tooltip="Delete all filters" variant="warning" icon={<Trash/>} onClick={() => onReset()}/> 
     const submit = <SubmitButton text="Save" onClick={() => onSubmit()}/>
     const append = 
@@ -131,7 +130,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
                     className="p-2 hover:text-white hover:bg-primary cursor-pointer" 
                     onClick={() => {
                         const newFilters = [...filters]
-                        newFilters.push({key: filters.length, mode: "==", join: method === "And" ? "&&" : "||", value: ""})
+                        newFilters.push({key: filters.length, mode: ">", join: method === "And" ? "&&" : "||", value: ""})
                         setFilters(newFilters)
                     }}            
                 >
@@ -144,7 +143,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
     );
     const onRebase = () => {
         const value = relative ? defaultAbsoluteDate as AbsoluteDateString : defaultRelativeDate as RelativeDateString
-        const filter : TimeFilter = {key: 0, mode: "==", join: "&&", value: value}
+        const filter : TimeFilter = {key: 0, mode: ">", join: "&&", value: value}
         setFilters([filter])
         setRelative(!relative)
     }
@@ -194,7 +193,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
                 option={option}
                 onOptionChange={(option) => {
                     const newFilters = [...filters]
-                    newFilters.find(f => f.key === filter.key)!.mode = option.name as "==" | "!="
+                    newFilters.find(f => f.key === filter.key)!.mode = option.name as ">" | "<"
                 }}
             >
                 <div className="flex flex-row">

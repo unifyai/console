@@ -1,28 +1,56 @@
 "use client";
 
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { LogProps } from "@/types/evals/logs";
 import SelectionHints from "./Hints";
 import SelectionEntry from "./SelectionEntry";
 import { Accordion } from "@/components/UI/accordion";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { Combobox } from "@/components/UI/Combobox";
-import { ItemType, TileProps } from "@/types/evals/grid";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import {
   FoldVertical,
   UnfoldVertical,
   EyeOff,
+  Eye,
   FileText,
   CaseLower,
   Pilcrow,
   Columns,
   AlignJustify,
   SquareSplitHorizontal,
+  Code,
+  SquareSlash,
+  Type,
+  RemoveFormatting,
+  Filter,
+  Columns3,
+  Rows3,
+  GripVertical,
+  Grab,
 } from "lucide-react";
+import { BasePopover } from "@/components/Common/Popovers/Base";
+import { Switch } from "@/components/UI/switch";
+
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { LogFieldsResponseProps } from "@/types/evals/logs";
+import { TileProps, ItemType } from "@/types/evals/grid";
 
 /*******************************************************************************
- * (A) Basic type checks & helpers that were in the original Selection code
+ * (A) Basic type checks & helpers
  ******************************************************************************/
 function isList(val: any) {
   return Array.isArray(val);
@@ -37,52 +65,44 @@ function isImage(val: any) {
   return typeof val === "string" && val.startsWith("data:image/");
 }
 function isTrace(val: any) {
-  return false; // Your original check said "return false;"
+  return false; // originally always false
 }
 function isNumber(val: any) {
-  return typeof val === "number";
+  return typeof val === "number" || val instanceof Number;
 }
-
-/** Called in certain expansions to decide default open. */
 function getValueType(value: any) {
   if (isTrace(value)) return "trace";
   if (isDict(value)) return "dict";
-  if (isList(value)) {
-    if (isMatrix(value)) return "matrix";
-    return "list";
-  }
+  if (isList(value)) return "list";
   if (isImage(value)) return "image";
+  if (isMatrix(value)) return "matrix";
   if (isNumber(value)) return "number";
   return "string";
 }
-
-/** Used in the original code to open certain keys by default. */
 function defaultOpenFor(keys: string[], obj: Record<string, unknown>) {
-  return keys.filter((k) => {
+  const result = keys.filter((k) => {
     const val = obj[k];
     const t = getValueType(val);
-    return ["string", "matrix", "image"].includes(t);
+    return ["string", "number", "matrix", "image"].includes(t);
   });
+  return result;
 }
-
 function unwrapSingleKeyObject(val: unknown) {
   if (val && typeof val === "object" && !Array.isArray(val)) {
     const keys = Object.keys(val);
     if (keys.length === 1 && keys[0] === "0") {
-      return (val as Record<string, unknown>)["0"];
+      const result = (val as Record<string, unknown>)["0"];
+      return result;
     }
   }
   return val;
 }
-
-/** For labeling row pickers, e.g. "Row 5". */
 function rowLabel(rowIndex: number) {
   return `Row ${rowIndex + 1}`;
 }
 
 /*******************************************************************************
- * (B) The parent's buildIndexToColumnsMapFromId + buildRowIndicesInSelectionOrder
- *     from original code
+ * (B) Helpers: building row->columns maps from selection, etc.
  ******************************************************************************/
 function buildIndexToColumnsMapFromId(
   selectedCells: string[],
@@ -94,10 +114,8 @@ function buildIndexToColumnsMapFromId(
     if (underscorePos < 1) continue;
     const logIdStr = token.slice(0, underscorePos);
     const columnName = token.slice(underscorePos + 1);
-
     const rowIndex = sortedLogs.findIndex((log) => String(log.id) === logIdStr);
     if (rowIndex < 0) continue;
-
     if (!map[rowIndex]) {
       map[rowIndex] = new Set<string>();
     }
@@ -112,7 +130,6 @@ function buildRowIndicesInSelectionOrder(
 ): number[] {
   const seen = new Set<number>();
   const rowIndices: number[] = [];
-
   for (const token of selectedCells) {
     const underscorePos = token.indexOf("_");
     if (underscorePos < 1) continue;
@@ -128,8 +145,7 @@ function buildRowIndicesInSelectionOrder(
 }
 
 /*******************************************************************************
- * (C) The parent's buildLogWithChosenColumns from the original code
- *     This is crucial for param version logic.
+ * (C) buildLogWithChosenColumns: used for param version logic
  ******************************************************************************/
 function buildLogWithChosenColumns(
   originalLog: LogProps,
@@ -139,9 +155,11 @@ function buildLogWithChosenColumns(
   columnOrdering: string[],
   hiddenColumns: string[]
 ): LogProps {
+
+
   const chosenCols = indexToColumns[rowIndex] ?? new Set<string>();
 
-  // “entries”
+  // "entries"
   const safeEntries = originalLog.entries ?? {};
   const afterHiddenEntries = Array.from(chosenCols).filter(
     (c) => !hiddenColumns.includes(c)
@@ -152,15 +170,21 @@ function buildLogWithChosenColumns(
           .filter((c) => afterHiddenEntries.includes(c))
           .map(sanitizeId)
       : afterHiddenEntries.map(sanitizeId);
-
   const newEntries: Record<string, unknown> = {};
   for (const c of finalColsEntries) {
     if (safeEntries.hasOwnProperty(c)) {
       newEntries[c] = safeEntries[c];
+    } else {
+      console.error(
+        "[buildLogWithChosenColumns] Missing key in safeEntries:",
+        c,
+        "Available keys:",
+        Object.keys(safeEntries)
+      );
     }
   }
 
-  // “params”
+  // "params"
   const safeParams = originalLog.params ?? {};
   const afterHiddenParams = Array.from(chosenCols).filter(
     (c) => !hiddenColumns.includes(c)
@@ -171,14 +195,10 @@ function buildLogWithChosenColumns(
           .filter((c) => afterHiddenParams.includes(c))
           .map(sanitizeId)
       : afterHiddenParams.map(sanitizeId);
-
   const newParams: Record<string, unknown> = {};
   for (const c of finalColsParams) {
     if (!safeParams.hasOwnProperty(c)) continue;
     const storedVal = safeParams[c];
-
-    // If the storedVal is a string that might index into globalParams[c]
-    // This is where paramVersion logic is created
     if (typeof storedVal === "string" && globalParams.hasOwnProperty(c)) {
       const possibleObj = globalParams[c];
       if (possibleObj && typeof possibleObj === "object") {
@@ -193,15 +213,15 @@ function buildLogWithChosenColumns(
         }
       }
     }
-    // otherwise keep as-is
     newParams[c] = unwrapSingleKeyObject(storedVal);
   }
 
-  return {
+  const result = {
     ...originalLog,
     entries: newEntries,
     params: newParams,
   };
+  return result;
 }
 
 /*******************************************************************************
@@ -212,7 +232,15 @@ function buildLogWithChosenColumns(
 *     - each panel is rendered with <SelectionPanel> for independent state
 ******************************************************************************/
 export default function Selection({
-  params, logs, selection_, baseIndex_, columnOrdering_, hiddenColumns_, item, updateItem
+  params,
+  logs,
+  selection_,
+  baseIndex_,
+  columnOrdering_,
+  hiddenColumns_,
+  tableItem,
+  item,
+  updateItem,
 }: {
   params: Record<string, unknown>,
   logs: LogProps[],
@@ -220,14 +248,15 @@ export default function Selection({
   baseIndex_: string | undefined,
   columnOrdering_: string | undefined,
   hiddenColumns_: string | undefined,
+  tableItem: TileProps | undefined,
   item: TileProps,
   updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void
 }) {
   // 1) Possibly reorder logs or just keep them
   const sortedLogs = useMemo(() => [...logs], [logs]);
 
-  // 2) Which cells are selected
-  const selectedCells = selection_ ? selection_.split(",") : [];
+  // 2) Which cells are selected (memoized)
+  const selectedCells = useMemo(() => (selection_ ? selection_.split(",") : []), [selection_]);
 
   // 3) Build rowIndex -> columns
   const indexToColumns = useMemo(
@@ -241,17 +270,101 @@ export default function Selection({
     [selectedCells, sortedLogs]
   );
 
-  // 5) Possibly read column order, hidden columns
-  const columnOrdering = columnOrdering_?.split(",") || [];
-  const hiddenColumns = hiddenColumns_?.split(",") || [];
+  // 5) Possibly read column order (memoized)
+  const columnOrdering = useMemo(() => columnOrdering_?.split(",") || [], [columnOrdering_]);
 
-  // 6) Let user cycle # of side-by-side panels. Each has independent state
+  // Move the useMemo hooks above the conditional return
+  const orderedEntryKeys = useMemo(() => {
+    if (columnOrdering.length > 0) return columnOrdering;
+    return sortedLogs[0] && sortedLogs[0].entries ? Object.keys(sortedLogs[0].entries) : [];
+  }, [columnOrdering, sortedLogs]);
+  
+  const orderedParamKeys = useMemo(() => {
+    return sortedLogs[0] && sortedLogs[0].params ? Object.keys(sortedLogs[0].params) : [];
+  }, [sortedLogs]);
+
+  // 6) For selection we ignore the table's hidden columns.
+  const hiddenColumns: string[] = [];
+
+  // 7) Let user cycle # of side-by-side panels. Each has independent state
   const [panelCount, setPanelCount] = useState(1);
-  function handleCyclePanelCount() {
-    setPanelCount((prev) => (prev === 3 ? 1 : prev + 1));
-  }
+  const [rawMode, setRawMode] = useState(false);
+  // NEW: Edit mode: when active, all accordions are collapsed and locked.
+  const [editMode, setEditMode] = useState(false);
+  // Save the current open accordions state so we can restore later when turning off edit mode
+  const [prevOpenAccordions, setPrevOpenAccordions] = useState<string[]>([]);
 
-  // If user hasn't selected anything, just show hints
+  // NEW: New local filter state for this Selection view:
+  const [entriesFilter, setEntriesFilter] = useState<Record<string, boolean>>({});
+  const [paramsFilter, setParamsFilter] = useState<Record<string, boolean>>({});
+
+  // Compute a base log from the first selected row (if available)
+  const baseLog = selectedRowIndices.length > 0 ? sortedLogs[selectedRowIndices[0]] : null;
+  // Compute the keys for entries and params from the base log.
+  const entryKeys = useMemo(() => {
+    return baseLog ? Object.keys(baseLog.entries ?? {}) : [];
+  }, [baseLog, baseLog?.entries]);
+
+  const paramKeys = useMemo(() => {
+    return baseLog ? Object.keys(baseLog.params ?? {}) : [];
+  }, [baseLog, baseLog?.params]);
+
+  useEffect(() => {
+    setEntriesFilter((prev) => {
+      const updated = { ...prev };
+      // For each key from the new entryKeys, add it if missing (default true).
+      entryKeys.forEach((key) => {
+        if (!(key in updated)) {
+          updated[key] = true;
+        }
+      });
+      // Remove keys no longer present in entryKeys.
+      Object.keys(updated).forEach((key) => {
+        if (!entryKeys.includes(key)) {
+          delete updated[key];
+        }
+      });
+      return updated;
+    });
+
+    setParamsFilter((prev) => {
+      const updated = { ...prev };
+      // For each key from the new paramKeys, add it if missing (default true).
+      paramKeys.forEach((key) => {
+        if (!(key in updated)) {
+          updated[key] = true;
+        }
+      });
+      // Remove keys no longer present in paramKeys.
+      Object.keys(updated).forEach((key) => {
+        if (!paramKeys.includes(key)) {
+          delete updated[key];
+        }
+      });
+      return updated;
+    });
+  }, [entryKeys, paramKeys]);
+
+  // Helper to determine if a column is an entry or param.
+  const getSectionType = (column: string, baseLog: LogProps | null) => {
+    if (!baseLog) return null;
+    if (baseLog.entries && column in baseLog.entries) return 'entries';
+    if (baseLog.params && column in baseLog.params) return 'params';
+    return null;
+  };
+  
+  // Determine the section order based on the first selected cell.
+  const sectionOrder = useMemo(() => {
+    if (!selectedCells.length || !baseLog) return ['entries', 'params'];
+    const firstCell = selectedCells[0];
+    const underscorePos = firstCell.indexOf("_");
+    if (underscorePos < 1) return ['entries', 'params'];
+    const firstColumn = firstCell.slice(underscorePos + 1);
+    const firstType = getSectionType(firstColumn, baseLog);
+    return firstType === 'params' ? ['params', 'entries'] : ['entries', 'params'];
+  }, [selectedCells, baseLog]);
+  
+  const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
   if (!selectedRowIndices.length) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-background rounded-md">
@@ -260,21 +373,147 @@ export default function Selection({
     );
   }
 
-  // Return multiple panels side-by-side
   return (
     <div className="flex flex-col w-full h-full overflow-hidden bg-background rounded-md">
-      {/* A top bar just for toggling panelCount */}
+      {/* A top bar just for toggling panelCount, raw mode, etc. */}
       <div className="p-2 border-b border-muted flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           Selected {selectedRowIndices.length} row(s)
         </p>
-        <ActionButton
-          tooltip={`Cycle panel count (currently: ${panelCount})`}
-          icon={<SquareSplitHorizontal className="h-4 w-4" />}
-          onClick={handleCyclePanelCount}
-          variant="ghost"
-          size="icon"
-        />
+        <div className="flex items-center gap-2 relative">
+          <ActionButton
+            tooltip={rawMode ? "Viewing as raw text" : "Viewing with specialized components"}
+            icon={rawMode ? <RemoveFormatting className="h-4 w-4" /> : <Type className="h-4 w-4" />}
+            onClick={() => setRawMode((prev) => !prev)}
+            variant="ghost"
+            size="icon"
+          />
+          {/* Filter Menu using BasePopover with global and section toggles */}
+          <BasePopover
+            button={
+              <ActionButton
+                tooltip="Show / hide columns"
+                icon={<Rows3 className="h-4 w-4" />}
+                variant="ghost"
+                size="icon"
+              />
+            }
+          >
+            <div className="flex flex-col gap-1 p-3">
+              <p className="font-bold text-medium pb-1">Select visible columns</p>
+              <div className="max-h-[60vh] overflow-y-auto pr-2">
+                {/* Global toggle */}
+                <div className="flex justify-between items-center mb-5 mt-3">
+                  <span className="font-bold text-sm">
+                    {(orderedEntryKeys.every(key => entriesFilter[key] !== false) &&
+                      orderedParamKeys.every(key => paramsFilter[key] !== false))
+                      ? "Hide all" : "Show all"}
+                  </span>
+                  <Switch
+                    checked={
+                      (orderedEntryKeys.every(key => entriesFilter[key] !== false) &&
+                      orderedParamKeys.every(key => paramsFilter[key] !== false))
+                    }
+                    onCheckedChange={(checked) => {
+                      const newEntries: Record<string, boolean> = {};
+                      orderedEntryKeys.forEach((key) => {
+                        newEntries[key] = checked;
+                      });
+                      setEntriesFilter(newEntries);
+                      const newParams: Record<string, boolean> = {};
+                      orderedParamKeys.forEach((key) => {
+                        newParams[key] = checked;
+                      });
+                      setParamsFilter(newParams);
+                    }}
+                  />
+                </div>
+                {/* Entries Section */}
+                <div className="mt-2">
+                  <div className="flex justify-between items-center mb-1">
+                    <p className="font-bold text-sm">Entries</p>
+                    <Switch
+                      checked={orderedEntryKeys.every(key => entriesFilter[key] !== false)}
+                      onCheckedChange={(checked) => {
+                        const newEntries: Record<string, boolean> = {};
+                        orderedEntryKeys.forEach((key) => {
+                          newEntries[key] = checked;
+                        });
+                        setEntriesFilter(newEntries);
+                      }}
+                    />
+                  </div>
+                  {orderedEntryKeys.map((key) => (
+                    <div key={key} className="flex flex-row gap-2 items-center justify-between py-1 pl-4">
+                      <span className="text-sm max-w-[200px] truncate" title={key}>{key}</span>
+                      <Switch
+                        checked={entriesFilter[key] !== false}
+                        onCheckedChange={(checked) =>
+                          setEntriesFilter(prev => ({ ...prev, [key]: checked }))
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+                {/* Params Section */}
+                {paramKeys.length > 0 && (
+                  <div className="mt-4">
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="font-bold text-sm">Params</p>
+                      <Switch
+                        checked={orderedParamKeys.every(key => paramsFilter[key] !== false)}
+                        onCheckedChange={(checked) => {
+                          const newParams: Record<string, boolean> = {};
+                          orderedParamKeys.forEach((key) => {
+                            newParams[key] = checked;
+                          });
+                          setParamsFilter(newParams);
+                        }}
+                      />
+                    </div>
+                    {orderedParamKeys.map((key) => (
+                      <div key={key} className="flex flex-row gap-2 items-center justify-between py-1 pl-4">
+                        <span className="text-sm max-w-[200px] truncate" title={key}>{key}</span>
+                        <Switch
+                          checked={paramsFilter[key] !== false}
+                          onCheckedChange={(checked) =>
+                            setParamsFilter(prev => ({ ...prev, [key]: checked }))
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </BasePopover>
+          <ActionButton
+            tooltip={`Cycle panel count (currently: ${panelCount})`}
+            icon={<SquareSplitHorizontal className="h-4 w-4" />}
+            onClick={() => setPanelCount((prev) => (prev === 3 ? 1 : prev + 1))}
+            variant="ghost"
+            size="icon"
+          />
+          {/* NEW: Edit mode button */}
+          <ActionButton
+            tooltip={editMode ? "Edit mode active – drag and drop enabled" : "Activate edit mode for drag and drop"}
+            icon={<Grab className="h-4 w-4" />}
+            onClick={() => {
+              if (!editMode) {
+                // On entering edit mode, save current open accordions and collapse them
+                setPrevOpenAccordions(openAccordionItems);
+                setOpenAccordionItems([]);
+                setEditMode(true);
+              } else {
+                // Restore previous open states when turning off edit mode
+                setOpenAccordionItems(prevOpenAccordions);
+                setEditMode(false);
+              }
+            }}
+            variant={editMode ? "primary" : "ghost"}
+            size="icon"
+          />
+        </div>
       </div>
 
       {/* Panels in a horizontal row, each scrollable independently */}
@@ -289,20 +528,28 @@ export default function Selection({
             selectedRowIndices={selectedRowIndices}
             hiddenColumns={hiddenColumns}
             columnOrdering={columnOrdering}
-            baseIndex_={baseIndex_}
+            rawMode={rawMode}
+            tableItem={tableItem}
             item={item}
+            entriesFilter={entriesFilter}
+            paramsFilter={paramsFilter}
+            selectionOrder={sectionOrder}
+            onHideEntry={(prop) => setEntriesFilter((prev) => ({ ...prev, [prop]: false }))}
+            onHideParam={(prop) => setParamsFilter((prev) => ({ ...prev, [prop]: false }))}
             updateItem={updateItem}
+            openAccordionItems={openAccordionItems}
+            setOpenAccordionItems={setOpenAccordionItems}
+            editMode={editMode}
           />
         ))}
       </div>
     </div>
   );
-
 }
 
 /*******************************************************************************
  * (E) "SelectionPanel": each panel is fully independent in expansions, base row,
- *     diff mode, etc. We replicate your original logic but scoping it to this panel.
+ *     diff mode, etc.
  ******************************************************************************/
 function SelectionPanel({
   panelId,
@@ -312,9 +559,18 @@ function SelectionPanel({
   selectedRowIndices,
   hiddenColumns,
   columnOrdering,
-  baseIndex_,
+  rawMode,
+  tableItem,
   item,
+  entriesFilter,
+  paramsFilter,
+  selectionOrder,
+  onHideEntry,
+  onHideParam,
   updateItem,
+  openAccordionItems,
+  setOpenAccordionItems,
+  editMode,
 }: {
   panelId: number;
   params: Record<string, unknown>;
@@ -323,33 +579,38 @@ function SelectionPanel({
   selectedRowIndices: number[];
   hiddenColumns: string[];
   columnOrdering: string[];
-  baseIndex_: string | undefined;
-  item: TileProps,
-  updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void
+  rawMode: boolean;
+  tableItem: TileProps | undefined;
+  item: TileProps;
+  entriesFilter: Record<string, boolean>;
+  paramsFilter: Record<string, boolean>;
+  selectionOrder: string[];
+  onHideEntry: (prop: string) => void;
+  onHideParam: (prop: string) => void;
+  updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
+  openAccordionItems: string[];
+  setOpenAccordionItems: React.Dispatch<React.SetStateAction<string[]>>;
+  editMode: boolean;
 }) {
+
   // 1) local state: pick a base row among the selected rowIndices
-  let baseIndexParam = baseIndex_ ? parseInt(baseIndex_, 10) : 0;
-  if (
-    baseIndexParam < 0 ||
-    baseIndexParam >= selectedRowIndices.length
-  ) {
-    updateItem(item, "base_index")("0");
+  let baseIndexParam = parseInt(item.base_index ?? "0", 10);
+  if (isNaN(baseIndexParam)) {
+    baseIndexParam = 0;
   }
-  const baseRowIndex = selectedRowIndices[baseIndexParam] ?? -1;
-  const comparisonRowIndices = selectedRowIndices.filter(
-    (_, i) => i !== baseIndexParam
-  );
+  if (baseIndexParam < 0 || baseIndexParam >= selectedRowIndices.length) {
+    baseIndexParam = 0;
+  }
 
   // 2) local expansions: openItems, openParamItems
   const [openItems, setOpenItems] = useState<string[]>([]);
   const [openParamItems, setOpenParamItems] = useState<string[]>([]);
-  const [didInit, setDidInit] = useState(false);
 
   // 3) diff mode & split
   type DiffMode = "none" | "lines" | "words" | "characters";
   const allModes: DiffMode[] = ["none", "lines", "words", "characters"];
   const modeIcons = [
-    <EyeOff key="none" />,
+    <SquareSlash key="none" />,
     <FileText key="lines" />,
     <CaseLower key="words" />,
     <Pilcrow key="characters" />,
@@ -361,57 +622,44 @@ function SelectionPanel({
   function handleCycleMode() {
     setModeIndex((prev) => (prev + 1) % allModes.length);
   }
+
   function handleToggleSplit() {
     setSplitView((prev) => !prev);
   }
 
-  // 4) build baseLog & comparison logs for THIS panel
-  const baseLog = useMemo<LogProps | undefined>(() => {
-    if (baseRowIndex < 0 || baseRowIndex >= logs.length) return undefined;
+  // 4) Build baseLog + comparison logs for THIS panel
+  const baseRowIndex = selectedRowIndices[baseIndexParam] ?? -1;
+  const comparisonRowIndices = selectedRowIndices.filter(
+    (_, i) => i !== baseIndexParam
+  );
+
+  const buildLogIfValid = useCallback((ri: number) => {
+    if (ri < 0 || ri >= logs.length) return null;
     return buildLogWithChosenColumns(
-      logs[baseRowIndex],
-      baseRowIndex,
+      logs[ri],
+      ri,
       params,
       indexToColumns,
       columnOrdering,
-      hiddenColumns
+      []  // always pass an empty array here
     );
-  }, [
-    baseRowIndex,
-    logs,
-    params,
-    indexToColumns,
-    columnOrdering,
-    hiddenColumns,
-  ]);
+  }, [logs, params, indexToColumns, columnOrdering]);
 
-  const comparisonLogs = useMemo(() => {
-    return comparisonRowIndices
-      .map((ri) =>
-        ri < 0 || ri >= logs.length
-          ? null
-          : buildLogWithChosenColumns(
-            logs[ri],
-            ri,
-            params,
-            indexToColumns,
-            columnOrdering,
-            hiddenColumns
-          )
-        )
-        .filter((x): x is LogProps => x !== null);
-    }, [
-    comparisonRowIndices,
-    logs,
-    params,
-    indexToColumns,
-    columnOrdering,
-    hiddenColumns,
-  ]);
+  const baseLog = useMemo(() => buildLogIfValid(baseRowIndex), [baseRowIndex, buildLogIfValid]);
 
-  // 5) gather keys => default expansions
-  const entryKeys = baseLog ? Object.keys(baseLog.entries) : [];
-  const paramKeys = baseLog ? Object.keys(baseLog.params) : [];
+  const comparisonLogs = useMemo(
+    () => comparisonRowIndices.map((ri) => buildLogIfValid(ri)).filter((x) => x),
+    [comparisonRowIndices, buildLogIfValid]
+  ) as LogProps[];
+
+  // gather keys => default expansions
+  const entryKeys = useMemo(() => {
+    return baseLog ? Object.keys(baseLog.entries ?? {}) : [];
+  }, [baseLog, baseLog?.entries]);
+
+  const paramKeys = useMemo(() => {
+    return baseLog ? Object.keys(baseLog.params ?? {}) : [];
+  }, [baseLog, baseLog?.params]);
 
   const defaultOpenEntries = useMemo(() => {
     if (!baseLog) return [];
@@ -423,18 +671,71 @@ function SelectionPanel({
     return defaultOpenFor(paramKeys, baseLog.params);
   }, [baseLog, paramKeys]);
 
-  // When baseLog first becomes available, set expansions
+  // dragging code
+  const [entryOrder, setEntryOrder] = useState<string[]>(entryKeys);
+  const [paramOrder, setParamOrder] = useState<string[]>(paramKeys);
+
+  // Use refs to store the previous base log id and key signatures.
+  const prevBaseLogId = useRef<string | null>(null);
+  const prevEntryKeySignature = useRef<string>("");
+  const prevParamKeySignature = useRef<string>("");
+  
   useEffect(() => {
-    if (baseLog && !didInit) {
-      if (defaultOpenEntries.length > 0) {
-        setOpenItems(defaultOpenEntries);
-      }
-      if (defaultOpenParams.length > 0) {
-        setOpenParamItems(defaultOpenParams);
-      }
-      setDidInit(true);
+    if (baseLog) {
+      // Compute the new available keys.
+      const newEntryKeys = Object.keys(baseLog.entries);
+      const newParamKeys = Object.keys(baseLog.params);
+
+      // Merge the new keys with the current ordering state:
+      // • Keep keys already in order that still exist in the new log.
+      // • Append any new keys (or drop ones that are no longer available).
+      setEntryOrder((prevOrder) => {
+        const common = prevOrder.filter((k) => newEntryKeys.includes(k));
+        const appended = newEntryKeys.filter((k) => !common.includes(k));
+        return [...common, ...appended];
+      });
+
+      setParamOrder((prevOrder) => {
+        const common = prevOrder.filter((k) => newParamKeys.includes(k));
+        const appended = newParamKeys.filter((k) => !common.includes(k));
+        return [...common, ...appended];
+      });
+
+      // Update refs for comparison next time.
+      prevBaseLogId.current = baseLog.id;
+      prevEntryKeySignature.current = [...newEntryKeys].sort().join(",");
+      prevParamKeySignature.current = [...newParamKeys].sort().join(",");
     }
-  }, [baseLog, didInit, defaultOpenEntries, defaultOpenParams]);
+  }, [baseLog]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  function handleEntryDragEnd(event: any) {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      setEntryOrder((items) =>
+        arrayMove(items, items.indexOf(active.id), items.indexOf(over.id))
+      );
+    }
+  }
+  
+  function handleParamDragEnd(event: any) {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      setParamOrder((items) =>
+        arrayMove(items, items.indexOf(active.id), items.indexOf(over.id))
+      );
+    }
+  }
+
+  useEffect(() => {
+    if (baseLog) {
+      setOpenItems(defaultOpenEntries);
+      setOpenParamItems(defaultOpenParams);
+    }
+  }, [baseLog, defaultOpenEntries, defaultOpenParams]);
 
   const everythingOpen = entryKeys.length > 0 && openItems.length === entryKeys.length;
   const everythingOpenParams = paramKeys.length > 0 && openParamItems.length === paramKeys.length;
@@ -446,7 +747,11 @@ function SelectionPanel({
     setOpenParamItems(everythingOpenParams ? [] : paramKeys);
   }
 
-  // 6) if no base log => show hints, else build sections
+  // Update visible keys filtering by removing the override condition:
+  const visibleEntryKeys = entryOrder.filter(key => entriesFilter[key] !== false);
+  const visibleParamKeys = paramOrder.filter(key => paramsFilter[key] !== false);
+
+  // if no base => show hints
   let content: JSX.Element;
   if (!baseLog) {
     content = (
@@ -456,7 +761,7 @@ function SelectionPanel({
     );
   } else {
     let entriesSection: JSX.Element | null = null;
-    if (entryKeys.length > 0) {
+    if (visibleEntryKeys.length > 0) {
       entriesSection = (
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between sticky top-0 z-10 bg-background py-2 border-b border-muted">
@@ -466,39 +771,48 @@ function SelectionPanel({
               size="icon"
               tooltip={everythingOpen ? "Collapse All" : "Expand All"}
               onClick={handleToggleAll}
-              icon={
-                everythingOpen
-                  ? <FoldVertical className="h-4 w-4" />
-                  : <UnfoldVertical className="h-4 w-4" />
-              }
+              icon={everythingOpen ? <FoldVertical /> : <UnfoldVertical />}
             />
           </div>
-          <Accordion
-            type="multiple"
-            value={openItems}
-            onValueChange={setOpenItems}
-          >
-            {entryKeys.map((col) => (
-              <SelectionEntry
-                key={col}
-                source="entries"
-                property={col}
-                value={baseLog.entries[col]}
-                baseLog={baseLog}
-                baseLogIndex={baseRowIndex + 1}
-                comparisonLogs={comparisonLogs}
-                comparisonLogsIndex={comparisonRowIndices.map(x => x + 1)}
-                diffMode={diffMode}
-                splitView={splitView}
-              />
-            ))}
-          </Accordion>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleEntryDragEnd}>
+            <SortableContext items={entryOrder} strategy={verticalListSortingStrategy}>
+              <Accordion
+                type="multiple"
+                value={editMode ? openAccordionItems : openItems}
+                onValueChange={editMode ? () => {} : setOpenItems}
+              >
+                {entryOrder
+                  .filter((col) => entriesFilter[col] !== false)
+                  .map((col) => (
+                    <SortableAccordionItem key={col} id={col} editMode={editMode}>
+                      <SelectionEntry
+                        source="entries"
+                        property={col}
+                        value={baseLog.entries[col]}
+                        baseLog={baseLog}
+                        baseLogIndex={baseRowIndex + 1}
+                        comparisonLogs={comparisonLogs}
+                        comparisonLogsIndex={comparisonRowIndices.map((x) => x + 1)}
+                        diffMode={diffMode}
+                        splitView={splitView}
+                        rawMode={rawMode}
+                        onHideColumn={onHideEntry}
+                        tableItem={tableItem}
+                        updateItem={updateItem}
+                        onAccordionValueChange={editMode ? setOpenAccordionItems : setOpenItems}
+                        editMode={editMode}
+                      />
+                    </SortableAccordionItem>
+                  ))}
+              </Accordion>
+            </SortableContext>
+          </DndContext>
         </div>
       );
     }
 
     let paramsSection: JSX.Element | null = null;
-    if (paramKeys.length > 0) {
+    if (visibleParamKeys.length > 0) {
       paramsSection = (
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between sticky top-0 z-10 bg-background py-2 border-b border-muted">
@@ -508,46 +822,92 @@ function SelectionPanel({
               size="icon"
               tooltip={everythingOpenParams ? "Collapse All" : "Expand All"}
               onClick={handleToggleAllParams}
-              icon={
-                everythingOpenParams
-                  ? <FoldVertical className="h-4 w-4" />
-                  : <UnfoldVertical className="h-4 w-4" />
-              }
+              icon={everythingOpenParams ? <FoldVertical /> : <UnfoldVertical />}
             />
           </div>
-          <Accordion
-            type="multiple"
-            value={openParamItems}
-            onValueChange={setOpenParamItems}
-          >
-            {paramKeys.map((col) => (
-              <SelectionEntry
-                key={col}
-                source="params"
-                property={col}
-                value={baseLog.params[col]}
-                baseLog={baseLog}
-                baseLogIndex={baseRowIndex + 1}
-                comparisonLogs={comparisonLogs}
-                comparisonLogsIndex={comparisonRowIndices.map(x => x + 1)}
-                diffMode={diffMode}
-                splitView={splitView}
-              />
-            ))}
-          </Accordion>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleParamDragEnd}>
+            <SortableContext items={paramOrder} strategy={verticalListSortingStrategy}>
+              <Accordion
+                type="multiple"
+                value={editMode ? openAccordionItems : openParamItems}
+                onValueChange={editMode ? () => {} : setOpenParamItems}
+              >
+                {paramOrder
+                  .filter((col) => paramsFilter[col] !== false)
+                  .map((col) => {
+                    const baseParam = baseLog.params[col];
+                    const baseDisplayValue =
+                      baseParam &&
+                      typeof baseParam === "object" &&
+                      "paramValue" in baseParam &&
+                      "paramVersion" in baseParam
+                        ? baseParam.paramValue
+                        : baseParam;
+                    const baseVersion =
+                      baseParam &&
+                      typeof baseParam === "object" &&
+                      "paramValue" in baseParam &&
+                      "paramVersion" in baseParam
+                        ? baseParam.paramVersion
+                        : "";
+                    const compVersions = comparisonLogs.map((log) => {
+                      const param = log.params[col];
+                      if (
+                        param &&
+                        typeof param === "object" &&
+                        "paramValue" in param &&
+                        "paramVersion" in param
+                      ) {
+                        return param.paramVersion as string;
+                      }
+                      return "";
+                    });
+                    return (
+                      <SortableAccordionItem key={col} id={col} editMode={editMode}>
+                        <SelectionEntry
+                          source="params"
+                          property={col}
+                          value={baseDisplayValue}
+                          version={baseVersion}
+                          comparableVersions={compVersions}
+                          baseLog={baseLog}
+                          baseLogIndex={baseRowIndex + 1}
+                          comparisonLogs={comparisonLogs}
+                          comparisonLogsIndex={comparisonRowIndices.map((x) => x + 1)}
+                          diffMode={diffMode}
+                          splitView={splitView}
+                          rawMode={rawMode}
+                          onHideColumn={onHideParam}
+                          tableItem={tableItem}
+                          updateItem={updateItem}
+                          onAccordionValueChange={editMode ? setOpenAccordionItems : setOpenParamItems}
+                          editMode={editMode}
+                        />
+                      </SortableAccordionItem>
+                    );
+                  })}
+              </Accordion>
+            </SortableContext>
+          </DndContext>
         </div>
       );
     }
 
-    content = (
+    const renderedSections = selectionOrder
+      .map(section => (section === 'entries' ? entriesSection : paramsSection))
+      .filter(section => section !== null);
+
+    content = renderedSections.length > 0 ? (
       <div className="flex flex-col gap-6">
-        {paramsSection}
-        {entriesSection}
+        {renderedSections}
+      </div>
+    ) : (
+      <div className="flex items-center justify-center h-full w-full">
+        <p className="text-sm text-muted-foreground mt-5">Nothing to show ☹️ </p>
       </div>
     );
   }
 
-  // 7) a small top bar for picking base row, toggling diff mode, etc.
   return (
     <div className="flex flex-col w-full h-full overflow-hidden">
       {selectedRowIndices.length > 1 && (
@@ -568,8 +928,8 @@ function SelectionPanel({
                 const found = selectedRowIndices.findIndex(
                   (r) => rowLabel(r) === newLabel
                 );
-                if (found >= 0) {
-                  updateItem(item, "base_index")(`${found}`);
+                if (found >= 0 && String(found) !== item.base_index) {
+                  updateItem(item, "base_index")(String(found));
                 }
               }}
               placeholder="Pick base row"
@@ -596,9 +956,43 @@ function SelectionPanel({
         </div>
       )}
 
-      {/* The scrollable panel content */}
       <div className="flex-1 overflow-y-auto px-5 min-h-0">
         {content}
+      </div>
+    </div>
+  );
+}
+
+/*******************************************************************************
+ * (F) "SortableAccordionItem": for drag-and-drop
+ ******************************************************************************/
+function SortableAccordionItem({
+  id,
+  children,
+  editMode,
+}: {
+  id: string;
+  children: React.ReactNode;
+  editMode?: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    minHeight: "48px",
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center">
+      {/* DRAG HANDLE: shown when edit mode is active */}
+      {editMode && (
+        <div className="drag-handle p-2 cursor-grab" {...attributes} {...listeners}>
+          <GripVertical className="h-4 w-4 text-primary" />
+        </div>
+      )}
+      {/* Accordion content */}
+      <div className={editMode ? "flex-1 ml-0" : "flex-1 ml-2"}>
+        {children}
       </div>
     </div>
   );

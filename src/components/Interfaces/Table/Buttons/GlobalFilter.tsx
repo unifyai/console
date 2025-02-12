@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/Common/Input/Content";
 import { Filter, X, LoaderCircle } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
-import { LogProps } from "@/types/evals/logs";
+import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 
 const GlobalFilter = ({ interactive, logsFilters, commonFilter_, setLogsFilters, setCommonFilter_, logs }: {
     interactive: boolean,
@@ -12,7 +12,7 @@ const GlobalFilter = ({ interactive, logsFilters, commonFilter_, setLogsFilters,
     commonFilter_: string | undefined,
     setLogsFilters: (logsFilters: { [key: string]: { [key: string]: string } }) => void
     setCommonFilter_: (newValue: string | undefined) => void,
-    logs: LogProps[]
+    logs: LogProps[] | GroupedLogProps[]
 }) => {
 
     /* Display loader when data updates */

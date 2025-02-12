@@ -11,7 +11,7 @@ import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { Input } from "@/components/UI/input";
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { combineFilters, initFilters } from "@/utils/evals/filters";
-import { LogProps } from "@/types/evals/logs";
+import { LogProps, GroupedLogProps } from "@/types/evals/logs";
 
 interface StringFilter {
     key: number,
@@ -22,9 +22,9 @@ interface StringFilter {
 
 const StringColumnFilter = ({ column, columnFilters, setColumnFilterQuery, logs }: {
     column: string,
-    columnFilters: FiltersByColumn
+    columnFilters: FiltersByColumn,
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
-    logs: LogProps[]
+    logs: LogProps[] | GroupedLogProps[]
 }) => {
 
     /* Display loader when data updates */

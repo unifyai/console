@@ -34,6 +34,7 @@ const DataTableHeader = ({
   setGrouping,
   ColumnFilters,
   ColumnCreate,
+  ColumnUpdate,
   context,
   setContext,
   draggingColumns,
@@ -61,7 +62,8 @@ const DataTableHeader = ({
   grouping: string[],
   setGrouping: (grouping: string[]) => void,
   ColumnFilters?: (column: Column<any | unknown>) => ReactNode,
-  ColumnCreate?: ReactNode,
+  ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode,
+  ColumnUpdate?: (key: string) => ReactNode,
   context: string | null,
   setContext: (context: string | null) => void,
   draggingColumns: DraggingColumnsState,
@@ -151,6 +153,7 @@ const DataTableHeader = ({
     transition: appliedTransition,
     whiteSpace: "nowrap",
     width: `${Math.round(header.getSize())}px`,
+    minWidth: isDerivedColumn ? '150px' : undefined,
     zIndex: isColumnDragging || isPinned ? 1 : 0,
     borderRight: "1px solid var(--muted)",
     borderBottom: "1px solid var(--muted)",
@@ -219,7 +222,7 @@ const DataTableHeader = ({
                   onMouseDown={(e) => e.stopPropagation()} // Prevent event bubbling for action buttons
                   onMouseUp={(e) => e.stopPropagation()}   // Prevent event bubbling for action buttons
                 >
-                  <ColumnGroupBy interactive={interactive} column={header.column} grouping={grouping} setGrouping={setGrouping}/>
+                  <ColumnGroupBy interactive={interactive} column={header.column} grouping={grouping} setGrouping={setGrouping} data={data}/>
                   <ColumnContext interactive={interactive} column={header.column} context={context} setContext={setContext} data={data}/>
                 </div>
               )}
@@ -234,16 +237,17 @@ const DataTableHeader = ({
             onMouseDown={(e) => e.stopPropagation()} // Prevent drag interference
             onMouseUp={(e) => e.stopPropagation()} // Prevent drag interference
           >
-            <ColumnHide column={header.column} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility} data={data}/>
+            <ColumnHide column={header.column} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility}/>
           </div>
         )}
 
         {/* Column actions */}
-        {!header.isPlaceholder && isNotUtilColumn && !isDerivedColumn &&
-          <div className="flex items-center justify-center gap-2 mt-2">
-            {!isParentColumn && <ColumnGroupBy interactive={interactive} column={header.column} grouping={grouping} setGrouping={setGrouping}/>}
+        {!header.isPlaceholder && isNotUtilColumn &&
+          <div className="flex items-center justify-center gap-1 mt-2">
+            {!isParentColumn && <ColumnGroupBy interactive={interactive} column={header.column} grouping={grouping} setGrouping={setGrouping} data={data}/>}
             {!isParentColumn && <ColumnSort interactive={interactive} column={header.column} data={data}/>}
             {!isParentColumn && ColumnFilters && ColumnFilters(header.column)}
+            {!isParentColumn && isDerivedColumn && ColumnUpdate && ColumnUpdate(header.column.id)}
           </div>
         }
 

@@ -3,7 +3,7 @@
 import React from "react";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 import { LogComparisonProps } from "./types";
-import MarkdownRenderer from "./MarkdownRenderer";
+import MarkdownRenderer from "./Markdown/MarkdownRenderer";
 import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 
@@ -110,7 +110,7 @@ function groupVersionsForRows(
   compVers: string[]
 ) {
   const map = new Map<string, number[]>();
-
+  
   rows.forEach((r) => {
     const verStr =
       r === baseLogIndex
@@ -160,10 +160,12 @@ export default function StringView({
           <div className="space-y-2">
             <p className="font-semibold">Version</p>
             {baseVerStr ? (
-              <div className="space-y-2 border rounded p-2 relative">
-                <MarkdownRenderer>{baseVerStr}</MarkdownRenderer>
+              <div className="flex border rounded p-2 relative group">
+                <div className="mt-1 mb-1">
+                  <MarkdownRenderer>{baseVerStr}</MarkdownRenderer>
+                </div>
                 <CopyButton
-                  className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   content={baseVerStr}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
@@ -180,10 +182,12 @@ export default function StringView({
             {!versionEmpty && (
               <p className="font-semibold">Value</p>
             )}
-            <div className="border rounded p-2 relative">
-              <MarkdownRenderer>{baseStr}</MarkdownRenderer>
+            <div className="flex border rounded p-2 relative group">
+              <div className="mt-1 mb-1">
+                <MarkdownRenderer>{baseStr}</MarkdownRenderer>
+              </div>
               <CopyButton
-                className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
+                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                 content={baseStr}
                 copyMessage="Copied string!"
                 tooltipContent="Copy string"
@@ -234,11 +238,11 @@ export default function StringView({
                     return (
                       <div
                         key={j}
-                        className="space-y-2 border rounded p-2 relative"
+                        className="space-y-2 border rounded p-2 relative group"
                       >
                         <RowBadge rowNumbers={vg.rows} mode="none" />
                         <CopyButton
-                          className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"
+                          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                           content={verText}
                           copyMessage="Copied version!"
                           tooltipContent="Copy version"
@@ -262,10 +266,10 @@ export default function StringView({
                 {!versionEmpty && (
                   <p className="font-semibold">Value</p>
                 )}
-                <div className="border rounded p-2 relative">
+                <div className="border rounded p-2 relative group">
                   <RowBadge rowNumbers={rowNums} mode="none" />
                   <CopyButton
-                    className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"
+                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     content={textValue}
                     copyMessage="Copied string!"
                     tooltipContent="Copy string"
@@ -317,10 +321,10 @@ export default function StringView({
         );
 
         return (
-          <div key={i} className="border rounded p-3 space-y-4">
+          <div key={i} className="space-y-4">
             {!versionEmpty && (
               <div className="space-y-2">
-                <p className="font-semibold">Param Version</p>
+                <p className="font-semibold">Version</p>
                 {versionGroups.map((vg, j) => {
                   const verText = vg.text;
                   let oldVal = baseVerStr;
@@ -333,26 +337,28 @@ export default function StringView({
                   }
 
                   return (
-                    <div key={j} className="p-3 space-y-2">
-                      <div className="flex items-center gap-2 text-xs">
-                        <RowBadge
-                          rowNumbers={[baseLogIndex]}
-                          mode={oldVal !== newVal ? "delete" : "none"}
-                        />
-                        <RowBadge
-                          rowNumbers={vg.rows}
-                          mode={oldVal !== newVal ? "insert" : "none"}
-                        />
-                      </div>
+                    <div key={j} className="space-y-2">
                       <div className="border rounded p-2">
-                        <DiffViewer
-                          oldValue={oldVal}
-                          newValue={newVal}
-                          splitView={splitView}
-                          hideLineNumbers={false}
-                          hideMarkers
-                          mode={diffMode}
-                        />
+                        <div className="flex items-center gap-2 text-xs">
+                          <RowBadge
+                            rowNumbers={[baseLogIndex]}
+                            mode={oldVal !== newVal ? "delete" : "none"}
+                          />
+                          <RowBadge
+                            rowNumbers={vg.rows}
+                            mode={oldVal !== newVal ? "insert" : "none"}
+                          />
+                        </div>
+                        <div>
+                          <DiffViewer
+                            oldValue={oldVal}
+                            newValue={newVal}
+                            splitView={splitView}
+                            hideLineNumbers={false}
+                            hideMarkers
+                            mode={diffMode}
+                          />
+                        </div>
                       </div>
                     </div>
                   );
@@ -361,7 +367,10 @@ export default function StringView({
             )}
 
             <div className="space-y-2">
-              <p className="font-semibold">String Diff</p>
+              {!versionEmpty && (
+                <p className="font-semibold">String Diff</p>
+              )}
+            <div className="border rounded p-2">
               <div className="flex items-center gap-2 text-xs">
                 <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadgeMode} />
                 <RowBadge
@@ -369,7 +378,7 @@ export default function StringView({
                   mode={baseStrSafe !== compStr ? "insert" : "none"}
                 />
               </div>
-              <div className="border rounded p-2">
+              <div>
                 <DiffViewer
                   oldValue={baseStrSafe}
                   newValue={compStr}
@@ -379,6 +388,7 @@ export default function StringView({
                   mode={diffMode}
                 />
               </div>
+            </div>
             </div>
           </div>
         );

@@ -8,7 +8,7 @@ import { CSSProperties } from "react";
 import { DropdownMenuCheckboxItem, DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { metrics } from "@/constants/logs";
 import { ChevronDown, LoaderCircle } from "lucide-react";
-import { LogProps } from "@/types/evals/logs";
+import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 
 const style: CSSProperties = {
     cursor: "default",
@@ -18,7 +18,7 @@ const style: CSSProperties = {
     zIndex: 1,
 };
 
-const ColumnMetrics = ({interactive, metric, setMetric, colSpan = 1, logs}: {interactive: boolean, metric: string, setMetric: (x: string) => void, colSpan?: number, logs:LogProps[]}) => {
+const ColumnMetrics = ({interactive, metric, setMetric, colSpan = 1, logs}: {interactive: boolean, metric: string, setMetric: (x: string) => void, colSpan?: number, logs:LogProps[] | GroupedLogProps[]}) => {
     
     /* Display loader when data updates */
     const [loading, setLoading] = useState(false);

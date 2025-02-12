@@ -190,23 +190,39 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  /* Styles */
+  const sharedStyle = `
+    flex 
+    absolute left-8 right-0
+    h-9 w-[90%]
+    rounded-none border border-input 
+    px-3 py-1 inset-0
+    text-base md:text-sm
+    shadow-sm 
+    transition-colors 
+    caret-gray-800
+    focus:outline-none focus:ring-2 focus:ring-blue-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring
+    font-sans leading-none tracking-normal
+  `;
+  const containerStyle = "z-10 rounded-none rounded-tr-lg rounded-br-lg bg-transparent text-transparent"
+  const overlayStyle   = "z-20 rounded-none rounded-tr-lg rounded-br-lg overflow-x-auto whitespace-pre-wrap pointer-events-none"
+
   /* Invisible formula input container */
-  const container = <div className="absolute z-10 left-8 right-0">
-    <Input
-      ref={containerRef}
-      type="text"
-      value={value}
-      onChange={(e) => handleInputChange(e.target.value)}
-      onKeyDown={handleKeyDown}
-      onClick={(e) => e.stopPropagation()}
-      onScroll={(e) => {
-        if (overlayRef.current) {
-          overlayRef.current.scrollLeft = e.currentTarget.scrollLeft;
-        }
-      }}
-      className="w-full bg-transparent text-transparent caret-gray-800 inset-0 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"      
-    />
-  </div>
+  const container = 
+  <input
+    ref={containerRef}
+    type="text"
+    value={value}
+    onChange={(e) => handleInputChange(e.target.value)}
+    onKeyDown={handleKeyDown}
+    onClick={(e) => e.stopPropagation()}
+    onScroll={(e) => {
+      if (overlayRef.current) {
+        overlayRef.current.scrollLeft = e.currentTarget.scrollLeft;
+      }
+    }}
+    className={`${sharedStyle} ${containerStyle}`}
+  />
 
   /* Rendered formula input overlay that shows the text input with color styling using a highligher function
      which splits the input into tokens and conditionally styles each token with a corresponding text color
@@ -233,7 +249,7 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
       // Style dot if it follows a parent option with children
       if (token === '.') {
         if (previousOption?.children?.length) {
-          elements.push(<span key={index} className="text-orange-400 font-bold">.</span>);
+          elements.push(<span key={index} className="text-orange-400">.</span>);
         } else {
           elements.push(<span key={index}>.</span>);
         }
@@ -245,7 +261,7 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
       const option = options.find((opt) => opt.name.toLowerCase() === token.toLowerCase());
       if (option) {
         const color = colors.find((c) => c.type === option.type)!.color;
-        elements.push(<span key={index} style={{ color }} className="font-medium">{token}</span>);
+        elements.push(<span key={index} style={{ color }}>{token}</span>);
         previousOption = option; // Track for next token
       } else {
         elements.push(<span key={index}>{token}</span>);
@@ -256,27 +272,8 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
     return elements;
   };
   const overlay = 
-    <div 
-      ref={overlayRef} 
-      style={{scrollbarWidth: "none"}}
-      className="
-        absolute z-20 left-8 right-0
-        inset-0 pointer-events-none
-        flex h-9 px-3 py-1 overflow-x-auto
-        rounded-none rounded-tr-lg rounded-br-lg
-        border border-input bg-transparent 
-        text-base md:text-sm transition-colors
-        focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring
-      "
-    >
-      <div className="h-full flex items-center text-gray-800">
-        {value === '' 
-          ? <span className="text-gray-400">Press Tab for suggestions</span>
-          : <div className="whitespace-pre-wrap break-words overflow-x-auto">
-              {getHighlightedContent(value)}
-            </div>
-        }
-      </div>
+    <div ref={overlayRef} style={{scrollbarWidth: "none"}} className={`${sharedStyle} ${overlayStyle} p-0 leading-none box-border inline-flex items-center`}>
+      {value === '' ? "Press Tab for suggestions" : getHighlightedContent(value)}
     </div>
 
   /* Autocomplete suggestions dropdown.*/

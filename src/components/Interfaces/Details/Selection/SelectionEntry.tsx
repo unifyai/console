@@ -1,5 +1,6 @@
 "use client";
-import React from "react";
+
+import React, { useState } from "react";
 import { LogProps } from "@/types/evals/logs";
 import {
   AccordionItem,
@@ -18,34 +19,28 @@ import TimestampView from "./Views/TimestampView";
 import ChatOutView from "./Views/ChatView/ChatOutView";
 
 import Tooltip from "@/components/Common/Misc/Tooltip";
+import { CircleMinus } from "lucide-react";
 
-import {
-  isDict,
-  isList,
-  isMatrix,
-  isImage,
-  isTrace,
-  isNumber,
-  isTimestamp,
-  isChat,
-} from "@/utils/evals/selection";
-import {
-  Waypoints,
-  CurlyBraces,
-  Brackets,
-  ImageIcon,
-  Grid,
-  Text,
-  Hash,
-  Clock,
-  MessagesSquare // icon for "chat"
+import RawView from "./Views/RawView";
+import { isTrace, isDict, isList, isImage, isMatrix, isNumber, isTimestamp, isChat } from "@/utils/evals/selection";
+import { 
+  Waypoints, CurlyBraces, Brackets, ImageIcon, Grid, Text, Hash, Clock, MessagesSquare, 
+  FoldVertical, UnfoldVertical 
 } from "lucide-react";
 
-/** Either "entries" or "params", determining which field of the log object to read from. */
+import { ItemType, TileProps } from "@/types/evals/grid";
+import { sanitizeId } from "@/utils/evals/columnOperations";
+import { Button } from "@/components/UI/button"; // for expand/collapse toggles
+
+/**
+ * Type definitions
+ */
 type SourceType = "entries" | "params";
 type DiffMode = "none" | "lines" | "words" | "characters";
 
-
+/**
+ * getValueType: detects top-level type
+ */
 function getValueType(value: any):
   "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat"
 {
@@ -60,6 +55,9 @@ function getValueType(value: any):
   return "string";
 }
 
+/**
+ * getTypeIcon: returns appropriate icon for type
+ */
 function getTypeIcon(valueType: string) {
   switch (valueType) {
     case "trace":
@@ -84,7 +82,7 @@ function getTypeIcon(valueType: string) {
 }
 
 /**
- * Decide which specialized component to display based on the data type.
+ * getSelectionView: specialized or raw, optionally passing forceExpandAll
  */
 function getSelectionView(
   value: any,
@@ -95,17 +93,32 @@ function getSelectionView(
   comparisonLogsIndex: number[],
   diffMode: DiffMode,
   splitView: boolean,
+  rawMode: boolean,
+  forceExpandAll?: boolean
 ) {
+  if (rawMode) {
+    return (
+      <RawView
+        value={value}
+        comparables={comparables}
+        version={version}
+        comparableVersions={comparableVersions}
+        baseLogIndex={baseLogIndex}
+        comparisonLogsIndex={comparisonLogsIndex}
+        diffMode={diffMode}
+        splitView={splitView}
+      />
+    );
+  }
   const valueType = getValueType(value);
-
   switch (valueType) {
-    case "trace": {
-      const baseArr = Array.isArray(value) ? value : [value];
-      const compArrs = comparables.map((c) => Array.isArray(c) ? c : c ? [c] : []);
+    case "trace":
       return (
         <TraceView
-          value={baseArr}
-          comparables={compArrs}
+          value={Array.isArray(value) ? value : [value]}
+          comparables={comparables.map((c) =>
+            Array.isArray(c) ? c : c ? [c] : []
+          )}
           baseLogIndex={baseLogIndex}
           comparisonLogsIndex={comparisonLogsIndex}
           diffMode={diffMode}
@@ -114,7 +127,6 @@ function getSelectionView(
           comparableVersions={comparableVersions}
         />
       );
-    }
     case "chat":
       return (
         <ChatOutView
@@ -139,6 +151,7 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          forceExpandAll={forceExpandAll}
         />
       );
     case "list":
@@ -152,6 +165,7 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          forceExpandAll={forceExpandAll}
         />
       );
     case "image":
@@ -207,7 +221,6 @@ function getSelectionView(
         />
       );
     default:
-      // fallback => string
       return (
         <StringView
           value={value}
@@ -223,10 +236,25 @@ function getSelectionView(
   }
 }
 
-/**
- * SelectionEntry:
- */
-type SelectionEntryProps = {
+export default function SelectionEntry({
+  source = "entries",
+  property,
+  value,
+  baseLog,
+  baseLogIndex,
+  comparisonLogs,
+  comparisonLogsIndex,
+  diffMode,
+  splitView,
+  rawMode,
+  version = "",
+  comparableVersions = [],
+  tableItem,
+  updateItem,
+  onAccordionValueChange,
+  onHideColumn,
+  editMode = false,
+}: {
   source?: SourceType;
   property: string;
   value: any;
@@ -236,60 +264,137 @@ type SelectionEntryProps = {
   comparisonLogsIndex: number[];
   diffMode: DiffMode;
   splitView: boolean;
-};
+  rawMode: boolean;
+  version?: string;
+  comparableVersions?: string[];
+  tableItem: TileProps | undefined;
+  updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
+  onAccordionValueChange?: (value: string[]) => void;
+  onHideColumn?: (prop: string) => void;
+  editMode?: boolean;
+}) {
+  const [hovered, setHovered] = useState(false);
 
-const SelectionEntry: React.FC<SelectionEntryProps> = ({
-  source = "entries",
-  property,
-  value,
-  baseLog,
-  baseLogIndex,
-  comparisonLogs,
-  comparisonLogsIndex,
-  diffMode,
-  splitView
-}) => {
+  // local expandAll for top-level dict/list
+  const [expandAll, setExpandAll] = useState(false);
+
+  // Add a state to track if this accordion item is open
+  const [isOpen, setIsOpen] = useState(false);
+
+  // New state to store previous accordion values
+  const [prevAccordionValues, setPrevAccordionValues] = useState<string[]>([]);
+
   // Gather comparables
-  let comparables = (comparisonLogs ?? []).map((cl) => {
+  let comps = (comparisonLogs ?? []).map((cl) => {
     const container = source === "params" ? cl.params ?? {} : cl.entries ?? {};
     return container[property];
   });
 
   // Possibly read paramVersion structure
-  let version = "";
-  let comparableVersions: string[] = [];
   let rawValue = value;
-
   if (source === "params" && value && typeof value === "object") {
-    version = value.paramVersion;
-    comparableVersions = comparables.map((c) => c?.paramVersion ?? "");
     rawValue = value.paramValue;
-    comparables = comparables.map((c) => c?.paramValue);
+    comps = comps.map((c) => c?.paramValue);
   }
 
   const valueType = getValueType(rawValue);
   const icon = getTypeIcon(valueType);
 
+  // "remove from selection" function
+  const handleDeselectColumn = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (onHideColumn) {
+      onHideColumn(property);
+    }
+  };
+
+  // forcibly open or close the parent's accordion item => ensures dict is mounted
+  const forciblySetAccordionOpen = (open: boolean) => {
+    if (onAccordionValueChange) {
+      if (open) {
+        onAccordionValueChange([property]);
+      } else {
+        onAccordionValueChange([]);
+      }
+    }
+  };
+
+  // Modify the expand/collapse toggle function
+  const handleExpandToggle = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent trigger's onClick from firing
+    if (!expandAll) {
+      // Expand: force the accordion open (if needed) and expand all child items
+      forciblySetAccordionOpen(true);
+      setExpandAll(true);
+    } else {
+      // Collapse All: collapse the child items but do not fold the parent entry
+      setExpandAll(false);
+    }
+  };
+
+  // specialized or raw
   const renderedContent = getSelectionView(
     rawValue,
-    comparables,
+    comps,
     version,
     comparableVersions,
     baseLogIndex,
     comparisonLogsIndex,
-    diffMode,
-    splitView
+    diffMode || "none",
+    splitView,
+    rawMode,
+    expandAll
   );
 
   return (
-    <AccordionItem value={property}>
-      <AccordionTrigger>
-        <span className="inline-flex items-center gap-2">
-          <Tooltip content={valueType}>
-            {icon}
+    <AccordionItem
+      value={property}
+      onDragStart={() => {
+        // Save the current expanded accordion values (optionally)
+        setPrevAccordionValues(typeof onAccordionValueChange === "function" ? /* read your current expanded values */ [] : []);
+        // Collapse this accordion item (and others if desired)
+        onAccordionValueChange?.([]);
+      }}
+      onDragEnd={() => {
+        // Optionally restore the previous accordion expansion
+        onAccordionValueChange?.(prevAccordionValues);
+      }}
+    >
+      <AccordionTrigger
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onClick={() => {
+          if (!editMode) { // In edit mode, do not allow toggling expansion.
+            setIsOpen(!isOpen);
+            setExpandAll(false);
+          }
+        }}
+        className="flex items-center relative group"
+      >
+        <div className="inline-flex items-center gap-2">
+          <Tooltip content={hovered ? "Hide column" : valueType}>
+            <span
+              className="cursor-pointer inline-flex items-center transition duration-200"
+              onClick={handleDeselectColumn}
+            >
+              {hovered ? <CircleMinus className="h-4 w-4 text-red-500" /> : icon}
+            </span>
           </Tooltip>
-          {property}
-        </span>
+          <Tooltip content={valueType}>
+            <span>{property}</span>
+          </Tooltip>
+        </div>
+
+        {(!editMode && isOpen && (valueType === "dict" || valueType === "list")) && (
+          <div className="absolute right-5 flex gap-1 items-center">
+            <Button
+              variant="ghost"
+              onClick={handleExpandToggle}
+            >
+              {expandAll ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+            </Button>
+          </div>
+        )}
       </AccordionTrigger>
 
       <AccordionContent>
@@ -297,6 +402,4 @@ const SelectionEntry: React.FC<SelectionEntryProps> = ({
       </AccordionContent>
     </AccordionItem>
   );
-};
-
-export default SelectionEntry;
+}

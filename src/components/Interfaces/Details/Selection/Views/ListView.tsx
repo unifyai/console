@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Accordion,
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
-  Accordion
 } from "@/components/UI/accordion";
+
 import {
-  isDict,
   isList,
+  isDict,
   isMatrix,
   isImage,
   isTrace,
@@ -25,33 +26,25 @@ import StringView from "./StringView";
 import TraceView from "./TraceView";
 import NumberView from "./NumberView";
 import TimestampView from "./TimestampView";
+import ChatView from "./ChatView";
 
 import { LogComparisonProps } from "./types";
+import { getValueType, getTypeIcon } from "./ViewTypes";
 
-import {
-  Text as TextIcon,
-  Pilcrow,
-  CurlyBraces,
-  Brackets,
-  ImageIcon,
-  Grid,
-  FoldVertical,
-  UnfoldVertical,
-  Hash,
-  Clock,
-} from "lucide-react";
-import RowBadge from "./RowBadge";
-import ActionButton from "@/components/Common/Buttons/Action";
-import Tooltip from "@/components/Common/Misc/Tooltip";
-import ChatView from "./ChatView";
-import { getTypeIcon, getValueType } from "./ViewTypes";
+import { Button } from "@/components/UI/button";
+import { FoldVertical, UnfoldVertical } from "lucide-react";
 
-
-function pickView(props: LogComparisonProps): JSX.Element {
+/*───────────────────────────────────────────────────────────────────────────
+  pickView => specialized or raw, with optional forceExpandAll for child expansions
+───────────────────────────────────────────────────────────────────────────*/
+function pickView(
+  props: LogComparisonProps & { forceExpandAll?: boolean }
+): JSX.Element {
   const { value } = props;
+
   if (isTrace(value)) {
-    const traceArr = Array.isArray(value) ? value : [value];
-    return <TraceView {...props} value={traceArr} />;
+    const arr = Array.isArray(value) ? value : [value];
+    return <TraceView {...props} value={arr} />;
   }
   if (isChat(value)) {
     return <ChatView {...props} />;
@@ -77,291 +70,258 @@ function pickView(props: LogComparisonProps): JSX.Element {
   return <StringView {...props} />;
 }
 
-function renderListItemSingle(
-  index: number,
-  itemValue: any,
-  props: Omit<LogComparisonProps, "value" | "comparables">
+/*───────────────────────────────────────────────────────────────────────────
+  toggleOneItemExpand => toggles just that item label
+───────────────────────────────────────────────────────────────────────────*/
+function toggleOneItemExpand(
+  label: string,
+  openItems: string[],
+  setOpenItems: React.Dispatch<React.SetStateAction<string[]>>,
+  childForceExpand: string[],
+  setChildForceExpand: React.Dispatch<React.SetStateAction<string[]>>
 ) {
-  const {
-    baseLogIndex,
-    nestingLevel = 0,
-    diffMode,
-    splitView,
-    version,
-    comparableVersions,
-  } = props;
-  const label = `Item ${index}`;
-  const indentClass = `pl-${nestingLevel * 4}`;
-  const itemType = getValueType(itemValue);
-  const icon = getTypeIcon(itemType);
-
-  const childProps: LogComparisonProps = {
-    value: itemValue,
-    comparables: [],
-    baseLogIndex,
-    comparisonLogsIndex: [],
-    nestingLevel,
-    diffMode,
-    splitView,
-    version,
-    comparableVersions,
-  };
-
-  return (
-    <AccordionItem key={label} value={label}>
-      <AccordionTrigger className={indentClass}>
-        <span className="inline-flex items-center gap-2">
-          <Tooltip content={itemType}>
-            {icon}
-          </Tooltip>
-          {label}
-        </span>
-      </AccordionTrigger>
-      <AccordionContent>
-        <div className={`border-l ml-4 pl-1 ${indentClass}`}>
-          {pickView(childProps)}
-        </div>
-      </AccordionContent>
-    </AccordionItem>
-  );
-}
-
-function renderListItemMulti(
-  index: number,
-  subValues: any[],
-  rowIndexes: number[],
-  nestingLevel: number,
-  diffMode?: LogComparisonProps["diffMode"],
-  splitView?: LogComparisonProps["splitView"],
-  version?: string,
-  comparableVersions?: string[]
-) {
-  const label = `Item ${index}`;
-  const indentClass = `pl-${nestingLevel * 4}`;
-  const baseVal = subValues[0];
-  const compVals = subValues.slice(1);
-  const baseHas = baseVal !== undefined;
-
-  const redSet = new Set<number>();
-  const greenSet = new Set<number>();
-  compVals.forEach((cv, i) => {
-    if (baseHas && cv === undefined) {
-      redSet.add(rowIndexes[i + 1]);
-    } else if (!baseHas && cv !== undefined) {
-      greenSet.add(rowIndexes[i + 1]);
-    }
-  });
-
-  const redRows = Array.from(redSet).sort((a, b) => a - b);
-  const greenRows = Array.from(greenSet).sort((a, b) => a - b);
-
-  let labelColorClass = "";
-  if (redRows.length > 0 && baseHas) labelColorClass = "text-red-600";
-  else if (greenRows.length > 0 && !baseHas) labelColorClass = "text-green-600";
-
-  let sample = baseVal;
-  if (sample === undefined) sample = compVals.find((v) => v !== undefined);
-  const itemType = sample ? getValueType(sample) : "string";
-  const icon = getTypeIcon(itemType);
-
-  const showBaseBadge = baseHas && (redRows.length > 0 || greenRows.length > 0);
-  const baseRows = showBaseBadge ? [rowIndexes[0]] : [];
-
-  const childProps: LogComparisonProps = {
-    value: baseVal,
-    comparables: compVals,
-    baseLogIndex: rowIndexes[0],
-    comparisonLogsIndex: rowIndexes.slice(1),
-    nestingLevel,
-    diffMode,
-    splitView,
-    version,
-    comparableVersions,
-  };
-
-  return (
-    <AccordionItem key={label} value={label}>
-      <AccordionTrigger className={`${indentClass} ${labelColorClass}`}>
-        <span className="inline-flex items-center gap-2">
-          <Tooltip content={itemType}>
-            {icon}
-          </Tooltip>
-          {label}
-          {(baseRows.length > 0 || redRows.length > 0 || greenRows.length > 0) && (
-            <div className="ml-2 flex gap-1">
-              {redRows.length > 0 && (
-                <RowBadge rowNumbers={redRows} mode="delete" />
-              )}
-              {greenRows.length > 0 && (
-                <RowBadge rowNumbers={greenRows} mode="insert" />
-              )}
-            </div>
-          )}
-        </span>
-      </AccordionTrigger>
-      <AccordionContent>
-        <div className={`border-l ml-4 ${indentClass}`}>
-          {pickView(childProps)}
-        </div>
-      </AccordionContent>
-    </AccordionItem>
-  );
-}
-
-function renderListMulti(
-  lists: any[],
-  rowIndexes: number[],
-  nestingLevel: number,
-  diffMode?: LogComparisonProps["diffMode"],
-  splitView?: LogComparisonProps["splitView"],
-  version?: string,
-  comparableVersions?: string[]
-) {
-  const maxLength = Math.max(
-    ...lists.map((l) => (Array.isArray(l) ? l.length : 0))
-  );
-  const result: JSX.Element[] = [];
-  for (let i = 0; i < maxLength; i++) {
-    const subVals = lists.map((l) => (Array.isArray(l) ? l[i] : undefined));
-    result.push(
-      renderListItemMulti(
-        i,
-        subVals,
-        rowIndexes,
-        nestingLevel,
-        diffMode,
-        splitView,
-        version,
-        comparableVersions
-      )
-    );
-  }
-  return result;
-}
-
-type ListViewProps = LogComparisonProps;
-
-const ListView: React.FC<ListViewProps> = ({
-  value,
-  comparables,
-  baseLogIndex,
-  comparisonLogsIndex,
-  version = "",
-  comparableVersions = [],
-  nestingLevel = 0,
-  diffMode = "none",
-  splitView = false,
-}) => {
-  const multiMode = (comparables && comparables.length > 0) ? true : false;
-
-  let labelKeys: string[] = [];
-  if (!multiMode) {
-    if (Array.isArray(value)) {
-      labelKeys = value.map((_, idx: number) => `Item ${idx}`);
-    }
+  if (!childForceExpand.includes(label)) {
+    // Toggle: expand children only
+    setChildForceExpand((prev) => [...prev, label]);
   } else {
-    const baseLen = Array.isArray(value) ? value.length : 0;
-    const compLens = (comparables ?? []).map((arr) => (Array.isArray(arr) ? arr.length : 0));
-    const maxLen = Math.max(baseLen, ...compLens);
-    labelKeys = Array.from({ length: maxLen }, (_, i) => `Item ${i}`);
+    // Toggle: collapse children but leave item open
+    setChildForceExpand((prev) => prev.filter((it) => it !== label));
+  }
+}
+
+/*───────────────────────────────────────────────────────────────────────────
+  The main ListView:
+   - Force expand/collapse all once per session using didExpandRef
+   - Per-item toggles only affect that item, not siblings
+───────────────────────────────────────────────────────────────────────────*/
+type ListViewProps = LogComparisonProps & {
+  forceExpandAll?: boolean;
+};
+
+const ListView: React.FC<ListViewProps> = (props) => {
+  const {
+    value,
+    comparables,
+    baseLogIndex,
+    comparisonLogsIndex,
+    version = "",
+    comparableVersions = [],
+    diffMode = "none",
+    splitView = false,
+    forceExpandAll = false,
+  } = props;
+
+  // single vs multi
+  const singleMode = !comparables || comparables.length === 0;
+
+  // figure out how many items
+  let itemCount = Array.isArray(value) ? value.length : 0;
+  if (!singleMode && comparables) {
+    const compLens = comparables.map((c) => (isList(c) ? c.length : 0));
+    itemCount = Math.max(itemCount, ...compLens);
   }
 
-  const defaultOpen = useMemo(() => {
-    const out: string[] = [];
-    if (!multiMode) {
-      if (Array.isArray(value)) {
-        value.forEach((item, idx) => {
-          const t = getValueType(item);
-          if (["string","matrix","image"].includes(t)) {
-            out.push(`Item ${idx}`);
-          }
-        });
-      }
-    } else {
-      const allLists = [value, ...(comparables ?? [])];
-      for (let i = 0; i < labelKeys.length; i++) {
-        let sample: any = undefined;
-        for (const arr of allLists) {
-          if (Array.isArray(arr) && arr[i] !== undefined) {
-            sample = arr[i];
-            break;
-          }
-        }
-        const t = getValueType(sample);
-        if (["string","matrix","image"].includes(t)) {
-          out.push(`Item ${i}`);
+  // Memoize allItemLabels with stable reference
+  const allItemLabels = useMemo(
+    () => Array.from({ length: itemCount }, (_, i) => `Item ${i}`),
+    [itemCount]
+  );
+
+  // Add additional memoization for stability
+  const memoizedLabels = useMemo(
+    () => allItemLabels,
+    [allItemLabels.join(",")]
+  );
+
+  // guess item type => default expansions
+  function guessItemType(index: number): string {
+    let sample: any = Array.isArray(value) ? value[index] : undefined;
+    if (sample === undefined && !singleMode && comparables) {
+      for (const c of comparables) {
+        if (isList(c) && c[index] !== undefined) {
+          sample = c[index];
+          break;
         }
       }
     }
-    return out;
-  }, [multiMode, labelKeys, value, comparables]);
+    return getValueType(sample);
+  }
 
-  const [openItems, setOpenItems] = useState<string[]>(defaultOpen);
+  // Memoize defaultOpenItems to prevent unnecessary recreations
+  const defaultOpenItems = useMemo(() => {
+    return allItemLabels.filter((_, i) => {
+      const t = guessItemType(i);
+      return ["string", "number", "matrix", "image"].includes(t);
+    });
+  }, [allItemLabels]);
+
+  // Initialize state with default items
+  const [openItems, setOpenItems] = useState(defaultOpenItems);
+  const [childForceExpand, setChildForceExpand] = useState<string[]>([]);
+
+  // Update effect to use memoizedLabels
+  useEffect(() => {
+    const newVal = forceExpandAll ? memoizedLabels : [];
+    setOpenItems(newVal);
+    setChildForceExpand(newVal);
+  }, [forceExpandAll, memoizedLabels]);
 
   if (!isList(value)) {
-    return <p className="text-red-500">ListView: Value is not a valid list.</p>;
+    return (
+      <p className="text-red-500">ListView: Value is not a valid list.</p>
+    );
   }
 
-  let listItems: JSX.Element[] = [];
-  if (!multiMode) {
-    if (Array.isArray(value)) {
-      listItems = value.map((item, idx) =>
-        renderListItemSingle(idx, item, {
-          baseLogIndex,
-          nestingLevel,
-          comparisonLogsIndex: [],
-          diffMode,
-          splitView,
-          version,
-          comparableVersions,
-        })
-      );
-    }
-  } else {
-    const allLists = [value, ...(comparables ?? [])];
-    const rowIdxs = [baseLogIndex, ...(comparisonLogsIndex ?? [])];
-    listItems = renderListMulti(
-      allLists,
-      rowIdxs,
-      nestingLevel,
+  // single-mode item
+  function renderSingleItem(index: number) {
+    const label = `Item ${index}`;
+    const arrValue = Array.isArray(value) ? value[index] : undefined;
+    const typ = getValueType(arrValue);
+    const icon = getTypeIcon(typ);
+    const isOpen = openItems.includes(label);
+    const isChildForceExpand = childForceExpand.includes(label);
+
+    const childProps: LogComparisonProps & { forceExpandAll?: boolean } = {
+      value: arrValue,
+      comparables: [],
+      baseLogIndex,
+      comparisonLogsIndex: [],
       diffMode,
       splitView,
       version,
-      comparableVersions
+      comparableVersions,
+      forceExpandAll: isChildForceExpand,
+    };
+
+    return (
+      <AccordionItem key={label} value={label}>
+        <AccordionTrigger className="relative group flex items-center justify-between">
+          <span className="inline-flex items-center gap-2">
+            {icon} {label}
+          </span>
+
+          {isOpen && (typ === "dict" || typ === "list") && (
+            <div
+              className="
+              absolute right-5
+              flex gap-1 items-center
+              "
+            >
+              <Button
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleOneItemExpand(
+                    label,
+                    openItems,
+                    setOpenItems,
+                    childForceExpand,
+                    setChildForceExpand
+                  );
+                }}
+              >
+                {childForceExpand.includes(label) ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+              </Button>
+            </div>
+          )}
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="border-l ml-4 pl-1">{pickView(childProps)}</div>
+        </AccordionContent>
+      </AccordionItem>
     );
   }
 
-  const everythingOpen = labelKeys.length > 0 && openItems.length === labelKeys.length;
+  // multi-mode item
+  function renderMultiItem(index: number) {
+    const label = `Item ${index}`;
+    const baseArr = Array.isArray(value) ? value : [];
+    const itemVal = baseArr[index];
+    const subVals = [itemVal];
+    (comparables ?? []).forEach((c) => {
+      if (isList(c)) subVals.push(c[index]);
+      else subVals.push(undefined);
+    });
 
-  function handleToggleAll() {
-    if (everythingOpen) setOpenItems([]);
-    else setOpenItems(labelKeys);
+    let sample = subVals[0];
+    if (sample === undefined) {
+      sample = subVals.find((v) => v !== undefined);
+    }
+    const typ = getValueType(sample);
+    const icon = getTypeIcon(typ);
+
+    const isOpen = openItems.includes(label);
+    const isChildForceExpand = childForceExpand.includes(label);
+
+    const childProps: LogComparisonProps & { forceExpandAll?: boolean } = {
+      value: subVals[0],
+      comparables: subVals.slice(1),
+      baseLogIndex,
+      comparisonLogsIndex,
+      diffMode,
+      splitView,
+      version,
+      comparableVersions,
+      forceExpandAll: isChildForceExpand,
+    };
+
+    return (
+      <AccordionItem key={label} value={label}>
+        <AccordionTrigger className="relative group flex items-center justify-between">
+          <span className="inline-flex items-center gap-2">
+            {icon} {label}
+          </span>
+
+          {isOpen && (typ === "dict" || typ === "list") && (
+            <div
+              className="
+              absolute right-5
+              flex gap-1 items-center
+              "
+            >
+              <Button
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleOneItemExpand(
+                    label,
+                    openItems,
+                    setOpenItems,
+                    childForceExpand,
+                    setChildForceExpand
+                  );
+                }}
+              >
+                {childForceExpand.includes(label) ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+              </Button>
+            </div>
+          )}
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="border-l ml-4 pl-1">{pickView(childProps)}</div>
+        </AccordionContent>
+      </AccordionItem>
+    );
+  }
+
+  function renderAllItems() {
+    const out: JSX.Element[] = [];
+    for (let i = 0; i < itemCount; i++) {
+      if (singleMode) out.push(renderSingleItem(i));
+      else out.push(renderMultiItem(i));
+    }
+    return out;
   }
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex justify-between items-center">
-        <p></p>
-        {labelKeys.length > 0 && (
-          <ActionButton
-            variant="ghost"
-            size="icon"
-            tooltip={everythingOpen ? "Collapse All" : "Expand All"}
-            onClick={handleToggleAll}
-            icon={
-              everythingOpen
-                ? <FoldVertical className="h-4 w-4" />
-                : <UnfoldVertical className="h-4 w-4" />
-            }
-          />
-        )}
-      </div>
-      <Accordion
-        type="multiple"
-        value={openItems}
+      <Accordion 
+        key={`list-${forceExpandAll ? "open" : "closed"}`}
+        type="multiple" 
+        value={openItems} 
         onValueChange={setOpenItems}
       >
-        {listItems}
+        {renderAllItems()}
       </Accordion>
     </div>
   );

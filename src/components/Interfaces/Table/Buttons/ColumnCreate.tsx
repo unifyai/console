@@ -4,22 +4,25 @@ import { KeyboardEventHandler, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/UI/input";
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import { getLogsParameters, TableArguments, LogProps } from "@/types/evals/logs"
-import BaseButton from "@/components/Common/Buttons/Base";
-import BaseDropdown from "@/components/Common/Dropdowns/Base";
-import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuGroup } from "@/components/UI/dropdown-menu";
-import { Plus, LoaderCircle } from "lucide-react";
+import { getLogsParameters, TableArguments, LogProps, GroupedLogProps } from "@/types/evals/logs"
+import { DropdownMenuLabel, DropdownMenuGroup, DropdownMenuSub, DropdownMenuPortal, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/UI/dropdown-menu";
+import { LoaderCircle } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import FormulaInput from "@/components/Common/Input/Formula";
+import { expressionToDerivedFunction } from "@/utils/evals/derivedColumns";
 
-const ColumnCreate = ({ project, currentTable, tableArguments, logs, derive, setPending, refresh }: {
+const ColumnCreate = ({ project, currentTable, tableArguments, logs, create, setPending, refresh, columnOrder, setColumnOrder, previousColumn, setOpen }: {
     project: string,
     currentTable: string,
     tableArguments: TableArguments,
-    logs: LogProps[]
-    derive: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
+    logs: LogProps[] | GroupedLogProps[],
+    create: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
     setPending: (pending: boolean) => void,
     refresh: () => Promise<ResponseProps>,
+    columnOrder: string[],
+    setColumnOrder: (order: string[]) => void,
+    previousColumn: string,
+    setOpen: (open: boolean) => void
 }) => {
     const router = useRouter();
 
@@ -32,11 +35,8 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, derive, set
         )
     const tables = options.filter(option => option.type === "Table Name").map(option => option.name)
     const columns = options.filter(option => option.type === "Column Name").map(option => option.name);
-    const appendRegex = new RegExp(`(?<!(${tables.join('|')})[.:])(${columns.join('|')})`, 'g'); // Replace standalone column names with current_table.column_name
-    const wrapRegex = new RegExp(`(${tables.join('|')})[.:](${columns.join('|')})`, 'g');        // Wrap all instances of table_name.column_name with curly braces
 
     // State tracking
-    const [open, setOpen] = useState<boolean>(false);
     const [name, setName] = useState<string>("");
     const [nameError, setNameError] = useState<string>("");
     const [expression, setExpression] = useState<string>("");
@@ -61,9 +61,7 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, derive, set
 
     const handleExpression = (value: string) => {
         setExpression(value);
-        const equation = value
-            .replace(appendRegex, (match, p1, p2) => `${currentTable}:${p2}`)
-            .replace(wrapRegex, '{$1:$2}');
+        const equation = expressionToDerivedFunction(value, currentTable, tables, columns);
         setEquation(equation)
     }
 
@@ -76,15 +74,32 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, derive, set
                   .filter(([key, _]) => referencedTables.includes(key))
                   .map(([key, args]) => [key, args.getLogs_parameters])
         );
-        derive(project, name, equation, referencedArguments).then(response => {
+        setLoading(true);
+        create(project, name, equation, referencedArguments).then(async (response: ResponseProps) => {
             if ("info" in response) {
+                
+                // Update states
                 setErrorMessage("");
-                setLoading(true);
+                setLoading(false);
                 setOpen(false);
+
+                // Add new column next to the previous
+                const previousIndex = columnOrder.indexOf(previousColumn);
+                const newOrder = previousIndex !== -1 
+                    ?   [
+                            ...columnOrder.slice(0, previousIndex + 1),
+                            `${previousColumn.split("/").slice(0, -1).join("/")}/${name}`,
+                            ...columnOrder.slice(previousIndex + 1)
+                        ] 
+                    : columnOrder;
+                setColumnOrder(newOrder);
+                
+                // Refresh page
                 refresh().then(() => {
                     router.refresh();
                     setPending(true);
                 });
+                
                 return;
             } 
             let error = "Failed to create derived entries, please try again.";
@@ -92,6 +107,7 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, derive, set
                 if (typeof response.detail === "string") error = response.detail;
                 else error = JSON.stringify(response.detail);
             }
+            setLoading(false);
             setErrorMessage(error);
             setTimeout(() => setErrorMessage(""), 5000);
         })
@@ -108,6 +124,8 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, derive, set
                         placeholder={"Enter a column name.."}
                         value={name}
                         onInput={(event) => handleName(event.currentTarget.value)}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onMouseMove={(e) => e.stopPropagation()}
                         onKeyDown={onEnter}
                     />
 
@@ -119,37 +137,40 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, derive, set
                         <SubmitButton text="Apply" onClick={() => onSubmit()}/>
                     </div>
 
-    const button = <BaseButton variant="ghost" icon={<Plus/>} text={"Create Column"} className={"h-4 pt-2"}/>
+    const trigger = loading ? <LoaderCircle className="animate-spin text-white">Creating column..</LoaderCircle> : "New Column"
+    const body =    <div className="p-2 flex flex-col gap-1 h-full w-[400px]" onClick={(e) => e.stopPropagation()}>
+
+                        <div className="flex flex-col h-full">
+                            <DropdownMenuLabel className="text-sm font-semibold">Column name</DropdownMenuLabel>
+                            {column}
+                            {nameError && warning(nameError)}
+                        </div>
+
+                        <div className="flex flex-col h-full">
+                            <DropdownMenuLabel className="text-sm font-semibold">Derived expression</DropdownMenuLabel>
+                            <DropdownMenuLabel className="text-sm font-normal">
+                                <p>Enter a mathematical expression to evaluate. You can use any entry column name as variable.</p>
+                            </DropdownMenuLabel>
+                            {entry}
+                        </div>
+
+                    </div>
+    const footer =  <div className="p-2 flex flex-row gap-1 justify-between">
+                        {warning(errorMessage)}
+                        {name && expression && !nameError && submit}
+                    </div>
+
     return (
-    <DropdownMenuGroup>
-        <DropdownMenuItem className="flex flex-row justify-between">
-            <BaseDropdown button={button} open={open} setOpen={setOpen}>
-
-                <div className="p-2 flex flex-col gap-1 h-full w-[400px]" onClick={(e) => e.stopPropagation()}>
-
-                    <div className="flex flex-col h-full">
-                        <DropdownMenuLabel className="text-sm font-semibold">Column name</DropdownMenuLabel>
-                        {column}
-                        {nameError && warning(nameError)}
-                    </div>
-
-                    <div className="flex flex-col h-full">
-                        <DropdownMenuLabel className="text-sm font-semibold">Derived expression</DropdownMenuLabel>
-                        <DropdownMenuLabel className="text-sm font-normal">
-                            <p>Enter a mathematical expression to evaluate. You can use any entry column name as variable.</p>
-                        </DropdownMenuLabel>
-                        {entry}
-                    </div>
-
-                </div>
-                    
-                <div className="p-2 flex flex-row gap-1 justify-between">
-                    {warning(errorMessage)}
-                    {name && expression && !nameError && submit}
-                </div>
-
-            </BaseDropdown>
-        </DropdownMenuItem>
+    <DropdownMenuGroup> 
+        <DropdownMenuSub>
+            <DropdownMenuSubTrigger disabled={loading} className="hover:text-white data-[state=open]:text-white">{trigger}</DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+                <DropdownMenuSubContent>
+                    {body}
+                    {footer}
+                </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+        </DropdownMenuSub>
     </DropdownMenuGroup>
     );
 }
@@ -160,9 +181,6 @@ export default ColumnCreate;
     
     - Add button to refresh the values
     - Add grouping when server side grouping is supported
-    - Add option to edit the equation
-    
-    - Prevent issue of unintentional text selection
     - Add dropdown options for: 
         (See https://github.com/unifyai/orchestra/blob/main/orchestra/web/api/log/helpers.py#L151 for source)
         functions: 

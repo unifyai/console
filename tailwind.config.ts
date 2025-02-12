@@ -30,6 +30,15 @@ module.exports = {
         "green-grad-75":
           "linear-gradient(129deg, rgba(var(--green-grad-75-rgb), 0.75) -3.33%, rgba(var(--green-grad-75-middle-rgb), 0.75) 50.35%, rgba(var(--green-grad-75-rgb), 0.75) 114.95%)",
       },
+      keyframes: {
+        fadeAccent: {
+          "0%": { backgroundColor: "var(--accent)" },
+          "100%": { backgroundColor: "transparent" }
+        }
+      },
+      animation: {
+        "fade-accent": "fadeAccent 3s ease-out"
+      },
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",

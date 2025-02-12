@@ -8,6 +8,7 @@ const ColumnSort = ({interactive, column, data}: {interactive?: boolean, column:
 
     /* Display loader when data updates */
     const [loading, setLoading] = useState(false);
+    const [spinnerColor, setSpinnerColor] = useState("white");
     useEffect(() => {
         setLoading(false);
     },[data])
@@ -19,10 +20,14 @@ const ColumnSort = ({interactive, column, data}: {interactive?: boolean, column:
     ];
     const state = states.find(state => state.key === column.getIsSorted())!;
     const tooltip = state.tooltip;
-    const icon = loading ? <LoaderCircle className="animate-spin text-white"/> : state.icon
+    const icon = loading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon
     const variant = column.getIsSorted() ? "primary" : undefined;
     const onClick = () => {
         column.toggleSorting()
+        if (!column.getNextSortingOrder()) 
+            setSpinnerColor("primary") 
+        else 
+            setSpinnerColor("white")
         setLoading(true)
     }
 

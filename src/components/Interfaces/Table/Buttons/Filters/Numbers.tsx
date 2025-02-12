@@ -14,7 +14,7 @@ import { Slider } from "@/components/UI/slider";
 import { initFilters, combineFilters } from "@/utils/evals/filters";
 import { Trash, Plus, CircleX, LoaderCircle } from "lucide-react";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
-import { LogProps } from "@/types/evals/logs";
+import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 
 interface NumericFilter {
     key: number,
@@ -29,11 +29,12 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
     boundaries: {minimums: {[key: string]: number;}, maximums: {[key: string]: number}},
-    logs: LogProps[]
+    logs: LogProps[] | GroupedLogProps[]
 }) => {
 
     /* Display loader when data updates */
     const [loading, setLoading] = useState(false);
+    const [spinnerColor, setSpinnerColor] = useState("white");
     useEffect(() => {
         setLoading(false);
     },[logs])
@@ -82,6 +83,7 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
             setFilters([defaultFilter])
         }
         setColumnFilterQuery(newColumnFilters);
+        setSpinnerColor("white")
         setLoading(true);
         setOpen(false);
     }
@@ -91,6 +93,7 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
         );
         setFilters([defaultFilter])
         setColumnFilterQuery(newColumnFilters)
+        setSpinnerColor("primary")
         setLoading(true);
         setOpen(false)
     }
@@ -103,7 +106,7 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
     /* Dialog interactions */
     const [open, setOpen] = useState(false);
     const close = <BaseButton size="sm" icon={<CircleX/>} onClick={() => setOpen(false)} className="top-0 right-0 scale-60 absolute" variant="warning"/>
-    const button = <ActionButton icon={loading ? <LoaderCircle className="animate-spin text-white"/> : <Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} disabled={!interactive || loading}/>
+    const button = <ActionButton icon={loading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : <Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} disabled={!interactive || loading}/>
     const reset = <ActionButton tooltip="Delete all filters" variant="warning" icon={<Trash/>} onClick={() => onReset()}/> 
     const submit = <SubmitButton text="Save" onClick={() => onSubmit()}/>
     const append = 

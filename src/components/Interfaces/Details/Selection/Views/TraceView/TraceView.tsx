@@ -7,7 +7,7 @@ import {
   AccordionContent,
 } from "@/components/UI/accordion";
 import { Combobox } from "@/components/UI/Combobox";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Clock, Code, DollarSign, AlertTriangle, FileInput, FileOutput, IdCard } from "lucide-react";
 
 import { Span } from "@/types/evals/traces";
 import {
@@ -25,13 +25,17 @@ import MatrixView from "../MatrixView";
 import StringView from "../StringView";
 import NumberView from "../NumberView";
 import TimestampView from "../TimestampView";
+import ExecutionTimeView from "../ExecutionTimeView";
 
 import { isDict, isList, isMatrix, isImage, isNumber, isTimestamp, isChat } from "@/utils/evals/selection";
 
-import { CopyButton } from "@/components/Common/Buttons/Copy";
 import { LogComparisonProps } from "../types";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ChatView from "../ChatView";
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/UI/hover-card";
+import TimelineViewButton from "./TimelineView";
+import { formatTime } from "@/utils/evals/format";
+import { DoublePanels } from "@/components/Common/Body/DoublePanels";
 
 /*------------------------------------------------------------------------
   Helper functions for compressing row indices => "1-3,5,7-9", etc.
@@ -43,6 +47,7 @@ function compressRowNumbers(rows: number[]): string {
   const ranges: string[] = [];
   let start = sorted[0];
   let end = start;
+
   for (let i = 1; i < sorted.length; i++) {
     const current = sorted[i];
     if (current === end + 1) {
@@ -62,6 +67,7 @@ function compressRowNumbers(rows: number[]): string {
   } else {
     ranges.push(`${start}-${end}`);
   }
+
   return ranges.join(", ");
 }
 
@@ -71,9 +77,6 @@ function labelForRows(rows: number[]): string {
   return rows.length === 1 ? `Row ${compressed}` : `Rows ${compressed}`;
 }
 
-/*---------------------------------------------------------------------
-  Basic checks for empty usage
----------------------------------------------------------------------*/
 function isEmptyValue(val: any): boolean {
   if (val === null || val === undefined) return true;
   if (typeof val === "string" && val.trim() === "") return true;
@@ -92,9 +95,20 @@ function allEmpty(baseVal: any, comps: any[]): boolean {
   return true;
 }
 
-/*---------------------------------------------------------------------
-  pickView => local helper that chooses which specialized component
----------------------------------------------------------------------*/
+// New helper function to format costs using scientific notation for very small numbers
+function formatCost(value: any): string {
+  // Convert the input value to a number
+  const num = Number(value);
+  if (isNaN(num)) return String(value);
+  if (num === 0) return "0"; // if value is exactly zero, just return "0"
+  // Use threshold 0.01 (as used in NumberView) to switch to exponential notation
+  if (Math.abs(num) < 0.01) {
+    return num.toExponential(2);
+  }
+  // Format with exactly 4 decimals then convert to a number to remove trailing zeros
+  return parseFloat(num.toFixed(4)).toString();
+}
+
 function pickView(
   baseVal: any,
   comps: any[],
@@ -200,9 +214,6 @@ function pickView(
   );
 }
 
-/*---------------------------------------------------------------------
-  PatchDetailPanel => right pane details for a single Span
----------------------------------------------------------------------*/
 function PatchDetailPanel({
   node,
   baseRowIndex,
@@ -226,19 +237,14 @@ function PatchDetailPanel({
   const mainSpan = node.baseSpanRef || node.targetSpanRef;
   const spanId = mainSpan?.id ?? "(no id)";
 
-  /**
-   * gatherField => collects base+comps for a specific field ("inputs","outputs", etc.)
-   */
   function gatherField(field: string) {
     const bSpan = node.baseSpanRef;
     const tSpan = node.targetSpanRef;
 
-    // If both references are actually the same object, just show that once
     if (bSpan && tSpan && bSpan === tSpan) {
       return { baseVal: bSpan[field], comps: [] };
     }
 
-    // Otherwise differ by marker
     switch (node.marker) {
       case "+":
         return { baseVal: tSpan?.[field], comps: [] };
@@ -246,13 +252,11 @@ function PatchDetailPanel({
         return { baseVal: bSpan?.[field], comps: [] };
       case "r":
       case " ":
-        // Possibly multiple comparisons
         if (comparisonLogsIndex.length <= 1) {
           const b = bSpan?.[field];
           const t = tSpan ? tSpan[field] : undefined;
           return { baseVal: b, comps: t !== undefined ? [t] : [] };
         }
-        // If we have multiple comp rows, find that span by name in each row
         const realName = bSpan?.span_name || tSpan?.span_name || node.name;
         const baseVal = bSpan?.[field];
         const compsArr = comparisonLogsIndex.map((r) => {
@@ -265,7 +269,6 @@ function PatchDetailPanel({
     }
   }
 
-  // findSpanByNameInRow => BFS in that row's trace looking for matching name
   function findSpanByNameInRow(
     traces: Span[][],
     rowIndexes: number[],
@@ -289,47 +292,123 @@ function PatchDetailPanel({
     return undefined;
   }
 
-  function maybeRenderBlock(
-    title: string,
-    baseVal: any,
-    comps: any[],
-    isAccordionItem?: boolean
-  ) {
-    if (allEmpty(baseVal, comps)) return null;
-    const view = pickView(
-      baseVal,
-      comps,
-      baseRowIndex,
-      comparisonLogsIndex,
-      diffMode ?? "none",
-      splitView ?? false
-    );
-    if (isAccordionItem) {
-      return (
-        <AccordionItem key={title} value={title}>
-          <AccordionTrigger className="font-medium">{title}</AccordionTrigger>
-          <AccordionContent className="pl-2 border-l">
-            {view}
-          </AccordionContent>
-        </AccordionItem>
-      );
+  // Define section icons mapping
+  const sectionIcons: Record<string, JSX.Element> = {
+    "Inputs": <FileInput className="h-4 w-4 text-primary" />,
+    "Outputs": <FileOutput className="h-4 w-4 text-primary" />,
+    "Execution Time": <Clock className="h-4 w-4 text-primary" />,
+    "Code": <Code className="h-4 w-4 text-primary" />,
+    "Errors": <AlertTriangle className="h-4 w-4 text-primary" />,
+    "Cost": <DollarSign className="h-4 w-4 text-primary" />,
+    "IDs": <IdCard className="h-4 w-4 text-primary" />,
+  };
+
+  // Helper to render a standard accordion item
+  function maybeRenderBlock(title: string, baseVal: any, comps: any[]): JSX.Element | null {
+    if (allEmpty(baseVal, comps)) {
+      return null;
     }
+
+    const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView);
+
     return (
-      <div key={title}>
-        <p className="font-semibold text-sm mb-2">{title}</p>
-        <div className="border border-muted p-2 rounded">{view}</div>
-      </div>
+      <AccordionItem key={title} value={title}>
+        <AccordionTrigger className="relative group flex items-center justify-between">
+          <span className="inline-flex items-center gap-2">
+            {sectionIcons[title] || null}<span>{title}</span>
+          </span>
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="border-l ml-4 pl-1">{view}</div>
+        </AccordionContent>
+      </AccordionItem>
     );
   }
 
-  // Gather standard fields
+  // Specialized renderer for execution time
+  function renderExecutionTime(): JSX.Element | null {
+    if (allEmpty(bExecTime, cExecTime)) return null;
+    return (
+      <AccordionItem key="Execution Time" value="Execution Time">
+        <AccordionTrigger className="relative group flex items-center justify-between">
+          <span className="inline-flex items-center gap-2">
+            {sectionIcons["Execution Time"]} <span>Execution Time</span>
+          </span>
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="border-l ml-4 pl-1">
+            <ExecutionTimeView
+              value={bExecTime}
+              comparables={cExecTime}
+              baseLogIndex={baseRowIndex}
+              comparisonLogsIndex={comparisonLogsIndex}
+              diffMode={diffMode}
+              splitView={splitView}
+            />
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    );
+  }
+
+  // Specialized renderer for cost section
+  function renderCostBlock(): JSX.Element | null {
+    if (allEmpty(bCost, cCost) && allEmpty(bCostIncCache, cCostIncCache)) return null;
+    const content = (
+      <div className="flex flex-col gap-2">
+        <div>
+          <p className="font-semibold text-sm mb-2">Cost ($)</p>
+          <div className="border border-muted p-2 rounded">
+            <NumberView
+              value={bCost}
+              comparables={cCost}
+              baseLogIndex={baseRowIndex}
+              comparisonLogsIndex={comparisonLogsIndex}
+              diffMode={diffMode}
+              splitView={splitView}
+              scientificNotation={true}
+            />
+          </div>
+        </div>
+        <div>
+          <p className="font-semibold text-sm mb-2">Cost including cache ($)</p>
+          <div className="border border-muted p-2 rounded">
+            <NumberView
+              value={bCostIncCache}
+              comparables={cCostIncCache}
+              baseLogIndex={baseRowIndex}
+              comparisonLogsIndex={comparisonLogsIndex}
+              diffMode={diffMode}
+              splitView={splitView}
+              scientificNotation={true}
+            />
+          </div>
+        </div>
+      </div>
+    );
+    return (
+      <AccordionItem key="Cost" value="Cost">
+        <AccordionTrigger className="relative group flex items-center justify-between">
+          <span className="inline-flex items-center gap-2">
+            {sectionIcons["Cost"]} <span>Cost</span>
+          </span>
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="border-l ml-4 pl-1">{content}</div>
+        </AccordionContent>
+      </AccordionItem>
+    );
+  }
+
+  // Get all field values
   const { baseVal: bInputs, comps: cInputs } = gatherField("inputs");
   const { baseVal: bOutputs, comps: cOutputs } = gatherField("outputs");
-  const { baseVal: bExecTime, comps: cExecTime } = gatherField("exec_time");
   const { baseVal: bCode, comps: cCode } = gatherField("code");
   const { baseVal: bErrors, comps: cErrors } = gatherField("errors");
+  const { baseVal: bExecTime, comps: cExecTime } = gatherField("exec_time");
+  const { baseVal: bCost, comps: cCost } = gatherField("cost");
+  const { baseVal: bCostIncCache, comps: cCostIncCache } = gatherField("cost_inc_cache");
 
-  // Possibly also show ID as a separate block
   function gatherID() {
     const bSpan = node.baseSpanRef;
     const tSpan = node.targetSpanRef;
@@ -351,49 +430,28 @@ function PatchDetailPanel({
   }
   const { baseVal: bId, comps: cId } = gatherID();
 
-  // Render blocks
-  const contentBlocks: JSX.Element[] = [];
-  const block1 = maybeRenderBlock("Inputs", bInputs, cInputs, false);
-  if (block1) contentBlocks.push(block1);
-  const block2 = maybeRenderBlock("Outputs", bOutputs, cOutputs, false);
-  if (block2) contentBlocks.push(block2);
-  const block3 = maybeRenderBlock("Execution Time", bExecTime, cExecTime, false);
-  if (block3) contentBlocks.push(block3);
-
-  const accordionItems: JSX.Element[] = [];
-  const codeBlock = maybeRenderBlock("Code", bCode, cCode, true);
-  if (codeBlock) accordionItems.push(codeBlock);
-  const errorsBlock = maybeRenderBlock("Errors", bErrors, cErrors, true);
-  if (errorsBlock) accordionItems.push(errorsBlock);
-  const idsBlock = maybeRenderBlock("IDs", bId, cId, true);
-  if (idsBlock) accordionItems.push(idsBlock);
+  const showTimelineButton = allRowIndexes.length === 1 || (allTraces.length > 1 && comparisonLogsIndex.length === 0);
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="font-bold text-sm">{node.name}</p>
-        <CopyButton
-          content={spanId}
-          copyMessage="Copied trace ID!"
-          tooltipContent="Copy Base Span ID"
-        />
+        {showTimelineButton && TimelineViewButton && <TimelineViewButton baseTrace={allTraces[0]} />}
       </div>
-
-      {contentBlocks.map((blockEl) => blockEl)}
-
-      {accordionItems.length > 0 && (
-        <Accordion type="multiple" defaultValue={[]} className="mt-3">
-          {accordionItems}
-        </Accordion>
-      )}
+      
+      <Accordion type="multiple" defaultValue={["Inputs", "Outputs"]} className="mt-3">
+        {maybeRenderBlock("Inputs", bInputs, cInputs)}
+        {maybeRenderBlock("Outputs", bOutputs, cOutputs)}
+        {maybeRenderBlock("Code", bCode, cCode)}
+        {renderExecutionTime()}
+        {maybeRenderBlock("Errors", bErrors, cErrors)}
+        {renderCostBlock()}
+        {maybeRenderBlock("IDs", bId, cId)}
+      </Accordion>
     </div>
   );
 }
 
-/*---------------------------------------------------------------------
-  CollapsiblePatchLineNode => the left tree node
-  (Single vs multi-mode exec-time logic in "timeLabel"/"timeTooltip")
----------------------------------------------------------------------*/
 function CollapsiblePatchLineNode({
   node,
   parentCenterY,
@@ -427,7 +485,6 @@ function CollapsiblePatchLineNode({
     setSegmentHeight(childCenterY - parentCenterY);
   }, [parentCenterY, collapsedNodes]);
 
-  // Marker => for color
   const markerColors: Record<string, string> = {
     "+": "text-green-600",
     "-": "text-red-600",
@@ -460,93 +517,125 @@ function CollapsiblePatchLineNode({
   const spanType = node.baseSpanRef?.type ?? node.targetSpanRef?.type;
   const IconComponent = getIconForSpanType(spanType);
 
-  //========================
-  // Execution Time
-  //========================
   const baseTime = node.baseSpanRef?.exec_time ?? 0;
   const targetTime = node.targetSpanRef?.exec_time ?? 0;
 
   let timeLabel = "";
-  let timeTooltip = "";
+  let timeData: any = null;
 
   if (!multiMode) {
     if (baseTime) {
-      timeLabel = `${baseTime.toFixed(2)}s`;
-      timeTooltip = `Execution Time ${baseTime.toFixed(2)}s`;
+      const { value, unit } = formatTime(baseTime);
+      timeLabel = `${value.toFixed(2)}${unit}`;
+      timeData = {
+        title: "Execution Time",
+        baseTime,
+      };
     }
   } else {
     if (node.marker === "+") {
       if (targetTime) {
-        timeLabel = `${targetTime.toFixed(2)}s`;
-        timeTooltip = `Execution Time (Comparison Only): ${targetTime.toFixed(2)}s`;
+        const { value, unit } = formatTime(targetTime);
+        timeLabel = `${value.toFixed(2)}${unit}`;
+        timeData = {
+          title: "Execution Time (Comparison Only)",
+          targetTime,
+        };
       }
     } else if (node.marker === "-") {
       if (baseTime) {
-        timeLabel = `${baseTime.toFixed(2)}s`;
-        timeTooltip = `Execution Time (Base Only): ${baseTime.toFixed(2)}s`;
+        const { value, unit } = formatTime(baseTime);
+        timeLabel = `${value.toFixed(2)}${unit}`;
+        timeData = {
+          title: "Execution Time (Base Only)",
+          baseTime,
+        };
       }
     } else {
-      // marker " " or "r"
       const diff = targetTime - baseTime;
       if (baseTime || targetTime) {
+        const { value, unit } = formatTime(Math.abs(diff));
         const sign = diff >= 0 ? "+" : "-";
-        const absDiff = Math.abs(diff).toFixed(2);
-        timeLabel = `${sign}${absDiff}s`;
-        timeTooltip =
-          `Execution Times\n` +
-          `Base ${baseTime.toFixed(2)}s\n` +
-          `Comparison ${targetTime.toFixed(2)}s\n` +
-          `Difference ${sign}${absDiff}s`;
+        timeLabel = `${sign}${value.toFixed(2)}${unit}`;
+        timeData = {
+          title: "Execution Times",
+          baseTime,
+          targetTime,
+          diffSign: sign,
+          diffValue: value,
+          diffUnit: unit,
+        };
         if (!baseTime && !targetTime) {
           timeLabel = "";
-          timeTooltip = "";
+          timeData = null;
         }
       }
     }
   }
 
-  //========================
-  // Cost (similar to exec_time)
-  //========================
-  const baseCost =
-    node.baseSpanRef?.outputs?.usage?.cost ?? 0;
-  const targetCost =
-    node.targetSpanRef?.outputs?.usage?.cost ?? 0;
+  const baseCost = node.baseSpanRef?.cost ?? 0;
+  const baseCostIncCache = node.baseSpanRef?.cost_inc_cache ?? 0;
+  const targetCost = node.targetSpanRef?.cost ?? 0;
+  const targetCostIncCache = node.targetSpanRef?.cost_inc_cache ?? 0;
 
   let costLabel = "";
-  let costTooltip = "";
+  let costData: any = null;
 
   if (!multiMode) {
-    if (baseCost > 0) {
-      costLabel = `$${baseCost.toFixed(4)}`;
-      costTooltip = `LLM cost $${baseCost.toFixed(4)}`;
+    if (baseCost > 0 || baseCostIncCache > 0) {
+      costLabel = `$${formatCost(baseCost)}`;
+      costData = {
+        title: "LLM Cost Details",
+        baseCost,
+        baseCostIncCache,
+      };
     }
   } else {
     if (node.marker === "+") {
-      if (targetCost > 0) {
-        costLabel = `$${targetCost.toFixed(4)}`;
-        costTooltip = `LLM cost (Comparison Only): $${targetCost.toFixed(4)}`;
+      if (targetCost > 0 || targetCostIncCache > 0) {
+        costLabel = `$${formatCost(targetCost)}`;
+        costData = {
+          title: "LLM Cost (Comparison Only)",
+          targetCost,
+          targetCostIncCache,
+        };
       }
     } else if (node.marker === "-") {
-      if (baseCost > 0) {
-        costLabel = `$${baseCost.toFixed(4)}`;
-        costTooltip = `LLM cost (Base Only): $${baseCost.toFixed(4)}`;
+      if (baseCost > 0 || baseCostIncCache > 0) {
+        costLabel = `$${formatCost(baseCost)}`;
+        costData = {
+          title: "LLM Cost (Base Only)",
+          baseCost,
+          baseCostIncCache,
+        };
       }
     } else {
-      // marker " " or "r"
-      if (baseCost || targetCost) {
+      if (baseCost || targetCost || baseCostIncCache || targetCostIncCache) {
         const diffC = targetCost - baseCost;
         const signC = diffC >= 0 ? "+" : "-";
-        const absDiffC = Math.abs(diffC).toFixed(4);
+        const absDiffC = formatCost(Math.abs(diffC));
         costLabel = `${signC}$${absDiffC}`;
-        costTooltip =
-          `LLM Costs\n` +
-          `Base $${baseCost.toFixed(4)}\n` +
-          `Comparison $${targetCost.toFixed(4)}\n` +
-          `Difference ${signC}$${absDiffC}`;
-        if (!baseCost && !targetCost) {
+        costData = {
+          title: "LLM Costs",
+          baseCost,
+          baseCostIncCache,
+          targetCost,
+          targetCostIncCache,
+          diffSign: signC,
+          diffAbs: absDiffC,
+          diffSignIncCache: signC,
+          diffAbsIncCache: absDiffC,
+        };
+        if (
+          !(
+            baseCost ||
+            targetCost ||
+            baseCostIncCache ||
+            targetCostIncCache
+          )
+        ) {
           costLabel = "";
-          costTooltip = "";
+          costData = null;
         }
       }
     }
@@ -590,19 +679,72 @@ function CollapsiblePatchLineNode({
         {/* Span name + optional time/cost labels */}
         <div className="truncate flex items-center">
           {node.name}
-          {timeLabel && (
-            <Tooltip content={timeTooltip}>
-              <span className="ml-2 text-xs text-muted-foreground">
-                {timeLabel}
-              </span>
-            </Tooltip>
+          {timeLabel && timeData && (
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <span className="ml-2 text-xs text-muted-foreground underline cursor-pointer">
+                  {timeLabel}
+                </span>
+              </HoverCardTrigger>
+              <HoverCardContent className="p-2 w-fit">
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p className="font-semibold">{timeData.title}</p>
+                  {timeData.baseTime !== undefined && (
+                    <p>Base Execution Time: {(() => {
+                      const { value, unit } = formatTime(timeData.baseTime);
+                      return `${value.toFixed(2)}${unit}`;
+                    })()}</p>
+                  )}
+                  {timeData.targetTime !== undefined && (
+                    <p>
+                      Comparison Execution Time: {(() => {
+                        const { value, unit } = formatTime(timeData.targetTime);
+                        return `${value.toFixed(2)}${unit}`;
+                      })()}
+                    </p>
+                  )}
+                  {timeData.diffSign && (
+                    <p>
+                      Difference: {timeData.diffSign}{timeData.diffValue.toFixed(2)}{timeData.diffUnit}
+                    </p>
+                  )}
+                </div>
+              </HoverCardContent>
+            </HoverCard>
           )}
-          {costLabel && (
-            <Tooltip content={costTooltip}>
-              <span className="ml-2 text-xs text-muted-foreground">
-                {costLabel}
-              </span>
-            </Tooltip>
+          {costLabel && costData && (
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <span className="ml-2 text-xs text-muted-foreground underline cursor-pointer">
+                  {costLabel}
+                </span>
+              </HoverCardTrigger>
+              <HoverCardContent className="p-2 w-fit">
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p className="font-semibold">{costData.title}</p>
+                  {costData.baseCost !== undefined && (
+                    <p>
+                      Base Cost: ${formatCost(costData.baseCost)} (Including
+                      cache: ${formatCost(costData.baseCostIncCache)})
+                    </p>
+                  )}
+                  {costData.targetCost !== undefined && (
+                    <p>
+                      Comparison Cost: ${formatCost(costData.targetCost)}{" "}
+                      (Including cache: ${formatCost(costData.targetCostIncCache)}
+                      )
+                    </p>
+                  )}
+                  {costData.diffSign && (
+                    <p>
+                      Difference: {costData.diffSign}${formatCost(costData.diffAbs)}{" "}
+                      (Including cache: {costData.diffSignIncCache}$
+                      {formatCost(costData.diffAbsIncCache)})
+                    </p>
+                  )}
+                </div>
+              </HoverCardContent>
+            </HoverCard>
           )}
         </div>
 
@@ -651,9 +793,6 @@ function CollapsiblePatchLineNode({
   );
 }
 
-/*---------------------------------------------------------------------
-  UnifiedTraceView => top-level trace comparison
----------------------------------------------------------------------*/
 interface UnifiedTraceViewProps {
   allTraces: Span[][];
   rowIndexes: number[];
@@ -661,22 +800,14 @@ interface UnifiedTraceViewProps {
   splitView?: LogComparisonProps["splitView"];
 }
 
-/**
- * We flatten out the synthetic "ROOT" node so that the UI never shows "ROOT".
- */
 function flattenRootNode(root: PatchDiffNode | null): PatchDiffNode[] {
   if (!root) return [];
   if (root.name === "ROOT") {
-    // Just return its children, effectively skipping the root node
     return root.children;
   }
-  // Otherwise it's a normal node
   return [root];
 }
 
-/**
- * BFS to find a node matching the given ID among multiple top-level roots.
- */
 function findNodeInForest(forest: PatchDiffNode[], spanId: string): PatchDiffNode | null {
   const queue = [...forest];
   while (queue.length) {
@@ -699,20 +830,16 @@ export default function UnifiedTraceView({
 }: UnifiedTraceViewProps) {
   const [collapsedNodes, setCollapsedNodes] = useState<Record<string, boolean>>({});
 
-  // Keep track of which node is currently selected
   const [selectedNode, setSelectedNode] = useState<PatchDiffNode | null>(null);
   const [selectedSpanId, setSelectedSpanId] = useState<string>("");
 
-  // single vs multi
   const multiMode = rowIndexes.length > 1;
 
-  // Base row's spans
   const baseRowSpans = useMemo(() => {
     if (!allTraces.length) return [];
     return allTraces[0] ?? [];
   }, [allTraces]);
 
-  // Grouping logic
   const [groupSignature, setGroupSignature] = useState("");
 
   function minimalSpanHierarchy(span: Span): any {
@@ -748,8 +875,8 @@ export default function UnifiedTraceView({
 
   function labelForGroupRows(rows: number[]): string {
     if (!rows.length) return "--";
-    if (rows.length === 1) return `Row ${rows[0]}`;
-    return `Rows ${rows.join(", ")}`;
+    const compressed = compressRowNumbers(rows);
+    return rows.length === 1 ? `Row ${compressed}` : `Rows ${compressed}`;
   }
 
   const groupOptions = useMemo(() => {
@@ -767,26 +894,21 @@ export default function UnifiedTraceView({
     return allTraces[i] ?? [];
   }
 
-  // Build final patched diff
   const finalPatchRoot = useMemo<PatchDiffNode | null>(() => {
     if (!allTraces.length) return null;
-    // Wrap the base row in the synthetic “ROOT”
     const baseWrapped = wrapAsRootSpan(baseRowSpans, "baseRow");
     if (!groupSignature) {
-      // Compare with itself => minimal changes
       return computeSpanDiffByName(baseWrapped, baseWrapped);
     }
     const found = groupedRows.find((x) => x.signature === groupSignature);
     if (!found) {
       return computeSpanDiffByName(baseWrapped, baseWrapped);
     }
-    // unify those group rows => single array
     const groupSpans = unifyGroupIntoOne(found.rowIndices);
     const groupWrapped = wrapAsRootSpan(groupSpans, "groupRow");
     return computeSpanDiffByName(baseWrapped, groupWrapped);
   }, [groupSignature, groupedRows, baseRowSpans, allTraces, rowIndexes]);
 
-  // Decide which row(s) is the "compare" side
   const groupCompareRows = useMemo(() => {
     if (!groupSignature) return [];
     const found = groupedRows.find((g) => g.signature === groupSignature);
@@ -794,16 +916,12 @@ export default function UnifiedTraceView({
     return found.rowIndices;
   }, [groupSignature, groupedRows]);
 
-  // Whenever finalPatchRoot changes, flatten out the “ROOT” node,
-  // then find any previously selectedSpanId.
   useEffect(() => {
     if (!finalPatchRoot) return;
 
-    // Flatten root => forest
     const forest = flattenRootNode(finalPatchRoot);
 
     if (!selectedSpanId) {
-      // if nothing is selected, pick the first child if any
       if (forest.length > 0) {
         const candidate = forest[0];
         const newId = candidate.baseSpanRef?.id ?? candidate.targetSpanRef?.id ?? "";
@@ -816,7 +934,6 @@ export default function UnifiedTraceView({
       return;
     }
 
-    // Otherwise see if we can find it
     const found = findNodeInForest(forest, selectedSpanId);
     if (!found) {
       if (forest.length > 0) {
@@ -897,46 +1014,54 @@ export default function UnifiedTraceView({
 
   return (
     <div className="bg-background rounded-md w-full h-full p-4 flex flex-col gap-4">
-      <div style={{ display: "flex", gap: "1rem", height: "600px" }}>
-        <div
-          style={{
-            flex: "0 0 300px",
-            border: "1px solid var(--muted)",
-            borderRadius: "0.25rem",
-            position: "relative",
-            overflowY: "auto",
-          }}
-        >
-          {rowIndexes.length > 1 && (
-            <div className="sticky top-0 bg-background p-2 z-10 border-b border-muted space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground font-semibold block">
-                  Compare with:
-                </span>
-                <Combobox
-                  items={groupOptions}
-                  value={groupSignature}
-                  onValueChange={handleGroupChange}
-                  placeholder="Pick a group..."
-                  className="w-fit items-center"
-                />
-              </div>
+      <div style={{ height: "600px" }}>
+        <DoublePanels
+          isLoading={false}
+          defaultFirstSize={30}
+          defaultSecondSize={70}
+          first={
+            <div
+              style={{
+                height: "100%",
+                border: "1px solid var(--muted)",
+                borderRadius: "0.25rem",
+                position: "relative",
+                overflowY: "auto",
+              }}
+            >
+              {rowIndexes.length > 1 && (
+                <div className="sticky top-0 bg-background p-2 border-b border-muted space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground font-semibold block">
+                      Compare with:
+                    </span>
+                    <Combobox
+                      items={groupOptions}
+                      value={groupSignature}
+                      onValueChange={handleGroupChange}
+                      placeholder="Pick a group..."
+                      className="w-fit items-center"
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="p-2">{renderPatchTree()}</div>
             </div>
-          )}
-          <div className="p-2">{renderPatchTree()}</div>
-        </div>
-
-        <div
-          style={{
-            flex: "1 1 auto",
-            border: "1px solid var(--muted)",
-            borderRadius: "0.25rem",
-            overflowY: "auto",
-            padding: "0.5rem",
-          }}
-        >
-          {renderDetail()}
-        </div>
+          }
+          second={
+            <div
+              style={{
+                height: "100%",
+                border: "1px solid var(--muted)",
+                borderRadius: "0.25rem",
+                overflowY: "auto",
+                padding: "0.5rem",
+              }}
+            >
+              {renderDetail()}
+            </div>
+          }
+        />
       </div>
     </div>
   );

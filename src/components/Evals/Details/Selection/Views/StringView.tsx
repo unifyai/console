@@ -212,6 +212,7 @@ export default function StringView({
       comparisonLogsIndex
     );
 
+
     return (
       <div className="space-y-4">
         {stringGroups.map((block, i) => {

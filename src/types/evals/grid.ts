@@ -1,5 +1,5 @@
 import { ResponseProps } from "../common";
-import { getLogsParameters, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps } from "./logs";
+import { getLogsParameters, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps, GroupedLogProps } from "./logs";
 
 export interface TileProps {
     i: string;
@@ -12,7 +12,9 @@ export interface TileProps {
     visible?: boolean;
     tab?: string;
     table?: string;
+    table_type?: string;
     context?: string;
+    prev_context?: string;
     auto_update?: string;
     filters?: string;
     common_filter?: string;
@@ -27,12 +29,14 @@ export interface TileProps {
     selected?: string;
     base_index?: string;
     plot_type?: string;
-    plot_scale?: string;
+    plot_scale_x?: string;
+    plot_scale_y?: string;
     is_aggregated?: string;
     x_axis?: string;
     y_axis?: string;
     plot_group_by?: string;
     bin_count?: string;
+    regression_line?: string;
 }
 
 export interface TableDataItem {
@@ -44,7 +48,7 @@ export interface TableDataItem {
     totalPages: number,
     entriesProperties: string[],
     paramsProperties: string[],
-    logs: LogProps[],
+    logs: LogProps[] | GroupedLogProps[],
     params: LogItemProps,
     metrics: { [key: string]: number },
     boundaries: { minimums: { [key: string]: number }, maximums: { [key: string]: number } }
@@ -61,10 +65,13 @@ export interface PlotDataProps {
     }
 }
 
-export type ItemType = 
+export type ItemType =
+    | "tab"
     | "bin_count"
+    | "regression_line"
     | "plot_type"
-    | "plot_scale"
+    | "plot_scale_x"
+    | "plot_scale_y"
     | "is_aggregated"
     | "x_axis"
     | "y_axis"
@@ -83,9 +90,24 @@ export type ItemType =
     | "columns_pin_right"
     | "table"
     | "context"
+    | "prev_context"
     | "auto_update"
-    | "visible";
+    | "visible"
+    | "table_type";
 
+
+export interface Context {
+    name: string,
+    description: string
+}
+
+export interface Interface {
+    name: string,
+    project: string,
+    context: string | undefined,
+    items: TileProps[],
+    new_counter: number,
+}
 
 export interface ProjectsActions {
     get: () => Promise<string[]>,
@@ -95,29 +117,30 @@ export interface ProjectsActions {
 }
 
 export interface LogsActions {
-    get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
+    create: (project: string, params: { system_message: string }[], entries: { question: string, response: string, score: number }[]) => Promise<ResponseProps>,
+    get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, _timestamp: string | null) => Promise<LogsResponseProps>,
     getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number) => Promise<string>,
-    getMetrics: (
-        project: string, filterExpression: string | null, metricName: string, keyName: string
-    ) => Promise<number>,
+    getMetrics: (project: string, filterExpression: string | null, metricName: string, keyName: string) => Promise<number>,
     delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
-    derive: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>
+}
+
+export interface DerivedEntryActions {
+    create: (project: string, key: string, equation: string, referenced_logs: { [table_name: string]: getLogsParameters }) => Promise<ResponseProps>,
+    update: (project: string, key: string | null, equation: string | null, target_derived_logs: { [table_name: string]: getLogsParameters }, referenced_logs: { [table_name: string]: getLogsParameters } | null) => Promise<ResponseProps>
 }
 
 export interface FieldsActions {
     get: (project: string) => Promise<LogFieldsResponseProps>,
 }
 
-export interface InterfaceActions {
-    get: (project: string, temporary: boolean) => Promise<Interface[]>,
-    create: (name: string, project: string, items: TileProps[], new_counter: number, temporary: boolean) => Promise<ResponseProps>,
-    update: (name: string, project: string, items: TileProps[], new_counter: number, new_name: string | undefined, temporary: boolean) => Promise<ResponseProps>,
-    delete: (name: string, project: string, temporary: boolean) => Promise<ResponseProps>
+export interface ContextActions {
+    get: (project: string) => Promise<Context[]>,
+    create: (name: string, project: string) => Promise<ResponseProps>,
 }
 
-export interface Interface {
-    name: string,
-    project: string,
-    items: TileProps[],
-    new_counter: number,
+export interface InterfaceActions {
+    get: (project: string, temporary: boolean) => Promise<Interface[]>,
+    create: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, temporary: boolean) => Promise<ResponseProps>,
+    update: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, new_name: string | undefined, temporary: boolean) => Promise<ResponseProps>,
+    delete: (name: string, project: string, temporary: boolean) => Promise<ResponseProps>
 }

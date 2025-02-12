@@ -2,15 +2,16 @@
 
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
-import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps, GroupedLogProps, GroupedLogPropsRaw } from "@/types/evals/logs";
 import {
   ColumnDef,
   ColumnFiltersState,
   ColumnSort,
   ColumnPinningState,
   ColumnSizingState,
+  GroupingState,
 } from "@tanstack/react-table";
-import { useRouter } from "next/navigation";
+import { DerivedEntryActions, LogsActions } from "@/types/evals/grid";
 import React, { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
@@ -29,11 +30,15 @@ import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
 import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
-import { ItemType, TableDataItem, TileProps } from "@/types/evals/grid";
+import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
+import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
+import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data/Buttons/RowExpanding";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/common";
+import { onGroupExpand } from "@/utils/evals/grouping";
 
 const LogsTable = ({
   interactive,
@@ -43,12 +48,17 @@ const LogsTable = ({
   tableArguments,
   fields,
   tableDataItem_,
+  setTableData,
   updateItem,
   logsActions,
+  derivedEntryActions,
   filterExpression,
   sortingExpression,
+  groupingExpression,
+  limit,
+  offset,
   updateInterface,
-  setPending
+  setPending,
 }: {
   interactive: boolean;
   project: string | undefined;
@@ -58,53 +68,23 @@ const LogsTable = ({
   tableArguments: TableArguments;
   fields: LogFieldsResponseProps;
   tableDataItem_: TableDataItem;
+  setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void;
   updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
-  logsActions: {
-    get: (
-      project: string,
-      context: string | null,
-      filterExpression: string | null,
-      sortingExpression: string | null,
-      from_fields: string | null,
-      exclude_fields: string | null,
-      limit: number | null,
-      offset: number,
-      _timestamp: string | null
-    ) => Promise<LogsResponseProps>,
-    getLatest: (
-      project: string, 
-      context: string | null, 
-      filterExpression: string | null, 
-      sortingExpression: string | null,
-      from_fields: string | null,
-      exclude_fields: string | null,
-      limit: number | null, 
-      offset: number
-    ) => Promise<string>,
-    getMetrics: (
-      project: string,
-      filterExpression: string | null,
-      metricName: string,
-      keyName: string
-    ) => Promise<number>;
-    delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
-    derive: (
-      project: string, 
-      key: string, 
-      equation: string, 
-      referenced_logs: {[table_name: string]: getLogsParameters}
-    ) => Promise<ResponseProps>
-  };
+  logsActions: LogsActions;
+  derivedEntryActions: DerivedEntryActions,
   filterExpression: string | null,
   sortingExpression: string | null,
-  updateInterface: () => Promise<ResponseProps>
+  groupingExpression: string | null,
+  limit: number,
+  offset: number,
+  updateInterface: () => Promise<ResponseProps>,
   setPending: (pending: boolean) => void,
 }) => {
 
   // extract necessary fields
   const [tableDataItem, setTableDataItem] = useState(tableDataItem_);
   const { logs, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
-  
+
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false); // if metric changed
 
@@ -115,7 +95,10 @@ const LogsTable = ({
 
   // Get base and comparison logs
   const selectedCells = item.selected ? item.selected.split(",") : [];
-  const { baseLog, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, logs)
+  const { baseLog, comparisonLogs } = extractBaseAndComparisonLogs(
+    selectedCells,
+    maybeFlattenGroupedLogs(logs)
+  );
 
   // Column definitions
   const entriesTree = buildTree(entriesProperties);
@@ -126,7 +109,7 @@ const LogsTable = ({
   const entriesTitle = "Entries";
   const paramsTitle = "Parameters";
 
-  const columns: ColumnDef<LogProps>[] = [
+  const columns: ColumnDef<LogProps | GroupedLogProps>[] = [
     {
       id: indicesTitle,
       cell: ({ row }) => <Badge>{row.index + 1}</Badge>,
@@ -140,31 +123,31 @@ const LogsTable = ({
     },
     ...(paramsProperties.length
       ? [
-          {
-            id: paramsTitle,
-            header: paramsTitle,
-            columns: nestedColumns(paramsTree, "params", paramsTitle, logsData, true, dataTypes, fieldTypes),
-            meta: {
-              columnType: "paramsHeader",
-              isParent: true,
-              renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
-            },
+        {
+          id: paramsTitle,
+          header: paramsTitle,
+          columns: nestedColumns(paramsTree, "params", paramsTitle, logsData, true, dataTypes, fieldTypes),
+          meta: {
+            columnType: "paramsHeader",
+            isParent: true,
+            renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
           },
-        ]
+        },
+      ]
       : []),
     ...(paramsProperties.length
       ? [
-          {
-            id: entriesTitle,
-            header: entriesTitle,
-            columns: nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, dataTypes, fieldTypes),
-            meta: {
-              columnType: "entriesHeader",
-              isParent: true,
-              renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
-            },
+        {
+          id: entriesTitle,
+          header: entriesTitle,
+          columns: nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, dataTypes, fieldTypes),
+          meta: {
+            columnType: "entriesHeader",
+            isParent: true,
+            renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
           },
-        ]
+        },
+      ]
       : nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, dataTypes, fieldTypes)),
   ];
 
@@ -192,34 +175,31 @@ const LogsTable = ({
   const allColumnsVisible = Object.fromEntries(columnIDs.map((x) => [x, true]));
   const columnVisibility = hiddenColumns
     ? {
-        ...allColumnsVisible,
-        ...Object.fromEntries(hiddenColumns.split(",").map((x) => [x, false])),
-      }
+      ...allColumnsVisible,
+      ...Object.fromEntries(hiddenColumns.split(",").map((x) => [x, false])),
+    }
     : allColumnsVisible;
 
   const setColumnVisibility = (v: { [key: string]: boolean }) => {
-    const hidden = Object.keys(v).filter((k) => !v[k]).map(id => sanitizeId(id));
+    const hidden = Object.keys(v).filter((k) => !v[k]);
     updateItem(item, "hidden_columns")(hidden.length ? hidden.join(",") : undefined);
-    updateInterface().then(() => {
-      router.refresh();
-    });
   };
 
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
   const sorting: ColumnSort[] = sortingStr
     ? sortingStr.split(",").map((c) => {
-        const [key, order] = c.split("@");
-        const id = entriesProperties.includes(key) ? `Entries/${key}` : `Parameters/${key}`;
-        const desc = order === "true";
-        return { id, desc };
-      })
+      const [key, order] = c.split("@");
+      const id = entriesProperties.includes(key) ? `Entries/${key}` : `Parameters/${key}`;
+      const desc = order === "true";
+      return { id, desc };
+    })
     : [];
   const setSorting = (s: ColumnSort[]) =>
     updateItem(item, "sorting")(s.map((item) => `${sanitizeId(item.id)}@${item.desc}`).join(","));
 
-  const grouping = groupingStr ? groupingStr.split(",") : [];
-  const setGrouping = (g: string[]) =>
+  const grouping: GroupingState = groupingStr ? groupingStr.split(",") : [];
+  const setGrouping = (g: GroupingState) =>
     updateItem(item, "grouping")(g.length ? g.join(",") : undefined);
 
   const columnPinning: ColumnPinningState = {
@@ -256,6 +236,7 @@ const LogsTable = ({
   });
 
   const state = {
+    tableDataItem,
     selectedCells,
     metric,
     sorting,
@@ -270,6 +251,7 @@ const LogsTable = ({
     pinningState,
   };
   const setState = {
+    setTableDataItem,
     setSelectedCells: (cells: string[]) => updateItem(item, "selected")(cells.join(",")),
     setMetric: updateItem(item, "metric"),
     setSorting,
@@ -284,13 +266,12 @@ const LogsTable = ({
     setPinningState,
   };
 
-  const router = useRouter();
-
   // Use refs to detect a *real* page/filter change
   const prevPageRef = useRef(pageNumber);
   const prevFiltersRef = useRef(logsFilters);
   const prevCommonFilterRef = useRef(commonFilter);
   const prevSortingRef = useRef(sortingStr);
+  const prevGroupingRef = useRef(groupingStr);
 
   // Prune base/comparison IDs if user REALLY changes page or filters
   useEffect(() => {
@@ -298,16 +279,18 @@ const LogsTable = ({
     const filtersChanged = prevFiltersRef.current !== logsFilters;
     const commonChanged = prevCommonFilterRef.current !== commonFilter;
     const sortingChanged = prevSortingRef.current !== sortingStr;
+    const groupingChanged = prevGroupingRef.current !== groupingStr;
 
-    if (pageChanged || filtersChanged || commonChanged || sortingChanged) {
+    if (pageChanged || filtersChanged || commonChanged || sortingChanged || groupingChanged) {
       // If base no longer valid, remove it
-      if (baseLog && !logs.some((l) => l.id === baseLog.id)) {
+      const flattenedLogs = maybeFlattenGroupedLogs(logs);
+      if (baseLog && !(flattenedLogs).some((l) => l.id === baseLog.id)) {
         updateItem(item, "selected")(selectedCells.slice(1).join(","));
       }
       // If compare logs not valid, prune them
       if (comparisonLogs) {
         const ids = comparisonLogs.map(cl => cl.id);
-        const validIds = ids.filter((id) => logs.some((l) => l.id === id));
+        const validIds = ids.filter((id) => flattenedLogs.some((l) => l.id === id));
         if (!validIds.length) {
           updateItem(item, "selected")(
             (selectedCells.at(0) ? [selectedCells.at(0) as string] : []).join(",")
@@ -324,12 +307,14 @@ const LogsTable = ({
     prevFiltersRef.current = logsFilters;
     prevCommonFilterRef.current = commonFilter;
     prevSortingRef.current = sortingStr;
+    prevGroupingRef.current = groupingStr;
   }, [
     logs,
     pageNumber,
     logsFilters,
     commonFilter,
     sortingStr,
+    groupingStr,
     selectedCells
   ]);
 
@@ -339,12 +324,12 @@ const LogsTable = ({
 
   // Top area: filters, page, etc.
   const tableTop = (
-    <div className="flex flex-row justify-between gap-3 LogsTablePreferences">
+    <div className="mb-2 mx-1 flex flex-row justify-between gap-3 LogsTablePreferences">
       {project && columns.length > 0 && (
         <div className="flex flex-row gap-2 items-center">
           <SelectionMenu
             type="Contexts"
-            data={Object.keys(dataTypes).map(property => ({path: property, type:"file"}))}
+            data={Object.keys(dataTypes).map(property => ({ path: property, type: "file" }))}
             onClick={updateItem(item, "context")}
             logs={logs}
           />
@@ -358,11 +343,11 @@ const LogsTable = ({
               updateItem(item, "filters")(
                 keys.length
                   ? Object.entries(obj)
-                      .map(([colKey, val]) =>
-                        Object.entries(val).map(([fn, val2]) => `${colKey}@${fn}@${val2}`)
-                      )
-                      .flat()
-                      .join(",")
+                    .map(([colKey, val]) =>
+                      Object.entries(val).map(([fn, val2]) => `${colKey}@${fn}@${val2}`)
+                    )
+                    .flat()
+                    .join(",")
                   : undefined
               );
             }}
@@ -373,7 +358,6 @@ const LogsTable = ({
             columnVisibility={columnVisibility}
             setColumnVisibility={setColumnVisibility}
             context={item.context ?? null}
-            logs={logs}
           />
         </div>
       )}
@@ -393,6 +377,7 @@ const LogsTable = ({
             filterExpression={filterExpression}
             sortingExpression={sortingExpression}
             hiddenColumns={item.hidden_columns}
+            groupingExpression={groupingExpression}
             updateItem={updateItem}
             setTableDataItem={setTableDataItem}
             logsActions={logsActions}
@@ -404,7 +389,7 @@ const LogsTable = ({
   );
 
   const tableRef = useRef<HTMLDivElement>(null);
-  
+
   // Handle clicking outside of the table
   const onContainerClick = (event: React.MouseEvent<HTMLElement, MouseEvent>) => {
     if (tableRef.current && !tableRef.current.contains(event.target as Node)) {
@@ -420,81 +405,130 @@ const LogsTable = ({
           <Loader2 className="animate-spin my-36" />
         </div>
       ) : (
-        <div ref={tableRef} className="w-full h-fit overflow-y-auto tutorial-logs-table">
-          {project ? (
-            <div className="relative flex-col gap-2">
-              {/* “summaryPending” can optionally show a small loader over the table if you like */}
-              <DataTable
-                className="LogsTable"
-                interactive={interactive}
-                data={logs}
-                columns={columns}
-                state={state}
-                setState={setState}
-                TableTop={tableTop}
-                ColumnFilters={(column) => (
-                  <ColumnFilter
-                    interactive={interactive}
-                    setColumnFilterQuery={(filtersObj) => {
-                      const keys = Object.keys(filtersObj);
-                      updateItem(item, "filters")(
-                        keys.length
-                          ? Object.entries(filtersObj)
+        <div className="w-full h-full flex flex-col">
+          {tableTop && tableTop}
+          <div ref={tableRef} className="w-full h-fit overflow-y-auto tutorial-logs-table">
+            {project ? (
+              <div className="relative flex-col gap-2">
+                {/* "summaryPending" can optionally show a small loader over the table if you like */}
+                <DataTable<LogProps | GroupedLogProps>
+                  className="LogsTable"
+                  interactive={interactive}
+                  data={logs}
+                  columns={columns}
+                  state={state}
+                  setState={setState}
+                  ColumnFilters={(column) => (
+                    <ColumnFilter
+                      interactive={interactive}
+                      setColumnFilterQuery={(filtersObj) => {
+                        const keys = Object.keys(filtersObj);
+                        updateItem(item, "filters")(
+                          keys.length
+                            ? Object.entries(filtersObj)
                               .map(([cKey, val]) =>
                                 Object.entries(val).map(([fn, val2]) => `${cKey}@${fn}@${val2}`)
                               )
                               .flat()
                               .join(",")
-                          : undefined
-                      );
-                    }}
-                    boundaries={boundaries}
-                    columnFilters={searchParamToFilters(logsFilters, item.context)}
-                    column={column.id}
-                    dataTypes={dataTypes}
-                    logs={logs}
-                  />
-                )}
-                ColumnCreate={
-                  <ColumnCreate 
-                    project={project} 
-                    currentTable={item.i}
-                    tableArguments={tableArguments}
-                    logs={logs}
-                    derive={logsActions.derive}
-                    setPending={setPending}
-                    refresh={() => updateInterface()}
-                  />
-                }
-                AggregatedCell={(cell, row) => (
-                  <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />
-                )}
-                FooterCell={(column, resizeMap, table) => 
-                  <FooterCell 
-                    column={column} 
-                    resizeMap={resizeMap} 
-                    draggingColumns={state.draggingColumns}
-                  >
-                    {
-                      column.columnDef.id === indicesTitle
-                      ? <ColumnMetrics interactive={interactive} metric={state.metric} setMetric={setState.setMetric} logs={logs}/>
-                      : !column.getIsGrouped()
-                        ?	<SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} draggingColumns={state.draggingColumns} />
-                        : 	null
-                    }
-                  </FooterCell>
-                }
-                ExtraComponents={(table) => {
-                  return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} context={item.context}/>
-                }}
-                ExtraCellContent={(cell, isCellExpanded, setExpandedCells) => 
-                  <CellPopover cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells}/>
-                }
-              />
-            </div>
-          ) : (
-            <BaseTable items={[{ Entries: "Select a project to display your logs." }]} />
-          )}
+                            : undefined
+                        );
+                      }}
+                      boundaries={boundaries}
+                      columnFilters={searchParamToFilters(logsFilters, item.context)}
+                      column={column.id}
+                      dataTypes={dataTypes}
+                      logs={logs}
+                    />
+                  )}
+                  ColumnCreate={(previousColumn: string, setOpen: (open: boolean) => void) => (
+                    <ColumnCreate
+                      project={project}
+                      currentTable={item.i}
+                      tableArguments={tableArguments}
+                      logs={logs}
+                      create={derivedEntryActions.create}
+                      setPending={setPending}
+                      refresh={() => updateInterface()}
+                      columnOrder={columnOrder}
+                      setColumnOrder={(order: string[]) => updateItem(item, "column_order")(order.join(","))}
+                      previousColumn={previousColumn}
+                      setOpen={setOpen}
+                    />
+                  )}
+                  ColumnUpdate={(key: string) => (
+                    <ColumnUpdate
+                      project={project}
+                      key={key}
+                      previousEquation={fields[sanitizeId(key)].artifacts}
+                      currentTable={item.i}
+                      tableArguments={tableArguments}
+                      logs={logs}
+                      update={derivedEntryActions.update}
+                      setPending={setPending}
+                      refresh={() => updateInterface()}
+                    />
+                  )}
+                  RowExpanding={(props: RowExpandingProps) => (
+                    <RowExpanding
+                      row={props.row}
+                      groupingColumnId={props.groupingColumnId}
+                      isLoading={props.isLoading}
+                      isAnimating={props.isAnimating}
+                      setExpandingRowId={props.setExpandingRowId}
+                      onExpand={async (groupingColumnId: string, groupingValue: string, parentId: string, setExpandingRowId: (id: string | null) => void) => {
+                        await onGroupExpand(
+                          groupingColumnId,
+                          groupingValue,
+                          parentId,
+                          project!,
+                          item.context ?? null,
+                          filterExpression,
+                          sortingExpression,
+                          groupingExpression,
+                          limit,
+                          offset,
+                          logsActions,
+                          setExpandingRowId,
+                          setTableData,
+                          item,
+                          dataTypes,
+                          fields,
+                          logs,
+                        );
+                      }}
+                    />
+                  )}
+                  AggregatedCell={(cell, row) => (
+                    <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />
+                  )}
+                  FooterCell={(column, resizeMap, table) =>
+                    <FooterCell
+                      column={column}
+                      resizeMap={resizeMap}
+                      draggingColumns={state.draggingColumns}
+                    >
+                      {
+                        column.columnDef.id === indicesTitle
+                          ? <ColumnMetrics interactive={interactive} metric={state.metric} setMetric={setState.setMetric} logs={logs} />
+                          : !column.getIsGrouped()
+                            ? <SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} draggingColumns={state.draggingColumns} />
+                            : null
+                      }
+                    </FooterCell>
+                  }
+                  ExtraComponents={(table) => {
+                    return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} context={item.context} />
+                  }}
+                  ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
+                    <CellPopover cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />
+                  }
+                />
+              </div>
+            ) : (
+              <BaseTable items={[{ Entries: "Select a project to display your logs." }]} />
+            )}
+          </div>
         </div>
       )}
     </div>

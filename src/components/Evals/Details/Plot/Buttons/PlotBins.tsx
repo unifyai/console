@@ -8,12 +8,12 @@ import SliderWithValue from "@/components/Common/Sliders/WithValue";
 const PlotBins = ({binCount, setBinCount, binCounts}: {
     binCount: number,
     binCounts: number[],
-    setBinCount: (binCount: number) => void
+    setBinCount: (binCount: string) => void
 }) => {
     const button = <SettingButton icon={<ChartColumnBig/>} tooltip={"Bin count"} variant={"outline"}/>
     return (
         <BaseDropdown button={button} side="left">
-            <SliderWithValue label="Bin count" value={binCount} setValue={setBinCount} ticks={binCounts}/>
+            <SliderWithValue label="Bin count" value={binCount} setValue={(value) => setBinCount(value.toString())} ticks={binCounts}/>
         </BaseDropdown>
     );
 }

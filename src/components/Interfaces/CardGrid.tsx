@@ -1,76 +1,91 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Card from "./Card";
 import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
-import { FileProps, ResponseProps } from "@/types/common";
-import { Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
+import { ResponseProps } from "@/types/common";
+import { DerivedEntryActions, Context, ContextActions, Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
-import { Check, Clipboard, Copy, Eye, EyeOff, Grip, ListRestart, Loader2, Maximize2, Plus, RefreshCw, Save, Trash, TriangleAlert, X } from "lucide-react";
+import { Copy, EyeOff, Grip, Loader2, Maximize2, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { Badge } from "../UI/badge";
 import { Dialog, DialogContent } from "../UI/dialog";
 import { Input } from "../UI/input";
-import BaseDropdown from "../Common/Dropdowns/Base";
-import { DropdownMenuItem } from "../UI/dropdown-menu";
-import FileDirectory from "../Tree/Directory/FileDirectory";
-import CloseProject from "./Table/Buttons/CloseProject";
-import DeleteDialog from "../Common/Dialogs/Delete";
-import CreateProject from "./Table/Buttons/CreateProject";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../UI/tabs";
+import { Tabs, TabsContent } from "../UI/tabs";
 import { useQueryState } from "nuqs";
-import { v4 as uuidv4 } from "uuid";
 import Cookies from "js-cookie";
+import FocusDialog from "./FocusDialog";
+import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
+import DefaultProject from "./DefaultProject";
+import InterfaceButtons from "./InterfaceButtons";
+import InterfaceTabs from "./InterfaceTabs";
+import ProjectButtons from "./ProjectButtons";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
-
 
 const CardGrid = ({
     project_,
     projects,
+    contexts,
     interfaces_,
     tableNames,
-    tableData,
+    tableData: initialTableData,
     tableArguments,
     fields,
     plotData,
     savedInterface,
     interfaceCreated,
+    tempInterfaceCreated_,
     interface_1,
     filterExpressions,
     sortingExpressions,
+    groupingExpressions,
+    limit,
+    offsets,
     projectActions,
     logsActions,
+    derivedEntryActions,
+    contextActions,
     interfaceActions,
 }: {
     project_: string | null,
     projects: string[] | undefined,
+    contexts: Context[],
     interfaces_: string[],
-    tableNames: string[]
+    tableNames: string[],
     tableData: TableDataProps,
     tableArguments: TableArguments,
     fields: LogFieldsResponseProps,
     plotData: PlotDataProps,
     savedInterface: Interface,
     interfaceCreated: boolean,
+    tempInterfaceCreated_: boolean,
     interface_1: string | null,
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
+    groupingExpressions: (string | null)[],
+    limit: number,
+    offsets: number[],
     projectActions: ProjectsActions,
     logsActions: LogsActions,
-    interfaceActions: InterfaceActions,
+    derivedEntryActions: DerivedEntryActions,
+    contextActions: ContextActions,
+    interfaceActions: InterfaceActions
 }) => {
     const router = useRouter();
 
     // layout structure
+    const [tableData, setTableData] = useState<TableDataProps>(initialTableData);
+    const [context, setContext] = useState<string>();
     const [items, setItems] = useState<TileProps[]>([]);
     const [newCounter, setNewCounter] = useState(0);
-    const [tempInterfaceCreated, setTempInterfaceCreated] = useState(false);
+    const [tempInterfaceCreated, setTempInterfaceCreated] = useState(tempInterfaceCreated_);
 
     // modals
     const [saveDialog, setSaveDialog] = useState(false);
-    const [maxTile, setMaxTile] = useState<string>();
+    const [focusDialog, setFocusDialog] = useState(false);
+    const [maxTiles, setMaxTiles] = useState<string[]>([]);
     const [editTile, setEditTile] = useState<string>();
     const [newTileName, setNewTileName] = useState<string>();
 
@@ -99,7 +114,13 @@ const CardGrid = ({
     // other variables
     const gridRef = useRef<HTMLDivElement>(null);
     const anyTilePending = Object.entries(tilePending).some(([_, value]) => value);
-    const maxTileItem = items.find(item => item.i == maxTile) as TileProps;
+    const maxTileItems = maxTiles.map(tile => items.find(item => item.i == tile)).concat(
+        Array(2 - maxTiles.length).fill(undefined)
+    );
+    if (maxTileItems[0] == undefined && maxTileItems[1] != undefined) {
+        maxTileItems.shift();
+        maxTileItems.push(undefined);
+    }
     const hiddenItems = items.filter(item => !item.visible);
     const data = (projects || []).map((p) => ({ path: p, type: "file" }));
 
@@ -111,20 +132,21 @@ const CardGrid = ({
         }
     }
 
-    // update interface
+    // update interface – preserves context functionality
     const updateInterface = (
         savedInterface: Interface | null = null,
     ) => {
+        const context_1 = savedInterface != null ? savedInterface?.context : context;
         const items_1 = savedInterface?.items || items;
         const newCounter_1 = savedInterface?.new_counter || newCounter;
         if (interface_ && project && interface_ == interface_1 && project == project_ && !pending) {
             if (tempInterfaceCreated)
-                return interfaceActions.update(interface_, project, items_1, newCounter_1, undefined, true);
+                return interfaceActions.update(interface_, project, context_1, items_1, newCounter_1, undefined, true);
             else
-                return interfaceActions.create(interface_, project, items_1, newCounter_1, true);
+                return interfaceActions.create(interface_, project, context_1, items_1, newCounter_1, true)
         }
         return Promise.reject();
-    }
+    };
 
     // edit tile name
     const saveTileName = () => {
@@ -142,12 +164,13 @@ const CardGrid = ({
         }
         setEditTile(undefined);
         setNewTileName(undefined);
-    }
+    };
 
-    // get latest interface
+    // get latest interface (including context)
     const getLatestInterface = () => {
         interfaceActions.get(project as string, true).then((ints: Interface[]) => {
             const currentInterface = ints.find(i => i.name == interface_);
+            setContext(currentInterface?.context);
             setItems(currentInterface?.items || []);
             setNewCounter(currentInterface?.new_counter || 0);
             setTempInterfaceCreated(Boolean(currentInterface));
@@ -155,7 +178,7 @@ const CardGrid = ({
             setInterfaces(ints.map(int => int.name).sort());
             setInterface_2(interface_ as string);
         });
-    }
+    };
 
     // set the items and new counter whenever project or interface changes
     useEffect(() => {
@@ -171,7 +194,7 @@ const CardGrid = ({
             Cookies.remove("interface");
     }, [project, interface_]);
 
-    // update interface whenever items change
+    // Only call updateInterface when items have truly changed.
     useEffect(() => {
         updateInterface();
     }, [items]);
@@ -186,6 +209,11 @@ const CardGrid = ({
         setResetting(false);
     }, [tableData]);
 
+    // Update tableData when initialTableData changes
+    useEffect(() => {
+        setTableData(initialTableData);
+    }, [initialTableData]);
+
     // scroll to the bottom whenever new items are added
     useEffect(() => {
         gridRef.current?.scrollTo({
@@ -197,12 +225,6 @@ const CardGrid = ({
     // end success green after 3 seconds
     useEffect(() => { setTimeout(() => setSaveSuccess(undefined), 3000); }, [saveSuccess]);
 
-    // icons, variants and disabled variables for saving and resetting
-    const saveIcon = saveSuccess ? <Check /> : saveSuccess == false ? <TriangleAlert /> : <Save />;
-    const resetIcon = resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
-    const variant = saveSuccess == false ? "destructive" : "outline";
-    const disabled = JSON.stringify({ items: savedInterface?.items }) == JSON.stringify({ items });
-
     return (<div className="w-full h-full overflow-auto" ref={gridRef}>
         <Tabs value={interface_ || undefined} onValueChange={(value: string | undefined) => {
             setPending(true);
@@ -211,238 +233,85 @@ const CardGrid = ({
             setInterface(value || null);
         }} className="w-full tutorial-details-panel">
             <div className="sticky top-0 z-10 bg-background shadow-sm p-2 flex justify-between gap-4">
-                <div className="w-fit gap-2 flex flex-row items-center px-4">
-                    <FileDirectory
-                        data={data}
-                        renamingFunction={projectActions.rename}
-                        setterFunction={(proj: FileProps | undefined) => {
-                            const newProj = proj ? proj.path : null;
-                            setPending(true);
-                            setDataPending(true);
-                            setInterfaces([]);
-                            setInterface_2("");
-                            setInterface(null);
-                            setProject(newProj);
-                        }}
-                        type="Projects"
-                        defaultValue={project || undefined}
-                    />
-                    {project && (
-                        <div className="flex flex-row gap-2">
-                            <CloseProject
-                                onClick={() => {
-                                    setPending(true);
-                                    setDataPending(true);
-                                    setInterface(null);
-                                    setInterfaces([]);
-                                    setInterface_2("");
-                                    setProject(null);
-                                }}
-                            />
-                            <DeleteDialog
-                                type="project"
-                                resource={project}
-                                deletingFunction={projectActions.delete}
-                                variant="outline"
-                                onDelete={() => {
-                                    setPending(true);
-                                    setDataPending(true);
-                                    setInterface(null);
-                                    setInterfaces([]);
-                                    setInterface_2("");
-                                    setProject(null);
-                                }}
-                            />
-                        </div>
-                    )}
-                    {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
-                    <ActionButton
-                        variant="outline"
-                        icon={refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
-                        tooltip={"Refresh Interface"}
-                        disabled={pending || dataPending}
-                        onClick={() => {
-                            setRefreshing(true);
-                            router.refresh();
-                        }}
-                    />
-                </div>
+                {/* Project dropdown and add/delete buttons */}
+                <ProjectButtons
+                    project={project}
+                    projects={projects}
+                    interfaces={interfaces}
+                    data={data}
+                    refreshing={refreshing}
+                    pending={pending}
+                    dataPending={dataPending}
+                    projectActions={projectActions}
+                    interfaceActions={interfaceActions}
+                    setRefreshing={setRefreshing}
+                    setPending={setPending}
+                    setDataPending={setDataPending}
+                    setInterfaces={setInterfaces}
+                    setInterface_2={setInterface_2}
+                    setInterface={setInterface}
+                    setProject={setProject}
+                />
 
-                {project && <div className="flex gap-4 px-4">
-                    {interfaces.length > 0 && <TabsList className="rounded-md justify-between">
-                        <div className="flex flex-row gap-3">
-                            {interfaces.map((int_, idx) => <TabsTrigger
-                                key={idx}
-                                value={int_}
-                                disabled={pending || dataPending}
-                                className="flex flex-row gap-2 data-[state=active]:text-accent"
-                            >
-                                {interface_ == int_ ? <Input
-                                    value={interface_2}
-                                    disabled={pending || dataPending}
-                                    onInput={(event: React.ChangeEvent<HTMLInputElement>) => setInterface_2(event.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === "Enter" && int_ != interface_2) {
-                                            interfaceActions.update(
-                                                int_, project, items, newCounter, interface_2, true
-                                            ).then(() => {
-                                                interfaceActions.update(
-                                                    int_, project, items, newCounter, interface_2, false
-                                                ).then(() => {
-                                                    setPending(true);
-                                                    setInterface(interface_2);
-                                                });
-                                            });
-                                        }
-                                    }}
-                                    className="px-0 h-5 w-20 bg-transparent border-none outline-none focus:outline-none focus:border-none focus-visible:ring-0"
-                                /> : <div className="h-5 w-20 text-center">{int_}</div>}
-                            </TabsTrigger>)}
-                        </div>
-                    </TabsList>}
-                    <div className="flex gap-2">
-                        <ActionButton
-                            variant="outline"
-                            icon={<Plus />}
-                            tooltip={"Add new interface"}
-                            disabled={pending}
-                            onClick={() => {
-                                const newInterfaceName = `interface_${uuidv4().slice(0, 2)}`;
-                                interfaceActions.create(
-                                    newInterfaceName, project, [], 0, true
-                                ).then(() => {
-                                    interfaceActions.create(
-                                        newInterfaceName, project, [], 0, false
-                                    ).then(() => {
-                                        setInterfaces([...interfaces, newInterfaceName]);
-                                        setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));
-                                        setInterface(newInterfaceName);
-                                        setInterface_2(newInterfaceName);
-                                    });
-                                })
-                            }}
-                        />
-                        <ActionButton
-                            variant="outline"
-                            icon={<Trash />}
-                            tooltip={interfaces.length <= 1 ? "Projects need to have at least one interface" : "Delete current active interface"}
-                            disabled={pending || interfaces.length <= 1}
-                            onClick={() => interfaceActions.delete(interface_ as string, project, true).then(() => {
-                                setPending(true);
-                                interfaceActions.delete(interface_ as string, project, false).then(() => {
-                                    setInterfaces(interfaces.filter(i => i != interface_));
-                                    setInterface(null);
-                                    setInterface_2("");
-                                })
-                            })}
-                        />
-                    </div>
-                </div>}
+                {/* Interface tabs and add/delete buttons */}
+                {project && <InterfaceTabs
+                    interface_={interface_}
+                    interface_2={interface_2}
+                    interfaces={interfaces}
+                    project={project}
+                    context={context}
+                    items={items}
+                    newCounter={newCounter}
+                    tableData={tableData}
+                    pending={pending}
+                    dataPending={dataPending}
+                    interfaceActions={interfaceActions}
+                    setInterface={setInterface}
+                    setInterface_2={setInterface_2}
+                    setInterfaces={setInterfaces}
+                    setPending={setPending}
+                    setTilePending={setTilePending}
+                />}
 
-                <div className="flex gap-2 items-center px-4">
-                    <ActionButton
-                        className="transition-all"
-                        tooltip={!project ? "Select a project first" : "Save Interface"}
-                        icon={saveIcon}
-                        variant={variant}
-                        disabled={disabled || anyTilePending || !project || !interface_ || pending}
-                        onClick={async () => setSaveDialog(true)}
-                    />
-                    <ActionButton
-                        className="transition-all"
-                        tooltip={!project ? "Select a project first" : "Return to last saved interface"}
-                        icon={resetIcon}
-                        variant="outline"
-                        disabled={disabled || anyTilePending || !project || pending}
-                        onClick={async () => updateInterface(savedInterface).then(() => {
-                            setResetting(true);
-                            setMode("edit");
-                            router.refresh();
-                        })}
-                    />
-                    <ActionButton
-                        variant="outline"
-                        icon={<Plus />}
-                        text="Add Tile"
-                        tooltip={(mode != "edit" || !project) ? "Select a project first" : "Add new tile"}
-                        disabled={mode != "edit" || !project || pending}
-                        onClick={() => {
-                            setItems([
-                                ...items,
-                                {
-                                    i: "Tile_" + newCounter,
-                                    x: (items.length * 2) % 12,
-                                    y: (items.length * 2) / 12,
-                                    w: 4,
-                                    h: 4,
-                                    tab: undefined,
-                                    visible: true,
-                                }
-                            ]);
-                            setNewCounter(newCounter + 1);
-                        }}
-                    />
-                    <BaseDropdown
-                        button={<ActionButton
-                            variant="outline"
-                            icon={<Eye />}
-                            tooltip="Show Hidden"
-                            size="sm"
-                            disabled={hiddenItems.length == 0 || pending}
-                        />}
-                    >
-                        {hiddenItems.map((item, idx) => <DropdownMenuItem
-                            key={idx}
-                            onSelect={() => {
-                                setItems([...items.map(
-                                    it => it.i == item.i ? {
-                                        ...it,
-                                        x: (items.length * 2) % 12,
-                                        y: (items.length * 2) / 12,
-                                        w: 4,
-                                        h: 4,
-                                        visible: true
-                                    } : { ...it }
-                                )]);
-                            }}
-                            disabled={hiddenItems.length == 0}
-                            className="w-64 no-drag"
-                        >
-                            {item.i}
-                        </DropdownMenuItem>)}
-                    </BaseDropdown>
-                    <ActionButton
-                        variant="outline"
-                        icon={<Clipboard />}
-                        tooltip="Paste"
-                        disabled={!copied || pending}
-                        onClick={() => {
-                            const copiedItem = items.find(item => item.i == copied) as TileProps;
-                            setItems([
-                                ...items,
-                                { ...copiedItem, i: "Tile_" + newCounter }
-                            ]);
-                            setNewCounter(newCounter + 1);
-                            setCopied(undefined);
-                        }}
-                    />
-                    <ActionButton
-                        tooltip="Switch mode"
-                        text={mode}
-                        variant="outline"
-                        onClick={() => setMode(
-                            mode == "edit"
-                                ? "interactive"
-                                : mode == "interactive"
-                                    ? "dashboard"
-                                    : "edit"
-                        )}
-                    />
-                </div>
+                {/* Interface buttons for focus, context, save, reset, add tile, etc. */}
+                <InterfaceButtons
+                    mode={mode}
+                    project_={project_}
+                    interface_={interface_}
+                    project={project}
+                    pending={pending}
+                    anyTilePending={anyTilePending}
+                    context={context}
+                    contexts={contexts}
+                    items={items}
+                    newCounter={newCounter}
+                    copied={copied}
+                    resetting={resetting}
+                    saveSuccess={saveSuccess}
+                    hiddenItems={hiddenItems}
+                    savedInterface={savedInterface}
+                    setItems={setItems}
+                    setNewCounter={setNewCounter}
+                    setCopied={setCopied}
+                    setResetting={setResetting}
+                    setMode={setMode}
+                    setFocusDialog={setFocusDialog}
+                    setDataPending={setDataPending}
+                    setContext={setContext}
+                    setSaveDialog={setSaveDialog}
+                    updateInterface={updateInterface}
+                />
             </div>
             {interfaces.length == 0 ? (project && pending) ? <div className="flex justify-center">
                 <Loader2 className="animate-spin my-36" />
-            </div> : !project ? <div className="mt-4 flex justify-center font-semibold">Please select a project</div> : <></> : interfaces.map((int_, idx) => <TabsContent key={idx} value={int_} className="tutorial-selection-pane px-3">
+            </div> : !project ? <DefaultProject
+                projects={projects}
+                logsActions={logsActions}
+                projectActions={projectActions}
+                interfaceActions={interfaceActions}
+                setProject={setProject}
+                setInterface={setInterface}
+            /> : <></> : interfaces.map((int_, idx) => <TabsContent key={idx} value={int_} className="tutorial-selection-pane px-3">
                 {pending
                     ? <div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>
                     : interface_1 == int_ ? <ResponsiveReactGridLayout
@@ -481,18 +350,23 @@ const CardGrid = ({
                                         fields={fields}
                                         tableNames={tableNames}
                                         tableData={tableData}
-                                        plotData={plotData}
                                         tableArguments={tableArguments}
+                                        plotData={plotData}
                                         logsActions={logsActions}
+                                        derivedEntryActions={derivedEntryActions}
+                                        contextActions={contextActions}
                                         index={el.i}
                                         item={el}
                                         items={items}
                                         filterExpressions={filterExpressions}
                                         sortingExpressions={sortingExpressions}
+                                        groupingExpressions={groupingExpressions}
+                                        limit={limit}
+                                        offsets={offsets}
                                         setPending={(p: boolean) => setTilePending({ ...tilePending, [el.i]: p })}
-                                        setItems={(items: TileProps[]) => setItems(items)}
                                         updateItem={updateItem}
                                         updateInterface={updateInterface}
+                                        setTableData={setTableData}
                                     />
                                     <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-3 flex justify-between " + (mode == "edit" ? "h-20" : "h-10")}>
                                         <div className="mb-auto">
@@ -507,19 +381,25 @@ const CardGrid = ({
                                         <div className="flex gap-2 mb-auto">
                                             <ActionButton
                                                 className="no-drag cursor-pointer hover:z-10"
-                                                onClick={() => setMaxTile(el.i)}
+                                                onClick={() => {
+                                                    if (!maxTiles.includes(el.i)) {
+                                                        const newMaxTiles = [el.i, ...maxTiles];
+                                                        if (newMaxTiles.length > 2)
+                                                            newMaxTiles.pop();
+                                                        setMaxTiles(newMaxTiles);
+                                                    }
+                                                    setFocusDialog(true);
+                                                }}
                                                 icon={<Maximize2 />}
-                                                tooltip="Maximize"
-                                                variant="outline"
+                                                tooltip="Open in Focus Pane"
+                                                variant={maxTiles.includes(el.i) ? "primary" : "outline"}
                                             />
                                             {mode == "edit" && <>
                                                 <ActionButton
                                                     className="no-drag cursor-pointer hover:z-10"
-                                                    onClick={() => {
-                                                        setItems([...items.map(
-                                                            it => it.i == el.i ? { ...it, visible: false } : it
-                                                        )]);
-                                                    }}
+                                                    onClick={() => setItems([...items.map(
+                                                        it => it.i == el.i ? { ...it, visible: false } : it
+                                                    )])}
                                                     icon={<EyeOff />}
                                                     tooltip={"Hide"}
                                                     variant="outline"
@@ -555,37 +435,39 @@ const CardGrid = ({
                     </div>}
             </TabsContent>)}
         </Tabs>
-        {maxTile && <Dialog open={true} onOpenChange={() => setMaxTile(undefined)}>
-            <DialogContent className="min-w-full h-full">
-                <div className="p-4 overflow-auto">
-                    <Card
+        {focusDialog && <Dialog open={true} onOpenChange={() => setFocusDialog(false)}>
+            <DialogContent className="min-w-full h-full overflow-y-auto">
+                <Suspense fallback={<SkeletonLoader />}>
+                    <FocusDialog
+                        maxTiles={maxTiles}
+                        maxTileItems={maxTileItems}
                         mode={mode}
                         project={project || undefined}
-                        pending={pending || dataPending || (maxTileItem.tab == "Table" ? tilePending[maxTileItem.i] : false)}
+                        pending={pending}
+                        dataPending={dataPending}
+                        tilePending={tilePending}
+                        setTilePending={setTilePending}
                         tableNames={tableNames}
                         tableData={tableData}
                         tableArguments={tableArguments}
                         fields={fields}
                         plotData={plotData}
                         logsActions={logsActions}
-                        index={maxTileItem.i}
-                        item={maxTileItem}
+                        derivedEntryActions={derivedEntryActions}
+                        contextActions={contextActions}
                         items={items}
                         filterExpressions={filterExpressions}
                         sortingExpressions={sortingExpressions}
-                        setPending={(p: boolean) => setTilePending({ ...tilePending, [maxTileItem.i]: p })}
-                        setItems={(items: TileProps[]) => setItems(items)}
+                        groupingExpressions={groupingExpressions}
+                        limit={limit}
+                        offsets={offsets}
                         updateItem={updateItem}
                         updateInterface={updateInterface}
+                        setTableData={setTableData}
+                        setMaxTiles={setMaxTiles}
+                        setFocusDialog={setFocusDialog}
                     />
-                </div>
-                <Badge
-                    className="no-drag absolute top-3 left-3 z-10 cursor-pointer"
-                    variant="primary"
-                    onClick={() => mode == "edit" ? setEditTile(maxTileItem.i) : undefined}
-                >
-                    {maxTileItem.i}
-                </Badge>
+                </Suspense>
             </DialogContent>
         </Dialog>}
         {mode == "edit" && editTile && <Dialog open={true} onOpenChange={() => {
@@ -627,9 +509,9 @@ const CardGrid = ({
                                 if (saveSuccess == undefined) {
                                     let response: ResponseProps | undefined = undefined;
                                     if (interfaceCreated)
-                                        response = await interfaceActions.update(interface_ as string, project as string, items, newCounter, undefined, false);
+                                        response = await interfaceActions.update(interface_ as string, project as string, context, items, newCounter, undefined, false);
                                     else
-                                        response = await interfaceActions.create(interface_ as string, project as string, items, newCounter, false);
+                                        response = await interfaceActions.create(interface_ as string, project as string, context, items, newCounter, false);
                                     if (response && "info" in response)
                                         setSaveSuccess(true);
                                     else
@@ -639,7 +521,7 @@ const CardGrid = ({
                                 }
                             }}
                             text="Save"
-                            tooltip="Save"
+                            tooltip=""
                             variant="primary"
                         />
                     </div>

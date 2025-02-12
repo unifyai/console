@@ -5,6 +5,7 @@ import * as d3 from "d3";
 
 import PlotType from "./Buttons/PlotType";
 import PlotScale from "./Buttons/PlotScale";
+import PlotRegression from "./Buttons/PlotRegression";
 import PlotGroupBy from "./Buttons/PlotGroupBy";
 import PlotReset from "./Buttons/PlotReset";
 import PlotBins from "./Buttons/PlotBins";
@@ -14,7 +15,6 @@ import { LogFieldsResponseProps, LogProps } from "@/types/evals/logs";
 import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram, checkLogScalability } from "@/utils/evals/plot";
 
 import PlotAxis from "./Buttons/PlotAxis";
-import PlotAggregate from "./Buttons/PlotAggregate";
 import { ItemType, TileProps } from "@/types/evals/grid";
 
 const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
@@ -28,19 +28,26 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
     let svgRef = useRef(null);
     let containerRef = useRef(null);
     const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
-    const margins = { top: 30, right: 100, bottom: 75, left: 60 } // Margin on the sides
+    const margins = { top: 35, right: 100, bottom: 65, left: 60 } // Margin on the sides
     const axisPadding = 20; // Extra padding between axes borders and plot borders
     const placeholderTextRef = useRef(null);
 
     // Plot settings
     let plotType = item.plot_type;
-    let scale = item.plot_scale;
-    let [logScaleEnabled, setLogScaleEnabled] = useState(true);
-    let isAggregated = item.is_aggregated;
-    let binCount = item.bin_count ? parseFloat(item.bin_count) : 1;
-    let [binCounts, setBinCounts] = useState([1])
-    plotType = plotType ? plotType : "Scatter Plot";
-    scale = scale ? scale : "linear";
+    plotType = plotType ? plotType : "Scatter Plot";    
+
+    let metric = item.metric ? item.metric : "mean";
+
+    let binCount = item.bin_count ? parseFloat(item.bin_count) : 10;
+    let [binCounts, setBinCounts] = useState([1, 100])
+    let showRegression = item.regression_line === "true" ? "true" : "false";
+
+    let scaleX = item.plot_scale_x;
+    let scaleY = item.plot_scale_y;
+    let [logScaleXEnabled, setLogScaleXEnabled] = useState(true);
+    let [logScaleYEnabled, setLogScaleYEnabled] = useState(true);
+    scaleX = scaleX ? scaleX : "linear";
+    scaleY = scaleY ? scaleY : "linear";
 
     // Axes and grouping selected on the plot
     const selectedXAxisProperty = item.x_axis;
@@ -65,20 +72,27 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
         // Draw plot borders
         drawBorders(svg, dimensions.height, dimensions.width, margins);
 
+        const xTable = selectedXAxisProperty?.split(".")[0] || "";
+        const yTable = selectedYAxisProperty?.split(".")[0] || "";
+
         // Draw selected plot type 
         if (plotType === "Line Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                checkLogScalability(logs, selectedXAxisProperty, selectedYAxisProperty, scale, updateItem(item, "plot_scale"), setLogScaleEnabled)
+                const adjustedScaleX = checkLogScalability(logs, xTable, selectedXAxisProperty, scaleX, updateItem(item, "plot_scale_x"), setLogScaleXEnabled)
+                const adjustedScaleY = checkLogScalability(logs, yTable,selectedYAxisProperty, scaleY, updateItem(item, "plot_scale_y"), setLogScaleYEnabled)
                 drawLineChart(
                     svg,
-                    scale,
+                    adjustedScaleX,
+                    adjustedScaleY,
                     dimensions,
                     margins,
                     axisPadding,
                     selectedXAxisProperty,
                     selectedYAxisProperty,
                     groupByProperty,
+                    xTable,
+                    yTable,
                     logs,
                     fields
                 );
@@ -89,23 +103,25 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                 .attr("fill", "gray")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
-                .text("Select two numeric properties to plot");    
+                .text("Select two numeric properties to plot");
             }
         } 
         
         else if (plotType === "Bar Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                checkLogScalability(logs, selectedXAxisProperty, selectedYAxisProperty, scale, updateItem(item, "plot_scale"), setLogScaleEnabled)    
                 drawBarChart(
                     svg,
-                    scale,
+                    "linear",
+                    "linear",
                     dimensions,
                     margins,
                     axisPadding,
                     selectedXAxisProperty,
                     selectedYAxisProperty,
-                    isAggregated,
+                    metric,
+                    xTable,
+                    yTable,
                     logs,
                     fields
                 );
@@ -125,13 +141,17 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                 d3.select(placeholderTextRef.current).text("");    
                 drawHistogram(
                     svg, 
-                    scale, 
+                    "linear",
+                    "linear",
                     dimensions, 
                     margins, 
                     axisPadding, 
                     selectedXAxisProperty, 
                     binCount,
+                    updateItem(item, "bin_count"),
+                    binCounts,
                     setBinCounts,
+                    xTable,
                     logs, 
                     fields
                 )
@@ -149,16 +169,21 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
         else {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                checkLogScalability(logs, selectedXAxisProperty, selectedYAxisProperty, scale, updateItem(item, "plot_scale"), setLogScaleEnabled)    
+                const adjustedScaleX = checkLogScalability(logs, xTable, selectedXAxisProperty, scaleX, updateItem(item, "plot_scale_x"), setLogScaleXEnabled)
+                const adjustedScaleY = checkLogScalability(logs, yTable, selectedYAxisProperty, scaleY, updateItem(item, "plot_scale_y"), setLogScaleYEnabled)
                 drawScatterPlot(
                     svg,
-                    scale,
+                    adjustedScaleX,
+                    adjustedScaleY,
                     dimensions,
                     margins,
                     axisPadding,
                     selectedXAxisProperty,
                     selectedYAxisProperty,
                     groupByProperty,
+                    showRegression,
+                    xTable,
+                    yTable,
                     logs,
                     fields
                 );
@@ -176,13 +201,16 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
     }, [
         logs,
         dimensions,
-        scale,
+        scaleX,
+        scaleY,
         selectedXAxisProperty,
         selectedYAxisProperty,
         plotType,
         groupByProperty,
-        isAggregated,
-        binCount
+        metric,
+        binCount,
+        binCounts,
+        showRegression
     ]);
 
     return (
@@ -198,10 +226,12 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                     axisProperty={selectedXAxisProperty}
                     plotType={plotType}
                     logs={logs}
+                    metric={metric}
+                    setMetric={(updateItem(item, "metric"))}
                 />
             </div>
             {plotType != "Histogram" && 
-                <div className="absolute top-0.5 left-1 z-10">
+                <div className="absolute top-0 left-1 z-10">
                     <PlotAxis
                         interactive={interactive}
                         fields={fields}
@@ -210,10 +240,12 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                         axisProperty={selectedYAxisProperty}
                         plotType={plotType}
                         logs={logs}
+                        metric={metric}
+                        setMetric={(updateItem(item, "metric"))}
                     />
                 </div>            
             }
-            <div className="absolute top-0.5 right-1 z-10">
+            <div className="absolute top-0 right-1 z-10">
                 <PlotType
                     interactive={interactive}
                     plotType={plotType}
@@ -231,40 +263,41 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                 <>
                     <div className="absolute top-12 right-3 z-10 PlotReset">
                         <PlotReset
+                            svgRef={svgRef}
                             setSelectedXAxisProperty={updateItem(item, "x_axis")}
                             setSelectedYAxisProperty={updateItem(item, "y_axis")}
                             setGroupByProperty={updateItem(item, "plot_group_by")}
                         />
                     </div>
-                    {plotType === "Bar Chart"
-                        ?   <div className="absolute top-24 right-3 z-10 PlotAggregated">
-                                <PlotAggregate
-                                    isAggregated={isAggregated}
-                                    setIsAggregated={updateItem(item, "is_aggregated")}
-                                />
+                    {plotType === "Histogram"
+                        ?   <div className="absolute top-24 right-3 z-10 PlotBins">
+                                <PlotBins binCount={binCount} binCounts={binCounts} setBinCount={updateItem(item, "bin_count")}/>
                             </div>
-                        : plotType === "Histogram"
-                            ? <div className="absolute top-24 right-3 z-10 PlotAggregated">
-                                <PlotBins
-                                    binCount={binCount}
-                                    binCounts={binCounts}
-                                    setBinCount={updateItem(item, "bin_count")}
-                                />
-                            </div>
-                            : <div className="absolute top-24 right-3 z-10 PlotGroupBy">
-                                <PlotGroupBy
-                                    fields={fields}
-                                    groupBy={groupByProperty}
-                                    setGroupBy={updateItem(item, "plot_group_by")}
-                                />
-                            </div>
+                        :   plotType != "Bar Chart"
+                            ?   <div className="absolute top-24 right-3 z-10 PlotGroupBy">
+                                    <PlotGroupBy fields={fields} groupBy={groupByProperty} setGroupBy={updateItem(item, "plot_group_by")} logs={logs}/>
+                                </div>
+                            :   null
                     }
-                    {plotType != "Histogram" &&
+                    {!["Histogram", "Bar Chart"].includes(plotType) &&
                         <div className="absolute top-36 right-3 z-10 PlotScale">
                             <PlotScale 
-                                scale={scale} 
-                                setScale={updateItem(item, "plot_scale")}
-                                logScaleEnabled={logScaleEnabled}
+                                scaleX={scaleX} 
+                                scaleY={scaleY}
+                                setScaleX={updateItem(item, "plot_scale_x")}
+                                setScaleY={updateItem(item, "plot_scale_y")} 
+                                logScaleXEnabled={logScaleXEnabled} 
+                                logScaleYEnabled={logScaleYEnabled} 
+                                selectedXAxisProperty={selectedXAxisProperty} 
+                                fields={fields}
+                            />
+                        </div>
+                    }
+                    {plotType === "Scatter Plot" && 
+                        <div className="absolute top-48 right-3 z-10 PlotRegressioncale">
+                            <PlotRegression 
+                                showRegression={showRegression} 
+                                setShowRegression={updateItem(item, "regression_line")}
                             />
                         </div>
                     }
@@ -287,8 +320,22 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                 <g className="yAxis" />
             </svg>
             <div
-                style={{ opacity: 0, left: 50, top: 50 }} // Set initial opacity and positioning
-                className="plotTooltip absolute py-4 px-6 z-10 shadow-md rounded-lg bg-white grid grid-cols-2 gap-2 overflow-hidden max-w-[500px] max-h-[300px]"
+                style={{
+                    position: "fixed",
+                    minWidth: "160px",
+                    maxWidth: "300px",
+                    pointerEvents: "none",
+                    background: "var(--background)",
+                    border: "1px solid var(--foreground)",
+                    padding: "8px",
+                    borderRadius: "4px",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    transition: "opacity 0.2s",
+                    fontSize: "14px",
+                    opacity: 0,
+                    zIndex: 1000
+                }}
+                className="plotTooltip grid grid-cols-2 gap-2 overflow-hidden"
             />
             <div
                 style={{ opacity: 0 }}

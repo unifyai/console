@@ -3,7 +3,7 @@
 import { KeyboardEventHandler, useState, useEffect } from "react";
 import { Input } from "@/components/UI/input";
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import { LogProps, TableArguments, getLogsParameters } from "@/types/evals/logs"
+import { GroupedLogProps, LogProps, TableArguments, getLogsParameters } from "@/types/evals/logs"
 import BaseButton from "@/components/Common/Buttons/Base";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuGroup } from "@/components/UI/dropdown-menu";
@@ -13,7 +13,7 @@ import FormulaInput from "@/components/Common/Input/Formula";
 
 const ColumnCreate = ({ project, logs, currentTable, tableArguments, derive, _setTimestamp }: {
     project: string,
-    logs: LogProps[],
+    logs: LogProps[] | GroupedLogProps[],
     currentTable: keyof TableArguments,
     tableArguments: TableArguments,
     derive: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
