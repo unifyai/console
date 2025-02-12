@@ -21,7 +21,7 @@ import {
     createContext,
     getContexts,
     createLogs,
-} from "../evals/actions";
+} from "./actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
 
