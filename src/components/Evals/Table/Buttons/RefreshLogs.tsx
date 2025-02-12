@@ -4,7 +4,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQueryState, parseAsBoolean } from "nuqs";
-import { LogProps } from "@/types/evals/logs";
+import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 
 const RefreshLogs = ({context, project, filterExpression, sortingExpression, getLatest, logs}: {
     context: string | null,
@@ -12,7 +12,7 @@ const RefreshLogs = ({context, project, filterExpression, sortingExpression, get
     filterExpression: string | null,
     sortingExpression: string | null,
     getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number) => Promise<string>,
-    logs: LogProps[]
+    logs: LogProps[] | GroupedLogProps[]
 }) => {
 
     /* Auto refresh */

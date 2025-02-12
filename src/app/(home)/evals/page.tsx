@@ -26,7 +26,8 @@ const EvalsPage = async (
             page_number?: string,
             metric?: string,
             filters?: string,
-            common_filter?: string
+            common_filter?: string,
+            grouping?: string | null
         }
     }
 ) => {

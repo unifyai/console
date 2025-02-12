@@ -89,7 +89,7 @@ export const createLogs = async (apiKey: string) => {
 
 // get logs
 export const getLogs = async (apiKey: string) => {
-    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, _timestamp: string | null) => {
+    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, _timestamp: string | null) => {
         "use server";
 
         try {
@@ -98,10 +98,17 @@ export const getLogs = async (apiKey: string) => {
                 + (context ? `&context=${context}` : "")
                 + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
                 + (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : "")
+                + (groupingExpression 
+                    ? groupingExpression
+                        .split(",")  // Split into individual grouping expressions
+                        .map(expr => `&group_by=${encodeURIComponent(expr.trim())}`) // Encode separately
+                        .join("")  // Concatenate each `group_by` separately
+                    : "")
                 + (from_fields ? `&from_fields=${encodeURIComponent(from_fields)}` : "")
                 + (exclude_fields ? `&exclude_fields=${encodeURIComponent(exclude_fields)}` : "")
                 + (limit ? `&limit=${limit}` : "")
-                + (offset ? `&offset=${offset}` : ""),
+                + (offset ? `&offset=${offset}` : "")
+                + (group_depth !== null && group_depth !== undefined ? `&group_depth=${group_depth}` : ""),
                 { method: "GET", headers: { apiKey: apiKey }, next: { tags: [`logs_${_timestamp}`] } },
             );
             return await response.json();
@@ -109,7 +116,6 @@ export const getLogs = async (apiKey: string) => {
             console.log(`Failed to get logs error: ${e}`)
             return {"params":{},"logs":[],"count":0}
         }
-
     };
 };
 

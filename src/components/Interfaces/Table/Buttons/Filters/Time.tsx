@@ -14,7 +14,7 @@ import { Trash, Plus, CircleX, Clock, History, LoaderCircle } from "lucide-react
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { DateTimeInput } from "@/components/Common/Time/DateTimeInput";
 import { AbsoluteDateString, RelativeDateString } from "@/types/evals/filters";
-import { LogProps } from "@/types/evals/logs";
+import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 
 interface TimeFilter {
     key: number,
@@ -28,7 +28,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
-    logs: LogProps[]
+    logs: LogProps[] | GroupedLogProps[]
 }) => {
 
     /* Display loader when data updates */

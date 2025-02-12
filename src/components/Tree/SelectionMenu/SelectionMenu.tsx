@@ -5,7 +5,7 @@ import React, { useState, useEffect } from "react";
 import SubMenu from "./SubMenu";
 import BaseDialog from "../../Common/Dialogs/Base";
 import { FileProps, NodeProps } from "@/types/common";
-import { LogProps } from "@/types/evals/logs";
+import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 import { FolderTree, LoaderCircle } from "lucide-react";
 import { buildDirectoryTree, flattenTree } from "@/utils/misc/tree";
 import SettingButton from "../../Common/Buttons/Setting";
@@ -14,7 +14,7 @@ export default function SelectionMenu ({ type, data, onClick, logs } : {
   type: string, 
   data: FileProps[],
   onClick: (value: any) => void,
-  logs: LogProps[]
+  logs: LogProps[] | GroupedLogProps[]
 }) {
   
   /* Display loader when data updates */

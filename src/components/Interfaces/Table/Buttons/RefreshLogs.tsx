@@ -4,22 +4,23 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { ItemType, LogsActions, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
-import { getLogsParameters, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
+import { getLogsParameters, GroupedLogProps, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { ResponseProps } from "@/types/common";
 import { LogProps } from "@/types/evals/logs";
 
-const RefreshLogs = ({ item, project, pending, fields, filterExpression, sortingExpression, hiddenColumns, updateItem, setTableDataItem, logs, logsActions }: {
+const RefreshLogs = ({ item, project, pending, fields, filterExpression, sortingExpression, groupingExpression, hiddenColumns, updateItem, setTableDataItem, logs, logsActions }: {
     item: TileProps,
     project: string,
     pending: boolean,
     fields: LogFieldsResponseProps,
     filterExpression: string | null,
     sortingExpression: string | null,
+    groupingExpression: string | null,
     hiddenColumns: string | undefined,
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
     setTableDataItem: Dispatch<SetStateAction<TableDataItem>>,
-    logs: LogProps[],
+    logs: LogProps[] | GroupedLogProps[],
     logsActions: LogsActions
 }) => {
 
@@ -32,7 +33,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             if (!running && !pending) {
                 running = true;
                 logsActions.get(
-                    project, item.context ?? null, filterExpression, sortingExpression, null, null, 16, 0, Date.now().toString()
+                    project, item.context ?? null, filterExpression, sortingExpression, groupingExpression, null, null, 16, 0, null, Date.now().toString()
                 ).then(async (logsData: LogsResponseProps) => {
                     const totalPages = Math.ceil(logsData.count / 16);
                     const context = item.context ?? null;

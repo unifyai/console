@@ -2,13 +2,14 @@
 
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
-import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps, GroupedLogProps, GroupedLogPropsRaw } from "@/types/evals/logs";
 import {
   ColumnDef,
   ColumnFiltersState,
   ColumnSort,
   ColumnPinningState,
   ColumnSizingState,
+  GroupingState,
 } from "@tanstack/react-table";
 import { DerivedEntryActions, LogsActions } from "@/types/evals/grid";
 import React, { useEffect, useRef, useState } from "react";
@@ -29,12 +30,15 @@ import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
 import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
-import { ItemType, TableDataItem, TileProps } from "@/types/evals/grid";
+import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
 import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
+import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data/Buttons/RowExpanding";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/common";
+import { onGroupExpand } from "@/utils/evals/grouping";
 
 const LogsTable = ({
   interactive,
@@ -44,13 +48,17 @@ const LogsTable = ({
   tableArguments,
   fields,
   tableDataItem_,
+  setTableData,
   updateItem,
   logsActions,
   derivedEntryActions,
   filterExpression,
   sortingExpression,
+  groupingExpression,
+  limit,
+  offset,
   updateInterface,
-  setPending
+  setPending,
 }: {
   interactive: boolean;
   project: string | undefined;
@@ -60,12 +68,16 @@ const LogsTable = ({
   tableArguments: TableArguments;
   fields: LogFieldsResponseProps;
   tableDataItem_: TableDataItem;
+  setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void;
   updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
   logsActions: LogsActions;
   derivedEntryActions: DerivedEntryActions,
   filterExpression: string | null,
   sortingExpression: string | null,
-  updateInterface: () => Promise<ResponseProps>
+  groupingExpression: string | null,
+  limit: number,
+  offset: number,
+  updateInterface: () => Promise<ResponseProps>,
   setPending: (pending: boolean) => void,
 }) => {
 
@@ -83,7 +95,10 @@ const LogsTable = ({
 
   // Get base and comparison logs
   const selectedCells = item.selected ? item.selected.split(",") : [];
-  const { baseLog, comparisonLogs } = extractBaseAndComparisonLogs(selectedCells, logs)
+  const { baseLog, comparisonLogs } = extractBaseAndComparisonLogs(
+    selectedCells, 
+    maybeFlattenGroupedLogs(logs)
+  );
 
   // Column definitions
   const entriesTree = buildTree(entriesProperties);
@@ -94,7 +109,7 @@ const LogsTable = ({
   const entriesTitle = "Entries";
   const paramsTitle = "Parameters";
 
-  const columns: ColumnDef<LogProps>[] = [
+  const columns: ColumnDef<LogProps | GroupedLogProps>[] = [
     {
       id: indicesTitle,
       cell: ({ row }) => <Badge>{row.index + 1}</Badge>,
@@ -183,8 +198,8 @@ const LogsTable = ({
   const setSorting = (s: ColumnSort[]) =>
     updateItem(item, "sorting")(s.map((item) => `${sanitizeId(item.id)}@${item.desc}`).join(","));
 
-  const grouping = groupingStr ? groupingStr.split(",") : [];
-  const setGrouping = (g: string[]) =>
+  const grouping: GroupingState = groupingStr ? groupingStr.split(",") : [];
+  const setGrouping = (g: GroupingState) =>
     updateItem(item, "grouping")(g.length ? g.join(",") : undefined);
 
   const columnPinning: ColumnPinningState = {
@@ -256,6 +271,7 @@ const LogsTable = ({
   const prevFiltersRef = useRef(logsFilters);
   const prevCommonFilterRef = useRef(commonFilter);
   const prevSortingRef = useRef(sortingStr);
+  const prevGroupingRef = useRef(groupingStr);
 
   // Prune base/comparison IDs if user REALLY changes page or filters
   useEffect(() => {
@@ -263,16 +279,18 @@ const LogsTable = ({
     const filtersChanged = prevFiltersRef.current !== logsFilters;
     const commonChanged = prevCommonFilterRef.current !== commonFilter;
     const sortingChanged = prevSortingRef.current !== sortingStr;
+    const groupingChanged = prevGroupingRef.current !== groupingStr;
 
-    if (pageChanged || filtersChanged || commonChanged || sortingChanged) {
+    if (pageChanged || filtersChanged || commonChanged || sortingChanged || groupingChanged) {
       // If base no longer valid, remove it
-      if (baseLog && !logs.some((l) => l.id === baseLog.id)) {
+      const flattenedLogs = maybeFlattenGroupedLogs(logs);
+      if (baseLog && !(flattenedLogs).some((l) => l.id === baseLog.id)) {
         updateItem(item, "selected")(selectedCells.slice(1).join(","));
       }
       // If compare logs not valid, prune them
       if (comparisonLogs) {
         const ids = comparisonLogs.map(cl => cl.id);
-        const validIds = ids.filter((id) => logs.some((l) => l.id === id));
+        const validIds = ids.filter((id) => flattenedLogs.some((l) => l.id === id));
         if (!validIds.length) {
           updateItem(item, "selected")(
             (selectedCells.at(0) ? [selectedCells.at(0) as string] : []).join(",")
@@ -289,12 +307,14 @@ const LogsTable = ({
     prevFiltersRef.current = logsFilters;
     prevCommonFilterRef.current = commonFilter;
     prevSortingRef.current = sortingStr;
+    prevGroupingRef.current = groupingStr;
   }, [
     logs,
     pageNumber,
     logsFilters,
     commonFilter,
     sortingStr,
+    groupingStr,
     selectedCells
   ]);
 
@@ -357,6 +377,7 @@ const LogsTable = ({
             filterExpression={filterExpression}
             sortingExpression={sortingExpression}
             hiddenColumns={item.hidden_columns}
+            groupingExpression={groupingExpression}
             updateItem={updateItem}
             setTableDataItem={setTableDataItem}
             logsActions={logsActions}
@@ -388,8 +409,8 @@ const LogsTable = ({
           {tableTop && tableTop}
           {project ? (
             <div className="relative flex-col gap-2">
-              {/* “summaryPending” can optionally show a small loader over the table if you like */}
-              <DataTable
+              {/* "summaryPending" can optionally show a small loader over the table if you like */}
+              <DataTable<LogProps | GroupedLogProps>
                 className="LogsTable"
                 interactive={interactive}
                 data={logs}
@@ -445,6 +466,36 @@ const LogsTable = ({
                     update={derivedEntryActions.update}
                     setPending={setPending}
                     refresh={() => updateInterface()}
+                  />
+                )}
+                RowExpanding={(props: RowExpandingProps) => (
+                  <RowExpanding 
+                    row={props.row}
+                    groupingColumnId={props.groupingColumnId}
+                    isLoading={props.isLoading}
+                    isAnimating={props.isAnimating}
+                    setExpandingRowId={props.setExpandingRowId}
+                    onExpand={async (groupingColumnId: string, groupingValue: string, parentId: string, setExpandingRowId: (id: string | null) => void) => {
+                      await onGroupExpand(
+                        groupingColumnId,
+                        groupingValue,
+                        parentId,
+                        project!,
+                        item.context ?? null,
+                        filterExpression,
+                        sortingExpression,
+                        groupingExpression,
+                        limit,
+                        offset,
+                        logsActions,
+                        setExpandingRowId,
+                        setTableData,
+                        item,
+                        dataTypes,
+                        fields,
+                        logs,
+                      );
+                    }}
                   />
                 )}
                 AggregatedCell={(cell, row) => (

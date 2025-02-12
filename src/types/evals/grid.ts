@@ -1,5 +1,5 @@
 import { ResponseProps } from "../common";
-import { getLogsParameters, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps } from "./logs";
+import { getLogsParameters, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps, GroupedLogProps } from "./logs";
 
 export interface TileProps {
     i: string;
@@ -48,7 +48,7 @@ export interface TableDataItem {
     totalPages: number,
     entriesProperties: string[],
     paramsProperties: string[],
-    logs: LogProps[],
+    logs: LogProps[] | GroupedLogProps[],
     params: LogItemProps,
     metrics: { [key: string]: number },
     boundaries: { minimums: { [key: string]: number }, maximums: { [key: string]: number } }
@@ -118,7 +118,7 @@ export interface ProjectsActions {
 
 export interface LogsActions {
     create: (project: string, params: { system_message: string }[], entries: { question: string, response: string, score: number }[]) => Promise<ResponseProps>,
-    get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number, _timestamp: string | null) => Promise<LogsResponseProps>,
+    get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, _timestamp: string | null) => Promise<LogsResponseProps>,
     getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number) => Promise<string>,
     getMetrics: (project: string, filterExpression: string | null, metricName: string, keyName: string) => Promise<number>,
     delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,

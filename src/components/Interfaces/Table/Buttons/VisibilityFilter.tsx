@@ -6,7 +6,7 @@ import { Columns3, LoaderCircle } from "lucide-react";
 import SettingButton from "@/components/Common/Buttons/Setting";
 import { Switch } from "@/components/UI/switch";
 import { processContext, sanitizeId, updateColumnVisibility } from "@/utils/evals/columnOperations";
-import { LogProps, LogFieldsResponseProps } from "@/types/evals/logs";
+import { LogProps, LogFieldsResponseProps, GroupedLogProps } from "@/types/evals/logs";
 
 const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, context}: {
     fields: LogFieldsResponseProps,

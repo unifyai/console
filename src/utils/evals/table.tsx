@@ -1,13 +1,19 @@
 import { CSSProperties, Dispatch, SetStateAction, MouseEvent } from "react";
 import { Column, Row, Cell, ColumnDef, GroupingState, FilterFnOption, RowSelectionState } from "@tanstack/react-table";
+import {
+	RowData,
+	RowModel,
+	createRow,
+	getMemoOptions,
+	memo,
+} from "@tanstack/react-table"
 import { DragMoveEvent, DragOverEvent, DragStartEvent, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { Transform } from "@dnd-kit/utilities";
 import _ from "lodash";
 
 import { toComputableValue, computeStatistic } from "./common";
-import { LogProps, LogsResponseProps, LogItemProps, HeaderNode } from "@/types/evals/logs";
-import { SetStateProps, StateProps } from "@/types/dataTable";
+import { LogProps, LogsResponseProps, LogItemProps, HeaderNode, GroupedLogProps } from "@/types/evals/logs";
 import { Table } from "@tanstack/react-table";
 
 import { ImageDisplay, isImage } from "./selection";
@@ -414,117 +420,129 @@ export const nestedColumns = (
 	enableRowSpan: boolean = false,
 	dataTypes: { [key: string]: string },
 	fieldTypes:{ [key: string]: string }
-	): ColumnDef<LogProps>[] => {
+): ColumnDef<LogProps | GroupedLogProps>[] => {
 	return nodes.map(node => {
 		// If this node has children (nested columns), recursively build columns
 		if (node.nodes) {
-		const columns = nestedColumns(node.nodes, type, prependPath, data, false, dataTypes, fieldTypes);
-		return {
-			id: `${prependPath}/${node.path}`,  // needed for grouping, showing, hiding multiple column nests
-			header: node.name,
-			columns,
-			meta: {
-			columnType: type,
-			enableRowSpan: enableRowSpan,
-			isParent: true,
-			renderedDepth: -1
-			}
-		};
+			const columns = nestedColumns(node.nodes, type, prependPath, data, false, dataTypes, fieldTypes);
+			return {
+				id: `${prependPath}/${node.path}`,  // needed for grouping, showing, hiding multiple column nests
+				header: node.name,
+				columns,
+				meta: {
+					columnType: type,
+					enableRowSpan: enableRowSpan,
+					isParent: true,
+					renderedDepth: -1
+				}
+			};
 		}
-	
+
 		// Determine the dataType (default to 'str' if not found or unrecognized)
 		const dataType = dataTypes[node.path] || "str";
 		const fieldType = fieldTypes[node.path] || "entry";
 		return {
-		id: `${prependPath}/${node.path}`,  // needed for grouping, showing, hiding multiple column nests
-		accessorFn: (log) => {
-			// Safely extract the value from either entries or params
-			if (type === "entries") {
-			return log.entries?.[node.path];
-			} else {
-			return log.params?.[node.path];
-			}
-		},
-		sortDescFirst: true,
-		filterFn: "includesString" as FilterFnOption<LogProps> | undefined,
-		header: node.name,
-		cell: ({ cell }: { cell: Cell<LogProps, unknown> }) => {
-			let cellValue = cell.getValue();
-	
-			// Attempt to map param-based lookups if needed
-			if (type === "params" && cellValue !== undefined && cellValue !== null) {
-			// If data.params[node.path] does not exist or is undefined, handle gracefully
-			cellValue = data.params?.[node.path]?.[cellValue as string] ?? cellValue;
-			}
-	
-			// If cellValue itself is undefined or null, display a fallback
-			if (cellValue === undefined || cellValue === null) {
-			return "–"; // or "N/A", or any other fallback string
-			}
-	
-			// Depending on the dataType, format the incoming value
-			switch (dataType) {
-			case "image": {
-				if (typeof cellValue === "string") {
-				let value = cellValue.trim();
-				if (value.startsWith('"') && value.endsWith('"')) {
-					// Trim the outer quotes if they exist
-					value = value.slice(1, -1);
+			id: `${prependPath}/${node.path}`,  // needed for grouping, showing, hiding multiple column nests
+			accessorFn: (log, index) => {
+				// If grouping, return the value from the log
+				if ("groupingColumnId" in log) {
+					return (log as GroupedLogProps)[(log as GroupedLogProps).groupingColumnId];
 				}
-				return <ImageDisplay value={value} className="object-scale-down h-5 w-5" />;
+				// Safely extract the value from either entries or params
+				if (type === "entries") {
+					return (log as LogProps).entries?.[node.path];
+				} else {
+					return (log as LogProps).params?.[node.path];
+					}
+				},
+			sortDescFirst: true,
+			filterFn: "includesString",
+			header: node.name,
+			cell: ({ cell }: { cell: Cell<LogProps | GroupedLogProps, unknown> }) => {
+				let cellValue = cell.getValue();
+
+				// For grouped logs, if we haven't yet expanded a grouped row,
+				// we haven't fetched any logs for that group yet, and so we
+				// cannot display aggregated values. Thus, we simply display
+				// nothing
+				if ("groupingColumnId" in cell.row.original && !cell.row.original.isPopulated && cell.row.groupingColumnId !== cell.column.id) {
+					return null;
 				}
-				// If not a string, fallback
-				return "Invalid Image";
+
+				// Attempt to map param-based lookups if needed
+				if (type === "params" && cellValue !== undefined && cellValue !== null) {
+					// If data.params[node.path] does not exist or is undefined, handle gracefully
+					cellValue = data.params?.[node.path]?.[cellValue as string] ?? cellValue;
+				}
+
+				// If cellValue itself is undefined or null, display a fallback
+				if (cellValue === undefined || cellValue === null) {
+					return "–"; // or "N/A", or any other fallback string
+				}
+
+				// Depending on the dataType, format the incoming value
+				switch (dataType) {
+					case "image": {
+						if (typeof cellValue === "string") {
+							let value = cellValue.trim();
+							if (value.startsWith('"') && value.endsWith('"')) {
+								// Trim the outer quotes if they exist
+								value = value.slice(1, -1);
+							}
+							return <ImageDisplay value={value} className="object-scale-down h-5 w-5" />;
+						}
+						// If not a string, fallback
+						return "Invalid Image";
+					}
+
+					case "int":
+					case "float": {
+						// Safely parse to float, if invalid or NaN display fallback
+						const numericValue = parseFloat(String(cellValue));
+						if (isNaN(numericValue)) {
+							return "–";
+						}
+						// Use a numeric formatting function if desired
+						return formatNumber(numericValue);
+					}
+
+					case "timestamp":
+					case "str": {
+						// For timestamps or generally string data, handle leading/trailing quotes
+						if (typeof cellValue === "string") {
+							let value = cellValue.trim();
+							if (value.startsWith('"') && value.endsWith('"')) {
+								value = value.slice(1, -1);
+							}
+							return value;
+						}
+						// If not a string, at least convert to string
+						return String(cellValue);
+					}
+
+					default: {
+						// Fallback for unrecognized data types
+						// If it's an object, try JSON stringify or just display as string
+					if (typeof cellValue === "object") {
+							try {
+								return JSON.stringify(cellValue);
+							} catch {
+							return String(cellValue);
+							}
+						}
+						// If it's anything else, just convert to string
+						return String(cellValue);
+					}
+				}
+			},
+			meta: {
+				dataType: dataType,
+				fieldType: fieldType,
+				columnType: type,
+				enableRowSpan: enableRowSpan,
+				isParent: false,
+				renderedDepth: -1
 			}
-	
-			case "int":
-			case "float": {
-				// Safely parse to float, if invalid or NaN display fallback
-				const numericValue = parseFloat(String(cellValue));
-				if (isNaN(numericValue)) {
-				return "–";
-				}
-				// Use a numeric formatting function if desired
-				return formatNumber(numericValue);
-			}
-	
-			case "timestamp":
-			case "str": {
-				// For timestamps or generally string data, handle leading/trailing quotes
-				if (typeof cellValue === "string") {
-				let value = cellValue.trim();
-				if (value.startsWith('"') && value.endsWith('"')) {
-					value = value.slice(1, -1);
-				}
-				return value;
-				}
-				// If not a string, at least convert to string
-				return String(cellValue);
-			}
-	
-			default: {
-				// Fallback for unrecognized data types
-				// If it's an object, try JSON stringify or just display as string
-				if (typeof cellValue === "object") {
-				try {
-					return JSON.stringify(cellValue);
-				} catch {
-					return String(cellValue);
-				}
-				}
-				// If it's anything else, just convert to string
-				return String(cellValue);
-			}
-			}
-		},
-		meta: {
-			dataType: dataType,
-			fieldType: fieldType,
-			columnType: type,
-			enableRowSpan: enableRowSpan,
-			isParent: false,
-			renderedDepth: -1
-		}
 		};
 	});
 };
@@ -590,7 +608,7 @@ export const mergeCells = (rows: Row<any>[]) => {
   Find the maximum depth in any branch of the column tree
 */
 function findMaxDepth(
-  columns: ColumnDef<LogProps>[]
+  columns: ColumnDef<LogProps | GroupedLogProps>[]
 ): number {
   let maxDepth = 0;
   
@@ -611,9 +629,9 @@ function findMaxDepth(
   Find if a column has any leaf nodes as immediate children
 */
 function hasImmediateLeafNodes(
-  column: ColumnDef<LogProps>
+  column: ColumnDef<LogProps | GroupedLogProps>
 ): boolean {
-  return (column as any).columns?.some((child: ColumnDef<LogProps>) => 
+  return (column as any).columns?.some((child: ColumnDef<LogProps | GroupedLogProps>) => 
     !(child as any).columns?.length
   ) ?? false;
 }
@@ -622,7 +640,7 @@ function hasImmediateLeafNodes(
   Main function to encode rendered depths for the column tree
 */
 export function encodeRenderedDepth(
-  columns: ColumnDef<LogProps>[],
+  columns: ColumnDef<LogProps | GroupedLogProps>[],
   defaultToDepthZeroTypes: string[]
 ): void {
   // First find the maximum depth in the entire tree
@@ -630,7 +648,7 @@ export function encodeRenderedDepth(
 
   // Helper function to process each column
   function processColumn(
-    column: ColumnDef<LogProps>
+    column: ColumnDef<LogProps | GroupedLogProps>
   ): void {
     // Handle defaultToDepthZeroTypes first
     if (column.meta?.columnType && defaultToDepthZeroTypes.includes(column.meta.columnType)) {
@@ -638,7 +656,7 @@ export function encodeRenderedDepth(
       
       // Process children if any
       if ((column as any).columns?.length > 0) {
-        (column as any).columns.forEach((childColumn: ColumnDef<LogProps>) => {
+        (column as any).columns.forEach((childColumn: ColumnDef<LogProps | GroupedLogProps>) => {
           processColumn(childColumn);
         });
       }
@@ -659,7 +677,7 @@ export function encodeRenderedDepth(
         column.meta!.renderedDepth = pathDepth;
         
         // Process children, ensuring leaves get max depth and others are processed normally
-        (column as any).columns.forEach((childColumn: ColumnDef<LogProps>) => {
+        (column as any).columns.forEach((childColumn: ColumnDef<LogProps | GroupedLogProps>) => {
           if (!(childColumn as any).columns?.length) {
             childColumn.meta!.renderedDepth = absoluteMaxDepth;
           } else {
@@ -672,7 +690,7 @@ export function encodeRenderedDepth(
         column.meta!.renderedDepth = pathDepth;
         
         // Process children normally
-        (column as any).columns.forEach((childColumn: ColumnDef<LogProps>) => {
+        (column as any).columns.forEach((childColumn: ColumnDef<LogProps | GroupedLogProps>) => {
           processColumn(childColumn);
         });
       }
@@ -701,4 +719,88 @@ export function validateRuntimeColumns(
       validateRuntimeColumns(column.columns, indent + '  ');
     }
   });
+}
+
+export function getCoreRowModel<TData extends RowData>(): (
+  table: Table<TData>
+) => () => RowModel<TData> {
+  return table =>
+    memo(
+      () => [table.options.data],
+      (
+        data
+      ): {
+        rows: Row<TData>[]
+        flatRows: Row<TData>[]
+        rowsById: Record<string, Row<TData>>
+      } => {
+        const rowModel: RowModel<TData> = {
+          rows: [],
+          flatRows: [],
+          rowsById: {},
+        }
+
+        const accessRows = (
+          originalRows: TData[],
+          depth = 0,
+          parentRow?: Row<TData>
+        ): Row<TData>[] => {
+          const rows = [] as Row<TData>[]
+
+          for (let i = 0; i < originalRows.length; i++) {
+            // This could be an expensive check at scale, so we should move it somewhere else, but where?
+            // if (!id) {
+            //   if (process.env.NODE_ENV !== 'production') {
+            //     throw new Error(`getRowId expected an ID, but got ${id}`)
+            //   }
+            // }
+
+            // Make the row
+            const row = createRow(
+              table,
+              table._getRowId(originalRows[i]!, i, parentRow),
+              originalRows[i]!,
+              i,
+              depth,
+              undefined,
+              parentRow?.id
+            )
+
+			// Add necessary props to support manual server-side grouping
+            row.groupingColumnId = (originalRows[i] as any).groupingColumnId
+            row.groupingValue = (originalRows[i] as any)[row.groupingColumnId]
+			row.groupingIndex = (originalRows[i] as any)[row.groupingIndex]
+
+            // Keep track of every row in a flat array
+            rowModel.flatRows.push(row)
+            // Also keep track of every row by its ID
+            rowModel.rowsById[row.id] = row
+            // Push table row into parent
+            rows.push(row)
+
+            // Get the original subrows
+            if (table.options.getSubRows) {
+              row.originalSubRows = table.options.getSubRows(
+                originalRows[i]!,
+                i
+              )
+
+              // Then recursively access them
+              if (row.originalSubRows?.length) {
+                row.subRows = accessRows(row.originalSubRows, depth + 1, row)
+              }
+            }
+          }
+
+          return rows
+        }
+
+        rowModel.rows = accessRows(data)
+
+        return rowModel
+      },
+      getMemoOptions(table.options, 'debugTable', 'getRowModel', () =>
+        table._autoResetPageIndex()
+      )
+    )
 }

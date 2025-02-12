@@ -10,12 +10,49 @@ export interface LogItemProps {
 
 export interface LogProps {
     [key: string]: string | LogItemProps
+    type: string,  // "ungrouped" or "grouped"
     id: string,
     ts: string,
+    params: LogItemProps,
     entries: LogItemProps,
     derived_entries: LogItemProps,
-    params: LogItemProps
-} 
+    clipped_fields: LogItemProps,
+}
+
+/*
+ Represents a single "level" of the raw grouping `logs` object from the backend.
+ The keys can be:
+  - A **grouping column** (e.g. "entries/i") whose value is an object containing group values and their counts
+  - Metadata like "group_count", "count" which are numbers
+*/
+export interface GroupedLogPropsRaw {
+    [key: string]: {
+        [groupValue: string]: number  // Count for each group value
+        group_count: number,  // Total number of unique groups
+        count: number  // Total number of logs in all groups
+    } | number | undefined;  // For metadata fields
+}
+
+/*
+  Final, parsed grouped `logs` object.
+  - `groupingColumnId` indicates which column was used to group 
+    (e.g. "entries/i", "params/sys_msg", etc.).
+  - The actual grouping value is stored at the same property name as `groupingColumnId`.
+  For example, if `groupingColumnId = "entries/i"` and this group is for i=1, 
+  you'd have `groupNode["entries/i"] = "1"`.
+  - `subRows` are either further GroupedLogProps or final LogProps.
+*/
+export interface GroupedLogProps {
+    type: string,  // "ungrouped" or "grouped"
+    id: string,
+    groupingColumnId: string,
+    groupingIndex?: number,  // Index for entries/params groups, ascending within each nesting level
+    [groupingValue: string]: unknown,  // Dynamic key for groupingValue
+    subRows: GroupedLogProps[] | LogProps[],
+    isPopulated: boolean,  // Whether subRows have been populated
+    groupCount: number,  // Number of unique groups under this group
+    remainingGroupBy: string[],  // Remaining group by columns after this level
+}
 
 export interface LogGroupsProps {
     version: string,
@@ -24,8 +61,9 @@ export interface LogGroupsProps {
 
 export interface LogsResponseProps {
     params: LogItemProps,
-    logs: LogProps[]
-    count: number
+    logs: LogProps[] | GroupedLogPropsRaw,
+    count: number,
+    groups: LogItemProps,
 }
 
 export type LogFieldsProps = [number, string][]
@@ -66,5 +104,10 @@ declare module "@tanstack/react-table" {
     interface Cell<TData extends RowData, TValue> {
         rowSpan: number,
         isRowSpanned: boolean
+    }
+    interface Row<TData extends RowData> {
+        groupingIndex: number,
+        groupingColumnId: string,
+        groupingValue: any
     }
 }

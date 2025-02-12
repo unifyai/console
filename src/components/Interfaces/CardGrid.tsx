@@ -30,7 +30,7 @@ const CardGrid = ({
     contexts,
     interfaces_,
     tableNames,
-    tableData,
+    tableData: initialTableData,
     tableArguments,
     fields,
     plotData,
@@ -40,6 +40,9 @@ const CardGrid = ({
     interface_1,
     filterExpressions,
     sortingExpressions,
+    groupingExpressions,
+    limit,
+    offsets,
     projectActions,
     logsActions,
     derivedEntryActions,
@@ -61,6 +64,9 @@ const CardGrid = ({
     interface_1: string | null,
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
+    groupingExpressions: (string | null)[],
+    limit: number,
+    offsets: number[],
     projectActions: ProjectsActions,
     logsActions: LogsActions,
     derivedEntryActions: DerivedEntryActions,
@@ -70,6 +76,7 @@ const CardGrid = ({
     const router = useRouter();
 
     // layout structure
+    const [tableData, setTableData] = useState<TableDataProps>(initialTableData);
     const [context, setContext] = useState<string>();
     const [items, setItems] = useState<TileProps[]>([]);
     const [newCounter, setNewCounter] = useState(0);
@@ -197,6 +204,11 @@ const CardGrid = ({
             getLatestInterface();
         setResetting(false);
     }, [tableData]);
+
+    // Update tableData when initialTableData changes
+    useEffect(() => {
+        setTableData(initialTableData);
+    }, [initialTableData]);
 
     // scroll to the bottom whenever new items are added
     useEffect(() => {
@@ -344,9 +356,13 @@ const CardGrid = ({
                                         items={items}
                                         filterExpressions={filterExpressions}
                                         sortingExpressions={sortingExpressions}
+                                        groupingExpressions={groupingExpressions}
+                                        limit={limit}
+                                        offsets={offsets}
                                         setPending={(p: boolean) => setTilePending({ ...tilePending, [el.i]: p })}
                                         updateItem={updateItem}
                                         updateInterface={updateInterface}
+                                        setTableData={setTableData}
                                     />
                                     <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-3 flex justify-between " + (mode == "edit" ? "h-20" : "h-10")}>
                                         <div className="mb-auto">
@@ -438,8 +454,12 @@ const CardGrid = ({
                         items={items}
                         filterExpressions={filterExpressions}
                         sortingExpressions={sortingExpressions}
+                        groupingExpressions={groupingExpressions}
+                        limit={limit}
+                        offsets={offsets}
                         updateItem={updateItem}
                         updateInterface={updateInterface}
+                        setTableData={setTableData}
                     />
                 </Suspense>
             </DialogContent>
