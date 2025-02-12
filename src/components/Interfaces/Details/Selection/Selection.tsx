@@ -359,8 +359,20 @@ export default function Selection({
     const firstCell = selectedCells[0];
     const underscorePos = firstCell.indexOf("_");
     if (underscorePos < 1) return ['entries', 'params'];
+    
+    // Extract the part after the underscore.
     const firstColumn = firstCell.slice(underscorePos + 1);
-    const firstType = getSectionType(firstColumn, baseLog);
+
+    // If the extracted string contains a '/', split it to get the actual key.
+    let keyToCheck = firstColumn;
+    if (firstColumn.includes('/')) {
+      const parts = firstColumn.split('/');
+      // Here parts[0] is the section indicator ("Parameters" or "Entries")
+      // and parts[1] is the actual key (e.g., "model" or "trace").
+      keyToCheck = parts[1] || parts[0];
+    }
+    
+    const firstType = getSectionType(keyToCheck, baseLog);
     return firstType === 'params' ? ['params', 'entries'] : ['entries', 'params'];
   }, [selectedCells, baseLog]);
   
