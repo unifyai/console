@@ -40,7 +40,7 @@ def evaluate(q: str):
     )
 
 # execute + log evaluation
-with unify.Project("Maths Assistant"):
+with unify.Project("maths_assistant"):
     with unify.Params(system_message=client.system_message):
         unify.map(evaluate, qs)
 \`\`\`
