@@ -287,7 +287,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
 
     return <CardGrid
                 project_={project}
-                projects={projects}
+                projects_={projects}
                 contexts={contexts}
                 interfaces_={Object.keys(interfacesTemp_).sort()}
                 tableNames={tableNames}

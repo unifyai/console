@@ -26,7 +26,7 @@ const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
 const CardGrid = ({
     project_,
-    projects,
+    projects_,
     contexts,
     interfaces_,
     tableNames,
@@ -50,7 +50,7 @@ const CardGrid = ({
     interfaceActions,
 }: {
     project_: string | null,
-    projects: string[] | undefined,
+    projects_: string[] | undefined,
     contexts: Context[],
     interfaces_: string[],
     tableNames: string[],
@@ -99,6 +99,7 @@ const CardGrid = ({
 
     // data fields
     const [interfaces, setInterfaces] = useState(interfaces_);
+    const [projects, setProjects] = useState<string[]>(projects_ || []);
     const [interface_, setInterface] = useQueryState("interface", { shallow: false });
     const [project, setProject] = useQueryState("project", { shallow: false });
     const [interface_2, setInterface_2] = useState(interface_ || "");
@@ -250,6 +251,7 @@ const CardGrid = ({
                     setPending={setPending}
                     setDataPending={setDataPending}
                     setInterfaces={setInterfaces}
+                    setProjects={setProjects}
                     setInterface_2={setInterface_2}
                     setInterface={setInterface}
                     setProject={setProject}

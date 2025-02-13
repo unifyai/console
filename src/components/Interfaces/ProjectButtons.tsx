@@ -23,6 +23,7 @@ const ProjectButtons = ({
     setPending,
     setDataPending,
     setInterfaces,
+    setProjects,
     setInterface_2,
     setInterface,
     setProject,
@@ -40,6 +41,7 @@ const ProjectButtons = ({
     setPending: (value: SetStateAction<boolean>) => void,
     setDataPending: (value: SetStateAction<boolean>) => void,
     setInterfaces: (value: SetStateAction<string[]>) => void,
+    setProjects: (value: SetStateAction<string[]>) => void,
     setInterface_2: (value: SetStateAction<string>) => void,
     setInterface: (value: string | null) => void,
     setProject: (value: string | null) => void,
@@ -62,6 +64,7 @@ const ProjectButtons = ({
                 }}
                 type="Projects"
                 defaultValue={project || undefined}
+                onOpen={() => projectActions.get().then(projects => setProjects(projects))}
             />
             {project && (
                 <div className="flex flex-row gap-2">
