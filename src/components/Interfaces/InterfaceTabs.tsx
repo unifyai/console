@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { TabsList, TabsTrigger } from "../UI/tabs";
 import { Input } from "../UI/input";
-import { SetStateAction } from "react";
+import { SetStateAction, useEffect, useState } from "react";
 import ActionButton from "../Common/Buttons/Action";
 import { TableDataProps, TileProps } from "@/types/evals/grid";
 import { InterfaceActions } from "@/types/evals/grid";
@@ -13,7 +13,6 @@ import { defaultItems, defaultNewCounter } from "@/constants/logs";
 
 const InterfaceTabs = ({
     interface_,
-    interface_2,
     interfaces,
     project,
     context,
@@ -24,13 +23,11 @@ const InterfaceTabs = ({
     dataPending,
     interfaceActions,
     setInterface,
-    setInterface_2,
     setInterfaces,
     setPending,
     setTilePending,
 }: {
     interface_: string | null,
-    interface_2: string,
     interfaces: string[],
     project: string,
     context: string | undefined,
@@ -41,11 +38,15 @@ const InterfaceTabs = ({
     dataPending: boolean,
     interfaceActions: InterfaceActions,
     setInterface: (value: string | null) => void,
-    setInterface_2: (value: SetStateAction<string>) => void,
     setInterfaces: (value: SetStateAction<string[]>) => void,
     setPending: (value: SetStateAction<boolean>) => void,
     setTilePending: (value: SetStateAction<{ [key: string]: boolean }>) => void
 }) => {
+    const [interface_2, setInterface_2] = useState(interface_ || "");
+
+    useEffect(() => {
+        setInterface_2(interface_ || "");
+    }, [interface_]);
 
     return (
         <div className="flex gap-4 px-4">

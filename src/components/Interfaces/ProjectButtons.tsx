@@ -24,7 +24,6 @@ const ProjectButtons = ({
     setDataPending,
     setInterfaces,
     setProjects,
-    setInterface_2,
     setInterface,
     setProject,
 }: {
@@ -42,7 +41,6 @@ const ProjectButtons = ({
     setDataPending: (value: SetStateAction<boolean>) => void,
     setInterfaces: (value: SetStateAction<string[]>) => void,
     setProjects: (value: SetStateAction<string[]>) => void,
-    setInterface_2: (value: SetStateAction<string>) => void,
     setInterface: (value: string | null) => void,
     setProject: (value: string | null) => void,
 }) => {
@@ -58,7 +56,6 @@ const ProjectButtons = ({
                     setPending(true);
                     setDataPending(true);
                     setInterfaces([]);
-                    setInterface_2("");
                     setInterface(null);
                     setProject(newProj);
                 }}
@@ -74,7 +71,6 @@ const ProjectButtons = ({
                             setDataPending(true);
                             setInterface(null);
                             setInterfaces([]);
-                            setInterface_2("");
                             setProject(null);
                         }}
                     />
@@ -96,7 +92,6 @@ const ProjectButtons = ({
                             setDataPending(true);
                             setInterface(null);
                             setInterfaces([]);
-                            setInterface_2("");
                             setProject(null);
                         }}
                     />

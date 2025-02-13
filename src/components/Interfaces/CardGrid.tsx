@@ -102,7 +102,6 @@ const CardGrid = ({
     const [projects, setProjects] = useState<string[]>(projects_ || []);
     const [interface_, setInterface] = useQueryState("interface", { shallow: false });
     const [project, setProject] = useQueryState("project", { shallow: false });
-    const [interface_2, setInterface_2] = useState(interface_ || "");
 
     // pending fields
     const [tilePending, setTilePending] = useState<{ [key: string]: boolean }>(
@@ -177,7 +176,6 @@ const CardGrid = ({
             setTempInterfaceCreated(Boolean(currentInterface));
             setPending(false);
             setInterfaces(ints.map(int => int.name).sort());
-            setInterface_2(interface_ as string);
         });
     };
 
@@ -232,7 +230,6 @@ const CardGrid = ({
         <Tabs value={interface_ || undefined} onValueChange={(value: string | undefined) => {
             setPending(true);
             setDataPending(true);
-            setInterface_2(value || "");
             setInterface(value || null);
         }} className="w-full tutorial-details-panel">
             <div className="sticky top-0 z-10 bg-background shadow-sm p-2 flex justify-between gap-4">
@@ -252,7 +249,6 @@ const CardGrid = ({
                     setDataPending={setDataPending}
                     setInterfaces={setInterfaces}
                     setProjects={setProjects}
-                    setInterface_2={setInterface_2}
                     setInterface={setInterface}
                     setProject={setProject}
                 />
@@ -260,7 +256,6 @@ const CardGrid = ({
                 {/* Interface tabs and add/delete buttons */}
                 {project && <InterfaceTabs
                     interface_={interface_}
-                    interface_2={interface_2}
                     interfaces={interfaces}
                     project={project}
                     context={context}
@@ -271,7 +266,6 @@ const CardGrid = ({
                     dataPending={dataPending}
                     interfaceActions={interfaceActions}
                     setInterface={setInterface}
-                    setInterface_2={setInterface_2}
                     setInterfaces={setInterfaces}
                     setPending={setPending}
                     setTilePending={setTilePending}
