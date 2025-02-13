@@ -9,21 +9,32 @@ import PlotRegression from "./Buttons/PlotRegression";
 import PlotGroupBy from "./Buttons/PlotGroupBy";
 import PlotReset from "./Buttons/PlotReset";
 import PlotBins from "./Buttons/PlotBins";
+import PlotRefresh from "./Buttons/PlotRefresh";
 
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
-import { LogFieldsResponseProps, LogProps } from "@/types/evals/logs";
+import { LogFieldsResponseProps, LogProps, PlotArguments } from "@/types/evals/logs";
+import { LogsActions } from "@/types/evals/grid";
 import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram, checkLogScalability } from "@/utils/evals/plot";
 
 import PlotAxis from "./Buttons/PlotAxis";
 import { ItemType, TileProps } from "@/types/evals/grid";
 
-const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
+const LogsPlot = ({ interactive, logs_, fields, item, updateItem, project, pending, args, logsActions }: {
     interactive: boolean,
-    logs: LogProps[] | undefined,
+    logs_: LogProps[] | undefined,
     fields: LogFieldsResponseProps,
     item: TileProps,
-    updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void
+    updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
+    project: string | undefined,
+    pending: boolean,
+    args: PlotArguments,
+    logsActions: LogsActions
 }) => {
+
+    // Init logs and handle local updates
+    const [logs, setLogs] = useState(logs_)
+    useEffect(() => {setLogs(logs_)}, [logs_])
+
     // Initialize refs and container dimensions
     let svgRef = useRef(null);
     let containerRef = useRef(null);
@@ -215,7 +226,7 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
 
 
     // Adjust customization button size to card size
-    const scaleFactor = Math.min(1, Math.max(0.5, dimensions.height / 400));
+    const scaleFactor = Math.min(1, Math.max(0.5, dimensions.height / 500));
     const translateX = Math.max(0, (1200 - dimensions.height) * 0.01) / scaleFactor;
     const translateY = Math.max(0, (200 - dimensions.height) * 0.01) / scaleFactor;
 
@@ -265,46 +276,48 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
             </div>
 
             {/* Customization */}
-            {selectedXAxisProperty && selectedYAxisProperty &&
-                <div 
-                    className="absolute z-10 flex right-3 top-12 flex-col gap-1.5"
-                    style={{
-                        transform: `scale(${scaleFactor}) translateX(${translateX}px) translateY(${translateY}px)`,
-                        transformOrigin: 'top left'
-                    }}
-                >
-                    <PlotReset
+            <div 
+                className="absolute z-10 flex right-3 top-12 flex-col gap-1.5"
+                style={{transform: `scale(${scaleFactor}) translateX(${translateX}px) translateY(${translateY}px)`, transformOrigin: 'top left'}}
+            >
+                {project &&
+                    <PlotRefresh project={project} item={item} pending={pending} args={args} setLogs={setLogs} logsActions={logsActions} updateItem={updateItem} logs={logs}/>
+                }
+                {((plotType === "Histogram" && selectedXAxisProperty) || (selectedXAxisProperty && selectedYAxisProperty)) &&
+                    <>
+                        <PlotReset
                             svgRef={svgRef}
                             setSelectedXAxisProperty={updateItem(item, "x_axis")}
                             setSelectedYAxisProperty={updateItem(item, "y_axis")}
                             setGroupByProperty={updateItem(item, "plot_group_by")}
                         />
-                    {plotType === "Histogram"
-                        ?   <PlotBins binCount={binCount} binCounts={binCounts} setBinCount={updateItem(item, "bin_count")}/>
-                        :   plotType != "Bar Chart"
-                            ?   <PlotGroupBy fields={fields} groupBy={groupByProperty} setGroupBy={updateItem(item, "plot_group_by")} logs={logs}/>
-                            :   null
-                    }
-                    {!["Histogram", "Bar Chart"].includes(plotType) &&
-                        <PlotScale 
-                            scaleX={scaleX} 
-                            scaleY={scaleY}
-                            setScaleX={updateItem(item, "plot_scale_x")}
-                            setScaleY={updateItem(item, "plot_scale_y")} 
-                            logScaleXEnabled={logScaleXEnabled} 
-                            logScaleYEnabled={logScaleYEnabled} 
-                            selectedXAxisProperty={selectedXAxisProperty} 
-                            fields={fields}
-                        />
-                    }
-                    {plotType === "Scatter Plot" && 
-                        <PlotRegression 
-                            showRegression={showRegression} 
-                            setShowRegression={updateItem(item, "regression_line")}
-                        />
-                    }
-                </div>
-            }
+                        {plotType === "Histogram"
+                            ?   <PlotBins binCount={binCount} binCounts={binCounts} setBinCount={updateItem(item, "bin_count")}/>
+                            :   plotType != "Bar Chart"
+                                ?   <PlotGroupBy fields={fields} groupBy={groupByProperty} setGroupBy={updateItem(item, "plot_group_by")} logs={logs}/>
+                                :   null
+                        }
+                        {!["Histogram", "Bar Chart"].includes(plotType) &&
+                            <PlotScale 
+                                scaleX={scaleX} 
+                                scaleY={scaleY}
+                                setScaleX={updateItem(item, "plot_scale_x")}
+                                setScaleY={updateItem(item, "plot_scale_y")} 
+                                logScaleXEnabled={logScaleXEnabled} 
+                                logScaleYEnabled={logScaleYEnabled} 
+                                selectedXAxisProperty={selectedXAxisProperty} 
+                                fields={fields}
+                            />
+                        }
+                        {plotType === "Scatter Plot" && 
+                            <PlotRegression 
+                                showRegression={showRegression} 
+                                setShowRegression={updateItem(item, "regression_line")}
+                            />
+                        }
+                    </>
+                }
+            </div>
 
             {/* Chart */}
             <svg ref={svgRef} className="flex w-full h-full absolute z-0">

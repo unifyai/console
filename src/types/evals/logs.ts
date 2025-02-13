@@ -90,6 +90,10 @@ export interface TableArguments {
     }
 }
 
+export interface PlotArguments {
+    [table_name: string]: getLogsParameters
+}
+
 declare module "@tanstack/react-table" {
     // eslint-disable-next-line no-unused-vars
     interface ColumnMeta<TData extends RowData, TValue> {
