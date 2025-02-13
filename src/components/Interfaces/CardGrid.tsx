@@ -201,12 +201,14 @@ const CardGrid = ({
 
     // trigger update when table data changes (server reloaded)
     useEffect(() => {
-        setDataPending(false);
-        setRefreshing(false);
-        setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, false])));
-        if ((pending || resetting) && project && interface_)
-            getLatestInterface();
-        setResetting(false);
+        setTimeout(() => {
+            setDataPending(false);
+            setRefreshing(false);
+            setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, false])));
+            if ((pending || resetting) && project && interface_)
+                getLatestInterface();
+            setResetting(false);
+        }, 1500);
     }, [tableData]);
 
     // Update tableData when initialTableData changes
