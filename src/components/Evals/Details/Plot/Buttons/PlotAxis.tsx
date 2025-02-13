@@ -86,7 +86,6 @@ const PlotAxis = ({ fields, axisProperty, setAxisProperty, axis, plotType, logs,
                     if (plotType === "Bar Chart" && axis === "Y") {
                         const metricsTrigger = <DropdownMenuSubTrigger className="hover:text-white data-[state=open]:text-white">{column}</DropdownMenuSubTrigger>
                         const columnOptions = metrics.map((metric, metricIndex) => {
-                            const selection = `${table}.${column}.${metric}`
                             return <DropdownMenuItem key={metricIndex} onSelect={() => onSelect(selection, metric)}>{metric}</DropdownMenuItem>
                         }) 
                         return (

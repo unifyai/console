@@ -63,7 +63,7 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
             .attr("viewBox", [0, 0, dimensions.width, dimensions.height]);
 
         // Update clipbox dimensions
-        svg.select("#clip-rect")
+        d3.select("#clip-rect")
             .attr("x", margins.left)
             .attr("y", margins.top)
             .attr("width", dimensions.width - margins.left - margins.right)
@@ -79,8 +79,8 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
         if (plotType === "Line Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                const adjustedScaleX = checkLogScalability(logs, xTable, selectedXAxisProperty, scaleX, updateItem(item, "plot_scale_x"), setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, yTable,selectedYAxisProperty, scaleY, updateItem(item, "plot_scale_y"), setLogScaleYEnabled)
+                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, updateItem(item, "plot_scale_x"), setLogScaleXEnabled)
+                const adjustedScaleY = checkLogScalability(logs, fields, yTable,selectedYAxisProperty, scaleY, updateItem(item, "plot_scale_y"), setLogScaleYEnabled)
                 drawLineChart(
                     svg,
                     adjustedScaleX,
@@ -169,8 +169,8 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
         else {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                const adjustedScaleX = checkLogScalability(logs, xTable, selectedXAxisProperty, scaleX, updateItem(item, "plot_scale_x"), setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, yTable, selectedYAxisProperty, scaleY, updateItem(item, "plot_scale_y"), setLogScaleYEnabled)
+                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, updateItem(item, "plot_scale_x"), setLogScaleXEnabled)
+                const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, updateItem(item, "plot_scale_y"), setLogScaleYEnabled)
                 drawScatterPlot(
                     svg,
                     adjustedScaleX,
@@ -212,6 +212,12 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
         binCounts,
         showRegression
     ]);
+
+
+    // Adjust customization button size to card size
+    const scaleFactor = Math.min(1, Math.max(0.5, dimensions.height / 400));
+    const translateX = Math.max(0, (1200 - dimensions.height) * 0.01) / scaleFactor;
+    const translateY = Math.max(0, (200 - dimensions.height) * 0.01) / scaleFactor;
 
     return (
         <div className="flex w-full h-full bg-background rounded-md relative my-2 LogsPlot" ref={containerRef}>
@@ -260,55 +266,51 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
 
             {/* Customization */}
             {selectedXAxisProperty && selectedYAxisProperty &&
-                <>
-                    <div className="absolute top-12 right-3 z-10 PlotReset">
-                        <PlotReset
+                <div 
+                    className="absolute z-10 flex right-3 top-12 flex-col gap-1.5"
+                    style={{
+                        transform: `scale(${scaleFactor}) translateX(${translateX}px) translateY(${translateY}px)`,
+                        transformOrigin: 'top left'
+                    }}
+                >
+                    <PlotReset
                             svgRef={svgRef}
                             setSelectedXAxisProperty={updateItem(item, "x_axis")}
                             setSelectedYAxisProperty={updateItem(item, "y_axis")}
                             setGroupByProperty={updateItem(item, "plot_group_by")}
                         />
-                    </div>
                     {plotType === "Histogram"
-                        ?   <div className="absolute top-24 right-3 z-10 PlotBins">
-                                <PlotBins binCount={binCount} binCounts={binCounts} setBinCount={updateItem(item, "bin_count")}/>
-                            </div>
+                        ?   <PlotBins binCount={binCount} binCounts={binCounts} setBinCount={updateItem(item, "bin_count")}/>
                         :   plotType != "Bar Chart"
-                            ?   <div className="absolute top-24 right-3 z-10 PlotGroupBy">
-                                    <PlotGroupBy fields={fields} groupBy={groupByProperty} setGroupBy={updateItem(item, "plot_group_by")} logs={logs}/>
-                                </div>
+                            ?   <PlotGroupBy fields={fields} groupBy={groupByProperty} setGroupBy={updateItem(item, "plot_group_by")} logs={logs}/>
                             :   null
                     }
                     {!["Histogram", "Bar Chart"].includes(plotType) &&
-                        <div className="absolute top-36 right-3 z-10 PlotScale">
-                            <PlotScale 
-                                scaleX={scaleX} 
-                                scaleY={scaleY}
-                                setScaleX={updateItem(item, "plot_scale_x")}
-                                setScaleY={updateItem(item, "plot_scale_y")} 
-                                logScaleXEnabled={logScaleXEnabled} 
-                                logScaleYEnabled={logScaleYEnabled} 
-                                selectedXAxisProperty={selectedXAxisProperty} 
-                                fields={fields}
-                            />
-                        </div>
+                        <PlotScale 
+                            scaleX={scaleX} 
+                            scaleY={scaleY}
+                            setScaleX={updateItem(item, "plot_scale_x")}
+                            setScaleY={updateItem(item, "plot_scale_y")} 
+                            logScaleXEnabled={logScaleXEnabled} 
+                            logScaleYEnabled={logScaleYEnabled} 
+                            selectedXAxisProperty={selectedXAxisProperty} 
+                            fields={fields}
+                        />
                     }
                     {plotType === "Scatter Plot" && 
-                        <div className="absolute top-48 right-3 z-10 PlotRegressioncale">
-                            <PlotRegression 
-                                showRegression={showRegression} 
-                                setShowRegression={updateItem(item, "regression_line")}
-                            />
-                        </div>
+                        <PlotRegression 
+                            showRegression={showRegression} 
+                            setShowRegression={updateItem(item, "regression_line")}
+                        />
                     }
-                </>
+                </div>
             }
 
             {/* Chart */}
             <svg ref={svgRef} className="flex w-full h-full absolute z-0">
                 <defs>
                     <clipPath id="clip">
-                        <rect id={"clip-rect"} x={margins.left} y={margins.top} width={dimensions.width - margins.left - margins.right} height={dimensions.height - margins.top - margins.bottom}/>
+                        <rect id={"clip-rect"}/>
                     </clipPath>
                 </defs>
                 <g className="plotData" clipPath="url(#clip)"/>
@@ -316,6 +318,8 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                 <line className="bottomLine" />
                 <line className="leftLine" />
                 <line className="topLine" />
+                <line className="x-zero"/>
+                <line className="y-zero"/>
                 <g className="xAxis" />
                 <g className="yAxis" />
             </svg>
@@ -335,11 +339,11 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                     opacity: 0,
                     zIndex: 1000
                 }}
-                className="plotTooltip grid grid-cols-2 gap-2 overflow-hidden"
+                className="plotTooltip gap-2 overflow-hidden"
             />
             <div
-                style={{ opacity: 0 }}
-                className="groupingKey absolute bottom-20 right-2 z-10 py-2 px-3 flex flex-col gap-1 overflow-auto w-[100px] h-[150px] rounded-md border-2 border-muted"
+                style={{opacity: 0, "scrollbar-width": "none"} as React.CSSProperties} 
+                className="groupingKey absolute bottom-20 right-2 z-5 py-2 px-3 flex flex-col gap-1 overflow-auto w-[100px] h-[150px] rounded-md border-2 border-muted"
             />
         </div>
     );
