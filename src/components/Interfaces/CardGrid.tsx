@@ -334,6 +334,7 @@ const CardGrid = ({
                         className="layout interactive-grid flex-1"
                         cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
                         rowHeight={100}
+                        margin={[0, 0]}
                         isDraggable={mode == "edit"}
                         isResizable={mode == "edit"}
                         draggableCancel=".no-drag"
@@ -344,7 +345,7 @@ const CardGrid = ({
                                 <div
                                     key={el.i}
                                     data-grid={el}
-                                    className="relative rounded-lg"
+                                    className="relative"
                                     hidden={!el.visible}
                                 >
                                     <Card
