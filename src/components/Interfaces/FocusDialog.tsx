@@ -3,8 +3,10 @@
 import { Dispatch, SetStateAction } from "react";
 import { DoublePanels } from "../Common/Body/DoublePanels";
 import ActionButton from "../Common/Buttons/Action";
+import BaseDropdown from "../Common/Dropdowns/Base";
 import Card from "./Card";
 import { Badge } from "../UI/badge";
+import { DropdownMenuItem } from "../UI/dropdown-menu";
 import { TableArguments } from "@/types/evals/logs";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
@@ -122,7 +124,31 @@ const FocusDialog = ({
                         </div>
                     </div>
                 </div>
-                : <></>
+                : <div className="h-full w-full flex justify-center items-center">
+                    <div className="w-fit">
+                        <BaseDropdown
+                            button={<ActionButton
+                                tooltip="Select Tile"
+                                text="Select Tile"
+                                variant="outline"
+                                size="default"
+                            />}
+                        >
+                            {items.map((item, idx) => <DropdownMenuItem
+                                key={idx}
+                                onSelect={() => {
+                                    if (idx == 0)
+                                        setMaxTiles([item.i, ...maxTiles])
+                                    else
+                                        setMaxTiles([...maxTiles, item.i])
+                                }}
+                                className="w-64 no-drag"
+                            >
+                                {item.i}
+                            </DropdownMenuItem>)}
+                        </BaseDropdown>
+                    </div>
+                </div>
         );
     });
     return (
