@@ -97,6 +97,7 @@ function toggleOnePropertyExpand(
 ────────────────────────────────────────────────────────────────────────────*/
 type DictionaryViewProps = LogComparisonProps & {
   forceExpandAll?: boolean;
+  displayMode?: "text" | "markdown" | "raw";
 };
 
 const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
@@ -111,6 +112,7 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
     diffMode = "none",
     splitView = false,
     forceExpandAll = false,
+    displayMode = "text",
   } = props;
 
   // Memoize allKeysAndData to prevent unnecessary recalculations

@@ -93,10 +93,10 @@ function getSelectionView(
   comparisonLogsIndex: number[],
   diffMode: DiffMode,
   splitView: boolean,
-  rawMode: boolean,
+  displayMode: "text" | "markdown" | "raw",
   forceExpandAll?: boolean
 ) {
-  if (rawMode) {
+  if (displayMode === "raw") {
     return (
       <RawView
         value={value}
@@ -125,6 +125,7 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          displayMode={displayMode}
         />
       );
     case "chat":
@@ -138,6 +139,7 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          displayMode={displayMode}
         />
       );
     case "dict":
@@ -152,6 +154,7 @@ function getSelectionView(
           version={version}
           comparableVersions={comparableVersions}
           forceExpandAll={forceExpandAll}
+          displayMode={displayMode}
         />
       );
     case "list":
@@ -166,6 +169,7 @@ function getSelectionView(
           version={version}
           comparableVersions={comparableVersions}
           forceExpandAll={forceExpandAll}
+          displayMode={displayMode}
         />
       );
     case "image":
@@ -179,6 +183,7 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          displayMode={displayMode}
         />
       );
     case "matrix":
@@ -192,6 +197,7 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          displayMode={displayMode}
         />
       );
     case "number":
@@ -205,6 +211,7 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          displayMode={displayMode}
         />
       );
     case "timestamp":
@@ -218,6 +225,7 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          displayMode={displayMode}
         />
       );
     default:
@@ -231,6 +239,7 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          displayMode={displayMode}
         />
       );
   }
@@ -246,7 +255,7 @@ export default function SelectionEntry({
   comparisonLogsIndex,
   diffMode,
   splitView,
-  rawMode,
+  displayMode,
   version = "",
   comparableVersions = [],
   tableItem,
@@ -264,7 +273,7 @@ export default function SelectionEntry({
   comparisonLogsIndex: number[];
   diffMode: DiffMode;
   splitView: boolean;
-  rawMode: boolean;
+  displayMode: "text" | "markdown" | "raw";
   version?: string;
   comparableVersions?: string[];
   tableItem: TileProps | undefined;
@@ -342,7 +351,7 @@ export default function SelectionEntry({
     comparisonLogsIndex,
     diffMode || "none",
     splitView,
-    rawMode,
+    displayMode,
     expandAll
   );
 

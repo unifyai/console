@@ -11,8 +11,6 @@ import { sanitizeId } from "@/utils/evals/columnOperations";
 import {
   FoldVertical,
   UnfoldVertical,
-  EyeOff,
-  Eye,
   FileText,
   CaseLower,
   Pilcrow,
@@ -23,8 +21,6 @@ import {
   SquareSlash,
   Type,
   RemoveFormatting,
-  Filter,
-  Columns3,
   Rows3,
   GripVertical,
   Grab,
@@ -46,7 +42,6 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { TileProps, ItemType } from "@/types/evals/grid";
 
 /*******************************************************************************
@@ -288,7 +283,7 @@ export default function Selection({
 
   // 7) Let user cycle # of side-by-side panels. Each has independent state
   const [panelCount, setPanelCount] = useState(1);
-  const [rawMode, setRawMode] = useState(false);
+  const [displayMode, setDisplayMode] = useState<"markdown" | "text" | "raw">("markdown");
   // NEW: Edit mode: when active, all accordions are collapsed and locked.
   const [editMode, setEditMode] = useState(false);
   // Save the current open accordions state so we can restore later when turning off edit mode
@@ -394,9 +389,25 @@ export default function Selection({
         </p>
         <div className="flex items-center gap-2 relative">
           <ActionButton
-            tooltip={rawMode ? "Viewing as raw text" : "Viewing with specialized components"}
-            icon={rawMode ? <RemoveFormatting className="h-4 w-4" /> : <Type className="h-4 w-4" />}
-            onClick={() => setRawMode((prev) => !prev)}
+            tooltip={
+              displayMode === "raw"
+                ? "Viewing as raw data"
+                : displayMode === "markdown"
+                ? "Viewing as markdown"
+                : "Viewing as plain text"
+            }
+            icon={
+              displayMode === "raw"
+                ? <Code className="h-4 w-4" />
+                : displayMode === "markdown"
+                ? <Type className="h-4 w-4" />
+                : <RemoveFormatting className="h-4 w-4" />
+            }
+            onClick={() =>
+              setDisplayMode((prev) =>
+                prev === "markdown" ? "text" : prev === "text" ? "raw" : "markdown"
+              )
+            }
             variant="ghost"
             size="icon"
           />
@@ -540,7 +551,7 @@ export default function Selection({
             selectedRowIndices={selectedRowIndices}
             hiddenColumns={hiddenColumns}
             columnOrdering={columnOrdering}
-            rawMode={rawMode}
+            displayMode={displayMode}
             tableItem={tableItem}
             item={item}
             entriesFilter={entriesFilter}
@@ -571,7 +582,7 @@ function SelectionPanel({
   selectedRowIndices,
   hiddenColumns,
   columnOrdering,
-  rawMode,
+  displayMode,
   tableItem,
   item,
   entriesFilter,
@@ -591,7 +602,7 @@ function SelectionPanel({
   selectedRowIndices: number[];
   hiddenColumns: string[];
   columnOrdering: string[];
-  rawMode: boolean;
+  displayMode: "text" | "markdown" | "raw";
   tableItem: TileProps | undefined;
   item: TileProps;
   entriesFilter: Record<string, boolean>;
@@ -807,7 +818,7 @@ function SelectionPanel({
                         comparisonLogsIndex={comparisonRowIndices.map((x) => x + 1)}
                         diffMode={diffMode}
                         splitView={splitView}
-                        rawMode={rawMode}
+                        displayMode={displayMode}
                         onHideColumn={onHideEntry}
                         tableItem={tableItem}
                         updateItem={updateItem}
@@ -888,7 +899,7 @@ function SelectionPanel({
                           comparisonLogsIndex={comparisonRowIndices.map((x) => x + 1)}
                           diffMode={diffMode}
                           splitView={splitView}
-                          rawMode={rawMode}
+                          displayMode={displayMode}
                           onHideColumn={onHideParam}
                           tableItem={tableItem}
                           updateItem={updateItem}

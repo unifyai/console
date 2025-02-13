@@ -68,7 +68,8 @@ export default function TimestampView({
   splitView, // Not used, just for compatibility
   version = "",
   comparableVersions = [],
-}: LogComparisonProps) {
+  displayMode = "text",
+}: LogComparisonProps & { displayMode?: "text" | "markdown" | "raw" }) {
   // Single vs multiple
   const singleMode = !comparables || comparables.length === 0;
   const baseStr = typeof value === "string" ? value : String(value || "");
@@ -89,7 +90,11 @@ export default function TimestampView({
             {baseVer ? (
               <div className="flex relative p-2 border rounded group">
                 <div>
-                  <MarkdownRenderer>{baseVer}</MarkdownRenderer>
+                  {displayMode === "markdown" ? (
+                    <MarkdownRenderer>{baseVer}</MarkdownRenderer>
+                  ) : (
+                    baseVer
+                  )}
                 </div>
                 <CopyButton
                   className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
@@ -108,7 +113,11 @@ export default function TimestampView({
           {!versionEmpty && <p className="font-semibold text-sm">Value</p>}
           <div className="flex border rounded p-2 relative group">
             <div>
-              <p className="text-sm">{formatHumanReadable(baseStr)}</p>
+              {displayMode === "markdown" ? (
+                <MarkdownRenderer>{formatHumanReadable(baseStr)}</MarkdownRenderer>
+              ) : (
+                <p className="text-sm whitespace-pre-wrap">{formatHumanReadable(baseStr)}</p>
+              )}
             </div>
             <CopyButton
               className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
@@ -163,7 +172,11 @@ export default function TimestampView({
                           <RowBadge rowNumbers={[r]} mode="none" />
                           {verText ? (
                             <div className="pt-2">
-                              <MarkdownRenderer>{verText}</MarkdownRenderer>
+                              {displayMode === "markdown" ? (
+                                <MarkdownRenderer>{verText}</MarkdownRenderer>
+                              ) : (
+                                verText
+                              )}
                             </div>
                           ) : (
                             <p className="italic text-sm text-muted-foreground">
@@ -234,7 +247,11 @@ export default function TimestampView({
                       <RowBadge rowNumbers={[r]} mode="none" />
                       {verText ? (
                         <div className="pt-2">
-                          <MarkdownRenderer>{verText}</MarkdownRenderer>
+                          {displayMode === "markdown" ? (
+                            <MarkdownRenderer>{verText}</MarkdownRenderer>
+                          ) : (
+                            verText
+                          )}
                         </div>
                       ) : (
                         <p className="italic text-sm text-muted-foreground">
