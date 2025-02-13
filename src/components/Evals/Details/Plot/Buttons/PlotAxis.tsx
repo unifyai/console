@@ -32,7 +32,7 @@ const PlotAxis = ({ fields, axisProperty, setAxisProperty, axis, plotType, logs,
             .entries(fields)
             .filter(([name, { data_type, field_type }]) => field_type != "param")
             .map(([name]) => name);
-    } else if (plotType === "Histogram") {
+    } else if (plotType === "Histogram" || plotType === "Line Chart") {
         properties = Object
             .entries(fields)
             .filter(([name, { data_type, field_type }]) => field_type != "param" && (data_type === "float" || data_type === "int" || data_type === "timestamp"))

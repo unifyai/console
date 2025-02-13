@@ -3,7 +3,7 @@
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import ActionButton from "@/components/Common/Buttons/Action";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ChartScatter, ChartLine, ChartColumn, ChartColumnBig } from "lucide-react";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
 
 const PlotType = ({ interactive, plotType, setPlotType, fields, selectedXAxisProperty, setSelectedXAxisProperty, selectedYAxisProperty, setSelectedYAxisProperty}: {
@@ -32,12 +32,20 @@ const PlotType = ({ interactive, plotType, setPlotType, fields, selectedXAxisPro
         setSelectedXAxisProperty(xAxis)
         setSelectedYAxisProperty(yAxis)
     } 
+
+    const plotIcons = {"Line Chart": <ChartLine/>, "Bar Chart": <ChartColumn/>, "Histogram": <ChartColumnBig/>, "Scatter Plot": <ChartScatter/>}
+    const icon = 
+    <div className="flex flex-row gap-1">
+        <ChevronDown/>
+        {plotIcons[plotType as keyof typeof plotIcons]}
+    </div>
+    
     return (
         <BaseDropdown
             button={
                 <ActionButton 
                     text={plotType}
-                    icon={<ChevronDown/>}
+                    icon={icon}
                     tooltip="Plot type"
                     disabled={!interactive}
                 />
@@ -48,6 +56,7 @@ const PlotType = ({ interactive, plotType, setPlotType, fields, selectedXAxisPro
             ["Scatter Plot", "Line Chart", "Bar Chart", "Histogram"].map((type, index) => {
                 return (
                     <DropdownMenuItem key={index} onClick={() => onClick(type)}>
+                        {plotIcons[type as keyof typeof plotIcons]}
                         {type}
                     </DropdownMenuItem>
                 );

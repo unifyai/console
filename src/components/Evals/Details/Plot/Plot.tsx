@@ -73,8 +73,8 @@ const LogsPlot = ({ logs, fields}: {
         if (plotType === "Line Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                const adjustedScaleX = checkLogScalability(logs, fields, "", selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, fields, "", selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
+                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
+                const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawLineChart(
                     svg, 
                     adjustedScaleX,
@@ -104,8 +104,8 @@ const LogsPlot = ({ logs, fields}: {
         else if (plotType  === "Bar Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                const adjustedScaleX = checkLogScalability(logs, fields, "", selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, fields, "", selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
+                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
+                const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawBarChart(
                     svg, 
                     adjustedScaleX,
