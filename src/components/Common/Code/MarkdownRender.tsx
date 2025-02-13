@@ -51,7 +51,7 @@ const MarkdownRender = ({ content, noBackground }: { content: string, noBackgrou
   };
 
   return (
-    <div className="prose w-full">
+    <div className={"prose w-full " + (noBackground ? "text-sm" : "")}>
       <Markdown
         components={{
           code: CodeBlock as any,
