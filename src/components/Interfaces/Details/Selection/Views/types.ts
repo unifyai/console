@@ -6,7 +6,8 @@ export interface LogComparisonProps {
   baseLogIndex: number;               // The table row index of the base value.
   comparisonLogsIndex: number[];      // The table row indices for each item in comparables.
   propertyName?: string;              // Optional: for labeling UI (like accordion trigger).
-  nestingLevel?: number;              // How “deep” we are in recursion (for indenting).
+  nestingLevel?: number;              // How "deep" we are in recursion (for indenting).
   diffMode?: "none" | "lines" | "words" | "characters";
   splitView?: boolean;
+  displayMode?: "text" | "markdown" | "raw";
 }
