@@ -7,6 +7,8 @@ export const defaultItems = [
         "y": 0.0,
         "w": 7.0,
         "h": 8.0,
+        "minW": 4.0,
+        "minH": 4.0,
         "tab": "Table",
         "table_type": "Data Table"
     },
@@ -16,6 +18,8 @@ export const defaultItems = [
         "y": 0.0,
         "w": 5.0,
         "h": 8.0,
+        "minW": 4.0,
+        "minH": 4.0,
         "tab": "View",
         "table": "Table"
     }

@@ -7,6 +7,8 @@ export interface TileProps {
     y: number;
     w: number;
     h: number;
+    minW?: number;
+    minH?: number;
     moved?: boolean;
     static?: boolean;
     visible?: boolean;

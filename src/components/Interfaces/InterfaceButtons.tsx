@@ -146,6 +146,8 @@ const InterfaceButtons = ({
                             y: (items.length * 2) / 12,
                             w: 4,
                             h: 4,
+                            minW: 4,
+                            minH: 4,
                             tab: undefined,
                             visible: true,
                         }
@@ -172,6 +174,8 @@ const InterfaceButtons = ({
                                 y: (items.length * 2) / 12,
                                 w: 4,
                                 h: 4,
+                                minW: 4,
+                                minH: 4,
                                 visible: true
                             } : { ...it }
                         )]);
