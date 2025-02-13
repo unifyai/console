@@ -8,6 +8,8 @@ import { SetStateAction } from "react";
 import ActionButton from "../Common/Buttons/Action";
 import { TableDataProps, TileProps } from "@/types/evals/grid";
 import { InterfaceActions } from "@/types/evals/grid";
+import { defaultItems, defaultNewCounter } from "@/constants/logs";
+
 
 const InterfaceTabs = ({
     interface_,
@@ -44,6 +46,7 @@ const InterfaceTabs = ({
     setPending: (value: SetStateAction<boolean>) => void,
     setTilePending: (value: SetStateAction<{ [key: string]: boolean }>) => void
 }) => {
+
     return (
         <div className="flex gap-4 px-4">
             {interfaces.length > 0 && <TabsList className="rounded-md justify-between">
@@ -85,10 +88,10 @@ const InterfaceTabs = ({
                     onClick={() => {
                         const newInterfaceName = `interface_${uuidv4().slice(0, 2)}`;
                         interfaceActions.create(
-                            newInterfaceName, project, context, [], 0, true
+                            newInterfaceName, project, context, defaultItems, defaultNewCounter, true
                         ).then(() => {
                             interfaceActions.create(
-                                newInterfaceName, project, context, [], 0, false
+                                newInterfaceName, project, context, defaultItems, defaultNewCounter, false
                             ).then(() => {
                                 setInterfaces([...interfaces, newInterfaceName]);
                                 setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));

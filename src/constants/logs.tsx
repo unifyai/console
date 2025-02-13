@@ -1,5 +1,28 @@
 export const metrics = ["mean", "count", "sum", "var", "std", "min", "max", "median", "mode"];
 
+export const defaultItems = [
+    {
+        "i": "Table",
+        "x": 0.0,
+        "y": 0.0,
+        "w": 7.0,
+        "h": 8.0,
+        "tab": "Table",
+        "table_type": "Data Table"
+    },
+    {
+        "i": "View",
+        "x": 7.0,
+        "y": 0.0,
+        "w": 5.0,
+        "h": 8.0,
+        "tab": "View",
+        "table": "Table"
+    }
+];
+
+export const defaultNewCounter = 2;
+
 export const defaultLogs = {
     project: "maths_assistant",
     params: Array(10).fill({

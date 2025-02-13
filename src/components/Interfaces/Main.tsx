@@ -6,6 +6,8 @@ import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters
 import { processContext } from "@/utils/evals/columnOperations";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { defaultNewCounter } from "@/constants/logs";
+import { defaultItems } from "@/constants/logs";
 
 const Main = async ({ interface_, project_, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, interfaceActions }: {
     interface_: string | undefined,
@@ -55,8 +57,8 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         name: interface_1 as string,
         project: project,
         context: undefined,
-        items: [],
-        new_counter: 0
+        items: defaultItems,
+        new_counter: defaultNewCounter
     } as Interface;
     if (!interface_ && project && interface_1)
         redirect(`/interfaces?project=${project}&interface=${interface_1}`);
@@ -286,29 +288,29 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
     )).reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
     return <CardGrid
-                project_={project}
-                projects_={projects}
-                contexts={contexts}
-                interfaces_={Object.keys(interfacesTemp_).sort()}
-                tableNames={tableNames}
-                tableData={tableData}
-                tableArguments={tableArguments}
-                fields={fields}
-                plotData={plotData}
-                savedInterface={savedInterface}
-                interfaceCreated={interfaceCreated}
-                tempInterfaceCreated_={tempInterfaceCreated}
-                interface_1={interface_1}
-                filterExpressions={filterExpressions}
-                sortingExpressions={sortingExpressions}
-                groupingExpressions={groupingExpressions}
-                limit={limit}
-                offsets={offsets}
-                projectActions={projectsActions}
-                logsActions={logsActions}
-                derivedEntryActions={derivedEntryActions}
-                contextActions={contextActions}
-                interfaceActions={interfaceActions}
+        project_={project}
+        projects_={projects}
+        contexts={contexts}
+        interfaces_={Object.keys(interfacesTemp_).sort()}
+        tableNames={tableNames}
+        tableData={tableData}
+        tableArguments={tableArguments}
+        fields={fields}
+        plotData={plotData}
+        savedInterface={savedInterface}
+        interfaceCreated={interfaceCreated}
+        tempInterfaceCreated_={tempInterfaceCreated}
+        interface_1={interface_1}
+        filterExpressions={filterExpressions}
+        sortingExpressions={sortingExpressions}
+        groupingExpressions={groupingExpressions}
+        limit={limit}
+        offsets={offsets}
+        projectActions={projectsActions}
+        logsActions={logsActions}
+        derivedEntryActions={derivedEntryActions}
+        contextActions={contextActions}
+        interfaceActions={interfaceActions}
     />;
 };
 
