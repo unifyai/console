@@ -373,7 +373,7 @@ const CardGrid = ({
                                         updateInterface={updateInterface}
                                         setTableData={setTableData}
                                     />
-                                    <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-3 flex justify-between " + (mode == "edit" ? "h-20" : "h-10")}>
+                                    <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-2 flex justify-between " + (mode == "edit" ? "h-20" : "h-10")}>
                                         <div className="mb-auto">
                                             <Badge
                                                 className="no-drag cursor-pointer"
@@ -424,7 +424,12 @@ const CardGrid = ({
                                                 />
                                                 <ActionButton
                                                     className="no-drag remove cursor-pointer hover:z-10"
-                                                    onClick={() => setItems([...items.filter(item => item.i != el.i)])}
+                                                    onClick={() => {
+                                                        const newItems = items.filter(item => item.i != el.i);
+                                                        if (newItems.length == 0)
+                                                            setNewCounter(0);
+                                                        setItems([...newItems]);
+                                                    }}
                                                     icon={<X />}
                                                     tooltip="Remove"
                                                     variant="outline"
