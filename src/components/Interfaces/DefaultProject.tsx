@@ -7,7 +7,6 @@ import { useState } from "react";
 
 const code = `
 \`\`\`python
-
 import unify
 from random import randint, choice
 
@@ -71,8 +70,8 @@ const DefaultProject = ({ projects, logsActions, projectActions, interfaceAction
     return (
         <div className="flex flex-col gap-4 justify-center items-center">
             <div className="mt-4 flex justify-center font-semibold">Please select a project, create a project or get started with the example below</div>
-            <div className="relative w-1/2 h-[700px] overflow-y-auto rounded-md">
-                <div className="absolute z-10 top-1 right-9">
+            <div className="relative w-1/2 h-[700px] overflow-y-auto rounded-md border border-1 p-2">
+                <div className="absolute z-10 top-3 right-12">
                     <ActionButton
                         icon={pending ? <Loader2 className="animate-spin" /> : <Play />}
                         tooltip={disabled ? "A project with this name already exists" : "Run Example"}
@@ -95,7 +94,7 @@ const DefaultProject = ({ projects, logsActions, projectActions, interfaceAction
                         disabled={disabled}
                     />
                 </div>
-                <MarkdownRender content={code} />
+                <MarkdownRender content={code} noBackground />
             </div>
         </div>
     )
