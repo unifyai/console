@@ -105,7 +105,7 @@ const Card = ({
         setInitial(false);
     }, []);
 
-    return (<div className="no-drag relative flex w-full h-full border">
+    return (<div className="relative flex w-full h-full border">
         <div className={"w-full flex-1 flex flex-col items-center " + (tab ? "mt-2" : "justify-center")}>
             <div className="flex gap-4 z-20">
                 {edit && <div className="w-fit">
@@ -125,7 +125,7 @@ const Card = ({
                                     updateItem(item, "table_type")("Data Table");
                                 updateItem(item, "tab")(tab);
                             }}
-                            className="w-64 no-drag"
+                            className="w-64"
                         >
                             {tab}
                         </DropdownMenuItem>)}
@@ -144,7 +144,7 @@ const Card = ({
                             key={idx}
                             onSelect={() => updateItem(item, "table")(tile)}
                             disabled={(tableData[tile]?.logs || []).length == 0}
-                            className="w-64 no-drag"
+                            className="w-64"
                         >
                             {tile}
                             {(tableData[tile]?.logs || []).length ? "" : " (empty table)"}
@@ -176,7 +176,7 @@ const Card = ({
                                     updateItem(item, "context")(undefined);
                                     updateItem(item, "table_type")(tableType);
                             }}
-                            className="w-64 no-drag"
+                            className="w-64"
                         >
                             {tableType}
                         </DropdownMenuItem>)}

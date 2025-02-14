@@ -110,7 +110,7 @@ const InterfaceButtons = ({
                             router.refresh();
                         });
                     }}
-                    className="w-64 no-drag"
+                    className="w-64"
                 >
                     {ctx.name}
                 </DropdownMenuItem>)}
@@ -186,7 +186,7 @@ const InterfaceButtons = ({
                         )]);
                     }}
                     disabled={hiddenItems.length == 0}
-                    className="w-64 no-drag"
+                    className="w-64"
                 >
                     {item.i}
                 </DropdownMenuItem>)}

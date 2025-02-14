@@ -104,16 +104,11 @@ const FocusDialog = ({
                     />
                     <div className={"w-full px-2 transition-all absolute -top-1 flex justify-between " + (edit ? "h-20" : "h-10")}>
                         <div>
-                            <Badge
-                                className="no-drag"
-                                variant="primary"
-                            >
-                                {item.i}
-                            </Badge>
+                            <Badge variant="primary">{item.i}</Badge>
                         </div>
                         <div className="mb-auto">
                             <ActionButton
-                                className="no-drag remove cursor-pointer hover:z-10"
+                                className="remove cursor-pointer hover:z-10"
                                 onClick={() => {
                                     const newMaxTiles = maxTiles.filter(t => t != item.i);
                                     setMaxTiles(newMaxTiles);
@@ -145,7 +140,7 @@ const FocusDialog = ({
                                     else
                                         setMaxTiles([...maxTiles, item.i])
                                 }}
-                                className="w-64 no-drag"
+                                className="w-64"
                             >
                                 {item.i}
                             </DropdownMenuItem>)}

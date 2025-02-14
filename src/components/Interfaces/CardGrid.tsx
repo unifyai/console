@@ -334,7 +334,7 @@ const CardGrid = ({
                         margin={[0, 0]}
                         isDraggable={edit}
                         isResizable={edit}
-                        draggableCancel=".no-drag"
+                        draggableHandle=".drag"
                         resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
                     >
                         {items.map(el => {
@@ -374,7 +374,7 @@ const CardGrid = ({
                                     <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-2 flex justify-between " + (edit ? "h-20" : "h-10")}>
                                         <div className="mb-auto">
                                             <Badge
-                                                className="no-drag cursor-pointer"
+                                                className="cursor-pointer"
                                                 variant="primary"
                                                 onClick={() => edit ? setEditTile(el.i) : undefined}
                                             >
@@ -383,7 +383,7 @@ const CardGrid = ({
                                         </div>
                                         <div className="flex gap-2 mb-auto">
                                             <ActionButton
-                                                className="no-drag cursor-pointer hover:z-10"
+                                                className="cursor-pointer hover:z-10"
                                                 onClick={() => {
                                                     if (!maxTiles.includes(el.i)) {
                                                         const newMaxTiles = [el.i, ...maxTiles];
@@ -399,7 +399,7 @@ const CardGrid = ({
                                             />
                                             {edit && <>
                                                 <ActionButton
-                                                    className="no-drag cursor-pointer hover:z-10"
+                                                    className="cursor-pointer hover:z-10"
                                                     onClick={() => setItems([...items.map(
                                                         it => it.i == el.i ? { ...it, visible: false } : it
                                                     )])}
@@ -408,20 +408,20 @@ const CardGrid = ({
                                                     variant="outline"
                                                 />
                                                 <ActionButton
-                                                    className="no-drag cursor-pointer hover:z-10"
+                                                    className="cursor-pointer hover:z-10"
                                                     onClick={() => setCopied(el.i)}
                                                     icon={<Copy />}
                                                     tooltip={"Copy"}
                                                     variant="outline"
                                                 />
                                                 <ActionButton
-                                                    className="cursor-grab hover:z-10"
+                                                    className="drag cursor-grab hover:z-10"
                                                     icon={<Grip />}
                                                     tooltip="Drag"
                                                     variant="outline"
                                                 />
                                                 <ActionButton
-                                                    className="no-drag remove cursor-pointer hover:z-10"
+                                                    className="remove cursor-pointer hover:z-10"
                                                     onClick={() => {
                                                         const newItems = items.filter(item => item.i != el.i);
                                                         if (newItems.length == 0)
@@ -496,7 +496,7 @@ const CardGrid = ({
                         className="h-8 w-48"
                     />
                     <ActionButton
-                        className="no-drag remove cursor-pointer"
+                        className="remove cursor-pointer"
                         onClick={() => saveTileName()}
                         text="Save"
                         tooltip="Save"
@@ -513,7 +513,7 @@ const CardGrid = ({
                     </span>?</div>
                     <div className="flex justify-end pr-2">
                         <ActionButton
-                            className="w-fit no-drag remove cursor-pointer mr-0 justify-self-end"
+                            className="w-fit remove cursor-pointer mr-0 justify-self-end"
                             onClick={async () => {
                                 if (saveSuccess == undefined) {
                                     let response: ResponseProps | undefined = undefined;
