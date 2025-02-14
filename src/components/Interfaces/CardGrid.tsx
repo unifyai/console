@@ -94,7 +94,8 @@ const CardGrid = ({
     const [resetting, setResetting] = useState<boolean>(false);
 
     // modes, hover and copy button
-    const [mode, setMode] = useState<"edit" | "interactive" | "dashboard">("edit");
+    const [edit, setEdit] = useState(true)
+    const [interactive, setInteractive] = useState(true);
     const [copied, setCopied] = useState<string>();
 
     // data fields
@@ -273,7 +274,8 @@ const CardGrid = ({
 
                 {/* Interface buttons for focus, context, save, reset, add tile, etc. */}
                 <InterfaceButtons
-                    mode={mode}
+                    edit={edit}
+                    interactive={interactive}
                     project_={project_}
                     interface_={interface_}
                     project={project}
@@ -292,7 +294,8 @@ const CardGrid = ({
                     setNewCounter={setNewCounter}
                     setCopied={setCopied}
                     setResetting={setResetting}
-                    setMode={setMode}
+                    setEdit={setEdit}
+                    setInteractive={setInteractive}
                     setFocusDialog={setFocusDialog}
                     setDataPending={setDataPending}
                     setContext={setContext}
@@ -329,8 +332,8 @@ const CardGrid = ({
                         cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
                         rowHeight={100}
                         margin={[0, 0]}
-                        isDraggable={mode == "edit"}
-                        isResizable={mode == "edit"}
+                        isDraggable={edit}
+                        isResizable={edit}
                         draggableCancel=".no-drag"
                         resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
                     >
@@ -343,7 +346,8 @@ const CardGrid = ({
                                     hidden={!el.visible}
                                 >
                                     <Card
-                                        mode={mode}
+                                        edit={edit}
+                                        interactive={interactive}
                                         project={project || undefined}
                                         pending={pending || dataPending || (el.tab == "Table" ? tilePending[el.i] : false)}
                                         fields={fields}
@@ -367,12 +371,12 @@ const CardGrid = ({
                                         updateInterface={updateInterface}
                                         setTableData={setTableData}
                                     />
-                                    <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-2 flex justify-between " + (mode == "edit" ? "h-20" : "h-10")}>
+                                    <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-2 flex justify-between " + (edit ? "h-20" : "h-10")}>
                                         <div className="mb-auto">
                                             <Badge
                                                 className="no-drag cursor-pointer"
                                                 variant="primary"
-                                                onClick={() => mode == "edit" ? setEditTile(el.i) : undefined}
+                                                onClick={() => edit ? setEditTile(el.i) : undefined}
                                             >
                                                 {el.i}
                                             </Badge>
@@ -393,7 +397,7 @@ const CardGrid = ({
                                                 tooltip="Open in Focus Pane"
                                                 variant={maxTiles.includes(el.i) ? "primary" : "outline"}
                                             />
-                                            {mode == "edit" && <>
+                                            {edit && <>
                                                 <ActionButton
                                                     className="no-drag cursor-pointer hover:z-10"
                                                     onClick={() => setItems([...items.map(
@@ -445,7 +449,8 @@ const CardGrid = ({
                     <FocusDialog
                         maxTiles={maxTiles}
                         maxTileItems={maxTileItems}
-                        mode={mode}
+                        edit={edit}
+                        interactive={interactive}
                         project={project || undefined}
                         pending={pending}
                         dataPending={dataPending}
@@ -474,7 +479,7 @@ const CardGrid = ({
                 </Suspense>
             </DialogContent>
         </Dialog>}
-        {mode == "edit" && editTile && <Dialog open={true} onOpenChange={() => {
+        {edit && editTile && <Dialog open={true} onOpenChange={() => {
             setEditTile(undefined);
             setNewTileName(undefined);
         }}>

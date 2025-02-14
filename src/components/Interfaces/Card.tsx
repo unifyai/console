@@ -15,7 +15,8 @@ import { DerivedEntryActions, ContextActions, ItemType, LogsActions, PlotDataPro
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 
 const Card = ({
-    mode,
+    edit,
+    interactive,
     project,
     pending,
     fields,
@@ -39,7 +40,8 @@ const Card = ({
     updateInterface,
     setTableData,
 }: {
-    mode: "edit" | "interactive" | "dashboard",
+    edit: boolean,
+    interactive: boolean,
     project: string | undefined,
     pending: boolean,
     fields: LogFieldsResponseProps,
@@ -106,7 +108,7 @@ const Card = ({
     return (<div className="no-drag relative flex w-full h-full border">
         <div className={"w-full flex-1 flex flex-col items-center " + (tab ? "mt-2" : "justify-center")}>
             <div className="flex gap-4 z-20">
-                {mode == "edit" && <div className="w-fit">
+                {edit && <div className="w-fit">
                     <BaseDropdown
                         button={<ActionButton
                             tooltip="Add Tab"
@@ -116,7 +118,7 @@ const Card = ({
                             size="default"
                         />}
                     >
-                        {(mode != "edit" ? [] : tabTypes).map((tab, idx) => <DropdownMenuItem
+                        {(!edit ? [] : tabTypes).map((tab, idx) => <DropdownMenuItem
                             key={idx}
                             onSelect={() => {
                                 if (item.tab == undefined && tab == "Table")
@@ -129,7 +131,7 @@ const Card = ({
                         </DropdownMenuItem>)}
                     </BaseDropdown>
                 </div>}
-                {tab && mode == "edit" && tab == "View" && <div className="w-fit">
+                {tab && edit && tab == "View" && <div className="w-fit">
                     <BaseDropdown
                         button={<ActionButton
                             tooltip="Select Table"
@@ -138,7 +140,7 @@ const Card = ({
                             size="default"
                         />}
                     >
-                        {(mode != "edit" ? [] : tableNames).map((tile, idx) => <DropdownMenuItem
+                        {(!edit ? [] : tableNames).map((tile, idx) => <DropdownMenuItem
                             key={idx}
                             onSelect={() => updateItem(item, "table")(tile)}
                             disabled={(tableData[tile]?.logs || []).length == 0}
@@ -149,7 +151,7 @@ const Card = ({
                         </DropdownMenuItem>)}
                     </BaseDropdown>
                 </div>}
-                {tab && mode == "edit" && tab == "Table" && <div className="w-fit">
+                {tab && edit && tab == "Table" && <div className="w-fit">
                     <BaseDropdown
                         button={<ActionButton
                             tooltip="Select Table Type"
@@ -193,14 +195,14 @@ const Card = ({
                 updateItem={updateItem}
             /></div>}
             {tab?.includes("Plot") && <LogsPlot
-                interactive={["edit", "interactive"].includes(mode)}
+                interactive={interactive}
                 logs={plotData[item.i]?.plotLogs || []}
                 fields={plotData[item.i]?.plotFields || {}}
                 item={item}
                 updateItem={updateItem}
             />}
             {tab?.includes("Table") && <LogsTable
-                interactive={["edit", "interactive"].includes(mode)}
+                interactive={interactive}
                 project={project}
                 pending={pending}
                 tab={tab}

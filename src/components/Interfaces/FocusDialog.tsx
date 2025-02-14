@@ -16,7 +16,8 @@ import { X } from "lucide-react";
 const FocusDialog = ({
     maxTiles,
     maxTileItems,
-    mode,
+    edit,
+    interactive,
     project,
     pending,
     dataPending,
@@ -44,7 +45,8 @@ const FocusDialog = ({
 }: {
     maxTiles: string[],
     maxTileItems: (TileProps | undefined)[],
-    mode: "edit" | "interactive" | "dashboard",
+    edit: boolean,
+    interactive: boolean,
     project: string | undefined,
     pending: boolean,
     dataPending: boolean,
@@ -75,7 +77,8 @@ const FocusDialog = ({
             item
                 ? <div className="h-full relative pt-2">
                     <Card
-                        mode={mode}
+                        edit={edit}
+                        interactive={interactive}
                         project={project}
                         pending={pending || dataPending || (item.tab == "Table" ? tilePending[item.i] : false)}
                         tableNames={tableNames}
@@ -99,7 +102,7 @@ const FocusDialog = ({
                         updateInterface={updateInterface}
                         setTableData={setTableData}
                     />
-                    <div className={"w-full px-2 transition-all absolute -top-1 flex justify-between " + (mode == "edit" ? "h-20" : "h-10")}>
+                    <div className={"w-full px-2 transition-all absolute -top-1 flex justify-between " + (edit ? "h-20" : "h-10")}>
                         <div>
                             <Badge
                                 className="no-drag"

@@ -11,9 +11,11 @@ import { Context } from "@/types/evals/grid";
 import { useRouter } from "next/navigation";
 import { SetStateAction } from "react";
 import { ResponseProps } from "@/types/common";
+import { Switch } from "../UI/switch";
 
 const InterfaceButtons = ({
-    mode,
+    edit,
+    interactive,
     project_,
     interface_,
     project,
@@ -32,14 +34,16 @@ const InterfaceButtons = ({
     setNewCounter,
     setCopied,
     setResetting,
-    setMode,
+    setEdit,
+    setInteractive,
     setFocusDialog,
     setDataPending,
     setContext,
     setSaveDialog,
     updateInterface,
 }: {
-    mode: "edit" | "interactive" | "dashboard",
+    edit: boolean,
+    interactive: boolean,
     project_: string | null,
     interface_: string | null,
     project: string | null,
@@ -58,7 +62,8 @@ const InterfaceButtons = ({
     setNewCounter: (value: SetStateAction<number>) => void,
     setCopied: (value: SetStateAction<string | undefined>) => void,
     setResetting: (value: SetStateAction<boolean>) => void,
-    setMode: (value: SetStateAction<"edit" | "interactive" | "dashboard">) => void,
+    setEdit: (value: SetStateAction<boolean>) => void,
+    setInteractive: (value: SetStateAction<boolean>) => void,
     setFocusDialog: (value: SetStateAction<boolean>) => void,
     setDataPending: (value: SetStateAction<boolean>) => void,
     setContext: (value: SetStateAction<string | undefined>) => void,
@@ -126,17 +131,17 @@ const InterfaceButtons = ({
                 disabled={anyTilePending || !project || pending}
                 onClick={async () => updateInterface(savedInterface).then(() => {
                     setResetting(true);
-                    setMode("edit");
+                    setEdit(true);
                     router.refresh();
                 })}
             />
             <ActionButton
                 className="transition-all"
-                tooltip={(mode != "edit" || !project) ? "Select a project first" : "Add new tile"}
+                tooltip={(!edit || !project) ? "Select a project first" : "Add new tile"}
                 icon={<Plus />}
                 text="Add Tile"
                 variant="outline"
-                disabled={mode != "edit" || !project || pending}
+                disabled={!edit || !project || pending}
                 onClick={() => {
                     setItems([
                         ...items,
@@ -202,17 +207,16 @@ const InterfaceButtons = ({
                 }}
             />
             <ActionButton
-                tooltip="Switch mode"
-                text={mode}
-                variant="outline"
-                onClick={() => {
-                    const newMode = mode == "edit"
-                        ? "interactive"
-                        : mode == "interactive"
-                            ? "dashboard"
-                            : "edit";
-                    setMode(newMode);
-                }}
+                tooltip="Switch edit mode"
+                text={"edit"}
+                variant={edit ? "primary" : "outline"}
+                onClick={() => setEdit(!edit)}
+            />
+            <ActionButton
+                tooltip="Switch interactive mode"
+                text={"interactive"}
+                variant={interactive ? "primary" : "outline"}
+                onClick={() => setInteractive(!interactive)}
             />
         </div>
     )
