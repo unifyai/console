@@ -7,7 +7,6 @@ import { toComputableValue, computeStatistic } from "./common";
 import { formatNumber } from "../formatNumber";
 
 const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
-const foreground = getComputedStyle(document.documentElement).getPropertyValue('--foreground').trim()
 
 /** Utility functions to draw UI elements shared across plot types, including: 
  * X and Y axes and ticks
@@ -38,8 +37,8 @@ const drawAxes = (
     /* Initialize x and y axes */
     const height = dimensions.height; 
     const width = dimensions.width;   
-    xAxis = svg.select(".xAxis").attr("transform", `translate(0,${height - margins.bottom})`)
-    yAxis = svg.select(".yAxis").attr("transform", `translate(${margins.left},0)`)
+    xAxis = svg.select(".xAxis")
+    yAxis = svg.select(".yAxis")
 
     /* Adjust tick formatting */
     if (plotType === "Bar Chart") {
@@ -62,7 +61,7 @@ const drawAxes = (
     }
     yTickFormatter = d3
         .axisLeft(y as d3.ScaleLinear<number, number, never> | d3.ScaleLinear<number, number, never>)
-        .tickValues(plotType === "Histogram"
+        .tickValues((plotType === "Histogram") || (plotType === "Bar Chart" && yTicks.every(tick => tick >= 0))
             ? yTicks.length > 1 ? yTicks.slice(1) : yTicks 
             : yTicks as number[]
         )
@@ -87,29 +86,23 @@ const drawAxes = (
     /* Add x = 0 and / or y = 0 line, if applicable */
     const zeroXLine = svg.selectAll(".x-zero")
     const zeroYLine = svg.selectAll(".y-zero")
-    if (["Line Chart", "Scatter Plot"].includes(plotType) && Math.min(...xTicks) < 0 && Math.max(...xTicks) > 0) {
+    if (["Line Chart", "Scatter Plot"].includes(plotType) && Math.min(...xTicks) <= 0 && Math.max(...xTicks) >= 0) {
         zeroXLine
             .attr("x1", x(0 as any) as number)
             .attr("x2", x(0 as any) as number)
             .attr("y1", margins.top)
             .attr("y2", height - margins.bottom)
-            .attr("stroke", foreground)
-            .attr("stroke-dasharray", "5,5")
-            .attr("stroke-width", 1)
             .style("opacity", 1);
     }  
     else {
         zeroXLine.style("opacity", 0);
     }
-    if (["Bar Chart", "Line Chart", "Scatter Plot"].includes(plotType) && Math.min(...yTicks) < 0 && Math.max(...yTicks) > 0) {
+    if (["Bar Chart", "Line Chart", "Scatter Plot"].includes(plotType) && Math.min(...yTicks) <= 0 && Math.max(...yTicks) >= 0) {
         zeroYLine
             .attr("x1", margins.left)
             .attr("x2", width)
             .attr("y1", y(0 as any) as number)
             .attr("y2", y(0 as any) as number)
-            .attr("stroke", foreground)
-            .attr("stroke-dasharray", "5,5")
-            .attr("stroke-width", 1)
             .style("opacity", 1);
     }
     else {
@@ -130,22 +123,16 @@ export const drawBorders = (
       .attr("y1", height - margins.bottom )
       .attr("x2", width + margins.left)
       .attr("y2", height - margins.bottom)
-      .attr("stroke", foreground)
-      .attr("stroke-width", 0.5);
     svg.select(".leftLine")
       .attr("x1", margins.left)
       .attr("y1", margins.top)
       .attr("x2", margins.left)
       .attr("y2", height - margins.bottom)
-      .attr("stroke", foreground)
-      .attr("stroke-width", 0.5);
     svg.select(".topLine")
       .attr("x1", 0)
       .attr("y1", margins.top)
       .attr("x2", width + margins.left)
       .attr("y2", margins.top)
-      .attr("stroke", foreground)
-      .attr("stroke-width", 0.5);
 };
 
 const tooltipTemplate = (data: InfoCardData) => {
@@ -332,21 +319,20 @@ export const drawBarChart = (
 
     // Prepare data
     const properties = Object.entries(fields).map(([name]) => name);
-    const xAxis = selectedXAxisProperty === "Log Time" ? properties[0] : selectedXAxisProperty;
-    const yAxis = selectedYAxisProperty;
-
+    const xAxisProperty = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties.at(0);
+    const yAxisProperty = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : properties.at(0);
     let data: DataLabel[] = [];
-    if (xAxis && yAxis) {
+    if (xAxisProperty && yAxisProperty) {
         const filteredData = logs.filter(log => {
-            const hasX = hasProperty(fields, xAxis, log, xTable)
-            const hasY = hasProperty(fields, yAxis, log, yTable)
+            const hasX = hasProperty(fields, xAxisProperty, log, xTable)
+            const hasY = hasProperty(fields, yAxisProperty, log, yTable)
             return hasX && hasY
         });
         const statistic = (vals: number[]) => parseFloat(computeStatistic(metric, vals));
         const groups = d3.rollup(
             filteredData,
-            v => statistic(v.map(log => toComputableValue(getValue(fields, yAxis, log, yTable)))),
-            d => JSON.stringify(getValue(fields, xAxis, d, xTable))
+            v => statistic(v.map(log => toComputableValue(getValue(fields, yAxisProperty, log, yTable)))),
+            d => JSON.stringify(getValue(fields, xAxisProperty, d, xTable))
         );
         data = Array.from(groups, ([group, value]) => [group, value]) as DataLabel[];
         data.sort((a, b) => {
@@ -379,7 +365,10 @@ export const drawBarChart = (
     }
     let yDomain = [minY, maxY]
     const xScale = d3.scaleBand().domain(xDomain).range(xRange).padding(0.2);
-    const yRange = [height - margins.bottom - axisPadding, margins.top + axisPadding]
+    const yRange = [
+        height - margins.bottom - axisPadding * Number(data.some(d => d[1] < 0)), 
+        margins.top + axisPadding * Number(data.some(d => d[1] > 0))
+    ]
     const yScale = (scaleY === "log" ? d3.scaleLog() : d3.scaleLinear()).domain(yDomain).range(yRange);
 
     // Draw axes
@@ -422,11 +411,11 @@ export const drawBarChart = (
         const currentKey = d[0];
         tooltip.html(tooltipTemplate({
             x: { 
-                name: xAxis!, 
+                name: xAxisProperty!, 
                 value: d[0] 
             },
             y: { 
-                name: `${yAxis}(${metric})`,
+                name: `${yAxisProperty}(${metric})`,
                 value: d[1] 
             }
         })).transition().style("opacity", 1);
@@ -1070,7 +1059,7 @@ export const drawHistogram = (
     const x = xScale().domain([minX, maxX]).range(xRange)
     
     // Set bins
-    const step = xAxisProperty && fields[xAxisProperty].data_type === "int" ? Math.round((maxX - minX)/binCount) : (maxX - minX)/binCount 
+    const step = (maxX - minX)/binCount 
     const thresholds = d3.range(minX, maxX, step)
     const binGenerator = d3.bin().domain([minX, maxX]).thresholds(thresholds);
     const buckets = binGenerator(data);

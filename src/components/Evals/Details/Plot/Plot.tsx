@@ -275,13 +275,13 @@ const LogsPlot = ({ logs, fields}: {
             </defs>
             <g className="plotData" clipPath="url(#clip)"/>
             <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="placeholderText" ref={placeholderTextRef}/>
-            <line className="bottomLine"/>
-            <line className="leftLine"/>
-            <line className="topLine"/>
-            <line style={{opacity: 0}} className="x-zero"/>
-            <line style={{opacity: 0}} className="y-zero"/>
-            <g className="xAxis"/>
-            <g className="yAxis"/>
+            <line className="bottomLine" stroke="var(--foreground)" stroke-width="0.5"/>
+            <line className="leftLine" stroke="var(--foreground)" stroke-width="0.5"/>
+            <line className="topLine" stroke="var(--foreground)" stroke-width="0.5"/>
+            <line className="x-zero" stroke="var(--foreground)" stroke-width="1" stroke-dasharray="5.5" style={{opacity: 0}}/>
+            <line className="y-zero" stroke="var(--foreground)" stroke-width="1" stroke-dasharray="5.5" style={{opacity: 0}}/>
+            <g className="xAxis" transform={`translate(0, ${dimensions.height - margins.bottom})`}/>
+            <g className="yAxis" transform={`translate(${margins.left}, 0)`}/>
         </svg>
         <div
             style={{
@@ -301,7 +301,7 @@ const LogsPlot = ({ logs, fields}: {
             className="plotTooltip gap-2 overflow-hidden"
         />
         <div
-            style={{opacity: 0, "scrollbar-width": "none"} as React.CSSProperties} 
+            style={{opacity: 0, "scrollbar-width": "none", backgroundColor: "var(--background)"} as React.CSSProperties} 
             className="groupingKey absolute bottom-20 right-2 z-10 py-2 px-3 flex flex-col gap-1 overflow-auto w-[100px] h-[150px] rounded-md border-2 border-muted"
         />
     </div>
