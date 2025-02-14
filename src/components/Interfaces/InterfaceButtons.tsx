@@ -1,7 +1,7 @@
 "use client";
 
 import { Interface, TileProps } from "@/types/evals/grid";
-import { Eye } from "lucide-react";
+import { Eye, Hammer, PencilRuler, SquareMousePointer } from "lucide-react";
 import { Plus } from "lucide-react";
 import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
@@ -12,6 +12,8 @@ import { useRouter } from "next/navigation";
 import { SetStateAction } from "react";
 import { ResponseProps } from "@/types/common";
 import { Switch } from "../UI/switch";
+import { Label } from "../UI/label";
+import Tooltip from "../Common/Misc/Tooltip";
 
 const InterfaceButtons = ({
     edit,
@@ -206,18 +208,22 @@ const InterfaceButtons = ({
                     setCopied(undefined);
                 }}
             />
-            <ActionButton
-                tooltip="Switch edit mode"
-                text={"edit"}
-                variant={edit ? "primary" : "outline"}
-                onClick={() => setEdit(!edit)}
-            />
-            <ActionButton
-                tooltip="Switch interactive mode"
-                text={"interactive"}
-                variant={interactive ? "primary" : "outline"}
-                onClick={() => setInteractive(!interactive)}
-            />
+            <div className="flex items-center gap-2 border rounded-md p-1">
+                <Switch id="edit" checked={edit} onCheckedChange={() => setEdit(!edit)} />
+                <Label htmlFor="edit">
+                    <Tooltip content="Edit">
+                        <Hammer name="edit" size={18} color={edit ? "var(--primary)" : undefined} />
+                    </Tooltip>
+                </Label>
+            </div>
+            <div className="flex items-center gap-2 border rounded-md p-1">
+                <Switch id="interactive" checked={interactive} onCheckedChange={() => setInteractive(!interactive)} />
+                <Label htmlFor="interactive">
+                    <Tooltip content="Interactive">
+                        <SquareMousePointer name="interactive" size={18} color={interactive ? "var(--primary)" : undefined} />
+                    </Tooltip>
+                </Label>
+            </div>
         </div>
     )
 };
