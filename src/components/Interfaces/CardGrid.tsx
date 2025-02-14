@@ -97,7 +97,7 @@ const CardGrid = ({
     const [edit, setEdit] = useState(true)
     const [interactive, setInteractive] = useState(true);
     const [copied, setCopied] = useState<string>();
-
+    const [deleting, setDeleting] = useState(false);
     // data fields
     const [interfaces, setInterfaces] = useState(interfaces_);
     const [projects, setProjects] = useState<string[]>(projects_ || []);
@@ -229,9 +229,11 @@ const CardGrid = ({
 
     return (<div className="w-full h-full overflow-auto" ref={gridRef}>
         <Tabs value={interface_ || undefined} onValueChange={(value: string | undefined) => {
-            setPending(true);
-            setDataPending(true);
-            setInterface(value || null);
+            if (!deleting) {
+                setPending(true);
+                setDataPending(true);
+                setInterface(value || null);
+            }
         }} className="w-full tutorial-details-panel">
             <div className="sticky top-0 z-10 bg-background p-2 flex justify-between">
                 {/* Project dropdown and add/delete buttons */}
@@ -268,6 +270,7 @@ const CardGrid = ({
                     interfaceActions={interfaceActions}
                     setInterface={setInterface}
                     setInterfaces={setInterfaces}
+                    setDeleting={setDeleting}
                     setPending={setPending}
                     setTilePending={setTilePending}
                 />}

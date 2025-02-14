@@ -1,4 +1,4 @@
-import { Trash } from "lucide-react";
+import { Trash, X } from "lucide-react";
 
 import { Plus } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
@@ -24,6 +24,7 @@ const InterfaceTabs = ({
     interfaceActions,
     setInterface,
     setInterfaces,
+    setDeleting,
     setPending,
     setTilePending,
 }: {
@@ -39,6 +40,7 @@ const InterfaceTabs = ({
     interfaceActions: InterfaceActions,
     setInterface: (value: string | null) => void,
     setInterfaces: (value: SetStateAction<string[]>) => void,
+    setDeleting: (value: boolean) => void,
     setPending: (value: SetStateAction<boolean>) => void,
     setTilePending: (value: SetStateAction<{ [key: string]: boolean }>) => void
 }) => {
@@ -55,7 +57,7 @@ const InterfaceTabs = ({
                     {interfaces.map((int_, idx) => <TabsTrigger
                         key={idx}
                         value={int_}
-                        className="flex flex-row gap-2 data-[state=active]:text-accent"
+                        className="relative flex flex-row gap-2 data-[state=active]:text-accent"
                     >
                         {interface_ == int_ ? <Input
                             value={interface_2}
@@ -79,6 +81,22 @@ const InterfaceTabs = ({
                             }}
                             className="px-0 h-5 w-20 bg-transparent border-none outline-none focus:outline-none focus:border-none focus-visible:ring-0"
                         /> : <div className="h-5 w-20 text-center">{int_}</div>}
+                        <div
+                            className="z-10 absolute top-0 right-0 cursor-pointer mb-auto hover:text-white hover:bg-primary rounded-full"
+                            onMouseEnter={() => interface_ != int_ && setDeleting(true)}
+                            onMouseLeave={() => interface_ != int_ && setDeleting(false)}
+                            onClick={() => {
+                                interfaceActions.delete(int_, project, true).then(() => {
+                                    if (interface_ == int_)
+                                        setPending(true);
+                                    interfaceActions.delete(int_, project, true).then(() => {
+                                        setInterfaces(interfaces.filter(i => i != int_));
+                                    });
+                                });
+                            }}
+                        >
+                            <X size={14} />
+                        </div>
                     </TabsTrigger>)}
                 </div>
             </TabsList>}
@@ -104,22 +122,6 @@ const InterfaceTabs = ({
                                 setInterface(newInterfaceName);
                                 setInterface_2(newInterfaceName);
                             });
-                        })
-                    }}
-                />
-                <ActionButton
-                    variant="outline"
-                    icon={<Trash />}
-                    tooltip={interfaces.length <= 1 ? "Projects need to have at least one interface" : "Delete current active interface"}
-                    disabled={pending || interfaces.length <= 1}
-                    onClick={() => {
-                        interfaceActions.delete(interface_ as string, project, true).then(() => {
-                            setPending(true);
-                            interfaceActions.delete(interface_ as string, project, true).then(() => {
-                                setInterfaces(interfaces.filter(i => i != interface_));
-                                setInterface(null);
-                                setInterface_2("");
-                            })
                         })
                     }}
                 />
