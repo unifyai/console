@@ -9,21 +9,32 @@ import PlotRegression from "./Buttons/PlotRegression";
 import PlotGroupBy from "./Buttons/PlotGroupBy";
 import PlotReset from "./Buttons/PlotReset";
 import PlotBins from "./Buttons/PlotBins";
+import PlotRefresh from "./Buttons/PlotRefresh";
 
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
-import { LogFieldsResponseProps, LogProps } from "@/types/evals/logs";
+import { LogFieldsResponseProps, LogProps, PlotArguments } from "@/types/evals/logs";
+import { LogsActions } from "@/types/evals/grid";
 import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram, checkLogScalability } from "@/utils/evals/plot";
 
 import PlotAxis from "./Buttons/PlotAxis";
 import { ItemType, TileProps } from "@/types/evals/grid";
 
-const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
+const LogsPlot = ({ interactive, logs_, fields, item, updateItem, project, pending, args, logsActions }: {
     interactive: boolean,
-    logs: LogProps[] | undefined,
+    logs_: LogProps[] | undefined,
     fields: LogFieldsResponseProps,
     item: TileProps,
-    updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void
+    updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
+    project: string | undefined,
+    pending: boolean,
+    args: PlotArguments,
+    logsActions: LogsActions
 }) => {
+
+    // Init logs and handle local updates
+    const [logs, setLogs] = useState(logs_)
+    useEffect(() => {setLogs(logs_)}, [logs_])
+
     // Initialize refs and container dimensions
     let svgRef = useRef(null);
     let containerRef = useRef(null);
@@ -63,7 +74,7 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
             .attr("viewBox", [0, 0, dimensions.width, dimensions.height]);
 
         // Update clipbox dimensions
-        svg.select("#clip-rect")
+        d3.select("#clip-rect")
             .attr("x", margins.left)
             .attr("y", margins.top)
             .attr("width", dimensions.width - margins.left - margins.right)
@@ -79,8 +90,8 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
         if (plotType === "Line Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                const adjustedScaleX = checkLogScalability(logs, xTable, selectedXAxisProperty, scaleX, updateItem(item, "plot_scale_x"), setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, yTable,selectedYAxisProperty, scaleY, updateItem(item, "plot_scale_y"), setLogScaleYEnabled)
+                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, updateItem(item, "plot_scale_x"), setLogScaleXEnabled)
+                const adjustedScaleY = checkLogScalability(logs, fields, yTable,selectedYAxisProperty, scaleY, updateItem(item, "plot_scale_y"), setLogScaleYEnabled)
                 drawLineChart(
                     svg,
                     adjustedScaleX,
@@ -169,8 +180,8 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
         else {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                const adjustedScaleX = checkLogScalability(logs, xTable, selectedXAxisProperty, scaleX, updateItem(item, "plot_scale_x"), setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, yTable, selectedYAxisProperty, scaleY, updateItem(item, "plot_scale_y"), setLogScaleYEnabled)
+                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, updateItem(item, "plot_scale_x"), setLogScaleXEnabled)
+                const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, updateItem(item, "plot_scale_y"), setLogScaleYEnabled)
                 drawScatterPlot(
                     svg,
                     adjustedScaleX,
@@ -212,6 +223,12 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
         binCounts,
         showRegression
     ]);
+
+
+    // Adjust customization button size to card size
+    const scaleFactor = Math.min(1, Math.max(0.5, dimensions.height / 500));
+    const translateX = Math.max(0, (1200 - dimensions.height) * 0.01) / scaleFactor;
+    const translateY = Math.max(0, (200 - dimensions.height) * 0.01) / scaleFactor;
 
     return (
         <div className="flex w-full h-full bg-background rounded-md relative my-2 LogsPlot" ref={containerRef}>
@@ -259,28 +276,28 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
             </div>
 
             {/* Customization */}
-            {selectedXAxisProperty && selectedYAxisProperty &&
-                <>
-                    <div className="absolute top-12 right-3 z-10 PlotReset">
+            <div 
+                className="absolute z-10 flex right-3 top-12 flex-col gap-1.5"
+                style={{transform: `scale(${scaleFactor}) translateX(${translateX}px) translateY(${translateY}px)`, transformOrigin: 'top left'}}
+            >
+                {project &&
+                    <PlotRefresh project={project} item={item} pending={pending} args={args} setLogs={setLogs} logsActions={logsActions} updateItem={updateItem} logs={logs}/>
+                }
+                {((plotType === "Histogram" && selectedXAxisProperty) || (selectedXAxisProperty && selectedYAxisProperty)) &&
+                    <>
                         <PlotReset
                             svgRef={svgRef}
                             setSelectedXAxisProperty={updateItem(item, "x_axis")}
                             setSelectedYAxisProperty={updateItem(item, "y_axis")}
                             setGroupByProperty={updateItem(item, "plot_group_by")}
                         />
-                    </div>
-                    {plotType === "Histogram"
-                        ?   <div className="absolute top-24 right-3 z-10 PlotBins">
-                                <PlotBins binCount={binCount} binCounts={binCounts} setBinCount={updateItem(item, "bin_count")}/>
-                            </div>
-                        :   plotType != "Bar Chart"
-                            ?   <div className="absolute top-24 right-3 z-10 PlotGroupBy">
-                                    <PlotGroupBy fields={fields} groupBy={groupByProperty} setGroupBy={updateItem(item, "plot_group_by")} logs={logs}/>
-                                </div>
-                            :   null
-                    }
-                    {!["Histogram", "Bar Chart"].includes(plotType) &&
-                        <div className="absolute top-36 right-3 z-10 PlotScale">
+                        {plotType === "Histogram"
+                            ?   <PlotBins binCount={binCount} binCounts={binCounts} setBinCount={updateItem(item, "bin_count")}/>
+                            :   plotType != "Bar Chart"
+                                ?   <PlotGroupBy fields={fields} groupBy={groupByProperty} setGroupBy={updateItem(item, "plot_group_by")} logs={logs}/>
+                                :   null
+                        }
+                        {!["Histogram", "Bar Chart"].includes(plotType) &&
                             <PlotScale 
                                 scaleX={scaleX} 
                                 scaleY={scaleY}
@@ -291,24 +308,22 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                                 selectedXAxisProperty={selectedXAxisProperty} 
                                 fields={fields}
                             />
-                        </div>
-                    }
-                    {plotType === "Scatter Plot" && 
-                        <div className="absolute top-48 right-3 z-10 PlotRegressioncale">
+                        }
+                        {plotType === "Scatter Plot" && 
                             <PlotRegression 
                                 showRegression={showRegression} 
                                 setShowRegression={updateItem(item, "regression_line")}
                             />
-                        </div>
-                    }
-                </>
-            }
+                        }
+                    </>
+                }
+            </div>
 
             {/* Chart */}
             <svg ref={svgRef} className="flex w-full h-full absolute z-0">
                 <defs>
                     <clipPath id="clip">
-                        <rect id={"clip-rect"} x={margins.left} y={margins.top} width={dimensions.width - margins.left - margins.right} height={dimensions.height - margins.top - margins.bottom}/>
+                        <rect id={"clip-rect"}/>
                     </clipPath>
                 </defs>
                 <g className="plotData" clipPath="url(#clip)"/>
@@ -316,6 +331,8 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                 <line className="bottomLine" />
                 <line className="leftLine" />
                 <line className="topLine" />
+                <line className="x-zero"/>
+                <line className="y-zero"/>
                 <g className="xAxis" />
                 <g className="yAxis" />
             </svg>
@@ -335,11 +352,11 @@ const LogsPlot = ({ interactive, logs, fields, item, updateItem }: {
                     opacity: 0,
                     zIndex: 1000
                 }}
-                className="plotTooltip grid grid-cols-2 gap-2 overflow-hidden"
+                className="plotTooltip gap-2 overflow-hidden"
             />
             <div
-                style={{ opacity: 0 }}
-                className="groupingKey absolute bottom-20 right-2 z-10 py-2 px-3 flex flex-col gap-1 overflow-auto w-[100px] h-[150px] rounded-md border-2 border-muted"
+                style={{opacity: 0, "scrollbar-width": "none"} as React.CSSProperties} 
+                className="groupingKey absolute bottom-20 right-2 z-5 py-2 px-3 flex flex-col gap-1 overflow-auto w-[100px] h-[150px] rounded-md border-2 border-muted"
             />
         </div>
     );

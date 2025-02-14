@@ -1,5 +1,5 @@
 import CardGrid from "@/components/Interfaces/CardGrid";
-import { TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, LogItemProps } from "@/types/evals/logs";
+import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, LogItemProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { Context, ContextActions, DerivedEntryActions, FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
@@ -114,7 +114,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
     /* Handle grouping */
 	const groupingExpressions = tableItems.map(item => item.grouping ? item.grouping : null);
 
-    // Aggregate table arguments
+    // Aggregate table arguments and init plot arguments
     let tableArguments: TableArguments = tableItems.map((item, idx) => {
         let tableArguments_: TableArguments = { [item.i]: {getLogs_parameters: { filter_expr: "" }, available_fields: {}} };
         const filterExpression = filterExpressions[idx];
@@ -124,6 +124,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         if (item.context) tableArguments_[item.i].getLogs_parameters["context"] = item.context;
         return tableArguments_;
     }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
+    const plotArguments: PlotArguments = Object.fromEntries(Object.entries(tableArguments).map(([table, args]) => [table, args.getLogs_parameters]));
 
     // Get logs with pagination, and plot logs subset for all tables
     let allLogsData: LogsResponseProps[] = Array(tableItems.length).fill({ params: {}, logs: [], count: 0, groups: [] });
@@ -167,6 +168,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
 
         // fetch plot data
         await Promise.all(plotItems.map(async (item) => {
+
             // get all tables that are used in the plot
             let tableIdx1 = -1;
             if (item.x_axis && item.x_axis.includes("."))
@@ -179,18 +181,26 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
             // fetch plot data for each table
             const plotData_ = (await Promise.all(tables.map(async (tableIdx) => {
                 const table = tableItems[tableIdx];
+                
+                // aggregate plot arguments
                 const context = table?.context;
                 const xAxis = context ? processContext("merge", context, item.x_axis) : item.x_axis;
                 const yAxis = context ? processContext("merge", context, item.y_axis) : item.y_axis;
                 const group = context ? processContext("merge", context, item.plot_group_by) : item.plot_group_by;
-                let data: LogsResponseProps = { params: {}, logs: [], count: 0, groups: [] };
                 const filterExpression = filterExpressions[tableIdx];
+                if (filterExpression) plotArguments[table.i]["filter_expr"] = filterExpression
+                if (context) plotArguments[table.i]["context"] = context
+
+                // get plot data
+                let data: LogsResponseProps = { params: {}, logs: [], count: 0, groups: [] };
                 if (xAxis) {
                     let subset = xAxis.split(".").length > 1 ? xAxis.split(".")[1] : null;
                     if (yAxis && yAxis.split(".").length > 1)
                         subset += `&${yAxis.split(".")[1]}`
                     if (group && group.split(".").length > 1)
                         subset += `&${group.split(".")[1]}`
+                    if (subset) plotArguments[table.i]["subset"] = subset
+    
                     data = await logsActions.get(project, context ?? null, filterExpression, null, null, subset, null, null, 0, null, Date.now().toString());
 
                     /* Replace param indices with actual param values */
@@ -203,15 +213,17 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                             return {...log, params: logParams}
                         })
 
-                    } 
-
+                    }
+                    
                 }
                 return { [table.i]: {
                     plotLogs: data.logs as LogProps[] || [],
+                    plotArguments: plotArguments,
                     plotFields: plotFields
                 } };
             }))).reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
+            // process plot data
             if (Object.keys(plotData_).length > 0) {
                 // if non-zero tables are used in the plot, merge the plot data
                 const minLogLength = Math.min(...Object.values(plotData_).map(data => data.plotLogs.length));
@@ -229,6 +241,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                             return { ...acc, ...prefixedLog };
                         }, {}) as LogProps;
                     }) : [],
+                    plotArguments: plotArguments,
                     plotFields: plotFields
                 };
                 plotData[item.i] = mergedPlotData;
@@ -237,9 +250,11 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                 // if no tables are used in the plot, return empty plot data
                 plotData[item.i] = {
                     plotLogs: [],
+                    plotArguments: {},
                     plotFields: plotFields
                 }
             }
+    
         }));
     }
 

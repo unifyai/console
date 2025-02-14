@@ -73,8 +73,8 @@ const LogsPlot = ({ logs, fields}: {
         if (plotType === "Line Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                const adjustedScaleX = checkLogScalability(logs, "", selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, "", selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
+                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
+                const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawLineChart(
                     svg, 
                     adjustedScaleX,
@@ -104,8 +104,8 @@ const LogsPlot = ({ logs, fields}: {
         else if (plotType  === "Bar Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                const adjustedScaleX = checkLogScalability(logs, "", selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, "", selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
+                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
+                const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawBarChart(
                     svg, 
                     adjustedScaleX,
@@ -165,8 +165,8 @@ const LogsPlot = ({ logs, fields}: {
         else {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 d3.select(placeholderTextRef.current).text("");
-                const adjustedScaleX = checkLogScalability(logs, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
+                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
+                const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawScatterPlot(
                     svg, 
                     adjustedScaleX,
@@ -278,13 +278,15 @@ const LogsPlot = ({ logs, fields}: {
             <line className="bottomLine"/>
             <line className="leftLine"/>
             <line className="topLine"/>
+            <line style={{opacity: 0}} className="x-zero"/>
+            <line style={{opacity: 0}} className="y-zero"/>
             <g className="xAxis"/>
             <g className="yAxis"/>
         </svg>
         <div
             style={{
                 position: "fixed",
-                minWidth: "160px",
+                maxWidth: "300px",
                 pointerEvents: "none",
                 background: "var(--background)",
                 border: "1px solid var(--foreground)",
@@ -296,10 +298,10 @@ const LogsPlot = ({ logs, fields}: {
                 opacity: 0,
                 zIndex: 1000
             }}
-            className="plotTooltip absolute py-4 px-6 z-10 shadow-md rounded-lg bg-white grid grid-cols-2 gap-2 overflow-hidden max-w-[500px] max-h-[300px]"
+            className="plotTooltip gap-2 overflow-hidden"
         />
         <div
-            style={{opacity: 0}} 
+            style={{opacity: 0, "scrollbar-width": "none"} as React.CSSProperties} 
             className="groupingKey absolute bottom-20 right-2 z-10 py-2 px-3 flex flex-col gap-1 overflow-auto w-[100px] h-[150px] rounded-md border-2 border-muted"
         />
     </div>

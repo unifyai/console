@@ -4,7 +4,7 @@ import SettingButton from "@/components/Common/Buttons/Setting";
 import ActionButton from "@/components/Common/Buttons/Action";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
-import { ChevronDown, ChartLine } from "lucide-react";
+import { ChevronDown, Scale3d } from "lucide-react";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
 
 const PlotScale = ({scaleX, scaleY, setScaleX, setScaleY, logScaleXEnabled, logScaleYEnabled, selectedXAxisProperty, fields}: {
@@ -49,7 +49,7 @@ const PlotScale = ({scaleX, scaleY, setScaleX, setScaleY, logScaleXEnabled, logS
     }
 
     // Main component
-    const button = <SettingButton tooltip={"Set axes scales"} icon={<ChartLine/>}/>
+    const button = <SettingButton tooltip={"Set axes scales"} icon={<Scale3d/>}/>
     return (
         <BaseDropdown button={button}>
             <div className="flex flex-col gap-3 p-2">

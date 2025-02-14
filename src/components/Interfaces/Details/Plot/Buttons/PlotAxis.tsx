@@ -32,7 +32,7 @@ const PlotAxis = ({ interactive, fields, axisProperty, setAxisProperty, axis, pl
         properties = Object
             .entries(fields)
             .map(([name]) => name);
-    } else if (plotType === "Histogram") {
+    } else if (plotType === "Histogram" || plotType === "Line Chart") {
         properties = Object
             .entries(fields)
             .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp"))

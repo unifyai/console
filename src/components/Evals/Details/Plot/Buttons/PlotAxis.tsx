@@ -32,7 +32,7 @@ const PlotAxis = ({ fields, axisProperty, setAxisProperty, axis, plotType, logs,
             .entries(fields)
             .filter(([name, { data_type, field_type }]) => field_type != "param")
             .map(([name]) => name);
-    } else if (plotType === "Histogram") {
+    } else if (plotType === "Histogram" || plotType === "Line Chart") {
         properties = Object
             .entries(fields)
             .filter(([name, { data_type, field_type }]) => field_type != "param" && (data_type === "float" || data_type === "int" || data_type === "timestamp"))
@@ -86,7 +86,6 @@ const PlotAxis = ({ fields, axisProperty, setAxisProperty, axis, plotType, logs,
                     if (plotType === "Bar Chart" && axis === "Y") {
                         const metricsTrigger = <DropdownMenuSubTrigger className="hover:text-white data-[state=open]:text-white">{column}</DropdownMenuSubTrigger>
                         const columnOptions = metrics.map((metric, metricIndex) => {
-                            const selection = `${table}.${column}.${metric}`
                             return <DropdownMenuItem key={metricIndex} onSelect={() => onSelect(selection, metric)}>{metric}</DropdownMenuItem>
                         }) 
                         return (
