@@ -30,7 +30,7 @@ const nextConfig = {
         instrumentationHook: true,
         serverMinification: false,
         serverActions: {
-            allowedOrigins: ["unify.ai", "console-unifyai.vercel.app"]  // TODO: Remove this once Vercel is pointing to `unify.ai` domain
+            allowedOrigins: ["unify.ai"]
         }
     },
     compiler: {
