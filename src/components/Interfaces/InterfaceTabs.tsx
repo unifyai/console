@@ -62,7 +62,7 @@ const InterfaceTabs = ({
                             disabled={pending || dataPending}
                             onInput={(event: React.ChangeEvent<HTMLInputElement>) => setInterface_2(event.target.value)}
                             onKeyDown={(e) => {
-                                if (e.key === "Enter" && int_ != interface_2) {
+                                if (e.key === "Enter" && int_ != interface_2 && !interfaces.includes(interface_2)) {
                                     interfaceActions.update(
                                         int_, project, context, items, newCounter, interface_2, true
                                     ).then(() => {
@@ -87,7 +87,10 @@ const InterfaceTabs = ({
                     tooltip={"Add new interface"}
                     disabled={pending}
                     onClick={() => {
-                        const newInterfaceName = `interface_${uuidv4().slice(0, 2)}`;
+                        let initialIndex = interfaces.length + 1;
+                        while (interfaces.includes(`interface_${initialIndex}`))
+                            initialIndex++;
+                        const newInterfaceName = `interface_${initialIndex}`;
                         interfaceActions.create(
                             newInterfaceName, project, context, defaultItems, defaultNewCounter, true
                         ).then(() => {
