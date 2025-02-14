@@ -233,7 +233,7 @@ const CardGrid = ({
             setDataPending(true);
             setInterface(value || null);
         }} className="w-full tutorial-details-panel">
-            <div className="sticky top-0 z-10 bg-background shadow-sm p-2 flex justify-between gap-4">
+            <div className="sticky top-0 z-10 bg-background p-2 flex justify-between">
                 {/* Project dropdown and add/delete buttons */}
                 <ProjectButtons
                     project={project}
@@ -312,7 +312,7 @@ const CardGrid = ({
                 interfaceActions={interfaceActions}
                 setProject={setProject}
                 setInterface={setInterface}
-            /> : <></> : interfaces.map((int_, idx) => <TabsContent key={idx} value={int_} className="tutorial-selection-pane px-3">
+            /> : <></> : interfaces.map((int_, idx) => <TabsContent key={idx} value={int_} className="tutorial-selection-pane">
                 {pending
                     ? <div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>
                     : interface_1 == int_ ? <ResponsiveReactGridLayout
@@ -332,6 +332,7 @@ const CardGrid = ({
                         cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
                         rowHeight={100}
                         margin={[0, 0]}
+                        containerPadding={[0, 0]}
                         isDraggable={edit}
                         isResizable={edit}
                         draggableHandle=".drag"
