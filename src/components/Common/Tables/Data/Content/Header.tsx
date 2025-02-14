@@ -97,6 +97,7 @@ const DataTableHeader = ({
   const isParentColumn = header.column.columnDef.meta?.isParent;
   const isNotUtilColumn = header.column.columnDef.meta?.columnType != "util";
   const isDerivedColumn = header.column.columnDef.meta?.fieldType === "derived_entry";
+  const isImageColumn = header.column.columnDef.meta?.dataType === "image";
 
   // Handle pinning animation
   const isPinning = pinningState.isPinning && (
@@ -244,7 +245,7 @@ const DataTableHeader = ({
         {/* Column actions */}
         {!header.isPlaceholder && isNotUtilColumn &&
           <div className="flex items-center justify-center gap-1 mt-2">
-            {!isParentColumn && <ColumnGroupBy interactive={interactive} column={header.column} grouping={grouping} setGrouping={setGrouping} data={data}/>}
+            {!isParentColumn && !isImageColumn && <ColumnGroupBy interactive={interactive} column={header.column} grouping={grouping} setGrouping={setGrouping} data={data}/>}
             {!isParentColumn && <ColumnSort interactive={interactive} column={header.column} data={data}/>}
             {!isParentColumn && ColumnFilters && ColumnFilters(header.column)}
             {!isParentColumn && isDerivedColumn && ColumnUpdate && ColumnUpdate(header.column.id)}

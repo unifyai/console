@@ -143,11 +143,6 @@ export function updateGroupedSubRows(
 
     let [currentColumn, currentValue] = filters[0];
 
-    if (currentValue.startsWith('"') && currentValue.endsWith('"')) {
-      // Trim the outer quotes if they exist
-      currentValue = currentValue.slice(1, -1);
-    }
-
     return logs.map((log) => {
       // Check if this log matches the current filter condition
       if (sanitizeId(log.groupingColumnId) === currentColumn && log[log.groupingColumnId] === currentValue) {
@@ -235,12 +230,6 @@ export async function onGroupExpand(
   logs: LogProps[] | GroupedLogProps[],
 ): Promise<void> {
   try {
-    // Generate the current ID for the expanding row
-    let currentId = `${groupingColumnId}:${groupingValue}`;
-    if (parentId) {
-      currentId = `${parentId}>${currentId}`;
-    }
-
     // Helper: Cast values based on data type
     const castValue = (value: string, dataType: string) => {
       switch (dataType) {
@@ -250,10 +239,18 @@ export async function onGroupExpand(
           return parseFloat(value).toString();
         case "timestamp":
           return value.startsWith('"') && value.endsWith('"') ? value : `"${value}"`;
+        case "bool":
+          return value === "true" ? 'True' : 'False';
         default:
           return value.startsWith('"') && value.endsWith('"') ? value : `"${value}"`;
       }
     };
+
+    // Generate the current ID for the expanding row
+    let currentId = `${groupingColumnId}:${groupingValue}`;
+    if (parentId) {
+      currentId = `${parentId}>${currentId}`;
+    }
 
     // Step 1: Build FiltersByColumn Structure
     const columnFilters: FiltersByColumn = {};
@@ -263,12 +260,12 @@ export async function onGroupExpand(
       const sanitizedCol = sanitizeId(col);
       const dataType = dataTypes[sanitizedCol] || "str";
 
-      if (val === '"null"') {
+      if (val == "null") {
         return {
           key: filterKeyCounter++,
-          mode: "is",
+          mode: "exists",
           join: "&&" as "&&" | "||",
-          value: "None",
+          value: "false",
           column: sanitizedCol,
         };
       } else {
@@ -367,12 +364,27 @@ export async function onGroupExpand(
     updatedLogs = updateGroupedSubRows(
       logs as GroupedLogProps[],
       convertedFreshLogs,
-      Object.entries(columnFilters).map(([column, value]) => {
-        const rawValue = value["=="] || value["is"];
-        const cleanedValue = rawValue
-          ?.replace(/\s*(&&|\|\|)\s*/g, '')  // Remove "&&" or "||" with surrounding spaces
-          .trim();                           // Trim leading/trailing whitespace
-        return [column, cleanedValue === "None" ? "null" : cleanedValue] as [string, string];
+      Object.entries(columnFilters).map(([cKey, filter]) => {
+        const [fn, value] = Object.entries(filter)[0];
+        let effectiveValue = value;
+
+        // Remove "&&" or "||" with surrounding spaces
+        effectiveValue = effectiveValue?.replace(/\s*(&&|\|\|)\s*/g, '').trim();
+
+        // Trim the outer quotes if they exist
+        if (effectiveValue.startsWith('"') && effectiveValue.endsWith('"')) {
+          effectiveValue = effectiveValue.slice(1, -1);
+        }
+
+        // Convert boolean values properly
+        if (dataTypes[cKey] === "bool") {
+          effectiveValue = effectiveValue == "True" ? "true" : "false";
+        }
+        // Convert null values to "null"
+        if (fn === "exists") {
+          effectiveValue = "null";
+        }
+        return [cKey, effectiveValue] as [string, string];
       })
     );
 

@@ -139,7 +139,7 @@ function joinFunctionFilters (filter: string, fn: string, cKey: string, fields: 
 				const date = toAbsoluteDate(value as RelativeDateString)
 				value = `"${date.replace("T", " ").replace("Z", "")}"`
 			}
-			console.log("value", value)
+
 			// Handle isNone / exists / inclusion
 			if (fn === "isNone") {
 				joined += value.includes("true") ? `isNone(${cKey})` : `not isNone(${cKey})` 
