@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+  useCallback
+} from "react";
 import { LogProps } from "@/types/evals/logs";
 import SelectionHints from "./Hints";
 import SelectionEntry from "./SelectionEntry";
@@ -150,10 +156,7 @@ function buildLogWithChosenColumns(
   columnOrdering: string[],
   hiddenColumns: string[]
 ): LogProps {
-
-
   const chosenCols = indexToColumns[rowIndex] ?? new Set<string>();
-
   // "entries"
   const safeEntries = originalLog.entries ?? {};
   const afterHiddenEntries = Array.from(chosenCols).filter(
@@ -178,7 +181,6 @@ function buildLogWithChosenColumns(
       );
     }
   }
-
   // "params"
   const safeParams = originalLog.params ?? {};
   const afterHiddenParams = Array.from(chosenCols).filter(
@@ -210,7 +212,6 @@ function buildLogWithChosenColumns(
     }
     newParams[c] = unwrapSingleKeyObject(storedVal);
   }
-
   const result = {
     ...originalLog,
     entries: newEntries,
@@ -249,25 +250,20 @@ export default function Selection({
 }) {
   // 1) Possibly reorder logs or just keep them
   const sortedLogs = useMemo(() => [...logs], [logs]);
-
   // 2) Which cells are selected (memoized)
   const selectedCells = useMemo(() => (selection_ ? selection_.split(",") : []), [selection_]);
-
   // 3) Build rowIndex -> columns
   const indexToColumns = useMemo(
     () => buildIndexToColumnsMapFromId(selectedCells, sortedLogs),
     [selectedCells, sortedLogs]
   );
-
   // 4) Build row indices
   const selectedRowIndices = useMemo(
     () => buildRowIndicesInSelectionOrder(selectedCells, sortedLogs),
     [selectedCells, sortedLogs]
   );
-
   // 5) Possibly read column order (memoized)
   const columnOrdering = useMemo(() => columnOrdering_?.split(",") || [], [columnOrdering_]);
-
   // Move the useMemo hooks above the conditional return
   const orderedEntryKeys = useMemo(() => {
     if (columnOrdering.length > 0) return columnOrdering;
@@ -277,33 +273,30 @@ export default function Selection({
   const orderedParamKeys = useMemo(() => {
     return sortedLogs[0] && sortedLogs[0].params ? Object.keys(sortedLogs[0].params) : [];
   }, [sortedLogs]);
-
   // 6) For selection we ignore the table's hidden columns.
   const hiddenColumns: string[] = [];
-
-  // 7) Let user cycle # of side-by-side panels. Each has independent state
+  // 7) Global ordering state for entries and params (for the visible set of fields).
+  const [globalEntryOrderings, setGlobalEntryOrderings] = useState<{[key: string]: string[]}>({});
+  const [globalParamOrderings, setGlobalParamOrderings] = useState<{[key: string]: string[]}>({});
+  // 8) Let user cycle # of side-by-side panels. Each has independent state
   const [panelCount, setPanelCount] = useState(1);
   const [displayMode, setDisplayMode] = useState<"markdown" | "text" | "raw">("markdown");
   // NEW: Edit mode: when active, all accordions are collapsed and locked.
   const [editMode, setEditMode] = useState(false);
   // Save the current open accordions state so we can restore later when turning off edit mode
   const [prevOpenAccordions, setPrevOpenAccordions] = useState<string[]>([]);
-
   // NEW: New local filter state for this Selection view:
   const [entriesFilter, setEntriesFilter] = useState<Record<string, boolean>>({});
   const [paramsFilter, setParamsFilter] = useState<Record<string, boolean>>({});
-
   // Compute a base log from the first selected row (if available)
   const baseLog = selectedRowIndices.length > 0 ? sortedLogs[selectedRowIndices[0]] : null;
   // Compute the keys for entries and params from the base log.
   const entryKeys = useMemo(() => {
     return baseLog ? Object.keys(baseLog.entries ?? {}) : [];
   }, [baseLog, baseLog?.entries]);
-
   const paramKeys = useMemo(() => {
     return baseLog ? Object.keys(baseLog.params ?? {}) : [];
   }, [baseLog, baseLog?.params]);
-
   useEffect(() => {
     setEntriesFilter((prev) => {
       const updated = { ...prev };
@@ -321,7 +314,6 @@ export default function Selection({
       });
       return updated;
     });
-
     setParamsFilter((prev) => {
       const updated = { ...prev };
       // For each key from the new paramKeys, add it if missing (default true).
@@ -339,7 +331,6 @@ export default function Selection({
       return updated;
     });
   }, [entryKeys, paramKeys]);
-
   // Helper to determine if a column is an entry or param.
   const getSectionType = (column: string, baseLog: LogProps | null) => {
     if (!baseLog) return null;
@@ -347,30 +338,23 @@ export default function Selection({
     if (baseLog.params && column in baseLog.params) return 'params';
     return null;
   };
-  
   // Determine the section order based on the first selected cell.
   const sectionOrder = useMemo(() => {
     if (!selectedCells.length || !baseLog) return ['entries', 'params'];
     const firstCell = selectedCells[0];
     const underscorePos = firstCell.indexOf("_");
     if (underscorePos < 1) return ['entries', 'params'];
-    
     // Extract the part after the underscore.
     const firstColumn = firstCell.slice(underscorePos + 1);
-
     // If the extracted string contains a '/', split it to get the actual key.
     let keyToCheck = firstColumn;
     if (firstColumn.includes('/')) {
       const parts = firstColumn.split('/');
-      // Here parts[0] is the section indicator ("Parameters" or "Entries")
-      // and parts[1] is the actual key (e.g., "model" or "trace").
       keyToCheck = parts[1] || parts[0];
     }
-    
     const firstType = getSectionType(keyToCheck, baseLog);
     return firstType === 'params' ? ['params', 'entries'] : ['entries', 'params'];
   }, [selectedCells, baseLog]);
-  
   const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
   if (!selectedRowIndices.length) {
     return (
@@ -379,7 +363,6 @@ export default function Selection({
       </div>
     );
   }
-
   return (
     <div className="flex flex-col w-full h-full overflow-hidden bg-background rounded-md">
       {/* A top bar just for toggling panelCount, raw mode, etc. */}
@@ -538,7 +521,6 @@ export default function Selection({
           />
         </div>
       </div>
-
       {/* Panels in a horizontal row, each scrollable independently */}
       <div className="flex-1 flex flex-row gap-2 overflow-hidden">
         {Array.from({ length: panelCount }).map((_, idx) => (
@@ -554,15 +536,19 @@ export default function Selection({
             displayMode={displayMode}
             tableItem={tableItem}
             item={item}
+            updateItem={updateItem}
             entriesFilter={entriesFilter}
             paramsFilter={paramsFilter}
             selectionOrder={sectionOrder}
             onHideEntry={(prop) => setEntriesFilter((prev) => ({ ...prev, [prop]: false }))}
             onHideParam={(prop) => setParamsFilter((prev) => ({ ...prev, [prop]: false }))}
-            updateItem={updateItem}
             openAccordionItems={openAccordionItems}
             setOpenAccordionItems={setOpenAccordionItems}
             editMode={editMode}
+            globalEntryOrderings={globalEntryOrderings}
+            setGlobalEntryOrderings={setGlobalEntryOrderings}
+            globalParamOrderings={globalParamOrderings}
+            setGlobalParamOrderings={setGlobalParamOrderings}
           />
         ))}
       </div>
@@ -594,6 +580,10 @@ function SelectionPanel({
   openAccordionItems,
   setOpenAccordionItems,
   editMode,
+  globalEntryOrderings,
+  setGlobalEntryOrderings,
+  globalParamOrderings,
+  setGlobalParamOrderings,
 }: {
   panelId: number;
   params: Record<string, unknown>;
@@ -614,8 +604,11 @@ function SelectionPanel({
   openAccordionItems: string[];
   setOpenAccordionItems: React.Dispatch<React.SetStateAction<string[]>>;
   editMode: boolean;
+  globalEntryOrderings: { [key: string]: string[] };
+  setGlobalEntryOrderings: React.Dispatch<React.SetStateAction<{ [key: string]: string[] }>>;
+  globalParamOrderings: { [key: string]: string[] };
+  setGlobalParamOrderings: React.Dispatch<React.SetStateAction<{ [key: string]: string[] }>>;
 }) {
-
   // 1) local state: pick a base row among the selected rowIndices
   let baseIndexParam = parseInt(item.base_index ?? "0", 10);
   if (isNaN(baseIndexParam)) {
@@ -624,11 +617,9 @@ function SelectionPanel({
   if (baseIndexParam < 0 || baseIndexParam >= selectedRowIndices.length) {
     baseIndexParam = 0;
   }
-
   // 2) local expansions: openItems, openParamItems
   const [openItems, setOpenItems] = useState<string[]>([]);
   const [openParamItems, setOpenParamItems] = useState<string[]>([]);
-
   // 3) diff mode & split
   type DiffMode = "none" | "lines" | "words" | "characters";
   const allModes: DiffMode[] = ["none", "lines", "words", "characters"];
@@ -641,21 +632,17 @@ function SelectionPanel({
   const [modeIndex, setModeIndex] = useState(0);
   const diffMode = allModes[modeIndex];
   const [splitView, setSplitView] = useState(false);
-
   function handleCycleMode() {
     setModeIndex((prev) => (prev + 1) % allModes.length);
   }
-
   function handleToggleSplit() {
     setSplitView((prev) => !prev);
   }
-
   // 4) Build baseLog + comparison logs for THIS panel
   const baseRowIndex = selectedRowIndices[baseIndexParam] ?? -1;
   const comparisonRowIndices = selectedRowIndices.filter(
     (_, i) => i !== baseIndexParam
   );
-
   const buildLogIfValid = useCallback((ri: number) => {
     if (ri < 0 || ri >= logs.length) return null;
     return buildLogWithChosenColumns(
@@ -667,114 +654,102 @@ function SelectionPanel({
       []  // always pass an empty array here
     );
   }, [logs, params, indexToColumns, columnOrdering]);
-
   const baseLog = useMemo(() => buildLogIfValid(baseRowIndex), [baseRowIndex, buildLogIfValid]);
-
   const comparisonLogs = useMemo(
     () => comparisonRowIndices.map((ri) => buildLogIfValid(ri)).filter((x) => x),
     [comparisonRowIndices, buildLogIfValid]
   ) as LogProps[];
-
   // gather keys => default expansions
   const entryKeys = useMemo(() => {
     return baseLog ? Object.keys(baseLog.entries ?? {}) : [];
   }, [baseLog, baseLog?.entries]);
-
   const paramKeys = useMemo(() => {
     return baseLog ? Object.keys(baseLog.params ?? {}) : [];
   }, [baseLog, baseLog?.params]);
-
   const defaultOpenEntries = useMemo(() => {
     if (!baseLog) return [];
     return defaultOpenFor(entryKeys, baseLog.entries);
   }, [baseLog, entryKeys]);
-
   const defaultOpenParams = useMemo(() => {
     if (!baseLog) return [];
     return defaultOpenFor(paramKeys, baseLog.params);
   }, [baseLog, paramKeys]);
-
-  // dragging code
+  // New: dragging code ordering for entries and params.
+  // Initialize local ordering state using default table order.
   const [entryOrder, setEntryOrder] = useState<string[]>(entryKeys);
   const [paramOrder, setParamOrder] = useState<string[]>(paramKeys);
-
-  // Use refs to store the previous base log id and key signatures.
-  const prevBaseLogId = useRef<string | null>(null);
-  const prevEntryKeySignature = useRef<string>("");
-  const prevParamKeySignature = useRef<string>("");
-  
+  // Compute the visible ordering for rendering:
+  // Only include columns that pass the toggle and also have a defined base value.
+  const visibleEntryKeysForRendering = useMemo(() => {
+    return entryOrder.filter(
+      col => entriesFilter[col] !== false && baseLog?.entries[col] !== undefined
+    );
+  }, [entryOrder, entriesFilter, baseLog]);
+  const currentEntryKey = useMemo(() => {
+    return visibleEntryKeysForRendering.slice().sort().join(",");
+  }, [visibleEntryKeysForRendering]);
+  const visibleParamKeysForRendering = useMemo(() => {
+    return paramOrder.filter(
+      col => paramsFilter[col] !== false && baseLog?.params[col] !== undefined
+    );
+  }, [paramOrder, paramsFilter, baseLog]);
+  const currentParamKey = useMemo(() => {
+    return visibleParamKeysForRendering.slice().sort().join(",");
+  }, [visibleParamKeysForRendering]);
+  // If the global ordering exists for the current visible columns, update local entryOrder.
   useEffect(() => {
-    if (baseLog) {
-      // Compute the new available keys.
-      const newEntryKeys = Object.keys(baseLog.entries);
-      const newParamKeys = Object.keys(baseLog.params);
-
-      // Merge the new keys with the current ordering state:
-      // • Keep keys already in order that still exist in the new log.
-      // • Append any new keys (or drop ones that are no longer available).
-      setEntryOrder((prevOrder) => {
-        const common = prevOrder.filter((k) => newEntryKeys.includes(k));
-        const appended = newEntryKeys.filter((k) => !common.includes(k));
-        return [...common, ...appended];
-      });
-
-      setParamOrder((prevOrder) => {
-        const common = prevOrder.filter((k) => newParamKeys.includes(k));
-        const appended = newParamKeys.filter((k) => !common.includes(k));
-        return [...common, ...appended];
-      });
-
-      // Update refs for comparison next time.
-      prevBaseLogId.current = baseLog.id;
-      prevEntryKeySignature.current = [...newEntryKeys].sort().join(",");
-      prevParamKeySignature.current = [...newParamKeys].sort().join(",");
+    if (globalEntryOrderings[currentEntryKey] &&
+        JSON.stringify(entryOrder) !== JSON.stringify(globalEntryOrderings[currentEntryKey])) {
+      setEntryOrder(globalEntryOrderings[currentEntryKey]);
+    } else if (!globalEntryOrderings[currentEntryKey] && entryOrder.length === 0 && entryKeys.length > 0) {
+      setEntryOrder(entryKeys);
     }
-  }, [baseLog]);
-
+  }, [currentEntryKey, globalEntryOrderings, entryOrder, entryKeys]);
+  useEffect(() => {
+    if (globalParamOrderings[currentParamKey] &&
+        JSON.stringify(paramOrder) !== JSON.stringify(globalParamOrderings[currentParamKey])) {
+      setParamOrder(globalParamOrderings[currentParamKey]);
+    } else if (!globalParamOrderings[currentParamKey] && paramOrder.length === 0 && paramKeys.length > 0) {
+      setParamOrder(paramKeys);
+    }
+  }, [currentParamKey, globalParamOrderings, paramOrder, paramKeys]);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
-
+  // Modify drag end callbacks to also update the global ordering.
   function handleEntryDragEnd(event: any) {
     const { active, over } = event;
     if (active.id !== over?.id) {
-      setEntryOrder((items) =>
-        arrayMove(items, items.indexOf(active.id), items.indexOf(over.id))
-      );
+      setEntryOrder((items) => {
+        const newOrder = arrayMove(items, items.indexOf(active.id), items.indexOf(over.id));
+        setGlobalEntryOrderings(prev => ({ ...prev, [currentEntryKey]: newOrder }));
+        return newOrder;
+      });
     }
   }
-  
   function handleParamDragEnd(event: any) {
     const { active, over } = event;
     if (active.id !== over?.id) {
-      setParamOrder((items) =>
-        arrayMove(items, items.indexOf(active.id), items.indexOf(over.id))
-      );
+      setParamOrder((items) => {
+        const newOrder = arrayMove(items, items.indexOf(active.id), items.indexOf(over.id));
+        setGlobalParamOrderings(prev => ({ ...prev, [currentParamKey]: newOrder }));
+        return newOrder;
+      });
     }
   }
-
   useEffect(() => {
     if (baseLog) {
       setOpenItems(defaultOpenEntries);
       setOpenParamItems(defaultOpenParams);
     }
   }, [baseLog, defaultOpenEntries, defaultOpenParams]);
-
-  const everythingOpen = entryKeys.length > 0 && openItems.length === entryKeys.length;
-  const everythingOpenParams = paramKeys.length > 0 && openParamItems.length === paramKeys.length;
-
-  function handleToggleAll() {
-    setOpenItems(everythingOpen ? [] : entryKeys);
-  }
-  function handleToggleAllParams() {
-    setOpenParamItems(everythingOpenParams ? [] : paramKeys);
-  }
-
-  // Update visible keys filtering by removing the override condition:
-  const visibleEntryKeys = entryOrder.filter(key => entriesFilter[key] !== false);
-  const visibleParamKeys = paramOrder.filter(key => paramsFilter[key] !== false);
-
-  // if no base => show hints
+  // If no columns survive filtering, render nothing for that section.
+  const entriesToRender = entryOrder.filter(
+    col => entriesFilter[col] !== false && baseLog?.entries[col] !== undefined
+  );
+  const paramsToRender = paramOrder.filter(
+    col => paramsFilter[col] !== false && baseLog?.params[col] !== undefined
+  );
   let content: JSX.Element;
   if (!baseLog) {
     content = (
@@ -784,7 +759,7 @@ function SelectionPanel({
     );
   } else {
     let entriesSection: JSX.Element | null = null;
-    if (visibleEntryKeys.length > 0) {
+    if (entriesToRender.length > 0) {
       entriesSection = (
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between sticky top-0 z-10 bg-background py-2 border-b border-muted">
@@ -792,9 +767,15 @@ function SelectionPanel({
             <ActionButton
               variant="ghost"
               size="icon"
-              tooltip={everythingOpen ? "Collapse All" : "Expand All"}
-              onClick={handleToggleAll}
-              icon={everythingOpen ? <FoldVertical /> : <UnfoldVertical />}
+              tooltip={entriesToRender.length === entryKeys.length ? "Collapse All" : "Expand All"}
+              onClick={() => {
+                if (entriesToRender.length === entryKeys.length) {
+                  setOpenItems([]);
+                } else {
+                  setOpenItems(entryKeys);
+                }
+              }}
+              icon={entriesToRender.length === entryKeys.length ? <FoldVertical /> : <UnfoldVertical />}
             />
           </div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleEntryDragEnd}>
@@ -805,7 +786,7 @@ function SelectionPanel({
                 onValueChange={editMode ? () => {} : setOpenItems}
               >
                 {entryOrder
-                  .filter((col) => entriesFilter[col] !== false)
+                  .filter((col) => entriesFilter[col] !== false && baseLog.entries[col] !== undefined)
                   .map((col) => (
                     <SortableAccordionItem key={col} id={col} editMode={editMode}>
                       <SelectionEntry
@@ -816,7 +797,7 @@ function SelectionPanel({
                         baseLogIndex={baseRowIndex + 1}
                         comparisonLogs={comparisonLogs}
                         comparisonLogsIndex={comparisonRowIndices.map((x) => x + 1)}
-                        diffMode={diffMode}
+                        diffMode={diffMode || "none"}
                         splitView={splitView}
                         displayMode={displayMode}
                         onHideColumn={onHideEntry}
@@ -833,9 +814,8 @@ function SelectionPanel({
         </div>
       );
     }
-
     let paramsSection: JSX.Element | null = null;
-    if (visibleParamKeys.length > 0) {
+    if (paramsToRender.length > 0) {
       paramsSection = (
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between sticky top-0 z-10 bg-background py-2 border-b border-muted">
@@ -843,9 +823,15 @@ function SelectionPanel({
             <ActionButton
               variant="ghost"
               size="icon"
-              tooltip={everythingOpenParams ? "Collapse All" : "Expand All"}
-              onClick={handleToggleAllParams}
-              icon={everythingOpenParams ? <FoldVertical /> : <UnfoldVertical />}
+              tooltip={paramsToRender.length === paramKeys.length ? "Collapse All" : "Expand All"}
+              onClick={() => {
+                if (paramsToRender.length === paramKeys.length) {
+                  setOpenParamItems([]);
+                } else {
+                  setOpenParamItems(paramKeys);
+                }
+              }}
+              icon={paramsToRender.length === paramKeys.length ? <FoldVertical /> : <UnfoldVertical />}
             />
           </div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleParamDragEnd}>
@@ -856,7 +842,7 @@ function SelectionPanel({
                 onValueChange={editMode ? () => {} : setOpenParamItems}
               >
                 {paramOrder
-                  .filter((col) => paramsFilter[col] !== false)
+                  .filter((col) => paramsFilter[col] !== false && baseLog.params[col] !== undefined)
                   .map((col) => {
                     const baseParam = baseLog.params[col];
                     const baseDisplayValue =
@@ -915,11 +901,9 @@ function SelectionPanel({
         </div>
       );
     }
-
     const renderedSections = selectionOrder
       .map(section => (section === 'entries' ? entriesSection : paramsSection))
       .filter(section => section !== null);
-
     content = renderedSections.length > 0 ? (
       <div className="flex flex-col gap-6">
         {renderedSections}
@@ -930,7 +914,6 @@ function SelectionPanel({
       </div>
     );
   }
-
   return (
     <div className="flex flex-col w-full h-full overflow-hidden">
       {selectedRowIndices.length > 1 && (
@@ -959,7 +942,6 @@ function SelectionPanel({
               className="w-[110px]"
             />
           </div>
-
           <div className="flex items-center gap-2">
             <ActionButton
               tooltip={`Cycle diff mode (current: ${diffMode})`}
@@ -978,7 +960,6 @@ function SelectionPanel({
           </div>
         </div>
       )}
-
       <div className="flex-1 overflow-y-auto px-5 min-h-0">
         {content}
       </div>
@@ -1004,19 +985,18 @@ function SortableAccordionItem({
     transition,
     minHeight: "48px",
   };
-
   return (
     <div ref={setNodeRef} style={style} className="flex items-center">
-      {/* DRAG HANDLE: shown when edit mode is active */}
       {editMode && (
         <div className="drag-handle p-2 cursor-grab" {...attributes} {...listeners}>
           <GripVertical className="h-4 w-4 text-primary" />
         </div>
       )}
-      {/* Accordion content */}
       <div className={editMode ? "flex-1 ml-0" : "flex-1 ml-2"}>
         {children}
       </div>
     </div>
   );
 }
+
+export {};
