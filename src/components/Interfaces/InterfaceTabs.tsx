@@ -74,6 +74,8 @@ const InterfaceTabs = ({
                                         });
                                     });
                                 }
+                                else if (e.key == "Enter" && int_ == interface_2)
+                                    setInterface_2(int_);
                             }}
                             className="px-0 h-5 w-20 bg-transparent border-none outline-none focus:outline-none focus:border-none focus-visible:ring-0"
                         /> : <div className="h-5 w-20 text-center">{int_}</div>}
