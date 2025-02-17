@@ -302,7 +302,9 @@ const CardGrid = ({
                 key={idx}
                 value={int_}
                 className="tutorial-selection-pane"
-                onClick={(e) => setTileDropdown({ x: e.clientX, y: e.clientY })}
+                onClick={(e) => {
+                    // setTileDropdown({ x: e.clientX, y: e.clientY });
+                }}
             >
                 {pending
                     ? <div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>
@@ -336,7 +338,9 @@ const CardGrid = ({
                                     data-grid={el}
                                     className="relative"
                                     hidden={!el.visible}
-                                    onClick={(e) => e.stopPropagation()}
+                                    onClick={(e) => {
+                                        // e.stopPropagation();
+                                    }}
                                 >
                                     <Card
                                         edit={edit}
