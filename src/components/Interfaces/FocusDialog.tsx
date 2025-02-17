@@ -11,7 +11,7 @@ import { TableArguments } from "@/types/evals/logs";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
 import { ContextActions, DerivedEntryActions, Interface, ItemType, LogsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 
 const FocusDialog = ({
     maxTiles,
@@ -127,7 +127,7 @@ const FocusDialog = ({
                         <BaseDropdown
                             button={<ActionButton
                                 tooltip="Select Tile"
-                                text="Select Tile"
+                                icon={<Plus />}
                                 variant="outline"
                                 size="default"
                             />}

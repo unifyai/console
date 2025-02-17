@@ -11,7 +11,6 @@ import { Copy, EyeOff, Grip, Loader2, Maximize2, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { Badge } from "../UI/badge";
 import { Dialog, DialogContent } from "../UI/dialog";
-import { Input } from "../UI/input";
 import { Tabs, TabsContent } from "../UI/tabs";
 import { useQueryState } from "nuqs";
 import Cookies from "js-cookie";
@@ -21,9 +20,8 @@ import DefaultProject from "./DefaultProject";
 import InterfaceButtons from "./InterfaceButtons";
 import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./ProjectButtons";
-import BaseDropdown from "../Common/Dropdowns/Base";
-import { DropdownMenuItem } from "../UI/dropdown-menu";
 import EditTileName from "./EditTileName";
+import TabSelection from "./TabSelection";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -300,7 +298,19 @@ const CardGrid = ({
                 key={idx}
                 value={int_}
                 className="tutorial-selection-pane"
-                onClick={(e) => setTileDropdown({ x: e.clientX, y: e.clientY })}
+                onClick={(e) => {
+                    // if (edit) {
+                    //     if (tileDropdown)
+                    //         setTileDropdown(undefined);
+                    //     else
+                    //         setTileDropdown({ x: e.clientX, y: e.clientY })
+                    // }
+                    // else setTileDropdown(undefined);
+                }}
+                onKeyDown={(e) => {
+                    // if (e.key == "Escape")
+                    //     setTileDropdown(undefined);
+                }}
             >
                 {pending
                     ? <div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>
@@ -334,7 +344,6 @@ const CardGrid = ({
                                     data-grid={el}
                                     className="relative"
                                     hidden={!el.visible}
-                                    onClick={(e) => e.stopPropagation()}
                                 >
                                     <Card
                                         edit={edit}
@@ -430,41 +439,26 @@ const CardGrid = ({
                     </div>}
             </TabsContent>)}
         </Tabs>
-        {tileDropdown && <div className="absolute" style={{ top: tileDropdown.y, left: tileDropdown.x }}>
-            <BaseDropdown
-                button={<ActionButton
-                    tooltip="Add Tab"
-                    text="Add Tab"
-                    variant="outline"
-                    size="default"
-                />}
-                open={true}
-            >
-                {(!edit ? [] : ["Table", "Plot", "View"]).map((tab, idx) => <DropdownMenuItem
-                    key={idx}
-                    onSelect={() => {
-                        setItems([
-                            ...items,
-                            {
-                                i: "Tile_" + newCounter,
-                                x: tileDropdown.x,
-                                y: tileDropdown.y,
-                                w: 4,
-                                h: 4,
-                                minW: 4,
-                                minH: 4,
-                                tab: tab,
-                                visible: true,
-                            }
-                        ]);
-                        setNewCounter(newCounter + 1);
-                        setTileDropdown(undefined);
-                    }}
-                    className="w-64"
-                >
-                    {tab}
-                </DropdownMenuItem>)}
-            </BaseDropdown>
+        {tileDropdown && <div
+            className="w-fit h-fit"
+            style={{ position: "absolute", top: tileDropdown.y, left: tileDropdown.x }}
+            onKeyDown={(e) => {
+                if (e.key == "Escape")
+                    setTileDropdown(undefined);
+            }}
+        >
+            <TabSelection
+                edit={edit}
+                open={true} /* false */
+                onTabChange={(tab: string) => {
+                    let newItem: TileProps = { i: "Tile_" + newCounter, x: tileDropdown.x, y: tileDropdown.y, w: 4, h: 4, minW: 4, minH: 4, tab: tab, visible: true };
+                    if (tab == "Table")
+                        newItem = { ...newItem, table_type: "Data Table" };
+                    setItems([...items, newItem]);
+                    setNewCounter(newCounter + 1);
+                    setTileDropdown(undefined);
+                }}
+            />
         </div>}
         {focusDialog && <Dialog open={true} onOpenChange={() => setFocusDialog(false)}>
             <DialogContent className="min-w-full h-full overflow-y-auto">

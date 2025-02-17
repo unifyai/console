@@ -13,6 +13,7 @@ import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Interfaces/Table/Table";
 import { DerivedEntryActions, ContextActions, ItemType, LogsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
+import TabSelection from "./TabSelection";
 
 const Card = ({
     edit,
@@ -109,27 +110,15 @@ const Card = ({
         <div className={"w-full flex-1 flex flex-col items-center " + (tab ? "mt-2" : "justify-center")}>
             <div className="flex gap-4 z-20">
                 {edit && <div className="w-fit">
-                    <BaseDropdown
-                        button={<ActionButton
-                            tooltip="Add Tab"
-                            text={tab || undefined}
-                            icon={tab ? undefined : <Plus />}
-                            variant="outline"
-                            size="default"
-                        />}
-                    >
-                        {(!edit ? [] : tabTypes).map((tab, idx) => <DropdownMenuItem
-                            key={idx}
-                            onSelect={() => {
-                                if (item.tab == undefined && tab == "Table")
-                                    updateItem(item, "table_type")("Data Table");
-                                updateItem(item, "tab")(tab);
-                            }}
-                            className="w-64"
-                        >
-                            {tab}
-                        </DropdownMenuItem>)}
-                    </BaseDropdown>
+                    <TabSelection
+                        tab_={item.tab}
+                        edit={edit}
+                        onTabChange={(tab: string) => {
+                            if (item.tab == undefined && tab == "Table")
+                                updateItem(item, "table_type")("Data Table");
+                            updateItem(item, "tab")(tab);
+                        }}
+                    />
                 </div>}
                 {tab && edit && tab == "View" && <div className="w-fit">
                     <BaseDropdown
