@@ -45,6 +45,7 @@ const InterfaceTabs = ({
     setTilePending: (value: SetStateAction<{ [key: string]: boolean }>) => void
 }) => {
     const [interface_2, setInterface_2] = useState(interface_ || "");
+    const [hoveredInterface, setHoveredInterface] = useState<string | undefined>();
 
     useEffect(() => {
         setInterface_2(interface_ || "");
@@ -58,6 +59,8 @@ const InterfaceTabs = ({
                         key={idx}
                         value={int_}
                         className="relative flex flex-row gap-2 data-[state=active]:text-accent"
+                        onMouseEnter={() => setHoveredInterface(int_)}
+                        onMouseLeave={() => setHoveredInterface(undefined)}
                     >
                         {interface_ == int_ ? <Input
                             value={interface_2}
@@ -82,7 +85,7 @@ const InterfaceTabs = ({
                             className="px-0 h-5 w-20 bg-transparent border-none outline-none focus:outline-none focus:border-none focus-visible:ring-0"
                         /> : <div className="h-5 w-20 text-center">{int_}</div>}
                         <div
-                            className="z-10 absolute top-0 right-0 cursor-pointer mb-auto hover:text-white hover:bg-primary rounded-full"
+                            className={`z-10 absolute -top-1 -right-1 cursor-pointer mb-auto hover:text-white hover:bg-primary rounded-sm ${hoveredInterface == int_ ? "opacity-100" : "opacity-0"}`}
                             onMouseEnter={() => interface_ != int_ && setDeleting(true)}
                             onMouseLeave={() => interface_ != int_ && setDeleting(false)}
                             onClick={() => {
