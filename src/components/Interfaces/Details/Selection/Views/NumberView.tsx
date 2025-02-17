@@ -106,6 +106,7 @@ export default function NumberView({
   version = "",
   comparableVersions = [],
   scientificNotation = false,
+  displayMode = "markdown",
 }: LogComparisonProps & { scientificNotation?: boolean }) {
   // Single vs. multiple
   const singleMode = !comparables || comparables.length === 0;

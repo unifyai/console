@@ -109,6 +109,7 @@ const ListView: React.FC<ListViewProps> = (props) => {
     diffMode = "none",
     splitView = false,
     forceExpandAll = false,
+    displayMode = "markdown",
   } = props;
 
   // single vs multi
@@ -190,6 +191,7 @@ const ListView: React.FC<ListViewProps> = (props) => {
       splitView,
       version,
       comparableVersions,
+      displayMode,
       forceExpandAll: isChildForceExpand,
     };
 
@@ -262,6 +264,7 @@ const ListView: React.FC<ListViewProps> = (props) => {
       splitView,
       version,
       comparableVersions,
+      displayMode,
       forceExpandAll: isChildForceExpand,
     };
 
