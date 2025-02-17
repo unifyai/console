@@ -11,7 +11,7 @@ import {
   ColumnSizingState,
   GroupingState,
 } from "@tanstack/react-table";
-import { DerivedEntryActions, LogsActions } from "@/types/evals/grid";
+import { DerivedEntryActions, LogsActions, FieldsActions } from "@/types/evals/grid";
 import React, { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
@@ -45,11 +45,11 @@ const LogsTable = ({
   pending,
   item,
   tableArguments,
-  fields,
   tableDataItem_,
   setTableData,
   updateItem,
   logsActions,
+  fieldsActions,
   derivedEntryActions,
   filterExpression,
   sortingExpression,
@@ -65,11 +65,11 @@ const LogsTable = ({
   tab: string;
   item: TileProps;
   tableArguments: TableArguments;
-  fields: LogFieldsResponseProps;
   tableDataItem_: TableDataItem;
   setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void;
   updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
   logsActions: LogsActions;
+  fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions,
   filterExpression: string | null,
   sortingExpression: string | null,
@@ -82,7 +82,7 @@ const LogsTable = ({
 
   // extract necessary fields
   const [tableDataItem, setTableDataItem] = useState(tableDataItem_);
-  const { logs, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
+  const { fields, logs, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
 
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false); // if metric changed
@@ -102,8 +102,8 @@ const LogsTable = ({
   // Column definitions
   const entriesTree = buildTree(entriesProperties);
   const paramsTree = buildTree(paramsProperties);
-  const dataTypes = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type]))
-  const fieldTypes = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].field_type]))
+  const dataTypes =  fields ? Object.fromEntries(Object.entries(fields).map(entry =>  [entry[0], entry[1].data_type])) : {}
+  const fieldTypes = fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].field_type])) : {}
   const indicesTitle = "RowNumbering";
   const entriesTitle = "Entries";
   const paramsTitle = "Parameters";
@@ -317,10 +317,6 @@ const LogsTable = ({
     selectedCells
   ]);
 
-  useEffect(() => {
-    setTableDataItem(tableDataItem_);
-  }, [tableDataItem_]);
-
   // Top area: filters, page, etc.
   const tableTop = (
     <div className="mb-2 mx-1 flex flex-row justify-between gap-3 LogsTablePreferences">
@@ -380,6 +376,7 @@ const LogsTable = ({
             updateItem={updateItem}
             setTableDataItem={setTableDataItem}
             logsActions={logsActions}
+            fieldsActions={fieldsActions}
             logs={logs}
           />
         </div>

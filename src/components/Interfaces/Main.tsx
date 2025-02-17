@@ -285,6 +285,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
 
             return {
                 [item.i]: {
+                    fields,
                     hiddenColumns,
                     columnOrdering,
                     selection,
@@ -323,6 +324,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         offsets={offsets}
         projectActions={projectsActions}
         logsActions={logsActions}
+        fieldsActions={fieldsActions}
         derivedEntryActions={derivedEntryActions}
         contextActions={contextActions}
         interfaceActions={interfaceActions}

@@ -46,6 +46,7 @@ export interface TableDataItem {
     hiddenColumns: string | undefined,
     columnOrdering: string | undefined,
     selection: string | undefined,
+    fields: LogFieldsResponseProps,
     logsData: LogsResponseProps,
     totalPages: number,
     entriesProperties: string[],
@@ -54,6 +55,12 @@ export interface TableDataItem {
     params: LogItemProps,
     metrics: { [key: string]: number },
     boundaries: { minimums: { [key: string]: number }, maximums: { [key: string]: number } }
+}
+
+export interface PlotDataItem {
+    plotLogs: LogProps[];
+    plotArguments: PlotArguments;
+    plotFields: LogFieldsResponseProps;
 }
 
 export interface TableDataProps {

@@ -13,27 +13,26 @@ import PlotRefresh from "./Buttons/PlotRefresh";
 
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { LogFieldsResponseProps, LogProps, PlotArguments } from "@/types/evals/logs";
-import { LogsActions } from "@/types/evals/grid";
+import { LogsActions, FieldsActions, PlotDataItem } from "@/types/evals/grid";
 import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram, checkLogScalability } from "@/utils/evals/plot";
-
 import PlotAxis from "./Buttons/PlotAxis";
 import { ItemType, TileProps } from "@/types/evals/grid";
 
-const LogsPlot = ({ interactive, logs_, fields, item, updateItem, project, pending, args, logsActions }: {
+const LogsPlot = ({ interactive, item, updateItem, project, pending, plotData = {plotLogs: [], plotArguments: {}, plotFields: {}}, tableNames, logsActions, fieldsActions }: {
     interactive: boolean,
-    logs_: LogProps[] | undefined,
-    fields: LogFieldsResponseProps,
     item: TileProps,
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
     project: string | undefined,
     pending: boolean,
-    args: PlotArguments,
-    logsActions: LogsActions
+    plotData: { plotLogs: LogProps[]; plotArguments: PlotArguments; plotFields: LogFieldsResponseProps };
+    tableNames: string[],
+    logsActions: LogsActions,
+    fieldsActions: FieldsActions
 }) => {
 
     // Init logs and handle local updates
-    const [logs, setLogs] = useState(logs_)
-    useEffect(() => {setLogs(logs_)}, [logs_])
+    const [plotDataItem, setPlotDataItem] = useState<PlotDataItem>(plotData);
+    const {plotLogs: logs, plotArguments: args, plotFields: fields} = plotDataItem
 
     // Initialize refs and container dimensions
     let svgRef = useRef(null);
@@ -281,7 +280,7 @@ const LogsPlot = ({ interactive, logs_, fields, item, updateItem, project, pendi
                 style={{transform: `scale(${scaleFactor}) translateX(${translateX}px) translateY(${translateY}px)`, transformOrigin: 'top left'}}
             >
                 {project &&
-                    <PlotRefresh project={project} item={item} pending={pending} args={args} setLogs={setLogs} logsActions={logsActions} updateItem={updateItem} logs={logs}/>
+                    <PlotRefresh tables={tableNames} project={project} item={item} pending={pending} args={args} setPlotDataItem={setPlotDataItem} logsActions={logsActions} fieldsActions={fieldsActions} updateItem={updateItem} logs={logs}/>
                 }
                 {((plotType === "Histogram" && selectedXAxisProperty) || (selectedXAxisProperty && selectedYAxisProperty)) &&
                     <>

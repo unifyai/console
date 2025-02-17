@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Card from "./Card";
 import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
-import { DerivedEntryActions, Context, ContextActions, Interface, InterfaceActions, ItemType, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
+import { DerivedEntryActions, Context, ContextActions, Interface, InterfaceActions, ItemType, LogsActions, FieldsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
 import { Copy, EyeOff, Grip, Loader2, Maximize2, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
@@ -48,6 +48,7 @@ const CardGrid = ({
     offsets,
     projectActions,
     logsActions,
+    fieldsActions,
     derivedEntryActions,
     contextActions,
     interfaceActions,
@@ -72,6 +73,7 @@ const CardGrid = ({
     offsets: number[],
     projectActions: ProjectsActions,
     logsActions: LogsActions,
+    fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
     contextActions: ContextActions,
     interfaceActions: InterfaceActions
@@ -341,12 +343,12 @@ const CardGrid = ({
                                         interactive={interactive}
                                         project={project || undefined}
                                         pending={pending || dataPending || (el.tab == "Table" ? tilePending[el.i] : false)}
-                                        fields={fields}
                                         tableNames={tableNames}
                                         tableData={tableData}
                                         tableArguments={tableArguments}
                                         plotData={plotData}
                                         logsActions={logsActions}
+                                        fieldsActions={fieldsActions}
                                         derivedEntryActions={derivedEntryActions}
                                         contextActions={contextActions}
                                         index={el.i}
@@ -482,9 +484,9 @@ const CardGrid = ({
                         tableNames={tableNames}
                         tableData={tableData}
                         tableArguments={tableArguments}
-                        fields={fields}
                         plotData={plotData}
                         logsActions={logsActions}
+                        fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}
                         contextActions={contextActions}
                         items={items}

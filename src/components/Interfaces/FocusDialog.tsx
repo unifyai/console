@@ -10,7 +10,7 @@ import { DropdownMenuItem } from "../UI/dropdown-menu";
 import { TableArguments } from "@/types/evals/logs";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
-import { ContextActions, DerivedEntryActions, Interface, ItemType, LogsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
+import { ContextActions, DerivedEntryActions, Interface, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 import { X } from "lucide-react";
 
 const FocusDialog = ({
@@ -23,12 +23,12 @@ const FocusDialog = ({
     dataPending,
     tilePending,
     setTilePending,
-    fields,
     tableNames,
     tableData,
     plotData,
     tableArguments,
     logsActions,
+    fieldsActions,
     derivedEntryActions,
     contextActions,
     items,
@@ -52,12 +52,12 @@ const FocusDialog = ({
     dataPending: boolean,
     tilePending: { [key: string]: boolean },
     setTilePending: (tilePending: { [key: string]: boolean }) => void,
-    fields: LogFieldsResponseProps,
     tableNames: string[],
     tableData: TableDataProps,
     plotData: PlotDataProps,
     tableArguments: TableArguments,
     logsActions: LogsActions,
+    fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
     contextActions: ContextActions,
     items: TileProps[],
@@ -84,9 +84,9 @@ const FocusDialog = ({
                         tableNames={tableNames}
                         tableData={tableData}
                         tableArguments={tableArguments}
-                        fields={fields}
                         plotData={plotData}
                         logsActions={logsActions}
+                        fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}
                         contextActions={contextActions}
                         index={item.i}
