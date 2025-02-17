@@ -11,7 +11,7 @@ import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import LogsPlot from "@/components/Interfaces/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Interfaces/Table/Table";
-import { DerivedEntryActions, ContextActions, ItemType, LogsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
+import { DerivedEntryActions, ContextActions, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import TabSelection from "./TabSelection";
 
@@ -20,12 +20,12 @@ const Card = ({
     interactive,
     project,
     pending,
-    fields,
     tableNames,
     tableData,
     plotData,
     tableArguments,
     logsActions,
+    fieldsActions,
     derivedEntryActions,
     contextActions,
     index,
@@ -45,12 +45,12 @@ const Card = ({
     interactive: boolean,
     project: string | undefined,
     pending: boolean,
-    fields: LogFieldsResponseProps,
     tableNames: string[],
     tableData: TableDataProps,
     plotData: PlotDataProps,
     tableArguments: TableArguments,
     logsActions: LogsActions,
+    fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
     contextActions: ContextActions,
     index: string,
@@ -187,10 +187,10 @@ const Card = ({
                 interactive={interactive}
                 pending={pending}
                 logsActions={logsActions}
+                fieldsActions={fieldsActions}
                 project={project}
-                logs_={plotData[item.i]?.plotLogs || []}
-                args={plotData[item.i]?.plotArguments || {}}
-                fields={plotData[item.i]?.plotFields || {}}
+                plotData={plotData[item.i]}
+                tableNames={tableNames}
                 item={item}
                 updateItem={updateItem}
             />}
@@ -200,7 +200,6 @@ const Card = ({
                 pending={pending}
                 tab={tab}
                 item={item}
-                fields={fields}
                 tableArguments={tableArguments}
                 tableDataItem_={{
                     ...(tableData[item.i] || {}),
@@ -214,6 +213,7 @@ const Card = ({
                 }}
                 setTableData={setTableData}
                 updateItem={updateItem}
+                fieldsActions={fieldsActions}
                 logsActions={logsActions}
                 derivedEntryActions={derivedEntryActions}
                 filterExpression={filterExpressions ? filterExpressions[items.findIndex(it => it.i === item.i)] : null}

@@ -15,7 +15,7 @@ const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, conte
     context: string | null,
 }) => {
 
-    const columns = Object.entries(fields).map(([key, value]) => value.field_type === "param" ? `Parameters/${key}` : `Entries/${key}`);
+    const columns = fields ? Object.entries(fields).map(([key, value]) => value && value.field_type === "param" ? `Parameters/${key}` : `Entries/${key}`) : [];
     const anyHidden = Object.values(columnVisibility).some(bool => !bool);
 
     const handleAllCheck = () => {

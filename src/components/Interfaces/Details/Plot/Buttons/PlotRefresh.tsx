@@ -3,7 +3,7 @@
 import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import { ItemType, LogsActions, TableDataItem, TileProps } from "@/types/evals/grid";
+import { ItemType, LogsActions, FieldsActions, PlotDataItem, TileProps } from "@/types/evals/grid";
 import { PlotArguments, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { LogProps } from "@/types/evals/logs";
@@ -12,7 +12,10 @@ const fetchLatestTimestamps = async (tables: string[], args: PlotArguments, proj
     const latestDates = await Promise.all(
         tables.map(async (table) => {
             const tableArgs = args[table];
-            return logsActions.getLatest(project, tableArgs["context"] ?? null, tableArgs["filter_expr"], null, null, tableArgs["subset"], null, 0);
+            const tableContext = tableArgs ? tableArgs["context"] : null;
+            const tableFilters = tableArgs ? tableArgs["filter_expr"] : null;
+            const tableSubset = tableArgs ? tableArgs["subset"] : null;
+            return logsActions.getLatest(project, tableContext, tableFilters, null, null, tableSubset, null, 0);
         })
     );
     const latestTimestamp = latestDates.reduce((latest, current) => new Date(current).getTime() > new Date(latest).getTime() ? current : latest, "");
@@ -20,23 +23,45 @@ const fetchLatestTimestamps = async (tables: string[], args: PlotArguments, proj
 };
 
 const mergePlotData = (plotData_: {[x: string]: { plotLogs: LogProps[] }}) => {
-    const minLogLength = Math.min(...Object.values(plotData_).map(data => data.plotLogs.length));
-    const mergedPlotData = {
-        plotLogs: minLogLength > 0 ? Object.values(plotData_)[0].plotLogs.slice(0, minLogLength).map((_, i) => {
-            return Object.entries(plotData_).reduce((acc, [tableId, data]) => {
-                const prefixedLog = Object.fromEntries(
-                    Object.entries(data.plotLogs[i] || {}).map(([key, value]) => [
-                        `${tableId}.${key}`,
-                        (["params", "entries", "derived_entries"].includes(key) && value) 
-                            ? Object.fromEntries(Object.entries(value).map(([k,v]) => [`${tableId}.${k}`, v])) 
-                            : value
-                    ])
-                );
-                return { ...acc, ...prefixedLog };
-            }, {}) as LogProps;
-        }) : [],
+    let mergedPlotData : {plotLogs: LogProps[]} = {plotLogs: []} 
+    if (plotData_ && Object.values(plotData_).length && Object.values(plotData_)[0].plotLogs) {
+        const minLogLength = Math.min(...Object.values(plotData_).map(data => data.plotLogs.length));
+        if (minLogLength > 0) {
+            const plotLogs = Object.values(plotData_)[0].plotLogs.slice(0, minLogLength).map((_, i) => {
+                return Object.entries(plotData_).reduce((acc, [tableId, data]) => {
+                    const prefixedLog = Object.fromEntries(
+                        Object.entries(data.plotLogs[i] || {}).map(([key, value]) => [
+                            `${tableId}.${key}`,
+                            (["params", "entries", "derived_entries"].includes(key) && value) 
+                                ? Object.fromEntries(Object.entries(value).map(([k,v]) => [`${tableId}.${k}`, v])) 
+                                : value
+                        ])
+                    );
+                    return { ...acc, ...prefixedLog };
+                }, {}) as LogProps;
+            })
+            mergedPlotData = {plotLogs}
+        }
     }
     return mergedPlotData
+}
+
+const fetchAndMergeFields = async (tables: string[], args: PlotArguments, project: string, fieldsActions: FieldsActions) => {
+    const fields : LogFieldsResponseProps = await fieldsActions.get(project)
+    const plotFields: LogFieldsResponseProps = tables.map(table => {
+        const tableArgs = args[table];
+        const tableContext = tableArgs ? tableArgs["context"] : null;
+        return Object.fromEntries(
+            Object
+                .entries(fields)
+                .filter(([name, { data_type, field_type, artifacts }]) => tableContext ? name.startsWith(tableContext) : name)
+                .map(([name, { data_type, field_type, artifacts }]) => {
+                    const newName = tableContext ? name.replace(tableContext, "") : name;
+                    return [`${table}.${newName}`, { data_type, field_type, artifacts }];
+                })
+        )
+    }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
+    return plotFields
 }
 
 const fetchAndMergeLogs = async (tables: string[], args: PlotArguments, project: string, logsActions: LogsActions) => {
@@ -44,7 +69,10 @@ const fetchAndMergeLogs = async (tables: string[], args: PlotArguments, project:
     await Promise.all(
         tables.map(async (table) => {
             const tableArgs = args[table];
-            const tableData = await logsActions.get(project, tableArgs["context"] ?? null, tableArgs["filter_expr"], null, null, tableArgs["subset"], null, null, 0, null, Date.now().toString())
+            const tableContext = tableArgs ? tableArgs["context"] : null;
+            const tableFilters = tableArgs ? tableArgs["filter_expr"] : null;
+            const tableSubset = tableArgs ? tableArgs["subset"] : null;
+            const tableData = await logsActions.get(project, tableContext, tableFilters, null, null, tableSubset, null, null, 0, null, Date.now().toString())
             const tableLogs = tableData.logs as LogProps[]
             data[table] = {plotLogs: tableLogs}
         })
@@ -53,18 +81,26 @@ const fetchAndMergeLogs = async (tables: string[], args: PlotArguments, project:
     return logs
 };
 
-const PlotRefresh = ({ item, project, pending, args, updateItem, setLogs, logs, logsActions }: {
+async function updatePlotLogs (tables: string[], args: PlotArguments, project: string, logsActions: LogsActions, fieldsActions: FieldsActions, setPlotDataItem: Dispatch<SetStateAction<PlotDataItem>>) {
+    fetchAndMergeFields(tables, args, project, fieldsActions).then(async (plotFields: LogFieldsResponseProps) => 
+        fetchAndMergeLogs(tables, args, project, logsActions).then(async (logs) => {
+            setPlotDataItem((plotDataItem: PlotDataItem) => ({...plotDataItem, plotLogs: logs as LogProps[], plotFields}));
+        })
+    )
+} 
+
+const PlotRefresh = ({ tables, item, project, pending, args, updateItem, setPlotDataItem, logs, logsActions, fieldsActions }: {
+    tables: string[]
     item: TileProps,
     project: string,
     pending: boolean,
     args: PlotArguments,
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
-    setLogs: Dispatch<SetStateAction<LogProps[] | undefined>>,
+    setPlotDataItem: Dispatch<SetStateAction<PlotDataItem>>,
     logs: LogProps[] | undefined,
-    logsActions: LogsActions
+    logsActions: LogsActions,
+    fieldsActions: FieldsActions
 }) => {
-
-    const tables = Object.keys(args);
 
     /* Auto refresh */
     // We use timestamp to tag fetch api calls to trigger revalidation every eight seconds
@@ -74,8 +110,7 @@ const PlotRefresh = ({ item, project, pending, args, updateItem, setLogs, logs, 
         const interval = setInterval(() => {
             if (!running && !pending) {
                 running = true;
-                fetchAndMergeLogs(tables, args, project, logsActions).then((logs) => {
-                    setLogs(logs as LogProps[]);
+                updatePlotLogs(tables, args, project, logsActions, fieldsActions, setPlotDataItem).then(() => {
                     running = false;
                 })
             }
@@ -129,7 +164,9 @@ const PlotRefresh = ({ item, project, pending, args, updateItem, setLogs, logs, 
             const latestTs = new Date(latestTimestamp).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime();
             if (latestTs > lastCheckTs) {
-                setLastUpdated(latestTimestamp)
+                updatePlotLogs(tables, args, project, logsActions, fieldsActions, setPlotDataItem).then(() => {
+                    setLastUpdated(latestTimestamp)
+                }) 
             } else {
                 displayLoadCheck();
             }

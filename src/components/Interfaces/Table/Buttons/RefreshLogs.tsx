@@ -3,13 +3,69 @@
 import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import { ItemType, LogsActions, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
+import { ItemType, LogsActions, FieldsActions, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
 import { getLogsParameters, GroupedLogProps, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { ResponseProps } from "@/types/common";
 import { LogProps } from "@/types/evals/logs";
 
-const RefreshLogs = ({ item, project, pending, fields, filterExpression, sortingExpression, groupingExpression, hiddenColumns, updateItem, setTableDataItem, logs, logsActions }: {
+async function updateLogs (
+    item: TileProps,
+    filterExpression: string | null,
+    sortingExpression: string | null,
+    groupingExpression: string | null,
+    project: string, 
+    logsActions: LogsActions, 
+    fieldsActions: FieldsActions,
+    setTableDataItem: Dispatch<SetStateAction<TableDataItem>>
+) {
+    fieldsActions
+    .get(project)
+    .then(async (fields: LogFieldsResponseProps) => {
+        logsActions
+        .get(project, item.context ?? null, filterExpression, sortingExpression, groupingExpression, null, null, 16, 0, null, Date.now().toString())
+        .then(async (logsData: LogsResponseProps) => {
+            const totalPages = Math.ceil(logsData.count / 16);
+            const context = item.context ?? null;
+            const sorting = item.sorting ?? null;
+            const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
+                item, logsData, fields, context, project, filterExpression, sorting, undefined, logsActions
+            )
+            setTableDataItem((tableDataItem: TableDataItem) => {
+                let newCells : string[] = [];
+                if (logs.length) {
+                    const previousCells = tableDataItem.logs.flatMap(log => {
+                        const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`)
+                        const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`)
+                        return entryCells.concat(paramCells)
+                    });
+                    newCells = logs.flatMap(log => {
+                        const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`)
+                        const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`)
+                        return entryCells.concat(paramCells)
+                      }
+                    );
+                    newCells = newCells.filter(id => !previousCells.includes(id))    
+                }
+                return {
+                    ...tableDataItem,
+                    fields,
+                    logsData,
+                    totalPages,
+                    entriesProperties,
+                    paramsProperties,
+                    logs,
+                    params,
+                    metrics,
+                    boundaries,
+                    newCells
+                };
+            });
+        });
+    });
+}
+
+const RefreshLogs = ({ item, project, pending, fields, filterExpression, sortingExpression, groupingExpression, hiddenColumns, updateItem, setTableDataItem, logs, logsActions, fieldsActions }: {
     item: TileProps,
     project: string,
     pending: boolean,
@@ -21,7 +77,8 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
     setTableDataItem: Dispatch<SetStateAction<TableDataItem>>,
     logs: LogProps[] | GroupedLogProps[],
-    logsActions: LogsActions
+    logsActions: LogsActions,
+    fieldsActions: FieldsActions
 }) => {
 
     /* Auto refresh */
@@ -32,41 +89,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
         const interval = setInterval(() => {
             if (!running && !pending) {
                 running = true;
-                logsActions.get(
-                    project, item.context ?? null, filterExpression, sortingExpression, groupingExpression, null, null, 16, 0, null, Date.now().toString()
-                ).then(async (logsData: LogsResponseProps) => {
-                    const totalPages = Math.ceil(logsData.count / 16);
-                    const context = item.context ?? null;
-                    const sorting = item.sorting ?? null;
-                    const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
-                        item, logsData, fields, context, project, filterExpression, sorting, undefined, logsActions
-                    )
-                    setTableDataItem((tableDataItem: TableDataItem) => {
-                        const previousCells = tableDataItem.logs.flatMap(log => {
-                            const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`)
-                            const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`)
-                            return entryCells.concat(paramCells)
-                        });
-                        let newCells = logs.flatMap(log => {
-                            const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`)
-                            const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`)
-                            return entryCells.concat(paramCells)
-                          }
-                        );
-                        newCells = newCells.filter(id => !previousCells.includes(id))
-                        return {
-                            ...tableDataItem,
-                            logsData,
-                            totalPages,
-                            entriesProperties,
-                            paramsProperties,
-                            logs,
-                            params,
-                            metrics,
-                            boundaries,
-                            newCells
-                        };
-                    });
+                updateLogs(item, filterExpression, sortingExpression, groupingExpression, project, logsActions, fieldsActions, setTableDataItem).then(() => {
                     running = false;
                 });
             }
@@ -118,7 +141,9 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime();
             if (latestTs > lastCheckTs) {
-                setLastUpdated(latest)
+                updateLogs(item, filterExpression, sortingExpression, groupingExpression, project, logsActions, fieldsActions, setTableDataItem).then(() => {
+                    setLastUpdated(latest)
+                });
             } else {
                 displayLoadCheck();
             }
