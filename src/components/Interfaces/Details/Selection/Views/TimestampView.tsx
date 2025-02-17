@@ -68,8 +68,8 @@ export default function TimestampView({
   splitView, // Not used, just for compatibility
   version = "",
   comparableVersions = [],
-  displayMode = "text",
-}: LogComparisonProps & { displayMode?: "text" | "markdown" | "raw" }) {
+  displayMode = "markdown",
+}: LogComparisonProps) {
   // Single vs multiple
   const singleMode = !comparables || comparables.length === 0;
   const baseStr = typeof value === "string" ? value : String(value || "");

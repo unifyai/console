@@ -57,7 +57,8 @@ function pickDataView(
   baseLogIndex: number,
   compLogIndexes: number[],
   diffMode: LogComparisonProps["diffMode"],
-  splitView: boolean
+  splitView: boolean,
+  displayMode: "text" | "markdown" | undefined
 ) {
   // Decide which specialized view to use.
 
@@ -75,6 +76,7 @@ function pickDataView(
         comparisonLogsIndex={compLogIndexes}
         diffMode={diffMode}
         splitView={splitView}
+        displayMode={displayMode}
       />
     );
   }
@@ -87,6 +89,7 @@ function pickDataView(
         comparisonLogsIndex={compLogIndexes}
         diffMode={diffMode}
         splitView={splitView}
+        displayMode={displayMode}
       />
     );
   }
@@ -99,6 +102,7 @@ function pickDataView(
         comparisonLogsIndex={compLogIndexes}
         diffMode={diffMode}
         splitView={splitView}
+        displayMode={displayMode}
       />
     );
   }
@@ -111,6 +115,7 @@ function pickDataView(
         comparisonLogsIndex={compLogIndexes}
         diffMode={diffMode}
         splitView={splitView}
+        displayMode={displayMode}
       />
     );
   }
@@ -123,6 +128,7 @@ function pickDataView(
         comparisonLogsIndex={compLogIndexes}
         diffMode={diffMode}
         splitView={splitView}
+        displayMode={displayMode}
       />
     );
   }
@@ -135,6 +141,7 @@ function pickDataView(
         comparisonLogsIndex={compLogIndexes}
         diffMode={diffMode}
         splitView={splitView}
+        displayMode={displayMode}
       />
     );
   }
@@ -148,6 +155,7 @@ function pickDataView(
       comparisonLogsIndex={compLogIndexes}
       diffMode={diffMode}
       splitView={splitView}
+      displayMode={displayMode}
     />
   );
 }
@@ -227,6 +235,7 @@ export default function ChatInView({
   comparisonLogsIndex,
   diffMode = "none",
   splitView = false,
+  displayMode = "markdown",
 }: LogComparisonProps) {
   //
   // 1) SINGLE MODE => just a vertical list
@@ -299,6 +308,7 @@ export default function ChatInView({
                     comparisonLogsIndex={[]}
                     diffMode={diffMode}
                     splitView={splitView}
+                    displayMode={displayMode}
                   />
                 </div>
               </AccordionContent>
@@ -315,7 +325,7 @@ export default function ChatInView({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border-l ml-4 pl-1">
-                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView)}
+                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView, displayMode)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -331,7 +341,7 @@ export default function ChatInView({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border-l ml-4 pl-1">
-                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView)}
+                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView, displayMode)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -574,7 +584,8 @@ export default function ChatInView({
                     baseLogIndex,
                     comparisonLogsIndex,
                     diffMode,
-                    splitView
+                    splitView,
+                    displayMode
                   )}
                 </div>
               </AccordionContent>
@@ -596,7 +607,8 @@ export default function ChatInView({
                     baseLogIndex,
                     comparisonLogsIndex,
                     diffMode,
-                    splitView
+                    splitView,
+                    displayMode
                   )}
                 </div>
               </AccordionContent>
@@ -744,6 +756,7 @@ export default function ChatInView({
                 comparisonLogsIndex={comparisonLogsIndex}
                 diffMode={diffMode}
                 splitView={splitView}
+                displayMode={displayMode}
               />
             </div>
           </AccordionContent>
@@ -764,7 +777,8 @@ export default function ChatInView({
                   baseLogIndex,
                   comparisonLogsIndex,
                   diffMode,
-                  splitView
+                  splitView,
+                  displayMode
                 )}
               </div>
             </AccordionContent>
@@ -786,7 +800,8 @@ export default function ChatInView({
                   baseLogIndex,
                   comparisonLogsIndex,
                   diffMode,
-                  splitView
+                  splitView,
+                  displayMode
                 )}
               </div>
             </AccordionContent>

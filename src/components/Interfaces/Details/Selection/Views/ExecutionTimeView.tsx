@@ -4,7 +4,6 @@ import React from "react";
 import { LogComparisonProps } from "./types";
 import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
-import DiffViewer from "@/components/Common/Misc/DiffViewer";
 
 /*────────────────────────────────────────────────────────────────────────────
   formatTime & formatTimeNumber
@@ -93,6 +92,7 @@ export default function ExecutionTimeView({
   splitView = false,
   version = "",
   comparableVersions = [],
+  displayMode = "markdown",
 }: LogComparisonProps) {
   // Convert the base value to a number (assume seconds) with a fallback to 0.
   const baseTime =

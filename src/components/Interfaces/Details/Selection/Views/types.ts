@@ -9,5 +9,5 @@ export interface LogComparisonProps {
   nestingLevel?: number;              // How "deep" we are in recursion (for indenting).
   diffMode?: "none" | "lines" | "words" | "characters";
   splitView?: boolean;
-  displayMode?: "text" | "markdown" | "raw";
+  displayMode?: "text" | "markdown"
 }

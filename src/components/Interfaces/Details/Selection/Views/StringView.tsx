@@ -138,8 +138,8 @@ export default function StringView({
   splitView = false,
   version = "",
   comparableVersions = [""],
-  displayMode = "text",
-}: LogComparisonProps & { displayMode?: "text" | "markdown" | "raw" }) {
+  displayMode = "markdown",
+}: LogComparisonProps) {
   // Prepare string values
   const singleMode = !comparables || comparables.length === 0;
   const baseStr = toStringSafe(value);
@@ -261,7 +261,7 @@ export default function StringView({
                             {displayMode === "markdown" ? (
                               <MarkdownRenderer>{verText}</MarkdownRenderer>
                             ) : (
-                              verText
+                              <div className="whitespace-pre-wrap">{verText}</div>
                             )}
                           </div>
                         ) : (
@@ -292,7 +292,7 @@ export default function StringView({
                       {displayMode === "markdown" ? (
                         <MarkdownRenderer>{textValue}</MarkdownRenderer>
                       ) : (
-                        textValue
+                        <div className="whitespace-pre-wrap">{textValue}</div>
                       )}
                     </div>
                   ) : (
