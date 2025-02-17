@@ -43,8 +43,8 @@ const FocusDialog = ({
     setMaxTiles,
     setFocusDialog,
 }: {
-    maxTiles: string[],
-    maxTileItems: (TileProps | undefined)[],
+    maxTiles: [string | undefined, string | undefined],
+    maxTileItems: [TileProps | undefined, TileProps | undefined],
     edit: boolean,
     interactive: boolean,
     project: string | undefined,
@@ -68,11 +68,11 @@ const FocusDialog = ({
     offsets: number[],
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: any | undefined) => void,
     updateInterface: (savedInterface?: Interface | null) => Promise<ResponseProps>,
-    setMaxTiles: Dispatch<SetStateAction<string[]>>,
+    setMaxTiles: Dispatch<SetStateAction<[string | undefined, string | undefined]>>,
     setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void,
     setFocusDialog: Dispatch<SetStateAction<boolean>>,
 }) => {
-    const tiles = maxTileItems.map((item: TileProps | undefined) => {
+    const tiles = maxTileItems.map((item: TileProps | undefined, idx: number) => {
         return (
             item
                 ? <div className="h-full relative pt-2">
@@ -110,9 +110,9 @@ const FocusDialog = ({
                             <ActionButton
                                 className="remove cursor-pointer hover:z-10"
                                 onClick={() => {
-                                    const newMaxTiles = maxTiles.filter(t => t != item.i);
-                                    setMaxTiles(newMaxTiles);
-                                    if (newMaxTiles.length == 0)
+                                    maxTiles[idx] = undefined;
+                                    setMaxTiles([...maxTiles]);
+                                    if (maxTiles[0] == undefined && maxTiles[1] == undefined)
                                         setFocusDialog(false);
                                 }}
                                 icon={<X />}
@@ -132,13 +132,11 @@ const FocusDialog = ({
                                 size="default"
                             />}
                         >
-                            {items.map((item, idx) => <DropdownMenuItem
-                                key={idx}
+                            {items.filter(item => !maxTiles.includes(item.i)).map((item, idx_) => <DropdownMenuItem
+                                key={idx_}
                                 onSelect={() => {
-                                    if (idx == 0)
-                                        setMaxTiles([item.i, ...maxTiles])
-                                    else
-                                        setMaxTiles([...maxTiles, item.i])
+                                    maxTiles[idx] = item.i;
+                                    setMaxTiles([...maxTiles]);
                                 }}
                                 className="w-64"
                             >

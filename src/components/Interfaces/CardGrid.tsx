@@ -85,7 +85,7 @@ const CardGrid = ({
     // modals
     const [saveDialog, setSaveDialog] = useState(false);
     const [focusDialog, setFocusDialog] = useState(false);
-    const [maxTiles, setMaxTiles] = useState<string[]>([]);
+    const [maxTiles, setMaxTiles] = useState<[string | undefined, string | undefined]>([undefined, undefined]);
     const [editTile, setEditTile] = useState<string>();
     const [newTileName, setNewTileName] = useState<string>();
 
@@ -115,13 +115,9 @@ const CardGrid = ({
     // other variables
     const gridRef = useRef<HTMLDivElement>(null);
     const anyTilePending = Object.entries(tilePending).some(([_, value]) => value);
-    const maxTileItems = maxTiles.map(tile => items.find(item => item.i == tile)).concat(
-        Array(2 - maxTiles.length).fill(undefined)
-    );
-    if (maxTileItems[0] == undefined && maxTileItems[1] != undefined) {
-        maxTileItems.shift();
-        maxTileItems.push(undefined);
-    }
+    const maxTileItems: [TileProps | undefined, TileProps | undefined] = maxTiles.map(
+        tile => items.find(item => item.i == tile)
+    ) as [TileProps | undefined, TileProps | undefined];
     const hiddenItems = items.filter(item => !item.visible);
     const data = (projects || []).map((p) => ({ path: p, type: "file" }));
 
@@ -389,12 +385,8 @@ const CardGrid = ({
                                             <ActionButton
                                                 className="cursor-pointer hover:z-10"
                                                 onClick={() => {
-                                                    if (!maxTiles.includes(el.i)) {
-                                                        const newMaxTiles = [el.i, ...maxTiles];
-                                                        if (newMaxTiles.length > 2)
-                                                            newMaxTiles.pop();
-                                                        setMaxTiles(newMaxTiles);
-                                                    }
+                                                    if (!maxTiles.includes(el.i))
+                                                        setMaxTiles([el.i, maxTiles[0] || maxTiles[1]]);
                                                     setFocusDialog(true);
                                                 }}
                                                 icon={<Maximize2 />}
