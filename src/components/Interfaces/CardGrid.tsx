@@ -23,6 +23,7 @@ import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./ProjectButtons";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
+import EditTileName from "./EditTileName";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -90,7 +91,6 @@ const CardGrid = ({
     const [tileDropdown, setTileDropdown] = useState<{ x: number, y: number }>();
     const [maxTiles, setMaxTiles] = useState<[string | undefined, string | undefined]>([undefined, undefined]);
     const [editTile, setEditTile] = useState<string>();
-    const [newTileName, setNewTileName] = useState<string>();
 
     // save and reset buttons
     const [saveSuccess, setSaveSuccess] = useState<boolean>();
@@ -146,24 +146,6 @@ const CardGrid = ({
                 return interfaceActions.create(interface_, project, context_1, items_1, newCounter_1, true)
         }
         return Promise.reject();
-    };
-
-    // edit tile name
-    const saveTileName = () => {
-        if (newTileName) {
-            const newItems = items.map(
-                item => (
-                    item.i == editTile
-                        ? { ...item, i: newTileName }
-                        : item.table == editTile
-                            ? { ...item, table: newTileName }
-                            : { ...item }
-                )
-            );
-            setItems([...newItems]);
-        }
-        setEditTile(undefined);
-        setNewTileName(undefined);
     };
 
     // get latest interface (including context)
@@ -520,32 +502,12 @@ const CardGrid = ({
                 </Suspense>
             </DialogContent>
         </Dialog>}
-        {edit && editTile && <Dialog open={true} onOpenChange={() => {
-            setEditTile(undefined);
-            setNewTileName(undefined);
-        }}>
-            <DialogContent className="w-1/6">
-                <div className="mt-6 flex gap-2">
-                    <Input
-                        placeholder={"Enter new tile name..."}
-                        value={newTileName || ""}
-                        onInput={(input) => setNewTileName(input.currentTarget.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter")
-                                saveTileName();
-                        }}
-                        className="h-8 w-48"
-                    />
-                    <ActionButton
-                        className="remove cursor-pointer"
-                        onClick={() => saveTileName()}
-                        text="Save"
-                        tooltip="Save"
-                        variant="primary"
-                    />
-                </div>
-            </DialogContent>
-        </Dialog>}
+        {edit && editTile && <EditTileName
+            items={items}
+            editTile={editTile}
+            setItems={setItems}
+            setEditTile={setEditTile}
+        />}
         {saveDialog && <Dialog open={true} onOpenChange={() => setSaveDialog(false)}>
             <DialogContent className="w-1/4">
                 <div className="mt-4 flex flex-col gap-4">
