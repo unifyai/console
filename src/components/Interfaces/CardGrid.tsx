@@ -346,12 +346,6 @@ const CardGrid = ({
                                     data-grid={el}
                                     className="relative"
                                     hidden={!el.visible}
-<<<<<<< HEAD
-=======
-                                    onClick={(e) => {
-                                        // e.stopPropagation();
-                                    }}
->>>>>>> 0134013ea65d7faa9aac7462fb90b49de4d7ef80
                                 >
                                     <Card
                                         edit={edit}
