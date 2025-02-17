@@ -104,26 +104,29 @@ const PlotRefresh = ({ tables, item, project, pending, args, updateItem, setPlot
 
     /* Auto refresh */
     // We use timestamp to tag fetch api calls to trigger revalidation every eight seconds
-    let running = false;
     useEffect(() => {
         if (!item.auto_update || item.auto_update == "false") return;
+        let isMounted = true;
+        let running = false;
         const interval = setInterval(() => {
-            if (!running && !pending) {
-                running = true;
-                updatePlotLogs(tables, args, project, logsActions, fieldsActions, setPlotDataItem).then(() => {
-                    running = false;
-                })
-            }
-        }, 10000); // Refresh every 10000ms
-        return () => clearInterval(interval)
-    }, [item.auto_update])
+            if (!isMounted || running || pending) return;
+            running = true;
+            updatePlotLogs(tables, args, project, logsActions, fieldsActions, setPlotDataItem).finally(() => {
+            running = false;
+            });
+        }, 5000);      
+        return () => {
+            clearInterval(interval);
+            isMounted = false;
+        };
+    }, [item.auto_update, tables, args]); 
     const onAutoClick = () => updateItem(item, "auto_update")(item.auto_update === "true" ? "false" : "true")
     const autoRefresh =
         <ActionButton
             variant={item.auto_update === "true" ? "primary" : "outline"}
             className="rounded-none rounded-bl-lg rounded-br-lg"
             icon={<Power />}
-            tooltip={"Auto refresh every 10000ms"}
+            tooltip={"Auto refresh every 5s"}
             onClick={() => onAutoClick()}
         />
 

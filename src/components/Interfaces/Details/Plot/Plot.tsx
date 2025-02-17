@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useMemo, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useRef, useMemo, useState } from "react";
 import * as d3 from "d3";
 
 import PlotType from "./Buttons/PlotType";
@@ -18,20 +18,20 @@ import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogra
 import PlotAxis from "./Buttons/PlotAxis";
 import { ItemType, TileProps } from "@/types/evals/grid";
 
-const LogsPlot = ({ interactive, item, updateItem, project, pending, plotData = {plotLogs: [], plotArguments: {}, plotFields: {}}, tableNames, logsActions, fieldsActions }: {
+const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataItem, setPlotDataItem, tableNames, logsActions, fieldsActions }: {
     interactive: boolean,
     item: TileProps,
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
     project: string | undefined,
     pending: boolean,
-    plotData: { plotLogs: LogProps[]; plotArguments: PlotArguments; plotFields: LogFieldsResponseProps };
     tableNames: string[],
     logsActions: LogsActions,
     fieldsActions: FieldsActions
+    plotDataItem: PlotDataItem,
+    setPlotDataItem: Dispatch<SetStateAction<PlotDataItem>>
 }) => {
 
     // Init logs and handle local updates
-    const [plotDataItem, setPlotDataItem] = useState<PlotDataItem>(plotData);
     const {plotLogs: logs, plotArguments: args, plotFields: fields} = plotDataItem
 
     // Initialize refs and container dimensions

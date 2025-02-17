@@ -12,7 +12,7 @@ import {
   GroupingState,
 } from "@tanstack/react-table";
 import { DerivedEntryActions, LogsActions, FieldsActions } from "@/types/evals/grid";
-import React, { useEffect, useRef, useState } from "react";
+import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import { buildTree, nestedColumns, encodeRenderedDepth } from "@/utils/evals/table";
@@ -46,7 +46,8 @@ const LogsTable = ({
   pending,
   item,
   tableArguments,
-  tableDataItem_,
+  tableDataItem,
+  setTableDataItem,
   setTableData,
   updateItem,
   logsActions,
@@ -66,7 +67,8 @@ const LogsTable = ({
   tab: string;
   item: TileProps;
   tableArguments: TableArguments;
-  tableDataItem_: TableDataItem;
+  tableDataItem: TableDataItem;
+  setTableDataItem: Dispatch<SetStateAction<TableDataItem>>;
   setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void;
   updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
   logsActions: LogsActions;
@@ -82,7 +84,6 @@ const LogsTable = ({
 }) => {
 
   // extract necessary fields
-  const [tableDataItem, setTableDataItem] = useState(tableDataItem_);
   const { fields, logs, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
 
   // Basic states for quick feedback

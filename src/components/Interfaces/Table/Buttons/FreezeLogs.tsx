@@ -11,7 +11,7 @@ const FreezeLogs = ({ item, updateItem }: {
 
     const onClick = () => {
         if (item.freeze) {
-            updateItem(item, "freeze")(undefined)
+            updateItem(item, "freeze")("")
         } else {
             const cutoff = new Date().toISOString().replace("T", " ").replace("Z", "")
             updateItem(item, "freeze")(cutoff)
