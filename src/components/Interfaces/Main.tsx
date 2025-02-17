@@ -91,12 +91,13 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                 .join(" or ")
             : ""
     );
-    let filterExpressions: (string | null)[] = tableItems.map((_, idx) => {
+    let filterExpressions: (string | null)[] = tableItems.map((item, idx) => {
         const columnFiltersExpression = columnFiltersExpressions[idx];
         const commonFiltersExpression = commonFiltersExpressions[idx];
         let filterExpression = null;
         if (columnFiltersExpression) filterExpression = columnFiltersExpression;
         if (commonFiltersExpression) filterExpression = filterExpression ? `${commonFiltersExpression} and ${filterExpression}` : commonFiltersExpression;
+        if (item.freeze) filterExpression = filterExpression ? filterExpression + `created_at < ${item.freeze}` : `created_at < "${item.freeze}"`;
         return filterExpression;
     });
 

@@ -27,6 +27,7 @@ import FooterCell from "./Content/FooterCell";
 import GlobalFilter from "./Buttons/GlobalFilter";
 import PageController from "@/components/Common/Tables/Data/Buttons/PageController";
 import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
+import FreezeLogs from "./Buttons/FreezeLogs";
 import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
@@ -364,6 +365,7 @@ const LogsTable = ({
             pageNumber={pageNumber}
             setPageNumber={updateItem(item, "page_number")}
           />
+          <FreezeLogs item={item} updateItem={updateItem}/>
           <RefreshLogs
             item={item}
             project={project}

@@ -18,6 +18,7 @@ export interface TileProps {
     context?: string;
     prev_context?: string;
     auto_update?: string;
+    freeze?: string;
     filters?: string;
     common_filter?: string;
     page_number?: string;
@@ -102,6 +103,7 @@ export type ItemType =
     | "context"
     | "prev_context"
     | "auto_update"
+    | "freeze"
     | "visible"
     | "table_type";
 
