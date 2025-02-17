@@ -21,6 +21,8 @@ import DefaultProject from "./DefaultProject";
 import InterfaceButtons from "./InterfaceButtons";
 import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./ProjectButtons";
+import BaseDropdown from "../Common/Dropdowns/Base";
+import { DropdownMenuItem } from "../UI/dropdown-menu";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -85,6 +87,7 @@ const CardGrid = ({
     // modals
     const [saveDialog, setSaveDialog] = useState(false);
     const [focusDialog, setFocusDialog] = useState(false);
+    const [tileDropdown, setTileDropdown] = useState<{ x: number, y: number }>();
     const [maxTiles, setMaxTiles] = useState<[string | undefined, string | undefined]>([undefined, undefined]);
     const [editTile, setEditTile] = useState<string>();
     const [newTileName, setNewTileName] = useState<string>();
@@ -311,7 +314,12 @@ const CardGrid = ({
                 interfaceActions={interfaceActions}
                 setProject={setProject}
                 setInterface={setInterface}
-            /> : <></> : interfaces.map((int_, idx) => <TabsContent key={idx} value={int_} className="tutorial-selection-pane">
+            /> : <></> : interfaces.map((int_, idx) => <TabsContent
+                key={idx}
+                value={int_}
+                className="tutorial-selection-pane"
+                onClick={(e) => setTileDropdown({ x: e.clientX, y: e.clientY })}
+            >
                 {pending
                     ? <div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>
                     : interface_1 == int_ ? <ResponsiveReactGridLayout
@@ -344,6 +352,7 @@ const CardGrid = ({
                                     data-grid={el}
                                     className="relative"
                                     hidden={!el.visible}
+                                    onClick={(e) => e.stopPropagation()}
                                 >
                                     <Card
                                         edit={edit}
@@ -439,6 +448,42 @@ const CardGrid = ({
                     </div>}
             </TabsContent>)}
         </Tabs>
+        {tileDropdown && <div className="absolute" style={{ top: tileDropdown.y, left: tileDropdown.x }}>
+            <BaseDropdown
+                button={<ActionButton
+                    tooltip="Add Tab"
+                    text="Add Tab"
+                    variant="outline"
+                    size="default"
+                />}
+                open={true}
+            >
+                {(!edit ? [] : ["Table", "Plot", "View"]).map((tab, idx) => <DropdownMenuItem
+                    key={idx}
+                    onSelect={() => {
+                        setItems([
+                            ...items,
+                            {
+                                i: "Tile_" + newCounter,
+                                x: tileDropdown.x,
+                                y: tileDropdown.y,
+                                w: 4,
+                                h: 4,
+                                minW: 4,
+                                minH: 4,
+                                tab: tab,
+                                visible: true,
+                            }
+                        ]);
+                        setNewCounter(newCounter + 1);
+                        setTileDropdown(undefined);
+                    }}
+                    className="w-64"
+                >
+                    {tab}
+                </DropdownMenuItem>)}
+            </BaseDropdown>
+        </div>}
         {focusDialog && <Dialog open={true} onOpenChange={() => setFocusDialog(false)}>
             <DialogContent className="min-w-full h-full overflow-y-auto">
                 <Suspense fallback={<SkeletonLoader />}>
