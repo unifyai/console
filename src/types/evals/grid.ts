@@ -133,7 +133,7 @@ export interface LogsActions {
     get: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, _timestamp: string | null) => Promise<LogsResponseProps>,
     getLatest: (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number) => Promise<string>,
     getMetrics: (project: string, filterExpression: string | null, metricName: string, keyName: string) => Promise<number>,
-    delete: (ids_and_fields: LogFieldsProps) => Promise<ResponseProps>,
+    delete: (project: string, context: string | null, ids_and_fields: LogFieldsProps, source_type: string | null) => Promise<ResponseProps>,
 }
 
 export interface DerivedEntryActions {

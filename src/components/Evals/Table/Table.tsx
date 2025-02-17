@@ -457,7 +457,7 @@ const LogsTable = ({
               />
               <DeleteDialog
                 type="project"
-                resource={project}
+                args={[project]}
                 deletingFunction={projectActions.delete}
                 variant="outline"
                 onDelete={() => {

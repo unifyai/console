@@ -76,7 +76,7 @@ const ProjectButtons = ({
                     />
                     <DeleteDialog
                         type="project"
-                        resource={project}
+                        args={[project]}
                         deletingFunction={async (name: string) => {
                             await Promise.all(interfaces.map(interface_ => interfaceActions.delete(
                                 interface_, project, true

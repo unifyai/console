@@ -53,7 +53,7 @@ const customKeysTableColumns = (
             <DeleteDialog 
               deletingFunction={customKeyActions.delete}
               type="custom key"
-              resource={name}
+              args={[name]}
             />
             <RenameDialog 
               renamingFunction={customKeyActions.rename}

@@ -9,10 +9,11 @@ import { getPartAfterFirstUnderscore } from "@/utils/evals/selection";
 import { processContext, sanitizeId } from "@/utils/evals/columnOperations";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 
-const DeleteCells = ({ selectedCells, logs, deleteLogFields, context }: {
+const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context }: {
+	project: string,
 	selectedCells: string[],
 	logs: LogProps[] | GroupedLogProps[],
-	deleteLogFields: (fields: LogFieldsProps) => Promise<ResponseProps>,
+	deleteLogFields: (project: string, context: string | null, ids_and_fields: LogFieldsProps, source_type: string | null) => Promise<ResponseProps>,
 	context: string | undefined
 }) => {
 	const [showDialog, setShowDialog] = useState(false);
@@ -43,10 +44,12 @@ const DeleteCells = ({ selectedCells, logs, deleteLogFields, context }: {
 		context ? processContext("merge", context, sanitizeId(getPartAfterFirstUnderscore(cell))) : sanitizeId(getPartAfterFirstUnderscore(cell))  
 	])
 
+	const args = [project, context, fieldsToDelete]
+
 	return (showDialog &&
 		<DeleteDialog
 			deletingFunction={deleteLogFields}
-			resource={fieldsToDelete}
+			args={args}
 			type="log entries"
 			showDialog={showDialog}
 			setShowDialog={setShowDialog}

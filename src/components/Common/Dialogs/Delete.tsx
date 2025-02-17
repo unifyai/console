@@ -6,12 +6,11 @@ import { ResponseProps } from "@/types/common";
 import BaseDialog from "./Base";
 import ActionButton from "../Buttons/Action"
 import DeleteButton from "../Buttons/Delete";
-import { useKey } from "react-use";
 
-const DeleteDialog = ({ resource, type, deletingFunction, showDialog, variant, setShowDialog, onDelete }: {
-    resource: any,
+const DeleteDialog = ({ args, type, deletingFunction, showDialog, variant, setShowDialog, onDelete }: {
+    args: any[],
     type: string
-    deletingFunction: (resource: any) => Promise<ResponseProps>,
+    deletingFunction: (...args: any[]) => Promise<ResponseProps>,
     variant?: "secondary" | "destructive" | "outline" | "ghost" | "link",
     showDialog?: boolean,
     setShowDialog?: Dispatch<SetStateAction<boolean>>
@@ -32,7 +31,7 @@ const DeleteDialog = ({ resource, type, deletingFunction, showDialog, variant, s
     const onSubmit = () => {
         setError(false);
         setLoading(true);
-        deletingFunction(resource).then(data => {
+        deletingFunction(...args).then(data => {
             if ("info" in data) {
                 setSuccess(true);
                 if (onDelete) {onDelete()}
@@ -56,12 +55,6 @@ const DeleteDialog = ({ resource, type, deletingFunction, showDialog, variant, s
     const title =   tooltip + "?"
     const body =    success ? messages["success"] : error ? messages["error"] : messages["warning"];
     const footer =  success ? null : <DeleteButton disabled={loading} onClick={onSubmit} loading={loading}/>
-    
-    // Hotkey to trigger form submission when pressing enter
-    // useKey("Enter", () => {
-    //     onSubmit();
-    // });
-
 
     return (
         <BaseDialog button={button} title={title} body={body} footer={footer} open={showDialog ? showDialog : open} setOpen={setShowDialog ? setShowDialog : setOpen}/>

@@ -516,7 +516,7 @@ const LogsTable = ({
                     </FooterCell>
                   }
                   ExtraComponents={(table) => {
-                    return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} context={item.context} />
+                    return <DeleteCells project={project} selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} context={item.context} />
                   }}
                   ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
                     <CellPopover cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />

@@ -71,7 +71,7 @@ const customEndpointsTableColumns = (
             <DeleteDialog 
               deletingFunction={customEndpointActions.delete}
               type="custom endpoint"
-              resource={name}
+              args={[name]}
             />
             <RenameDialog 
               renamingFunction={customEndpointActions.rename}
