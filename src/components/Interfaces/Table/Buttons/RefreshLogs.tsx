@@ -9,6 +9,25 @@ import { getLogsDetails } from "@/utils/evals/common";
 import { ResponseProps } from "@/types/common";
 import { LogProps } from "@/types/evals/logs";
 
+const getNewCells = (tableDataItem: TableDataItem, logs: LogProps[]) => {
+    let newCells : string[] = [];
+    if (logs.length) {
+        const previousCells = tableDataItem.logs.flatMap(log => {
+            const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`)
+            const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`)
+            return entryCells.concat(paramCells)
+        });
+        newCells = logs.flatMap(log => {
+            const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`)
+            const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`)
+            return entryCells.concat(paramCells)
+          }
+        );
+        newCells = newCells.filter(id => !previousCells.includes(id))    
+    }
+    return newCells;
+}
+
 async function updateLogs (
     item: TileProps,
     filterExpression: string | null,
@@ -17,7 +36,7 @@ async function updateLogs (
     project: string, 
     logsActions: LogsActions, 
     fieldsActions: FieldsActions,
-    setTableDataItem: Dispatch<SetStateAction<TableDataItem>>
+    setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void,
 ) {
     fieldsActions
     .get(project)
@@ -31,41 +50,34 @@ async function updateLogs (
             const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
                 item, logsData, fields, context, project, filterExpression, sorting, undefined, logsActions
             )
-            setTableDataItem((tableDataItem: TableDataItem) => {
-                let newCells : string[] = [];
-                if (logs.length) {
-                    const previousCells = tableDataItem.logs.flatMap(log => {
-                        const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`)
-                        const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`)
-                        return entryCells.concat(paramCells)
-                    });
-                    newCells = logs.flatMap(log => {
-                        const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`)
-                        const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`)
-                        return entryCells.concat(paramCells)
-                      }
-                    );
-                    newCells = newCells.filter(id => !previousCells.includes(id))    
-                }
-                return {
-                    ...tableDataItem,
-                    fields,
-                    logsData,
-                    totalPages,
-                    entriesProperties,
-                    paramsProperties,
-                    logs,
-                    params,
-                    metrics,
-                    boundaries,
-                    newCells
-                };
+            await new Promise<void>(resolve => {
+                setTableData(prev => {
+                    const newCells = getNewCells(prev[item.i], logs as LogProps[])
+                    const newState = {
+                        ...prev,
+                        [item.i]: {
+                            ...prev[item.i],
+                            fields,
+                            logsData,
+                            totalPages,
+                            entriesProperties,
+                            paramsProperties,
+                            logs,
+                            params,
+                            metrics,
+                            boundaries,
+                            newCells
+                        }
+                    };
+                    resolve();
+                    return newState;
+                });
             });
         });
     });
 }
 
-const RefreshLogs = ({ item, project, pending, fields, filterExpression, sortingExpression, groupingExpression, hiddenColumns, updateItem, setTableDataItem, logs, logsActions, fieldsActions }: {
+const RefreshLogs = ({ item, project, pending, fields, filterExpression, sortingExpression, groupingExpression, hiddenColumns, updateItem, setTableData, logs, logsActions, fieldsActions }: {
     item: TileProps,
     project: string,
     pending: boolean,
@@ -75,29 +87,26 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
     groupingExpression: string | null,
     hiddenColumns: string | undefined,
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
-    setTableDataItem: Dispatch<SetStateAction<TableDataItem>>,
+    setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void,
     logs: LogProps[] | GroupedLogProps[],
     logsActions: LogsActions,
     fieldsActions: FieldsActions
 }) => {
     /* Auto refresh */
     // We use timestamp to tag fetch api calls to trigger revalidation every eight seconds
+    let running = false
     useEffect(() => {
         if (!item.auto_update || item.auto_update == "false") return;
-        let isMounted = true;
-        let running = false;
         const interval = setInterval(() => {
-          if (!isMounted || running || pending) return;
-          running = true;
-          updateLogs(item, filterExpression, sortingExpression, groupingExpression, project, logsActions, fieldsActions, setTableDataItem).finally(() => {
-            running = false;
-          });
-        }, 5000);      
-        return () => {
-          clearInterval(interval);
-          isMounted = false;
-        };
-    }, [item.auto_update, filterExpression, sortingExpression, groupingExpression]); 
+            if (!running && !pending) {
+                running = true;
+                updateLogs(item, filterExpression, sortingExpression, groupingExpression, project, logsActions, fieldsActions, setTableData).then(() => {
+                    running = false;
+                });
+            }
+        }, 5000);
+        return () => clearInterval(interval)
+    }, [item.auto_update]);
     const onAutoClick = () => updateItem(item, "auto_update")(item.auto_update === "true" ? "false" : "true")
     const autoRefresh =
         <ActionButton
@@ -143,7 +152,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime();
             if (latestTs > lastCheckTs) {
-                updateLogs(item, filterExpression, sortingExpression, groupingExpression, project, logsActions, fieldsActions, setTableDataItem).then(() => {
+                updateLogs(item, filterExpression, sortingExpression, groupingExpression, project, logsActions, fieldsActions, setTableData).then(() => {
                     setLastUpdated(latest)
                 });
             } else {

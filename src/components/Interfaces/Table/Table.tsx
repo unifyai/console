@@ -87,7 +87,7 @@ const LogsTable = ({
   useEffect(() => {
     setTableDataItem(tableDataItem_);
   }, [tableDataItem_]);
-  
+
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false); // if metric changed
 
@@ -379,7 +379,7 @@ const LogsTable = ({
             hiddenColumns={item.hidden_columns}
             groupingExpression={groupingExpression}
             updateItem={updateItem}
-            setTableDataItem={setTableDataItem}
+            setTableData={setTableData}
             logsActions={logsActions}
             fieldsActions={fieldsActions}
             logs={logs}
