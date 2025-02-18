@@ -221,7 +221,10 @@ export function initFilters (
             for (let i = 0; i < array.length; i += 2) {
                 const key = index;
                 const join = array[i] as "&&" | "||";
-                const value = array[i + 1].startsWith('"') && array[i + 1].endsWith('"') ? array[i + 1].slice(1, -1) : array[i + 1];
+                const value = array[i + 1] 
+					? array[i + 1].startsWith('"') && array[i + 1].endsWith('"') 
+						? array[i + 1].slice(1, -1) : array[i + 1]
+						: "";
                 initialValues.push({key, mode, join, value});
             }
         }
