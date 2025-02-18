@@ -11,7 +11,7 @@ import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import LogsPlot from "@/components/Interfaces/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Interfaces/Table/Table";
-import { DerivedEntryActions, ContextActions, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, PlotDataItem, TableDataItem, TileProps } from "@/types/evals/grid";
+import { DerivedEntryActions, ContextActions, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import TabSelection from "./TabSelection";
 
@@ -72,48 +72,6 @@ const Card = ({
     const tab = items.find(item => item.i == index)?.tab;
     const tabTypes = ["Table", "Plot", "View"];
     const relevantItem = item.table ? items.find(it => it.i == item.table) : undefined;
-
-    // Handle table and plot state updates both from server actions and local streaming 
-    const [tableDataItem, setTableDataItem] = useState<TableDataItem>({
-        ...(tableData[item.i] || {}),
-        logs: tableData[item.i]?.logs || [],
-        entriesProperties: tableData[item.i]?.entriesProperties || [],
-        paramsProperties: tableData[item.i]?.paramsProperties || [],
-        metrics: tableData[item.i]?.metrics || {},
-        logsData: tableData[item.i]?.logsData || { params: {}, logs: [], count: 0, groups: {} },
-        totalPages: tableData[item.i]?.totalPages || 0,
-        boundaries: tableData[item.i]?.boundaries || { minimus: {}, maximums: {} }
-    });
-    const [plotDataItem, setPlotDataItem] = useState<PlotDataItem>({
-        ...(plotData[item.i] || {}),
-        plotLogs: plotData[item.i]?.plotLogs || [],
-        plotFields: plotData[item.i]?.plotFields || {},
-        plotArguments: plotData[item.i]?.plotArguments || {},
-    });
-    useEffect(() => {
-        if (tableData[item.i]) {
-            setTableDataItem({
-                ...tableData[item.i],
-                logs: tableData[item.i]?.logs || [],
-                entriesProperties: tableData[item.i]?.entriesProperties || [],
-                paramsProperties: tableData[item.i]?.paramsProperties || [],
-                metrics: tableData[item.i]?.metrics || {},
-                logsData: tableData[item.i]?.logsData || { params: {}, logs: [], count: 0, groups: {} },
-                totalPages: tableData[item.i]?.totalPages || 0,
-                boundaries: tableData[item.i]?.boundaries || { minimus: {}, maximums: {} },
-            });
-        }
-    }, [tableData[item.i]]);
-    useEffect(() => {
-        if (plotData[item.i]) {
-            setPlotDataItem({
-                ...plotData[item.i],
-                plotLogs: plotData[item.i]?.plotLogs || [],
-                plotFields: plotData[item.i]?.plotFields || {},
-                plotArguments: plotData[item.i]?.plotArguments || {},
-            });
-        }
-    }, [plotData[item.i]]);
 
     // Use a ref to compare the needed properties so we only update if something truly changed.
     useEffect(() => {
@@ -231,8 +189,7 @@ const Card = ({
                 logsActions={logsActions}
                 fieldsActions={fieldsActions}
                 project={project}
-                plotDataItem={plotDataItem}
-                setPlotDataItem={setPlotDataItem}
+                plotDataItem_={plotData[item.i]}
                 tableNames={tableNames}
                 item={item}
                 updateItem={updateItem}
@@ -244,8 +201,16 @@ const Card = ({
                 tab={tab}
                 item={item}
                 tableArguments={tableArguments}
-                tableDataItem={tableDataItem}
-                setTableDataItem={setTableDataItem}
+                tableDataItem_={{
+                    ...(tableData[item.i] || {}),
+                    logs: tableData[item.i]?.logs || [],
+                    entriesProperties: tableData[item.i]?.entriesProperties || [],
+                    paramsProperties: tableData[item.i]?.paramsProperties || [],
+                    metrics: tableData[item.i]?.metrics || {},
+                    logsData: tableData[item.i]?.logsData || { params: {}, logs: [], count: 0, groups: {} },
+                    totalPages: tableData[item.i]?.totalPages || 0,
+                    boundaries: tableData[item.i]?.boundaries || { minimus: {}, maximums: {} }
+                }}
                 setTableData={setTableData}
                 updateItem={updateItem}
                 fieldsActions={fieldsActions}
