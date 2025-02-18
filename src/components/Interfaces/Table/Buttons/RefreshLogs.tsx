@@ -92,11 +92,21 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
     logsActions: LogsActions,
     fieldsActions: FieldsActions
 }) => {
+
     /* Auto refresh */
-    // We use timestamp to tag fetch api calls to trigger revalidation every eight seconds
+    // We use timestamp to tag fetch api calls to trigger revalidation every 5 seconds. 
+    // We pause the auto refresh for 20 seconds whenever a server action is triggered.
+    const [pauseRefresh, setPauseRefresh] = useState(false);
+    useEffect(() => {
+      if (item.auto_update === "true") setPauseRefresh(true)
+    }, [item.filters, item.common_filter, item.grouping, item.context, item.page_number, item.sorting, item.freeze])
+    useEffect(() => {
+      if (pauseRefresh) setTimeout(() => setPauseRefresh(false), 20000) // Pausing for 20 sec, leaving ample time for reload-refetch-rerender cycle
+    }, [pauseRefresh])
+
     let running = false
     useEffect(() => {
-        if (!item.auto_update || item.auto_update == "false") return;
+        if (!item.auto_update || item.auto_update == "false" || pauseRefresh) return;
         const interval = setInterval(() => {
             if (!running && !pending) {
                 running = true;
@@ -106,7 +116,8 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             }
         }, 5000);
         return () => clearInterval(interval)
-    }, [item.auto_update]);
+    }, [item.auto_update, pauseRefresh, item.context, filterExpression, sortingExpression, groupingExpression]);
+
     const onAutoClick = () => updateItem(item, "auto_update")(item.auto_update === "true" ? "false" : "true")
     const autoRefresh =
         <ActionButton
