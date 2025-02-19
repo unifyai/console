@@ -36,15 +36,15 @@ const ContextSelector = ({
                 <div className="flex flex-col gap-6 pt-2">
                     <div>
                         <div className="font-bold text-sm px-2 pb-2 border-b">Context:</div>
-                        {contexts.map((context: Context) => <DropdownMenuItem
+                        {contexts.length > 0 ? contexts.map((context: Context) => <DropdownMenuItem
                             key={context.name}
                             onSelect={() => updateItem(item, "context")(context.name)}
                             className="w-64 justify-between"
                         >
                             {context.name}{(
-                                item.context == context.name || (item.context == null && context.name == "default")
+                                item.context == context.name
                             ) && <Check />}
-                        </DropdownMenuItem>)}
+                        </DropdownMenuItem>) : <></>}
                     </div>
                     <div>
                         <div className="font-bold text-sm px-2 pb-2 border-b">Column Context:</div>
@@ -53,7 +53,7 @@ const ContextSelector = ({
                             onSelect={() => updateItem(item, "column_context")("")}
                             className="w-64 justify-between"
                         >
-                            default{(item.column_context == undefined || item.column_context == "") && <Check />}
+                            None{(item.column_context == undefined || item.column_context == "") && <Check />}
                         </DropdownMenuItem>
                         {(() => {
                             interface TreeNode {
