@@ -48,20 +48,23 @@ const mergePlotData = (plotData_: {[x: string]: { plotLogs: LogProps[] }}) => {
 }
 
 const fetchAndMergeFields = async (tables: string[], args: PlotArguments, project: string, fieldsActions: FieldsActions) => {
-    const plotFields: LogFieldsResponseProps = tables.map(async (table) => {
+    const plotFieldsArray : LogFieldsResponseProps[] = await Promise.all(tables.flatMap(async (table) => {
         const tableArgs = args[table];
         const tableContext = tableArgs ? tableArgs["context"] : null;
         const fields : LogFieldsResponseProps = await fieldsActions.get(project, tableContext);
-        return Object.fromEntries(
+        const newFields = Object.fromEntries(
             Object
                 .entries(fields)
                 .filter(([name, { data_type, field_type, artifacts }]) => tableContext ? name.startsWith(tableContext) : name)
                 .map(([name, { data_type, field_type, artifacts }]) => {
                     const newName = tableContext ? name.replace(tableContext, "") : name;
-                    return [`${table}.${newName}`, { data_type, field_type, artifacts }];
+                    const newFields = [`${table}.${newName}`, { data_type, field_type, artifacts }]
+                    return newFields;
                 })
         )
-    }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
+        return newFields
+    }))
+    const plotFields = plotFieldsArray.reduce((acc, curr) => ({ ...acc, ...curr }), {});
     return plotFields
 }
 
@@ -74,7 +77,7 @@ const fetchAndMergeLogs = async (tables: string[], args: PlotArguments, project:
             const tableColumnContext = tableArgs ? tableArgs["column_context"] : null;
             const tableFilters = tableArgs ? tableArgs["filter_expr"] : null;
             const tableSubset = tableArgs ? tableArgs["subset"] : null;
-            const tableData = await logsActions.get(project, tableContext, tableColumnContext, tableFilters, null, tableSubset, null, null, 0, null, null, Date.now().toString())
+            const tableData = await logsActions.get(project, tableContext, tableColumnContext, tableFilters, null, null, tableSubset, null, 0, null, null, Date.now().toString())
             const tableLogs = tableData.logs as LogProps[]
             data[table] = {plotLogs: tableLogs}
         })

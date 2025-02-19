@@ -116,7 +116,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         let filterExpression = null;
         if (columnFiltersExpression) filterExpression = columnFiltersExpression;
         if (commonFiltersExpression) filterExpression = filterExpression ? `${commonFiltersExpression} and ${filterExpression}` : commonFiltersExpression;
-        if (item.freeze) filterExpression = filterExpression ? filterExpression + `created_at < ${item.freeze}` : `created_at < "${item.freeze}"`;
+        if (item.freeze) filterExpression = filterExpression ? filterExpression + `created_at < "${item.freeze}"` : `created_at < "${item.freeze}"`;
         return filterExpression;
     });
 
