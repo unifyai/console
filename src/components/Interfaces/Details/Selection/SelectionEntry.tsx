@@ -370,7 +370,6 @@ export default function SelectionEntry({
   const icon = getTypeIcon(unifiedType);
 
   const handleDeselectColumn = () => {
-    console.log("[DEBUG] handleDeselectColumn called");
     if (onHideColumn) {
       onHideColumn(property);
     }

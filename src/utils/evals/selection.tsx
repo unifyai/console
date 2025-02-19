@@ -1,9 +1,10 @@
-import React from "react"
+"use client";
+
+import React, { useState, useEffect } from "react"
 import { Span } from "@/types/evals/traces"
 import { LogProps } from "@/types/evals/logs"
 import { sanitizeId } from "./columnOperations"
 import Image from "next/image"
-import Link from "next/link"
 
 export const MatrixDisplay = ({value}:{value: number[][]}) => {
     return (
@@ -24,67 +25,165 @@ export const MatrixDisplay = ({value}:{value: number[][]}) => {
     )
 }
 
-export const ImageDisplay = ({value, className}: {value: string, className?: string}) => {
-  // If the value already starts with a data URI prefix, render the image directly.
-  if (value.startsWith("data:image/")) {
+export const ImageDisplay = ({ value, className }: { value: string; className?: string }) => {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const fetchSignedUrl = async () => {
+      try {
+        // If the value is already a data URI, we just use it.
+        if (value.startsWith("data:image/")) {
+          setUrl(value);
+        } else {
+          const isBase64 = isBase64Image(value);
+          // For base64 without a prefix
+          let imageUrl = isBase64 ? `data:image/png;base64,${value}` : value;
+          try {
+            const parsedUrl = new URL(imageUrl);
+
+            // If this is a GCS URL and **not already signed**, fetch a signed URL.
+            if (
+              parsedUrl.hostname === "storage.googleapis.com" &&
+              !parsedUrl.searchParams.has("GoogleAccessId")
+            ) {
+              const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
+              const bucket = pathParts[0];
+              const path = pathParts.slice(1).join("/");
+              const res = await fetch(
+                `/api/image/get?bucket=${encodeURIComponent(bucket)}&path=${encodeURIComponent(path)}`
+              );
+              if (!res.ok) {
+                throw new Error("Failed to fetch signed URL");
+              }
+              const newUrlData = await res.json();
+              imageUrl = newUrlData.url; // Update imageUrl to the signed URL.
+            }
+          } catch (parseError) {
+            console.error("Error parsing or converting URL:", parseError);
+          }
+          setUrl(imageUrl);
+        }
+      } catch (err: any) {
+        console.error("Error in ImageDisplay fetch:", err);
+        setError(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSignedUrl();
+  }, [value]);
+
+  if (loading) {
+    return <span>Loading image...</span>;
+  }
+
+  if (error || !url) {
+    return <span>Error loading image</span>;
+  }
+
+  // Render based on whether it's a base64 image or a clickable URL image.
+  const isBase64 = isBase64Image(value);
+  if (isBase64) {
     return (
       <Image
-        src={value}
-        alt="Inline base64 (data) image"
+        src={url}
+        alt="Base64 image"
         width={500}
         height={500}
         className={className}
       />
     );
   } else {
-    // For raw base64 or normal URL values.
-    const isBase64 = isBase64Image(value);
-    const url = isBase64 ? `data:image/png;base64,${value}` : value;
-  
-    if (isBase64) {
-      // For raw base64 images, display as inline <Image/>
-      return (
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer">
         <Image
           src={url}
-          alt="Base64 image"
+          alt="Image link"
           width={500}
           height={500}
           className={className}
         />
-      );
-    } else {
-      // For actual URLs, make it clickable  
-      return (
-        <a href={url} target="_blank" rel="noopener noreferrer">
-          <Image
-            src={url}
-            alt="Image link"
-            width={500}
-            height={500}
-            className={className}
-          />
-        </a>
-      );
-    }
+      </a>
+    );
   }
-}
+};
 
 export const isDict = (value: any) => typeof value === "object" && !Array.isArray(value) && !(value instanceof RegExp) && !(value instanceof Date) && !(value instanceof Function) && value != null;
 export const isList = (value: any) => Array.isArray(value);
 export const isMatrix = (value: any) => isList(value) && value.every(row => Array.isArray(row) && row.every(number => typeof number === "number"));
 
-export const isURLImage = (value: string) => {
-  /* Check if URL image string 
-     Example value: "https://oaidalleapiprodscus.blob.core.windows.net/private/org-D1OIs5ffDVTBSBpNWJyXxFfN/user-vlZW2XKHDiNPzwT4Xv6wlzgv/img-9mgiKpSrAV1p1iqZ9C0Nw2iq.png?st=2024-11-20T11%3A18%3A20Z&se=2024-11-20T13%3A18%3A20Z&sp=r&sv=2024-08-04&sr=b&rscd=inline&rsct=image/png&skoid=d505667d-d6c1-4a0a-bac7-5c84a87759f8&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2024-11-20T00%3A40%3A43Z&ske=2024-11-21T00%3A40%3A43Z&sks=b&skv=2024-08-04&sig=9aNFotmijRyhe8JwkzMGX5WZWGxLIPSSXx6nigR02Y4%3D"
-  */
+// Add a cache for URL checks
+const urlCheckCache = new Map<string, boolean>();
+const urlCheckInProgress = new Set<string>();
+
+export const isURLImage = async (value: string) => {
   try {
+    // Check cache first
+    if (urlCheckCache.has(value)) {
+      return urlCheckCache.get(value);
+    }
+
+    // If check is already in progress, wait for it
+    if (urlCheckInProgress.has(value)) {
+      return new Promise(resolve => {
+        const checkInterval = setInterval(() => {
+          if (urlCheckCache.has(value)) {
+            clearInterval(checkInterval);
+            resolve(urlCheckCache.get(value));
+          }
+        }, 100);
+      });
+    }
+
+    urlCheckInProgress.add(value);
+
     const url = new URL(value);
+
+    // Check for typical image file extensions
     const imageTypes = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.svg', '.webp'];
-    if (imageTypes.map(imageType => url.pathname.includes(imageType)).some(check => check)) return true;
+    const hasImageExtension = imageTypes.some(type => url.pathname.toLowerCase().includes(type));
+    
+    if (hasImageExtension) {
+      urlCheckCache.set(value, true);
+      urlCheckInProgress.delete(value);
+      return true;
+    }
+
+    // For GCP storage URLs, call the server endpoint
+    if (url.hostname === 'storage.googleapis.com') {
+      try {
+        const response = await fetch("/api/image/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: value }),
+        });
+        
+        if (response.ok) {
+          const { isImage } = await response.json();
+          urlCheckCache.set(value, isImage);
+          urlCheckInProgress.delete(value);
+          return isImage;
+        }
+      } catch (error) {
+        console.error('❌ Error checking GCP storage:', error);
+      }
+    }
+
+    console.log('❌ Not recognized as image URL');
+    urlCheckCache.set(value, false);
+    urlCheckInProgress.delete(value);
+    return false;
+
   } catch (e) {
-    return false
+    console.error('❌ Error parsing URL:', e);
+    urlCheckInProgress.delete(value);
+    return false;
   }
-}
+};
+
 export const isBase64Image = (value: string) => {
   try {
     /*
@@ -106,6 +205,7 @@ export const isBase64Image = (value: string) => {
     return false;
   }
 }
+
 export const isImage = (value: any) => {
   if (typeof value !== "string") return false;
   return isBase64Image(value) || isURLImage(value);
@@ -146,7 +246,6 @@ export function isNumber(value: any): boolean {
   return typeof value === "number";
 }
 
-
 export function isTimestamp(value: any): boolean {
   if (typeof value !== "string") return false;
   // Rough ISO-8601 pattern (YYYY-MM-DDTHH:mm:ss, optionally with milliseconds & zone)
@@ -168,12 +267,11 @@ export function isChat(value: any): boolean {
     Array.isArray(value.messages) &&
     (
       ("model" in value && typeof value.model === "string") ||
-      value.messages.length >= 0 // or any additional checks you like
+      value.messages.length >= 0
     )
   );
   return isChatOut || isChatIn;
 }
-
 
 /**
   * Given a list of keys, returns the subset of a dictionary 
@@ -205,50 +303,49 @@ export function getPartAfterFirstUnderscore (str: string) {
 export function extractBaseAndComparisonLogs (selectedCells: string[], logs:LogProps[]) {
 
   // Locate base log and its row index in the table, then filter values for selected cells that pertain to the base log
-  const baseLogParam = selectedCells.at(0)                                      // logId1_columnId1
-  const baseLogParamId = baseLogParam?.split("_").at(0)                         // logId1
+  const baseLogParam = selectedCells.at(0)
+  const baseLogParamId = baseLogParam?.split("_").at(0)
   const baseLogIndex = logs.findIndex((log) => log.id == baseLogParamId) + 1;
   let baseLog = logs.find((log) => log.id == baseLogParamId);
   if (baseLog)  {
     let columnIds = selectedCells
-      .filter(id => id.split("_").at(0) === baseLogParamId)                     // Find all selected cells from base
-      .map(cell => getPartAfterFirstUnderscore(cell))                           // Handle underscores in column id
-    columnIds = Array.from(new Set(columnIds.map(sanitizeId)))                          // Handle duplication in column id
+      .filter(id => id.split("_").at(0) === baseLogParamId)
+      .map(cell => getPartAfterFirstUnderscore(cell))
+    columnIds = Array.from(new Set(columnIds.map(sanitizeId)))
     baseLog = {...baseLog, entries: getDictSubset(baseLog.entries, columnIds)}
     if (baseLog.params)
       baseLog.params = getDictSubset(baseLog.params, columnIds)
-
   }
   else
     selectedCells = [];
 
   // Fix for case where on row is selected
   const uniqueLogIds = Array.from(new Set(selectedCells.map(cell => cell.split("_")[0])));
-  
+
   // If there's only one unique log ID, there should be no comparison logs
   if (uniqueLogIds.length === 1) {
     return { baseLogIndex, baseLog, comparisonLogsIndex: [], comparisonLogs: [] };
   }
 
   // Locate comparison logs and their row indices in the table, then filter values for selected cells that pertain to each log
-  const comparisonLogsParam = selectedCells.slice(1)                                // [logId1_colId2, logId2_colId3, ...]
+  const comparisonLogsParam = selectedCells.slice(1)
   let comparisonLogsIndex = comparisonLogsParam 
     ? comparisonLogsParam.map((cl) => logs.findIndex((log) => log.id == cl.split("_").at(0)) + 1) 
     : [];
-  comparisonLogsIndex = Array.from(new Set(comparisonLogsIndex))                    // Handle index duplication
+  comparisonLogsIndex = Array.from(new Set(comparisonLogsIndex))
   let comparisonLogs = comparisonLogsParam && logs
     ? comparisonLogsParam.map((cl: string) => logs.find((log) => log.id == cl.split("_").at(0))!)
     : [];
-  comparisonLogs = Array.from(new Set(comparisonLogs))                              // Handle duplication in comparison logs
+  comparisonLogs = Array.from(new Set(comparisonLogs))
   if (comparisonLogs.length) {
     comparisonLogs = comparisonLogs.map((cl, index) => {
       const clParam = comparisonLogsParam![index]
       const clParamId = clParam.split("_").at(0)
       let columnIds = selectedCells
-        .filter(id => id.split("_").at(0) === clParamId)                            // Find all selected cells from comparison
-        .map(cell => getPartAfterFirstUnderscore(cell))                             // Handle underscores in column id
-        columnIds = Array.from(new Set(columnIds.map(sanitizeId)))                                  // Handle duplication in column id
-      const comparisonLog = {...cl, entries: getDictSubset(cl.entries, columnIds)}    
+        .filter(id => id.split("_").at(0) === clParamId)
+        .map(cell => getPartAfterFirstUnderscore(cell))
+      columnIds = Array.from(new Set(columnIds.map(sanitizeId)))
+      const comparisonLog = {...cl, entries: getDictSubset(cl.entries, columnIds)}
       if (cl.params)
         comparisonLog.params = getDictSubset(cl.params, columnIds)
       return comparisonLog
