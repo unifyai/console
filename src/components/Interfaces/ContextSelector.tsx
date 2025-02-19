@@ -38,7 +38,7 @@ const ContextSelector = ({
                         <div className="font-bold text-sm px-2 pb-2 border-b">Context:</div>
                         {contexts.length > 0 ? contexts.map((context: Context) => <DropdownMenuItem
                             key={context.name}
-                            onSelect={() => updateItem(item, "context")(context.name)}
+                            onSelect={() => (item.context != context.name) && updateItem(item, "context")(context.name)}
                             className="w-64 justify-between"
                         >
                             {context.name}{(
@@ -50,7 +50,7 @@ const ContextSelector = ({
                         <div className="font-bold text-sm px-2 pb-2 border-b">Column Context:</div>
                         {/* Add None option at the root level */}
                         <DropdownMenuItem
-                            onSelect={() => updateItem(item, "column_context")("")}
+                            onSelect={() => (item.column_context != "") && updateItem(item, "column_context")("")}
                             className="w-64 justify-between"
                         >
                             None{(item.column_context == undefined || item.column_context == "") && <Check />}
@@ -96,7 +96,7 @@ const ContextSelector = ({
                                 if (!hasChildren) {
                                     return (
                                         <DropdownMenuItem
-                                            onSelect={() => updateItem(item, "column_context")(node.path)}
+                                            onSelect={() => (node.path != item.column_context) && updateItem(item, "column_context")(node.path)}
                                             className="w-64 justify-between"
                                         >
                                             {nodeName}{item.column_context == node.path.slice(0, -1) && <Check />}
@@ -115,7 +115,7 @@ const ContextSelector = ({
                                                     {/* Make the current path selectable with "root" label */}
                                                     {node.isComplete && (
                                                         <DropdownMenuItem
-                                                            onSelect={() => updateItem(item, "column_context")(node.path)}
+                                                            onSelect={() => (node.path != item.column_context) && updateItem(item, "column_context")(node.path)}
                                                         >
                                                             {isTopLevel ? "<root>" : nodeName}{item.column_context == node.path.slice(0, -1) && <Check />}
                                                         </DropdownMenuItem>
