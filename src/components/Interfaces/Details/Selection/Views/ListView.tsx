@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Accordion,
   AccordionItem,
@@ -35,7 +35,35 @@ import { Button } from "@/components/UI/button";
 import { FoldVertical, UnfoldVertical } from "lucide-react";
 
 /*───────────────────────────────────────────────────────────────────────────
-  pickView => specialized or raw, with optional forceExpandAll for child expansions
+  unifyType: merges baseVal + comparables to produce a single type.
+  If multiple distinct types appear, fallback to "string."
+───────────────────────────────────────────────────────────────────────────*/
+function unifyType(baseVal: any, comps: any[]): string {
+  const allVals: any[] = [];
+  if (baseVal !== undefined) {
+    allVals.push(baseVal);
+  }
+  comps.forEach((c) => {
+    if (c !== undefined) {
+      allVals.push(c);
+    }
+  });
+
+  if (allVals.length === 0) {
+    return "string";
+  }
+
+  const typeSet = new Set<string>();
+  for (const val of allVals) {
+    const t = getValueType(val);
+    typeSet.add(t);
+  }
+
+  return typeSet.size === 1 ? Array.from(typeSet)[0] : "string";
+}
+
+/*───────────────────────────────────────────────────────────────────────────
+  pickView => specialized sub-view. (No changes here, preserving original logic)
 ───────────────────────────────────────────────────────────────────────────*/
 function pickView(
   props: LogComparisonProps & { forceExpandAll?: boolean }
@@ -71,7 +99,7 @@ function pickView(
 }
 
 /*───────────────────────────────────────────────────────────────────────────
-  toggleOneItemExpand => toggles just that item label
+  toggleOneItemExpand => toggles just that item label expansion
 ───────────────────────────────────────────────────────────────────────────*/
 function toggleOneItemExpand(
   label: string,
@@ -81,18 +109,16 @@ function toggleOneItemExpand(
   setChildForceExpand: React.Dispatch<React.SetStateAction<string[]>>
 ) {
   if (!childForceExpand.includes(label)) {
-    // Toggle: expand children only
     setChildForceExpand((prev) => [...prev, label]);
   } else {
-    // Toggle: collapse children but leave item open
     setChildForceExpand((prev) => prev.filter((it) => it !== label));
   }
 }
 
 /*───────────────────────────────────────────────────────────────────────────
-  The main ListView:
-   - Force expand/collapse all once per session using didExpandRef
-   - Per-item toggles only affect that item, not siblings
+  ListView component
+  - preserves expansions, icons, single vs. multi logic, etc.
+  - now uses unifyType for each item
 ───────────────────────────────────────────────────────────────────────────*/
 type ListViewProps = LogComparisonProps & {
   forceExpandAll?: boolean;
@@ -122,19 +148,17 @@ const ListView: React.FC<ListViewProps> = (props) => {
     itemCount = Math.max(itemCount, ...compLens);
   }
 
-  // Memoize allItemLabels with stable reference
+  // Pre-build item labels
   const allItemLabels = useMemo(
     () => Array.from({ length: itemCount }, (_, i) => `Item ${i}`),
     [itemCount]
   );
 
-  // Add additional memoization for stability
-  const memoizedLabels = useMemo(
-    () => allItemLabels,
-    [allItemLabels.join(",")]
-  );
+  // For expansions
+  const [openItems, setOpenItems] = useState<string[]>([]);
+  const [childForceExpand, setChildForceExpand] = useState<string[]>([]);
 
-  // guess item type => default expansions
+  // guess item type => used only for default expansions
   function guessItemType(index: number): string {
     let sample: any = Array.isArray(value) ? value[index] : undefined;
     if (sample === undefined && !singleMode && comparables) {
@@ -148,37 +172,47 @@ const ListView: React.FC<ListViewProps> = (props) => {
     return getValueType(sample);
   }
 
-  // Memoize defaultOpenItems to prevent unnecessary recreations
+  // build default expansions
   const defaultOpenItems = useMemo(() => {
-    return allItemLabels.filter((_, i) => {
+    return allItemLabels.filter((label, i) => {
       const t = guessItemType(i);
       return ["string", "number", "matrix", "image"].includes(t);
     });
   }, [allItemLabels]);
 
-  // Initialize state with default items
-  const [openItems, setOpenItems] = useState(defaultOpenItems);
-  const [childForceExpand, setChildForceExpand] = useState<string[]>([]);
-
-  // Update effect to use memoizedLabels
+  // On mount, set default expansions
   useEffect(() => {
-    const newVal = forceExpandAll ? memoizedLabels : [];
-    setOpenItems(newVal);
-    setChildForceExpand(newVal);
-  }, [forceExpandAll, memoizedLabels]);
+    setOpenItems(defaultOpenItems);
+  }, [defaultOpenItems.join(",")]); // minimal re-run
+
+  // If forceExpandAll changes, we open or close everything
+  useEffect(() => {
+    if (forceExpandAll) {
+      setOpenItems(allItemLabels);
+      setChildForceExpand(allItemLabels);
+    } else {
+      // revert to default
+      setOpenItems(defaultOpenItems);
+      setChildForceExpand(defaultOpenItems);
+    }
+  }, [forceExpandAll, allItemLabels, defaultOpenItems]);
 
   if (!isList(value)) {
-    return (
-      <p className="text-red-500">ListView: Value is not a valid list.</p>
-    );
+    return <p className="text-red-500">ListView: Value is not a valid list.</p>;
   }
 
-  // single-mode item
+  /*───────────────────────────────────────────────────────────────────────────
+    Single-mode => only base array
+    Multi-mode => base array + comparables
+  ───────────────────────────────────────────────────────────────────────────*/
   function renderSingleItem(index: number) {
     const label = `Item ${index}`;
     const arrValue = Array.isArray(value) ? value[index] : undefined;
-    const typ = getValueType(arrValue);
-    const icon = getTypeIcon(typ);
+
+    // unify => baseVal=arrValue, no comps
+    const finalType = unifyType(arrValue, []);
+    const icon = getTypeIcon(finalType);
+
     const isOpen = openItems.includes(label);
     const isChildForceExpand = childForceExpand.includes(label);
 
@@ -202,13 +236,8 @@ const ListView: React.FC<ListViewProps> = (props) => {
             {icon} {label}
           </span>
 
-          {isOpen && (typ === "dict" || typ === "list") && (
-            <div
-              className="
-              absolute right-5
-              flex gap-1 items-center
-              "
-            >
+          {isOpen && (finalType === "dict" || finalType === "list") && (
+            <div className="absolute right-5 flex gap-1 items-center">
               <Button
                 variant="ghost"
                 onClick={(e) => {
@@ -222,7 +251,7 @@ const ListView: React.FC<ListViewProps> = (props) => {
                   );
                 }}
               >
-                {childForceExpand.includes(label) ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+                {isChildForceExpand ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
               </Button>
             </div>
           )}
@@ -234,23 +263,23 @@ const ListView: React.FC<ListViewProps> = (props) => {
     );
   }
 
-  // multi-mode item
   function renderMultiItem(index: number) {
     const label = `Item ${index}`;
     const baseArr = Array.isArray(value) ? value : [];
-    const itemVal = baseArr[index];
-    const subVals = [itemVal];
+    const baseVal = baseArr[index];
+    // gather subVals => [baseVal, ...]
+    const subVals = [baseVal];
     (comparables ?? []).forEach((c) => {
-      if (isList(c)) subVals.push(c[index]);
-      else subVals.push(undefined);
+      if (isList(c)) {
+        subVals.push(c[index]);
+      } else {
+        subVals.push(undefined);
+      }
     });
 
-    let sample = subVals[0];
-    if (sample === undefined) {
-      sample = subVals.find((v) => v !== undefined);
-    }
-    const typ = getValueType(sample);
-    const icon = getTypeIcon(typ);
+    // unify => baseVal + comps
+    const finalType = unifyType(subVals[0], subVals.slice(1));
+    const icon = getTypeIcon(finalType);
 
     const isOpen = openItems.includes(label);
     const isChildForceExpand = childForceExpand.includes(label);
@@ -275,13 +304,8 @@ const ListView: React.FC<ListViewProps> = (props) => {
             {icon} {label}
           </span>
 
-          {isOpen && (typ === "dict" || typ === "list") && (
-            <div
-              className="
-              absolute right-5
-              flex gap-1 items-center
-              "
-            >
+          {isOpen && (finalType === "dict" || finalType === "list") && (
+            <div className="absolute right-5 flex gap-1 items-center">
               <Button
                 variant="ghost"
                 onClick={(e) => {
@@ -295,7 +319,7 @@ const ListView: React.FC<ListViewProps> = (props) => {
                   );
                 }}
               >
-                {childForceExpand.includes(label) ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+                {isChildForceExpand ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
               </Button>
             </div>
           )}
@@ -308,20 +332,23 @@ const ListView: React.FC<ListViewProps> = (props) => {
   }
 
   function renderAllItems() {
-    const out: JSX.Element[] = [];
+    const items: JSX.Element[] = [];
     for (let i = 0; i < itemCount; i++) {
-      if (singleMode) out.push(renderSingleItem(i));
-      else out.push(renderMultiItem(i));
+      if (singleMode) {
+        items.push(renderSingleItem(i));
+      } else {
+        items.push(renderMultiItem(i));
+      }
     }
-    return out;
+    return items;
   }
 
   return (
     <div className="flex flex-col gap-2">
-      <Accordion 
+      <Accordion
         key={`list-${forceExpandAll ? "open" : "closed"}`}
-        type="multiple" 
-        value={openItems} 
+        type="multiple"
+        value={openItems}
         onValueChange={setOpenItems}
       >
         {renderAllItems()}
