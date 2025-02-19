@@ -264,7 +264,7 @@ const LogsTable = ({
     setGrouping,
     setColumnPinning,
     setColumnSizing,
-    setContext: updateItem(item, "context"),
+    setContext: updateItem(item, "column_context"),
     setDraggingColumns,
     setPinningState,
   };
@@ -329,7 +329,7 @@ const LogsTable = ({
           <SelectionMenu
             type="Contexts"
             data={Object.keys(dataTypes).map(property => ({ path: property, type: "file" }))}
-            onClick={updateItem(item, "context")}
+            onClick={updateItem(item, "column_context")}
             logs={logs}
           />
           <GlobalFilter

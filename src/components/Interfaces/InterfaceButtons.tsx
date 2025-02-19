@@ -18,14 +18,10 @@ import Tooltip from "../Common/Misc/Tooltip";
 const InterfaceButtons = ({
     edit,
     interactive,
-    project_,
     interface_,
     project,
     pending,
     anyTilePending,
-    context,
-    columnContext,
-    contexts,
     items,
     newCounter,
     copied,
@@ -40,9 +36,6 @@ const InterfaceButtons = ({
     setEdit,
     setInteractive,
     setFocusDialog,
-    setDataPending,
-    setContext,
-    setColumnContext,
     setSaveDialog,
     updateInterface,
 }: {
@@ -92,36 +85,6 @@ const InterfaceButtons = ({
                 disabled={anyTilePending || !project || !interface_ || pending}
                 onClick={() => setFocusDialog(true)}
             />
-            <BaseDropdown
-                button={<ActionButton
-                    tooltip="Select Context"
-                    text={context || "Select Context"}
-                    variant="outline"
-                    size="sm"
-                />}
-            >
-                {[...contexts, { name: "None", description: "" }].map((ctx, idx) => <DropdownMenuItem
-                    key={idx}
-                    onSelect={() => {
-                        const newContext = ctx.name == "None" ? undefined : ctx.name;
-                        updateInterface({
-                            name: interface_ as string,
-                            project: project_ as string,
-                            context: newContext,
-                            column_context: undefined,
-                            items,
-                            new_counter: newCounter
-                        }).then(() => {
-                            setContext(newContext);
-                            setDataPending(true);
-                            router.refresh();
-                        });
-                    }}
-                    className="w-64"
-                >
-                    {ctx.name}
-                </DropdownMenuItem>)}
-            </BaseDropdown>
             <ActionButton
                 className="transition-all"
                 tooltip={!project ? "Select a project first" : "Save Interface"}

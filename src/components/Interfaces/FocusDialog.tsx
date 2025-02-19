@@ -8,9 +8,8 @@ import Card from "./Card";
 import { Badge } from "../UI/badge";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
 import { TableArguments } from "@/types/evals/logs";
-import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
-import { ContextActions, DerivedEntryActions, Interface, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
+import { DerivedEntryActions, Interface, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps, Context } from "@/types/evals/grid";
 import { Plus, X } from "lucide-react";
 
 const FocusDialog = ({
@@ -19,6 +18,7 @@ const FocusDialog = ({
     edit,
     interactive,
     project,
+    contexts,
     pending,
     dataPending,
     tilePending,
@@ -30,7 +30,6 @@ const FocusDialog = ({
     logsActions,
     fieldsActions,
     derivedEntryActions,
-    contextActions,
     items,
     filterExpressions,
     sortingExpressions,
@@ -48,6 +47,7 @@ const FocusDialog = ({
     edit: boolean,
     interactive: boolean,
     project: string | undefined,
+    contexts: Context[],
     pending: boolean,
     dataPending: boolean,
     tilePending: { [key: string]: boolean },
@@ -59,7 +59,6 @@ const FocusDialog = ({
     logsActions: LogsActions,
     fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
-    contextActions: ContextActions,
     items: TileProps[],
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
@@ -81,6 +80,7 @@ const FocusDialog = ({
                         interactive={interactive}
                         project={project}
                         pending={pending || dataPending || (item.tab == "Table" ? tilePending[item.i] : false)}
+                        contexts={contexts}
                         tableNames={tableNames}
                         tableData={tableData}
                         tableArguments={tableArguments}
@@ -88,7 +88,6 @@ const FocusDialog = ({
                         logsActions={logsActions}
                         fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}
-                        contextActions={contextActions}
                         index={item.i}
                         item={item}
                         items={items}

@@ -1,25 +1,27 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import Selection from "@/components/Interfaces/Details/Selection/Selection";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
-import { Plus } from "lucide-react";
-import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
+import { TableArguments } from "@/types/evals/logs";
 import LogsPlot from "@/components/Interfaces/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Interfaces/Table/Table";
-import { DerivedEntryActions, ContextActions, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
+import { DerivedEntryActions, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import TabSelection from "./TabSelection";
+import ContextSelector from "./ContextSelector";
+import { Context } from "@/types/evals/grid";
 
 const Card = ({
     edit,
     interactive,
     project,
     pending,
+    contexts,
     tableNames,
     tableData,
     plotData,
@@ -27,7 +29,6 @@ const Card = ({
     logsActions,
     fieldsActions,
     derivedEntryActions,
-    contextActions,
     index,
     item,
     items,
@@ -45,6 +46,7 @@ const Card = ({
     interactive: boolean,
     project: string | undefined,
     pending: boolean,
+    contexts: Context[],
     tableNames: string[],
     tableData: TableDataProps,
     plotData: PlotDataProps,
@@ -52,7 +54,6 @@ const Card = ({
     logsActions: LogsActions,
     fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
-    contextActions: ContextActions,
     index: string,
     item: TileProps,
     items: TileProps[],
@@ -100,7 +101,7 @@ const Card = ({
     useEffect(() => {
         if (item.tab != "View" && !initial)
             setPending(true);
-    }, [item.tab, item.table_type]);
+    }, [item.tab, item.table_type, item.context, item.column_context]);
 
     useEffect(() => {
         setInitial(false);
@@ -140,37 +141,12 @@ const Card = ({
                         </DropdownMenuItem>)}
                     </BaseDropdown>
                 </div>}
-                {tab && edit && tab == "Table" && <div className="w-fit">
-                    <BaseDropdown
-                        button={<ActionButton
-                            tooltip="Select Table Type"
-                            text={item.table_type}
-                            variant="outline"
-                            size="default"
-                        />}
-                    >
-                        {["Data Table", "Derived Table"].map((tableType, idx) => <DropdownMenuItem
-                            key={idx}
-                            onSelect={() => {
-                                if (tableType == "Derived Table") {
-                                    if (!item.prev_context) {
-                                        contextActions.create(`Derived_${item.i}`, project as string);
-                                        updateItem(item, "context")(`Derived_${item.i}`);
-                                        updateItem(item, "prev_context")(`Derived_${item.i}`);
-                                    }
-                                    else
-                                        updateItem(item, "context")(item.prev_context);
-                                }
-                                else
-                                    updateItem(item, "context")(undefined);
-                                    updateItem(item, "table_type")(tableType);
-                            }}
-                            className="w-64"
-                        >
-                            {tableType}
-                        </DropdownMenuItem>)}
-                    </BaseDropdown>
-                </div>}
+                {tab && edit && tab == "Table" && <ContextSelector
+                    contexts={contexts}
+                    tableData={tableData}
+                    item={item}
+                    updateItem={updateItem}
+                />}
             </div>
             {tab?.includes("View") && <div className="w-full overflow-auto"><Selection
                 params={item.table ? tableData[item.table]?.params : {}}

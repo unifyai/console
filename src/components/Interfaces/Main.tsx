@@ -168,7 +168,6 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
     if (project) {
         // fetch table data
         await Promise.all(tableItems.map(async (item, idx) => {
-            console.log(item.i, item.context, item.column_context);
             const logsData = await logsActions.get(
                 project,
                 item.context ?? null,
