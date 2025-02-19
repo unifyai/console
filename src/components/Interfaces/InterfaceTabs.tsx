@@ -16,6 +16,7 @@ const InterfaceTabs = ({
     interfaces,
     project,
     context,
+    columnContext,
     items,
     newCounter,
     tableData,
@@ -32,6 +33,7 @@ const InterfaceTabs = ({
     interfaces: string[],
     project: string,
     context: string | undefined,
+    columnContext: string | undefined,
     items: TileProps[],
     newCounter: number,
     tableData: TableDataProps,
@@ -69,10 +71,10 @@ const InterfaceTabs = ({
                             onKeyDown={(e) => {
                                 if (e.key === "Enter" && int_ != interface_2 && !interfaces.includes(interface_2)) {
                                     interfaceActions.update(
-                                        int_, project, context, items, newCounter, interface_2, true
+                                        int_, project, context, columnContext, items, newCounter, interface_2, true
                                     ).then(() => {
                                         interfaceActions.update(
-                                            int_, project, context, items, newCounter, interface_2, false
+                                            int_, project, context, columnContext, items, newCounter, interface_2, false
                                         ).then(() => {
                                             setPending(true);
                                             setInterface(interface_2);
@@ -115,10 +117,10 @@ const InterfaceTabs = ({
                             initialIndex++;
                         const newInterfaceName = `interface_${initialIndex}`;
                         interfaceActions.create(
-                            newInterfaceName, project, context, defaultItems, defaultNewCounter, true
+                            newInterfaceName, project, context, columnContext, defaultItems, defaultNewCounter, true
                         ).then(() => {
                             interfaceActions.create(
-                                newInterfaceName, project, context, defaultItems, defaultNewCounter, false
+                                newInterfaceName, project, context, columnContext, defaultItems, defaultNewCounter, false
                             ).then(() => {
                                 setInterfaces([...interfaces, newInterfaceName]);
                                 setTilePending(Object.fromEntries(Object.keys(tableData).map(k => [k, true])));

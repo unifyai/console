@@ -70,7 +70,6 @@ const Card = ({
     const router = useRouter();
     const [initial, setInitial] = useState(true);
     const tab = items.find(item => item.i == index)?.tab;
-    const tabTypes = ["Table", "Plot", "View"];
     const relevantItem = item.table ? items.find(it => it.i == item.table) : undefined;
 
     // Use a ref to compare the needed properties so we only update if something truly changed.
@@ -87,6 +86,7 @@ const Card = ({
         item.table_type,
         item.filters,
         item.context,
+        item.column_context,
         item.common_filter,
         item.sorting,
         item.grouping,

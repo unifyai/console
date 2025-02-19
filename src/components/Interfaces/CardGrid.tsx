@@ -7,7 +7,7 @@ import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
 import { DerivedEntryActions, Context, ContextActions, Interface, InterfaceActions, ItemType, LogsActions, FieldsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
-import { Copy, EyeOff, Grip, Loader2, Maximize2, X } from "lucide-react";
+import { Copy, EyeOff, Grip, Loader2, Maximize2, Plus, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { Badge } from "../UI/badge";
 import { Dialog, DialogContent } from "../UI/dialog";
@@ -33,7 +33,6 @@ const CardGrid = ({
     tableNames,
     tableData: initialTableData,
     tableArguments,
-    fields,
     plotData,
     savedInterface,
     interfaceCreated,
@@ -58,7 +57,6 @@ const CardGrid = ({
     tableNames: string[],
     tableData: TableDataProps,
     tableArguments: TableArguments,
-    fields: LogFieldsResponseProps,
     plotData: PlotDataProps,
     savedInterface: Interface,
     interfaceCreated: boolean,
@@ -81,6 +79,7 @@ const CardGrid = ({
     // layout structure
     const [tableData, setTableData] = useState<TableDataProps>(initialTableData);
     const [context, setContext] = useState<string>();
+    const [columnContext, setColumnContext] = useState<string>();
     const [items, setItems] = useState<TileProps[]>([]);
     const [newCounter, setNewCounter] = useState(0);
     const [tempInterfaceCreated, setTempInterfaceCreated] = useState(tempInterfaceCreated_);
@@ -137,13 +136,14 @@ const CardGrid = ({
         savedInterface: Interface | null = null,
     ) => {
         const context_1 = savedInterface != null ? savedInterface?.context : context;
+        const columnContext_1 = savedInterface != null ? savedInterface?.column_context : undefined;
         const items_1 = savedInterface?.items || items;
         const newCounter_1 = savedInterface?.new_counter || newCounter;
         if (interface_ && project && interface_ == interface_1 && project == project_ && !pending) {
             if (tempInterfaceCreated)
-                return interfaceActions.update(interface_, project, context_1, items_1, newCounter_1, undefined, true);
+                return interfaceActions.update(interface_, project, context_1, columnContext_1, items_1, newCounter_1, undefined, true);
             else
-                return interfaceActions.create(interface_, project, context_1, items_1, newCounter_1, true)
+                return interfaceActions.create(interface_, project, context_1, columnContext_1, items_1, newCounter_1, true)
         }
         return Promise.reject();
     };
@@ -153,6 +153,7 @@ const CardGrid = ({
         interfaceActions.get(project as string, true).then((ints: Interface[]) => {
             const currentInterface = ints.find(i => i.name == interface_);
             setContext(currentInterface?.context);
+            setColumnContext(currentInterface?.column_context);
             setItems(currentInterface?.items || []);
             setNewCounter(currentInterface?.new_counter || 0);
             setTempInterfaceCreated(Boolean(currentInterface));
@@ -243,6 +244,7 @@ const CardGrid = ({
                     interfaces={interfaces}
                     project={project}
                     context={context}
+                    columnContext={columnContext}
                     items={items}
                     newCounter={newCounter}
                     tableData={tableData}
@@ -266,6 +268,7 @@ const CardGrid = ({
                     pending={pending}
                     anyTilePending={anyTilePending}
                     context={context}
+                    columnContext={columnContext}
                     contexts={contexts}
                     items={items}
                     newCounter={newCounter}
@@ -283,6 +286,7 @@ const CardGrid = ({
                     setFocusDialog={setFocusDialog}
                     setDataPending={setDataPending}
                     setContext={setContext}
+                    setColumnContext={setColumnContext}
                     setSaveDialog={setSaveDialog}
                     updateInterface={updateInterface}
                 />
@@ -517,9 +521,9 @@ const CardGrid = ({
                                 if (saveSuccess == undefined) {
                                     let response: ResponseProps | undefined = undefined;
                                     if (interfaceCreated)
-                                        response = await interfaceActions.update(interface_ as string, project as string, context, items, newCounter, undefined, false);
+                                        response = await interfaceActions.update(interface_ as string, project as string, context, columnContext, items, newCounter, undefined, false);
                                     else
-                                        response = await interfaceActions.create(interface_ as string, project as string, context, items, newCounter, false);
+                                        response = await interfaceActions.create(interface_ as string, project as string, context, columnContext, items, newCounter, false);
                                     if (response && "info" in response)
                                         setSaveSuccess(true);
                                     else

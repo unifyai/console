@@ -216,6 +216,7 @@ export async function onGroupExpand(
   parentId: string | null,
   project: string,
   context: string | null,
+  columnContext: string | null,
   filterExpression: string | null,
   sortingExpression: string | null,
   groupingExpression: string | null,
@@ -339,6 +340,7 @@ export async function onGroupExpand(
     const freshLogsData = await logsActions.get(
       project,
       context,
+      columnContext,
       updatedFilterExpression,
       sortingExpression,
       remainingGrouping.length > 0 ? remainingGrouping.join(",") : null,

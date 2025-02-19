@@ -89,13 +89,14 @@ export const createLogs = async (apiKey: string) => {
 
 // get logs
 export const getLogs = async (apiKey: string) => {
-    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, _timestamp: string | null) => {
+    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, _timestamp: string | null) => {
         "use server";
 
         try {
             const response = await fetch(
                 `${process.env.NEXTAUTH_URL}/api/logs?project=${project}`
                 + (context ? `&context=${context}` : "")
+                + (columnContext ? `&column_context=${columnContext}` : "")
                 + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
                 + (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : "")
                 + (groupingExpression 
@@ -111,6 +112,8 @@ export const getLogs = async (apiKey: string) => {
                 + (group_depth !== null && group_depth !== undefined ? `&group_depth=${group_depth}` : ""),
                 { method: "GET", headers: { apiKey: apiKey }, next: { tags: [`logs_${_timestamp}`] } },
             );
+            if (!response.ok)
+                return { params: {}, logs: [], count: 0 };
             return await response.json();
         } catch (e) {
             console.log(`Failed to get logs error: ${e}`)
@@ -121,11 +124,12 @@ export const getLogs = async (apiKey: string) => {
 
 // get log fields
 export const getLogFields = async (apiKey: string) => {
-    return async (project: string) => {
+    return async (project: string, context: string | null) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/logs/fields?project=${project}`,
+            `${process.env.NEXTAUTH_URL}/api/logs/fields?project=${project}`
+            + (context ? `&context=${context}` : ""),
             { method: "GET", headers: { apiKey: apiKey } }
         );
         return await response.json();
@@ -163,12 +167,13 @@ export const getLogMetrics = async (apiKey: string) => {
 
 // get latest timestamp
 export const getLatestTimestamp = async (apiKey: string) => {
-    return async (project: string, context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null) => {
+    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null) => {
         "use server";
 
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/logs/latest_timestamp?project=${project}`
             + (context ? `&context=${context}` : "")
+            + (columnContext ? `&column_context=${columnContext}` : "")
             + (filterExpression ? `&filter_expr=${filterExpression}` : "")
             + (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : "")
             + (from_fields ? `&from_fields=${encodeURIComponent(from_fields)}` : "")
@@ -183,7 +188,7 @@ export const getLatestTimestamp = async (apiKey: string) => {
 
 // delete logs
 export const deleteLogs = async (apiKey: string) => {
-    return async (project: string, context: string | null, ids_and_fields: LogFieldsProps, source_type: string | null = "all") => {
+    return async (project: string, context: string | null, columnContext: string | null, ids_and_fields: LogFieldsProps, source_type: string | null = "all") => {
         "use server";
 
         const response = await fetch(
@@ -191,7 +196,7 @@ export const deleteLogs = async (apiKey: string) => {
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ project, context, ids_and_fields, source_type })
+                body: JSON.stringify({ project, context, columnContext, ids_and_fields, source_type })
             }
         );
         return await response.json();
@@ -244,7 +249,7 @@ export const updateDerivedEntry = async (apiKey: string) => {
 
 // create interface
 export const createInterface = async (apiKey: string) => {
-    return async (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, temporary: boolean = false) => {
+    return async (name: string, project: string, context: string | undefined, columnContext: string | undefined, items: TileProps[], new_counter: number, temporary: boolean = false) => {
         "use server";
 
         const response = await fetch(
@@ -252,7 +257,7 @@ export const createInterface = async (apiKey: string) => {
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ name, project, context: context || null, items, new_counter, temporary })
+                body: JSON.stringify({ name, project, context: context || null, column_context: columnContext || null, items, new_counter, temporary })
             }
         );
         return await response.json();
@@ -276,10 +281,10 @@ export const getInterface = async (apiKey: string) => {
 
 // update interface
 export const updateInterface = async (apiKey: string) => {
-    return async (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, new_name: string | undefined = undefined, temporary: boolean = false) => {
+    return async (name: string, project: string, context: string | undefined, columnContext: string | undefined, items: TileProps[], new_counter: number, new_name: string | undefined = undefined, temporary: boolean = false) => {
         "use server";
 
-        const body = { name, project, context: context || null, items, new_counter, temporary };
+        const body = { name, project, context: context || null, column_context: columnContext || null, items, new_counter, temporary };
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/interface`,
             {

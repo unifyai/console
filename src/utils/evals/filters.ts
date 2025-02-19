@@ -183,14 +183,14 @@ export function filtersToExpression (columnFilters: FiltersByColumn, fields: Log
 	Converts filter search param expression to nested fitlers dict.
 	Group triplets of column, fn and value together, then group filters by column.
 */
-export function searchParamToFilters (searchExpression: string | undefined, context: string | undefined) {
+export function searchParamToFilters (searchExpression: string | undefined, columnContext: string | undefined) {
 	if (!searchExpression) return {}
 	const filters = searchExpression
 		.split(",")
 		.map(filter => {
 				let [column, fn, value] = filter.split("@");
-				if (context)
-					column = processContext("merge", context, column)
+				if (columnContext)
+					column = processContext("merge", columnContext, column)
 				return { [column]: { [fn]: value } };
 		})
 		.reduce((acc, curr) => {

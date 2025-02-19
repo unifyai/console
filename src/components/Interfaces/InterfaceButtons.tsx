@@ -24,6 +24,7 @@ const InterfaceButtons = ({
     pending,
     anyTilePending,
     context,
+    columnContext,
     contexts,
     items,
     newCounter,
@@ -41,6 +42,7 @@ const InterfaceButtons = ({
     setFocusDialog,
     setDataPending,
     setContext,
+    setColumnContext,
     setSaveDialog,
     updateInterface,
 }: {
@@ -52,6 +54,7 @@ const InterfaceButtons = ({
     pending: boolean,
     anyTilePending: boolean,
     context: string | undefined,
+    columnContext: string | undefined,
     contexts: Context[],
     items: TileProps[],
     newCounter: number,
@@ -69,6 +72,7 @@ const InterfaceButtons = ({
     setFocusDialog: (value: SetStateAction<boolean>) => void,
     setDataPending: (value: SetStateAction<boolean>) => void,
     setContext: (value: SetStateAction<string | undefined>) => void,
+    setColumnContext: (value: SetStateAction<string | undefined>) => void,
     setSaveDialog: (value: SetStateAction<boolean>) => void,
     updateInterface: (savedInterface?: Interface | null) => Promise<ResponseProps>
 }) => {
@@ -104,6 +108,7 @@ const InterfaceButtons = ({
                             name: interface_ as string,
                             project: project_ as string,
                             context: newContext,
+                            column_context: undefined,
                             items,
                             new_counter: newCounter
                         }).then(() => {
