@@ -79,7 +79,7 @@ const DefaultProject = ({ projects, logsActions, projectActions, interfaceAction
                             setPending(true);
                             projectActions.create(defaultProject).then(() => {
                                 interfaceActions.create(
-                                    "interface_1", defaultProject, undefined, defaultItems, defaultNewCounter, true
+                                    "interface_1", defaultProject, undefined, undefined, defaultItems, defaultNewCounter, true
                                 ).then(() => {
                                     logsActions.create(
                                         defaultProject, defaultLogs.params, defaultLogs.entries

@@ -22,7 +22,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 	logsActions: LogsActions,
 	derivedEntryActions: DerivedEntryActions,
 	fieldsActions: {
-		get: (project: string) => Promise<LogFieldsResponseProps>,
+		get: (project: string, context: string | null) => Promise<LogFieldsResponseProps>,
 	}
 }) => {
 
@@ -36,7 +36,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 	let fields: LogFieldsResponseProps = {}
 	let types: {[key: string] : string} = {}
 	if (project) {
-		fields = await fieldsActions.get(project)
+		fields = await fieldsActions.get(project, null)
 	}
 
 	/* Handle filters */
@@ -91,7 +91,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 	);
 	if (project) {
 
-		logsData = await logsActions.get(project, context ?? null, filterExpression, sortingExpression, groupingExpression, null, null, limit, offset, groupingExpression ? 0 : null, _timestamp)
+		logsData = await logsActions.get(project, context ?? null, null, filterExpression, sortingExpression, groupingExpression, null, null, limit, offset, groupingExpression ? 0 : null, _timestamp)
 		totalPages = Math.ceil(logsData.count / limit);
 
 		const xAxis = context ? processContext("merge", context, searchParams.x_axis)  : searchParams.x_axis
@@ -100,12 +100,12 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 		if (xAxis) {
 			let subset = xAxis
 			if (searchParams.plot_type === "Bar Chart") 
-				plotData = await logsActions.get(project, context ?? null, filterExpression, null, null, subset, null, null, 0, null, _timestamp)
+				plotData = await logsActions.get(project, context ?? null, null, filterExpression, null, null, subset, null, null, 0, null, _timestamp)
 			else {
 				if (yAxis)
 					subset += `%26${yAxis}`
 					if (group) subset += `%26${group}`
-					plotData = await logsActions.get(project, context ?? null, filterExpression, null, null, subset, null, null, 0, null, _timestamp)
+					plotData = await logsActions.get(project, context ?? null, null, filterExpression, null, null, subset, null, null, 0, null, _timestamp)
 			}
 		}
 	}

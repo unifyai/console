@@ -469,7 +469,7 @@ const LogsTable = ({
           )}
           {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
         </div>
-        {project && 
+        {/* {project && 
           <RefreshLogs 
             context={context}
             project={project}
@@ -478,7 +478,7 @@ const LogsTable = ({
             getLatest={logsActions.getLatest}
             logs={logs}
           />
-        }
+        } */}
       </div>
 
       {/* If truly pending or logs not present, show a spinner */}
@@ -540,9 +540,9 @@ const LogsTable = ({
                     }
                   </FooterCell>
                 }
-                ExtraComponents={(table) => {
-                  return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} context={context ?? undefined}/>
-                }}
+                // ExtraComponents={(table) => {
+                //   return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} context={context ?? undefined}/>
+                // }}
                 ExtraCellContent={(cell, isCellExpanded, setExpandedCells) => 
                   <CellPopover cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells}/>
                 }

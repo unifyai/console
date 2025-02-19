@@ -44,6 +44,7 @@ export interface TileProps {
 }
 
 export interface TableDataItem {
+    columnContexts: string[],
     baseIndex: string | undefined,
     hiddenColumns: string | undefined,
     columnOrdering: string | undefined,
