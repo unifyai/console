@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo, useCallback } from "react"
 import { Span } from "@/types/evals/traces"
 import { LogProps } from "@/types/evals/logs"
 import { sanitizeId } from "./columnOperations"
@@ -28,43 +28,93 @@ export const MatrixDisplay = ({value}:{value: number[][]}) => {
     )
 }
 
+// Add a debounce utility to prevent too many simultaneous requests
+const debounce = (fn: Function, ms = 300) => {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  return function (this: any, ...args: any[]) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn.apply(this, args), ms);
+  };
+};
+
 export const ImageDisplay = ({ value, className }: { value: string; className?: string }) => {
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  // Separate immediate fetch function for initial load
+  const fetchSignedUrl = async (imageUrl: string) => {
+    try {
+      const parsedUrl = new URL(imageUrl);
+      const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
+      const bucket = pathParts[0];
+      const path = pathParts.slice(1).join("/");
+      
+      const currentUrl = signedUrlCache.get(imageUrl);
+      const queryParams = new URLSearchParams({
+        bucket: bucket,
+        path: path,
+        ...(currentUrl ? { url: currentUrl } : {})
+      });
+      
+      const res = await fetch(`/api/image/get?${queryParams}`);
+      
+      if (!res.ok) {
+        throw new Error(`Failed to fetch signed URL: ${res.statusText}`);
+      }
+      
+      const newUrlData = await res.json();
+      signedUrlCache.set(parsedUrl.href, newUrlData.url);
+      signedUrlInProgress.delete(parsedUrl.href);
+      setUrl(newUrlData.url);
+    } catch (err) {
+      console.error("Error fetching signed URL:", err);
+      signedUrlInProgress.delete(imageUrl);
+      setError(err as Error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Debounced version only for error recovery
+  const debouncedFetchSignedUrl = useMemo(
+    () => debounce((imageUrl: string) => fetchSignedUrl(imageUrl), 300),
+    []
+  );
+
   useEffect(() => {
-    const fetchSignedUrl = async () => {
+    const initializeImage = async () => {
       try {
-        // If the value is already a data URI, we just use it
+        // If the value is already a data URI, use it immediately
         if (value.startsWith("data:image/")) {
           setUrl(value);
+          setLoading(false);
           return;
         }
 
         const isBase64 = isBase64Image(value);
-        // For base64 without a prefix
         let imageUrl = isBase64 ? `data:image/png;base64,${value}` : value;
 
         try {
           const parsedUrl = new URL(imageUrl);
 
           // Only proceed with GCS URLs that aren't already signed
-          if (
-            parsedUrl.hostname === "storage.googleapis.com" &&
-            !parsedUrl.searchParams.has("GoogleAccessId")
-          ) {
+          if (parsedUrl.hostname === "storage.googleapis.com") {
             // Check cache first
-            if (signedUrlCache.has(imageUrl)) {
-              setUrl(signedUrlCache.get(imageUrl)!);
+            const cachedUrl = signedUrlCache.get(imageUrl);
+            if (cachedUrl) {
+              setUrl(cachedUrl);
+              setLoading(false);
               return;
             }
 
             // If fetch is already in progress, wait for it
             if (signedUrlInProgress.has(imageUrl)) {
               const checkInterval = setInterval(() => {
-                if (signedUrlCache.has(imageUrl)) {
-                  setUrl(signedUrlCache.get(imageUrl)!);
+                const cachedResult = signedUrlCache.get(imageUrl);
+                if (cachedResult) {
+                  setUrl(cachedResult);
+                  setLoading(false);
                   clearInterval(checkInterval);
                 }
               }, 100);
@@ -72,54 +122,52 @@ export const ImageDisplay = ({ value, className }: { value: string; className?: 
             }
 
             signedUrlInProgress.add(imageUrl);
-
-            const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
-            const bucket = pathParts[0];
-            const path = pathParts.slice(1).join("/");
-            
-            const res = await fetch(
-              `/api/image/get?bucket=${encodeURIComponent(bucket)}&path=${encodeURIComponent(path)}`
-            );
-            
-            if (!res.ok) {
-              throw new Error("Failed to fetch signed URL");
-            }
-            
-            const newUrlData = await res.json();
-            imageUrl = newUrlData.url;
-            
-            // Cache the signed URL
-            signedUrlCache.set(parsedUrl.href, imageUrl);
-            signedUrlInProgress.delete(parsedUrl.href);
+            // Use immediate fetch for initial load
+            await fetchSignedUrl(imageUrl);
+          } else {
+            setUrl(imageUrl);
+            setLoading(false);
           }
-          
-          setUrl(imageUrl);
         } catch (parseError) {
           console.error("Error parsing or converting URL:", parseError);
           signedUrlInProgress.delete(imageUrl);
           throw parseError;
         }
       } catch (err: any) {
-        console.error("Error in ImageDisplay fetch:", err);
+        console.error("Error in ImageDisplay initialization:", err);
         setError(err);
-      } finally {
         setLoading(false);
       }
     };
 
-    fetchSignedUrl();
+    initializeImage();
   }, [value]);
+
+  // Use debounced fetch only for error recovery
+  const handleImageError = useCallback((e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const img = e.target as HTMLImageElement;
+    if (img.src && img.src.includes('storage.googleapis.com')) {
+      const originalUrl = value;
+      signedUrlCache.delete(originalUrl);
+      setLoading(true);
+      setError(null);
+      // Use debounced fetch for error recovery
+      debouncedFetchSignedUrl(originalUrl);
+    }
+  }, [value, debouncedFetchSignedUrl]);
 
   if (loading) {
     return <span>Loading image...</span>;
   }
 
   if (error || !url) {
+    console.error("[ImageDisplay] Rendering error state:", error);
     return <span>Error loading image</span>;
   }
 
-  // Render based on whether it's a base64 image or a clickable URL image.
+  // Render based on whether it's a base64 image or a clickable URL image
   const isBase64 = isBase64Image(value);
+  console.log("[ImageDisplay] Rendering final component. isBase64:", isBase64);
   if (isBase64) {
     return (
       <Image
@@ -128,6 +176,7 @@ export const ImageDisplay = ({ value, className }: { value: string; className?: 
         width={500}
         height={500}
         className={className}
+        onError={handleImageError}
       />
     );
   } else {
@@ -139,6 +188,7 @@ export const ImageDisplay = ({ value, className }: { value: string; className?: 
           width={500}
           height={500}
           className={className}
+          onError={handleImageError}
         />
       </a>
     );
