@@ -27,7 +27,6 @@ const ContextSelector = ({
     context?: string,
     setContext?: (context: string) => void,
 }) => {
-    console.log(context, (item?.context || context) == contexts[0].name);
     const finalSetContext = (updateItem != undefined && item != undefined) ? updateItem(item, "context") : setContext;
     return (
         <div className="w-fit">

@@ -32,58 +32,58 @@ export const defaultNewCounter = 2;
 export const defaultLogs = {
     project: "maths_assistant",
     params: Array(10).fill({
-        system_message: "You are a helpful maths assistant, tasked with adding and subtracting integers."
+        experiment: 0
     }),
     entries: [
         {
-            question: "69 - 52",
-            response: "69 - 52 equals 17.",
-            score: 1.0
+            "question": "94 - 71",
+            "response": "To solve 94 - 71, subtract 71 from 94. This gives 23.\n\nExplanation:\n94 - 71 = 23\n\nThe answer is 23.",
+            "score": 1.0
         },
         {
-            question: "16 - 43",
-            response: "16 - 43 equals -27.",
-            score: 0.0
+            "question": "76 + 31",
+            "response": "76 + 31 equals 107.",
+            "score": 1.0
         },
         {
-            question: "33 - 34",
-            response: "33 - 34 equals -1.",
-            score: 0.0
+            "question": "78 - 100",
+            "response": "78 - 100 equals -22.",
+            "score": 0.0
         },
         {
-            question: "14 - 37",
-            response: "14 - 37 equals -23.",
-            score: 0.0
+            "question": "17 - 35",
+            "response": "17 - 35 = -18\n\nTo explain briefly: starting from 17, subtracting 35 moves you 35 units to the left on the number line, landing at -18.",
+            "score": 0.0
         },
         {
-            question: "95 - 66",
-            response: "95 - 66 equals 29.",
-            score: 1.0
+            "question": "2 + 91",
+            "response": "2 + 91 = 93",
+            "score": 1.0
         },
         {
-            question: "33 - 83",
-            response: "33 - 83 equals -50.",
-            score: 0.0
+            "question": "60 + 30",
+            "response": "60 + 30 = 90",
+            "score": 1.0
         },
         {
-            question: "65 + 57",
-            response: "65 + 57 = 122",
-            score: 1.0
+            "question": "85 - 53",
+            "response": "To solve 85 - 53, you can subtract the tens and ones separately:\n\n1. Subtract the tens: 80 - 50 = 30.\n2. Subtract the ones: 5 - 3 = 2.\n3. Add the results: 30 + 2 = 32.\n\nSo, 85 - 53 = 32.",
+            "score": 1.0
         },
         {
-            question: "15 + 78",
-            response: "15 + 78 equals 93.",
-            score: 1.0
+            "question": "61 + 90",
+            "response": "To calculate 61 + 90, you simply add the two numbers together:\n\n61 + 90 = 151\n\nSo, the sum is 151.",
+            "score": 1.0
         },
         {
-            question: "26 + 84",
-            response: "26 + 84 = 110",
-            score: 1.0
+            "question": "86 - 58",
+            "response": "86 - 58 = 28",
+            "score": 1.0
         },
         {
-            question: "87 - 66",
-            response: "87 - 66 equals 21.",
-            score: 1.0
+            "question": "4 - 46",
+            "response": "To solve 4 - 46, you subtract 46 from 4. Since 46 is larger than 4, the result is negative. Here's a breakdown:\n\nStep 1: 4 - 46 = -(46 - 4)\nStep 2: 46 - 4 = 42\nStep 3: So, 4 - 46 = -42\n\nTherefore, the answer is -42.",
+            "score": 0.0
         }
     ]
 }
