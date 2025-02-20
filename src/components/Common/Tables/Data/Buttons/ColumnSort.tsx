@@ -1,17 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, forwardRef } from "react";
 import { Column } from "@tanstack/react-table";
 import { SortDesc, SortAsc, ArrowUpDown, LoaderCircle } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
-const ColumnSort = ({interactive, column, data}: {interactive?: boolean, column: Column<any | unknown>, data: any[]}) => {
+
+type ColumnSortProps = {
+    interactive?: boolean,
+    column: Column<any | unknown>,
+    data: any[],
+    sortLoading: boolean,
+    setSortLoading: (sortLoading: boolean) => void,
+    setIsSorted: (isSorted: boolean) => void
+}
+
+const ColumnSort = forwardRef<HTMLButtonElement, ColumnSortProps>(({
+    interactive,
+    column,
+    data,
+    sortLoading,
+    setSortLoading,
+    setIsSorted
+}, ref) => {
 
     /* Display loader when data updates */
-    const [loading, setLoading] = useState(false);
     const [spinnerColor, setSpinnerColor] = useState("white");
     useEffect(() => {
-        setLoading(false);
+        setSortLoading(false);
     },[data])
+
+    const isSorted = column.getIsSorted() === "asc" || column.getIsSorted() === "desc";
+    useEffect(() => {
+        setIsSorted(isSorted);
+    }, [isSorted])
 
     const states = [
         { key: false, tooltip: "Sort descending", icon: <ArrowUpDown/> },
@@ -20,20 +41,29 @@ const ColumnSort = ({interactive, column, data}: {interactive?: boolean, column:
     ];
     const state = states.find(state => state.key === column.getIsSorted())!;
     const tooltip = state.tooltip;
-    const icon = loading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon
-    const variant = column.getIsSorted() ? "primary" : undefined;
+    const icon = sortLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon
+    const variant = isSorted ? "primary" : undefined;
     const onClick = () => {
         column.toggleSorting()
         if (!column.getNextSortingOrder()) 
             setSpinnerColor("primary") 
         else 
             setSpinnerColor("white")
-        setLoading(true)
+        setSortLoading(true)
     }
-
+    
     return(
-        <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false || loading}/>
+        <ActionButton 
+            ref={ref}
+            tooltip={tooltip} 
+            icon={icon} 
+            variant={variant} 
+            onClick={onClick} 
+            disabled={!interactive || sortLoading}
+        />
     );
-}
+});
+
+ColumnSort.displayName = "ColumnSort";
 
 export default ColumnSort;

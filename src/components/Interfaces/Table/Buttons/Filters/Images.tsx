@@ -1,24 +1,37 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { FiltersByColumn } from "@/types/evals/columns";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { Filter, LoaderCircle, Circle, CircleSlash2 } from "lucide-react";
 import { LogProps, GroupedLogProps } from "@/types/evals/logs";
 
-const ImageColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, logs }: {
+type ImageColumnFilterProps = {
     interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
-    logs: LogProps[] | GroupedLogProps[]
-}) => {
+    logs: LogProps[] | GroupedLogProps[],
+    filterLoading: boolean,
+    setFilterLoading: (filterLoading: boolean) => void,
+    setIsFiltered: (isFiltered: boolean) => void
+}
+
+const ImageColumnFilter = forwardRef<HTMLButtonElement, ImageColumnFilterProps>(({
+    interactive,
+    column,
+    columnFilters,
+    setColumnFilterQuery,
+    logs,
+    filterLoading,
+    setFilterLoading,
+    setIsFiltered
+}, ref) => {
 
     /* Display loader when data updates */
-    const [loading, setLoading] = useState(false);
     const [spinnerColor, setSpinnerColor] = useState("white");
     useEffect(() => {
-        setLoading(false);
+        setFilterLoading(false);
     },[logs])
 
     /* Init filter */
@@ -41,7 +54,7 @@ const ImageColumnFilter = ({ interactive, column, columnFilters, setColumnFilter
         }
         setFilter(newFilter)
         setColumnFilterQuery(newColumnFilters);
-        setLoading(true)
+        setFilterLoading(true)
     }
 
     /* Filter button */
@@ -53,12 +66,19 @@ const ImageColumnFilter = ({ interactive, column, columnFilters, setColumnFilter
     const state = states.find(state => state.key === filter)!
     const tooltip = state.tooltip
     const variant = state.variant as "primary" | "link" | "secondary" | "destructive" | "warning" | "outline" | "ghost" | undefined
-    const icon = loading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon
-    const disabled = !interactive || loading
+    const icon = filterLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon
+    const disabled = !interactive || filterLoading
+    const isFiltered = state.key === "true"
+
+    useEffect(() => {
+        setIsFiltered(isFiltered);
+    }, [isFiltered])
     
     return (
-        <ActionButton icon={icon} tooltip={tooltip} variant={variant} disabled={disabled} onClick={onClick}/>
+        <ActionButton ref={ref} icon={icon} tooltip={tooltip} variant={variant} disabled={disabled} onClick={onClick}/>
     );
-}
+});
+
+ImageColumnFilter.displayName = "ImageColumnFilter";
 
 export default ImageColumnFilter;
