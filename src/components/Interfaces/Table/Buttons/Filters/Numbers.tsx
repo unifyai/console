@@ -57,7 +57,7 @@ const NumericColumnFilter = ({
 
     /* Initialize filters */
     const options = [
-        {name: "==", label: "="  , description: "Filter for values equal to.."},
+        {name: "==", label: "=="  , description: "Filter for values equal to.."},
         {name: "!=", label: "!=" , description: "Filter for values not equal to.."},
         {name: ">",  label: ">"  , description: "Filter for values greater than.."},
         {name: ">=", label: ">=" , description: "Filter for values greater or equal to.."},

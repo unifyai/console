@@ -19,8 +19,9 @@ const fetchLatestTimestamps = async (tables: string[], args: PlotArguments, proj
             return logsActions.getLatest(project, tableContext, tableColumnContext, tableFilters, null, tableSubset, null, null, 0);
         })
     );
-    const latestTimestamp = latestDates.reduce((latest, current) => new Date(current).getTime() > new Date(latest).getTime() ? current : latest, "");
-    return latestTimestamp
+    const latestTimestamp = new Date(Math.max(...latestDates.map(t => new Date(t).getTime())))
+    const latest = latestTimestamp.toISOString()
+    return latest
 };
 
 const mergePlotData = (plotData_: {[x: string]: { plotLogs: LogProps[] }}) => {

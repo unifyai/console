@@ -415,6 +415,7 @@ const LogsTable = ({
                 <DataTable<LogProps | GroupedLogProps>
                   className="LogsTable"
                   interactive={interactive}
+                  auto_update={item.auto_update === "true"}
                   data={logs}
                   columns={columns}
                   state={state}

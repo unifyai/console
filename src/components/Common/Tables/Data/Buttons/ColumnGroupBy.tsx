@@ -7,6 +7,7 @@ import { useState, useEffect, forwardRef } from "react";
 
 type ColumnGroupByProps = {
     interactive?: boolean,
+    auto_update?: boolean,
     column: Column<any, unknown>,
     data: any[],
     grouping: string[],
@@ -18,6 +19,7 @@ type ColumnGroupByProps = {
 
 const ColumnGroupBy = forwardRef<HTMLButtonElement, ColumnGroupByProps>(({
     interactive,
+    auto_update,
     column,
     data,
     grouping,
@@ -57,7 +59,7 @@ const ColumnGroupBy = forwardRef<HTMLButtonElement, ColumnGroupByProps>(({
     ];
 
     const state = states.find(state => state.key === isGrouped)!;
-    const tooltip = state.tooltip;
+    const tooltip = auto_update ? "Auto refresh doesn't work with grouping" : state.tooltip;
     const variant = isGrouped ? "primary" : undefined;
     const icon = groupLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon;
     const onClick = () => {
@@ -94,7 +96,7 @@ const ColumnGroupBy = forwardRef<HTMLButtonElement, ColumnGroupByProps>(({
     };
 
     return (
-        <ActionButton ref={ref} tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false}/>
+        <ActionButton ref={ref} tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false || auto_update}/>
     );
 });
 

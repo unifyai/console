@@ -38,6 +38,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 const DataTableHeader = ({
   interactive,
+  auto_update,
   data,
   table,
   header,
@@ -64,6 +65,7 @@ const DataTableHeader = ({
   setColumnActionsApplied
 }: {
   interactive?: boolean,
+  auto_update?: boolean,
   data: any[],
   table: Table<any>,
   header: Header<any, unknown>,
@@ -240,6 +242,7 @@ const DataTableHeader = ({
       {showGroupButton() && (
         <ColumnGroupBy
           interactive={interactive}
+          auto_update={auto_update}
           column={header.column}
           grouping={grouping}
           setGrouping={setGrouping}
@@ -480,6 +483,7 @@ const DataTableHeader = ({
             <ColumnGroupBy
               ref={groupButtonRef}
               interactive={interactive}
+              auto_update={auto_update}
               column={header.column}
               grouping={grouping}
               setGrouping={setGrouping}

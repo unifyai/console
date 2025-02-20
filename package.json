@@ -16,7 +16,7 @@
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
     "@fortawesome/fontawesome-svg-core": "^6.6.0",
-    "@google-cloud/storage": "^7.14.0",
+    "@google-cloud/storage": "^7.15.1",
     "@hookform/resolvers": "^3.9.1",
     "@mailchimp/mailchimp_marketing": "^3.0.80",
     "@mui/icons-material": "^6.1.6",

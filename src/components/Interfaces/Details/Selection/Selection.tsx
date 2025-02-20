@@ -705,15 +705,13 @@ function SelectionPanel({
   const entryKeys = useMemo(() => {
     if (!baseLog) return [];
     const cE = comparisonLogs.map((cl) => cl.entries);
-    const union = gatherUnionOfKeys(baseLog.entries, cE);
-    return union;
+    return gatherUnionOfKeys(baseLog.entries, cE);
   }, [baseLog, comparisonLogs]);
 
   const paramKeys = useMemo(() => {
     if (!baseLog) return [];
     const cP = comparisonLogs.map((cl) => cl.params);
-    const union = gatherUnionOfKeys(baseLog.params, cP);
-    return union;
+    return gatherUnionOfKeys(baseLog.params, cP);
   }, [baseLog, comparisonLogs]);
 
   const defaultOpenEntries = useMemo(() => {
@@ -870,39 +868,37 @@ function SelectionPanel({
     }
   }
 
-  const entriesToRender = useMemo(() => {
-    if (!baseLog) return [];
-    return entryOrder.filter((col) => {
-      if (entriesFilter[col] === false) return false;
-      const baseVal = baseLog.entries[col];
-      const comps = comparisonLogs.map((cl) => cl.entries[col]);
-      return !(baseVal === undefined && comps.every((v) => v === undefined));
-    });
-  }, [baseLog, entryOrder, entriesFilter, comparisonLogs]);
+  // A helper to detect if a base value + comps are all empty => skip
+  function isAllEmpty(baseVal: any, comps: any[]) {
+    const arr = [baseVal, ...comps];
+    for (const v of arr) {
+      if (!isEmptyOrBlank(v)) {
+        return false;
+      }
+    }
+    return true;
+  }
+  function isEmptyOrBlank(v: any) {
+    if (v === null || v === undefined) return true;
+    if (typeof v === "string" && v.trim().length === 0) return true;
+    return false;
+  }
 
-  const paramsToRender = useMemo(() => {
-    if (!baseLog) return [];
-    return paramOrder.filter((col) => {
-      if (paramsFilter[col] === false) return false;
-      const baseVal = baseLog.params[col];
-      const comps = comparisonLogs.map((cl) => cl.params[col]);
-      return !(baseVal === undefined && comps.every((v) => v === undefined));
-    });
-  }, [baseLog, paramOrder, paramsFilter, comparisonLogs]);
+  /*****************************************************************************
+   * Build param section
+   *****************************************************************************/
+  const paramSection = useMemo(() => {
+    if (!baseLog) return null;
 
-  const areAllOpenParams =
-    paramsToRender.length > 0 &&
-    paramsToRender.every((p) => openParamItems.includes(p)) &&
-    openParamItems.length === paramsToRender.length;
+    const areAllOpenParams = paramOrder.length > 0 &&
+      paramOrder.every((p) => openParamItems.includes(p)) &&
+      openParamItems.length === paramOrder.length;
 
-  const areAllOpenEntries =
-    entriesToRender.length > 0 &&
-    entriesToRender.every((e) => openItems.includes(e)) &&
-    openItems.length === entriesToRender.length;
+    if (paramOrder.length === 0) {
+      return null;
+    }
 
-  let paramsSection: JSX.Element | null = null;
-  if (paramsToRender.length > 0) {
-    paramsSection = (
+    return (
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between sticky top-0 z-10 bg-background py-2 border-b border-muted">
           <p className="font-bold text-lg">Params</p>
@@ -914,7 +910,7 @@ function SelectionPanel({
               if (areAllOpenParams) {
                 setOpenParamItems([]);
               } else {
-                setOpenParamItems(paramsToRender);
+                setOpenParamItems(paramOrder);
               }
             }}
             icon={areAllOpenParams ? <FoldVertical /> : <UnfoldVertical />}
@@ -934,26 +930,14 @@ function SelectionPanel({
               {paramOrder
                 .filter((col) => paramsFilter[col] !== false)
                 .map((col) => {
-                  const baseParam = baseLog?.params?.[col];
-                  const allUndef =
-                    baseParam === undefined &&
-                    comparisonLogs.every((cl) => cl.params[col] === undefined);
-                  if (allUndef) return null;
+                  const baseParam = baseLog.params?.[col];
+                  const compVals = comparisonLogs.map((cl) => cl.params?.[col]);
+                  // If all empty => skip entirely
+                  if (isAllEmpty(baseParam, compVals)) {
+                    return null;
+                  }
 
-                  const baseVal =
-                    baseParam &&
-                    typeof baseParam === "object" &&
-                    "paramValue" in baseParam &&
-                    "paramVersion" in baseParam
-                      ? baseParam.paramValue
-                      : baseParam;
-                  const baseVer =
-                    baseParam &&
-                    typeof baseParam === "object" &&
-                    "paramValue" in baseParam &&
-                    "paramVersion" in baseParam
-                      ? baseParam.paramVersion
-                      : "";
+                  // Build paramVersion array if needed
                   const compVers = comparisonLogs.map((cl) => {
                     const p = cl.params?.[col];
                     if (
@@ -966,6 +950,56 @@ function SelectionPanel({
                     }
                     return "";
                   });
+                  const baseVer = ((): string => {
+                    if (
+                      baseParam &&
+                      typeof baseParam === "object" &&
+                      "paramValue" in baseParam &&
+                      "paramVersion" in baseParam
+                    ) {
+                      return baseParam.paramVersion as string;
+                    }
+                    return "";
+                  })();
+                  const baseVal =
+                    baseParam &&
+                    typeof baseParam === "object" &&
+                    "paramValue" in baseParam &&
+                    "paramVersion" in baseParam
+                      ? baseParam.paramValue
+                      : baseParam;
+
+                  const selEntry = (
+                    <SelectionEntry
+                      key={`param-${col}`}
+                      source="params"
+                      property={col}
+                      value={baseVal}
+                      version={baseVer}
+                      comparableVersions={compVers}
+                      baseLog={baseLog ?? undefined}
+                      baseLogIndex={baseRowIndex + 1}
+                      comparisonLogs={comparisonLogs}
+                      comparisonLogsIndex={comparisonRowIndices.map((x) => x + 1)}
+                      diffMode={diffMode}
+                      splitView={splitView}
+                      displayMode={displayMode}
+                      onHideColumn={onHideParam}
+                      tableItem={tableItem}
+                      updateItem={updateItem}
+                      editMode={editMode}
+                      onAccordionValueChange={(vals) => {
+                        if (!editMode) {
+                          setOpenParamItems(vals);
+                        }
+                      }}
+                    />
+                  );
+
+                  if (!selEntry) {
+                    // If the SelectionEntry returned null => skip
+                    return null;
+                  }
 
                   return (
                     <SortableAccordionItem
@@ -973,29 +1007,7 @@ function SelectionPanel({
                       id={col}
                       editMode={editMode}
                     >
-                      <SelectionEntry
-                        source="params"
-                        property={col}
-                        value={baseVal}
-                        version={baseVer}
-                        comparableVersions={compVers}
-                        baseLog={baseLog as LogProps}
-                        baseLogIndex={baseRowIndex + 1}
-                        comparisonLogs={comparisonLogs}
-                        comparisonLogsIndex={comparisonRowIndices.map((x) => x + 1)}
-                        diffMode={diffMode}
-                        splitView={splitView}
-                        displayMode={displayMode}
-                        onHideColumn={onHideParam}
-                        tableItem={tableItem}
-                        updateItem={updateItem}
-                        editMode={editMode}
-                        onAccordionValueChange={(vals) => {
-                          if (!editMode) {
-                            setOpenParamItems(vals);
-                          }
-                        }}
-                      />
+                      {selEntry}
                     </SortableAccordionItem>
                   );
                 })}
@@ -1004,11 +1016,41 @@ function SelectionPanel({
         </DndContext>
       </div>
     );
-  }
+  }, [
+    baseLog,
+    paramOrder,
+    openParamItems,
+    editMode,
+    handleParamDragEnd,
+    paramKeys,
+    paramsFilter,
+    sensors,
+    comparisonLogs,
+    diffMode,
+    splitView,
+    displayMode,
+    onHideParam,
+    tableItem,
+    updateItem,
+    baseRowIndex,
+    comparisonRowIndices,
+  ]);
 
-  let entriesSection: JSX.Element | null = null;
-  if (entriesToRender.length > 0) {
-    entriesSection = (
+  /*****************************************************************************
+   * Build entries section
+   *****************************************************************************/
+  const entriesSection = useMemo(() => {
+    if (!baseLog) return null;
+
+    const areAllOpenEntries = entryOrder.length > 0 &&
+      entryOrder.every((e) => openItems.includes(e)) &&
+      openItems.length === entryOrder.length;
+
+    if (entryOrder.length === 0) {
+      return null;
+    }
+
+    return (
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between sticky top-0 z-10 bg-background py-2 border-b border-muted">
           <p className="font-bold text-lg">Entries</p>
@@ -1020,7 +1062,7 @@ function SelectionPanel({
               if (areAllOpenEntries) {
                 setOpenItems([]);
               } else {
-                setOpenItems(entriesToRender);
+                setOpenItems(entryOrder);
               }
             }}
             icon={areAllOpenEntries ? <FoldVertical /> : <UnfoldVertical />}
@@ -1040,11 +1082,40 @@ function SelectionPanel({
               {entryOrder
                 .filter((col) => entriesFilter[col] !== false)
                 .map((col) => {
-                  const baseVal = baseLog?.entries?.[col];
-                  const allUndef =
-                    baseVal === undefined &&
-                    comparisonLogs.every((cl) => cl.entries[col] === undefined);
-                  if (allUndef) return null;
+                  const baseVal = baseLog.entries?.[col];
+                  const compVals = comparisonLogs.map((cl) => cl.entries?.[col]);
+                  if (isAllEmpty(baseVal, compVals)) {
+                    return null; // skip entirely
+                  }
+
+                  const selEntry = (
+                    <SelectionEntry
+                      key={`entry-${col}`}
+                      source="entries"
+                      property={col}
+                      value={baseVal}
+                      baseLog={baseLog ?? undefined}
+                      baseLogIndex={baseRowIndex + 1}
+                      comparisonLogs={comparisonLogs}
+                      comparisonLogsIndex={comparisonRowIndices.map((x) => x + 1)}
+                      diffMode={diffMode}
+                      splitView={splitView}
+                      displayMode={displayMode}
+                      onHideColumn={onHideEntry}
+                      tableItem={tableItem}
+                      updateItem={updateItem}
+                      editMode={editMode}
+                      onAccordionValueChange={(vals) => {
+                        if (!editMode) {
+                          setOpenItems(vals);
+                        }
+                      }}
+                    />
+                  );
+
+                  if (!selEntry) {
+                    return null;
+                  }
 
                   return (
                     <SortableAccordionItem
@@ -1052,27 +1123,7 @@ function SelectionPanel({
                       id={col}
                       editMode={editMode}
                     >
-                      <SelectionEntry
-                        source="entries"
-                        property={col}
-                        value={baseVal}
-                        baseLog={baseLog as LogProps}
-                        baseLogIndex={baseRowIndex + 1}
-                        comparisonLogs={comparisonLogs}
-                        comparisonLogsIndex={comparisonRowIndices.map((x) => x + 1)}
-                        diffMode={diffMode}
-                        splitView={splitView}
-                        displayMode={displayMode}
-                        onHideColumn={onHideEntry}
-                        tableItem={tableItem}
-                        updateItem={updateItem}
-                        editMode={editMode}
-                        onAccordionValueChange={(vals) => {
-                          if (!editMode) {
-                            setOpenItems(vals);
-                          }
-                        }}
-                      />
+                      {selEntry}
                     </SortableAccordionItem>
                   );
                 })}
@@ -1081,11 +1132,30 @@ function SelectionPanel({
         </DndContext>
       </div>
     );
-  }
+  }, [
+    baseLog,
+    entryOrder,
+    openItems,
+    editMode,
+    handleEntryDragEnd,
+    entryKeys,
+    entriesFilter,
+    sensors,
+    comparisonLogs,
+    diffMode,
+    splitView,
+    displayMode,
+    onHideEntry,
+    tableItem,
+    updateItem,
+    baseRowIndex,
+    comparisonRowIndices,
+  ]);
 
+  // Renders both sections
   const content = (
     <div className="flex flex-col gap-6">
-      {paramsSection}
+      {paramSection}
       {entriesSection}
     </div>
   );
@@ -1102,8 +1172,8 @@ function SelectionPanel({
                 return { value: label, label, dataIndex: i };
               })}
               value={
-                selectedRowIndices[baseIndexParam] !== undefined
-                  ? rowLabel(selectedRowIndices[baseIndexParam])
+                selectedRowIndices[baseRowIndex] !== undefined
+                  ? rowLabel(selectedRowIndices[baseRowIndex])
                   : ""
               }
               onValueChange={(newLabel) => {
@@ -1186,5 +1256,3 @@ function SortableAccordionItem({
     </div>
   );
 }
-
-export {};
