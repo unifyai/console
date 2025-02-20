@@ -103,6 +103,7 @@ function getTypeIcon(valueType: string) {
 /**
  * unifyType: uses baseVal + comparables to decide on a single type. 
  * If multiple distinct types appear, fallback to "string."
+ * (We skip null/undefined/empty-string in the union.)
  */
 function unifyType(
   baseVal: any,
@@ -110,13 +111,13 @@ function unifyType(
 ):
   "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat"
 {
-  // gather all non-undefined values
+  // gather all non-undefined, non-empty-string
   const allVals: any[] = [];
-  if (baseVal !== undefined) {
+  if (baseVal !== undefined && baseVal !== null && !(typeof baseVal === "string" && baseVal.trim().length === 0)) {
     allVals.push(baseVal);
   }
   comps.forEach(c => {
-    if (c !== undefined) {
+    if (c !== undefined && c !== null && !(typeof c === "string" && c.trim().length === 0)) {
       allVals.push(c);
     }
   });
@@ -172,7 +173,7 @@ function getSelectionView(
     );
   }
 
-  // (ADDED) unify the type from base + comps
+  // unify the type from base + comps
   const finalType = unifyType(value, comparables);
 
   switch (finalType) {
@@ -365,12 +366,24 @@ export default function SelectionEntry({
     comps = comps.map((c) => c?.paramValue);
   }
 
+  // Check if everything is effectively empty => skip rendering entirely
+  function isEmptyOrBlank(v: any): boolean {
+    if (v === null || v === undefined) return true;
+    if (typeof v === "string" && v.trim().length === 0) return true;
+    return false;
+  }
+  const allVals = [rawValue, ...comps];
+  const allEmpty = allVals.every(isEmptyOrBlank);
+  if (allEmpty) {
+    // do not render at all
+    return null;
+  }
+
   // unify the type from base + comparables for the icon
   const unifiedType = unifyType(rawValue, comps);
   const icon = getTypeIcon(unifiedType);
 
   const handleDeselectColumn = () => {
-    console.log("[DEBUG] handleDeselectColumn called");
     if (onHideColumn) {
       onHideColumn(property);
     }
@@ -416,7 +429,7 @@ export default function SelectionEntry({
       onDragStart={() => {
         setPrevAccordionValues(
           typeof onAccordionValueChange === "function"
-            ? [] // or read your current expanded values...
+            ? []
             : []
         );
         onAccordionValueChange?.([]);
@@ -454,7 +467,6 @@ export default function SelectionEntry({
           </Tooltip>
         </div>
 
-        {/* check unifiedType instead of (valueType === "dict" || valueType === "list") */}
         {(!editMode && isOpen && (unifiedType === "dict" || unifiedType === "list")) && (
           <div className="absolute right-5 flex gap-1 items-center">
             <Button

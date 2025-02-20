@@ -1,47 +1,25 @@
 "use client";
-import React from "react";
-import { ImageDisplay } from "@/utils/evals/selection";
+
+import React, { Suspense } from "react";
 import { LogComparisonProps } from "./types";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 import RowBadge from "./RowBadge";
 import MarkdownRenderer from "./Markdown/MarkdownRenderer";
+import { ImageDisplay } from "@/utils/evals/selection";
 
 /**
- * Compress array of row indices (e.g. [1,2,3,5,6,8]) into "1-3,5-6,8".
+ * Evaluate if the provided string is a non-empty image reference.
+ * We'll treat any non-empty string as "displayable" for now,
+ * and rely on <ImageDisplay> to handle errors or fallback states.
  */
-function compressRowNumbers(rows: number[]): string {
-  if (!rows.length) return "";
-  const sorted = [...rows].sort((a, b) => a - b);
-
-  const ranges: string[] = [];
-  let start = sorted[0];
-  let end = start;
-
-  for (let i = 1; i < sorted.length; i++) {
-    const current = sorted[i];
-    if (current === end + 1) {
-      end = current;
-    } else {
-      if (start === end) {
-        ranges.push(String(start));
-      } else {
-        ranges.push(`${start}-${end}`);
-      }
-      start = current;
-      end = current;
-    }
-  }
-  if (start === end) {
-    ranges.push(String(start));
-  } else {
-    ranges.push(`${start}-${end}`);
-  }
-
-  return ranges.join(",");
+function isNonEmptyImage(value: string) {
+  return typeof value === "string" && value.trim() !== "";
 }
 
 /**
- * Group images by exact src string, so that identical images share a group.
+ * Group images by their raw value (the private/log URL). This ensures identical
+ * log strings are recognized as the same image, regardless of whether they
+ * become different signed URLs later.
  */
 function groupImagesByValue(images: string[], rowIndexes: number[]) {
   const map = new Map<string, number[]>();
@@ -58,36 +36,9 @@ function groupImagesByValue(images: string[], rowIndexes: number[]) {
 }
 
 /**
- * Group row indices by their version text, to display them in a single block if they share the same version.
- */
-function groupVersionsForRows(
-  rows: number[],
-  baseLogIndex: number,
-  baseVer: string,
-  compLogIndexes: number[],
-  compVers: string[]
-) {
-  const map = new Map<string, number[]>();
-  rows.forEach((r) => {
-    const verStr =
-      r === baseLogIndex
-        ? baseVer
-        : compVers[compLogIndexes.indexOf(r)] ?? "";
-    if (!map.has(verStr)) {
-      map.set(verStr, []);
-    }
-    map.get(verStr)!.push(r);
-  });
-  return Array.from(map.entries()).map(([text, rowArr]) => ({
-    text,
-    rows: rowArr.sort((a, b) => a - b),
-  }));
-}
-
-/**
- * Minimal presence "diff" marker for images:
- * If base has content, but comp = "",
- * or base is "", but comp has content => highlight as red/green.
+ * Simple presence-diff helper:
+ * - If the base has an image, but a comparable is empty => “deleted” in comp
+ * - If the base is empty, but a comparable has an image => “inserted” in comp
  */
 function gatherPresenceDiffs(
   baseSrc: string,
@@ -96,14 +47,16 @@ function gatherPresenceDiffs(
   compIdxs: number[]
 ) {
   const baseHas = baseSrc !== "";
-  const redSet: Set<number> = new Set();
-  const greenSet: Set<number> = new Set();
+  const redSet = new Set<number>();
+  const greenSet = new Set<number>();
 
   compSrcs.forEach((val, i) => {
     const row = compIdxs[i];
     if (baseHas && val === "") {
+      // base has image, comp is empty => “delete” in comp
       redSet.add(row);
     } else if (!baseHas && val !== "") {
+      // base is empty, comp has image => “insert” in comp
       greenSet.add(row);
     }
   });
@@ -114,9 +67,32 @@ function gatherPresenceDiffs(
   };
 }
 
-function isValidImage(src: string): boolean {
-  // Minimal check for demonstration
-  return !!src;
+/**
+ * Group row indices by param version, so we can show them together if they share the same string.
+ */
+function groupVersionsForRows(
+  rows: number[],
+  baseLogIndex: number,
+  baseVer: string,
+  compLogIndexes: number[],
+  compVers: string[]
+) {
+  const map = new Map<string, number[]>();
+  rows.forEach((r) => {
+    if (r === baseLogIndex) {
+      map.has(baseVer) || map.set(baseVer, []);
+      map.get(baseVer)!.push(r);
+    } else {
+      const idxInComp = compLogIndexes.indexOf(r);
+      const verStr = idxInComp >= 0 ? compVers[idxInComp] : "";
+      map.has(verStr) || map.set(verStr, []);
+      map.get(verStr)!.push(r);
+    }
+  });
+  return Array.from(map.entries()).map(([text, rowArr]) => ({
+    text,
+    rows: rowArr.sort((a, b) => a - b),
+  }));
 }
 
 export default function ImageView({
@@ -129,21 +105,26 @@ export default function ImageView({
   version = "",
   comparableVersions = [],
 }: LogComparisonProps) {
-  const singleMode = !comparables || comparables.length === 0;
-  const baseSrc = (value ?? "").toString();
-  const compSrcs = (comparables ?? []).map((c) => (c ?? "").toString());
-  const baseVer = version.toString();
-  const compVers = comparableVersions.map((v) => v.toString());
-  const versionEmpty = baseVer === "" && compVers.every((v) => v === "");
+  // Convert the base and comparables to strings for uniform handling
+  const baseSrc = String(value ?? "");
+  const compSrcs = (comparables ?? []).map((c) => String(c ?? ""));
 
-  // SINGLE MODE
+  const singleMode = !comparables || comparables.length === 0;
+  const baseVer = version || "";
+  const compVers = comparableVersions || [];
+  const versionEmpty = !baseVer && compVers.every((v) => !v);
+
+  /*───────────────────────────────────────────────────────────────────────────
+    SINGLE MODE: Just show the one image, optional version
+  ───────────────────────────────────────────────────────────────────────────*/
   if (singleMode) {
-    const hasImg = isValidImage(baseSrc);
+    const hasImage = isNonEmptyImage(baseSrc);
+
     return (
       <div className="space-y-4">
         {!versionEmpty && (
           <div className="space-y-2">
-            <p className="font-semibold">Version</p>
+            <p className="font-semibold text-sm">Version</p>
             {baseVer ? (
               <div className="border rounded p-2 relative group">
                 <MarkdownRenderer>{baseVer}</MarkdownRenderer>
@@ -161,12 +142,14 @@ export default function ImageView({
         )}
 
         <div className="space-y-2">
-          <p className="font-semibold">Image</p>
-          {!hasImg ? (
+          {!versionEmpty && <p className="font-semibold text-sm">Image</p>}
+          {!hasImage ? (
             <p className="text-sm italic text-muted-foreground">No image</p>
           ) : (
-            <div className="border rounded p-2 bg-background group">
-              <ImageDisplay value={baseSrc} />
+            <div className="border rounded p-2 bg-background group relative">
+              <Suspense fallback={<div>Loading image...</div>}>
+                <ImageDisplay value={baseSrc} />
+              </Suspense>
             </div>
           )}
         </div>
@@ -174,20 +157,22 @@ export default function ImageView({
     );
   }
 
-  // MULTI MODE => base + comparables exist
+  /*───────────────────────────────────────────────────────────────────────────
+    MULTI MODE: We have base + comparables
+  ───────────────────────────────────────────────────────────────────────────*/
+
+  // (A) “No diff” => group identical raw strings so one image is shown for all rows that share it
   if (diffMode === "none") {
-    // Group them ignoring base vs comp
     const allSources = [baseSrc, ...compSrcs];
     const allRows = [baseLogIndex, ...comparisonLogsIndex];
     const groups = groupImagesByValue(allSources, allRows);
 
     return (
       <div className="space-y-4">
-        {groups.map((grp, idx) => {
-          const src = grp.src;
-          const rowNums = grp.rows;
-          const verGroups = groupVersionsForRows(
-            rowNums,
+        {groups.map((grp, i) => {
+          const { src, rows } = grp;
+          const versionGroups = groupVersionsForRows(
+            rows,
             baseLogIndex,
             baseVer,
             comparisonLogsIndex,
@@ -195,46 +180,46 @@ export default function ImageView({
           );
 
           return (
-            <div key={idx} className="border rounded p-3 space-y-4">
+            <div key={i} className="border rounded p-3 space-y-4">
+              {/* Param Versions */}
               {!versionEmpty && (
-                <div className="space-y-2">
-                  <p className="font-semibold">Param Version</p>
-                  {verGroups.map((vg, j) => (
-                    <div
-                      key={j}
-                      className="space-y-2 border rounded p-2 relative group"
-                    >
-                      <RowBadge rowNumbers={vg.rows} mode="none" />
-                      <CopyButton
-                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                        content={vg.text}
-                        copyMessage="Copied version!"
-                        tooltipContent="Copy version"
-                      />
-                      {vg.text ? (
-                        <div className="pt-2">
-                          <MarkdownRenderer>{vg.text}</MarkdownRenderer>
-                        </div>
-                      ) : (
-                        <p className="italic text-sm text-muted-foreground">
-                          No version
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <>
+                  <p className="font-semibold text-sm">Version</p>
+                  <div className="space-y-2">
+                    {versionGroups.map((vg, j) => (
+                      <div
+                        key={j}
+                        className="border rounded p-2 relative group"
+                      >
+                        <RowBadge rowNumbers={vg.rows} mode="none" />
+                        {vg.text ? (
+                          <div className="pt-2">
+                            <MarkdownRenderer>{vg.text}</MarkdownRenderer>
+                          </div>
+                        ) : (
+                          <p className="italic text-sm text-muted-foreground">
+                            No version
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
 
+              {/* The actual image */}
               <div className="space-y-2">
-                <p className="font-semibold">Image</p>
+                {!versionEmpty && <p className="font-semibold text-sm">Image</p>}
                 <div className="border rounded p-2 bg-background relative group">
-                  <RowBadge rowNumbers={rowNums} mode="none" />
-                  {isValidImage(src) ? (
-                    <div className="pt-2">
+                  <RowBadge rowNumbers={rows} mode="none" />
+                  {isNonEmptyImage(src) ? (
+                    <Suspense fallback={<div>Loading image...</div>}>
                       <ImageDisplay value={src} />
-                    </div>
+                    </Suspense>
                   ) : (
-                    <p className="text-destructive">Not a valid image</p>
+                    <p className="text-sm italic text-muted-foreground">
+                      No image
+                    </p>
                   )}
                 </div>
               </div>
@@ -245,15 +230,8 @@ export default function ImageView({
     );
   }
 
-  // For lines/words/characters diff => "presence" highlight only
-  const { redRows, greenRows } = gatherPresenceDiffs(
-    baseSrc,
-    compSrcs,
-    baseLogIndex,
-    comparisonLogsIndex
-  );
-
-  // Merge comparables by unique src
+  // (B) If diffMode !== "none", we do a side-by-side approach
+  // mapping each unique comp src => which row(s) it's in
   const compMap = new Map<string, number[]>();
   compSrcs.forEach((src, i) => {
     const row = comparisonLogsIndex[i];
@@ -273,16 +251,17 @@ export default function ImageView({
         const compSrc = block.src;
         const rowNums = block.rows;
 
-        // Param version grouping
-        const verGroups = groupVersionsForRows(
-          rowNums.concat(baseLogIndex),
+        // Combine the base row + these row(s) for grouping versions
+        const allRows = [baseLogIndex, ...rowNums];
+        const versionGroups = groupVersionsForRows(
+          allRows,
           baseLogIndex,
           baseVer,
           comparisonLogsIndex,
           compVers
         );
 
-        // If same as base => no highlight
+        // If base === comp => no highlight
         const changed = compSrc !== baseSrc;
         const baseBadgeMode = changed ? "delete" : "none";
         const compBadgeMode = changed ? "insert" : "none";
@@ -290,63 +269,86 @@ export default function ImageView({
         return (
           <div key={i} className="border rounded p-3 space-y-4">
             {!versionEmpty && (
-              <div className="space-y-2">
-                <p className="font-semibold">Param Version</p>
-                {verGroups.map((vg, j) => {
-                  return (
-                    <div key={j} className="p-3 space-y-2 border rounded relative group">
-                      <div className="flex items-center gap-2 text-xs">
-                        {vg.rows.includes(baseLogIndex) && (
-                          <RowBadge
-                            rowNumbers={[baseLogIndex]}
-                            mode={changed ? "delete" : "none"}
-                          />
-                        )}
-                        <RowBadge
-                          rowNumbers={vg.rows.filter((r) => r !== baseLogIndex)}
-                          mode={changed ? "insert" : "none"}
-                        />
-                      </div>
-                      {vg.text ? (
-                        <div className="pt-2">
-                          <MarkdownRenderer>{vg.text}</MarkdownRenderer>
+              <>
+                <p className="font-semibold text-sm">Version</p>
+                <div className="space-y-2">
+                  {versionGroups.map((vg, j) => {
+                    const rowSet = vg.rows;
+                    const hasBase = rowSet.includes(baseLogIndex);
+                    // Show base row with “delete” if changed, otherwise “none”
+                    const baseMode = hasBase && changed ? "delete" : "none";
+
+                    // For the other rows in rowSet, “insert” if changed
+                    const otherRows = rowSet.filter((r) => r !== baseLogIndex);
+
+                    return (
+                      <div
+                        key={j}
+                        className="border rounded p-2 relative group"
+                      >
+                        <div className="flex items-center gap-2 text-xs mb-2">
+                          {hasBase && (
+                            <RowBadge
+                              rowNumbers={[baseLogIndex]}
+                              mode={baseMode}
+                            />
+                          )}
+                          {otherRows.length > 0 && (
+                            <RowBadge
+                              rowNumbers={otherRows}
+                              mode={changed ? "insert" : "none"}
+                            />
+                          )}
                         </div>
-                      ) : (
-                        <p className="italic text-sm text-muted-foreground">
-                          No version
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                        {vg.text ? (
+                          <MarkdownRenderer>{vg.text}</MarkdownRenderer>
+                        ) : (
+                          <p className="italic text-sm text-muted-foreground">
+                            No version
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
 
             <div className="space-y-2">
-              <p className="font-semibold">Image Diff</p>
-              <div className="flex items-center gap-2 text-xs">
-                <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadgeMode} />
-                <RowBadge rowNumbers={rowNums} mode={compBadgeMode} />
-              </div>
-              <div className="border rounded p-2 bg-background group">
-                {isValidImage(compSrc) || isValidImage(baseSrc) ? (
-                  <div className="flex flex-col gap-4">
-                    {isValidImage(baseSrc) && (
-                      <div>
-                        <p className="text-xs italic mb-1">Base image</p>
+              {!versionEmpty && <p className="font-semibold text-sm">Image Diff</p>}
+
+              <div className="flex flex-col gap-4">
+                {/* (1) Base block */}
+                <div className="border rounded p-2 bg-background relative group">
+                  <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadgeMode} />
+                  {isNonEmptyImage(baseSrc) ? (
+                    <Suspense fallback={<div>Loading image...</div>}>
+                      <div className="pt-2">
                         <ImageDisplay value={baseSrc} />
                       </div>
-                    )}
-                    {isValidImage(compSrc) && (
-                      <div>
-                        <p className="text-xs italic mb-1">Comparison image</p>
+                    </Suspense>
+                  ) : (
+                    <p className="text-sm italic text-muted-foreground">
+                      No image
+                    </p>
+                  )}
+                </div>
+
+                {/* (2) Comparable block */}
+                <div className="border rounded p-2 bg-background relative group">
+                  <RowBadge rowNumbers={rowNums} mode={compBadgeMode} />
+                  {isNonEmptyImage(compSrc) ? (
+                    <Suspense fallback={<div>Loading image...</div>}>
+                      <div className="pt-2">
                         <ImageDisplay value={compSrc} />
                       </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-destructive">No valid images</p>
-                )}
+                    </Suspense>
+                  ) : (
+                    <p className="text-sm italic text-muted-foreground">
+                      No image
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>

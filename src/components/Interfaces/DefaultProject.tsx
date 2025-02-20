@@ -1,8 +1,8 @@
 import { Loader2, Play } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import MarkdownRender from "../Common/Code/MarkdownRender";
-import { InterfaceActions, LogsActions, ProjectsActions, TileProps } from "@/types/evals/grid";
-import { defaultLogs } from "@/constants/logs";
+import { InterfaceActions, LogsActions, ProjectsActions } from "@/types/evals/grid";
+import { defaultItems, defaultLogs, defaultNewCounter } from "@/constants/logs";
 import { useState } from "react";
 
 const code = `
@@ -10,14 +10,18 @@ const code = `
 import unify
 from random import randint, choice
 
-# agent
-client = unify.Unify("gpt-4o@openai")
+# initialize project
+unify.activate("Maths Assistant")
+
+# build agent
+client = unify.Unify("o3-mini@openai", traced=True)
 client.set_system_message("You are a helpful maths assistant, tasked with adding and subtracting integers.")
 
-# test cases
+# add test cases
 qs = [f"{randint(0, 100)} {choice(['+', '-'])} {randint(0, 100)}" for i in range(10)]
 
-# evaluator
+# define evaluator
+@unify.traced
 def evaluate_response(question: str, response: str) -> float:
     correct_answer = eval(question)
     try:
@@ -28,7 +32,8 @@ def evaluate_response(question: str, response: str) -> float:
     except ValueError:
         return 0.
 
-# evaluation
+# define evaluation
+@unify.traced
 def evaluate(q: str):
     response = client.generate(q)
     score = evaluate_response(q, response)
@@ -38,10 +43,9 @@ def evaluate(q: str):
         score=score
     )
 
-# execute + log evaluation
-with unify.Project("maths_assistant"):
-    with unify.Params(system_message=client.system_message):
-        unify.map(evaluate, qs)
+# execute + log your evaluation
+with unify.Experiment():
+    unify.map(evaluate, qs)
 \`\`\`
 `;
 
@@ -53,18 +57,8 @@ const DefaultProject = ({ projects, logsActions, projectActions, interfaceAction
     setProject: (project: string) => void,
     setInterface: (interface_: string) => void
 }) => {
-    const defaultProject = "maths_assistant";
-    const defaultItems = [{
-        i: "Tile_0",
-        x: 0.0,
-        y: 0.0,
-        w: 6.0,
-        h: 6.0,
-        tab: "Table",
-        table_type: "Data Table",
-    }] as TileProps[];
-    const defaultNewCounter = 1;
-    const disabled = !projects || projects.includes(defaultProject);
+    const defaultProject = "Maths Assistant";
+    const disabled = projects == undefined || projects.includes(defaultProject);
     const [pending, setPending] = useState(false);
 
     return (

@@ -21,7 +21,7 @@ import InterfaceButtons from "./InterfaceButtons";
 import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./ProjectButtons";
 import EditTileName from "./EditTileName";
-import TabSelection from "./TabSelection";
+import AddTile from "./AddTile";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -136,7 +136,7 @@ const CardGrid = ({
         savedInterface: Interface | null = null,
     ) => {
         const context_1 = savedInterface != null ? savedInterface?.context : context;
-        const columnContext_1 = savedInterface != null ? savedInterface?.column_context : undefined;
+        const columnContext_1 = savedInterface != null ? savedInterface?.column_context : columnContext;
         const items_1 = savedInterface?.items || items;
         const newCounter_1 = savedInterface?.new_counter || newCounter;
         if (interface_ && project && interface_ == interface_1 && project == project_ && !pending) {
@@ -179,7 +179,7 @@ const CardGrid = ({
     // Only call updateInterface when items have truly changed.
     useEffect(() => {
         updateInterface();
-    }, [items]);
+    }, [items, context, columnContext]);
 
     // trigger update when table data changes (server reloaded)
     useEffect(() => {
@@ -209,7 +209,7 @@ const CardGrid = ({
     // end success green after 3 seconds
     useEffect(() => { setTimeout(() => setSaveSuccess(undefined), 3000); }, [saveSuccess]);
 
-    return (<div className="w-full h-full overflow-auto" ref={gridRef}>
+    return (<div className="w-full h-full overflow-auto relative" ref={gridRef}>
         <Tabs value={interface_ || undefined} onValueChange={(value: string | undefined) => {
             if (!deleting) {
                 setPending(true);
@@ -265,10 +265,9 @@ const CardGrid = ({
                     project_={project_}
                     interface_={interface_}
                     project={project}
+                    context={context}
                     pending={pending}
                     anyTilePending={anyTilePending}
-                    context={context}
-                    columnContext={columnContext}
                     contexts={contexts}
                     items={items}
                     newCounter={newCounter}
@@ -286,7 +285,6 @@ const CardGrid = ({
                     setFocusDialog={setFocusDialog}
                     setDataPending={setDataPending}
                     setContext={setContext}
-                    setColumnContext={setColumnContext}
                     setSaveDialog={setSaveDialog}
                     updateInterface={updateInterface}
                 />
@@ -303,19 +301,15 @@ const CardGrid = ({
             /> : <></> : interfaces.map((int_, idx) => <TabsContent
                 key={idx}
                 value={int_}
-                className="tutorial-selection-pane"
+                className="tutorial-selection-pane relative"
                 onClick={(e) => {
-                    // if (edit) {
-                    //     if (tileDropdown)
-                    //         setTileDropdown(undefined);
-                    //     else
-                    //         setTileDropdown({ x: e.clientX, y: e.clientY })
-                    // }
-                    // else setTileDropdown(undefined);
-                }}
-                onKeyDown={(e) => {
-                    // if (e.key == "Escape")
-                    //     setTileDropdown(undefined);
+                    if (edit) {
+                        if (tileDropdown)
+                            setTileDropdown(undefined);
+                        else
+                            setTileDropdown({ x: e.clientX, y: e.clientY })
+                    }
+                    else setTileDropdown(undefined);
                 }}
             >
                 {pending
@@ -350,13 +344,14 @@ const CardGrid = ({
                                     data-grid={el}
                                     className="relative"
                                     hidden={!el.visible}
+                                    onClick={(e) => e.stopPropagation()}
                                 >
                                     <Card
                                         edit={edit}
                                         interactive={interactive}
                                         project={project || undefined}
                                         contexts={contexts}
-                                        pending={pending || dataPending || (el.tab == "Table" ? tilePending[el.i] : false)}
+                                        pending={pending || dataPending || tilePending[el.i]}
                                         tableNames={tableNames}
                                         tableData={tableData}
                                         tableArguments={tableArguments}
@@ -377,7 +372,7 @@ const CardGrid = ({
                                         updateInterface={updateInterface}
                                         setTableData={setTableData}
                                     />
-                                    <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-2 flex justify-between " + (edit ? "h-20" : "h-10")}>
+                                    <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-2 flex justify-between " + (edit ? "h-16" : "h-10")}>
                                         <div className="mb-auto">
                                             <Badge
                                                 className="cursor-pointer"
@@ -446,24 +441,23 @@ const CardGrid = ({
             </TabsContent>)}
         </Tabs>
         {tileDropdown && <div
-            className="w-fit h-fit"
+            className="w-fit z-10"
             style={{ position: "absolute", top: tileDropdown.y, left: tileDropdown.x }}
             onKeyDown={(e) => {
                 if (e.key == "Escape")
                     setTileDropdown(undefined);
             }}
         >
-            <TabSelection
+            <AddTile
                 edit={edit}
-                open={true} /* false */
-                onTabChange={(tab: string) => {
-                    let newItem: TileProps = { i: "Tile_" + newCounter, x: tileDropdown.x, y: tileDropdown.y, w: 4, h: 4, minW: 4, minH: 4, tab: tab, visible: true };
-                    if (tab == "Table")
-                        newItem = { ...newItem, table_type: "Data Table" };
-                    setItems([...items, newItem]);
-                    setNewCounter(newCounter + 1);
-                    setTileDropdown(undefined);
-                }}
+                tileDropdown={tileDropdown}
+                project={project}
+                pending={pending}
+                items={items}
+                newCounter={newCounter}
+                setItems={setItems}
+                setNewCounter={setNewCounter}
+                setTileDropdown={setTileDropdown}
             />
         </div>}
         {focusDialog && <Dialog open={true} onOpenChange={() => setFocusDialog(false)}>

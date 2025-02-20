@@ -34,36 +34,31 @@ import ChatView from "./ChatView";
 import { Button } from "@/components/UI/button";
 import { FoldVertical, UnfoldVertical } from "lucide-react";
 
-/*────────────────────────────────────────────────────────────────────────────
-  (A) unifyType: merges baseVal + comparables to produce a single type.
-  If multiple distinct types appear, fallback to "string."
-────────────────────────────────────────────────────────────────────────────*/
-function unifyType(baseVal: any, comps: any[]) {
-  const allVals: any[] = [];
-  if (baseVal !== undefined) {
-    allVals.push(baseVal);
-  }
-  comps.forEach((c) => {
-    if (c !== undefined) {
-      allVals.push(c);
-    }
-  });
+// RowBadge is used to show “insert/delete” row sets
+import RowBadge from "./RowBadge";
 
-  if (allVals.length === 0) {
-    return "string";
-  }
+/*────────────────────────────────────────────────────────────────────────────
+  1) unifyType: merges baseVal + comparables to produce a single type.
+     If multiple distinct types appear, fallback to "string."
+────────────────────────────────────────────────────────────────────────────*/
+function unifyType(baseVal: any, comps: any[]): string {
+  const filtered = [baseVal, ...comps].filter((v) => {
+    if (v === undefined || v === null) return false;
+    if (typeof v === "string" && v.trim() === "") return false;
+    return true;
+  });
+  if (filtered.length === 0) return "string";
 
   const typeSet = new Set<string>();
-  for (const val of allVals) {
+  for (const val of filtered) {
     const t = getValueType(val);
     typeSet.add(t);
   }
-
   return typeSet.size === 1 ? Array.from(typeSet)[0] : "string";
 }
 
 /*────────────────────────────────────────────────────────────────────────────
-  (B) pickView => specialized or fallback, with optional forceExpandAll
+  2) pickView => specialized or fallback, with optional forceExpandAll
 ────────────────────────────────────────────────────────────────────────────*/
 function pickView(
   props: LogComparisonProps & { forceExpandAll?: boolean }
@@ -99,8 +94,7 @@ function pickView(
 }
 
 /*────────────────────────────────────────────────────────────────────────────
-  (C) toggleOnePropertyExpand => toggles just that property in openItems,
-     also toggles child forced expansions for that property alone
+  3) toggleOnePropertyExpand => toggles child expansions for a single key
 ────────────────────────────────────────────────────────────────────────────*/
 function toggleOnePropertyExpand(
   propertyKey: string,
@@ -117,9 +111,8 @@ function toggleOnePropertyExpand(
 }
 
 /*────────────────────────────────────────────────────────────────────────────
-  (D) DictionaryView
-  - Preserves expansions, icons, triggers, forceExpandAll logic, etc.
-  - Now calls unifyType(...) for each property's base + comparable values.
+  DictionaryView component
+  - Preserves expansions, icons, triggers, and now includes presence-diff for keys
 ────────────────────────────────────────────────────────────────────────────*/
 type DictionaryViewProps = LogComparisonProps & {
   forceExpandAll?: boolean;
@@ -140,7 +133,7 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
     forceExpandAll = false,
   } = props;
 
-  // Gather dictionary keys from base + comparables
+  // Collect keys + data from base + comps
   const allKeysAndData = useMemo(() => {
     let keys: string[] = [];
     let dicts: any[] = [];
@@ -169,62 +162,39 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
     return { allKeys: keys, allDicts: dicts, allIndexes: indexes };
   }, [value, comparables, baseLogIndex, comparisonLogsIndex]);
 
-  // Convert that into stable references
-  const memoizedKeys = useMemo(
-    () => allKeysAndData.allKeys,
-    [allKeysAndData.allKeys.join(",")]
-  );
-
-  // figure out default expansions for string/number/matrix/image
-  const keyTypeMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    allKeysAndData.allKeys.forEach((k) => {
-      let sample = value ? value[k] : undefined;
-      if (sample === undefined && comparables) {
-        for (const c of comparables) {
-          if (c && isDict(c) && c[k] !== undefined) {
-            sample = c[k];
-            break;
-          }
-        }
-      }
-      // This was the old approach. We'll keep it as a fallback for defaultOpen.
-      map[k] = getValueType(sample);
-    });
-    return map;
-  }, [allKeysAndData.allKeys, value, comparables]);
-
-  // default expansions
-  const defaultOpenKeys = useMemo(() => {
-    return memoizedKeys.filter((k) =>
-      ["string", "number", "matrix", "image"].includes(keyTypeMap[k])
-    );
-  }, [memoizedKeys, keyTypeMap]);
-
-  // local state for expansions, forceExpand handles them globally
-  const [openItems, setOpenItems] = useState<string[]>(defaultOpenKeys);
+  // For dictionary expansions
+  const [openItems, setOpenItems] = useState<string[]>([]);
   const [childForceExpand, setChildForceExpand] = useState<string[]>([]);
 
-  // If forceExpandAll changes, open/close everything
+  // If forceExpandAll changes, open or close everything
   useEffect(() => {
-    const newVal = forceExpandAll ? memoizedKeys : [];
-    setOpenItems(newVal);
-    setChildForceExpand(newVal);
-  }, [forceExpandAll, memoizedKeys]);
+    if (forceExpandAll) {
+      setOpenItems(allKeysAndData.allKeys);
+      setChildForceExpand(allKeysAndData.allKeys);
+    } else {
+      // revert to default
+      // We'll auto-open simple types like string/number/image by default:
+      const defaults = allKeysAndData.allKeys.filter((k) => {
+        const sample = allKeysAndData.allDicts[0]?.[k];
+        const t = getValueType(sample);
+        return ["string", "number", "matrix", "image"].includes(t);
+      });
+      setOpenItems(defaults);
+      setChildForceExpand(defaults);
+    }
+  }, [forceExpandAll, allKeysAndData.allKeys, allKeysAndData.allDicts]);
 
-  // If value is not a dict => short-circuit
   if (!isDict(value)) {
-    return <p className="text-red-500">DictionaryView: Value is not a dictionary.</p>;
+    return (
+      <p className="text-red-500">
+        DictionaryView: Base Value is not a dictionary.
+      </p>
+    );
   }
 
-  /*─────────────────────────────────────────────────────────────────────────
-   * Single-mode => just baseVal, no comparables
-   *    => we call renderSingleProperty.
-   * Multi-mode => base + comps
-   *    => we call renderMultiProperty.
-   ─────────────────────────────────────────────────────────────────────────*/
+  // Single property rendering => used in single-mode
   function renderSingleProperty(propKey: string, val: any) {
-    // unify type => baseVal=val, no comps => unifyType(val, [])
+    // unify => baseVal=val, no comps => unifyType(val, [])
     const valType = unifyType(val, []);
     const icon = getTypeIcon(valType);
     const isOpen = openItems.includes(propKey);
@@ -250,8 +220,6 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
           <span className="inline-flex items-center gap-2">
             {icon} {propKey}
           </span>
-
-          {/* If open, and (dict or list), show expand/collapse button */}
           {isOpen && (valType === "dict" || valType === "list") && (
             <div className="absolute right-5 flex gap-1 items-center">
               <Button
@@ -267,7 +235,11 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
                   );
                 }}
               >
-                {isChildForceExpand ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+                {isChildForceExpand ? (
+                  <FoldVertical size={16} />
+                ) : (
+                  <UnfoldVertical size={16} />
+                )}
               </Button>
             </div>
           )}
@@ -279,12 +251,34 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
     );
   }
 
+  // Multi property => used in multi-mode
   function renderMultiProperty(propKey: string) {
-    // gather subValues from base + comparables
     const dicts = allKeysAndData.allDicts;
     const subValues = dicts.map((d) => (d && isDict(d) ? d[propKey] : undefined));
     const baseVal = subValues[0];
     const compVals = subValues.slice(1);
+
+    // Presence-diff logic:
+    const baseHasIt = baseVal !== undefined;
+    const redSet = new Set<number>();
+    const greenSet = new Set<number>();
+    compVals.forEach((cVal, i) => {
+      const row = allKeysAndData.allIndexes[i + 1];
+      const compHasIt = cVal !== undefined;
+      if (baseHasIt && !compHasIt) {
+        redSet.add(row);
+      } else if (!baseHasIt && compHasIt) {
+        greenSet.add(row);
+      }
+    });
+    const redRows = Array.from(redSet).sort((a, b) => a - b);
+    const greenRows = Array.from(greenSet).sort((a, b) => a - b);
+    let labelColor = "";
+    if (redRows.length > 0 && baseHasIt) {
+      labelColor = "text-red-600";
+    } else if (greenRows.length > 0 && !baseHasIt) {
+      labelColor = "text-green-600";
+    }
 
     // unify type for the property
     const propType = unifyType(baseVal, compVals);
@@ -309,11 +303,22 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
 
     return (
       <AccordionItem key={propKey} value={propKey}>
-        <AccordionTrigger className="relative group flex items-center justify-between">
+        <AccordionTrigger
+          className={`relative group flex items-center justify-between ${labelColor}`}
+        >
           <span className="inline-flex items-center gap-2">
             {icon} {propKey}
+            {(redRows.length > 0 || greenRows.length > 0) && (
+              <div className="flex gap-1 ml-2">
+                {redRows.length > 0 && (
+                  <RowBadge rowNumbers={redRows} mode="delete" />
+                )}
+                {greenRows.length > 0 && (
+                  <RowBadge rowNumbers={greenRows} mode="insert" />
+                )}
+              </div>
+            )}
           </span>
-
           {isOpen && (propType === "dict" || propType === "list") && (
             <div className="absolute right-5 flex gap-1 items-center">
               <Button
@@ -329,7 +334,11 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
                   );
                 }}
               >
-                {isChildForceExpand ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+                {isChildForceExpand ? (
+                  <FoldVertical size={16} />
+                ) : (
+                  <UnfoldVertical size={16} />
+                )}
               </Button>
             </div>
           )}

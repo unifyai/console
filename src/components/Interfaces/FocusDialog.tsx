@@ -11,6 +11,7 @@ import { TableArguments } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
 import { DerivedEntryActions, Interface, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps, Context } from "@/types/evals/grid";
 import { Plus, X } from "lucide-react";
+import { icons } from "@/constants/logs";
 
 const FocusDialog = ({
     maxTiles,
@@ -137,9 +138,9 @@ const FocusDialog = ({
                                     maxTiles[idx] = item.i;
                                     setMaxTiles([...maxTiles]);
                                 }}
-                                className="w-64"
+                                className="w-64 flex justify-between items-center"
                             >
-                                {item.i}
+                                <span>{item.i}</span>{item.tab ? icons[item.tab as keyof typeof icons] : ""}
                             </DropdownMenuItem>)}
                         </BaseDropdown>
                     </div>

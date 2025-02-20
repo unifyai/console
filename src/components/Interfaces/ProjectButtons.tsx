@@ -93,6 +93,7 @@ const ProjectButtons = ({
                             setInterface(null);
                             setInterfaces([]);
                             setProject(null);
+                            projectActions.get().then(projects => setProjects(projects));
                         }}
                     />
                 </div>

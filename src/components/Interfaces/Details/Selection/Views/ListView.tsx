@@ -34,27 +34,32 @@ import { getValueType, getTypeIcon } from "./ViewTypes";
 import { Button } from "@/components/UI/button";
 import { FoldVertical, UnfoldVertical } from "lucide-react";
 
+// RowBadge is used to display row-based “insert/delete” badges
+import RowBadge from "./RowBadge";
+
 /*───────────────────────────────────────────────────────────────────────────
   unifyType: merges baseVal + comparables to produce a single type.
   If multiple distinct types appear, fallback to "string."
 ───────────────────────────────────────────────────────────────────────────*/
 function unifyType(baseVal: any, comps: any[]): string {
-  const allVals: any[] = [];
-  if (baseVal !== undefined) {
-    allVals.push(baseVal);
-  }
-  comps.forEach((c) => {
-    if (c !== undefined) {
-      allVals.push(c);
-    }
+  // Gather all values
+  const rawVals = [baseVal, ...comps];
+
+  // Filter out null, undefined, empty string
+  const filtered = rawVals.filter((v) => {
+    if (v === null || v === undefined) return false;
+    if (typeof v === "string" && v.trim().length === 0) return false;
+    return true;
   });
 
-  if (allVals.length === 0) {
+  // If we have nothing => "string"
+  if (filtered.length === 0) {
     return "string";
   }
 
+  // Gather distinct types among the non-empty values
   const typeSet = new Set<string>();
-  for (const val of allVals) {
+  for (const val of filtered) {
     const t = getValueType(val);
     typeSet.add(t);
   }
@@ -63,7 +68,7 @@ function unifyType(baseVal: any, comps: any[]): string {
 }
 
 /*───────────────────────────────────────────────────────────────────────────
-  pickView => specialized sub-view. (No changes here, preserving original logic)
+  pickView => specialized sub-view
 ───────────────────────────────────────────────────────────────────────────*/
 function pickView(
   props: LogComparisonProps & { forceExpandAll?: boolean }
@@ -117,8 +122,8 @@ function toggleOneItemExpand(
 
 /*───────────────────────────────────────────────────────────────────────────
   ListView component
-  - preserves expansions, icons, single vs. multi logic, etc.
-  - now uses unifyType for each item
+  - Preserves expansions, icons, single vs. multi logic, etc.
+  - Now includes presence‐diff highlighting in multi‐mode.
 ───────────────────────────────────────────────────────────────────────────*/
 type ListViewProps = LogComparisonProps & {
   forceExpandAll?: boolean;
@@ -148,13 +153,13 @@ const ListView: React.FC<ListViewProps> = (props) => {
     itemCount = Math.max(itemCount, ...compLens);
   }
 
-  // Pre-build item labels
+  // Pre-build item labels: "Item 0", "Item 1", ...
   const allItemLabels = useMemo(
     () => Array.from({ length: itemCount }, (_, i) => `Item ${i}`),
     [itemCount]
   );
 
-  // For expansions
+  // State for expansions
   const [openItems, setOpenItems] = useState<string[]>([]);
   const [childForceExpand, setChildForceExpand] = useState<string[]>([]);
 
@@ -172,7 +177,7 @@ const ListView: React.FC<ListViewProps> = (props) => {
     return getValueType(sample);
   }
 
-  // build default expansions
+  // build default expansions => item is opened if it's string/number/matrix/image
   const defaultOpenItems = useMemo(() => {
     return allItemLabels.filter((label, i) => {
       const t = guessItemType(i);
@@ -183,9 +188,9 @@ const ListView: React.FC<ListViewProps> = (props) => {
   // On mount, set default expansions
   useEffect(() => {
     setOpenItems(defaultOpenItems);
-  }, [defaultOpenItems.join(",")]); // minimal re-run
+  }, [defaultOpenItems.join(",")]);
 
-  // If forceExpandAll changes, we open or close everything
+  // If forceExpandAll changes, open or close everything
   useEffect(() => {
     if (forceExpandAll) {
       setOpenItems(allItemLabels);
@@ -201,15 +206,12 @@ const ListView: React.FC<ListViewProps> = (props) => {
     return <p className="text-red-500">ListView: Value is not a valid list.</p>;
   }
 
-  /*───────────────────────────────────────────────────────────────────────────
-    Single-mode => only base array
-    Multi-mode => base array + comparables
-  ───────────────────────────────────────────────────────────────────────────*/
+  // Single‐mode => only base array
   function renderSingleItem(index: number) {
     const label = `Item ${index}`;
     const arrValue = Array.isArray(value) ? value[index] : undefined;
 
-    // unify => baseVal=arrValue, no comps
+    // unify => baseVal=arrValue, no comps => unifyType(arrValue, [])
     const finalType = unifyType(arrValue, []);
     const icon = getTypeIcon(finalType);
 
@@ -235,7 +237,6 @@ const ListView: React.FC<ListViewProps> = (props) => {
           <span className="inline-flex items-center gap-2">
             {icon} {label}
           </span>
-
           {isOpen && (finalType === "dict" || finalType === "list") && (
             <div className="absolute right-5 flex gap-1 items-center">
               <Button
@@ -263,11 +264,12 @@ const ListView: React.FC<ListViewProps> = (props) => {
     );
   }
 
+  // Multi‐mode => base array + comparables
   function renderMultiItem(index: number) {
     const label = `Item ${index}`;
     const baseArr = Array.isArray(value) ? value : [];
     const baseVal = baseArr[index];
-    // gather subVals => [baseVal, ...]
+    // gather subVals => [baseVal, ...others]
     const subVals = [baseVal];
     (comparables ?? []).forEach((c) => {
       if (isList(c)) {
@@ -284,6 +286,29 @@ const ListView: React.FC<ListViewProps> = (props) => {
     const isOpen = openItems.includes(label);
     const isChildForceExpand = childForceExpand.includes(label);
 
+    // Presence‐diff logic:
+    const baseHas = subVals[0] !== undefined;
+    const redSet = new Set<number>();
+    const greenSet = new Set<number>();
+    subVals.slice(1).forEach((cmp, i) => {
+      const rowIdx = comparisonLogsIndex[i];
+      const cmpHas = cmp !== undefined;
+      if (baseHas && !cmpHas) {
+        redSet.add(rowIdx);
+      } else if (!baseHas && cmpHas) {
+        greenSet.add(rowIdx);
+      }
+    });
+    const redRows = Array.from(redSet).sort((a, b) => a - b);
+    const greenRows = Array.from(greenSet).sort((a, b) => a - b);
+
+    let labelColor = "";
+    if (redRows.length > 0 && baseHas) {
+      labelColor = "text-red-600";
+    } else if (greenRows.length > 0 && !baseHas) {
+      labelColor = "text-green-600";
+    }
+
     const childProps: LogComparisonProps & { forceExpandAll?: boolean } = {
       value: subVals[0],
       comparables: subVals.slice(1),
@@ -299,9 +324,21 @@ const ListView: React.FC<ListViewProps> = (props) => {
 
     return (
       <AccordionItem key={label} value={label}>
-        <AccordionTrigger className="relative group flex items-center justify-between">
+        <AccordionTrigger
+          className={`relative group flex items-center justify-between ${labelColor}`}
+        >
           <span className="inline-flex items-center gap-2">
             {icon} {label}
+            {(redRows.length > 0 || greenRows.length > 0) && (
+              <div className="ml-2 flex gap-1">
+                {redRows.length > 0 && (
+                  <RowBadge rowNumbers={redRows} mode="delete" />
+                )}
+                {greenRows.length > 0 && (
+                  <RowBadge rowNumbers={greenRows} mode="insert" />
+                )}
+              </div>
+            )}
           </span>
 
           {isOpen && (finalType === "dict" || finalType === "list") && (
@@ -331,6 +368,7 @@ const ListView: React.FC<ListViewProps> = (props) => {
     );
   }
 
+  // Renders all items
   function renderAllItems() {
     const items: JSX.Element[] = [];
     for (let i = 0; i < itemCount; i++) {
