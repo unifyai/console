@@ -351,7 +351,7 @@ const CardGrid = ({
                                         interactive={interactive}
                                         project={project || undefined}
                                         contexts={contexts}
-                                        pending={pending || dataPending || (el.tab == "Table" ? tilePending[el.i] : false)}
+                                        pending={pending || dataPending || tilePending[el.i]}
                                         tableNames={tableNames}
                                         tableData={tableData}
                                         tableArguments={tableArguments}
