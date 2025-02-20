@@ -229,10 +229,6 @@ const DataTableHeader = ({
   const [updateOpen, setUpdateOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  useEffect(() => {
-    setDropdownOpen(false);
-  }, [groupLoading, isGrouped, sortLoading, isSorted, filterLoading, isFiltered, updateLoading, data]);
-
   // Visible action buttons for active states
   const renderVisibleActions = () => (
     <>
