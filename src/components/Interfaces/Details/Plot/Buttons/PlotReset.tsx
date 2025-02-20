@@ -14,6 +14,10 @@ const PlotReset = ({svgRef, setSelectedXAxisProperty, setSelectedYAxisProperty, 
     const g = svg.select(".plotData")
     const xAxis = svg.select(".xAxis")
     const yAxis = svg.select(".yAxis")
+    const xZero = svg.select(".x-zero")
+    const yZero = svg.select(".y-zero")
+    const groupingKey = svg.select(".groupingKey")
+
     const onClick = () => {
         setSelectedXAxisProperty(undefined);
         setSelectedYAxisProperty(undefined);
@@ -21,6 +25,9 @@ const PlotReset = ({svgRef, setSelectedXAxisProperty, setSelectedYAxisProperty, 
         g.selectAll("*").remove();
         xAxis.selectAll("*").remove();
         yAxis.selectAll("*").remove();
+        xZero.style("opacity", 0)
+        yZero.style("opacity", 0)
+        groupingKey.style("opacity", 0)
     };
     return (
         <SettingButton
