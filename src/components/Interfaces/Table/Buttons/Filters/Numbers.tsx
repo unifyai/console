@@ -23,19 +23,7 @@ interface NumericFilter {
     value: string
 }
 
-const NumericColumnFilter = ({
-    interactive,
-    column,
-    columnFilters,
-    setColumnFilterQuery,
-    boundaries,
-    logs,
-    open,
-    setOpen,
-    filterLoading,
-    setFilterLoading,
-    setIsFiltered
-}: {
+type NumericColumnFilterProps = {
     interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn
@@ -47,7 +35,23 @@ const NumericColumnFilter = ({
     filterLoading: boolean,
     setFilterLoading: (filterLoading: boolean) => void,
     setIsFiltered: (isFiltered: boolean) => void,
-}) => {
+    renderMode?: "button" | "menuItem"
+}
+
+const NumericColumnFilter = ({
+    interactive,
+    column,
+    columnFilters,
+    setColumnFilterQuery,
+    boundaries,
+    logs,
+    open,
+    setOpen,
+    filterLoading,
+    setFilterLoading,
+    setIsFiltered,
+    renderMode = "button"
+}: NumericColumnFilterProps) => {
 
     /* Display loader when data updates */
     const [spinnerColor, setSpinnerColor] = useState("white");
@@ -237,6 +241,15 @@ const NumericColumnFilter = ({
                 setFilters(newFilters)
             }}
         />
+
+    if (renderMode === "menuItem") {
+        return (
+            <div onClick={() => setOpen(true)} className="relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0">
+                <Filter className="h-4 w-4" />
+                <span>Filter by this column</span>
+            </div>
+        );
+    }
 
     return (
         <BaseDropdown button={button} open={interactive && open} setOpen={setOpen}>

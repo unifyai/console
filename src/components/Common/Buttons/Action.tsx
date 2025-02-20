@@ -1,58 +1,27 @@
-import { ForwardedRef, ReactNode, forwardRef } from "react";
-import Tooltip from "@/components/Common/Misc/Tooltip";
+import { ReactNode } from "react";
+import BaseButton from "./Base";
+import Tooltip from "../Misc/Tooltip";
 import { MouseEventHandler } from "react";
-import { Button } from "@/components/UI/button";
 
-type ActionButtonProps = {
-    tooltip: string;
-    text?: string;
-    icon?: ReactNode;
-    size?: "icon" | "default" | "sm" | "lg" | null | undefined;
-    variant?:
-      | "primary"
-      | "secondary"
-      | "destructive"
-      | "warning"
-      | "warning_outline"
-      | "outline"
-      | "ghost"
-      | "link";
-    disabled?: boolean;
-    onClick?: MouseEventHandler<HTMLButtonElement>;
-    className?: string;
-};
-
-const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>(
-    function ActionButton(
-      {
-        tooltip,
-        text,
-        icon,
-        size = "sm",
-        variant = "ghost",
-        disabled,
-        onClick,
-        className
-      },
-      ref: ForwardedRef<HTMLButtonElement>
-    ) {
-      return (
-        <Tooltip content={tooltip}>
-          <Button
-            ref={ref}
-            variant={variant}
+export default function ActionButton ({tooltip, text, icon, variant, size, disabled = false, onClick, className}: {
+    tooltip: string,
+    text?: string,
+    icon?: ReactNode,
+    size?: "icon" | "default" | "sm" | "lg" | null | undefined,
+    variant?: "primary" | "secondary" | "destructive" | "warning" | "warning_outline" | "outline" | "ghost" | "link",
+    disabled?: boolean,
+    onClick?: MouseEventHandler<HTMLButtonElement>,
+    className?: string
+}) {
+    return <Tooltip content={tooltip}>
+        <BaseButton
+            variant={variant ? variant : "ghost"}
             size={size}
             disabled={disabled}
+            icon={icon}
+            text={text}
             onClick={onClick}
             className={className}
-          >
-            {icon} {text}
-          </Button>
-        </Tooltip>
-      );
-    }
-  );
-
-ActionButton.displayName = "ActionButton";
-
-export default ActionButton;
+        />
+    </Tooltip>
+}
