@@ -1064,9 +1064,13 @@ export const drawHistogram = (
     const binGenerator = d3.bin().domain([minX, maxX]).thresholds(thresholds);
     const buckets = binGenerator(data);
     if (binCounts[1] != data.length) {
+        const newBinCounts = [1, data.length]
+        setbinCounts(newBinCounts)
+        return;
+    }
+    if (binCount > binCounts[1]) {
         const count = Math.min(10, data.length)
         setbinCount(count.toString())
-        setbinCounts([1, data.length])
         return;
     }
 
