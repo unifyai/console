@@ -39,22 +39,24 @@ import { FoldVertical, UnfoldVertical } from "lucide-react";
   If multiple distinct types appear, fallback to "string."
 ───────────────────────────────────────────────────────────────────────────*/
 function unifyType(baseVal: any, comps: any[]): string {
-  const allVals: any[] = [];
-  if (baseVal !== undefined) {
-    allVals.push(baseVal);
-  }
-  comps.forEach((c) => {
-    if (c !== undefined) {
-      allVals.push(c);
-    }
+  // Gather all values
+  const rawVals = [baseVal, ...comps];
+
+  // Filter out null, undefined, empty string
+  const filtered = rawVals.filter((v) => {
+    if (v === null || v === undefined) return false;
+    if (typeof v === "string" && v.trim().length === 0) return false;
+    return true;
   });
 
-  if (allVals.length === 0) {
+  // If we have nothing => "string"
+  if (filtered.length === 0) {
     return "string";
   }
 
+  // Gather distinct types among the non-empty values
   const typeSet = new Set<string>();
-  for (const val of allVals) {
+  for (const val of filtered) {
     const t = getValueType(val);
     typeSet.add(t);
   }
@@ -63,7 +65,7 @@ function unifyType(baseVal: any, comps: any[]): string {
 }
 
 /*───────────────────────────────────────────────────────────────────────────
-  pickView => specialized sub-view. (No changes here, preserving original logic)
+  pickView => specialized sub-view. (No changes, preserving original logic)
 ───────────────────────────────────────────────────────────────────────────*/
 function pickView(
   props: LogComparisonProps & { forceExpandAll?: boolean }
@@ -118,7 +120,7 @@ function toggleOneItemExpand(
 /*───────────────────────────────────────────────────────────────────────────
   ListView component
   - preserves expansions, icons, single vs. multi logic, etc.
-  - now uses unifyType for each item
+  - now uses unifyType for each item, skipping null/empty.
 ───────────────────────────────────────────────────────────────────────────*/
 type ListViewProps = LogComparisonProps & {
   forceExpandAll?: boolean;
@@ -205,11 +207,12 @@ const ListView: React.FC<ListViewProps> = (props) => {
     Single-mode => only base array
     Multi-mode => base array + comparables
   ───────────────────────────────────────────────────────────────────────────*/
+
   function renderSingleItem(index: number) {
     const label = `Item ${index}`;
     const arrValue = Array.isArray(value) ? value[index] : undefined;
 
-    // unify => baseVal=arrValue, no comps
+    // unify => baseVal=arrValue, no comps => unifyType(arrValue, [])
     const finalType = unifyType(arrValue, []);
     const icon = getTypeIcon(finalType);
 

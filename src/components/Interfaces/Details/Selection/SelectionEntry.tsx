@@ -110,30 +110,29 @@ function unifyType(
 ):
   "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat"
 {
-  // gather all non-undefined values
-  const allVals: any[] = [];
-  if (baseVal !== undefined) {
-    allVals.push(baseVal);
-  }
-  comps.forEach(c => {
-    if (c !== undefined) {
-      allVals.push(c);
-    }
+  // Gather all possible values
+  const rawVals = [baseVal, ...comps];
+
+  // Filter out undefined, null, or empty-string
+  const filtered = rawVals.filter((v) => {
+    if (v === undefined || v === null) return false;
+    if (typeof v === "string" && v.trim().length === 0) return false;
+    return true;
   });
 
-  // if we still have nothing => "string"
-  if (allVals.length === 0) {
+  // If we end up with nothing => "string"
+  if (filtered.length === 0) {
     return "string";
   }
 
-  // gather distinct types
+  // Gather distinct types from the non-empty values
   const typeSet = new Set<string>();
-  for (const val of allVals) {
+  for (const val of filtered) {
     const t = getValueType(val);
     typeSet.add(t);
   }
 
-  // if exactly one => use it; else fallback to "string"
+  // If exactly one => use it; else fallback to "string"
   if (typeSet.size === 1) {
     return Array.from(typeSet)[0] as any;
   }
@@ -172,7 +171,7 @@ function getSelectionView(
     );
   }
 
-  // (ADDED) unify the type from base + comps
+  // unify the type from base + comps
   const finalType = unifyType(value, comparables);
 
   switch (finalType) {

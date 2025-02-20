@@ -149,10 +149,6 @@ export const isDict = (value: any) => typeof value === "object" && !Array.isArra
 export const isList = (value: any) => Array.isArray(value);
 export const isMatrix = (value: any) => isList(value) && value.every(row => Array.isArray(row) && row.every(number => typeof number === "number"));
 
-// Add a cache for URL checks
-const urlCheckCache = new Map<string, boolean>();
-const urlCheckInProgress = new Set<string>();
-
 export function isURLImage(value: string): boolean {
   try {
     const url = new URL(value);

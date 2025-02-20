@@ -37,24 +37,25 @@ import { FoldVertical, UnfoldVertical } from "lucide-react";
 /*────────────────────────────────────────────────────────────────────────────
   (A) unifyType: merges baseVal + comparables to produce a single type.
   If multiple distinct types appear, fallback to "string."
+  UPDATED: now skips null/undefined/empty-string values before unioning.
 ────────────────────────────────────────────────────────────────────────────*/
-function unifyType(baseVal: any, comps: any[]) {
-  const allVals: any[] = [];
-  if (baseVal !== undefined) {
-    allVals.push(baseVal);
-  }
-  comps.forEach((c) => {
-    if (c !== undefined) {
-      allVals.push(c);
-    }
+function unifyType(baseVal: any, comps: any[]): string {
+  // Gather the base plus comparables
+  const allVals = [baseVal, ...comps];
+
+  // Filter out null, undefined, or blank strings
+  const filtered = allVals.filter((v) => {
+    if (v === undefined || v === null) return false;
+    if (typeof v === "string" && v.trim() === "") return false;
+    return true;
   });
 
-  if (allVals.length === 0) {
+  if (filtered.length === 0) {
     return "string";
   }
 
   const typeSet = new Set<string>();
-  for (const val of allVals) {
+  for (const val of filtered) {
     const t = getValueType(val);
     typeSet.add(t);
   }
@@ -119,7 +120,7 @@ function toggleOnePropertyExpand(
 /*────────────────────────────────────────────────────────────────────────────
   (D) DictionaryView
   - Preserves expansions, icons, triggers, forceExpandAll logic, etc.
-  - Now calls unifyType(...) for each property's base + comparable values.
+  - Now calls unifyType(...) for each property, ignoring null/undefined/empty.
 ────────────────────────────────────────────────────────────────────────────*/
 type DictionaryViewProps = LogComparisonProps & {
   forceExpandAll?: boolean;
@@ -188,7 +189,6 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
           }
         }
       }
-      // This was the old approach. We'll keep it as a fallback for defaultOpen.
       map[k] = getValueType(sample);
     });
     return map;
@@ -219,9 +219,7 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
 
   /*─────────────────────────────────────────────────────────────────────────
    * Single-mode => just baseVal, no comparables
-   *    => we call renderSingleProperty.
    * Multi-mode => base + comps
-   *    => we call renderMultiProperty.
    ─────────────────────────────────────────────────────────────────────────*/
   function renderSingleProperty(propKey: string, val: any) {
     // unify type => baseVal=val, no comps => unifyType(val, [])
@@ -251,7 +249,7 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
             {icon} {propKey}
           </span>
 
-          {/* If open, and (dict or list), show expand/collapse button */}
+          {/* If open, and (dict or list), show expand/collapse */}
           {isOpen && (valType === "dict" || valType === "list") && (
             <div className="absolute right-5 flex gap-1 items-center">
               <Button
