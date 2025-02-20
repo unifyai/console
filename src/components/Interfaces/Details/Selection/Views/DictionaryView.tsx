@@ -214,7 +214,7 @@ const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
 
   // If value is not a dict => short-circuit
   if (!isDict(value)) {
-    return <p className="text-red-500">DictionaryView: Value is not a dictionary.</p>;
+    return <p className="text-red-500">DictionaryView: Base Value is not a dictionary.</p>;
   }
 
   /*─────────────────────────────────────────────────────────────────────────
