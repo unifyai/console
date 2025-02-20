@@ -6,6 +6,9 @@ import { LogProps } from "@/types/evals/logs"
 import { sanitizeId } from "./columnOperations"
 import Image from "next/image"
 
+const signedUrlCache = new Map<string, string>();
+const signedUrlInProgress = new Set<string>();
+
 export const MatrixDisplay = ({value}:{value: number[][]}) => {
     return (
     <p className="font-normal whitespace-pre-wrap px-3">
@@ -33,37 +36,68 @@ export const ImageDisplay = ({ value, className }: { value: string; className?: 
   useEffect(() => {
     const fetchSignedUrl = async () => {
       try {
-        // If the value is already a data URI, we just use it.
+        // If the value is already a data URI, we just use it
         if (value.startsWith("data:image/")) {
           setUrl(value);
-        } else {
-          const isBase64 = isBase64Image(value);
-          // For base64 without a prefix
-          let imageUrl = isBase64 ? `data:image/png;base64,${value}` : value;
-          try {
-            const parsedUrl = new URL(imageUrl);
+          return;
+        }
 
-            // If this is a GCS URL and **not already signed**, fetch a signed URL.
-            if (
-              parsedUrl.hostname === "storage.googleapis.com" &&
-              !parsedUrl.searchParams.has("GoogleAccessId")
-            ) {
-              const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
-              const bucket = pathParts[0];
-              const path = pathParts.slice(1).join("/");
-              const res = await fetch(
-                `/api/image/get?bucket=${encodeURIComponent(bucket)}&path=${encodeURIComponent(path)}`
-              );
-              if (!res.ok) {
-                throw new Error("Failed to fetch signed URL");
-              }
-              const newUrlData = await res.json();
-              imageUrl = newUrlData.url; // Update imageUrl to the signed URL.
+        const isBase64 = isBase64Image(value);
+        // For base64 without a prefix
+        let imageUrl = isBase64 ? `data:image/png;base64,${value}` : value;
+
+        try {
+          const parsedUrl = new URL(imageUrl);
+
+          // Only proceed with GCS URLs that aren't already signed
+          if (
+            parsedUrl.hostname === "storage.googleapis.com" &&
+            !parsedUrl.searchParams.has("GoogleAccessId")
+          ) {
+            // Check cache first
+            if (signedUrlCache.has(imageUrl)) {
+              setUrl(signedUrlCache.get(imageUrl)!);
+              return;
             }
-          } catch (parseError) {
-            console.error("Error parsing or converting URL:", parseError);
+
+            // If fetch is already in progress, wait for it
+            if (signedUrlInProgress.has(imageUrl)) {
+              const checkInterval = setInterval(() => {
+                if (signedUrlCache.has(imageUrl)) {
+                  setUrl(signedUrlCache.get(imageUrl)!);
+                  clearInterval(checkInterval);
+                }
+              }, 100);
+              return;
+            }
+
+            signedUrlInProgress.add(imageUrl);
+
+            const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
+            const bucket = pathParts[0];
+            const path = pathParts.slice(1).join("/");
+            
+            const res = await fetch(
+              `/api/image/get?bucket=${encodeURIComponent(bucket)}&path=${encodeURIComponent(path)}`
+            );
+            
+            if (!res.ok) {
+              throw new Error("Failed to fetch signed URL");
+            }
+            
+            const newUrlData = await res.json();
+            imageUrl = newUrlData.url;
+            
+            // Cache the signed URL
+            signedUrlCache.set(parsedUrl.href, imageUrl);
+            signedUrlInProgress.delete(parsedUrl.href);
           }
+          
           setUrl(imageUrl);
+        } catch (parseError) {
+          console.error("Error parsing or converting URL:", parseError);
+          signedUrlInProgress.delete(imageUrl);
+          throw parseError;
         }
       } catch (err: any) {
         console.error("Error in ImageDisplay fetch:", err);
@@ -119,70 +153,24 @@ export const isMatrix = (value: any) => isList(value) && value.every(row => Arra
 const urlCheckCache = new Map<string, boolean>();
 const urlCheckInProgress = new Set<string>();
 
-export const isURLImage = async (value: string) => {
+export function isURLImage(value: string): boolean {
   try {
-    // Check cache first
-    if (urlCheckCache.has(value)) {
-      return urlCheckCache.get(value);
-    }
-
-    // If check is already in progress, wait for it
-    if (urlCheckInProgress.has(value)) {
-      return new Promise(resolve => {
-        const checkInterval = setInterval(() => {
-          if (urlCheckCache.has(value)) {
-            clearInterval(checkInterval);
-            resolve(urlCheckCache.get(value));
-          }
-        }, 100);
-      });
-    }
-
-    urlCheckInProgress.add(value);
-
     const url = new URL(value);
+    
+    // Automatically return true for Google Cloud Storage URLs
+    if (url.hostname === 'storage.googleapis.com') {
+      return true;
+    }
 
     // Check for typical image file extensions
     const imageTypes = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.svg', '.webp'];
     const hasImageExtension = imageTypes.some(type => url.pathname.toLowerCase().includes(type));
     
-    if (hasImageExtension) {
-      urlCheckCache.set(value, true);
-      urlCheckInProgress.delete(value);
-      return true;
-    }
-
-    // For GCP storage URLs, call the server endpoint
-    if (url.hostname === 'storage.googleapis.com') {
-      try {
-        const response = await fetch("/api/image/check", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: value }),
-        });
-        
-        if (response.ok) {
-          const { isImage } = await response.json();
-          urlCheckCache.set(value, isImage);
-          urlCheckInProgress.delete(value);
-          return isImage;
-        }
-      } catch (error) {
-        console.error('❌ Error checking GCP storage:', error);
-      }
-    }
-
-    console.log('❌ Not recognized as image URL');
-    urlCheckCache.set(value, false);
-    urlCheckInProgress.delete(value);
-    return false;
-
+    return hasImageExtension;
   } catch (e) {
-    console.error('❌ Error parsing URL:', e);
-    urlCheckInProgress.delete(value);
     return false;
   }
-};
+}
 
 export const isBase64Image = (value: string) => {
   try {
