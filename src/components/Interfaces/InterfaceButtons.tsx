@@ -14,14 +14,17 @@ import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import Tooltip from "../Common/Misc/Tooltip";
 import AddTile from "./AddTile";
+import ContextSelector from "./ContextSelector";
 
 const InterfaceButtons = ({
     edit,
     interactive,
     interface_,
     project,
+    context,
     pending,
     anyTilePending,
+    contexts,
     items,
     newCounter,
     copied,
@@ -36,6 +39,8 @@ const InterfaceButtons = ({
     setEdit,
     setInteractive,
     setFocusDialog,
+    setDataPending,
+    setContext,
     setSaveDialog,
     updateInterface,
 }: {
@@ -44,10 +49,9 @@ const InterfaceButtons = ({
     project_: string | null,
     interface_: string | null,
     project: string | null,
+    context: string | undefined,
     pending: boolean,
     anyTilePending: boolean,
-    context: string | undefined,
-    columnContext: string | undefined,
     contexts: Context[],
     items: TileProps[],
     newCounter: number,
@@ -65,7 +69,6 @@ const InterfaceButtons = ({
     setFocusDialog: (value: SetStateAction<boolean>) => void,
     setDataPending: (value: SetStateAction<boolean>) => void,
     setContext: (value: SetStateAction<string | undefined>) => void,
-    setColumnContext: (value: SetStateAction<string | undefined>) => void,
     setSaveDialog: (value: SetStateAction<boolean>) => void,
     updateInterface: (savedInterface?: Interface | null) => Promise<ResponseProps>
 }) => {
@@ -84,6 +87,15 @@ const InterfaceButtons = ({
                 variant={"outline"}
                 disabled={anyTilePending || !project || !interface_ || pending}
                 onClick={() => setFocusDialog(true)}
+            />
+            <ContextSelector
+                contexts={contexts}
+                context={context}
+                setContext={(context: string) => {
+                    setContext(context);
+                    setDataPending(true);
+                    router.refresh();
+                }}
             />
             <ActionButton
                 className="transition-all"

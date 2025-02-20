@@ -17,18 +17,24 @@ const ContextSelector = ({
     tableData,
     item,
     updateItem,
+    context,
+    setContext,
 }: {
     contexts: Context[],
-    tableData: TableDataProps,
-    item: TileProps,
-    updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void
+    tableData?: TableDataProps,
+    item?: TileProps,
+    updateItem?: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
+    context?: string,
+    setContext?: (context: string) => void,
 }) => {
+    console.log(context, (item?.context || context) == contexts[0].name);
+    const finalSetContext = (updateItem != undefined && item != undefined) ? updateItem(item, "context") : setContext;
     return (
         <div className="w-fit">
             <BaseDropdown
                 button={<ActionButton
                     tooltip="Select Table Type"
-                    text={item.column_context ? "Edit Context" : "Select Context"}
+                    text={(item ? (item.column_context || item.context) : context) ? "Edit Context" : "Select Context"}
                     variant="outline"
                     size="default"
                 />}
@@ -36,17 +42,17 @@ const ContextSelector = ({
                 <div className="flex flex-col gap-6 pt-2">
                     <div>
                         <div className="font-bold text-sm px-2 pb-2 border-b">Context:</div>
-                        {contexts.length > 0 ? contexts.map((context: Context) => <DropdownMenuItem
-                            key={context.name}
-                            onSelect={() => (item.context != context.name) && updateItem(item, "context")(context.name)}
+                        {contexts.length > 0 ? contexts.map((context_: Context) => <DropdownMenuItem
+                            key={context_.name}
+                            onSelect={() => ((item?.context || context) != context_.name) && (finalSetContext && finalSetContext(context_.name))}
                             className="w-64 justify-between"
                         >
-                            {context.name}{(
-                                item.context == context.name
+                            {context_.name}{(
+                                (item?.context || context) == context_.name
                             ) && <Check />}
                         </DropdownMenuItem>) : <></>}
                     </div>
-                    <div>
+                    {item && updateItem && tableData && <div>
                         <div className="font-bold text-sm px-2 pb-2 border-b">Column Context:</div>
                         {/* Add None option at the root level */}
                         <DropdownMenuItem
@@ -147,7 +153,7 @@ const ContextSelector = ({
                                 />
                             ));
                         })()}
-                    </div>
+                    </div>}
                 </div>
             </BaseDropdown>
         </div>

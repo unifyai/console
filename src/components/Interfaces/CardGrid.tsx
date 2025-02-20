@@ -136,7 +136,7 @@ const CardGrid = ({
         savedInterface: Interface | null = null,
     ) => {
         const context_1 = savedInterface != null ? savedInterface?.context : context;
-        const columnContext_1 = savedInterface != null ? savedInterface?.column_context : undefined;
+        const columnContext_1 = savedInterface != null ? savedInterface?.column_context : columnContext;
         const items_1 = savedInterface?.items || items;
         const newCounter_1 = savedInterface?.new_counter || newCounter;
         if (interface_ && project && interface_ == interface_1 && project == project_ && !pending) {
@@ -179,7 +179,7 @@ const CardGrid = ({
     // Only call updateInterface when items have truly changed.
     useEffect(() => {
         updateInterface();
-    }, [items]);
+    }, [items, context, columnContext]);
 
     // trigger update when table data changes (server reloaded)
     useEffect(() => {
@@ -265,10 +265,9 @@ const CardGrid = ({
                     project_={project_}
                     interface_={interface_}
                     project={project}
+                    context={context}
                     pending={pending}
                     anyTilePending={anyTilePending}
-                    context={context}
-                    columnContext={columnContext}
                     contexts={contexts}
                     items={items}
                     newCounter={newCounter}
@@ -286,7 +285,6 @@ const CardGrid = ({
                     setFocusDialog={setFocusDialog}
                     setDataPending={setDataPending}
                     setContext={setContext}
-                    setColumnContext={setColumnContext}
                     setSaveDialog={setSaveDialog}
                     updateInterface={updateInterface}
                 />
