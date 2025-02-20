@@ -3,7 +3,7 @@ import { Ungroup } from "lucide-react";
 import { Column } from "@tanstack/react-table";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { getAllChildColumns, isAllChildrenGrouped } from "@/utils/evals/columnOperations";
-import { useState, useEffect, forwardRef } from "react";
+import { useState, useEffect } from "react";
 
 type ColumnGroupByProps = {
     interactive?: boolean,
@@ -14,9 +14,10 @@ type ColumnGroupByProps = {
     groupLoading: boolean,
     setGroupLoading: (groupLoading: boolean) => void,
     setIsGrouped: (isGrouped: boolean) => void,
+    renderMode?: "button" | "menuItem"
 }
 
-const ColumnGroupBy = forwardRef<HTMLButtonElement, ColumnGroupByProps>(({
+const ColumnGroupBy = ({
     interactive,
     column,
     data,
@@ -25,7 +26,8 @@ const ColumnGroupBy = forwardRef<HTMLButtonElement, ColumnGroupByProps>(({
     groupLoading,
     setGroupLoading,
     setIsGrouped,
-}, ref) => {
+    renderMode = "button"
+}: ColumnGroupByProps) => {
 
     /* Display loader when data updates */
     useEffect(() => {
@@ -47,12 +49,14 @@ const ColumnGroupBy = forwardRef<HTMLButtonElement, ColumnGroupByProps>(({
         { 
             key: false, 
             tooltip: isParentColumn ? "Group All" : "Group by",
-            icon: <Group/>
+            icon: <Group/>,
+            text: isParentColumn ? "Group all child columns" : "Group by this column"
         },
         { 
             key: true, 
             tooltip: isParentColumn ? "Ungroup All" : "Ungroup by",
-            icon: <Ungroup/>
+            icon: <Ungroup/>,
+            text: isParentColumn ? "Ungroup all child columns" : "Ungroup by this column"
         },
     ];
 
@@ -60,7 +64,12 @@ const ColumnGroupBy = forwardRef<HTMLButtonElement, ColumnGroupByProps>(({
     const tooltip = state.tooltip;
     const variant = isGrouped ? "primary" : undefined;
     const icon = groupLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon;
-    const onClick = () => {
+    
+    const onClick = (e?: React.MouseEvent) => {
+        if (e) {
+            e.stopPropagation();
+        }
+        
         if (isParentColumn) {
             const childColumns = getAllChildColumns(column);
 
@@ -93,11 +102,18 @@ const ColumnGroupBy = forwardRef<HTMLButtonElement, ColumnGroupByProps>(({
         }
     };
 
-    return (
-        <ActionButton ref={ref} tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false}/>
-    );
-});
+    if (renderMode === "menuItem") {
+        return (
+            <div onClick={onClick} className="relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0">
+                {state.icon}
+                <span>{state.text}</span>
+            </div>
+        );
+    }
 
-ColumnGroupBy.displayName = "ColumnGroupBy";
+    return (
+        <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false}/>
+    );
+};
 
 export default ColumnGroupBy;

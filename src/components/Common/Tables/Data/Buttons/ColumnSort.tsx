@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, forwardRef } from "react";
+import { useEffect, useState } from "react";
 import { Column } from "@tanstack/react-table";
 import { SortDesc, SortAsc, ArrowUpDown, LoaderCircle } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -11,17 +11,19 @@ type ColumnSortProps = {
     data: any[],
     sortLoading: boolean,
     setSortLoading: (sortLoading: boolean) => void,
-    setIsSorted: (isSorted: boolean) => void
+    setIsSorted: (isSorted: boolean) => void,
+    renderMode?: "button" | "menuItem"
 }
 
-const ColumnSort = forwardRef<HTMLButtonElement, ColumnSortProps>(({
+const ColumnSort = ({
     interactive,
     column,
     data,
     sortLoading,
     setSortLoading,
-    setIsSorted
-}, ref) => {
+    setIsSorted,
+    renderMode = "button"
+}: ColumnSortProps) => {
 
     /* Display loader when data updates */
     const [spinnerColor, setSpinnerColor] = useState("white");
@@ -41,20 +43,32 @@ const ColumnSort = forwardRef<HTMLButtonElement, ColumnSortProps>(({
     ];
     const state = states.find(state => state.key === column.getIsSorted())!;
     const tooltip = state.tooltip;
-    const icon = sortLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon
+    const icon = sortLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon;
     const variant = isSorted ? "primary" : undefined;
-    const onClick = () => {
-        column.toggleSorting()
-        if (!column.getNextSortingOrder()) 
-            setSpinnerColor("primary") 
-        else 
-            setSpinnerColor("white")
-        setSortLoading(true)
-    }
     
-    return(
+    const onClick = (e?: React.MouseEvent) => {
+        if (e) {
+            e.stopPropagation();
+        }
+        column.toggleSorting();
+        if (!column.getNextSortingOrder()) 
+            setSpinnerColor("primary"); 
+        else 
+            setSpinnerColor("white");
+        setSortLoading(true);
+    };
+    
+    if (renderMode === "menuItem") {
+        return (
+            <div onClick={onClick} className="relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0">
+                {state.icon}
+                <span>{state.tooltip}</span>
+            </div>
+        );
+    }
+
+    return (
         <ActionButton 
-            ref={ref}
             tooltip={tooltip} 
             icon={icon} 
             variant={variant} 
@@ -62,8 +76,6 @@ const ColumnSort = forwardRef<HTMLButtonElement, ColumnSortProps>(({
             disabled={!interactive || sortLoading}
         />
     );
-});
-
-ColumnSort.displayName = "ColumnSort";
+};
 
 export default ColumnSort;

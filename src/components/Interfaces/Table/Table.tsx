@@ -419,9 +419,8 @@ const LogsTable = ({
                   columns={columns}
                   state={state}
                   setState={setState}
-                  ColumnFilters={(ref, column, filterLoading, setIsFiltered, setFilterLoading, open, setOpen) => (
+                  ColumnFilters={(column, filterLoading, setIsFiltered, setFilterLoading, open, setOpen, renderMode = "button") => (
                     <ColumnFilter
-                      ref={ref}
                       interactive={interactive}
                       setColumnFilterQuery={(filtersObj) => {
                         const keys = Object.keys(filtersObj);
@@ -446,6 +445,7 @@ const LogsTable = ({
                       filterLoading={filterLoading}
                       setIsFiltered={setIsFiltered}
                       setFilterLoading={setFilterLoading}
+                      renderMode={renderMode}
                     />
                   )}
                   ColumnCreate={(previousColumn: string, setOpen: (open: boolean) => void) => (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, forwardRef } from "react";
+import { useState, useEffect } from "react";
 import { FiltersByColumn } from "@/types/evals/columns";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { Filter, LoaderCircle, Circle, CircleSlash2 } from "lucide-react";
@@ -14,10 +14,11 @@ type ImageColumnFilterProps = {
     logs: LogProps[] | GroupedLogProps[],
     filterLoading: boolean,
     setFilterLoading: (filterLoading: boolean) => void,
-    setIsFiltered: (isFiltered: boolean) => void
+    setIsFiltered: (isFiltered: boolean) => void,
+    renderMode?: "button" | "menuItem"
 }
 
-const ImageColumnFilter = forwardRef<HTMLButtonElement, ImageColumnFilterProps>(({
+const ImageColumnFilter = ({
     interactive,
     column,
     columnFilters,
@@ -25,8 +26,9 @@ const ImageColumnFilter = forwardRef<HTMLButtonElement, ImageColumnFilterProps>(
     logs,
     filterLoading,
     setFilterLoading,
-    setIsFiltered
-}, ref) => {
+    setIsFiltered,
+    renderMode = "button"
+}: ImageColumnFilterProps) => {
 
     /* Display loader when data updates */
     const [spinnerColor, setSpinnerColor] = useState("white");
@@ -35,11 +37,15 @@ const ImageColumnFilter = forwardRef<HTMLButtonElement, ImageColumnFilterProps>(
     },[logs])
 
     /* Init filter */
-    const initialValue = columnFilters[column] &&columnFilters[column]["isNone"] ? columnFilters[column]["isNone"] : "None"
+    const initialValue = columnFilters[column] && columnFilters[column]["isNone"] ? columnFilters[column]["isNone"] : "None"
     const [filter, setFilter] = useState<string>(initialValue);
     
     /* Event handlers */
-    const onClick = () => {        
+    const onClick = (e?: React.MouseEvent) => {
+        if (e) {
+            e.stopPropagation();
+        }
+        
         let newColumnFilters = { ...columnFilters }
         const newFilter = state.next
         if (newFilter === "None") {
@@ -74,11 +80,18 @@ const ImageColumnFilter = forwardRef<HTMLButtonElement, ImageColumnFilterProps>(
         setIsFiltered(isFiltered);
     }, [isFiltered])
     
-    return (
-        <ActionButton ref={ref} icon={icon} tooltip={tooltip} variant={variant} disabled={disabled} onClick={onClick}/>
-    );
-});
+    if (renderMode === "menuItem") {
+        return (
+            <div onClick={onClick} className="relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0">
+                {state.icon}
+                <span>{state.tooltip}</span>
+            </div>
+        );
+    }
 
-ImageColumnFilter.displayName = "ImageColumnFilter";
+    return (
+        <ActionButton icon={icon} tooltip={tooltip} variant={variant} disabled={disabled} onClick={onClick}/>
+    );
+};
 
 export default ImageColumnFilter;

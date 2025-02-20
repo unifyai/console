@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, forwardRef } from "react";
+import { useEffect, useState } from "react";
 import { FolderTree, LoaderCircle } from "lucide-react";
 import { Column } from "@tanstack/react-table";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -11,16 +11,18 @@ type ColumnContextProps = {
     column: Column<any, unknown>,
     context: string | null,
     setContext: (context: string | null) => void,
-    data: any[]
+    data: any[],
+    renderMode?: "button" | "menuItem"
 }
 
-const ColumnContext = forwardRef<HTMLButtonElement, ColumnContextProps>(({
+const ColumnContext = ({
     interactive,
     column,
     context,
     setContext,
-    data
-}, ref) => {
+    data,
+    renderMode = "button"
+}: ColumnContextProps) => {
 
     /* Display loader when data updates */
     const [loading, setLoading] = useState(false);
@@ -37,16 +39,27 @@ const ColumnContext = forwardRef<HTMLButtonElement, ColumnContextProps>(({
 
     const variant = isActive ? "primary" : undefined;
 
-    const onClick = () => {
+    const onClick = (e?: React.MouseEvent) => {
+        if (e) {
+            e.stopPropagation();
+        }
         setContext(isActive ? null : sanitizedId);
         setLoading(true);
     };
 
     const icon = loading ? <LoaderCircle className="animate-spin text-white"/> : <FolderTree />;
 
+    if (renderMode === "menuItem") {
+        return (
+            <div onClick={onClick} className="relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0">
+                <FolderTree className="h-4 w-4" />
+                <span>{isActive ? "Unset context" : "Set as context"}</span>
+            </div>
+        );
+    }
+
     return (
         <ActionButton
-            ref={ref}
             tooltip={tooltip}
             icon={icon}
             variant={variant}
@@ -54,8 +67,6 @@ const ColumnContext = forwardRef<HTMLButtonElement, ColumnContextProps>(({
             disabled={interactive == false || loading}
         />
     );
-});
-
-ColumnContext.displayName = "ColumnContext";
+};
 
 export default ColumnContext;
