@@ -9,24 +9,36 @@ import { getLogsDetails } from "@/utils/evals/common";
 import { ResponseProps } from "@/types/common";
 import { LogProps } from "@/types/evals/logs";
 
-const getNewCells = (tableDataItem: TableDataItem, logs: LogProps[]) => {
-    let newCells : string[] = [];
-    if (logs.length) {
-        const previousCells = tableDataItem.logs.flatMap(log => {
-            const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`)
-            const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`)
-            return entryCells.concat(paramCells)
-        });
-        newCells = logs.flatMap(log => {
-            const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`)
-            const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`)
-            return entryCells.concat(paramCells)
-          }
-        );
-        newCells = newCells.filter(id => !previousCells.includes(id))    
+
+const isGroupedLog = (log: LogProps | GroupedLogProps): log is GroupedLogProps => log.type === "grouped";
+const flattenLogs = (logs: (LogProps | GroupedLogProps)[]): LogProps[] => {
+    return logs.reduce<LogProps[]>((acc, log) => {
+        if (isGroupedLog(log)) {
+            return acc.concat(flattenLogs(log.subRows));
+        } else {
+            return acc.concat(log);
+        }
+    }, []);
+};
+
+const getNewCells = (tableDataItem: TableDataItem, logs: (LogProps | GroupedLogProps)[]): string[] => {
+    let newCells: string[] = [];
+    const flattenedLogs = flattenLogs(logs);
+    if (flattenedLogs.length) {
+      const previousCells = tableDataItem.logs.flatMap(log => {
+        const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`);
+        const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`);
+        return entryCells.concat(paramCells);
+      });
+      newCells = flattenedLogs.flatMap(log => {
+        const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`);
+        const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`);
+        return entryCells.concat(paramCells);
+      });
+      newCells = newCells.filter(id => !previousCells.includes(id));
     }
     return newCells;
-}
+};
 
 async function updateLogs (
     item: TileProps,
@@ -52,7 +64,7 @@ async function updateLogs (
             )
             await new Promise<void>(resolve => {
                 setTableData(prev => {
-                    const newCells = getNewCells(prev[item.i], logs as LogProps[])
+                    const newCells = getNewCells(prev[item.i], logs)
                     const newState = {
                         ...prev,
                         [item.i]: {
@@ -97,7 +109,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
     // We use timestamp to tag fetch api calls to trigger revalidation every 5 seconds. 
     let running = false
     useEffect(() => {
-        if (!item.auto_update || item.auto_update == "false" ) return;
+        if (!item.auto_update || item.auto_update == "false") return;
         const interval = setInterval(() => {
             if (!running && !pending) {
                 running = true;
