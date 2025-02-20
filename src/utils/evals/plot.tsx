@@ -359,9 +359,12 @@ export const drawBarChart = (
     const xDomain = data.map(d => d[0])
     const xRange = [margins.left, width - margins.right]
     let [minY, maxY] = d3.extent(data.map(d => d[1])) as [number, number];
-    if (minY === maxY) {
-        minY = minY - 1
-        maxY = maxY + 1
+    if (minY === undefined || maxY === undefined) {
+        minY = 0;
+        maxY = 1;
+    } else if (minY === maxY) {
+        minY = minY - 1;
+        maxY = maxY + 1;
     }
     let yDomain = [minY, maxY]
     const xScale = d3.scaleBand().domain(xDomain).range(xRange).padding(0.2);
