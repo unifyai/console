@@ -26,6 +26,7 @@ import { RowExpandingProps } from "./Buttons/RowExpanding";
 interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     className?: string;
     interactive?: boolean;
+    auto_update?: boolean;
     data: TData[];
     columns: ColumnDef<TData, unknown>[];
     state: StateProps;
@@ -43,6 +44,7 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
 export default function DataTable<TData extends LogProps | GroupedLogProps>({
     className,
     interactive,
+    auto_update,
     data,
     columns,
     state,
@@ -183,6 +185,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                             <DataTableHeader
                                                 key={header.id}
                                                 interactive={interactive}
+                                                auto_update={auto_update}
                                                 data={data}
                                                 header={header}
                                                 table={table}

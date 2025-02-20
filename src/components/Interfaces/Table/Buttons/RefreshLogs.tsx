@@ -115,8 +115,9 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             variant={item.auto_update === "true" ? "primary" : "outline"}
             className="rounded-none rounded-tr-lg rounded-br-lg"
             icon={<Power />}
-            tooltip={"Auto refresh every 5s"}
+            tooltip={item.grouping != undefined ? "Auto refresh doesn't work with grouping" : "Auto refresh every 5s"}
             onClick={() => onAutoClick()}
+            disabled={item.grouping != undefined}
         />
 
     /* Manual refresh */
@@ -172,9 +173,9 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
         variant="outline"
         className="rounded-none rounded-tl-lg rounded-bl-lg h-8"
         icon={icon}
-        tooltip={loading ? "Refreshing logs.." : item.auto_update === "true" ? "Auto refreshing logs.." : "Refresh logs"}
+        tooltip={loading ? "Refreshing logs.." : item.grouping != undefined ? "Manual refresh doesn't work with grouping" : item.auto_update === "true" ? "Auto refreshing logs.." : "Refresh logs"}
         onClick={() => onManualClick()}
-        disabled={loading || item.auto_update === "true"}
+        disabled={loading || item.grouping != undefined || item.auto_update === "true"}
     />
 
     return (

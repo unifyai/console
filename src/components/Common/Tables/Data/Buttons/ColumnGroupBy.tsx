@@ -7,12 +7,14 @@ import { useState, useEffect } from "react";
 
 const ColumnGroupBy = ({
     interactive,
+    auto_update,
     column,
     data,
     grouping,
     setGrouping
 }: {
     interactive?: boolean,
+    auto_update?: boolean,
     column: Column<any, unknown>,
     data: any[],
     grouping: string[],
@@ -46,7 +48,7 @@ const ColumnGroupBy = ({
     ];
 
     const state = states.find(state => state.key === isGrouped)!;
-    const tooltip = state.tooltip;
+    const tooltip = auto_update ? "Auto refresh doesn't work with grouping" : state.tooltip;
     const variant = isGrouped ? "primary" : undefined;
     const icon = loading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon;
     const onClick = () => {
@@ -83,7 +85,7 @@ const ColumnGroupBy = ({
     };
 
     return (
-        <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false}/>
+        <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false || auto_update}/>
     );
 }
 

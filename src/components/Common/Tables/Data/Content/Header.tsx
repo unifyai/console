@@ -22,6 +22,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 const DataTableHeader = ({
   interactive,
+  auto_update,
   data,
   table,
   header,
@@ -46,6 +47,7 @@ const DataTableHeader = ({
   children
 }: {
   interactive?: boolean,
+  auto_update?: boolean,
   data: any[],
   table: Table<any>,
   header: Header<any, unknown>,
@@ -223,7 +225,7 @@ const DataTableHeader = ({
                   onMouseDown={(e) => e.stopPropagation()} // Prevent event bubbling for action buttons
                   onMouseUp={(e) => e.stopPropagation()}   // Prevent event bubbling for action buttons
                 >
-                  <ColumnGroupBy interactive={interactive} column={header.column} grouping={grouping} setGrouping={setGrouping} data={data}/>
+                  <ColumnGroupBy interactive={interactive} auto_update={auto_update} column={header.column} grouping={grouping} setGrouping={setGrouping} data={data}/>
                   <ColumnContext interactive={interactive} column={header.column} context={context} setContext={setContext} data={data}/>
                 </div>
               )}
@@ -245,7 +247,7 @@ const DataTableHeader = ({
         {/* Column actions */}
         {!header.isPlaceholder && isNotUtilColumn &&
           <div className="flex items-center justify-center gap-1 mt-2">
-            {!isParentColumn && !isImageColumn && <ColumnGroupBy interactive={interactive} column={header.column} grouping={grouping} setGrouping={setGrouping} data={data}/>}
+            {!isParentColumn && !isImageColumn && <ColumnGroupBy interactive={interactive} auto_update={auto_update} column={header.column} grouping={grouping} setGrouping={setGrouping} data={data}/>}
             {!isParentColumn && <ColumnSort interactive={interactive} column={header.column} data={data}/>}
             {!isParentColumn && ColumnFilters && ColumnFilters(header.column)}
             {!isParentColumn && isDerivedColumn && ColumnUpdate && ColumnUpdate(header.column.id)}
