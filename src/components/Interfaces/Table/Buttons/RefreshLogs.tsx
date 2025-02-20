@@ -25,7 +25,8 @@ const getNewCells = (tableDataItem: TableDataItem, logs: (LogProps | GroupedLogP
     let newCells: string[] = [];
     const flattenedLogs = flattenLogs(logs);
     if (flattenedLogs.length) {
-      const previousCells = tableDataItem.logs.flatMap(log => {
+      const flattenedTableLogs = flattenLogs(tableDataItem.logs)
+      const previousCells = flattenedTableLogs.flatMap(log => {
         const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`);
         const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`);
         return entryCells.concat(paramCells);
@@ -54,7 +55,20 @@ async function updateLogs (
     .get(project, item.context ?? null)
     .then(async (fields: LogFieldsResponseProps) => {
         logsActions
-        .get(project, item.context ?? null, item.column_context ?? null, filterExpression, sortingExpression, groupingExpression, null, null, 16, 0, null, Date.now().toString())
+        .get(
+            project, 
+            item.context ?? null, 
+            item.column_context ?? null, 
+            filterExpression, 
+            sortingExpression, 
+            groupingExpression, 
+            null, 
+            null, 
+            100, // Hardcoded limit value (100) will need to be passed down from Main
+            (item.page_number ? parseInt(item.page_number) : 0) * 100, // Hardcoded limit value (100) will need to be passed down from Main
+            groupingExpression ? 0 : null,
+            Date.now().toString()
+        )
         .then(async (logsData: LogsResponseProps) => {
             const totalPages = Math.ceil(logsData.count / 16);
             const context = item.context ?? null;
