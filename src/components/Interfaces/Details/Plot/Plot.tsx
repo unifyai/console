@@ -239,6 +239,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
             <div className="absolute bottom-6 right-1 z-10">
                 <PlotAxis
                     interactive={interactive}
+                    pending={pending}
                     fields={fields}
                     setAxisProperty={updateItem(item, "x_axis")}
                     axis="X"
@@ -253,6 +254,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                 <div className="absolute top-0 left-1 z-10">
                     <PlotAxis
                         interactive={interactive}
+                        pending={pending}
                         fields={fields}
                         setAxisProperty={updateItem(item, "y_axis")}
                         axis="Y"

@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { metrics } from "@/constants/logs";
-import { ChevronDown, LoaderCircle } from "lucide-react";
+import { ChevronDown, Loader2, LoaderCircle } from "lucide-react";
 import { LogProps, LogFieldsResponseProps } from "@/types/evals/logs";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { DropdownMenuItem, DropdownMenuGroup, DropdownMenuSub, DropdownMenuPortal, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/UI/dropdown-menu";
 
-const PlotAxis = ({ interactive, fields, axisProperty, setAxisProperty, axis, plotType, logs, metric, setMetric }: {
+const PlotAxis = ({ interactive, pending, fields, axisProperty, setAxisProperty, axis, plotType, logs, metric, setMetric }: {
     interactive: boolean
+    pending: boolean
     fields: LogFieldsResponseProps,
     axisProperty: string | undefined,
     setAxisProperty: (x: string | undefined) => void,
@@ -118,6 +119,9 @@ const PlotAxis = ({ interactive, fields, axisProperty, setAxisProperty, axis, pl
                 )
             })
         }
+        {pending && <div className="flex justify-center items-center w-full">
+            <Loader2 className="animate-spin my-1" size={16} />
+        </div>}
         </BaseDropdown>
     );
 }
