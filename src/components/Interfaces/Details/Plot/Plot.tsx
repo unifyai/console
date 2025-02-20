@@ -273,6 +273,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
             <div className="absolute top-0 right-1 z-10">
                 <PlotType
                     interactive={interactive}
+                    svgRef={svgRef}
                     plotType={plotType}
                     setPlotType={updateItem(item, "plot_type")}
                     fields={fields}

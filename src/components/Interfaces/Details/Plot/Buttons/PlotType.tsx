@@ -5,9 +5,11 @@ import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { ChevronDown, ChartScatter, ChartLine, ChartColumn, ChartColumnBig } from "lucide-react";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
+import { clearCanvas } from "@/utils/evals/plot";
 
-const PlotType = ({ interactive, plotType, setPlotType, fields, selectedXAxisProperty, setSelectedXAxisProperty, selectedYAxisProperty, setSelectedYAxisProperty}: {
+const PlotType = ({ interactive, svgRef, plotType, setPlotType, fields, selectedXAxisProperty, setSelectedXAxisProperty, selectedYAxisProperty, setSelectedYAxisProperty}: {
     interactive: boolean,
+    svgRef: any,
     plotType: string, 
     setPlotType: (x: string | undefined) => void,
     fields: LogFieldsResponseProps,
@@ -27,8 +29,10 @@ const PlotType = ({ interactive, plotType, setPlotType, fields, selectedXAxisPro
     // - Set x axis to the current x axis, or the first numeric property if the current x axis isn't numeric
     const onClick = (type: string) => {
         setPlotType(type)
-        const yAxis = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : properties[0];
-        const xAxis = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties[0];
+        const yAxis = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : undefined;
+        const xAxis = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : undefined;
+        if (type === "Histogram" && !xAxis) clearCanvas(svgRef)
+        if (type != "Histogram" && [xAxis, yAxis].some(v => !v)) clearCanvas(svgRef) 
         setSelectedXAxisProperty(xAxis)
         setSelectedYAxisProperty(yAxis)
     } 
