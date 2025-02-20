@@ -33,18 +33,23 @@ const PlotType = ({ interactive, plotType, setPlotType, fields, selectedXAxisPro
         setSelectedYAxisProperty(yAxis)
     } 
 
-    const plotIcons = {"Line Chart": <ChartLine/>, "Bar Chart": <ChartColumn/>, "Histogram": <ChartColumnBig/>, "Scatter Plot": <ChartScatter/>}
+    const plotIcons = {
+        "Line Chart":   {name: "Line", icon: <ChartLine/>}, 
+        "Bar Chart":    {name: "Bar", icon: <ChartColumn/>}, 
+        "Histogram":    {name: "Histogram", icon: <ChartColumnBig/>}, 
+        "Scatter Plot": {name: "Scatter", icon: <ChartScatter/>}
+    }
     const icon = 
     <div className="flex flex-row gap-1">
         <ChevronDown/>
-        {plotIcons[plotType as keyof typeof plotIcons]}
+        {plotIcons[plotType as keyof typeof plotIcons].icon}
     </div>
     
     return (
         <BaseDropdown
             button={
                 <ActionButton 
-                    text={plotType}
+                    text={plotIcons[plotType as keyof typeof plotIcons].name}
                     icon={icon}
                     tooltip="Plot type"
                     disabled={!interactive}
@@ -56,8 +61,8 @@ const PlotType = ({ interactive, plotType, setPlotType, fields, selectedXAxisPro
             ["Scatter Plot", "Line Chart", "Bar Chart", "Histogram"].map((type, index) => {
                 return (
                     <DropdownMenuItem key={index} onClick={() => onClick(type)}>
-                        {plotIcons[type as keyof typeof plotIcons]}
-                        {type}
+                        {plotIcons[type as keyof typeof plotIcons].icon}
+                        {plotIcons[type as keyof typeof plotIcons].name}
                     </DropdownMenuItem>
                 );
             })
