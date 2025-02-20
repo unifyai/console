@@ -4,12 +4,19 @@ import { Column, Table } from "@tanstack/react-table";
 import { CircleMinus } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { updateColumnVisibility } from "@/utils/evals/columnOperations";
+import { forwardRef } from "react";
 
-const ColumnHide = ({column, columnVisibility, setColumnVisibility}: {
+type ColumnHideProps = {
     column: Column<any, unknown>,
     columnVisibility: { [key: string]: boolean },
     setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void
-}) => {
+}
+
+const ColumnHide = forwardRef<HTMLButtonElement, ColumnHideProps>(({
+    column,
+    columnVisibility,
+    setColumnVisibility
+}, ref) => {
 
     // Check if column has child columns
     const isParentColumn = column.columnDef.meta?.isParent;
@@ -24,10 +31,13 @@ const ColumnHide = ({column, columnVisibility, setColumnVisibility}: {
     };
 
     return <ActionButton 
+        ref={ref}
         tooltip={isParentColumn ? "Hide All" : "Hide"} 
         icon={<CircleMinus/>} 
         onClick={hideColumns}
     />;
-}
+});
+
+ColumnHide.displayName = "ColumnHide";
 
 export default ColumnHide;

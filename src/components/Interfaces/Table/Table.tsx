@@ -12,7 +12,7 @@ import {
   GroupingState,
 } from "@tanstack/react-table";
 import { DerivedEntryActions, LogsActions, FieldsActions } from "@/types/evals/grid";
-import React, { useEffect, useRef, useState } from "react";
+import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import { buildTree, nestedColumns, encodeRenderedDepth } from "@/utils/evals/table";
@@ -419,8 +419,9 @@ const LogsTable = ({
                   columns={columns}
                   state={state}
                   setState={setState}
-                  ColumnFilters={(column) => (
+                  ColumnFilters={(ref, column, filterLoading, setIsFiltered, setFilterLoading, open, setOpen) => (
                     <ColumnFilter
+                      ref={ref}
                       interactive={interactive}
                       setColumnFilterQuery={(filtersObj) => {
                         const keys = Object.keys(filtersObj);
@@ -440,6 +441,11 @@ const LogsTable = ({
                       column={column.id}
                       dataTypes={dataTypes}
                       logs={logs}
+                      open={open}
+                      setOpen={setOpen}
+                      filterLoading={filterLoading}
+                      setIsFiltered={setIsFiltered}
+                      setFilterLoading={setFilterLoading}
                     />
                   )}
                   ColumnCreate={(previousColumn: string, setOpen: (open: boolean) => void) => (
@@ -457,10 +463,12 @@ const LogsTable = ({
                       setOpen={setOpen}
                     />
                   )}
-                  ColumnUpdate={(key: string) => (
+                  ColumnUpdate={(key: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>) => (
                     <ColumnUpdate
                       project={project}
                       key={key}
+                      open={open}
+                      setOpen={setOpen}
                       previousEquation={fields[sanitizeId(key)].artifacts}
                       currentTable={item.i}
                       tableArguments={tableArguments}
@@ -468,6 +476,8 @@ const LogsTable = ({
                       update={derivedEntryActions.update}
                       setPending={setPending}
                       refresh={() => updateInterface()}
+                      updateLoading={updateLoading}
+                      setUpdateLoading={setUpdateLoading}
                     />
                   )}
                   RowExpanding={(props: RowExpandingProps) => (

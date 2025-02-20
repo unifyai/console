@@ -3,26 +3,33 @@ import { Ungroup } from "lucide-react";
 import { Column } from "@tanstack/react-table";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { getAllChildColumns, isAllChildrenGrouped } from "@/utils/evals/columnOperations";
-import { useState, useEffect } from "react";
+import { useState, useEffect, forwardRef } from "react";
 
-const ColumnGroupBy = ({
-    interactive,
-    column,
-    data,
-    grouping,
-    setGrouping
-}: {
+type ColumnGroupByProps = {
     interactive?: boolean,
     column: Column<any, unknown>,
     data: any[],
     grouping: string[],
-    setGrouping: (grouping: string[]) => void
-}) => {
+    setGrouping: (grouping: string[]) => void,
+    groupLoading: boolean,
+    setGroupLoading: (groupLoading: boolean) => void,
+    setIsGrouped: (isGrouped: boolean) => void,
+}
+
+const ColumnGroupBy = forwardRef<HTMLButtonElement, ColumnGroupByProps>(({
+    interactive,
+    column,
+    data,
+    grouping,
+    setGrouping,
+    groupLoading,
+    setGroupLoading,
+    setIsGrouped,
+}, ref) => {
 
     /* Display loader when data updates */
-    const [loading, setLoading] = useState(false);
     useEffect(() => {
-        setLoading(false);
+        setGroupLoading(false);
     },[data])
     const [spinnerColor, setSpinnerColor] = useState("white");
 
@@ -31,6 +38,10 @@ const ColumnGroupBy = ({
     const isGrouped = isParentColumn 
         ? isAllChildrenGrouped(column, grouping)
         : grouping.includes(column.columnDef.id as string);
+
+    useEffect(() => {
+        setIsGrouped(isGrouped);
+    }, [isGrouped])
 
     const states = [
         { 
@@ -48,7 +59,7 @@ const ColumnGroupBy = ({
     const state = states.find(state => state.key === isGrouped)!;
     const tooltip = state.tooltip;
     const variant = isGrouped ? "primary" : undefined;
-    const icon = loading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon;
+    const icon = groupLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon;
     const onClick = () => {
         if (isParentColumn) {
             const childColumns = getAllChildColumns(column);
@@ -59,7 +70,7 @@ const ColumnGroupBy = ({
                     id => !childColumns.some(col => col.columnDef.id === id)
                 );
                 setSpinnerColor("primary");
-                setLoading(true);
+                setGroupLoading(true);
                 setGrouping(newGrouping);
             } else {
                 // Add all child columns to grouping at once
@@ -68,7 +79,7 @@ const ColumnGroupBy = ({
                     ...childColumns.map(col => col.columnDef.id).filter(id => !grouping.includes(id as string))
                 ];
                 setSpinnerColor("white");
-                setLoading(true);
+                setGroupLoading(true);
                 setGrouping(newGrouping as string[]);
             }
         } else {
@@ -77,14 +88,16 @@ const ColumnGroupBy = ({
                 : [...grouping, column.columnDef.id];
 
             setSpinnerColor("white");
-            setLoading(true);
+            setGroupLoading(true);
             setGrouping(newGrouping as string[]);
         }
     };
 
     return (
-        <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false}/>
+        <ActionButton ref={ref} tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false}/>
     );
-}
+});
+
+ColumnGroupBy.displayName = "ColumnGroupBy";
 
 export default ColumnGroupBy;

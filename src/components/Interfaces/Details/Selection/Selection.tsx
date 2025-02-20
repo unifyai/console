@@ -979,7 +979,7 @@ function SelectionPanel({
                         value={baseVal}
                         version={baseVer}
                         comparableVersions={compVers}
-                        baseLog={baseLog ?? undefined}
+                        baseLog={baseLog as LogProps}
                         baseLogIndex={baseRowIndex + 1}
                         comparisonLogs={comparisonLogs}
                         comparisonLogsIndex={comparisonRowIndices.map((x) => x + 1)}
@@ -1056,7 +1056,7 @@ function SelectionPanel({
                         source="entries"
                         property={col}
                         value={baseVal}
-                        baseLog={baseLog ?? undefined}
+                        baseLog={baseLog as LogProps}
                         baseLogIndex={baseRowIndex + 1}
                         comparisonLogs={comparisonLogs}
                         comparisonLogsIndex={comparisonRowIndices.map((x) => x + 1)}
