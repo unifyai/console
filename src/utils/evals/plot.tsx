@@ -23,7 +23,7 @@ export function clearCanvas (svgRef: any) {
     const yAxis = svg.select(".yAxis")
     const xZero = svg.select(".x-zero")
     const yZero = svg.select(".y-zero")
-    const groupingKey = svg.select(".groupingKey")
+    const groupingKey = d3.select(".groupingKey")
 
     g.selectAll("*").remove();
     xAxis.selectAll("*").remove();
@@ -1088,6 +1088,10 @@ export const drawHistogram = (
     if (binCounts[1] != data.length) {
         const newBinCounts = [1, data.length]
         setbinCounts(newBinCounts)
+        if (data.length > 0 && binCount === 0) {
+            const newCount = Math.min(10, data.length);
+            setbinCount(newCount.toString());
+        }
         return;
     }
     if (binCount > binCounts[1]) {
