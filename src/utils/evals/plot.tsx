@@ -13,7 +13,26 @@ const primary = getComputedStyle(document.documentElement).getPropertyValue('--p
  * Plot border lines
  * Hover tooltip card and positioning
  * Grouped values legend
+ * Clearing the canvas
 */
+
+export function clearCanvas (svgRef: any) {
+    const svg = d3.select(svgRef.current)
+    const g = svg.select(".plotData")
+    const xAxis = svg.select(".xAxis")
+    const yAxis = svg.select(".yAxis")
+    const xZero = svg.select(".x-zero")
+    const yZero = svg.select(".y-zero")
+    const groupingKey = svg.select(".groupingKey")
+
+    g.selectAll("*").remove();
+    xAxis.selectAll("*").remove();
+    yAxis.selectAll("*").remove();
+    xZero.style("opacity", 0)
+    yZero.style("opacity", 0)
+    groupingKey.style("opacity", 0)
+}
+
 const drawAxes = (
     plotType: string,
     svg: d3.Selection<null, unknown, null, undefined>, 

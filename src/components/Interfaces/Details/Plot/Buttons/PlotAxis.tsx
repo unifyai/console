@@ -52,13 +52,19 @@ const PlotAxis = ({ interactive, pending, fields, axisProperty, setAxisProperty,
     }, {}) as {[key: string]: string[]};
 
     /* Selection handler */
-    const onSelect = (selection: string, metric?: string) => {
-        if (metric) {
-            setAxisProperty(selection)
-            setMetric(metric)
+    const onSelect = (axisSelection: string, metricSelection?: string) => {
+        if (metricSelection) {
+            if (axisSelection === axisProperty && metricSelection === metric) {
+                setAxisProperty(undefined)
+                setMetric("mean")
+            }
+            else {
+                setAxisProperty(axisSelection)
+                setMetric(metricSelection)    
+            }
         } 
         else {
-            setAxisProperty(selection)
+            setAxisProperty(axisSelection === axisProperty ? undefined : axisSelection)
         } 
         setLoading(true)
     }

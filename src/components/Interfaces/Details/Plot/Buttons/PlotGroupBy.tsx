@@ -34,7 +34,7 @@ const PlotGroupBy = ({fields, groupBy, setGroupBy, logs}: {
 
     /* Selection handler */
     const onSelect = (option: string) => {
-        setGroupBy(option != "None" ? option : undefined)
+        setGroupBy(option === "None" || option === groupBy ? undefined : option)
         setLoading(true)
     }
     

@@ -14,7 +14,7 @@ import PlotRefresh from "./Buttons/PlotRefresh";
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { LogFieldsResponseProps, LogProps, PlotArguments } from "@/types/evals/logs";
 import { LogsActions, FieldsActions, PlotDataItem } from "@/types/evals/grid";
-import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram, checkLogScalability } from "@/utils/evals/plot";
+import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram, checkLogScalability, clearCanvas } from "@/utils/evals/plot";
 import PlotAxis from "./Buttons/PlotAxis";
 import { ItemType, TileProps } from "@/types/evals/grid";
 
@@ -110,6 +110,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     fields
                 );
             } else {
+                clearCanvas(svgRef)
                 d3.select(placeholderTextRef.current)
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
@@ -139,13 +140,14 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     fields
                 );
             } else {
+                clearCanvas(svgRef)
                 d3.select(placeholderTextRef.current)
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
-                .text("Select a property to plot and a reduction metric");    
+                .text("Select a property and a reduction metric to plot ");    
             }
         } 
         
@@ -169,6 +171,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     fields
                 )
             } else {
+                clearCanvas(svgRef)
                 d3.select(placeholderTextRef.current)
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
@@ -201,6 +204,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     fields
                 );
             } else {
+                clearCanvas(svgRef)
                 d3.select(placeholderTextRef.current)
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
