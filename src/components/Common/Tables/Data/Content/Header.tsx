@@ -61,8 +61,8 @@ const DataTableHeader = ({
   pinningState,
   setPinningState,
   children,
-  columnActionsApplied,
-  setColumnActionsApplied
+  columnActionsApplied_,
+  setColumnActionsApplied_
 }: {
   interactive?: boolean,
   auto_update?: boolean,
@@ -93,8 +93,8 @@ const DataTableHeader = ({
   pinningState: PinningColumnState,
   setPinningState: (state: PinningColumnState) => void,
   children?: ReactNode,
-  columnActionsApplied: { [key: number]: boolean },
-  setColumnActionsApplied: Dispatch<SetStateAction<{ [key: number]: boolean; }>>
+  columnActionsApplied_: { [key: number]: boolean },
+  setColumnActionsApplied_: Dispatch<SetStateAction<{ [key: number]: boolean; }>>
 }) => {
 
   const { attributes, listeners, setNodeRef, isDragging, transform } = useSortable({
@@ -184,11 +184,16 @@ const DataTableHeader = ({
     return (!isParentColumn && isDerivedColumn && updateLoading);
   }
 
+  const [columnActionsApplied, setColumnActionsApplied] = useState(columnActionsApplied_);
   const [localColumnActionsApplied, setLocalColumnActionsApplied] = useState(false);
 
   useEffect(() => {
     setLocalColumnActionsApplied(showGroupButton() || showSortButton() || showFilterButton() || showUpdateButton());
     setColumnActionsApplied((prev: { [key: number]: boolean }) => ({
+      ...prev,
+      [header.column.columnDef.meta?.renderedDepth ?? 0]: (showGroupButton() || showSortButton() || showFilterButton() || showUpdateButton()),
+    }));
+    setColumnActionsApplied_((prev: { [key: number]: boolean }) => ({
       ...prev,
       [header.column.columnDef.meta?.renderedDepth ?? 0]: (showGroupButton() || showSortButton() || showFilterButton() || showUpdateButton()),
     }));

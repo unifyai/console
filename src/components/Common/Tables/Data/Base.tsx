@@ -209,8 +209,8 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                 columnPinning={state.columnPinning}
                                                 pinningState={state.pinningState}
                                                 setPinningState={setState.setPinningState}
-                                                columnActionsApplied={columnActionsApplied}
-                                                setColumnActionsApplied={setColumnActionsApplied}
+                                                columnActionsApplied_={columnActionsApplied}
+                                                setColumnActionsApplied_={setColumnActionsApplied}
                                             />
                                         ))}
                                     </SortableContext>
