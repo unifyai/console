@@ -192,7 +192,7 @@ const DataTableHeader = ({
       ...prev,
       [header.column.columnDef.meta?.renderedDepth ?? 0]: (showGroupButton() || showSortButton() || showFilterButton() || showUpdateButton()),
     }));
-  }, [groupLoading, isGrouped, sortLoading, isSorted, filterLoading, isFiltered, updateLoading]);
+  }, [groupLoading, isGrouped, sortLoading, isSorted, filterLoading, isFiltered, updateLoading, data]);
 
   // Handle header coloring.
   // - Applies selection (hover) background color on any column header for which all (some) cells are selected
@@ -231,7 +231,7 @@ const DataTableHeader = ({
 
   useEffect(() => {
     setDropdownOpen(false);
-  }, []);
+  }, [groupLoading, isGrouped, sortLoading, isSorted, filterLoading, isFiltered, updateLoading, data]);
 
   // Visible action buttons for active states
   const renderVisibleActions = () => (
