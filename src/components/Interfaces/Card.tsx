@@ -12,9 +12,10 @@ import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Interfaces/Table/Table";
 import { DerivedEntryActions, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
-import TabSelection from "./TabSelection";
+import { icons, tabTypes } from "@/constants/logs";
 import ContextSelector from "./ContextSelector";
 import { Context } from "@/types/evals/grid";
+import { Plus } from "lucide-react";
 
 const Card = ({
     edit,
@@ -111,15 +112,27 @@ const Card = ({
         <div className={"w-full flex-1 flex flex-col items-center " + (tab ? "mt-2" : "justify-center")}>
             <div className="flex gap-4 z-20">
                 {edit && <div className="w-fit">
-                    <TabSelection
-                        tab_={item.tab}
-                        edit={edit}
-                        onTabChange={(tab: string) => {
-                            if (item.tab == undefined && tab == "Table")
-                                updateItem(item, "table_type")("Data Table");
-                            updateItem(item, "tab")(tab);
-                        }}
-                    />
+                    <BaseDropdown
+                        button={<ActionButton
+                            tooltip="Add Tab"
+                            text={item.tab}
+                            icon={item.tab ? undefined : <Plus />}
+                            variant="outline"
+                            size="default"
+                        />}
+                    >
+                        {(!edit ? [] : tabTypes).map((tab, idx) => <DropdownMenuItem
+                            key={idx}
+                            onSelect={() => {
+                                if (item.tab == undefined && tab == "Table")
+                                    updateItem(item, "table_type")("Data Table");
+                                updateItem(item, "tab")(tab);
+                            }}
+                            className="w-64 flex justify-between items-center"
+                        >
+                            <span>{tab}</span>{icons[tab as keyof typeof icons]}
+                        </DropdownMenuItem>)}
+                    </BaseDropdown>
                 </div>}
                 {tab && edit && tab == "View" && <div className="w-fit">
                     <BaseDropdown
