@@ -372,7 +372,7 @@ const CardGrid = ({
                                         updateInterface={updateInterface}
                                         setTableData={setTableData}
                                     />
-                                    <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-2 flex justify-between " + (edit ? "h-20" : "h-10")}>
+                                    <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-2 flex justify-between " + (edit ? "h-16" : "h-10")}>
                                         <div className="mb-auto">
                                             <Badge
                                                 className="cursor-pointer"
