@@ -696,7 +696,7 @@ function CollapsiblePatchLineNode({
           {timeLabel && timeData && (
             <HoverCard>
               <HoverCardTrigger asChild>
-                <span className="ml-2 text-xs text-muted-foreground underline cursor-pointer">
+                <span className={`ml-2 text-xs ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'} underline cursor-pointer`}>
                   {timeLabel}
                 </span>
               </HoverCardTrigger>
@@ -729,7 +729,7 @@ function CollapsiblePatchLineNode({
           {costLabel && costData && (
             <HoverCard>
               <HoverCardTrigger asChild>
-                <span className="ml-2 text-xs text-muted-foreground underline cursor-pointer">
+                <span className={`ml-2 text-xs ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'} underline cursor-pointer`}>
                   {costLabel}
                 </span>
               </HoverCardTrigger>

@@ -9,24 +9,37 @@ import { getLogsDetails } from "@/utils/evals/common";
 import { ResponseProps } from "@/types/common";
 import { LogProps } from "@/types/evals/logs";
 
-const getNewCells = (tableDataItem: TableDataItem, logs: LogProps[]) => {
-    let newCells : string[] = [];
-    if (logs.length) {
-        const previousCells = tableDataItem.logs.flatMap(log => {
-            const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`)
-            const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`)
-            return entryCells.concat(paramCells)
-        });
-        newCells = logs.flatMap(log => {
-            const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`)
-            const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`)
-            return entryCells.concat(paramCells)
-          }
-        );
-        newCells = newCells.filter(id => !previousCells.includes(id))    
+
+const isGroupedLog = (log: LogProps | GroupedLogProps): log is GroupedLogProps => log.type === "grouped";
+const flattenLogs = (logs: (LogProps | GroupedLogProps)[]): LogProps[] => {
+    return logs.reduce<LogProps[]>((acc, log) => {
+        if (isGroupedLog(log)) {
+            return acc.concat(flattenLogs(log.subRows));
+        } else {
+            return acc.concat(log);
+        }
+    }, []);
+};
+
+const getNewCells = (tableDataItem: TableDataItem, logs: (LogProps | GroupedLogProps)[]): string[] => {
+    let newCells: string[] = [];
+    const flattenedLogs = flattenLogs(logs);
+    if (flattenedLogs.length) {
+      const flattenedTableLogs = flattenLogs(tableDataItem.logs)
+      const previousCells = flattenedTableLogs.flatMap(log => {
+        const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`);
+        const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`);
+        return entryCells.concat(paramCells);
+      });
+      newCells = flattenedLogs.flatMap(log => {
+        const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`);
+        const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`);
+        return entryCells.concat(paramCells);
+      });
+      newCells = newCells.filter(id => !previousCells.includes(id));
     }
     return newCells;
-}
+};
 
 async function updateLogs (
     item: TileProps,
@@ -42,7 +55,20 @@ async function updateLogs (
     .get(project, item.context ?? null)
     .then(async (fields: LogFieldsResponseProps) => {
         logsActions
-        .get(project, item.context ?? null, item.column_context ?? null, filterExpression, sortingExpression, groupingExpression, null, null, 16, 0, null, Date.now().toString())
+        .get(
+            project, 
+            item.context ?? null, 
+            item.column_context ?? null, 
+            filterExpression, 
+            sortingExpression, 
+            groupingExpression, 
+            null, 
+            null, 
+            100, // Hardcoded limit value (100) will need to be passed down from Main
+            (item.page_number ? parseInt(item.page_number) : 0) * 100, // Hardcoded limit value (100) will need to be passed down from Main
+            groupingExpression ? 0 : null,
+            Date.now().toString()
+        )
         .then(async (logsData: LogsResponseProps) => {
             const totalPages = Math.ceil(logsData.count / 16);
             const context = item.context ?? null;
@@ -52,7 +78,7 @@ async function updateLogs (
             )
             await new Promise<void>(resolve => {
                 setTableData(prev => {
-                    const newCells = getNewCells(prev[item.i], logs as LogProps[])
+                    const newCells = getNewCells(prev[item.i], logs)
                     const newState = {
                         ...prev,
                         [item.i]: {
@@ -94,10 +120,18 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
 }) => {
 
     /* Auto refresh */
-    // We use timestamp to tag fetch api calls to trigger revalidation every 5 seconds. 
+    // We use timestamp to tag fetch api calls to trigger revalidation every 5 seconds.
+    // We pause the auto refresh whenever a server action is triggered.
+    const [pauseRefresh, setPauseRefresh] = useState(false);
+    useEffect(() => {
+      if (item.auto_update === "true") setPauseRefresh(true)
+    }, [item.filters, item.common_filter, item.grouping, item.context, item.page_number, item.sorting, item.freeze])
+    useEffect(() => {
+      if (pauseRefresh) setTimeout(() => setPauseRefresh(false), 20000) // Pausing for 20 sec, leaving ample time for reload-refetch-rerender cycle
+    }, [pauseRefresh])
     let running = false
     useEffect(() => {
-        if (!item.auto_update || item.auto_update == "false" ) return;
+        if (!item.auto_update || item.auto_update == "false" || pauseRefresh) return;
         const interval = setInterval(() => {
             if (!running && !pending) {
                 running = true;
@@ -107,7 +141,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             }
         }, 5000);
         return () => clearInterval(interval)
-    }, [item.auto_update, item.context, filterExpression, sortingExpression, groupingExpression]);
+    }, [item.auto_update, pauseRefresh, item.context, filterExpression, sortingExpression, groupingExpression]);
 
     const onAutoClick = () => updateItem(item, "auto_update")(item.auto_update === "true" ? "false" : "true")
     const autoRefresh =
