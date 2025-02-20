@@ -1,8 +1,7 @@
 "use client";
 
 import { Interface, TileProps } from "@/types/evals/grid";
-import { Eye, Hammer, PencilRuler, SquareMousePointer } from "lucide-react";
-import { Plus } from "lucide-react";
+import { Eye, Hammer, SquareMousePointer } from "lucide-react";
 import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
@@ -14,6 +13,7 @@ import { ResponseProps } from "@/types/common";
 import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import Tooltip from "../Common/Misc/Tooltip";
+import AddTile from "./AddTile";
 
 const InterfaceButtons = ({
     edit,
@@ -105,30 +105,14 @@ const InterfaceButtons = ({
                     router.refresh();
                 })}
             />
-            <ActionButton
-                className="transition-all"
-                tooltip={(!edit || !project) ? "Select a project first" : "Add new tile"}
-                icon={<Plus />}
-                text="Add Tile"
-                variant="outline"
-                disabled={!edit || !project || pending}
-                onClick={() => {
-                    setItems([
-                        ...items,
-                        {
-                            i: "Tile_" + newCounter,
-                            x: (items.length * 2) % 12,
-                            y: (items.length * 2) / 12,
-                            w: 4,
-                            h: 4,
-                            minW: 4,
-                            minH: 4,
-                            tab: undefined,
-                            visible: true,
-                        }
-                    ]);
-                    setNewCounter(newCounter + 1);
-                }}
+            <AddTile
+                edit={edit}
+                project={project}
+                pending={pending}
+                items={items}
+                newCounter={newCounter}
+                setItems={setItems}
+                setNewCounter={setNewCounter}
             />
             <BaseDropdown
                 button={<ActionButton

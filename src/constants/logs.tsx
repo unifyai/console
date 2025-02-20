@@ -1,3 +1,5 @@
+import { ChartLine, Eye, Table } from "lucide-react";
+
 export const metrics = ["mean", "count", "sum", "var", "std", "min", "max", "median", "mode"];
 
 export const defaultItems = [
@@ -85,3 +87,11 @@ export const defaultLogs = {
         }
     ]
 }
+
+export const icons = {
+    "Table": <Table />,
+    "View": <Eye />,
+    "Plot": <ChartLine />
+};
+
+export const tabTypes = ["Table", "Plot", "View"];

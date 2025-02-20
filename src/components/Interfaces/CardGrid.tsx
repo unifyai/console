@@ -21,7 +21,7 @@ import InterfaceButtons from "./InterfaceButtons";
 import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./ProjectButtons";
 import EditTileName from "./EditTileName";
-import TabSelection from "./TabSelection";
+import AddTile from "./AddTile";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -209,7 +209,7 @@ const CardGrid = ({
     // end success green after 3 seconds
     useEffect(() => { setTimeout(() => setSaveSuccess(undefined), 3000); }, [saveSuccess]);
 
-    return (<div className="w-full h-full overflow-auto" ref={gridRef}>
+    return (<div className="w-full h-full overflow-auto relative" ref={gridRef}>
         <Tabs value={interface_ || undefined} onValueChange={(value: string | undefined) => {
             if (!deleting) {
                 setPending(true);
@@ -303,19 +303,15 @@ const CardGrid = ({
             /> : <></> : interfaces.map((int_, idx) => <TabsContent
                 key={idx}
                 value={int_}
-                className="tutorial-selection-pane"
+                className="tutorial-selection-pane relative"
                 onClick={(e) => {
-                    // if (edit) {
-                    //     if (tileDropdown)
-                    //         setTileDropdown(undefined);
-                    //     else
-                    //         setTileDropdown({ x: e.clientX, y: e.clientY })
-                    // }
-                    // else setTileDropdown(undefined);
-                }}
-                onKeyDown={(e) => {
-                    // if (e.key == "Escape")
-                    //     setTileDropdown(undefined);
+                    if (edit) {
+                        if (tileDropdown)
+                            setTileDropdown(undefined);
+                        else
+                            setTileDropdown({ x: e.clientX, y: e.clientY })
+                    }
+                    else setTileDropdown(undefined);
                 }}
             >
                 {pending
@@ -350,6 +346,7 @@ const CardGrid = ({
                                     data-grid={el}
                                     className="relative"
                                     hidden={!el.visible}
+                                    onClick={(e) => e.stopPropagation()}
                                 >
                                     <Card
                                         edit={edit}
@@ -446,24 +443,23 @@ const CardGrid = ({
             </TabsContent>)}
         </Tabs>
         {tileDropdown && <div
-            className="w-fit h-fit"
+            className="w-fit z-10"
             style={{ position: "absolute", top: tileDropdown.y, left: tileDropdown.x }}
             onKeyDown={(e) => {
                 if (e.key == "Escape")
                     setTileDropdown(undefined);
             }}
         >
-            <TabSelection
+            <AddTile
                 edit={edit}
-                open={true} /* false */
-                onTabChange={(tab: string) => {
-                    let newItem: TileProps = { i: "Tile_" + newCounter, x: tileDropdown.x, y: tileDropdown.y, w: 4, h: 4, minW: 4, minH: 4, tab: tab, visible: true };
-                    if (tab == "Table")
-                        newItem = { ...newItem, table_type: "Data Table" };
-                    setItems([...items, newItem]);
-                    setNewCounter(newCounter + 1);
-                    setTileDropdown(undefined);
-                }}
+                tileDropdown={tileDropdown}
+                project={project}
+                pending={pending}
+                items={items}
+                newCounter={newCounter}
+                setItems={setItems}
+                setNewCounter={setNewCounter}
+                setTileDropdown={setTileDropdown}
             />
         </div>}
         {focusDialog && <Dialog open={true} onOpenChange={() => setFocusDialog(false)}>
