@@ -25,7 +25,8 @@ const getNewCells = (tableDataItem: TableDataItem, logs: (LogProps | GroupedLogP
     let newCells: string[] = [];
     const flattenedLogs = flattenLogs(logs);
     if (flattenedLogs.length) {
-      const previousCells = tableDataItem.logs.flatMap(log => {
+      const flattenedTableLogs = flattenLogs(tableDataItem.logs)
+      const previousCells = flattenedTableLogs.flatMap(log => {
         const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`);
         const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`);
         return entryCells.concat(paramCells);
@@ -54,7 +55,20 @@ async function updateLogs (
     .get(project, item.context ?? null)
     .then(async (fields: LogFieldsResponseProps) => {
         logsActions
-        .get(project, item.context ?? null, item.column_context ?? null, filterExpression, sortingExpression, groupingExpression, null, null, 16, 0, null, Date.now().toString())
+        .get(
+            project, 
+            item.context ?? null, 
+            item.column_context ?? null, 
+            filterExpression, 
+            sortingExpression, 
+            groupingExpression, 
+            null, 
+            null, 
+            100, // Hardcoded limit value (100) will need to be passed down from Main
+            (item.page_number ? parseInt(item.page_number) : 0) * 100, // Hardcoded limit value (100) will need to be passed down from Main
+            groupingExpression ? 0 : null,
+            Date.now().toString()
+        )
         .then(async (logsData: LogsResponseProps) => {
             const totalPages = Math.ceil(logsData.count / 16);
             const context = item.context ?? null;
@@ -106,10 +120,18 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
 }) => {
 
     /* Auto refresh */
-    // We use timestamp to tag fetch api calls to trigger revalidation every 5 seconds. 
+    // We use timestamp to tag fetch api calls to trigger revalidation every 5 seconds.
+    // We pause the auto refresh whenever a server action is triggered.
+    const [pauseRefresh, setPauseRefresh] = useState(false);
+    useEffect(() => {
+      if (item.auto_update === "true") setPauseRefresh(true)
+    }, [item.filters, item.common_filter, item.grouping, item.context, item.page_number, item.sorting, item.freeze])
+    useEffect(() => {
+      if (pauseRefresh) setTimeout(() => setPauseRefresh(false), 20000) // Pausing for 20 sec, leaving ample time for reload-refetch-rerender cycle
+    }, [pauseRefresh])
     let running = false
     useEffect(() => {
-        if (!item.auto_update || item.auto_update == "false") return;
+        if (!item.auto_update || item.auto_update == "false" || pauseRefresh) return;
         const interval = setInterval(() => {
             if (!running && !pending) {
                 running = true;
@@ -119,7 +141,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             }
         }, 5000);
         return () => clearInterval(interval)
-    }, [item.auto_update, item.context, filterExpression, sortingExpression, groupingExpression]);
+    }, [item.auto_update, pauseRefresh, item.context, filterExpression, sortingExpression, groupingExpression]);
 
     const onAutoClick = () => updateItem(item, "auto_update")(item.auto_update === "true" ? "false" : "true")
     const autoRefresh =
@@ -127,8 +149,9 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             variant={item.auto_update === "true" ? "primary" : "outline"}
             className="rounded-none rounded-tr-lg rounded-br-lg"
             icon={<Power />}
-            tooltip={"Auto refresh every 5s"}
+            tooltip={item.grouping != undefined ? "Auto refresh doesn't work with grouping" : "Auto refresh every 5s"}
             onClick={() => onAutoClick()}
+            disabled={item.grouping != undefined}
         />
 
     /* Manual refresh */
@@ -184,9 +207,9 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
         variant="outline"
         className="rounded-none rounded-tl-lg rounded-bl-lg h-8"
         icon={icon}
-        tooltip={loading ? "Refreshing logs.." : item.auto_update === "true" ? "Auto refreshing logs.." : "Refresh logs"}
+        tooltip={loading ? "Refreshing logs.." : item.grouping != undefined ? "Manual refresh doesn't work with grouping" : item.auto_update === "true" ? "Auto refreshing logs.." : "Refresh logs"}
         onClick={() => onManualClick()}
-        disabled={loading || item.auto_update === "true"}
+        disabled={loading || item.grouping != undefined || item.auto_update === "true"}
     />
 
     return (
