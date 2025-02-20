@@ -52,7 +52,7 @@ const PlotGroupBy = ({fields, groupBy, setGroupBy, logs}: {
                     return <DropdownMenuItem key={"None"} onClick={() => onSelect("None")}>{"None"}</DropdownMenuItem>
                 }
 
-                const tableTrigger = <DropdownMenuSubTrigger disabled={loading} className="hover:text-white data-[state=open]:text-white">{table}</DropdownMenuSubTrigger>
+                const tableTrigger = <DropdownMenuSubTrigger className="hover:text-white data-[state=open]:text-white">{table}</DropdownMenuSubTrigger>
                 const tableOptions = columns.map((column, optionIndex) => {
                     const selection = `${table}.${column}`
                     return <DropdownMenuItem key={optionIndex} onSelect={() => onSelect(selection)}>{column}</DropdownMenuItem>

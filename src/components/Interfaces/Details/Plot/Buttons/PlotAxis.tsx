@@ -79,7 +79,7 @@ const PlotAxis = ({ interactive, pending, fields, axisProperty, setAxisProperty,
     return (
         <BaseDropdown button={button} open={interactive ? undefined : false}>
             {Object.entries(choices).map(([table, columns], choiceIndex) => {
-                const tableTrigger = <DropdownMenuSubTrigger disabled={loading} className="hover:text-white data-[state=open]:text-white">{table}</DropdownMenuSubTrigger>
+                const tableTrigger = <DropdownMenuSubTrigger className="hover:text-white data-[state=open]:text-white">{table}</DropdownMenuSubTrigger>
                 const tableOptions = columns.map((column, optionIndex) => {
 
                     const selection = `${table}.${column}`
