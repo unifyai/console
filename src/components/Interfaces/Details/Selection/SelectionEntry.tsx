@@ -103,6 +103,7 @@ function getTypeIcon(valueType: string) {
 /**
  * unifyType: uses baseVal + comparables to decide on a single type. 
  * If multiple distinct types appear, fallback to "string."
+ * (We skip null/undefined/empty-string in the union.)
  */
 function unifyType(
   baseVal: any,
@@ -110,29 +111,30 @@ function unifyType(
 ):
   "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat"
 {
-  // Gather all possible values
-  const rawVals = [baseVal, ...comps];
-
-  // Filter out undefined, null, or empty-string
-  const filtered = rawVals.filter((v) => {
-    if (v === undefined || v === null) return false;
-    if (typeof v === "string" && v.trim().length === 0) return false;
-    return true;
+  // gather all non-undefined, non-empty-string
+  const allVals: any[] = [];
+  if (baseVal !== undefined && baseVal !== null && !(typeof baseVal === "string" && baseVal.trim().length === 0)) {
+    allVals.push(baseVal);
+  }
+  comps.forEach(c => {
+    if (c !== undefined && c !== null && !(typeof c === "string" && c.trim().length === 0)) {
+      allVals.push(c);
+    }
   });
 
-  // If we end up with nothing => "string"
-  if (filtered.length === 0) {
+  // if we still have nothing => "string"
+  if (allVals.length === 0) {
     return "string";
   }
 
-  // Gather distinct types from the non-empty values
+  // gather distinct types
   const typeSet = new Set<string>();
-  for (const val of filtered) {
+  for (const val of allVals) {
     const t = getValueType(val);
     typeSet.add(t);
   }
 
-  // If exactly one => use it; else fallback to "string"
+  // if exactly one => use it; else fallback to "string"
   if (typeSet.size === 1) {
     return Array.from(typeSet)[0] as any;
   }
@@ -364,6 +366,19 @@ export default function SelectionEntry({
     comps = comps.map((c) => c?.paramValue);
   }
 
+  // Check if everything is effectively empty => skip rendering entirely
+  function isEmptyOrBlank(v: any): boolean {
+    if (v === null || v === undefined) return true;
+    if (typeof v === "string" && v.trim().length === 0) return true;
+    return false;
+  }
+  const allVals = [rawValue, ...comps];
+  const allEmpty = allVals.every(isEmptyOrBlank);
+  if (allEmpty) {
+    // do not render at all
+    return null;
+  }
+
   // unify the type from base + comparables for the icon
   const unifiedType = unifyType(rawValue, comps);
   const icon = getTypeIcon(unifiedType);
@@ -414,7 +429,7 @@ export default function SelectionEntry({
       onDragStart={() => {
         setPrevAccordionValues(
           typeof onAccordionValueChange === "function"
-            ? [] // or read your current expanded values...
+            ? []
             : []
         );
         onAccordionValueChange?.([]);
@@ -452,7 +467,6 @@ export default function SelectionEntry({
           </Tooltip>
         </div>
 
-        {/* check unifiedType instead of (valueType === "dict" || valueType === "list") */}
         {(!editMode && isOpen && (unifiedType === "dict" || unifiedType === "list")) && (
           <div className="absolute right-5 flex gap-1 items-center">
             <Button
