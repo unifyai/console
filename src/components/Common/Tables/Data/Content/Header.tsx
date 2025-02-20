@@ -317,9 +317,10 @@ const DataTableHeader = ({
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </span>
                   {/* parent inlined dropdown */}
-                  <div
-                    className="flex items-center gap-0.5"
-                    onMouseDown={(e) => e.stopPropagation()}
+                  {interactive == true && (
+                    <div
+                      className="flex items-center gap-0.5"
+                      onMouseDown={(e) => e.stopPropagation()}
                     onMouseUp={(e) => e.stopPropagation()}
                   >
                     <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
@@ -372,7 +373,8 @@ const DataTableHeader = ({
                         </DropdownMenuGroup>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 isNotUtilColumn && (
@@ -394,6 +396,7 @@ const DataTableHeader = ({
                     </TooltipProvider>
 
                     {/* triple-dot for child columns */}
+                    {interactive == true && (
                     <div className="ml-4 flex-none dropdown-menu" onMouseDown={(e) => e.stopPropagation()}>
                       <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                         <DropdownMenuTrigger asChild>
@@ -467,7 +470,8 @@ const DataTableHeader = ({
                           </DropdownMenuGroup>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </div>
+                      </div>
+                    )}
                   </>
                 )
               )}
@@ -477,7 +481,7 @@ const DataTableHeader = ({
 
         {/* If user has used group/sort/filter => row of icons */}
         {!header.isPlaceholder && isNotUtilColumn && 
-          <div className="flex items-center justify-center gap-1 mt-2">
+          <div className="flex items-center justify-center gap-1">
             {renderVisibleActions()}
           </div>
         }
