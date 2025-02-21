@@ -97,6 +97,7 @@ const Card = ({
         item.plot_type,
         item.x_axis,
         item.y_axis,
+        item.plot_group_by
     ]);
 
     useEffect(() => {
