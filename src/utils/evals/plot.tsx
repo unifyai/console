@@ -97,10 +97,8 @@ const drawAxes = (
     /* Style ticks, axis and line */
     xAxis.selectAll("text").attr("stroke", "black") .attr("stroke-width", 0.1).attr("transform", "rotate(-20) translate(0, 5)").attr("text-anchor", "end").attr("font-size", "10px");
     yAxis.selectAll("text").attr("stroke", "black") .attr("stroke-width", 0.1).attr("text-anchor", "end").attr("font-size", `10px`);
-    xAxis.selectAll("line").attr("stroke", "black").attr("stroke-width", 0.5);
-    yAxis.selectAll("line").attr("stroke", "black").attr("stroke-width", 0.5);
-    xAxis.select("path").attr("stroke", "rgba(243, 244, 246, 1)");
-    yAxis.select("path").attr("stroke", "rgba(243, 244, 246, 1)");
+    xAxis.select("path").style("opacity", 0);
+    yAxis.select("path").style("opacity", 0);
 
     /* Add x = 0 and / or y = 0 line, if applicable */
     const zeroXLine = svg.selectAll(".x-zero")
