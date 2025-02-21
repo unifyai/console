@@ -238,8 +238,11 @@ const DataTableHeader = ({
   // Visible action buttons for active states
   const renderVisibleActions = () => (
     <>
-      {showGroupButton() && (
-        <ColumnGroupBy
+      <div
+          className={`${showGroupButton() ? "" : "hidden"}`}
+      >
+        {(
+          <ColumnGroupBy
           interactive={interactive}
           auto_update={auto_update}
           column={header.column}
@@ -251,9 +254,13 @@ const DataTableHeader = ({
           setIsGrouped={setIsGrouped}
           renderMode="button"
         />
-      )}
-      {showSortButton() && (
-        <ColumnSort
+        )}
+      </div>
+      <div
+          className={`${showSortButton() ? "" : "hidden"}`}
+      >
+        {(
+          <ColumnSort
           interactive={interactive}
           column={header.column}
           data={data}
@@ -262,7 +269,8 @@ const DataTableHeader = ({
           setIsSorted={setIsSorted}
           renderMode="button"             
         />
-      )}
+        )}
+      </div>
       {showFilterButton() && (
         ColumnFilters && ColumnFilters(
           header.column,
@@ -502,9 +510,16 @@ const DataTableHeader = ({
           )}
         </div>
 
-        {/* If user has used group/sort/filter => row of icons */}
-        {!header.isPlaceholder && isNotUtilColumn && hasActiveActions && (
-          <div className="flex items-center justify-left gap-1">
+        {/* 
+          Always render the row of action icons,
+          but hide it with a class if there are no active actions
+        */}
+        {!header.isPlaceholder && isNotUtilColumn && (
+          <div
+            className={`flex items-center justify-left gap-1 ${
+              hasActiveActions ? "" : "hidden"
+            }`}
+          >
             {renderVisibleActions()}
           </div>
         )}
