@@ -87,7 +87,6 @@ const CardGrid = ({
     // modals
     const [saveDialog, setSaveDialog] = useState(false);
     const [focusDialog, setFocusDialog] = useState(false);
-    const [tileDropdown, setTileDropdown] = useState<{ x: number, y: number }>();
     const [maxTiles, setMaxTiles] = useState<[string | undefined, string | undefined]>([undefined, undefined]);
     const [editTile, setEditTile] = useState<string>();
 
@@ -302,15 +301,6 @@ const CardGrid = ({
                 key={idx}
                 value={int_}
                 className="tutorial-selection-pane relative"
-                onClick={(e) => {
-                    if (edit) {
-                        if (tileDropdown)
-                            setTileDropdown(undefined);
-                        else
-                            setTileDropdown({ x: e.clientX, y: e.clientY })
-                    }
-                    else setTileDropdown(undefined);
-                }}
             >
                 {pending
                     ? <div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>
@@ -440,26 +430,6 @@ const CardGrid = ({
                     </div>}
             </TabsContent>)}
         </Tabs>
-        {tileDropdown && <div
-            className="w-fit z-10"
-            style={{ position: "absolute", top: tileDropdown.y, left: tileDropdown.x }}
-            onKeyDown={(e) => {
-                if (e.key == "Escape")
-                    setTileDropdown(undefined);
-            }}
-        >
-            <AddTile
-                edit={edit}
-                tileDropdown={tileDropdown}
-                project={project}
-                pending={pending}
-                items={items}
-                newCounter={newCounter}
-                setItems={setItems}
-                setNewCounter={setNewCounter}
-                setTileDropdown={setTileDropdown}
-            />
-        </div>}
         {focusDialog && <Dialog open={true} onOpenChange={() => setFocusDialog(false)}>
             <DialogContent className="min-w-full h-full overflow-y-auto">
                 <Suspense fallback={<SkeletonLoader />}>
