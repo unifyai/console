@@ -37,24 +37,29 @@ function buildTimedeltaString(baseStr: string, compStr: string): string {
   const signChar = deltaMs >= 0 ? "+" : "-";
   let absMs = Math.abs(deltaMs);
 
-  const days = Math.floor(absMs / 86400000); // 24*60*60*1000
+  const days = Math.floor(absMs / 86400000);
   absMs = absMs % 86400000;
-  const hours = Math.floor(absMs / 3600000); // 60*60*1000
+
+  const weeks = Math.floor(days / 7);
+  const remainingDays = days % 7;
+
+  const hours = Math.floor(absMs / 3600000);
   absMs = absMs % 3600000;
-  const minutes = Math.floor(absMs / 60000); // 60*1000
+  const minutes = Math.floor(absMs / 60000);
   absMs = absMs % 60000;
   const seconds = Math.floor(absMs / 1000);
   const ms = absMs % 1000;
 
   const parts: string[] = [];
-  if (days > 0) parts.push(`${days} days`);
+  if (weeks > 0) parts.push(`${weeks} weeks`);
+  if (remainingDays > 0) parts.push(`${remainingDays} days`);
   if (hours > 0) parts.push(`${hours} hours`);
   if (minutes > 0) parts.push(`${minutes} minutes`);
   if (seconds > 0) parts.push(`${seconds} seconds`);
   if (ms > 0) parts.push(`${ms} ms`);
 
   if (parts.length === 0) {
-    return signChar + " 0 ms"; // If no difference, show sign and "0 ms"
+    return signChar + " 0 ms";
   }
   return signChar + " " + parts.join(", ");
 }
