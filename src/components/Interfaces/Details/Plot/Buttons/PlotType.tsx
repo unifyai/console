@@ -5,9 +5,11 @@ import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { ChevronDown, ChartScatter, ChartLine, ChartColumn, ChartColumnBig } from "lucide-react";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
+import { clearCanvas } from "@/utils/evals/plot";
 
-const PlotType = ({ interactive, plotType, setPlotType, fields, selectedXAxisProperty, setSelectedXAxisProperty, selectedYAxisProperty, setSelectedYAxisProperty}: {
+const PlotType = ({ interactive, svgRef, plotType, setPlotType, fields, selectedXAxisProperty, setSelectedXAxisProperty, selectedYAxisProperty, setSelectedYAxisProperty}: {
     interactive: boolean,
+    svgRef: any,
     plotType: string, 
     setPlotType: (x: string | undefined) => void,
     fields: LogFieldsResponseProps,
@@ -27,24 +29,31 @@ const PlotType = ({ interactive, plotType, setPlotType, fields, selectedXAxisPro
     // - Set x axis to the current x axis, or the first numeric property if the current x axis isn't numeric
     const onClick = (type: string) => {
         setPlotType(type)
-        const yAxis = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : properties[0];
-        const xAxis = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties[0];
+        const yAxis = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : undefined;
+        const xAxis = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : undefined;
+        if (type === "Histogram" && !xAxis) clearCanvas(svgRef)
+        if (type != "Histogram" && [xAxis, yAxis].some(v => !v)) clearCanvas(svgRef) 
         setSelectedXAxisProperty(xAxis)
         setSelectedYAxisProperty(yAxis)
     } 
 
-    const plotIcons = {"Line Chart": <ChartLine/>, "Bar Chart": <ChartColumn/>, "Histogram": <ChartColumnBig/>, "Scatter Plot": <ChartScatter/>}
+    const plotIcons = {
+        "Line Chart":   {name: "Line", icon: <ChartLine/>}, 
+        "Bar Chart":    {name: "Bar", icon: <ChartColumn/>}, 
+        "Histogram":    {name: "Histogram", icon: <ChartColumnBig/>}, 
+        "Scatter Plot": {name: "Scatter", icon: <ChartScatter/>}
+    }
     const icon = 
     <div className="flex flex-row gap-1">
         <ChevronDown/>
-        {plotIcons[plotType as keyof typeof plotIcons]}
+        {plotIcons[plotType as keyof typeof plotIcons].icon}
     </div>
     
     return (
         <BaseDropdown
             button={
                 <ActionButton 
-                    text={plotType}
+                    text={plotIcons[plotType as keyof typeof plotIcons].name}
                     icon={icon}
                     tooltip="Plot type"
                     disabled={!interactive}
@@ -56,8 +65,8 @@ const PlotType = ({ interactive, plotType, setPlotType, fields, selectedXAxisPro
             ["Scatter Plot", "Line Chart", "Bar Chart", "Histogram"].map((type, index) => {
                 return (
                     <DropdownMenuItem key={index} onClick={() => onClick(type)}>
-                        {plotIcons[type as keyof typeof plotIcons]}
-                        {type}
+                        {plotIcons[type as keyof typeof plotIcons].icon}
+                        {plotIcons[type as keyof typeof plotIcons].name}
                     </DropdownMenuItem>
                 );
             })

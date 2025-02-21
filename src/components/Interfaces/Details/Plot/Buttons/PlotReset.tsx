@@ -3,6 +3,7 @@
 import SettingButton from "@/components/Common/Buttons/Setting";
 import { X } from "lucide-react";
 import * as d3 from "d3";
+import { clearCanvas } from "@/utils/evals/plot";
 
 const PlotReset = ({svgRef, setSelectedXAxisProperty, setSelectedYAxisProperty, setGroupByProperty}: {
     svgRef: any,
@@ -10,17 +11,11 @@ const PlotReset = ({svgRef, setSelectedXAxisProperty, setSelectedYAxisProperty, 
     setSelectedYAxisProperty: (x: string | undefined) => void,
     setGroupByProperty: (x: string | undefined) => void
 }) => {
-    const svg = d3.select(svgRef.current)
-    const g = svg.select(".plotData")
-    const xAxis = svg.select(".xAxis")
-    const yAxis = svg.select(".yAxis")
     const onClick = () => {
         setSelectedXAxisProperty(undefined);
         setSelectedYAxisProperty(undefined);
         setGroupByProperty(undefined);
-        g.selectAll("*").remove();
-        xAxis.selectAll("*").remove();
-        yAxis.selectAll("*").remove();
+        clearCanvas(svgRef)
     };
     return (
         <SettingButton

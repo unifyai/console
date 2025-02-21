@@ -1,24 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, forwardRef } from "react";
 import { FolderTree, LoaderCircle } from "lucide-react";
 import { Column } from "@tanstack/react-table";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 
-const ColumnContext = ({
-    interactive,
-    column,
-    context,
-    setContext,
-    data
-}: {
+type ColumnContextProps = {
     interactive?: boolean,
     column: Column<any, unknown>,
     context: string | null,
     setContext: (context: string | null) => void,
     data: any[]
-}) => {
+}
+
+const ColumnContext = forwardRef<HTMLButtonElement, ColumnContextProps>(({
+    interactive,
+    column,
+    context,
+    setContext,
+    data
+}, ref) => {
 
     /* Display loader when data updates */
     const [loading, setLoading] = useState(false);
@@ -44,6 +46,7 @@ const ColumnContext = ({
 
     return (
         <ActionButton
+            ref={ref}
             tooltip={tooltip}
             icon={icon}
             variant={variant}
@@ -51,6 +54,8 @@ const ColumnContext = ({
             disabled={interactive == false || loading}
         />
     );
-};
+});
+
+ColumnContext.displayName = "ColumnContext";
 
 export default ColumnContext;

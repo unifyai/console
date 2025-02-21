@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Dispatch, SetStateAction } from "react";
 import { Filters, FiltersByColumn } from "@/types/evals/columns";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -23,19 +23,23 @@ interface TimeFilter {
     value: string
 }
 
-const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, logs }: {
+const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, logs, open, setOpen, filterLoading, setFilterLoading, setIsFiltered }: {
     interactive: boolean,
     column: string,
-    columnFilters: FiltersByColumn
+    columnFilters: FiltersByColumn,
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
-    logs: LogProps[] | GroupedLogProps[]
+    logs: LogProps[] | GroupedLogProps[],
+    open: boolean,
+    setOpen: Dispatch<SetStateAction<boolean>>,
+    filterLoading: boolean,
+    setFilterLoading: (filterLoading: boolean) => void,
+    setIsFiltered: (isFiltered: boolean) => void,
 }) => {
 
     /* Display loader when data updates */
-    const [loading, setLoading] = useState(false);
     const [spinnerColor, setSpinnerColor] = useState("white");
     useEffect(() => {
-        setLoading(false);
+        setFilterLoading(false);
     },[logs])
 
     /* Initialize filters */
@@ -61,6 +65,10 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
         value: initial.value
     }))
     const [filters, setFilters] = useState(initialValues);
+    const isFiltered = column in columnFilters;
+    useEffect(() => {
+        setIsFiltered(isFiltered);
+    }, [isFiltered])
 
     /* Event handlers */
     const onInput = (value: AbsoluteDateString | RelativeDateString, filter: TimeFilter) => {
@@ -99,7 +107,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
         }
         setColumnFilterQuery(newColumnFilters);
         setSpinnerColor("white")
-        setLoading(true)
+        setFilterLoading(true)
         setOpen(false);
     }
     const onReset = () => {
@@ -109,7 +117,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
         setFilters([defaultFilter])
         setColumnFilterQuery(newColumnFilters)
         setSpinnerColor("primary")
-        setLoading(true)
+        setFilterLoading(true)
         setOpen(false)
     }
     const onEnter : KeyboardEventHandler = (event) => {
@@ -119,9 +127,8 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
     }
 
     /* Dialog interactions */
-    const [open, setOpen] = useState(false);
     const close = <BaseButton size="sm" icon={<CircleX/>} onClick={() => setOpen(false)} className="top-0 right-0 scale-60 absolute" variant="warning"/>
-    const button = <ActionButton icon={loading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : <Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} disabled={!interactive || loading}/>
+    const button = <ActionButton icon={filterLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : <Filter/>} tooltip="Filter" variant={isFiltered ? "primary" : undefined} disabled={!interactive || filterLoading}/>
     const reset = <ActionButton tooltip="Delete all filters" variant="warning" icon={<Trash/>} onClick={() => onReset()}/> 
     const submit = <SubmitButton text="Save" onClick={() => onSubmit()}/>
     const append = 

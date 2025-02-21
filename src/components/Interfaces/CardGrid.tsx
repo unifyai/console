@@ -87,7 +87,6 @@ const CardGrid = ({
     // modals
     const [saveDialog, setSaveDialog] = useState(false);
     const [focusDialog, setFocusDialog] = useState(false);
-    const [tileDropdown, setTileDropdown] = useState<{ x: number, y: number }>();
     const [maxTiles, setMaxTiles] = useState<[string | undefined, string | undefined]>([undefined, undefined]);
     const [editTile, setEditTile] = useState<string>();
 
@@ -217,7 +216,7 @@ const CardGrid = ({
                 setInterface(value || null);
             }
         }} className="w-full tutorial-details-panel">
-            <div className="sticky top-0 z-10 bg-background p-2 flex justify-between">
+            <div className="sticky top-0 z-10 bg-background p-2 flex justify-between w-full md:overflow-none overflow-x-auto">
                 {/* Project dropdown and add/delete buttons */}
                 <ProjectButtons
                     project={project}
@@ -302,15 +301,6 @@ const CardGrid = ({
                 key={idx}
                 value={int_}
                 className="tutorial-selection-pane relative"
-                onClick={(e) => {
-                    if (edit) {
-                        if (tileDropdown)
-                            setTileDropdown(undefined);
-                        else
-                            setTileDropdown({ x: e.clientX, y: e.clientY })
-                    }
-                    else setTileDropdown(undefined);
-                }}
             >
                 {pending
                     ? <div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>
@@ -328,7 +318,7 @@ const CardGrid = ({
                                 setPending(false);
                         }}
                         className="layout interactive-grid flex-1"
-                        cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+                        cols={{ lg: 12, md: 12, sm: 12, xs: 10, xxs: 8 }}
                         rowHeight={100}
                         margin={[0, 0]}
                         containerPadding={[0, 0]}
@@ -372,7 +362,7 @@ const CardGrid = ({
                                         updateInterface={updateInterface}
                                         setTableData={setTableData}
                                     />
-                                    <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-2 flex justify-between " + (edit ? "h-20" : "h-10")}>
+                                    <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-2 flex justify-between " + (edit ? "h-16" : "h-10")}>
                                         <div className="mb-auto">
                                             <Badge
                                                 className="cursor-pointer"
@@ -440,26 +430,6 @@ const CardGrid = ({
                     </div>}
             </TabsContent>)}
         </Tabs>
-        {tileDropdown && <div
-            className="w-fit z-10"
-            style={{ position: "absolute", top: tileDropdown.y, left: tileDropdown.x }}
-            onKeyDown={(e) => {
-                if (e.key == "Escape")
-                    setTileDropdown(undefined);
-            }}
-        >
-            <AddTile
-                edit={edit}
-                tileDropdown={tileDropdown}
-                project={project}
-                pending={pending}
-                items={items}
-                newCounter={newCounter}
-                setItems={setItems}
-                setNewCounter={setNewCounter}
-                setTileDropdown={setTileDropdown}
-            />
-        </div>}
         {focusDialog && <Dialog open={true} onOpenChange={() => setFocusDialog(false)}>
             <DialogContent className="min-w-full h-full overflow-y-auto">
                 <Suspense fallback={<SkeletonLoader />}>

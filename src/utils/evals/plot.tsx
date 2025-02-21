@@ -13,7 +13,26 @@ const primary = getComputedStyle(document.documentElement).getPropertyValue('--p
  * Plot border lines
  * Hover tooltip card and positioning
  * Grouped values legend
+ * Clearing the canvas
 */
+
+export function clearCanvas (svgRef: any) {
+    const svg = d3.select(svgRef.current)
+    const g = svg.select(".plotData")
+    const xAxis = svg.select(".xAxis")
+    const yAxis = svg.select(".yAxis")
+    const xZero = svg.select(".x-zero")
+    const yZero = svg.select(".y-zero")
+    const groupingKey = d3.select(".groupingKey")
+
+    g.selectAll("*").remove();
+    xAxis.selectAll("*").remove();
+    yAxis.selectAll("*").remove();
+    xZero.style("opacity", 0)
+    yZero.style("opacity", 0)
+    groupingKey.style("opacity", 0)
+}
+
 const drawAxes = (
     plotType: string,
     svg: d3.Selection<null, unknown, null, undefined>, 
@@ -359,9 +378,12 @@ export const drawBarChart = (
     const xDomain = data.map(d => d[0])
     const xRange = [margins.left, width - margins.right]
     let [minY, maxY] = d3.extent(data.map(d => d[1])) as [number, number];
-    if (minY === maxY) {
-        minY = minY - 1
-        maxY = maxY + 1
+    if (minY === undefined || maxY === undefined) {
+        minY = 0;
+        maxY = 1;
+    } else if (minY === maxY) {
+        minY = minY - 1;
+        maxY = maxY + 1;
     }
     let yDomain = [minY, maxY]
     const xScale = d3.scaleBand().domain(xDomain).range(xRange).padding(0.2);
@@ -1066,6 +1088,10 @@ export const drawHistogram = (
     if (binCounts[1] != data.length) {
         const newBinCounts = [1, data.length]
         setbinCounts(newBinCounts)
+        if (data.length > 0 && binCount === 0) {
+            const newCount = Math.min(10, data.length);
+            setbinCount(newCount.toString());
+        }
         return;
     }
     if (binCount > binCounts[1]) {

@@ -1,10 +1,9 @@
 "use client";
 
-import { KeyboardEventHandler, useState, useEffect } from "react";
+import { KeyboardEventHandler, useState, useEffect, Dispatch, SetStateAction } from "react";
 import { useRouter } from "next/navigation";
 import SubmitButton from "@/components/Common/Buttons/Submit";
 import { getLogsParameters, TableArguments, LogProps, GroupedLogProps } from "@/types/evals/logs"
-import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { BasePopover } from "@/components/Common/Popovers/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { ResponseProps } from "@/types/common";
@@ -13,7 +12,21 @@ import { TbMathFunction } from "react-icons/tb";
 import { LoaderCircle } from "lucide-react";
 import { expressionToDerivedFunction, derivedFunctionToExpression } from "@/utils/evals/derivedColumns";
 
-const ColumnUpdate = ({ project, key, previousEquation, currentTable, tableArguments, logs, update, setPending, refresh }: {
+const ColumnUpdate = ({
+    project,
+    key,
+    previousEquation,
+    currentTable,
+    tableArguments,
+    logs,
+    update,
+    setPending,
+    refresh,
+    open,
+    setOpen,
+    updateLoading,
+    setUpdateLoading
+}: {
     project: string,
     key: string,
     previousEquation: string,
@@ -23,6 +36,10 @@ const ColumnUpdate = ({ project, key, previousEquation, currentTable, tableArgum
     update: (project: string, key: string | null, equation: string | null, target_derived_logs: {[table_name: string]: getLogsParameters}, referenced_logs: {[table_name: string]: getLogsParameters} | null) => Promise<ResponseProps>,
     setPending: (pending: boolean) => void,
     refresh: () => Promise<ResponseProps>,
+    open: boolean,
+    setOpen: Dispatch<SetStateAction<boolean>>,
+    updateLoading: boolean,
+    setUpdateLoading: (updateLoading: boolean) => void
 }) => {
     const router = useRouter();
 
@@ -37,16 +54,14 @@ const ColumnUpdate = ({ project, key, previousEquation, currentTable, tableArgum
     const columns = options.filter(option => option.type === "Column Name").map(option => option.name);
 
     // State tracking
-    const [open, setOpen] = useState(false);
     const previousExpression = derivedFunctionToExpression(previousEquation)
     const [expression, setExpression] = useState<string>(previousExpression);
     const [equation, setEquation] = useState<string>("");
     const [errorMessage, setErrorMessage] = useState<string>("");
 
     /* Display loader when data updates */
-    const [loading, setLoading] = useState(false);
     useEffect(() => {
-        setLoading(false);
+        setUpdateLoading(false);
     },[logs])
 
     // Handle inputs
@@ -75,13 +90,13 @@ const ColumnUpdate = ({ project, key, previousEquation, currentTable, tableArgum
                   .map(([key, args]) => [key, args.getLogs_parameters])
         );
 
-        setLoading(true);
+        setUpdateLoading(true);
         update(project, key, equation, target_derived_logs, referenced_logs).then(async (response: ResponseProps) => {
             if ("info" in response) {
                 
                 // Update states
                 setErrorMessage("");
-                setLoading(false);
+                setUpdateLoading(false);
                 setOpen(false);
                 
                 // Refresh page
@@ -97,7 +112,7 @@ const ColumnUpdate = ({ project, key, previousEquation, currentTable, tableArgum
                 if (typeof response.detail === "string") error = response.detail;
                 else error = JSON.stringify(response.detail);
             }
-            setLoading(false);
+            setUpdateLoading(false);
             setErrorMessage(error);
             setTimeout(() => setErrorMessage(""), 5000);
         })
@@ -114,8 +129,8 @@ const ColumnUpdate = ({ project, key, previousEquation, currentTable, tableArgum
                         <SubmitButton text="Apply" onClick={() => onSubmit()}/>
                     </div>
 
-    const icon = loading ? <LoaderCircle className="animate-spin text-primary"/> : <TbMathFunction/>
-    const columnButton = <ActionButton tooltip={"Update function"} icon={icon} disabled={loading}/>
+    const icon = updateLoading ? <LoaderCircle className="animate-spin text-primary"/> : <TbMathFunction/>
+    const columnButton = <ActionButton tooltip={"Update function"} icon={icon} disabled={updateLoading}/>
     const body =    <div className="p-2 flex flex-col gap-1 h-full w-[400px]" onClick={(e) => e.stopPropagation()}>
                         <FormulaInput options={options} value={expression} setValue={handleExpression} onEnter={onEnter}/>
                     </div>
