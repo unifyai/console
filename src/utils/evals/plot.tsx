@@ -712,28 +712,49 @@ export const drawScatterPlot = (
     const {xTicks, yTicks} = calculateTicks(data.length, scaleX, scaleY, minY, maxY, minX, maxX);
     drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY);
 
+    // Add tooltip and grouping key
+    const tooltip = d3.select(".plotTooltip").style("opacity", 0)
+    const key = d3.select(".groupingKey").style("opacity", 0)
+
     // Add data points
+    // If grouping is set:
+    // - Generate a color scheme based on the grouping values
+    // - Color the points based on their groupBy value
+    // - Pass the color info to the grouping key
+    let color = d3.scaleOrdinal<string>().range(d3.schemeCategory10);
+    if (groupBy) {
+        let domain = data.map(d => JSON.stringify(getValue(fields, groupBy, d, xTable)));
+        domain = Array.from(new Set(domain));
+        color.domain(domain);
+        const colors = domain.map((key) => ({ key: key, color: color(key) as string }));
+        key
+            .html(keyTemplate(colors))
+            .transition()
+            .style("opacity", 1);
+    }    
     const points = g
         .selectAll("circle.data-point")
         .data(data, (d: unknown) => (d as LogProps).id); // Use unique identifier to track point transitions
-    const enteringPoints = points
+        const enteringPoints = points
         .enter()
         .append("circle")
         .attr("class", "data-point")
-        .attr("fill", primary)
-        .attr("stroke", primary)
-        .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable) as number) : getValue(fields, xAxisProperty as string, d, xTable) as number))
-        .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable) as number) : getValue(fields, yAxisProperty as string, d, yTable) as number))
+        .attr("fill", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
+        .attr("stroke", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
+        .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable)) : getValue(fields, xAxisProperty as string, d, xTable)))
+        .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable)) : getValue(fields, yAxisProperty as string, d, yTable)))
         .attr("r", 0)
         .on("mouseover", (event, data) => hoverOnPoint(event, data, xTable, yTable))
-        .on("mouseout", (event, data) => leavePoint(event, data));
+        .on("mouseout", (event, data) => leavePoint(event, data));    
     enteringPoints
         .merge(points as any)
         .transition()
         .duration(500)
-        .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable) as number) : getValue(fields, xAxisProperty as string, d, xTable) as number))
-        .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable) as number) : getValue(fields, yAxisProperty as string, d, yTable) as number))
-        .attr("r", 3);
+        .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable)) : getValue(fields, xAxisProperty as string, d, xTable)))
+        .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable)) : getValue(fields, yAxisProperty as string, d, yTable)))
+        .attr("r", 3)
+        .attr("fill", d => groupBy ? color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
+        .attr("stroke", d => groupBy ? color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary);
     points.exit()
         .transition()
         .duration(500)
@@ -755,33 +776,6 @@ export const drawScatterPlot = (
         .attr("stroke", "none")
         .style("pointer-events", "all")
         .attr("class", "hover-area");
-
-    // Add tooltip and grouping key
-    const tooltip = d3.select(".plotTooltip").style("opacity", 0)
-    const key = d3.select(".groupingKey").style("opacity", 0)
-
-    // If grouping is set. 
-    // Generate a color scheme based on the grouping values
-    // Color the points based on their groupBy value
-    // Pass the color info to the grouping key
-    if (groupBy) {
-
-        let domain = data.map(d => JSON.stringify(getValue(fields, groupBy, d, xTable) as string));
-        domain = Array.from(new Set(domain));
-        const color = d3.scaleOrdinal().domain(domain).range(d3.schemeCategory10);
-        const colors = domain.map((key) => ({key: key, color: color(key) as string}));
-        key
-            .html(keyTemplate(colors))
-            .transition()
-            .style("opacity", 1)
-
-        g.selectAll("circle.data-point")
-            .transition()
-            .duration(500)
-            .attr("fill", (d) => color(JSON.stringify(getValue(fields, groupBy, d as LogProps, xTable))) as string)
-            .attr("stroke", (d) => color(JSON.stringify(getValue(fields, groupBy, d as LogProps, xTable))) as string)
-
-    }
 
     // When hovering on point.
     // - Set info card position and content
