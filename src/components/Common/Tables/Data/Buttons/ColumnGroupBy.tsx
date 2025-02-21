@@ -1,9 +1,10 @@
-import { Group, LoaderCircle } from "lucide-react";
+import { Filter, Group, LoaderCircle } from "lucide-react";
 import { Ungroup } from "lucide-react";
 import { Column } from "@tanstack/react-table";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { getAllChildColumns, isAllChildrenGrouped } from "@/utils/evals/columnOperations";
 import { useState, useEffect, forwardRef } from "react";
+import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 
 type ColumnGroupByProps = {
     interactive?: boolean,
@@ -15,9 +16,10 @@ type ColumnGroupByProps = {
     groupLoading: boolean,
     setGroupLoading: (groupLoading: boolean) => void,
     setIsGrouped: (isGrouped: boolean) => void,
+    renderMode: "button" | "menuItem"
 }
 
-const ColumnGroupBy = forwardRef<HTMLButtonElement, ColumnGroupByProps>(({
+const ColumnGroupBy = (({
     interactive,
     auto_update,
     column,
@@ -27,7 +29,8 @@ const ColumnGroupBy = forwardRef<HTMLButtonElement, ColumnGroupByProps>(({
     groupLoading,
     setGroupLoading,
     setIsGrouped,
-}, ref) => {
+    renderMode = "button",
+}: ColumnGroupByProps) => {
 
     /* Display loader when data updates */
     useEffect(() => {
@@ -96,10 +99,16 @@ const ColumnGroupBy = forwardRef<HTMLButtonElement, ColumnGroupByProps>(({
     };
 
     return (
-        <ActionButton ref={ref} tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false || auto_update}/>
+        renderMode === "menuItem" ? (
+            <DropdownMenuItem onClick={onClick} className="flex items-center gap-2 cursor-pointer">
+                <Group className="h-4 w-4"/>
+                <span>{isParentColumn ? "Group all child columns" : "Group by this column"}</span>
+            </DropdownMenuItem>
+        ) : (
+            <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false || auto_update}/>
+        )
     );
-});
 
-ColumnGroupBy.displayName = "ColumnGroupBy";
+});
 
 export default ColumnGroupBy;

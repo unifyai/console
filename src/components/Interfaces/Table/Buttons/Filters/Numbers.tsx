@@ -13,7 +13,7 @@ import { Input } from "@/components/UI/input";
 import { Slider } from "@/components/UI/slider";
 import { initFilters, combineFilters } from "@/utils/evals/filters";
 import { Trash, Plus, CircleX, LoaderCircle } from "lucide-react";
-import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
+import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 
 interface NumericFilter {
@@ -34,7 +34,8 @@ const NumericColumnFilter = ({
     setOpen,
     filterLoading,
     setFilterLoading,
-    setIsFiltered
+    setIsFiltered,
+    renderMode
 }: {
     interactive: boolean,
     column: string,
@@ -47,6 +48,7 @@ const NumericColumnFilter = ({
     filterLoading: boolean,
     setFilterLoading: (filterLoading: boolean) => void,
     setIsFiltered: (isFiltered: boolean) => void,
+    renderMode: "button" | "menuItem"
 }) => {
 
     /* Display loader when data updates */
@@ -128,7 +130,11 @@ const NumericColumnFilter = ({
 
     /* Dialog interactions */
     const close = <BaseButton size="sm" icon={<CircleX/>} onClick={() => setOpen(false)} className="top-0 right-0 scale-60 absolute" variant="warning"/>
-    const button = <ActionButton icon={filterLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : <Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} disabled={!interactive || filterLoading}/>
+    const button = renderMode === "button" ? (
+        <ActionButton icon={filterLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : <Filter/>} tooltip="Filter" variant={isFiltered ? "primary" : undefined} disabled={!interactive || filterLoading}/>
+    ) : (
+        <Filter className="h-4 w-4"/>
+    )
     const reset = <ActionButton tooltip="Delete all filters" variant="warning" icon={<Trash/>} onClick={() => onReset()}/> 
     const submit = <SubmitButton text="Save" onClick={() => onSubmit()}/>
     const append = 
@@ -237,26 +243,41 @@ const NumericColumnFilter = ({
                 setFilters(newFilters)
             }}
         />
+    
+    const filterContent = (
+        <div className="flex flex-col gap-3 px-2 pt-4 pb-2">
+            {filters.map((filter, index) => 
+                <div key={index} className="grid grid-cols-8 items-center">
+                    {filters.length > 0 && filter.key != 0 && <div className="col-span-1">{join(filter)}</div>}
+                    <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-6" : "col-span-7"}`}>{filterInput(filter, !["==", "!=", "exists", "isNone"].includes(filter.mode))}</div>
+                    <div className="col-span-1 text-center">{remove(filter)}</div>
+                </div>
+            )}
+            <div className="flex flex-row gap-2 justify-between">
+                {append}
+                <div className="flex flex-row gap-2 justify-end">
+                    {reset}
+                    {submit}
+                </div>
+            </div>
+            {close}
+        </div>
+    )
 
     return (
-        <BaseDropdown button={button} open={interactive && open} setOpen={setOpen}>
-            <div className="flex flex-col gap-3 px-2 pt-4 pb-2">
-                {filters.map((filter, index) => 
-                    <div key={index} className="grid grid-cols-8 items-center">
-                        {filters.length > 0 && filter.key != 0 && <div className="col-span-1">{join(filter)}</div>}
-                        <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-6" : "col-span-7"}`}>{filterInput(filter, !["==", "!=", "exists", "isNone"].includes(filter.mode))}</div>
-                        <div className="col-span-1 text-center">{remove(filter)}</div>
-                    </div>
-                )}
-                <div className="flex flex-row gap-2 justify-between">
-                    {append}
-                    <div className="flex flex-row gap-2 justify-end">
-                        {reset}
-                        {submit}
-                    </div>
-                </div>
-                {close}
-            </div>
+        <BaseDropdown
+            button={
+                renderMode === "menuItem"
+                ? (
+                    <DropdownMenuItem className="flex items-center gap-2">
+                        {button}
+                        <span>Filter by this column</span>
+                    </DropdownMenuItem>
+                ) : button}
+            open={renderMode === "menuItem" ? undefined : interactive && open}
+            setOpen={renderMode === "menuItem" ? undefined : setOpen}
+        >
+            {filterContent}
         </BaseDropdown>
     );
 }

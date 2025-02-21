@@ -7,7 +7,7 @@ import TimeColumnFilter from "./Time";
 import ImageColumnFilter from "./Images";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
-import { Dispatch, SetStateAction, ForwardedRef, forwardRef } from "react";
+import { Dispatch, SetStateAction } from "react";
 
 /* 
     Supported operands: "==", "!=", "is", "<", ">", "<=", "=>", "in", "not in", "exists" (images only)
@@ -27,10 +27,11 @@ type ColumnFilterProps = {
     setOpen: Dispatch<SetStateAction<boolean>>,
     filterLoading: boolean,
     setFilterLoading: (filterLoading: boolean) => void,
-    setIsFiltered: (isFiltered: boolean) => void
+    setIsFiltered: (isFiltered: boolean) => void,
+    renderMode: "button" | "menuItem"
 }
 
-const ColumnFilter = forwardRef<HTMLButtonElement, ColumnFilterProps>(({
+const ColumnFilter = ({
     interactive,
     column,
     columnFilters,
@@ -42,28 +43,27 @@ const ColumnFilter = forwardRef<HTMLButtonElement, ColumnFilterProps>(({
     setOpen,
     filterLoading,
     setIsFiltered,
-    setFilterLoading
-}, ref) => {
+    setFilterLoading,
+    renderMode
+}: ColumnFilterProps) => {
     
     let filter;
     column = sanitizeId(column);
 
     if (["float", "int"].includes(dataTypes[column])) {
-        filter = <NumericColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} boundaries={boundaries} logs={logs} open={open} setOpen={setOpen} filterLoading={filterLoading} setFilterLoading={setFilterLoading} setIsFiltered={setIsFiltered}/>
+        filter = <NumericColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} boundaries={boundaries} logs={logs} open={open} setOpen={setOpen} filterLoading={filterLoading} setFilterLoading={setFilterLoading} setIsFiltered={setIsFiltered} renderMode={renderMode}/>
     }
     else if (dataTypes[column] === "timestamp") {
-        filter = <TimeColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} logs={logs} open={open} setOpen={setOpen} filterLoading={filterLoading} setFilterLoading={setFilterLoading} setIsFiltered={setIsFiltered}/>
+        filter = <TimeColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} logs={logs} open={open} setOpen={setOpen} filterLoading={filterLoading} setFilterLoading={setFilterLoading} setIsFiltered={setIsFiltered} renderMode={renderMode}/>
     }
     else if (dataTypes[column] === "image") {
-        filter = <ImageColumnFilter ref={ref} interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} logs={logs} filterLoading={filterLoading} setFilterLoading={setFilterLoading} setIsFiltered={setIsFiltered}/>
+        filter = <ImageColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} logs={logs} filterLoading={filterLoading} setFilterLoading={setFilterLoading} setIsFiltered={setIsFiltered} renderMode={renderMode}/>
     }
     else {
-        filter = <StringColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} logs={logs} open={open} setOpen={setOpen} filterLoading={filterLoading} setFilterLoading={setFilterLoading} setIsFiltered={setIsFiltered}/>
+        filter = <StringColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} logs={logs} open={open} setOpen={setOpen} filterLoading={filterLoading} setFilterLoading={setFilterLoading} setIsFiltered={setIsFiltered} renderMode={renderMode}/>
     }
 
     return filter;
-});
-
-ColumnFilter.displayName = "ColumnFilter";
+}
 
 export default ColumnFilter;

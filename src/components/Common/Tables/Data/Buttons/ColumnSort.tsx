@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, forwardRef } from "react";
+import { useEffect, useState } from "react";
 import { Column } from "@tanstack/react-table";
 import { SortDesc, SortAsc, ArrowUpDown, LoaderCircle } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
+import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 
 type ColumnSortProps = {
     interactive?: boolean,
@@ -11,17 +12,19 @@ type ColumnSortProps = {
     data: any[],
     sortLoading: boolean,
     setSortLoading: (sortLoading: boolean) => void,
-    setIsSorted: (isSorted: boolean) => void
+    setIsSorted: (isSorted: boolean) => void,
+    renderMode: "button" | "menuItem"
 }
 
-const ColumnSort = forwardRef<HTMLButtonElement, ColumnSortProps>(({
+const ColumnSort = (({
     interactive,
     column,
     data,
     sortLoading,
     setSortLoading,
-    setIsSorted
-}, ref) => {
+    setIsSorted,
+    renderMode
+}: ColumnSortProps) => {
 
     /* Display loader when data updates */
     const [spinnerColor, setSpinnerColor] = useState("white");
@@ -51,19 +54,18 @@ const ColumnSort = forwardRef<HTMLButtonElement, ColumnSortProps>(({
             setSpinnerColor("white")
         setSortLoading(true)
     }
-    
-    return(
-        <ActionButton 
-            ref={ref}
-            tooltip={tooltip} 
-            icon={icon} 
-            variant={variant} 
-            onClick={onClick} 
-            disabled={!interactive || sortLoading}
-        />
-    );
-});
 
-ColumnSort.displayName = "ColumnSort";
+    return (
+        renderMode === "menuItem" ? (
+            <DropdownMenuItem onClick={onClick} className="flex items-center gap-2 cursor-pointer">
+                <ArrowUpDown className="h-4 w-4"/>
+                <span>Sort descending</span>
+            </DropdownMenuItem>
+        ) : (
+            <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={!interactive || sortLoading}/>
+        )
+    );
+
+});
 
 export default ColumnSort;

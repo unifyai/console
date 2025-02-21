@@ -1,22 +1,23 @@
 "use client";
 
 import { Column, Table } from "@tanstack/react-table";
-import { CircleMinus } from "lucide-react";
+import { CircleMinus, EyeOff } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { updateColumnVisibility } from "@/utils/evals/columnOperations";
-import { forwardRef } from "react";
-
+import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 type ColumnHideProps = {
     column: Column<any, unknown>,
     columnVisibility: { [key: string]: boolean },
-    setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void
+    setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void,
+    renderMode: "button" | "menuItem"
 }
 
-const ColumnHide = forwardRef<HTMLButtonElement, ColumnHideProps>(({
+const ColumnHide = (({
     column,
     columnVisibility,
-    setColumnVisibility
-}, ref) => {
+    setColumnVisibility,
+    renderMode
+}: ColumnHideProps) => {
 
     // Check if column has child columns
     const isParentColumn = column.columnDef.meta?.isParent;
@@ -30,14 +31,16 @@ const ColumnHide = forwardRef<HTMLButtonElement, ColumnHideProps>(({
         setColumnVisibility(newVisibility);
     };
 
-    return <ActionButton 
-        ref={ref}
-        tooltip={isParentColumn ? "Hide All" : "Hide"} 
-        icon={<CircleMinus/>} 
-        onClick={hideColumns}
-    />;
+    return (
+        renderMode === "menuItem" ? (
+            <DropdownMenuItem onClick={hideColumns} className="flex items-center gap-2 cursor-pointer">
+                <EyeOff className="h-4 w-4"/>
+                <span>{isParentColumn ? "Hide all child columns" : "Hide this column"}</span>
+            </DropdownMenuItem>
+        ) : (
+            <ActionButton tooltip={isParentColumn ? "Hide All" : "Hide"} icon={<CircleMinus/>} onClick={hideColumns}/>
+        )
+    );
 });
-
-ColumnHide.displayName = "ColumnHide";
 
 export default ColumnHide;

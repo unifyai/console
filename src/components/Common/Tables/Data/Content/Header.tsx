@@ -26,9 +26,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
+  DropdownMenuItem,
 } from "@/components/UI/dropdown-menu";
 
 // Icon / button
@@ -81,7 +80,7 @@ const DataTableHeader = ({
   setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void,
   grouping: string[],
   setGrouping: (grouping: string[]) => void,
-  ColumnFilters?: (ref: React.RefObject<HTMLButtonElement>, column: Column<any | unknown>, filterLoading: boolean, setIsFiltered: (isFiltered: boolean) => void, setFilterLoading: (filterLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>) => ReactNode,
+  ColumnFilters?: (column: Column<any | unknown>, filterLoading: boolean, setIsFiltered: (isFiltered: boolean) => void, setFilterLoading: (filterLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode,
   ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode,
   ColumnUpdate?: (key: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>) => ReactNode,
   context: string | null,
@@ -168,6 +167,11 @@ const DataTableHeader = ({
   const [isSorted, setIsSorted] = useState(false);
   const [isFiltered, setIsFiltered] = useState(false);
 
+  // Open states for dialogs
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [updateOpen, setUpdateOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
   const showGroupButton = () => {
     return (!isImageColumn && (groupLoading || isGrouped));
   }
@@ -231,18 +235,6 @@ const DataTableHeader = ({
       : isAllTableSelected() ? `var(--primary)` : hovered ? "var(--muted)" : "var(--background)",
   };
 
-  // Add refs for action buttons
-  const sortButtonRef = useRef<HTMLButtonElement>(null);
-  const groupButtonRef = useRef<HTMLButtonElement>(null);
-  const filterButtonRef = useRef<HTMLButtonElement>(null);
-  const contextButtonRef = useRef<HTMLButtonElement>(null);
-  const hideButtonRef = useRef<HTMLButtonElement>(null);
-
-  // Open states for dialogs
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [updateOpen, setUpdateOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-
   // Visible action buttons for active states
   const renderVisibleActions = () => (
     <>
@@ -257,6 +249,7 @@ const DataTableHeader = ({
           groupLoading={groupLoading}
           setGroupLoading={setGroupLoading}
           setIsGrouped={setIsGrouped}
+          renderMode="button"
         />
       )}
       {showSortButton() && (
@@ -266,14 +259,29 @@ const DataTableHeader = ({
           data={data}
           sortLoading={sortLoading}
           setSortLoading={setSortLoading}
-          setIsSorted={setIsSorted}               
+          setIsSorted={setIsSorted}
+          renderMode="button"             
         />
       )}
       {showFilterButton() && (
-        ColumnFilters && ColumnFilters(filterButtonRef, header.column, filterLoading, setIsFiltered, setFilterLoading, filterOpen, setFilterOpen)
+        ColumnFilters && ColumnFilters(
+          header.column,
+          filterLoading,
+          setIsFiltered,
+          setFilterLoading,
+          filterOpen,
+          setFilterOpen,
+          "button"
+        )
       )}
       {showUpdateButton() && (
-        ColumnUpdate && ColumnUpdate(header.column.id, updateLoading, setUpdateLoading, updateOpen, setUpdateOpen)
+        ColumnUpdate && ColumnUpdate(
+          header.column.id,
+          updateLoading,
+          setUpdateLoading,
+          updateOpen,
+          setUpdateOpen
+      )
       )}
     </>
   );
@@ -340,37 +348,39 @@ const DataTableHeader = ({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="min-w-[8rem]">
                         <DropdownMenuGroup>
-                          {!isGrouped && (
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                groupButtonRef.current?.click();
-                              }}
-                              className="flex items-center gap-2"
-                            >
-                              <Group className="h-4 w-4" />
-                              <span>Group all child columns</span>
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              contextButtonRef.current?.click();
-                            }}
-                            className="flex items-center gap-2"
-                          >
-                            <FolderTree className="h-4 w-4" />
-                            <span>Set as context</span>
+                          <DropdownMenuItem>
+                            {!isGrouped && (
+                              <ColumnGroupBy
+                                interactive={interactive}
+                                auto_update={auto_update}
+                                column={header.column}
+                                grouping={grouping}
+                                setGrouping={setGrouping}
+                                data={data}
+                                groupLoading={groupLoading}
+                                setGroupLoading={setGroupLoading}
+                                setIsGrouped={setIsGrouped}
+                                renderMode="menuItem"
+                              />
+                            )}
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              hideButtonRef.current?.click();
-                            }}
-                            className="flex items-center gap-2"
-                          >
-                            <EyeOff className="h-4 w-4" />
-                            <span>Hide all child columns</span>
+                          <DropdownMenuItem>
+                            <ColumnContext
+                              interactive={interactive}
+                              column={header.column}
+                              context={context}
+                              setContext={setContext}
+                              data={data}
+                              renderMode="menuItem"
+                            />
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <ColumnHide
+                              column={header.column}
+                              columnVisibility={columnVisibility}
+                              setColumnVisibility={setColumnVisibility}
+                              renderMode="menuItem"
+                            />
                           </DropdownMenuItem>
                         </DropdownMenuGroup>
                       </DropdownMenuContent>
@@ -407,7 +417,6 @@ const DataTableHeader = ({
                             icon={<MoreHorizontal className="h-4 w-4" />}
                             variant="ghost"
                             size="icon"
-                            className="p-0"
                             onClick={(e) => {
                               e.stopPropagation();
                               setDropdownOpen(true);
@@ -422,52 +431,55 @@ const DataTableHeader = ({
                           onPointerOver={(e) => e.stopPropagation()}
                         >
                           <DropdownMenuGroup>
-                            {!isImageColumn && !isGrouped && (
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  groupButtonRef.current?.click();
-                                }}
-                                className="flex items-center gap-2"
-                              >
-                                <Group className="h-4 w-4" />
-                                <span>Group by this column</span>
-                              </DropdownMenuItem>
-                            )}
-                            {!isSorted && (
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  sortButtonRef.current?.click();
-                                }}
-                                className="flex items-center gap-2"
-                              >
-                                <ArrowUpDown className="h-4 w-4" />
-                                <span>Sort descending</span>
-                              </DropdownMenuItem>
-                            )}
-                            {!isImageColumn && !isFiltered && ColumnFilters && (
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setFilterOpen(true);
-                                  filterButtonRef.current?.click();
-                                }}
-                                className="flex items-center gap-2"
-                              >
-                                <Filter className="h-4 w-4" />
-                                <span>Filter by this column</span>
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                hideButtonRef.current?.click();
-                              }}
-                              className="flex items-center gap-2"
-                            >
-                              <EyeOff className="h-4 w-4" />
-                              <span>Hide this column</span>
+                            <DropdownMenuItem>
+                              {!isImageColumn && !isGrouped && (
+                                <ColumnGroupBy
+                                  interactive={interactive}
+                                  auto_update={auto_update}
+                                  column={header.column}
+                                  grouping={grouping}
+                                  setGrouping={setGrouping}
+                                  data={data}
+                                  groupLoading={groupLoading}
+                                  setGroupLoading={setGroupLoading}
+                                  setIsGrouped={setIsGrouped}
+                                  renderMode="menuItem"
+                                />
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              {!isSorted && (
+                                <ColumnSort
+                                  interactive={interactive}
+                                  column={header.column}
+                                  data={data}
+                                  sortLoading={sortLoading}
+                                  setSortLoading={setSortLoading}
+                                  setIsSorted={setIsSorted}
+                                  renderMode="menuItem"
+                                />
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              {!isImageColumn && !isFiltered && ColumnFilters && (
+                                ColumnFilters(
+                                  header.column,
+                                  filterLoading,
+                                  setIsFiltered,
+                                  setFilterLoading,
+                                  filterOpen,
+                                  setFilterOpen,
+                                  "menuItem",
+                                )
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <ColumnHide
+                                column={header.column}
+                                columnVisibility={columnVisibility}
+                                setColumnVisibility={setColumnVisibility}
+                                renderMode="menuItem"
+                              />
                             </DropdownMenuItem>
                           </DropdownMenuGroup>
                         </DropdownMenuContent>
@@ -482,71 +494,71 @@ const DataTableHeader = ({
         </div>
 
         {/* If user has used group/sort/filter => row of icons */}
-        {!header.isPlaceholder && isNotUtilColumn && 
+        {!header.isPlaceholder && isNotUtilColumn && hasActiveActions && (
           <div className="flex items-center justify-left gap-1">
             {renderVisibleActions()}
           </div>
-        }
+        )}
 
         {/* Hidden action components for group, sort, filter, context, hide (need to be rendered on the DOM even if hidden in order to be able to forward refs) */}
-        <div className={`${
-          hasActiveActions
-          ? "hidden"
-          : Object.values(columnActionsApplied[header.column.columnDef.meta?.renderedDepth ?? 0] || {}).some(Boolean)
-          ? "invisible"
-          : "hidden"
-        }`}>
-          {!isImageColumn && (
-            <ColumnGroupBy
-              ref={groupButtonRef}
+        {(!hasActiveActions) && (
+          <div className={`${
+            Object.values(columnActionsApplied[header.column.columnDef.meta?.renderedDepth ?? 0] || {}).some(Boolean)
+            ? "invisible"
+            : "hidden"
+          }`}>
+            {!isImageColumn && (
+              <ColumnGroupBy
+                interactive={interactive}
+                auto_update={auto_update}
+                column={header.column}
+                grouping={grouping}
+                setGrouping={setGrouping}
+                data={data}
+                groupLoading={groupLoading}
+                setGroupLoading={setGroupLoading}
+                setIsGrouped={setIsGrouped}
+                renderMode="button"
+              />
+            )}
+            {!isParentColumn && (
+              <ColumnSort
+                interactive={interactive}
+                column={header.column}
+                data={data}
+                sortLoading={sortLoading}
+                setSortLoading={setSortLoading}
+                setIsSorted={setIsSorted}
+                renderMode="button"
+              />
+            )}
+            {!isParentColumn && ColumnFilters && (
+              ColumnFilters(
+                header.column,
+                filterLoading,
+                setIsFiltered,
+                setFilterLoading,
+                filterOpen,
+                setFilterOpen,
+                "button"
+              )
+            )}
+            {isParentColumn && <ColumnContext
               interactive={interactive}
-              auto_update={auto_update}
               column={header.column}
-              grouping={grouping}
-              setGrouping={setGrouping}
+              context={context}
+              setContext={setContext}
               data={data}
-              groupLoading={groupLoading}
-              setGroupLoading={setGroupLoading}
-              setIsGrouped={setIsGrouped}
-            />
-          )}
-          {!isParentColumn && (
-            <ColumnSort
-              ref={sortButtonRef}
-              interactive={interactive}
+              renderMode="button"
+            />}
+            <ColumnHide
               column={header.column}
-              data={data}
-              sortLoading={sortLoading}
-              setSortLoading={setSortLoading}
-              setIsSorted={setIsSorted}
+              columnVisibility={columnVisibility}
+              setColumnVisibility={setColumnVisibility}
+              renderMode="button"
             />
-          )}
-          {!isParentColumn && ColumnFilters && (
-            ColumnFilters(
-              filterButtonRef,
-              header.column,
-              filterLoading,
-              setIsFiltered,
-              setFilterLoading,
-              filterOpen,
-              setFilterOpen
-            )
-          )}
-          {isParentColumn && <ColumnContext
-            ref={contextButtonRef}
-            interactive={interactive}
-            column={header.column}
-            context={context}
-            setContext={setContext}
-            data={data}
-          />}
-          <ColumnHide
-            ref={hideButtonRef}
-            column={header.column}
-            columnVisibility={columnVisibility}
-            setColumnVisibility={setColumnVisibility}
-          />
-        </div>
+          </div>
+        )}
 
         {/* Right edge components stack */}
         <div className="absolute -right-2 top-0 bottom-0" style={{ width: '15px', height: '100%' }}>
