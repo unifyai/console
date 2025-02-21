@@ -261,15 +261,15 @@ export function isSpan(obj: any): obj is Span {
 
 /**
  * Checks if a value is a single Span or an array of Spans (i.e., a trace).
- * Returns true if the value is either a single Span or an array of Spans,
+ * Returns true if the value is either a single Span or a non-empty array of Spans,
  * and false otherwise.
  */
 export function isTrace(x: any): x is Span | Span[] {
   if (!x) return false;
   // If it's just one Span
   if (isSpan(x)) return true;
-  // If it's an array of spans
-  if (Array.isArray(x) && x.every(item => isSpan(item))) {
+  // If it's a non-empty array of spans
+  if (Array.isArray(x) && x.length > 0 && x.every(item => isSpan(item))) {
     return true;
   }
   return false;
