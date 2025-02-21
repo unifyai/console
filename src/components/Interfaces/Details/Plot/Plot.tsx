@@ -43,7 +43,6 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
     const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
     const margins = { top: 35, right: 100, bottom: 65, left: 60 } // Margin on the sides
     const axisPadding = 20; // Extra padding between axes borders and plot borders
-    const placeholderTextRef = useRef(null);
 
     // Plot settings
     let plotType = item.plot_type;
@@ -69,14 +68,16 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
 
     // Draw plot
     useEffect(() => {
-        // Initialize SVG container
+        // Initialize SVG, container and placholder text
+        const container = d3.select(containerRef.current)
+        const placeholder = container.select(".placeholderText")
         const svg = d3.select(svgRef.current)
             .attr("width", dimensions.width)
             .attr("height", dimensions.height)
             .attr("viewBox", [0, 0, dimensions.width, dimensions.height]);
 
         // Update clipbox dimensions
-        d3.select("#clip-rect")
+        svg.select("#clip-rect")
             .attr("x", margins.left)
             .attr("y", margins.top)
             .attr("width", dimensions.width - margins.left - margins.right)
@@ -91,10 +92,11 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
         // Draw selected plot type 
         if (plotType === "Line Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                d3.select(placeholderTextRef.current).text("");
+                placeholder.text("");
                 const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, updateItem(item, "plot_scale_x"), setLogScaleXEnabled)
                 const adjustedScaleY = checkLogScalability(logs, fields, yTable,selectedYAxisProperty, scaleY, updateItem(item, "plot_scale_y"), setLogScaleYEnabled)
                 drawLineChart(
+                    container,
                     svg,
                     adjustedScaleX,
                     adjustedScaleY,
@@ -110,8 +112,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     fields
                 );
             } else {
-                clearCanvas(svgRef)
-                d3.select(placeholderTextRef.current)
+                clearCanvas(svgRef, containerRef)
+                placeholder
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
@@ -123,8 +125,9 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
         
         else if (plotType === "Bar Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                d3.select(placeholderTextRef.current).text("");
+                placeholder.text("");
                 drawBarChart(
+                    container,
                     svg,
                     "linear",
                     "linear",
@@ -140,8 +143,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     fields
                 );
             } else {
-                clearCanvas(svgRef)
-                d3.select(placeholderTextRef.current)
+                clearCanvas(svgRef, containerRef)
+                placeholder
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
@@ -153,8 +156,9 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
         
         else if (plotType === "Histogram") {
             if (logs && selectedXAxisProperty) {
-                d3.select(placeholderTextRef.current).text("");    
+                placeholder.text("");    
                 drawHistogram(
+                    container,
                     svg, 
                     "linear",
                     "linear",
@@ -171,8 +175,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     fields
                 )
             } else {
-                clearCanvas(svgRef)
-                d3.select(placeholderTextRef.current)
+                clearCanvas(svgRef, containerRef)
+                placeholder
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
@@ -184,10 +188,11 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
         
         else {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                d3.select(placeholderTextRef.current).text("");
+                placeholder.text("");
                 const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, updateItem(item, "plot_scale_x"), setLogScaleXEnabled)
                 const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, updateItem(item, "plot_scale_y"), setLogScaleYEnabled)
                 drawScatterPlot(
+                    container,
                     svg,
                     adjustedScaleX,
                     adjustedScaleY,
@@ -204,8 +209,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     fields
                 );
             } else {
-                clearCanvas(svgRef)
-                d3.select(placeholderTextRef.current)
+                clearCanvas(svgRef, containerRef)
+                placeholder
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
@@ -274,6 +279,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                 <PlotType
                     interactive={interactive}
                     svgRef={svgRef}
+                    containerRef={containerRef}
                     plotType={plotType}
                     setPlotType={updateItem(item, "plot_type")}
                     fields={fields}
@@ -296,6 +302,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     <>
                         <PlotReset
                             svgRef={svgRef}
+                            containerRef={containerRef}
                             setSelectedXAxisProperty={updateItem(item, "x_axis")}
                             setSelectedYAxisProperty={updateItem(item, "y_axis")}
                             setGroupByProperty={updateItem(item, "plot_group_by")}
@@ -336,7 +343,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     </clipPath>
                 </defs>
                 <g className="plotData" clipPath="url(#clip)"/>
-                <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="placeholderText" ref={placeholderTextRef} />
+                <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="placeholderText"/>
                 <line className="bottomLine" stroke="var(--foreground)" stroke-width="0.5"/>
                 <line className="leftLine" stroke="var(--foreground)" stroke-width="0.5"/>
                 <line className="topLine" stroke="var(--foreground)" stroke-width="0.5"/>

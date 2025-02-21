@@ -27,7 +27,6 @@ const LogsPlot = ({ logs, fields}: {
     const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
     const margins = {top: 30, right: 100, bottom: 75, left: 60} // Margin on the sides
     const axisPadding = 20; // Extra padding between axes borders and plot borders
-    const placeholderTextRef = useRef(null);
 
     // Plot settings
     let [plotType, setPlotType] = useQueryState("plot_type", { shallow: false });
@@ -50,7 +49,9 @@ const LogsPlot = ({ logs, fields}: {
 
     // Draw plot
     useEffect (() => {
-        // Initialize SVG container
+        // Initialize SVG, container and placholder text
+        const container = d3.select(containerRef.current)
+        const placeholder = container.select(".placeholderText")
         const svg = d3.select(svgRef.current)
             .attr("width", dimensions.width)
             .attr("height", dimensions.height)
@@ -72,10 +73,11 @@ const LogsPlot = ({ logs, fields}: {
         // Draw selected plot type 
         if (plotType === "Line Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                d3.select(placeholderTextRef.current).text("");
+                placeholder.text("");
                 const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
                 const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawLineChart(
+                    container,
                     svg, 
                     adjustedScaleX,
                     adjustedScaleY,
@@ -91,7 +93,7 @@ const LogsPlot = ({ logs, fields}: {
                     fields
                 );
             } else {
-                d3.select(placeholderTextRef.current)
+                placeholder
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
@@ -103,10 +105,11 @@ const LogsPlot = ({ logs, fields}: {
 
         else if (plotType  === "Bar Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                d3.select(placeholderTextRef.current).text("");
+                placeholder.text("");
                 const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
                 const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawBarChart(
+                    container,
                     svg, 
                     adjustedScaleX,
                     adjustedScaleY,
@@ -122,7 +125,7 @@ const LogsPlot = ({ logs, fields}: {
                     fields
                 );
             } else {
-                d3.select(placeholderTextRef.current)
+                placeholder
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
@@ -134,8 +137,9 @@ const LogsPlot = ({ logs, fields}: {
         
         else if (plotType === "Histogram") {
             if (logs && selectedXAxisProperty) {
-                d3.select(placeholderTextRef.current).text("");
+                placeholder.text("");
                 drawHistogram(
+                    container,
                     svg, 
                     scaleX,
                     scaleY,
@@ -152,7 +156,7 @@ const LogsPlot = ({ logs, fields}: {
                     fields,
                 )
             } else {
-                d3.select(placeholderTextRef.current)
+                placeholder
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
@@ -164,10 +168,11 @@ const LogsPlot = ({ logs, fields}: {
 
         else {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                d3.select(placeholderTextRef.current).text("");
+                placeholder.text("");
                 const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
                 const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawScatterPlot(
+                    container,
                     svg, 
                     adjustedScaleX,
                     adjustedScaleY,
@@ -184,7 +189,7 @@ const LogsPlot = ({ logs, fields}: {
                     fields
                 );
             } else {
-                d3.select(placeholderTextRef.current)
+                placeholder
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
@@ -274,7 +279,7 @@ const LogsPlot = ({ logs, fields}: {
                 </clipPath>
             </defs>
             <g className="plotData" clipPath="url(#clip)"/>
-            <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="placeholderText" ref={placeholderTextRef}/>
+            <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="placeholderText"/>
             <line className="bottomLine" stroke="var(--foreground)" stroke-width="0.5"/>
             <line className="leftLine" stroke="var(--foreground)" stroke-width="0.5"/>
             <line className="topLine" stroke="var(--foreground)" stroke-width="0.5"/>

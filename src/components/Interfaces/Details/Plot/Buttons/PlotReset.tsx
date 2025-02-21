@@ -5,8 +5,9 @@ import { X } from "lucide-react";
 import * as d3 from "d3";
 import { clearCanvas } from "@/utils/evals/plot";
 
-const PlotReset = ({svgRef, setSelectedXAxisProperty, setSelectedYAxisProperty, setGroupByProperty}: {
+const PlotReset = ({svgRef, containerRef, setSelectedXAxisProperty, setSelectedYAxisProperty, setGroupByProperty}: {
     svgRef: any,
+    containerRef: any,
     setSelectedXAxisProperty: (x: string | undefined) => void,
     setSelectedYAxisProperty: (x: string | undefined) => void,
     setGroupByProperty: (x: string | undefined) => void
@@ -15,7 +16,7 @@ const PlotReset = ({svgRef, setSelectedXAxisProperty, setSelectedYAxisProperty, 
         setSelectedXAxisProperty(undefined);
         setSelectedYAxisProperty(undefined);
         setGroupByProperty(undefined);
-        clearCanvas(svgRef)
+        clearCanvas(svgRef, containerRef)
     };
     return (
         <SettingButton

@@ -16,14 +16,16 @@ const primary = getComputedStyle(document.documentElement).getPropertyValue('--p
  * Clearing the canvas
 */
 
-export function clearCanvas (svgRef: any) {
+export function clearCanvas (svgRef: any, containerRef: any) {
     const svg = d3.select(svgRef.current)
     const g = svg.select(".plotData")
     const xAxis = svg.select(".xAxis")
     const yAxis = svg.select(".yAxis")
     const xZero = svg.select(".x-zero")
     const yZero = svg.select(".y-zero")
-    const groupingKey = d3.select(".groupingKey")
+
+    const container = d3.select(containerRef.current)
+    const groupingKey = container.select(".groupingKey")
 
     g.selectAll("*").remove();
     xAxis.selectAll("*").remove();
@@ -308,6 +310,7 @@ const getValue = (fields: LogFieldsResponseProps, axisProperty: string, log: Log
  * Histogram: Plot frequency per x-axis value for given bin size. Accepts floats, ints or timestamps. 
 */
 export const drawBarChart = (
+    container: d3.Selection<null, unknown, null, undefined>,
     svg: d3.Selection<null, unknown, null, undefined>,
     scaleX: string,
     scaleY: string,
@@ -332,7 +335,7 @@ export const drawBarChart = (
     g.selectAll("text.correlation").remove();
     g.selectAll("text.correlation-group").remove();
     g.selectAll("path.best-fit").remove()
-    d3.select(".groupingKey").style("opacity", 0)
+    container.select(".groupingKey").style("opacity", 0)
 
     // Prepare data
     const properties = Object.entries(fields).map(([name]) => name);
@@ -426,7 +429,7 @@ export const drawBarChart = (
         );
 
     // Hover events
-    const tooltip = d3.select(".plotTooltip").style("opacity", 0);
+    const tooltip = container.select(".plotTooltip").style("opacity", 0);
     const handleMouseOver = (event: any, d: DataLabel) => {
         const currentKey = d[0];
         tooltip.html(tooltipTemplate({
@@ -457,6 +460,7 @@ export const drawBarChart = (
 };
 
 export const drawLineChart = (
+  container: d3.Selection<null, unknown, null, undefined>,
   svg: d3.Selection<null, unknown, null, undefined>,
   scaleX: string,
   scaleY: string,
@@ -560,8 +564,8 @@ export const drawLineChart = (
     drawAxes("Line Chart", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY, xType);
 
     // Add grouping key and hide tooltip
-    const key = d3.select(".groupingKey").style("opacity", 0)
-    const tooltip = d3.select(".plotTooltip").style("opacity", 0)
+    const key = container.select(".groupingKey").style("opacity", 0)
+    const tooltip = container.select(".plotTooltip").style("opacity", 0)
 
     // Plot lines.
     // If grouping, plot one line per group, each with their color, and attach the grouping key.
@@ -640,6 +644,7 @@ export const drawLineChart = (
 };
 
 export const drawScatterPlot = (
+  container: d3.Selection<null, unknown, null, undefined>,
   svg: d3.Selection<null, unknown, null, undefined>,
   scaleX: string,
   scaleY: string,
@@ -713,8 +718,8 @@ export const drawScatterPlot = (
     drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY);
 
     // Add tooltip and grouping key
-    const tooltip = d3.select(".plotTooltip").style("opacity", 0)
-    const key = d3.select(".groupingKey").style("opacity", 0)
+    const tooltip = container.select(".plotTooltip").style("opacity", 0)
+    const key = container.select(".groupingKey").style("opacity", 0)
 
     // Add data points
     // If grouping is set:
@@ -1021,6 +1026,7 @@ export const drawScatterPlot = (
 };
 
 export const drawHistogram = (
+    container: d3.Selection<null, unknown, null, undefined>,
     svg: d3.Selection<null, unknown, null, undefined>,
     scaleX: string,
     scaleY: string,
@@ -1046,7 +1052,7 @@ export const drawHistogram = (
     g.selectAll("text.correlation").remove();
     g.selectAll("text.correlation-group").remove();
     g.selectAll("path.best-fit").remove();
-    d3.select(".groupingKey").style("opacity", 0)
+    container.select(".groupingKey").style("opacity", 0)
 
     // Prepare data
     let data : number[] = [];
@@ -1130,7 +1136,7 @@ export const drawHistogram = (
         .remove();
 
     // Add tooltip
-    const tooltip = d3.select(".plotTooltip").style("opacity", 0)
+    const tooltip = container.select(".plotTooltip").style("opacity", 0)
 
     // Add mouse event handlers
     function hoverOnHist(event: any, bin: d3.Bin<number, number>) {

@@ -7,9 +7,10 @@ import { ChevronDown, ChartScatter, ChartLine, ChartColumn, ChartColumnBig } fro
 import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { clearCanvas } from "@/utils/evals/plot";
 
-const PlotType = ({ interactive, svgRef, plotType, setPlotType, fields, selectedXAxisProperty, setSelectedXAxisProperty, selectedYAxisProperty, setSelectedYAxisProperty}: {
+const PlotType = ({ interactive, svgRef, containerRef, plotType, setPlotType, fields, selectedXAxisProperty, setSelectedXAxisProperty, selectedYAxisProperty, setSelectedYAxisProperty}: {
     interactive: boolean,
     svgRef: any,
+    containerRef: any,
     plotType: string, 
     setPlotType: (x: string | undefined) => void,
     fields: LogFieldsResponseProps,
@@ -31,8 +32,8 @@ const PlotType = ({ interactive, svgRef, plotType, setPlotType, fields, selected
         setPlotType(type)
         const yAxis = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : undefined;
         const xAxis = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : undefined;
-        if (type === "Histogram" && !xAxis) clearCanvas(svgRef)
-        if (type != "Histogram" && [xAxis, yAxis].some(v => !v)) clearCanvas(svgRef) 
+        if (type === "Histogram" && !xAxis) clearCanvas(svgRef, containerRef)
+        if (type != "Histogram" && [xAxis, yAxis].some(v => !v)) clearCanvas(svgRef, containerRef) 
         setSelectedXAxisProperty(xAxis)
         setSelectedYAxisProperty(yAxis)
     } 
