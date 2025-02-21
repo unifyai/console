@@ -216,7 +216,7 @@ const CardGrid = ({
                 setInterface(value || null);
             }
         }} className="w-full tutorial-details-panel">
-            <div className="sticky top-0 z-10 bg-background p-2 flex justify-between">
+            <div className="sticky top-0 z-10 bg-background p-2 flex justify-between w-full md:overflow-none overflow-x-auto">
                 {/* Project dropdown and add/delete buttons */}
                 <ProjectButtons
                     project={project}
@@ -318,7 +318,7 @@ const CardGrid = ({
                                 setPending(false);
                         }}
                         className="layout interactive-grid flex-1"
-                        cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+                        cols={{ lg: 12, md: 12, sm: 12, xs: 10, xxs: 8 }}
                         rowHeight={100}
                         margin={[0, 0]}
                         containerPadding={[0, 0]}

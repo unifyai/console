@@ -36,8 +36,8 @@ const AddTile = ({
                         y: (items.length * 2) / 12,
                         w: 4,
                         h: 4,
-                        minW: 4,
-                        minH: 4,
+                        minW: undefined,
+                        minH: undefined,
                         tab: undefined,
                         visible: true,
                     }

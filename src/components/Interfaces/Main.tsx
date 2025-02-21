@@ -52,6 +52,8 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
             ...currentInterface,
             items: currentInterface?.items.map(item => ({
                 ...item,
+                minW: undefined,
+                minH: undefined,
                 context: currentInterface?.context || item.context,
                 column_context: currentInterface?.column_context || item.column_context
             }))
