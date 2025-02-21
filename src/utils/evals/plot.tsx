@@ -177,7 +177,7 @@ const keyTemplate = (keys: GroupingColors) => {
     ${keys.map((entry, index) => `
     <div id=${entry.key} class="key flex flex-row gap-2 items-center">
         <div class="rounded-full h-2 w-2" style="background-color: ${entry.color}; color: ${entry.color}"></div>
-        <p class="text-xs text-foreground">${entry.key.split(".").length > 1 ? entry.key.split(".")[1].slice(0, 7) : entry.key}</p>
+        <p class="text-xs text-foreground">${entry.key.toString().slice(0, 10)}</p>
     </div>
     `).join("\n")}`)
 }
