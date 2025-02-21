@@ -1,11 +1,11 @@
-import { LogsResponseProps, GroupedLogProps, LogProps, LogFieldsResponseProps } from "../../types/evals/logs";
+import { LogsResponseProps, GroupedLogProps, LogProps, LogFieldsResponseProps, GroupedLogPropsRaw } from "../../types/evals/logs";
 
 import _ from "lodash";
 import { formatNumber } from "../formatNumber";
 import { processContext } from "./columnOperations";
 import { LogsActions, TileProps } from "@/types/evals/grid";
 import { Row } from "@tanstack/react-table";
-import { maybeConvertRawToGroupedLogs } from "./grouping";
+import { getGroupingFilters, maybeConvertRawToGroupedLogs } from "./grouping";
 
 /* 
     Convert object / string inputs to their length value and return the value of numeric inputs. 
@@ -160,6 +160,8 @@ export const getLogsDetails = async (
   context: string | null,
   project: string | null,
   filterExpression: string | null,
+  groupingExpression: string | null,
+  metric: string | undefined,
   sorting: string | null,
   hiddenColumns: string | undefined,
   logsActions: LogsActions
@@ -168,6 +170,30 @@ export const getLogsDetails = async (
   const { entriesProperties, paramsProperties, logs, params } = extractLogsData(
     logsData, fields, context, sorting, hiddenColumns
   );
+
+  let groupedMetrics: {[key: string]: {[key: string]: number | string}} = {};
+  if (groupingExpression) {
+    const dataTypes = fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type])) : {}
+    const allColumns = [...paramsProperties, ...entriesProperties];
+    Object.keys((logsData.logs as GroupedLogPropsRaw)[groupingExpression] || {}).filter(
+      key => !["count", "group_count"].includes(key) && Boolean(key)
+    ).forEach(async (groupingValue) => {
+      const groupingColumnId = (groupingExpression as string).split(",")[0];
+      const metric_ = metric ?? "mean";
+      const { updatedFilterExpression } = getGroupingFilters(
+        filterExpression, groupingColumnId, groupingValue, "", dataTypes, fields
+      );
+      const metrics = await Promise.all(allColumns.map(async (key) => await logsActions.getMetrics(
+          project!,
+          updatedFilterExpression,
+          metric_,
+          key.replace("Entries/", "").replace("Parameters/", "")
+      )));
+      groupedMetrics[groupingValue] = metrics.map(
+        (metric, idx) => ({ [allColumns[idx]]: metric })).reduce((acc, curr) => ({ ...acc, ...curr }), {}
+      );
+    });
+  }
 
   /* Handle column metrics */
   // Getting metrics for filtered logs, and min / max values for full logs.
@@ -188,6 +214,7 @@ export const getLogsDetails = async (
     logs,
     params,
     metrics,
+    groupedMetrics,
     boundaries
   }
 }

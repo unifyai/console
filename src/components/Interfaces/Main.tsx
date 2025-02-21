@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { defaultNewCounter } from "@/constants/logs";
 import { defaultItems } from "@/constants/logs";
+import { getGroupingFilters } from "@/utils/evals/grouping";
 
 const Main = async ({ interface_, project_, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, interfaceActions }: {
     interface_: string | undefined,
@@ -291,8 +292,8 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
             const sorting = item.sorting ?? null
             const hiddenColumns = item.hidden_columns;
 
-            const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
-                item, logsData, fields[idx], columnContext, project, filterExpressions[idx], sorting, undefined, logsActions
+            const { entriesProperties, paramsProperties, logs, params, metrics, groupedMetrics, boundaries } = await getLogsDetails(
+                item, logsData, fields[idx], columnContext, project, filterExpressions[idx], groupingExpressions[idx], item.metric, sorting, undefined, logsActions
             )
 
             // Append available fields to the table attributes
@@ -323,6 +324,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                     logs,
                     params,
                     metrics,
+                    groupedMetrics,
                     boundaries,
                 }
             }

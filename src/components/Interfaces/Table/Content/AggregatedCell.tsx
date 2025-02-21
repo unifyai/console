@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 import Tooltip from "@/components/Common/Misc/Tooltip";
 
 import { LogProps, GroupedLogProps } from "@/types/evals/logs";
@@ -9,23 +7,19 @@ import { LogProps, GroupedLogProps } from "@/types/evals/logs";
 import { Cell } from "@tanstack/react-table";
 
 import { Badge } from "@/components/UI/badge";
+import { useEffect, useState } from "react";
 
 const AggregatedCell = ({cell, metric, getMetric}: {
   cell: Cell<LogProps | GroupedLogProps, unknown>, 
   metric: string,
-  getMetric: (key: string, metric: string) => Promise<number | string>
+  getMetric: (key: string) => number | string | undefined
 }) => {
-    const [statistic, setStatistic] = useState<number | string>("");
     const columnID = cell.column.columnDef.id!;
     const metricTooltip = `${metric} ${["dict", "list", "tuple", "str"].includes(cell.column.columnDef.meta?.dataType!) ? "length" : "value"}`;
     const isNotUtilColumn = cell.column.columnDef.meta?.columnType !== "util";
 
     // Handle multi-level grouping
-    useEffect(() => {
-      getMetric(columnID, metric).then((value) => {
-        setStatistic(typeof value === "number" ? value.toFixed(2) : value.toString());
-      });
-    }, [metric]);
+    const statistic = getMetric(columnID);
 
     return (
       <div className="h-[25px] overflow-hidden text-center truncate ...">

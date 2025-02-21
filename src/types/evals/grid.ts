@@ -57,6 +57,7 @@ export interface TableDataItem {
     logs: LogProps[] | GroupedLogProps[],
     params: LogItemProps,
     metrics: { [key: string]: number },
+    groupedMetrics: { [key: string]: { [key: string]: string |number } },
     boundaries: { minimums: { [key: string]: number }, maximums: { [key: string]: number } }
 }
 

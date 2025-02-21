@@ -516,17 +516,12 @@ const LogsTable = ({
                     <AggregatedCell
                       cell={cell}
                       metric={metric}
-                      getMetric={async (key: string, metric: string) => {
-                        // Generate the current ID for the expanding row
-                        const groupingColumnId = row.groupingColumnId;
+                      getMetric={(key: string) => {
+                        const groupedMetrics = tableDataItem_.groupedMetrics;
+                        const newKey = key.replace("Entries/", "").replace("Parameters/", "");
                         const groupingValue = row.getValue(key) as string;
-                        const parentId = row.original.id.split('>').slice(0, -1).join('>') as string;
-
-                        const { updatedFilterExpression } = getGroupingFilters(
-                          filterExpression, groupingColumnId, groupingValue, parentId, dataTypes, fields
-                        );
-
-                        return await logsActions.getMetrics(project!, updatedFilterExpression, metric, key);
+                        const value = groupedMetrics[groupingValue] ? groupedMetrics[groupingValue][newKey] : undefined;
+                        return typeof value === "number" ? value.toFixed(2) : value?.toString() ?? "";
                       }}
                     />
                   )}
