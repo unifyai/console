@@ -78,7 +78,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
         setIsUpdatingLogs
     );
 
-    const [columnActionsApplied, setColumnActionsApplied] = useState<{ [key: number]: boolean }>({});
+    const [columnActionsApplied, setColumnActionsApplied] = useState<{ [depth: number]: { [columnId: string]: boolean } }>({});
 
     // Effect to handle data updates
     useEffect(() => {
@@ -209,8 +209,8 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                 columnPinning={state.columnPinning}
                                                 pinningState={state.pinningState}
                                                 setPinningState={setState.setPinningState}
-                                                columnActionsApplied_={columnActionsApplied}
-                                                setColumnActionsApplied_={setColumnActionsApplied}
+                                                columnActionsApplied={columnActionsApplied}
+                                                setColumnActionsApplied={setColumnActionsApplied}
                                             />
                                         ))}
                                     </SortableContext>

@@ -438,7 +438,7 @@ const LogsTable = ({
                         );
                       }}
                       boundaries={boundaries}
-                      columnFilters={searchParamToFilters(logsFilters, item.context)}
+                      columnFilters={searchParamToFilters(logsFilters, item.column_context)}
                       column={column.id}
                       dataTypes={dataTypes}
                       logs={logs}

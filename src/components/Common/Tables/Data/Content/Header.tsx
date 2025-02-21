@@ -61,8 +61,8 @@ const DataTableHeader = ({
   pinningState,
   setPinningState,
   children,
-  columnActionsApplied_,
-  setColumnActionsApplied_
+  columnActionsApplied,
+  setColumnActionsApplied
 }: {
   interactive?: boolean,
   auto_update?: boolean,
@@ -93,8 +93,8 @@ const DataTableHeader = ({
   pinningState: PinningColumnState,
   setPinningState: (state: PinningColumnState) => void,
   children?: ReactNode,
-  columnActionsApplied_: { [key: number]: boolean },
-  setColumnActionsApplied_: Dispatch<SetStateAction<{ [key: number]: boolean; }>>
+  columnActionsApplied: { [depth: number]: { [columnId: string]: boolean } },
+  setColumnActionsApplied: Dispatch<SetStateAction<{ [depth: number]: { [columnId: string]: boolean } }>>
 }) => {
 
   const { attributes, listeners, setNodeRef, isDragging, transform } = useSortable({
@@ -184,20 +184,22 @@ const DataTableHeader = ({
     return (!isParentColumn && isDerivedColumn && updateLoading);
   }
 
-  const [columnActionsApplied, setColumnActionsApplied] = useState(columnActionsApplied_);
-  const [localColumnActionsApplied, setLocalColumnActionsApplied] = useState(false);
+  const hasActiveActions = showGroupButton() || showSortButton() || showFilterButton() || showUpdateButton();
 
   useEffect(() => {
-    setLocalColumnActionsApplied(showGroupButton() || showSortButton() || showFilterButton() || showUpdateButton());
-    setColumnActionsApplied((prev: { [key: number]: boolean }) => ({
-      ...prev,
-      [header.column.columnDef.meta?.renderedDepth ?? 0]: (showGroupButton() || showSortButton() || showFilterButton() || showUpdateButton()),
-    }));
-    setColumnActionsApplied_((prev: { [key: number]: boolean }) => ({
-      ...prev,
-      [header.column.columnDef.meta?.renderedDepth ?? 0]: (showGroupButton() || showSortButton() || showFilterButton() || showUpdateButton()),
-    }));
-  }, [groupLoading, isGrouped, sortLoading, isSorted, filterLoading, isFiltered, updateLoading, data]);
+    setColumnActionsApplied((prev) => {
+      const depth = header.column.columnDef.meta?.renderedDepth ?? 0;
+      const columnId = header.column.id;
+  
+      return {
+        ...prev,
+        [depth]: {
+          ...prev[depth], // Preserve existing columns at the same depth
+          [columnId]: hasActiveActions, // Update the current column
+        },
+      };
+    });
+  }, [hasActiveActions, groupLoading, isGrouped, sortLoading, isSorted, filterLoading, isFiltered, updateLoading, data]);  
 
   // Handle header coloring.
   // - Applies selection (hover) background color on any column header for which all (some) cells are selected
@@ -481,13 +483,19 @@ const DataTableHeader = ({
 
         {/* If user has used group/sort/filter => row of icons */}
         {!header.isPlaceholder && isNotUtilColumn && 
-          <div className="flex items-center justify-center gap-1">
+          <div className="flex items-center justify-left gap-1">
             {renderVisibleActions()}
           </div>
         }
 
         {/* Hidden action components for group, sort, filter, context, hide (need to be rendered on the DOM even if hidden in order to be able to forward refs) */}
-        <div className={`${localColumnActionsApplied ? "hidden" : columnActionsApplied[header.column.columnDef.meta?.renderedDepth ?? 0] ? "invisible" : "hidden"}`}>
+        <div className={`${
+          hasActiveActions
+          ? "hidden"
+          : Object.values(columnActionsApplied[header.column.columnDef.meta?.renderedDepth ?? 0] || {}).some(Boolean)
+          ? "invisible"
+          : "hidden"
+        }`}>
           {!isImageColumn && (
             <ColumnGroupBy
               ref={groupButtonRef}
