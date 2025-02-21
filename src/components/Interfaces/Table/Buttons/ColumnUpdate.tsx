@@ -4,7 +4,6 @@ import { KeyboardEventHandler, useState, useEffect, Dispatch, SetStateAction } f
 import { useRouter } from "next/navigation";
 import SubmitButton from "@/components/Common/Buttons/Submit";
 import { getLogsParameters, TableArguments, LogProps, GroupedLogProps } from "@/types/evals/logs"
-import { BasePopover } from "@/components/Common/Popovers/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { ResponseProps } from "@/types/common";
 import FormulaInput from "@/components/Common/Input/Formula";
@@ -12,10 +11,12 @@ import { TbMathFunction } from "react-icons/tb";
 import { LoaderCircle } from "lucide-react";
 import { expressionToDerivedFunction, derivedFunctionToExpression } from "@/utils/evals/derivedColumns";
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/UI/dialog";
+import { sanitizeId } from "@/utils/evals/columnOperations";
 
 const ColumnUpdate = ({
     project,
-    key,
+    colId,
     previousEquation,
     currentTable,
     tableArguments,
@@ -30,7 +31,7 @@ const ColumnUpdate = ({
     renderMode
 }: {
     project: string,
-    key: string,
+    colId: string,
     previousEquation: string,
     currentTable: string,
     tableArguments: TableArguments,
@@ -94,7 +95,7 @@ const ColumnUpdate = ({
         );
 
         setUpdateLoading(true);
-        update(project, key, equation, target_derived_logs, referenced_logs).then(async (response: ResponseProps) => {
+        update(project, colId, equation, target_derived_logs, referenced_logs).then(async (response: ResponseProps) => {
             if ("info" in response) {
                 
                 // Update states
@@ -147,22 +148,66 @@ const ColumnUpdate = ({
                     </div>
 
     return (
-        <BasePopover
-            button={
-                renderMode === "menuItem" ? (
-                    <DropdownMenuItem className="flex items-center gap-2">
+        <Dialog
+            open={renderMode === "menuItem" ? undefined : open}
+            onOpenChange={renderMode === "menuItem" ? undefined : setOpen}
+        >
+            <DialogTrigger asChild>
+                {renderMode === "menuItem" ? (
+                    // Because this is inside a parent DropdownMenuItem, 
+                    // we must prevent the parent from closing automatically:
+                    <DropdownMenuItem
+                        className="
+                        relative 
+                        flex 
+                        cursor-pointer 
+                        select-none 
+                        items-center 
+                        gap-2 
+                        rounded-sm 
+                        px-2 
+                        py-1.5 
+                        text-sm 
+                        outline-none 
+                        transition-colors 
+                        focus:bg-accent 
+                        focus:text-accent-foreground 
+                        data-[highlighted]:bg-accent 
+                        data-[highlighted]:text-accent-foreground 
+                        data-[disabled]:pointer-events-none 
+                        data-[disabled]:opacity-50 
+                        [&>svg]:size-4 
+                        [&>svg]:shrink-0
+                    "
+                        onSelect={(e) => e.preventDefault()}
+                    >
                         {columnButton}
                         <span>Update Equation</span>
                     </DropdownMenuItem>
-                ) : columnButton
-            }
-            open={renderMode === "menuItem" ? undefined : open} // Let parent control if nested
-            setOpen={renderMode === "menuItem" ? undefined : setOpen} // Avoid controlling state if nested
-            className="flex flex-col w-full"
-        >
-            {body}
-            {footer}
-        </BasePopover>
+                ) : (
+                    columnButton
+                )}
+            </DialogTrigger>
+
+            <DialogContent
+                // Stop clicks from closing the parent if it’s still around
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={(e) => e.stopPropagation()}
+                onPointerOver={(e) => e.stopPropagation()}
+                className="sm:max-w-xl"
+            >
+                <DialogHeader>
+                    <DialogTitle>Update Equation</DialogTitle>
+                    <DialogDescription>
+                        Update the derived column equation for <strong>{sanitizeId(colId)}</strong>.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {body}
+
+                <DialogFooter>{footer}</DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 

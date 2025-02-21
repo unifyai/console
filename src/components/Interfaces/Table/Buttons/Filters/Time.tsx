@@ -15,6 +15,8 @@ import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { DateTimeInput } from "@/components/Common/Time/DateTimeInput";
 import { AbsoluteDateString, RelativeDateString } from "@/types/evals/filters";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
+import { Dialog, DialogDescription, DialogHeader, DialogTitle, DialogContent, DialogTrigger } from "@/components/UI/dialog";
+import { sanitizeId } from "@/utils/evals/columnOperations";
 
 interface TimeFilter {
     key: number,
@@ -297,25 +299,68 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
                     {submit}
                 </div>
             </div>
-            {close}
+             {/* {close} */}
         </div>
     )
 
     return (
-        <BaseDropdown
-            button={
-                renderMode === "menuItem"
-                ? (
-                    <DropdownMenuItem className="flex items-center gap-2">
-                        {button}
-                        <span>Filter by this column</span>
-                    </DropdownMenuItem>
-                ) : button}
-            open={renderMode === "menuItem" ? undefined : interactive && open}
-            setOpen={renderMode === "menuItem" ? undefined : setOpen}
+        <Dialog
+          // Tie <Dialog> open to parent state if not "menuItem" mode
+          open={renderMode === "menuItem" ? undefined : interactive && open}
+          onOpenChange={renderMode === "menuItem" ? undefined : setOpen}
         >
+          <DialogTrigger asChild>
+            {renderMode === "menuItem" ? (
+              // Render a styled <DropdownMenuItem> so the parent doesn't close
+              <DropdownMenuItem
+                onSelect={(e) => e.preventDefault()}
+                className="
+                  relative
+                  flex
+                  cursor-pointer
+                  select-none
+                  items-center
+                  gap-2
+                  rounded-sm
+                  px-2
+                  py-1.5
+                  text-sm
+                  outline-none
+                  transition-colors
+                  focus:bg-accent
+                  focus:text-accent-foreground
+                  data-[highlighted]:bg-accent
+                  data-[highlighted]:text-accent-foreground
+                  data-[disabled]:pointer-events-none
+                  data-[disabled]:opacity-50
+                  [&>svg]:size-4
+                  [&>svg]:shrink-0
+                "
+              >
+                {button}
+                <span>Filter by this column</span>
+              </DropdownMenuItem>
+            ) : (
+              button
+            )}
+          </DialogTrigger>
+    
+          <DialogContent
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onPointerOver={(e) => e.stopPropagation()}
+            className="sm:max-w-2xl"
+          >
+            <DialogHeader>
+              <DialogTitle>Time Filters</DialogTitle>
+              <DialogDescription>
+                Apply time-based filters to <strong>{sanitizeId(column)}</strong>.
+              </DialogDescription>
+            </DialogHeader>
+    
             {filterContent}
-        </BaseDropdown>
+          </DialogContent>
+        </Dialog>
     );
 }
 

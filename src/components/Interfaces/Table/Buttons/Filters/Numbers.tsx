@@ -13,8 +13,10 @@ import { Input } from "@/components/UI/input";
 import { Slider } from "@/components/UI/slider";
 import { initFilters, combineFilters } from "@/utils/evals/filters";
 import { Trash, Plus, CircleX, LoaderCircle } from "lucide-react";
-import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
+import {  DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/UI/dialog";
+import { sanitizeId } from "@/utils/evals/columnOperations";
 
 interface NumericFilter {
     key: number,
@@ -260,26 +262,82 @@ const NumericColumnFilter = ({
                     {submit}
                 </div>
             </div>
-            {close}
+            {/* {close} */}
         </div>
     )
 
     return (
-        <BaseDropdown
-            button={
-                renderMode === "menuItem"
-                ? (
-                    <DropdownMenuItem className="flex items-center gap-2">
+        <Dialog
+          // Tie the <Dialog> open to the parent state if not "menuItem" mode
+          open={renderMode === "menuItem" ? undefined : interactive && open}
+          onOpenChange={renderMode === "menuItem" ? undefined : setOpen}
+        >
+            <DialogTrigger asChild>
+                {renderMode === "menuItem" ? (
+                    // Because this is inside a parent DropdownMenuItem, 
+                    // we must prevent the parent from closing automatically:
+                    <DropdownMenuItem
+                        onSelect={(e) => e.preventDefault()}
+                        className="
+                            relative 
+                            flex 
+                            cursor-pointer 
+                            select-none 
+                            items-center 
+                            gap-2 
+                            rounded-sm 
+                            px-2 
+                            py-1.5 
+                            text-sm 
+                            outline-none 
+                            transition-colors 
+                            focus:bg-accent 
+                            focus:text-accent-foreground 
+                            data-[highlighted]:bg-accent 
+                            data-[highlighted]:text-accent-foreground 
+                            data-[disabled]:pointer-events-none 
+                            data-[disabled]:opacity-50 
+                            [&>svg]:size-4 
+                            [&>svg]:shrink-0
+                        "
+                    >
                         {button}
                         <span>Filter by this column</span>
                     </DropdownMenuItem>
-                ) : button}
-            open={renderMode === "menuItem" ? undefined : interactive && open}
-            setOpen={renderMode === "menuItem" ? undefined : setOpen}
-        >
-            {filterContent}
-        </BaseDropdown>
-    );
+                ) : (
+                    button
+                )}
+            </DialogTrigger>
+    
+            <DialogContent 
+                // Stop clicks from closing the parent if it’s still around
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={(e) => e.stopPropagation()}
+                onPointerOver={(e) => e.stopPropagation()}
+                className="sm:max-w-lg"
+            >
+                <DialogHeader>
+                    <DialogTitle>Numeric Filters</DialogTitle>
+                    <DialogDescription>
+                        Apply numeric filters to <strong>{sanitizeId(column)}</strong>.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {/* The main filter UI */}
+                {filterContent}
+        
+                {/* 
+                    If you wanted a separate <DialogFooter>:
+                    <DialogFooter>
+                        <div className="flex flex-row gap-2 justify-end">
+                            {reset}
+                            {submit}
+                        </div>
+                    </DialogFooter>
+                */}
+            </DialogContent>
+        </Dialog>
+      );
 }
 
 export default NumericColumnFilter;

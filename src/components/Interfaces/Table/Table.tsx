@@ -464,13 +464,13 @@ const LogsTable = ({
                       setOpen={setOpen}
                     />
                   )}
-                  ColumnUpdate={(key: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode = "button") => (
+                  ColumnUpdate={(colId: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode = "button") => (
                     <ColumnUpdate
                       project={project}
-                      key={key}
+                      colId={colId}
                       open={open}
                       setOpen={setOpen}
-                      previousEquation={fields[sanitizeId(key)].artifacts}
+                      previousEquation={fields[sanitizeId(colId)].artifacts}
                       currentTable={item.i}
                       tableArguments={tableArguments}
                       logs={logs}

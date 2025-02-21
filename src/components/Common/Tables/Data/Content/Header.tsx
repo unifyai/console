@@ -172,15 +172,6 @@ const DataTableHeader = ({
   const [updateOpen, setUpdateOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  useEffect(() => {
-    if (filterOpen || updateOpen) {
-      setDropdownOpen(true);
-    }
-    else if (dropdownOpen) {
-      setDropdownOpen(false);
-    }
-  }, [filterOpen, updateOpen, dropdownOpen]);
-
   const showGroupButton = () => {
     return (!isImageColumn && (groupLoading || isGrouped));
   }
@@ -358,8 +349,8 @@ const DataTableHeader = ({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="min-w-[8rem]">
                         <DropdownMenuGroup>
-                          <DropdownMenuItem>
-                            {!isGrouped && (
+                          {!isGrouped && (
+                            <DropdownMenuItem>
                               <ColumnGroupBy
                                 interactive={interactive}
                                 auto_update={auto_update}
@@ -372,8 +363,8 @@ const DataTableHeader = ({
                                 setIsGrouped={setIsGrouped}
                                 renderMode="menuItem"
                               />
-                            )}
-                          </DropdownMenuItem>
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem>
                             <ColumnContext
                               interactive={interactive}
@@ -419,59 +410,58 @@ const DataTableHeader = ({
 
                     {/* triple-dot for child columns */}
                     {interactive == true && (
-                    <div className="ml-4 flex-none dropdown-menu" onMouseDown={(e) => e.stopPropagation()}>
-                      <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-                        <DropdownMenuTrigger asChild>
-                          <ActionButton
-                            tooltip="Child Column Actions"
-                            icon={<MoreHorizontal className="h-4 w-4" />}
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDropdownOpen(true);
-                            }}
-                          />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          align="end"
-                          className="min-w-[8rem]"
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onPointerUp={(e) => e.stopPropagation()}
-                          onPointerOver={(e) => e.stopPropagation()}
-                        >
-                          <DropdownMenuGroup>
-                            <DropdownMenuItem>
-                              {!isImageColumn && !isGrouped && (
-                                <ColumnGroupBy
-                                  interactive={interactive}
-                                  auto_update={auto_update}
-                                  column={header.column}
-                                  grouping={grouping}
-                                  setGrouping={setGrouping}
-                                  data={data}
-                                  groupLoading={groupLoading}
-                                  setGroupLoading={setGroupLoading}
-                                  setIsGrouped={setIsGrouped}
-                                  renderMode="menuItem"
-                                />
+                      <div className="ml-4 flex-none dropdown-menu" onMouseDown={(e) => e.stopPropagation()}>
+                        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                          <DropdownMenuTrigger asChild>
+                            <ActionButton
+                              tooltip="Child Column Actions"
+                              icon={<MoreHorizontal className="h-4 w-4" />}
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDropdownOpen(true);
+                              }}
+                            />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            className="min-w-[8rem]"
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => e.stopPropagation()}
+                            onPointerOver={(e) => e.stopPropagation()}
+                          >
+                            <DropdownMenuGroup>
+                            {!isImageColumn && !isGrouped && (
+                              <DropdownMenuItem>
+                                  <ColumnGroupBy
+                                    interactive={interactive}
+                                    auto_update={auto_update}
+                                    column={header.column}
+                                    grouping={grouping}
+                                    setGrouping={setGrouping}
+                                    data={data}
+                                    groupLoading={groupLoading}
+                                    setGroupLoading={setGroupLoading}
+                                    setIsGrouped={setIsGrouped}
+                                    renderMode="menuItem"
+                                  />
+                                </DropdownMenuItem>
                               )}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
                               {!isSorted && (
-                                <ColumnSort
-                                  interactive={interactive}
-                                  column={header.column}
-                                  data={data}
-                                  sortLoading={sortLoading}
-                                  setSortLoading={setSortLoading}
-                                  setIsSorted={setIsSorted}
-                                  renderMode="menuItem"
-                                />
+                                <DropdownMenuItem>
+                                  <ColumnSort
+                                    interactive={interactive}
+                                    column={header.column}
+                                    data={data}
+                                    sortLoading={sortLoading}
+                                    setSortLoading={setSortLoading}
+                                    setIsSorted={setIsSorted}
+                                    renderMode="menuItem"
+                                  />
+                                </DropdownMenuItem>
                               )}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              {!isImageColumn && !isFiltered && ColumnFilters && (
+                              {ColumnFilters && (
                                 ColumnFilters(
                                   header.column,
                                   filterLoading,
@@ -482,30 +472,27 @@ const DataTableHeader = ({
                                   "menuItem",
                                 )
                               )}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <ColumnHide
-                                column={header.column}
-                                columnVisibility={columnVisibility}
-                                setColumnVisibility={setColumnVisibility}
-                                renderMode="menuItem"
-                              />
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <ColumnHide
+                                  column={header.column}
+                                  columnVisibility={columnVisibility}
+                                  setColumnVisibility={setColumnVisibility}
+                                  renderMode="menuItem"
+                                />
+                              </DropdownMenuItem>
                               {isDerivedColumn && ColumnUpdate && (
-                                ColumnUpdate(
-                                  header.column.id,
-                                  updateLoading,
-                                  setUpdateLoading,
-                                  updateOpen,
-                                  setUpdateOpen,
-                                  "menuItem",
-                                )
-                              )}
-                            </DropdownMenuItem>
-                          </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                                  ColumnUpdate(
+                                    header.column.id,
+                                    updateLoading,
+                                    setUpdateLoading,
+                                    updateOpen,
+                                    setUpdateOpen,
+                                    "menuItem",
+                                  )
+                                )}
+                            </DropdownMenuGroup>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     )}
                   </>

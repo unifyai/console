@@ -48,11 +48,11 @@ const ColumnSort = (({
     const variant = isSorted ? "primary" : undefined;
     const onClick = () => {
         column.toggleSorting()
+        setSortLoading(true)
         if (!column.getNextSortingOrder()) 
             setSpinnerColor("primary") 
         else 
             setSpinnerColor("white")
-        setSortLoading(true)
     }
 
     return (
