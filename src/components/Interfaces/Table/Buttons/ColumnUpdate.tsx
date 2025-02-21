@@ -11,6 +11,7 @@ import FormulaInput from "@/components/Common/Input/Formula";
 import { TbMathFunction } from "react-icons/tb";
 import { LoaderCircle } from "lucide-react";
 import { expressionToDerivedFunction, derivedFunctionToExpression } from "@/utils/evals/derivedColumns";
+import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 
 const ColumnUpdate = ({
     project,
@@ -25,7 +26,8 @@ const ColumnUpdate = ({
     open,
     setOpen,
     updateLoading,
-    setUpdateLoading
+    setUpdateLoading,
+    renderMode
 }: {
     project: string,
     key: string,
@@ -39,7 +41,8 @@ const ColumnUpdate = ({
     open: boolean,
     setOpen: Dispatch<SetStateAction<boolean>>,
     updateLoading: boolean,
-    setUpdateLoading: (updateLoading: boolean) => void
+    setUpdateLoading: (updateLoading: boolean) => void,
+    renderMode: "button" | "menuItem"
 }) => {
     const router = useRouter();
 
@@ -130,7 +133,11 @@ const ColumnUpdate = ({
                     </div>
 
     const icon = updateLoading ? <LoaderCircle className="animate-spin text-primary"/> : <TbMathFunction/>
-    const columnButton = <ActionButton tooltip={"Update function"} icon={icon} disabled={updateLoading}/>
+    const columnButton = renderMode === "button" ? (
+        <ActionButton tooltip={"Update equation"} icon={icon} disabled={updateLoading}/>
+    ) : (
+        <TbMathFunction className="h-4 w-4"/>
+    )
     const body =    <div className="p-2 flex flex-col gap-1 h-full w-[400px]" onClick={(e) => e.stopPropagation()}>
                         <FormulaInput options={options} value={expression} setValue={handleExpression} onEnter={onEnter}/>
                     </div>
@@ -140,10 +147,22 @@ const ColumnUpdate = ({
                     </div>
 
     return (
-    <BasePopover button={columnButton} open={open} setOpen={setOpen} className="flex flex-col w-full">
-        {body}
-        {footer}
-    </BasePopover>
+        <BasePopover
+            button={
+                renderMode === "menuItem" ? (
+                    <DropdownMenuItem className="flex items-center gap-2">
+                        {columnButton}
+                        <span>Update Equation</span>
+                    </DropdownMenuItem>
+                ) : columnButton
+            }
+            open={renderMode === "menuItem" ? undefined : open} // Let parent control if nested
+            setOpen={renderMode === "menuItem" ? undefined : setOpen} // Avoid controlling state if nested
+            className="flex flex-col w-full"
+        >
+            {body}
+            {footer}
+        </BasePopover>
     );
 }
 

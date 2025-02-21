@@ -464,7 +464,7 @@ const LogsTable = ({
                       setOpen={setOpen}
                     />
                   )}
-                  ColumnUpdate={(key: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>) => (
+                  ColumnUpdate={(key: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode = "button") => (
                     <ColumnUpdate
                       project={project}
                       key={key}
@@ -479,6 +479,7 @@ const LogsTable = ({
                       refresh={() => updateInterface()}
                       updateLoading={updateLoading}
                       setUpdateLoading={setUpdateLoading}
+                      renderMode={renderMode as "button" | "menuItem"}
                     />
                   )}
                   RowExpanding={(props: RowExpandingProps) => (

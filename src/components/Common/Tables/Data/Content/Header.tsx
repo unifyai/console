@@ -82,7 +82,7 @@ const DataTableHeader = ({
   setGrouping: (grouping: string[]) => void,
   ColumnFilters?: (column: Column<any | unknown>, filterLoading: boolean, setIsFiltered: (isFiltered: boolean) => void, setFilterLoading: (filterLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode,
   ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode,
-  ColumnUpdate?: (key: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>) => ReactNode,
+  ColumnUpdate?: (key: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem" ) => ReactNode,
   context: string | null,
   setContext: (context: string | null) => void,
   draggingColumns: DraggingColumnsState,
@@ -171,6 +171,15 @@ const DataTableHeader = ({
   const [filterOpen, setFilterOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    if (filterOpen || updateOpen) {
+      setDropdownOpen(true);
+    }
+    else if (dropdownOpen) {
+      setDropdownOpen(false);
+    }
+  }, [filterOpen, updateOpen, dropdownOpen]);
 
   const showGroupButton = () => {
     return (!isImageColumn && (groupLoading || isGrouped));
@@ -280,8 +289,9 @@ const DataTableHeader = ({
           updateLoading,
           setUpdateLoading,
           updateOpen,
-          setUpdateOpen
-      )
+          setUpdateOpen,
+          "button"
+        )
       )}
     </>
   );
@@ -480,6 +490,18 @@ const DataTableHeader = ({
                                 setColumnVisibility={setColumnVisibility}
                                 renderMode="menuItem"
                               />
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              {isDerivedColumn && ColumnUpdate && (
+                                ColumnUpdate(
+                                  header.column.id,
+                                  updateLoading,
+                                  setUpdateLoading,
+                                  updateOpen,
+                                  setUpdateOpen,
+                                  "menuItem",
+                                )
+                              )}
                             </DropdownMenuItem>
                           </DropdownMenuGroup>
                         </DropdownMenuContent>
