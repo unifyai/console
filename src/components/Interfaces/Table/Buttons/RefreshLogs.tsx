@@ -64,8 +64,8 @@ async function updateLogs (
             groupingExpression, 
             null, 
             null, 
-            100, // Hardcoded limit value (100) will need to be passed down from Main
-            (item.page_number ? parseInt(item.page_number) : 0) * 100, // Hardcoded limit value (100) will need to be passed down from Main
+            20, // Hardcoded limit value (20) will need to be passed down from Main
+            (item.page_number ? parseInt(item.page_number) : 0) * 20, // Hardcoded limit value (20) will need to be passed down from Main
             groupingExpression ? 0 : null,
             Date.now().toString()
         )
