@@ -182,8 +182,8 @@ const DataTableCell = ({
                 </>
               )}
             </div>
-          ) 
-          : cell.getIsAggregated() && isNotUtilColumn
+          )
+          : row.getIsGrouped() && isNotUtilColumn
             ? (flexRender(AggregatedCell && AggregatedCell(cell, row), cell.getContext())) 
             : cell.getIsPlaceholder() 
                 ? null // For cells with repeated values, render null 
