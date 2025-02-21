@@ -151,7 +151,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
 
     // Get logs with pagination, and plot logs subset for all tables
     let allLogsData: LogsResponseProps[] = Array(tableItems.length).fill({ params: {}, logs: [], count: 0, groups: [] });
-    const limit = 100;
+    const limit = 20;
     const offsets: number[] = tableItems.map(item => (item.page_number ? parseInt(item.page_number) : 0) * limit);
     let allTotalPages: number[] = Array(tableItems.length).fill(1);
     let plotData: PlotDataProps = {};
