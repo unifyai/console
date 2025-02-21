@@ -29,16 +29,16 @@ import PageController from "@/components/Common/Tables/Data/Buttons/PageControll
 import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
 import FreezeLogs from "./Buttons/FreezeLogs";
 import RefreshLogs from "./Buttons/RefreshLogs";
-import { searchParamToFilters } from "@/utils/evals/filters";
+import { filtersToExpression, combineFilters, searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
 import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
-import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
+import { DraggingColumnsState, FiltersByColumn, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
 import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
 import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data/Buttons/RowExpanding";
-import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
+import { onGroupExpand, maybeFlattenGroupedLogs, getGroupingFilters } from "@/utils/evals/grouping";
 
 const LogsTable = ({
   interactive,
@@ -106,7 +106,7 @@ const LogsTable = ({
   // Column definitions
   const entriesTree = buildTree(entriesProperties);
   const paramsTree = buildTree(paramsProperties);
-  const dataTypes =  fields ? Object.fromEntries(Object.entries(fields).map(entry =>  [entry[0], entry[1].data_type])) : {}
+  const dataTypes = fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type])) : {}
   const fieldTypes = fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].field_type])) : {}
   const indicesTitle = "RowNumbering";
   const entriesTitle = "Entries";
@@ -368,7 +368,7 @@ const LogsTable = ({
             pageNumber={pageNumber}
             setPageNumber={updateItem(item, "page_number")}
           />
-          <FreezeLogs item={item} updateItem={updateItem}/>
+          <FreezeLogs item={item} updateItem={updateItem} />
           <RefreshLogs
             item={item}
             project={project}
@@ -513,7 +513,22 @@ const LogsTable = ({
                     />
                   )}
                   AggregatedCell={(cell, row) => (
-                    <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />
+                    <AggregatedCell
+                      cell={cell}
+                      metric={metric}
+                      getMetric={async (key: string, metric: string) => {
+                        // Generate the current ID for the expanding row
+                        const groupingColumnId = row.groupingColumnId;
+                        const groupingValue = row.getValue(key) as string;
+                        const parentId = row.original.id.split('>').slice(0, -1).join('>') as string;
+
+                        const { updatedFilterExpression } = getGroupingFilters(
+                          filterExpression, groupingColumnId, groupingValue, parentId, dataTypes, fields
+                        );
+
+                        return await logsActions.getMetrics(project!, updatedFilterExpression, metric, key);
+                      }}
+                    />
                   )}
                   FooterCell={(column, resizeMap, table) =>
                     <FooterCell

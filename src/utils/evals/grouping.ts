@@ -210,6 +210,111 @@ export function maybeFlattenGroupedLogs(
   return flattened;
 }
 
+export function getGroupingFilters(
+  filterExpression: string | null,
+  groupingColumnId: string,
+  groupingValue: string,
+  parentId: string | null,
+  dataTypes: { [key: string]: string },
+  fields: LogFieldsResponseProps,
+) {
+  // Helper: Cast values based on data type
+  const castValue = (value: string, dataType: string) => {
+    switch (dataType) {
+      case "int":
+        return parseInt(value, 10).toString();
+      case "float":
+        return parseFloat(value).toString();
+      case "timestamp":
+        return value.startsWith('"') && value.endsWith('"') ? value : `"${value}"`;
+      case "bool":
+        return value === "true" ? 'True' : 'False';
+      default:
+        return value.startsWith('"') && value.endsWith('"') ? value : `"${value}"`;
+    }
+  };
+
+  // Generate the current ID for the expanding row
+  let currentId = `${groupingColumnId}:${groupingValue}`;
+  if (parentId) {
+    currentId = `${parentId}>${currentId}`;
+  }
+
+  // Step 1: Build FiltersByColumn Structure
+  const columnFilters: FiltersByColumn = {};
+  let filterKeyCounter = 0;
+
+  const handleFilter = (col: string, val: string) => {
+    const sanitizedCol = sanitizeId(col);
+    const dataType = dataTypes[sanitizedCol] || "str";
+
+    if (val == "null") {
+      return {
+        key: filterKeyCounter++,
+        mode: "exists",
+        join: "&&" as "&&" | "||",
+        value: "false",
+        column: sanitizedCol,
+      };
+    } else {
+      const castedValue = castValue(val, dataType);
+      return {
+        key: filterKeyCounter++,
+        mode: "==",
+        join: "&&" as "&&" | "||",
+        value: castedValue,
+        column: sanitizedCol,
+      };
+    }
+  };
+
+  // Handle Parent Filters (if any)
+  if (parentId) {
+    // Parse parent ID path to build filter parts
+    // Format: "column1:value1>column2:value2>..."
+    const parentFilters = parentId.split('>').map((part) => {
+      const [col, val] = part.split(":");
+      return handleFilter(col, val);
+    });
+
+    parentFilters.forEach((filter) => {
+      const combinedFilter = combineFilters(
+        [{ key: filter.key, mode: filter.mode, join: filter.join, value: filter.value }],
+        [filter.mode]
+      );
+
+      columnFilters[filter.column] = {
+        ...(columnFilters[filter.column] || {}),
+        ...combinedFilter,
+      };
+    });
+  }
+
+  // Add current group filter
+  const currentGroupFilter = handleFilter(groupingColumnId, groupingValue);
+
+  const combinedCurrentFilter = combineFilters(
+    [{ key: currentGroupFilter.key, mode: currentGroupFilter.mode, join: currentGroupFilter.join, value: currentGroupFilter.value }],
+    [currentGroupFilter.mode]
+  );
+
+  const sanitizedGroupingColumnId = sanitizeId(groupingColumnId);
+  columnFilters[sanitizedGroupingColumnId] = {
+    ...(columnFilters[sanitizedGroupingColumnId] || {}),
+    ...combinedCurrentFilter,
+  };
+
+  // Step 2: Generate Filter Expression
+  const groupFilterExpression = filtersToExpression(columnFilters, fields);
+
+  // Step 3: Combine with Existing Filters
+  const updatedFilterExpression = filterExpression
+    ? `${filterExpression} and ${groupFilterExpression}`
+    : groupFilterExpression;
+
+  return { currentId, updatedFilterExpression, columnFilters };
+}
+
 export async function onGroupExpand(
   groupingColumnId: string,
   groupingValue: string,
@@ -231,100 +336,10 @@ export async function onGroupExpand(
   logs: LogProps[] | GroupedLogProps[],
 ): Promise<void> {
   try {
-    // Helper: Cast values based on data type
-    const castValue = (value: string, dataType: string) => {
-      switch (dataType) {
-        case "int":
-          return parseInt(value, 10).toString();
-        case "float":
-          return parseFloat(value).toString();
-        case "timestamp":
-          return value.startsWith('"') && value.endsWith('"') ? value : `"${value}"`;
-        case "bool":
-          return value === "true" ? 'True' : 'False';
-        default:
-          return value.startsWith('"') && value.endsWith('"') ? value : `"${value}"`;
-      }
-    };
-
-    // Generate the current ID for the expanding row
-    let currentId = `${groupingColumnId}:${groupingValue}`;
-    if (parentId) {
-      currentId = `${parentId}>${currentId}`;
-    }
-
-    // Step 1: Build FiltersByColumn Structure
-    const columnFilters: FiltersByColumn = {};
-    let filterKeyCounter = 0;
-
-    const handleFilter = (col: string, val: string) => {
-      const sanitizedCol = sanitizeId(col);
-      const dataType = dataTypes[sanitizedCol] || "str";
-
-      if (val == "null") {
-        return {
-          key: filterKeyCounter++,
-          mode: "exists",
-          join: "&&" as "&&" | "||",
-          value: "false",
-          column: sanitizedCol,
-        };
-      } else {
-        const castedValue = castValue(val, dataType);
-        return {
-          key: filterKeyCounter++,
-          mode: "==",
-          join: "&&" as "&&" | "||",
-          value: castedValue,
-          column: sanitizedCol,
-        };
-      }
-    };
-
-    // Handle Parent Filters (if any)
-    if (parentId) {
-      // Parse parent ID path to build filter parts
-      // Format: "column1:value1>column2:value2>..."
-      const parentFilters = parentId.split('>').map((part) => {
-        const [col, val] = part.split(":");
-        return handleFilter(col, val);
-      });
-
-      parentFilters.forEach((filter) => {
-        const combinedFilter = combineFilters(
-          [{ key: filter.key, mode: filter.mode, join: filter.join, value: filter.value }],
-          [filter.mode]
-        );
-
-        columnFilters[filter.column] = {
-          ...(columnFilters[filter.column] || {}),
-          ...combinedFilter,
-        };
-      });
-    }
-
-    // Add current group filter
-    const currentGroupFilter = handleFilter(groupingColumnId, groupingValue);
-
-    const combinedCurrentFilter = combineFilters(
-      [{ key: currentGroupFilter.key, mode: currentGroupFilter.mode, join: currentGroupFilter.join, value: currentGroupFilter.value }],
-      [currentGroupFilter.mode]
+    const { currentId, updatedFilterExpression, columnFilters } = getGroupingFilters(
+      filterExpression, groupingColumnId, groupingValue, parentId, dataTypes, fields
     );
-
-    const sanitizedGroupingColumnId = sanitizeId(groupingColumnId);
-    columnFilters[sanitizedGroupingColumnId] = {
-      ...(columnFilters[sanitizedGroupingColumnId] || {}),
-      ...combinedCurrentFilter,
-    };
-
-    // Step 2: Generate Filter Expression
-    const groupFilterExpression = filtersToExpression(columnFilters, fields);
-
-    // Step 3: Combine with Existing Filters
-    const updatedFilterExpression = filterExpression
-      ? `${filterExpression} and ${groupFilterExpression}`
-      : groupFilterExpression;
-
+    
     // Get the current grouping expression
     const currentGrouping = groupingExpression?.split(",") || [];
     

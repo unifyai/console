@@ -118,6 +118,41 @@ export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFiel
   return { entriesProperties, paramsProperties, logs, params };
 }
 
+const getColumnMetrics = async (
+  project: string | null,
+  context: string | null,
+  columns: string[],
+  expression: string | null,
+  metric: string | undefined,
+  logsActions: LogsActions
+) => {
+  let fullColumns = columns
+  if (context)
+    fullColumns = fullColumns.map(column => processContext("merge", context, column))
+  const metricValues = await Promise.all(
+    fullColumns.map(async (key) => {
+      try {
+        const result = await logsActions.getMetrics(
+          project!,
+          expression,
+          metric ? metric : "mean",
+          key
+        );
+        return result;
+      } catch (error) {
+        console.error(`Error fetching metric for key ${key}`);
+        return "";
+      }
+    })
+  );
+  const metrics_: { [key: string]: any } = columns.length
+    ? columns
+      .map((key, index) => ({ [key]: metricValues[index] }))
+      .reduce((acc, curr) => ({ ...acc, ...curr }))
+    : {};
+  return metrics_
+}
+
 export const getLogsDetails = async (
   item: TileProps,
   logsData: LogsResponseProps,
@@ -138,37 +173,10 @@ export const getLogsDetails = async (
   // Getting metrics for filtered logs, and min / max values for full logs.
   // Min / max bounds are used to set the filtering range for numeric columns
   const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
-  const getColumnMetrics = async (expression: string | null, metric: string | undefined) => {
-    let fullColumns = columns
-    if (context)
-      fullColumns = fullColumns.map(column => processContext("merge", context, column))
-    const metricValues = await Promise.all(
-      fullColumns.map(async (key) => {
-        try {
-          const result = await logsActions.getMetrics(
-            project!,
-            expression,
-            metric ? metric : "mean",
-            key
-          );
-          return result;
-        } catch (error) {
-          console.error(`Error fetching metric for key ${key}`);
-          return "";
-        }
-      })
-    );
-    const metrics_: { [key: string]: any } = columns.length
-      ? columns
-        .map((key, index) => ({ [key]: metricValues[index] }))
-        .reduce((acc, curr) => ({ ...acc, ...curr }))
-      : {};
-    return metrics_
-  }
   const [metrics, minimums, maximums] = await Promise.all([
-    getColumnMetrics(filterExpression, item.metric),
-    getColumnMetrics(null, "min"),
-    getColumnMetrics(null, "max")
+    getColumnMetrics(project, context, columns, filterExpression, item.metric, logsActions),
+    getColumnMetrics(project, context, columns, null, "min", logsActions),
+    getColumnMetrics(project, context, columns, null, "max", logsActions)
   ]);
 
   // Min-max boundaries for numeric and time-like column filters
