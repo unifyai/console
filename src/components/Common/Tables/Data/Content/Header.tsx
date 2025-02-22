@@ -157,8 +157,8 @@ const DataTableHeader = ({
   } : {};
 
   // Track loading states for column actions
-  const [sortLoading, setSortLoading] = useState(false);
   const [groupLoading, setGroupLoading] = useState(false);
+  const [sortLoading, setSortLoading] = useState(false);
   const [filterLoading, setFilterLoading] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
 
@@ -171,6 +171,15 @@ const DataTableHeader = ({
   const [filterOpen, setFilterOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    if (groupLoading || sortLoading || filterLoading || updateLoading) {
+      setDropdownOpen(false);
+    }
+    else {
+      setDropdownOpen(false);
+    }
+  }, [data, groupLoading, sortLoading, filterLoading, updateLoading])
 
   const showGroupButton = () => {
     return (!isImageColumn && (groupLoading || isGrouped));
