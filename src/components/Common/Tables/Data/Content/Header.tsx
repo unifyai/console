@@ -404,7 +404,7 @@ const DataTableHeader = ({
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center justify-between w-full cursor-pointer">
                             <span className="text-center flex-1">
                               {flexRender(header.column.columnDef.header, header.getContext())}
                             </span>
