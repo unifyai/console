@@ -476,8 +476,12 @@ export const nestedColumns = (
 				}
 
 				// If cellValue itself is undefined or null, display a fallback
-				if (cellValue === undefined || cellValue === null) {
-					return "–"; // or "N/A", or any other fallback string
+				if (cellValue === undefined) {
+					return " ";
+				}
+
+				if (cellValue === null) {
+					return "-";
 				}
 
 				// Depending on the dataType, format the incoming value
