@@ -155,7 +155,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     });
 
     // Helper function to render skeleton rows
-    const renderSkeletonRows = (count: number = 4) => (
+    const renderSkeletonRows = (count: number = 2) => (
         Array.from({ length: count }).map((_, rowIdx) => (
             <TableRow key={rowIdx} className="animate-pulse">
                 {finalColumns.map((col, colIdx) => (
@@ -221,7 +221,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                         <TableBody className="contents overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
                             {isUpdatingLogs ? (
                                 // Show skeletons for the entire table when updating logs globally
-                                renderSkeletonRows(4)
+                                renderSkeletonRows(2)
                             ) : table.getRowModel().rows?.length ? (
                                 table.getRowModel().rows.map((row) => (
                                     <>
@@ -251,7 +251,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                          typeof row.original.groupCount === 'number' &&
                                          row.original.groupCount > 0 &&
                                          !row.original.isPopulated &&
-                                         renderSkeletonRows(4)}
+                                         renderSkeletonRows(2)}
                                     </>
                                 ))
                             ) : (

@@ -74,7 +74,7 @@ export default function DataTableRow<TData extends LogProps | GroupedLogProps>({
                     </SortableContext>
                 ))}
             </TableRow>
-            {hasSkeletonSubRows && renderSkeletonRows(4)}
+            {hasSkeletonSubRows && renderSkeletonRows(2)}
         </>
     );
 }
