@@ -381,6 +381,10 @@ export const drawBarChart = (
     } else if (minY === maxY) {
         minY = minY - 1;
         maxY = maxY + 1;
+    } else if (minY > 0 && maxY > 0) {
+        minY = Math.min(0, minY)
+    } else if (minY < 0 && maxY < 0) {
+        minY = Math.min(0, minY)
     }
     let yDomain = [minY, maxY]
     const xScale = d3.scaleBand().domain(xDomain).range(xRange).padding(0.2);
@@ -885,7 +889,7 @@ export const drawScatterPlot = (
         
         const xMean = d3.mean(xValues) || 0;
         const yMean = d3.mean(yValues) || 0;
-        
+
         const numerator = d3.sum(xValues.map((x, i) => (x - xMean) * (yValues[i] - yMean)));
         const denominator = d3.sum(xValues.map(x => (x - xMean) ** 2));
         
