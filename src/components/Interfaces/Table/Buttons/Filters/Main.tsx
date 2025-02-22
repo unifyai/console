@@ -5,6 +5,7 @@ import StringColumnFilter from "./Strings";
 import NumericColumnFilter from "./Numbers";
 import TimeColumnFilter from "./Time";
 import ImageColumnFilter from "./Images";
+import BooleanColumnFilter from "./Bools";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 import { Dispatch, SetStateAction } from "react";
@@ -87,6 +88,20 @@ const ColumnFilter = ({
         columnFilters={columnFilters}
         setColumnFilterQuery={setColumnFilterQuery}
         logs={logs}
+        filterLoading={filterLoading}
+        setFilterLoading={setFilterLoading}
+        setIsFiltered={setIsFiltered}
+        renderMode={renderMode}/>
+    }
+    else if (dataTypes[column] === "bool") {
+        filter = <BooleanColumnFilter
+        interactive={interactive}
+        column={column}
+        columnFilters={columnFilters}
+        setColumnFilterQuery={setColumnFilterQuery}
+        logs={logs}
+        open={open}
+        setOpen={setOpen}
         filterLoading={filterLoading}
         setFilterLoading={setFilterLoading}
         setIsFiltered={setIsFiltered}
