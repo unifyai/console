@@ -51,16 +51,60 @@ const ColumnFilter = ({
     column = sanitizeId(column);
 
     if (["float", "int"].includes(dataTypes[column])) {
-        filter = <NumericColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} boundaries={boundaries} logs={logs} open={open} setOpen={setOpen} filterLoading={filterLoading} setFilterLoading={setFilterLoading} setIsFiltered={setIsFiltered} renderMode={renderMode}/>
+        filter = <NumericColumnFilter
+        interactive={interactive}
+        column={column}
+        columnFilters={columnFilters}
+        setColumnFilterQuery={setColumnFilterQuery}
+        boundaries={boundaries}
+        logs={logs}
+        dataTypes={dataTypes}
+        open={open}
+        setOpen={setOpen}
+        filterLoading={filterLoading}
+        setFilterLoading={setFilterLoading}
+        setIsFiltered={setIsFiltered}
+        renderMode={renderMode}/>
     }
     else if (dataTypes[column] === "timestamp") {
-        filter = <TimeColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} logs={logs} open={open} setOpen={setOpen} filterLoading={filterLoading} setFilterLoading={setFilterLoading} setIsFiltered={setIsFiltered} renderMode={renderMode}/>
+        filter = <TimeColumnFilter
+        interactive={interactive}
+        column={column}
+        columnFilters={columnFilters}
+        setColumnFilterQuery={setColumnFilterQuery}
+        logs={logs}
+        open={open}
+        setOpen={setOpen}
+        filterLoading={filterLoading}
+        setFilterLoading={setFilterLoading}
+        setIsFiltered={setIsFiltered}
+        renderMode={renderMode}/>
     }
     else if (dataTypes[column] === "image") {
-        filter = <ImageColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} logs={logs} filterLoading={filterLoading} setFilterLoading={setFilterLoading} setIsFiltered={setIsFiltered} renderMode={renderMode}/>
+        filter = <ImageColumnFilter
+        interactive={interactive}
+        column={column}
+        columnFilters={columnFilters}
+        setColumnFilterQuery={setColumnFilterQuery}
+        logs={logs}
+        filterLoading={filterLoading}
+        setFilterLoading={setFilterLoading}
+        setIsFiltered={setIsFiltered}
+        renderMode={renderMode}/>
     }
     else {
-        filter = <StringColumnFilter interactive={interactive} column={column} columnFilters={columnFilters} setColumnFilterQuery={setColumnFilterQuery} logs={logs} open={open} setOpen={setOpen} filterLoading={filterLoading} setFilterLoading={setFilterLoading} setIsFiltered={setIsFiltered} renderMode={renderMode}/>
+        filter = <StringColumnFilter
+        interactive={interactive}
+        column={column}
+        columnFilters={columnFilters}
+        setColumnFilterQuery={setColumnFilterQuery}
+        logs={logs}
+        open={open}
+        setOpen={setOpen}
+        filterLoading={filterLoading}
+        setFilterLoading={setFilterLoading}
+        setIsFiltered={setIsFiltered}
+        renderMode={renderMode}/>
     }
 
     return filter;

@@ -8,7 +8,6 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { defaultNewCounter } from "@/constants/logs";
 import { defaultItems } from "@/constants/logs";
-import { getGroupingFilters } from "@/utils/evals/grouping";
 
 const Main = async ({ interface_, project_, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, interfaceActions }: {
     interface_: string | undefined,

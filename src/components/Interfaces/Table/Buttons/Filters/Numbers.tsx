@@ -31,6 +31,7 @@ const NumericColumnFilter = ({
     columnFilters,
     setColumnFilterQuery,
     boundaries,
+    dataTypes,
     logs,
     open,
     setOpen,
@@ -44,6 +45,7 @@ const NumericColumnFilter = ({
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
     boundaries: {minimums: {[key: string]: number;}, maximums: {[key: string]: number}},
+    dataTypes: {[key: string]: string},
     logs: LogProps[] | GroupedLogProps[],
     open: boolean,
     setOpen: Dispatch<SetStateAction<boolean>>,
@@ -71,7 +73,19 @@ const NumericColumnFilter = ({
         {name: "isNone", label: "isNone" , description: "Filter for none values.."}
     ]
     const modes = options.map(option => option.name)
+
     const [minValue, maxValue] = [boundaries.minimums[column], boundaries.maximums[column]]
+    const sliderMin = Math.floor(minValue);
+    const sliderMax = Math.ceil(maxValue);
+
+    // Choose step size based on data type
+    let stepSize = 1; // default step for non-float
+    if (dataTypes[column] === "float") {
+        const range = sliderMax - sliderMin;
+        // Avoid dividing by zero if range is 0
+        stepSize = range !== 0 ? range / 1000 : 1;
+    }
+
     let defaultFilter : NumericFilter = {key: 0, mode: "==", join: "&&", value: ""}
     let initialValues : NumericFilter[] = []
     if (columnFilters[column]) {
@@ -219,15 +233,21 @@ const NumericColumnFilter = ({
                             className="mb-2 flex w-full items-center justify-between gap-2 text-xs font-medium text-muted-foreground"
                             aria-hidden="true"
                         >
-                            <span>{minValue}</span>
-                            <span>{maxValue}</span>
+                            <span>{sliderMin}</span>
+                            <span>{sliderMax}</span>
                         </span>
                         <Slider
                             className="w-full"
                             value={[parseFloat(filter.value)]}
-                            onValueChange={(value) => onInput(value[0].toString(), filter)}
-                            min={minValue}
-                            max={maxValue}
+                            onValueChange={(vals) => {
+                                const val = vals[0];
+                                // Force it to 3 decimal places
+                                const precise = parseFloat(val.toFixed(3));
+                                onInput(precise.toString(), filter);
+                            }}
+                            min={sliderMin}
+                            max={sliderMax}
+                            step={stepSize}
                             aria-label="Slider with input"
                         />
                     </div>
