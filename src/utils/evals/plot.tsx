@@ -197,54 +197,49 @@ const positionTooltip = (event: any, target: any, tooltip: any) => {
  * Checking if a table's logs has values for a given axis property, and getting those values, if applicable
  * Combine plot logs data across tables
 */
-const calculateTicks = (length: number, scaleX: string, scaleY: string, minY: number, maxY: number, minX: number = 0, maxX: number = 0, forceIntegerYTicks: boolean = false) => {
-    
-    let xTicks = [];
-    let yTicks = [];
-    const [absMinX, absMaxX] = [Math.abs(minX), Math.abs(maxX)]
-    const [absMinY, absMaxY] = [Math.abs(minY), Math.abs(maxY)]
-    const numTicks = length >= 2 ? Math.min(30, length) : 3;
-
-    if (scaleX === "log") {
-        const xTickSpacing = (Math.log10(absMaxX) - Math.log10(absMinX)) / (numTicks - 1);
-        for (let i = 0; i < numTicks; i++) {
-            const xTick = Math.pow(10, Math.log10(absMinX) + i * xTickSpacing);
-            xTicks.push(xTick);
-        }
-    } else {
-        const xTickSpacing = (maxX - minX) / (numTicks - 1);
-        for (let i = 0; i < numTicks; i++) {
-            const xTick = minX + i * xTickSpacing;
-            xTicks.push(xTick);
-        }
+function niceIncrement(min: number, max: number, count = 10) {
+    const rawStep = (max - min) / count;
+    const base = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const factors = [1, 2, 2.5, 5, 10];
+    const bestStep = factors.map(f => base * f).reduce((prev, curr) => Math.abs(curr - rawStep) < Math.abs(prev - rawStep) ? curr : prev);
+    return bestStep;
+  }
+  
+function generateTicks(min: number, max: number, count = 10, isLogScale = false) {
+  
+    // Handle log scale on negative range by computing abs bounds and using a log scale, if applicable
+    const absMin = Math.min(Math.abs(min), Math.abs(max))
+    const absMax = Math.max(Math.abs(min), Math.abs(max))
+    const minValue = isLogScale ? Math.log10(absMin) : min;
+    const maxValue = isLogScale ? Math.log10(absMax) : max;
+  
+    // Increment tick values
+    const step = niceIncrement(minValue, maxValue, count);
+    const start = Math.floor(minValue / step) * step;
+    const end = Math.ceil(maxValue / step) * step;
+    let ticks = [];
+    for (let tick = start; tick <= end + step * 0.5; tick += step) {
+      ticks.push(tick);
     }
-
-    if (scaleY === "log") {
-        const yTickSpacing = (Math.log10(absMaxY) - Math.log10(absMinY)) / (numTicks - 1);
-        for (let i = 0; i < numTicks; i++) {
-            const yTick = Math.pow(10, Math.log10(absMinY) + i * yTickSpacing);
-            yTicks.push(yTick);
-        }
-    } else {
-        if (forceIntegerYTicks) {
-            const step = Math.ceil(maxY / (numTicks - 1)) || 1;
-            yTicks = [];
-            for (let current = 0; current <= maxY; current += step) {
-                yTicks.push(current);
-            }
-            if (yTicks[yTicks.length - 1] < maxY) {
-                yTicks.push(maxY);
-            }
-        } else {
-            const yTickSpacing = (maxY - minY) / (numTicks - 1);
-            for (let i = 0; i < numTicks; i++) {
-                const yTick = minY + i * yTickSpacing;
-                yTicks.push(yTick);
-            }    
-        }
+  
+    // Adjust for log scale, if applicable.
+    if (isLogScale) ticks = ticks.map(t => Math.pow(10, t))
+  
+    // Remove out of bound ticks and add min / max value to the ticks if not already included.
+    // Adjust for log scale with negative range, if applicable
+    if (min < 0 && max < 0 && isLogScale) {
+      ticks = ticks.filter(t => t >= absMin && t <= absMax)
+      if (!ticks.includes(absMin)) ticks.unshift(absMin)
+      if (!ticks.includes(absMax)) ticks.push(absMax)
     }
-    return {xTicks, yTicks};
-};
+    else {
+      ticks = ticks.filter(t => t >= min && t <= max)
+      if (!ticks.includes(min)) ticks.unshift(min)
+      if (!ticks.includes(max)) ticks.push(max)  
+    }
+  
+    return ticks;
+}
 
 export function checkLogScalability (
     logs: LogProps[],
@@ -396,7 +391,10 @@ export const drawBarChart = (
     const yScale = (scaleY === "log" ? d3.scaleLog() : d3.scaleLinear()).domain(yDomain).range(yRange);
 
     // Draw axes
-    const {xTicks, yTicks} = calculateTicks(data.length, scaleX, scaleY, minY, maxY);
+    const [xTicks, yTicks] = [
+        generateTicks(0, 0, 10, scaleX === "log"),
+        generateTicks(minY, maxY, 10, scaleY === "log")
+    ]
     drawAxes("Bar Chart", svg, dimensions, margins, xScale, yScale, xTicks, yTicks);
 
     // Draw bars
@@ -561,7 +559,10 @@ export const drawLineChart = (
     ];
 
     // Draw axes
-    const {xTicks, yTicks} = calculateTicks(xValues.length, scaleX, scaleY, minY, maxY, minX, maxX);
+    const [xTicks, yTicks] = [
+        generateTicks(minX, maxX, 10, scaleX === "log"),
+        generateTicks(minY, maxY, 10, scaleY === "log")
+    ]
     drawAxes("Line Chart", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY, xType);
 
     // Add grouping key and hide tooltip
@@ -715,7 +716,10 @@ export const drawScatterPlot = (
     ]
 
     // Draw axes
-    const {xTicks, yTicks} = calculateTicks(data.length, scaleX, scaleY, minY, maxY, minX, maxX);
+    const [xTicks, yTicks] = [
+        generateTicks(minX, maxX, 10, scaleX === "log"),
+        generateTicks(minY, maxY, 10, scaleY === "log")
+    ]
     drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY);
 
     // Add tooltip and grouping key
@@ -1103,7 +1107,10 @@ export const drawHistogram = (
     const y = yScale().domain([minY, maxY]).range(yRange)
 
     // Draw axes
-    const {xTicks, yTicks} = calculateTicks(data.length, scaleX, scaleY, minY, maxY, minX, maxX, true);
+    const [xTicks, yTicks] = [
+        generateTicks(minX, maxX, 10, scaleX === "log"),
+        generateTicks(minY, maxY, 10, scaleY === "log")
+    ]
     drawAxes("Histogram", svg, dimensions, margins, x, y, xTicks, yTicks, false, false, xType);
 
     // Add histogram
