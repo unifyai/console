@@ -54,7 +54,7 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
         {name: "isNone", label: "Is None" , description: "Filter for none values.."}
     ]
     const modes = options.map(option => option.name)
-    let defaultFilter : BooleanFilter = {key: 0, mode: "is", join: "&&", value: ""}
+    let defaultFilter : BooleanFilter = {key: 0, mode: "is", join: "&&", value: "true"}
     let initialValues : BooleanFilter[] = [];
     if (columnFilters[column]) {
         initFilters(column, columnFilters, initialValues, modes)
@@ -81,7 +81,7 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
                 key: f.key, 
                 mode: f.mode, 
                 join: f.join, 
-                value: f.value === "true" ? "True" : "False"
+                value: f.value === "true" ? "True" : f.value === "false" ? "False" : f.value
             }))
             const filter : Filters = combineFilters(newFilters, modes)
             newColumnFilters = {...columnFilters, [column]: filter}
@@ -185,14 +185,16 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
     };
     const toggleInput = (filter: BooleanFilter) =>     
         <BaseButton 
-            text={filter.value} 
+            text={filter.value === "True" ? "true" : filter.value === "False" ? "false" : filter.value} 
             variant="outline" 
-            className="rounded-none rounded-tr-lg rounded-br-lg" 
+            className="rounded-none rounded-tr-lg rounded-br-lg"
+            onKeyDown={onEnter}
             onClick={() => {
                 const newFilters = [...filters]
                 newFilters.find(f => f.key === filter.key)!.value === "true" 
                     ? newFilters.find(f => f.key === filter.key)!.value = "false"
                     : newFilters.find(f => f.key === filter.key)!.value = "true"
+                setFilters(newFilters)
             }}
         />
     const filterInput = (filter: BooleanFilter) => {
@@ -204,12 +206,15 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
                 onOptionChange={(option) => {
                     const newFilters = [...filters]
                     newFilters.find(f => f.key === filter.key)!.mode = option.name as "is"
-                    if (["exists", "isNone"].includes(option.name)) {
+                    if (["exists", "isNone", "is"].includes(option.name)) {
                         newFilters.find(f => f.key === filter.key)!.value = "true"
                     }
                 }}
             >
-                {["exists", "isNone"].includes(option.name) ? toggleInput(filter) : valueInput(filter, option)}
+                {["exists", "isNone", "is"].includes(option.name)
+                    ? toggleInput(filter)
+                    : valueInput(filter, option)
+                }
             </InputWithStartSelect>
         )
     }

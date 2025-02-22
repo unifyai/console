@@ -82,7 +82,31 @@ const ImageColumnFilter = ({
 
     return (
         renderMode === "menuItem" ? (
-            <DropdownMenuItem onClick={onClick} className="flex items-center gap-2">
+            <DropdownMenuItem
+                onClick={onClick} 
+                className="
+                relative
+                flex
+                cursor-pointer
+                select-none
+                items-center
+                gap-2
+                rounded-sm
+                px-2
+                py-1.5
+                text-sm
+                outline-none
+                transition-colors
+                focus:bg-accent
+                focus:text-accent-foreground
+                data-[highlighted]:bg-accent
+                data-[highlighted]:text-accent-foreground
+                data-[disabled]:pointer-events-none
+                data-[disabled]:opacity-50
+                [&>svg]:size-4
+                [&>svg]:shrink-0
+                "
+            >
                 <Filter className="h-4 w-4"/>
                 <span>Filter by this column</span>
             </DropdownMenuItem>
