@@ -174,12 +174,13 @@ const tooltipTemplate = (data: InfoCardData) => {
 }
 
 const keyTemplate = (keys: GroupingColors) => {
+    const value = (entry: { key: string, color: string }) => entry.key.toString().slice(0, 8).replace(/^"|"$/g, '');
     return (`
     <p class="font-bold text-sm">Grouping values</p>
     ${keys.map((entry, index) => `
     <div id=${entry.key} class="key flex flex-row gap-2 items-center">
         <div class="rounded-full h-2 w-2" style="background-color: ${entry.color}; color: ${entry.color}"></div>
-        <p class="text-xs text-foreground">${entry.key.toString().slice(0, 10)}</p>
+        <p class="text-xs text-foreground">${value(entry)}</p>
     </div>
     `).join("\n")}`)
 }
