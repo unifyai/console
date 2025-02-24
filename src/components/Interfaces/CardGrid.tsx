@@ -370,10 +370,10 @@ const CardGrid = ({
                                             >
                                                 {el.i}
                                             </Badge>
-                                            {((el.context || context) != "default") && <Badge variant="primary">
+                                            {((el.context || context) != "default") && el.tab == "Table" && <Badge variant="primary">
                                                 {"Context: " + (el.context || context)}
                                             </Badge>}
-                                            {(el.column_context || columnContext) && <Badge variant="primary">
+                                            {(el.column_context || columnContext) && el.tab == "Table" && <Badge variant="primary">
                                                 {"Col Context: " + (el.column_context || columnContext)}
                                             </Badge>}
                                         </div>
