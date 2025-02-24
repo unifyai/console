@@ -30,6 +30,7 @@ import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
 import FreezeLogs from "./Buttons/FreezeLogs";
 import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
+import { FiltersByColumn } from "@/types/evals/columns";
 import CellPopover from "./Content/CellPopover";
 import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
@@ -191,7 +192,20 @@ const LogsTable = ({
   };
 
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-
+  const setLogsFilters = (filtersObj: FiltersByColumn) => {
+    const keys = Object.keys(filtersObj);
+    updateItem(item, "filters")(
+      keys.length
+        ? Object.entries(filtersObj)
+          .map(([cKey, val]) =>
+            Object.entries(val).map(([fn, val2]) => `${cKey}@${fn}@${val2}`)
+          )
+          .flat()
+          .join("§")
+        : undefined
+    );
+  }
+  
   const sorting: ColumnSort[] = sortingStr
     ? sortingStr.split(",").map((c) => {
       const [key, order] = c.split("@");
@@ -340,19 +354,7 @@ const LogsTable = ({
             logsFilters={logsFilters}
             commonFilter_={commonFilter}
             setCommonFilter_={updateItem(item, "common_filter")}
-            setLogsFilters={(obj) => {
-              const keys = Object.keys(obj);
-              updateItem(item, "filters")(
-                keys.length
-                  ? Object.entries(obj)
-                    .map(([colKey, val]) =>
-                      Object.entries(val).map(([fn, val2]) => `${colKey}@${fn}@${val2}`)
-                    )
-                    .flat()
-                    .join(",")
-                  : undefined
-              );
-            }}
+            setLogsFilters={setLogsFilters}
             logs={logs}
           />
           <VisibilityFilter
@@ -426,19 +428,7 @@ const LogsTable = ({
                   ColumnFilters={(column, filterLoading, setIsFiltered, setFilterLoading, open, setOpen, renderMode = "button") => (
                     <ColumnFilter
                       interactive={interactive}
-                      setColumnFilterQuery={(filtersObj) => {
-                        const keys = Object.keys(filtersObj);
-                        updateItem(item, "filters")(
-                          keys.length
-                            ? Object.entries(filtersObj)
-                              .map(([cKey, val]) =>
-                                Object.entries(val).map(([fn, val2]) => `${cKey}@${fn}@${val2}`)
-                              )
-                              .flat()
-                              .join(",")
-                            : undefined
-                        );
-                      }}
+                      setColumnFilterQuery={setLogsFilters}
                       boundaries={boundaries}
                       columnFilters={searchParamToFilters(logsFilters, item.column_context)}
                       column={column.id}
