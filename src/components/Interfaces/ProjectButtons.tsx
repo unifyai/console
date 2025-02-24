@@ -23,7 +23,7 @@ const ProjectButtons = ({
     setPending,
     setDataPending,
     setInterfaces,
-    setInterface_2,
+    setProjects,
     setInterface,
     setProject,
 }: {
@@ -40,7 +40,7 @@ const ProjectButtons = ({
     setPending: (value: SetStateAction<boolean>) => void,
     setDataPending: (value: SetStateAction<boolean>) => void,
     setInterfaces: (value: SetStateAction<string[]>) => void,
-    setInterface_2: (value: SetStateAction<string>) => void,
+    setProjects: (value: SetStateAction<string[]>) => void,
     setInterface: (value: string | null) => void,
     setProject: (value: string | null) => void,
 }) => {
@@ -56,12 +56,12 @@ const ProjectButtons = ({
                     setPending(true);
                     setDataPending(true);
                     setInterfaces([]);
-                    setInterface_2("");
                     setInterface(null);
                     setProject(newProj);
                 }}
                 type="Projects"
                 defaultValue={project || undefined}
+                onOpen={() => projectActions.get().then(projects => setProjects(projects))}
             />
             {project && (
                 <div className="flex flex-row gap-2">
@@ -71,13 +71,12 @@ const ProjectButtons = ({
                             setDataPending(true);
                             setInterface(null);
                             setInterfaces([]);
-                            setInterface_2("");
                             setProject(null);
                         }}
                     />
                     <DeleteDialog
                         type="project"
-                        resource={project}
+                        args={[project]}
                         deletingFunction={async (name: string) => {
                             await Promise.all(interfaces.map(interface_ => interfaceActions.delete(
                                 interface_, project, true
@@ -93,8 +92,8 @@ const ProjectButtons = ({
                             setDataPending(true);
                             setInterface(null);
                             setInterfaces([]);
-                            setInterface_2("");
                             setProject(null);
+                            projectActions.get().then(projects => setProjects(projects));
                         }}
                     />
                 </div>

@@ -300,7 +300,7 @@ const ListView: React.FC<ListViewProps> = ({
   const [openItems, setOpenItems] = useState<string[]>(defaultOpen);
 
   if (!isList(value)) {
-    return <p className="text-red-500">ListView: Value is not a valid list.</p>;
+    return <p className="text-red-500">ListView: Base Value is not a valid list.</p>;
   }
 
   let listItems: JSX.Element[] = [];

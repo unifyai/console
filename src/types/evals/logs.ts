@@ -51,7 +51,6 @@ export interface GroupedLogProps {
     subRows: GroupedLogProps[] | LogProps[],
     isPopulated: boolean,  // Whether subRows have been populated
     groupCount: number,  // Number of unique groups under this group
-    remainingGroupBy: string[],  // Remaining group by columns after this level
 }
 
 export interface LogGroupsProps {
@@ -89,6 +88,10 @@ export interface TableArguments {
         available_fields: LogFieldsResponseProps 
         getLogs_parameters: getLogsParameters
     }
+}
+
+export interface PlotArguments {
+    [table_name: string]: getLogsParameters
 }
 
 declare module "@tanstack/react-table" {

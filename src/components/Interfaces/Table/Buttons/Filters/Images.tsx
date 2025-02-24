@@ -5,28 +5,47 @@ import { FiltersByColumn } from "@/types/evals/columns";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { Filter, LoaderCircle, Circle, CircleSlash2 } from "lucide-react";
 import { LogProps, GroupedLogProps } from "@/types/evals/logs";
+import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 
-const ImageColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, logs }: {
+type ImageColumnFilterProps = {
     interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
-    logs: LogProps[] | GroupedLogProps[]
-}) => {
+    logs: LogProps[] | GroupedLogProps[],
+    filterLoading: boolean,
+    setFilterLoading: (filterLoading: boolean) => void,
+    setIsFiltered: (isFiltered: boolean) => void,
+    renderMode: "button" | "menuItem"
+}
+
+const ImageColumnFilter = ({
+    interactive,
+    column,
+    columnFilters,
+    setColumnFilterQuery,
+    logs,
+    filterLoading,
+    setFilterLoading,
+    setIsFiltered,
+    renderMode
+}: ImageColumnFilterProps) => {
 
     /* Display loader when data updates */
-    const [loading, setLoading] = useState(false);
     const [spinnerColor, setSpinnerColor] = useState("white");
     useEffect(() => {
-        setLoading(false);
+        setFilterLoading(false);
     },[logs])
 
     /* Init filter */
-    const initialValue = columnFilters[column] &&columnFilters[column]["exists"] ? columnFilters[column]["exists"] : "None"
+    const initialValue = columnFilters[column] && columnFilters[column]["isNone"] ? columnFilters[column]["isNone"] : "None"
     const [filter, setFilter] = useState<string>(initialValue);
     
     /* Event handlers */
-    const onClick = () => {        
+    const onClick = (e?: React.MouseEvent) => {
+        if (e) {
+            e.stopPropagation();
+        }
         let newColumnFilters = { ...columnFilters }
         const newFilter = state.next
         if (newFilter === "None") {
@@ -36,12 +55,12 @@ const ImageColumnFilter = ({ interactive, column, columnFilters, setColumnFilter
             setSpinnerColor("primary")
         }
         else {
-            newColumnFilters = {...columnFilters, [column]: {"exists": newFilter}}
+            newColumnFilters = {...columnFilters, [column]: {"isNone": newFilter}}
             setSpinnerColor("white")
         }
         setFilter(newFilter)
         setColumnFilterQuery(newColumnFilters);
-        setLoading(true)
+        setFilterLoading(true)
     }
 
     /* Filter button */
@@ -53,11 +72,47 @@ const ImageColumnFilter = ({ interactive, column, columnFilters, setColumnFilter
     const state = states.find(state => state.key === filter)!
     const tooltip = state.tooltip
     const variant = state.variant as "primary" | "link" | "secondary" | "destructive" | "warning" | "outline" | "ghost" | undefined
-    const icon = loading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon
-    const disabled = !interactive || loading
-    
+    const icon = filterLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon
+    const disabled = !interactive || filterLoading
+    const isFiltered = state.key === "true"
+
+    useEffect(() => {
+        setIsFiltered(isFiltered);
+    }, [isFiltered])
+
     return (
-        <ActionButton icon={icon} tooltip={tooltip} variant={variant} disabled={disabled} onClick={onClick}/>
+        renderMode === "menuItem" ? (
+            <DropdownMenuItem
+                onClick={onClick} 
+                className="
+                relative
+                flex
+                cursor-pointer
+                select-none
+                items-center
+                gap-2
+                rounded-sm
+                px-2
+                py-1.5
+                text-sm
+                outline-none
+                transition-colors
+                focus:bg-accent
+                focus:text-accent-foreground
+                data-[highlighted]:bg-accent
+                data-[highlighted]:text-accent-foreground
+                data-[disabled]:pointer-events-none
+                data-[disabled]:opacity-50
+                [&>svg]:size-4
+                [&>svg]:shrink-0
+                "
+            >
+                <Filter className="h-4 w-4"/>
+                <span>Filter by this column</span>
+            </DropdownMenuItem>
+        ) : (
+            <ActionButton icon={icon} tooltip={tooltip} variant={variant} disabled={disabled} onClick={onClick}/>
+        )
     );
 }
 

@@ -115,7 +115,8 @@ function pickView(
   baseLogIndex: number,
   comparisonLogsIndex: number[],
   diffMode: LogComparisonProps["diffMode"],
-  splitView: LogComparisonProps["splitView"]
+  splitView: LogComparisonProps["splitView"],
+  displayMode: "text" | "markdown" | undefined
 ): JSX.Element {
   if (isChat(baseVal)) {
     return (
@@ -126,6 +127,7 @@ function pickView(
         comparisonLogsIndex={comparisonLogsIndex}
         diffMode={diffMode ?? "none"}
         splitView={splitView ?? false}
+        displayMode={displayMode}
       />
     );
   }
@@ -138,6 +140,7 @@ function pickView(
         comparisonLogsIndex={comparisonLogsIndex}
         diffMode={diffMode ?? "none"}
         splitView={splitView ?? false}
+        displayMode={displayMode}
       />
     );
   }
@@ -150,6 +153,7 @@ function pickView(
         comparisonLogsIndex={comparisonLogsIndex}
         diffMode={diffMode ?? "none"}
         splitView={splitView ?? false}
+        displayMode={displayMode}
       />
     );
   }
@@ -162,6 +166,7 @@ function pickView(
         comparisonLogsIndex={comparisonLogsIndex}
         diffMode={diffMode ?? "none"}
         splitView={splitView ?? false}
+        displayMode={displayMode}
       />
     );
   }
@@ -174,6 +179,7 @@ function pickView(
         comparisonLogsIndex={comparisonLogsIndex}
         diffMode={diffMode ?? "none"}
         splitView={splitView ?? false}
+        displayMode={displayMode}
       />
     );
   }
@@ -186,6 +192,7 @@ function pickView(
         comparisonLogsIndex={comparisonLogsIndex}
         diffMode={diffMode ?? "none"}
         splitView={splitView ?? false}
+        displayMode={displayMode}
       />
     );
   }
@@ -198,6 +205,7 @@ function pickView(
         comparisonLogsIndex={comparisonLogsIndex}
         diffMode={diffMode ?? "none"}
         splitView={splitView ?? false}
+        displayMode={displayMode}
       />
     );
   }
@@ -210,6 +218,7 @@ function pickView(
       comparisonLogsIndex={comparisonLogsIndex}
       diffMode={diffMode ?? "none"}
       splitView={splitView ?? false}
+      displayMode={displayMode}
     />
   );
 }
@@ -222,6 +231,7 @@ function PatchDetailPanel({
   allRowIndexes,
   diffMode,
   splitView,
+  displayMode,
 }: {
   node: PatchDiffNode;
   baseRowIndex: number;
@@ -230,6 +240,7 @@ function PatchDetailPanel({
   allRowIndexes: number[];
   diffMode?: LogComparisonProps["diffMode"];
   splitView?: LogComparisonProps["splitView"];
+  displayMode?: "text" | "markdown" | undefined
 }) {
   if (!node.baseSpanRef && !node.targetSpanRef) {
     return <p className="italic text-sm">No base or target data</p>;
@@ -309,7 +320,7 @@ function PatchDetailPanel({
       return null;
     }
 
-    const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView);
+    const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown");
 
     return (
       <AccordionItem key={title} value={title}>
@@ -344,6 +355,7 @@ function PatchDetailPanel({
               comparisonLogsIndex={comparisonLogsIndex}
               diffMode={diffMode}
               splitView={splitView}
+              displayMode={displayMode}
             />
           </div>
         </AccordionContent>
@@ -367,6 +379,7 @@ function PatchDetailPanel({
               diffMode={diffMode}
               splitView={splitView}
               scientificNotation={true}
+              displayMode={displayMode}
             />
           </div>
         </div>
@@ -381,6 +394,7 @@ function PatchDetailPanel({
               diffMode={diffMode}
               splitView={splitView}
               scientificNotation={true}
+              displayMode={displayMode}
             />
           </div>
         </div>
@@ -682,7 +696,7 @@ function CollapsiblePatchLineNode({
           {timeLabel && timeData && (
             <HoverCard>
               <HoverCardTrigger asChild>
-                <span className="ml-2 text-xs text-muted-foreground underline cursor-pointer">
+                <span className={`ml-2 text-xs ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'} underline cursor-pointer`}>
                   {timeLabel}
                 </span>
               </HoverCardTrigger>
@@ -715,7 +729,7 @@ function CollapsiblePatchLineNode({
           {costLabel && costData && (
             <HoverCard>
               <HoverCardTrigger asChild>
-                <span className="ml-2 text-xs text-muted-foreground underline cursor-pointer">
+                <span className={`ml-2 text-xs ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'} underline cursor-pointer`}>
                   {costLabel}
                 </span>
               </HoverCardTrigger>
@@ -798,6 +812,7 @@ interface UnifiedTraceViewProps {
   rowIndexes: number[];
   diffMode?: LogComparisonProps["diffMode"];
   splitView?: LogComparisonProps["splitView"];
+  displayMode?: "text" | "markdown" | undefined
 }
 
 function flattenRootNode(root: PatchDiffNode | null): PatchDiffNode[] {
@@ -827,6 +842,7 @@ export default function UnifiedTraceView({
   rowIndexes,
   diffMode = "none",
   splitView = false,
+  displayMode = "markdown",
 }: UnifiedTraceViewProps) {
   const [collapsedNodes, setCollapsedNodes] = useState<Record<string, boolean>>({});
 
@@ -1008,6 +1024,7 @@ export default function UnifiedTraceView({
         allRowIndexes={rowIndexes}
         diffMode={diffMode}
         splitView={splitView}
+        displayMode={displayMode}
       />
     );
   }

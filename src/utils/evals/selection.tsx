@@ -1,9 +1,13 @@
-import React from "react"
+"use client";
+
+import React, { useState, useEffect, useMemo, useCallback } from "react"
 import { Span } from "@/types/evals/traces"
 import { LogProps } from "@/types/evals/logs"
 import { sanitizeId } from "./columnOperations"
 import Image from "next/image"
-import Link from "next/link"
+
+const signedUrlCache = new Map<string, string>();
+const signedUrlInProgress = new Set<string>();
 
 export const MatrixDisplay = ({value}:{value: number[][]}) => {
     return (
@@ -24,50 +28,218 @@ export const MatrixDisplay = ({value}:{value: number[][]}) => {
     )
 }
 
-export const ImageDisplay = ({value, className}: {value: string, className?: string}) => {
-  const isBase64 = isBase64Image(value);
-  const url = isBase64 ? `data:image/png;base64,${value}` : value;
+// Add a debounce utility to prevent too many simultaneous requests
+const debounce = (fn: Function, ms = 300) => {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  return function (this: any, ...args: any[]) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn.apply(this, args), ms);
+  };
+};
 
+export const ImageDisplay = ({ value, className }: { value: string; className?: string }) => {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  // Separate immediate fetch function for initial load
+  const fetchSignedUrl = async (imageUrl: string) => {
+    try {
+      const parsedUrl = new URL(imageUrl);
+      const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
+      const bucket = pathParts[0];
+      const path = pathParts.slice(1).join("/");
+      
+      const currentUrl = signedUrlCache.get(imageUrl);
+      const queryParams = new URLSearchParams({
+        bucket: bucket,
+        path: path,
+        ...(currentUrl ? { url: currentUrl } : {})
+      });
+      
+      const res = await fetch(`/api/image/get?${queryParams}`);
+      
+      if (!res.ok) {
+        throw new Error(`Failed to fetch signed URL: ${res.statusText}`);
+      }
+      
+      const newUrlData = await res.json();
+      signedUrlCache.set(parsedUrl.href, newUrlData.url);
+      signedUrlInProgress.delete(parsedUrl.href);
+      setUrl(newUrlData.url);
+    } catch (err) {
+      console.error("Error fetching signed URL:", err);
+      signedUrlInProgress.delete(imageUrl);
+      setError(err as Error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Debounced version only for error recovery
+  const debouncedFetchSignedUrl = useMemo(
+    () => debounce((imageUrl: string) => fetchSignedUrl(imageUrl), 300),
+    []
+  );
+
+  useEffect(() => {
+    const initializeImage = async () => {
+      try {
+        // If the value is already a data URI, use it immediately
+        if (value.startsWith("data:image/")) {
+          setUrl(value);
+          setLoading(false);
+          return;
+        }
+
+        const isBase64 = isBase64Image(value);
+        let imageUrl = isBase64 ? `data:image/png;base64,${value}` : value;
+
+        try {
+          const parsedUrl = new URL(imageUrl);
+
+          // Only proceed with GCS URLs that aren't already signed
+          if (parsedUrl.hostname === "storage.googleapis.com") {
+            // Check cache first
+            const cachedUrl = signedUrlCache.get(imageUrl);
+            if (cachedUrl) {
+              setUrl(cachedUrl);
+              setLoading(false);
+              return;
+            }
+
+            // If fetch is already in progress, wait for it
+            if (signedUrlInProgress.has(imageUrl)) {
+              const checkInterval = setInterval(() => {
+                const cachedResult = signedUrlCache.get(imageUrl);
+                if (cachedResult) {
+                  setUrl(cachedResult);
+                  setLoading(false);
+                  clearInterval(checkInterval);
+                }
+              }, 100);
+              return;
+            }
+
+            signedUrlInProgress.add(imageUrl);
+            // Use immediate fetch for initial load
+            await fetchSignedUrl(imageUrl);
+          } else {
+            setUrl(imageUrl);
+            setLoading(false);
+          }
+        } catch (parseError) {
+          console.error("Error parsing or converting URL:", parseError);
+          signedUrlInProgress.delete(imageUrl);
+          throw parseError;
+        }
+      } catch (err: any) {
+        console.error("Error in ImageDisplay initialization:", err);
+        setError(err);
+        setLoading(false);
+      }
+    };
+
+    initializeImage();
+  }, [value]);
+
+  // Use debounced fetch only for error recovery
+  const handleImageError = useCallback((e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const img = e.target as HTMLImageElement;
+    if (img.src && img.src.includes('storage.googleapis.com')) {
+      const originalUrl = value;
+      signedUrlCache.delete(originalUrl);
+      setLoading(true);
+      setError(null);
+      // Use debounced fetch for error recovery
+      debouncedFetchSignedUrl(originalUrl);
+    }
+  }, [value, debouncedFetchSignedUrl]);
+
+  if (loading) {
+    return <span>Loading image...</span>;
+  }
+
+  if (error || !url) {
+    console.error("[ImageDisplay] Rendering error state:", error);
+    return <span>Error loading image</span>;
+  }
+
+  // Render based on whether it's a base64 image or a clickable URL image
+  const isBase64 = isBase64Image(value);
+  console.log("[ImageDisplay] Rendering final component. isBase64:", isBase64);
   if (isBase64) {
-    // For base64 images, just display without a link
-    return <Image src={url} alt="Image" width={500} height={500} className={className} />
+    return (
+      <Image
+        src={url}
+        alt="Base64 image"
+        width={500}
+        height={500}
+        className={className}
+        onError={handleImageError}
+      />
+    );
   } else {
-    // For URL images, make it clickable
     return (
       <a href={url} target="_blank" rel="noopener noreferrer">
-        <Image src={url} alt="Image" width={500} height={500} className={className} />
+        <Image
+          src={url}
+          alt="Image link"
+          width={500}
+          height={500}
+          className={className}
+          onError={handleImageError}
+        />
       </a>
-    )
+    );
   }
-}
+};
 
 export const isDict = (value: any) => typeof value === "object" && !Array.isArray(value) && !(value instanceof RegExp) && !(value instanceof Date) && !(value instanceof Function) && value != null;
 export const isList = (value: any) => Array.isArray(value);
 export const isMatrix = (value: any) => isList(value) && value.every(row => Array.isArray(row) && row.every(number => typeof number === "number"));
 
-export const isURLImage = (value: string) => {
-  /* Check if URL image string 
-     Example value: "https://oaidalleapiprodscus.blob.core.windows.net/private/org-D1OIs5ffDVTBSBpNWJyXxFfN/user-vlZW2XKHDiNPzwT4Xv6wlzgv/img-9mgiKpSrAV1p1iqZ9C0Nw2iq.png?st=2024-11-20T11%3A18%3A20Z&se=2024-11-20T13%3A18%3A20Z&sp=r&sv=2024-08-04&sr=b&rscd=inline&rsct=image/png&skoid=d505667d-d6c1-4a0a-bac7-5c84a87759f8&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2024-11-20T00%3A40%3A43Z&ske=2024-11-21T00%3A40%3A43Z&sks=b&skv=2024-08-04&sig=9aNFotmijRyhe8JwkzMGX5WZWGxLIPSSXx6nigR02Y4%3D"
-  */
+export function isURLImage(value: string): boolean {
   try {
     const url = new URL(value);
+    
+    // Automatically return true for Google Cloud Storage URLs
+    if (url.hostname === 'storage.googleapis.com') {
+      return true;
+    }
+
+    // Check for typical image file extensions
     const imageTypes = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.svg', '.webp'];
-    if (imageTypes.map(imageType => url.pathname.includes(imageType)).some(check => check)) return true;
-  } catch (e) {
-    return false
-  }
-}
-export const isBase64Image = (value: string) => {
-  /* Check if it's a Base64 image 
-     Example value: "iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAIAAADwf7zUAAA552NhQlgAADnnanVtYgAAAB5qdW1kYzJwYQARABCAAACqADibcQNjMnBhAAAAOcFqdW1iAAAAR2p1bWRjMm1hABEAEIAAAKoAOJtxA3Vybjp1dWlkOjE1ZDQ0YjJlLTUxMGUtNGUyMC1iMWJiLTJhNDA2NTMyOWFlMAAAAAGhanVtYgAAAClqdW1kYzJhcwARABCAAACqADibcQNjMnBhLmFzc2VydGlvbnMAAAAAxWp1bWIAAAAmanVtZGNib3IAEQAQgAAAqgA4m3EDYzJwYS5hY3Rpb25zAAAAAJdjYm9yoWdhY3Rpb25zgaNmYWN0aW9ubGMycGEuY3JlYXRlZG1zb2Z0d2FyZUFnZW50Z0RBTEzCt0VxZGlnaXRhbFNvdXJjZVR5cGV4Rmh0dHA6Ly9jdi5pcHRjLm9yZy9uZXdzY29kZXMvZGlnaXRhbHNvdXJ...."
-  */
-  try {
-    const decoded = atob(value);
-    return decoded.includes('\x89\x50\x4E\x47') || decoded.includes('\xFF\xD8\xFF'); // Checks for PNG and JPEG headers
+    const hasImageExtension = imageTypes.some(type => url.pathname.toLowerCase().includes(type));
+    
+    return hasImageExtension;
   } catch (e) {
     return false;
   }
 }
+
+export const isBase64Image = (value: string) => {
+  try {
+    /*
+     * If the string starts with "data:image" then parse out the actual base64 portion.
+     * Otherwise, assume it's raw base64 (no prefix).
+     */
+    let raw64 = value;
+    // If it has "data:image/xxxx;base64," then parse out just the raw base64
+    const match = raw64.match(/^data:image\/\w+;base64,(.*)$/);
+    if (match) {
+      raw64 = match[1]; // store only the base64 part
+    }
+
+    const decoded = atob(raw64);
+
+    // Check PNG (header = 0x89 0x50 0x4e 0x47) or JPEG (header = 0xff 0xd8 0xff)
+    return decoded.includes('\x89\x50\x4E\x47') || decoded.includes('\xFF\xD8\xFF');
+  } catch (e) {
+    return false;
+  }
+}
+
 export const isImage = (value: any) => {
   if (typeof value !== "string") return false;
   return isBase64Image(value) || isURLImage(value);
@@ -89,15 +261,15 @@ export function isSpan(obj: any): obj is Span {
 
 /**
  * Checks if a value is a single Span or an array of Spans (i.e., a trace).
- * Returns true if the value is either a single Span or an array of Spans,
+ * Returns true if the value is either a single Span or a non-empty array of Spans,
  * and false otherwise.
  */
 export function isTrace(x: any): x is Span | Span[] {
   if (!x) return false;
   // If it's just one Span
   if (isSpan(x)) return true;
-  // If it's an array of spans
-  if (Array.isArray(x) && x.every(item => isSpan(item))) {
+  // If it's a non-empty array of spans
+  if (Array.isArray(x) && x.length > 0 && x.every(item => isSpan(item))) {
     return true;
   }
   return false;
@@ -107,7 +279,6 @@ export function isTrace(x: any): x is Span | Span[] {
 export function isNumber(value: any): boolean {
   return typeof value === "number";
 }
-
 
 export function isTimestamp(value: any): boolean {
   if (typeof value !== "string") return false;
@@ -130,12 +301,11 @@ export function isChat(value: any): boolean {
     Array.isArray(value.messages) &&
     (
       ("model" in value && typeof value.model === "string") ||
-      value.messages.length >= 0 // or any additional checks you like
+      value.messages.length >= 0
     )
   );
   return isChatOut || isChatIn;
 }
-
 
 /**
   * Given a list of keys, returns the subset of a dictionary 
@@ -167,50 +337,49 @@ export function getPartAfterFirstUnderscore (str: string) {
 export function extractBaseAndComparisonLogs (selectedCells: string[], logs:LogProps[]) {
 
   // Locate base log and its row index in the table, then filter values for selected cells that pertain to the base log
-  const baseLogParam = selectedCells.at(0)                                      // logId1_columnId1
-  const baseLogParamId = baseLogParam?.split("_").at(0)                         // logId1
+  const baseLogParam = selectedCells.at(0)
+  const baseLogParamId = baseLogParam?.split("_").at(0)
   const baseLogIndex = logs.findIndex((log) => log.id == baseLogParamId) + 1;
   let baseLog = logs.find((log) => log.id == baseLogParamId);
   if (baseLog)  {
     let columnIds = selectedCells
-      .filter(id => id.split("_").at(0) === baseLogParamId)                     // Find all selected cells from base
-      .map(cell => getPartAfterFirstUnderscore(cell))                           // Handle underscores in column id
-    columnIds = Array.from(new Set(columnIds.map(sanitizeId)))                          // Handle duplication in column id
+      .filter(id => id.split("_").at(0) === baseLogParamId)
+      .map(cell => getPartAfterFirstUnderscore(cell))
+    columnIds = Array.from(new Set(columnIds.map(sanitizeId)))
     baseLog = {...baseLog, entries: getDictSubset(baseLog.entries, columnIds)}
     if (baseLog.params)
       baseLog.params = getDictSubset(baseLog.params, columnIds)
-
   }
   else
     selectedCells = [];
 
   // Fix for case where on row is selected
   const uniqueLogIds = Array.from(new Set(selectedCells.map(cell => cell.split("_")[0])));
-  
+
   // If there's only one unique log ID, there should be no comparison logs
   if (uniqueLogIds.length === 1) {
     return { baseLogIndex, baseLog, comparisonLogsIndex: [], comparisonLogs: [] };
   }
 
   // Locate comparison logs and their row indices in the table, then filter values for selected cells that pertain to each log
-  const comparisonLogsParam = selectedCells.slice(1)                                // [logId1_colId2, logId2_colId3, ...]
+  const comparisonLogsParam = selectedCells.slice(1)
   let comparisonLogsIndex = comparisonLogsParam 
     ? comparisonLogsParam.map((cl) => logs.findIndex((log) => log.id == cl.split("_").at(0)) + 1) 
     : [];
-  comparisonLogsIndex = Array.from(new Set(comparisonLogsIndex))                    // Handle index duplication
+  comparisonLogsIndex = Array.from(new Set(comparisonLogsIndex))
   let comparisonLogs = comparisonLogsParam && logs
     ? comparisonLogsParam.map((cl: string) => logs.find((log) => log.id == cl.split("_").at(0))!)
     : [];
-  comparisonLogs = Array.from(new Set(comparisonLogs))                              // Handle duplication in comparison logs
+  comparisonLogs = Array.from(new Set(comparisonLogs))
   if (comparisonLogs.length) {
     comparisonLogs = comparisonLogs.map((cl, index) => {
       const clParam = comparisonLogsParam![index]
       const clParamId = clParam.split("_").at(0)
       let columnIds = selectedCells
-        .filter(id => id.split("_").at(0) === clParamId)                            // Find all selected cells from comparison
-        .map(cell => getPartAfterFirstUnderscore(cell))                             // Handle underscores in column id
-        columnIds = Array.from(new Set(columnIds.map(sanitizeId)))                                  // Handle duplication in column id
-      const comparisonLog = {...cl, entries: getDictSubset(cl.entries, columnIds)}    
+        .filter(id => id.split("_").at(0) === clParamId)
+        .map(cell => getPartAfterFirstUnderscore(cell))
+      columnIds = Array.from(new Set(columnIds.map(sanitizeId)))
+      const comparisonLog = {...cl, entries: getDictSubset(cl.entries, columnIds)}
       if (cl.params)
         comparisonLog.params = getDictSubset(cl.params, columnIds)
       return comparisonLog

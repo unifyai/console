@@ -10,7 +10,7 @@ import {
   docco,
 } from "react-syntax-highlighter/dist/esm/styles/hljs";
 
-const MarkdownRender = ({ content }: { content: string }) => {
+const MarkdownRender = ({ content, noBackground }: { content: string, noBackground?: boolean }) => {
   const { theme } = useTheme();
 
   const CodeBlock = ({
@@ -35,6 +35,10 @@ const MarkdownRender = ({ content }: { content: string }) => {
           language={language?.[1] ?? undefined}
           style={theme === "dark" ? dracula : docco}
           PreTag="div"
+          lineProps={{ style: { wordBreak: "break-all", whiteSpace: "pre-wrap" } }}
+          wrapLines={true}
+          wrapLongLines={true}
+          customStyle={noBackground ? { backgroundColor: "transparent" } : undefined}
         >
           {codeContent}
         </SyntaxHighlighter>
@@ -47,7 +51,7 @@ const MarkdownRender = ({ content }: { content: string }) => {
   };
 
   return (
-    <div className="prose w-full">
+    <div className={"prose w-full " + (noBackground ? "text-sm" : "")}>
       <Markdown
         components={{
           code: CodeBlock as any,

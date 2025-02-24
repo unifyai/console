@@ -1,8 +1,7 @@
 "use client";
 
 import { Interface, TileProps } from "@/types/evals/grid";
-import { Eye } from "lucide-react";
-import { Plus } from "lucide-react";
+import { Eye, Hammer, SquareMousePointer } from "lucide-react";
 import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
@@ -11,15 +10,20 @@ import { Context } from "@/types/evals/grid";
 import { useRouter } from "next/navigation";
 import { SetStateAction } from "react";
 import { ResponseProps } from "@/types/common";
+import { Switch } from "../UI/switch";
+import { Label } from "../UI/label";
+import Tooltip from "../Common/Misc/Tooltip";
+import AddTile from "./AddTile";
+import ContextSelector from "./Table/Content/ContextSelector";
 
 const InterfaceButtons = ({
-    mode,
-    project_,
+    edit,
+    interactive,
     interface_,
     project,
+    context,
     pending,
     anyTilePending,
-    context,
     contexts,
     items,
     newCounter,
@@ -32,20 +36,22 @@ const InterfaceButtons = ({
     setNewCounter,
     setCopied,
     setResetting,
-    setMode,
+    setEdit,
+    setInteractive,
     setFocusDialog,
     setDataPending,
     setContext,
     setSaveDialog,
     updateInterface,
 }: {
-    mode: "edit" | "interactive" | "dashboard",
+    edit: boolean,
+    interactive: boolean,
     project_: string | null,
     interface_: string | null,
     project: string | null,
+    context: string | undefined,
     pending: boolean,
     anyTilePending: boolean,
-    context: string | undefined,
     contexts: Context[],
     items: TileProps[],
     newCounter: number,
@@ -58,7 +64,8 @@ const InterfaceButtons = ({
     setNewCounter: (value: SetStateAction<number>) => void,
     setCopied: (value: SetStateAction<string | undefined>) => void,
     setResetting: (value: SetStateAction<boolean>) => void,
-    setMode: (value: SetStateAction<"edit" | "interactive" | "dashboard">) => void,
+    setEdit: (value: SetStateAction<boolean>) => void,
+    setInteractive: (value: SetStateAction<boolean>) => void,
     setFocusDialog: (value: SetStateAction<boolean>) => void,
     setDataPending: (value: SetStateAction<boolean>) => void,
     setContext: (value: SetStateAction<string | undefined>) => void,
@@ -81,35 +88,15 @@ const InterfaceButtons = ({
                 disabled={anyTilePending || !project || !interface_ || pending}
                 onClick={() => setFocusDialog(true)}
             />
-            <BaseDropdown
-                button={<ActionButton
-                    tooltip="Select Context"
-                    text={context || "Select Context"}
-                    variant="outline"
-                    size="sm"
-                />}
-            >
-                {[...contexts, { name: "None", description: "" }].map((ctx, idx) => <DropdownMenuItem
-                    key={idx}
-                    onSelect={() => {
-                        const newContext = ctx.name == "None" ? undefined : ctx.name;
-                        updateInterface({
-                            name: interface_ as string,
-                            project: project_ as string,
-                            context: newContext,
-                            items,
-                            new_counter: newCounter
-                        }).then(() => {
-                            setContext(newContext);
-                            setDataPending(true);
-                            router.refresh();
-                        });
-                    }}
-                    className="w-64 no-drag"
-                >
-                    {ctx.name}
-                </DropdownMenuItem>)}
-            </BaseDropdown>
+            <ContextSelector
+                contexts={contexts}
+                context={context}
+                setContext={(context: string) => {
+                    setContext(context);
+                    setDataPending(true);
+                    router.refresh();
+                }}
+            />
             <ActionButton
                 className="transition-all"
                 tooltip={!project ? "Select a project first" : "Save Interface"}
@@ -126,32 +113,18 @@ const InterfaceButtons = ({
                 disabled={anyTilePending || !project || pending}
                 onClick={async () => updateInterface(savedInterface).then(() => {
                     setResetting(true);
-                    setMode("edit");
+                    setEdit(true);
                     router.refresh();
                 })}
             />
-            <ActionButton
-                className="transition-all"
-                tooltip={(mode != "edit" || !project) ? "Select a project first" : "Add new tile"}
-                icon={<Plus />}
-                text="Add Tile"
-                variant="outline"
-                disabled={mode != "edit" || !project || pending}
-                onClick={() => {
-                    setItems([
-                        ...items,
-                        {
-                            i: "Tile_" + newCounter,
-                            x: (items.length * 2) % 12,
-                            y: (items.length * 2) / 12,
-                            w: 4,
-                            h: 4,
-                            tab: undefined,
-                            visible: true,
-                        }
-                    ]);
-                    setNewCounter(newCounter + 1);
-                }}
+            <AddTile
+                edit={edit}
+                project={project}
+                pending={pending}
+                items={items}
+                newCounter={newCounter}
+                setItems={setItems}
+                setNewCounter={setNewCounter}
             />
             <BaseDropdown
                 button={<ActionButton
@@ -172,12 +145,14 @@ const InterfaceButtons = ({
                                 y: (items.length * 2) / 12,
                                 w: 4,
                                 h: 4,
+                                minW: undefined,
+                                minH: undefined,
                                 visible: true
                             } : { ...it }
                         )]);
                     }}
                     disabled={hiddenItems.length == 0}
-                    className="w-64 no-drag"
+                    className="w-64"
                 >
                     {item.i}
                 </DropdownMenuItem>)}
@@ -197,19 +172,22 @@ const InterfaceButtons = ({
                     setCopied(undefined);
                 }}
             />
-            <ActionButton
-                tooltip="Switch mode"
-                text={mode}
-                variant="outline"
-                onClick={() => {
-                    const newMode = mode == "edit"
-                        ? "interactive"
-                        : mode == "interactive"
-                            ? "dashboard"
-                            : "edit";
-                    setMode(newMode);
-                }}
-            />
+            <div className="flex items-center gap-2 border rounded-md p-1">
+                <Switch id="edit" checked={edit} onCheckedChange={() => setEdit(!edit)} />
+                <Label htmlFor="edit">
+                    <Tooltip content="Edit">
+                        <Hammer name="edit" size={18} color={edit ? "var(--primary)" : undefined} />
+                    </Tooltip>
+                </Label>
+            </div>
+            <div className="flex items-center gap-2 border rounded-md p-1">
+                <Switch id="interactive" checked={interactive} onCheckedChange={() => setInteractive(!interactive)} />
+                <Label htmlFor="interactive">
+                    <Tooltip content="Interactive">
+                        <SquareMousePointer name="interactive" size={18} color={interactive ? "var(--primary)" : undefined} />
+                    </Tooltip>
+                </Label>
+            </div>
         </div>
     )
 };

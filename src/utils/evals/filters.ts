@@ -116,7 +116,7 @@ function joinFunctionFilters (filter: string, fn: string, cKey: string, fields: 
 	/* Single filters: Filters with a single value per function */
 	// Handle images
 	if (fields[cKey] && fields[cKey].data_type === "image") {
-		joined = filter === "true" ? `exists(${cKey})` : `not exists(${cKey})` 
+		joined = filter === "false" ? `isNone(${cKey})` : `not isNone(${cKey})` 
 		return " and " + joined
 	}
 
@@ -140,12 +140,19 @@ function joinFunctionFilters (filter: string, fn: string, cKey: string, fields: 
 				value = `"${date.replace("T", " ").replace("Z", "")}"`
 			}
 
-			// Handle inclusion
-			if (["in", "not in"].includes(fn))
+			// Handle isNone / exists / inclusion
+			if (fn === "isNone") {
+				joined += value.includes("true") ? `isNone(${cKey})` : `not isNone(${cKey})` 
+			}
+			else if (fn === "exists") {
+				joined += value.includes("true") ? `exists(${cKey})` : `not exists(${cKey})` 
+			}
+			else if (["in", "not in"].includes(fn)) {
 				joined += `${value} ${fn} ${cKey}`
-			else
+			}
+			else {
 				joined += `${cKey} ${fn} ${value}`
-
+			}
 		} 
 		// Append join operator
 		else {
@@ -176,14 +183,14 @@ export function filtersToExpression (columnFilters: FiltersByColumn, fields: Log
 	Converts filter search param expression to nested fitlers dict.
 	Group triplets of column, fn and value together, then group filters by column.
 */
-export function searchParamToFilters (searchExpression: string | undefined, context: string | undefined) {
+export function searchParamToFilters (searchExpression: string | undefined, columnContext: string | undefined) {
 	if (!searchExpression) return {}
 	const filters = searchExpression
 		.split(",")
 		.map(filter => {
 				let [column, fn, value] = filter.split("@");
-				if (context)
-					column = processContext("merge", context, column)
+				if (columnContext)
+					column = processContext("merge", columnContext, column)
 				return { [column]: { [fn]: value } };
 		})
 		.reduce((acc, curr) => {
@@ -214,7 +221,10 @@ export function initFilters (
             for (let i = 0; i < array.length; i += 2) {
                 const key = index;
                 const join = array[i] as "&&" | "||";
-                const value = array[i + 1].startsWith('"') && array[i + 1].endsWith('"') ? array[i + 1].slice(1, -1) : array[i + 1];
+                const value = array[i + 1] 
+					? array[i + 1].startsWith('"') && array[i + 1].endsWith('"') 
+						? array[i + 1].slice(1, -1) : array[i + 1]
+						: "";
                 initialValues.push({key, mode, join, value});
             }
         }

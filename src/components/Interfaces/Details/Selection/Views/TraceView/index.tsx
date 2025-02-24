@@ -10,6 +10,7 @@ const TraceView: React.FC<LogComparisonProps> = ({
   comparisonLogsIndex,
   diffMode = "none",
   splitView = false,
+  displayMode = "markdown",
 }) => {
   // Ensure the base “value” is an array of spans
   if (!Array.isArray(value)) {
@@ -31,6 +32,7 @@ const TraceView: React.FC<LogComparisonProps> = ({
       rowIndexes={rowIndexes}
       diffMode={diffMode}
       splitView={splitView}
+      displayMode={displayMode}
     />
   );
 };

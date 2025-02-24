@@ -2,7 +2,7 @@ import React from "react";
 import { DoublePanels } from "../Common/Body/DoublePanels";
 import LogsTable from "./Table/Table";
 import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedLogProps } from "@/types/evals/logs";
-import { extractLogsData, maybeFlattenGroupedLogs } from "@/utils/evals/common";
+import { extractLogsData } from "@/utils/evals/common";
 import Details from "./Details/Details";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { Suspense } from "react";
@@ -10,6 +10,7 @@ import { ResponseProps } from "@/types/common";
 import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { DerivedEntryActions, LogsActions } from "@/types/evals/grid";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 
 const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions, derivedEntryActions }: {
 	searchParams: { project?: string, page_number?: string, metric?: string, context?: string, filters?: string, common_filter?: string, sorting?: string, plot_type?: string, x_axis?: string, y_axis?: string, plot_group_by?: string, _timestamp?: string, grouping?: string | null },
@@ -21,7 +22,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 	logsActions: LogsActions,
 	derivedEntryActions: DerivedEntryActions,
 	fieldsActions: {
-		get: (project: string) => Promise<LogFieldsResponseProps>,
+		get: (project: string, context: string | null) => Promise<LogFieldsResponseProps>,
 	}
 }) => {
 
@@ -35,7 +36,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 	let fields: LogFieldsResponseProps = {}
 	let types: {[key: string] : string} = {}
 	if (project) {
-		fields = await fieldsActions.get(project)
+		fields = await fieldsActions.get(project, null)
 	}
 
 	/* Handle filters */
@@ -75,7 +76,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 	/* Get logs with pagination, and plot logs subset */
 	
 	let logsData: LogsResponseProps = { params: {}, logs: [], count: 0, groups: {} };
-	const limit = 100;
+	const limit = 20;
 	const offset = (searchParams.page_number ? parseInt(searchParams.page_number) : 0) * limit;
 	let totalPages = 1;
 	let plotData: LogsResponseProps = { params: {}, logs: [], count: 0, groups: {} };
@@ -90,7 +91,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 	);
 	if (project) {
 
-		logsData = await logsActions.get(project, context ?? null, filterExpression, sortingExpression, groupingExpression, null, null, limit, offset, groupingExpression ? 0 : null, _timestamp)
+		logsData = await logsActions.get(project, context ?? null, null, filterExpression, sortingExpression, groupingExpression, null, null, limit, offset, groupingExpression ? 0 : null, _timestamp)
 		totalPages = Math.ceil(logsData.count / limit);
 
 		const xAxis = context ? processContext("merge", context, searchParams.x_axis)  : searchParams.x_axis
@@ -99,12 +100,12 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 		if (xAxis) {
 			let subset = xAxis
 			if (searchParams.plot_type === "Bar Chart") 
-				plotData = await logsActions.get(project, context ?? null, filterExpression, null, null, subset, null, null, 0, null, _timestamp)
+				plotData = await logsActions.get(project, context ?? null, null, filterExpression, null, null, subset, null, null, 0, null, _timestamp)
 			else {
 				if (yAxis)
 					subset += `%26${yAxis}`
 					if (group) subset += `%26${group}`
-					plotData = await logsActions.get(project, context ?? null, filterExpression, null, null, subset, null, null, 0, null, _timestamp)
+					plotData = await logsActions.get(project, context ?? null, null, filterExpression, null, null, subset, null, null, 0, null, _timestamp)
 			}
 		}
 	}

@@ -138,6 +138,7 @@ export default function StringView({
   splitView = false,
   version = "",
   comparableVersions = [""],
+  displayMode = "markdown",
 }: LogComparisonProps) {
   // Prepare string values
   const singleMode = !comparables || comparables.length === 0;
@@ -162,7 +163,11 @@ export default function StringView({
             {baseVerStr ? (
               <div className="flex border rounded p-2 relative group">
                 <div className="mt-1 mb-1">
-                  <MarkdownRenderer>{baseVerStr}</MarkdownRenderer>
+                  {displayMode === "markdown" ? (
+                    <MarkdownRenderer>{baseVerStr}</MarkdownRenderer>
+                  ) : (
+                    <div className="whitespace-pre-wrap">{baseVerStr}</div>
+                  )}
                 </div>
                 <CopyButton
                   className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
@@ -184,7 +189,11 @@ export default function StringView({
             )}
             <div className="flex border rounded p-2 relative group">
               <div className="mt-1 mb-1">
-                <MarkdownRenderer>{baseStr}</MarkdownRenderer>
+                {displayMode === "markdown" ? (
+                  <MarkdownRenderer>{baseStr}</MarkdownRenderer>
+                ) : (
+                  <div className="whitespace-pre-wrap">{baseStr}</div>
+                )}
               </div>
               <CopyButton
                 className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
@@ -249,7 +258,11 @@ export default function StringView({
                         />
                         {verText ? (
                           <div className="pt-2">
-                            <MarkdownRenderer>{verText}</MarkdownRenderer>
+                            {displayMode === "markdown" ? (
+                              <MarkdownRenderer>{verText}</MarkdownRenderer>
+                            ) : (
+                              <div className="whitespace-pre-wrap">{verText}</div>
+                            )}
                           </div>
                         ) : (
                           <p className="italic text-sm text-muted-foreground border rounded">
@@ -276,7 +289,11 @@ export default function StringView({
                   />
                   {textValue ? (
                     <div className="pt-2">
-                      <MarkdownRenderer>{textValue}</MarkdownRenderer>
+                      {displayMode === "markdown" ? (
+                        <MarkdownRenderer>{textValue}</MarkdownRenderer>
+                      ) : (
+                        <div className="whitespace-pre-wrap">{textValue}</div>
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm italic text-muted-foreground">

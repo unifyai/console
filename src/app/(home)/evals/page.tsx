@@ -15,7 +15,7 @@ import {
     createDerivedEntry,
     updateDerivedEntry,
     createLogs
-} from "./actions";
+} from "../interfaces/actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
 

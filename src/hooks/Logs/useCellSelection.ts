@@ -106,7 +106,7 @@ export const useCellSelection = ({
     const previousRow = table.getRowModel().rows[nextRowIndex];
 
     // Check if entire row is selected (implies row index cell was clicked)
-    const leafColumns = table.getAllLeafColumns().filter(col => col.id !== "RowNumbering");
+    const leafColumns = table.getAllLeafColumns().filter(col => col.id !== "RowNumbering" && !col.getIsGrouped());
     const leafColumnIds = leafColumns.map(col => col.id);
     const selected = selectedCells.filter(cell => leafColumnIds.includes(getPartAfterFirstUnderscore(cell)));
     const isEntireRowSelected = selected.length === leafColumns.length &&
@@ -145,9 +145,9 @@ export const useCellSelection = ({
       .rows.findIndex((row) => row.id === selectedCell.split("_").at(0));
     const nextRowIndex = selectedRowIndex + 1;
     const nextRow = table.getRowModel().rows[nextRowIndex];
-    
+
     // Check if entire row is selected (implies row index cell was clicked)
-    const leafColumns = table.getAllLeafColumns().filter(col => col.id !== "RowNumbering");
+    const leafColumns = table.getAllLeafColumns().filter(col => col.id !== "RowNumbering" && !col.getIsGrouped());
     const leafColumnIds = leafColumns.map(col => col.id);
     const selected = selectedCells.filter(cell => leafColumnIds.includes(getPartAfterFirstUnderscore(cell)));
     const isEntireRowSelected = selected.length === leafColumns.length &&

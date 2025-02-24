@@ -2,19 +2,40 @@
 
 import * as d3 from "d3";
 import { LogProps, LogItemProps, LogFieldsResponseProps } from "@/types/evals/logs";
-import { DataLabel, DataPoint, GroupedDataLabel, GroupedDataPoint, GroupingColors } from "@/types/evals/plot";
+import { DataLabel, DataPoint, GroupedDataPoint, GroupingColors, InfoCardData } from "@/types/evals/plot";
 import { toComputableValue, computeStatistic } from "./common";
-import { metrics } from "@/constants/logs";
 import { formatNumber } from "../formatNumber";
-import { InfoCardData } from "@/types/evals/plot";
 
 const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
-const foreground = getComputedStyle(document.documentElement).getPropertyValue('--foreground').trim()
 
-/* 
-  Draw plot axes lines
+/** Utility functions to draw UI elements shared across plot types, including: 
+ * X and Y axes and ticks
+ * Plot border lines
+ * Hover tooltip card and positioning
+ * Grouped values legend
+ * Clearing the canvas
 */
-export const drawAxes = (
+
+export function clearCanvas (svgRef: any, containerRef: any) {
+    const svg = d3.select(svgRef.current)
+    const g = svg.select(".plotData")
+    const xAxis = svg.select(".xAxis")
+    const yAxis = svg.select(".yAxis")
+    const xZero = svg.select(".x-zero")
+    const yZero = svg.select(".y-zero")
+
+    const container = d3.select(containerRef.current)
+    const groupingKey = container.select(".groupingKey")
+
+    g.selectAll("*").remove();
+    xAxis.selectAll("*").remove();
+    yAxis.selectAll("*").remove();
+    xZero.style("opacity", 0)
+    yZero.style("opacity", 0)
+    groupingKey.style("opacity", 0)
+}
+
+const drawAxes = (
     plotType: string,
     svg: d3.Selection<null, unknown, null, undefined>, 
     dimensions: {width: number, height: number},
@@ -23,7 +44,6 @@ export const drawAxes = (
     y: d3.ScaleBand<string> | d3.ScaleLinear<number, number, never> | d3.ScaleLogarithmic<number, number, never>,
     xTicks: number[], 
     yTicks: number[],
-    xTime: boolean,
     reverseX: boolean = false,
     reverseY: boolean = false,
     xType?: string
@@ -36,37 +56,24 @@ export const drawAxes = (
     let yTickFormatter: any;
 
     /* Initialize x and y axes */
-    const height = dimensions.height;    
-    xAxis = svg.select(".xAxis").attr("transform", `translate(0,${height - margins.bottom})`)
-    yAxis = svg.select(".yAxis").attr("transform", `translate(${margins.left},0)`)
+    const height = dimensions.height; 
+    const width = dimensions.width;   
+    xAxis = svg.select(".xAxis")
+    yAxis = svg.select(".yAxis")
 
     /* Adjust tick formatting */
     if (plotType === "Bar Chart") {
         xTickFormatter = d3.axisBottom(x as d3.ScaleBand<string>).tickSizeOuter(0).tickFormat(d => {
             if (typeof d === "number") return reverseX ? formatNumber(-d) : formatNumber(d) 
-            return JSON.stringify(d).slice(0, 5).replace(/^"|"$/g, '')
+            return d.toString().slice(0, 10)
         }) as any;
-    } else if (plotType === "Histogram") {
+    } else if (plotType === "Histogram" || plotType === "Line Chart") {
         xTickFormatter = d3.axisBottom(x as d3.ScaleLinear<number, number, never>).tickSizeOuter(0).tickFormat(d => {
             if (xType === "timestamp") return new Date(d as number).toISOString().replace("Z", "").replace("T", " ")
             return reverseX ? formatNumber(-d as number) : formatNumber(d as number)
         }) as any
-    } else if (plotType === "Line Chart") {
-        const allDates = xTicks.map(tick => new Date(tick as number).toLocaleDateString());
-        xTickFormatter = d3.axisBottom(x as d3.ScaleLinear<number, number, never> | d3.ScaleLogarithmic<number, number, never>).tickValues(xTicks).tickFormat((d, i) => {
-            if (xTime) {
-                const date = new Date(d as number);
-                if (i != 0 && allDates[i-1] === date.toLocaleDateString())
-                    return date.toTimeString().split(" ").at(0) as string;
-                else
-                    return date.toLocaleDateString();
-            } else {
-                let value = parseFloat(d.toString())
-                value = reverseX ? -value : value
-                return formatNumber(value);
-            }
-        }) as any
-    } else {
+    }
+    else {
         xTickFormatter = d3.axisBottom(x as d3.ScaleLinear<number, number, never> | d3.ScaleLogarithmic<number, number, never>).tickValues(xTicks).tickFormat((d, i) => {
             let value = parseFloat(d.toString())
             value = reverseX ? -value : value
@@ -75,7 +82,7 @@ export const drawAxes = (
     }
     yTickFormatter = d3
         .axisLeft(y as d3.ScaleLinear<number, number, never> | d3.ScaleLinear<number, number, never>)
-        .tickValues(plotType === "Bar Chart" || plotType === "Histogram"
+        .tickValues((plotType === "Histogram") || (plotType === "Bar Chart" && yTicks.every(tick => tick >= 0))
             ? yTicks.length > 1 ? yTicks.slice(1) : yTicks 
             : yTicks as number[]
         )
@@ -92,17 +99,38 @@ export const drawAxes = (
     /* Style ticks, axis and line */
     xAxis.selectAll("text").attr("stroke", "black") .attr("stroke-width", 0.1).attr("transform", "rotate(-20) translate(0, 5)").attr("text-anchor", "end").attr("font-size", "10px");
     yAxis.selectAll("text").attr("stroke", "black") .attr("stroke-width", 0.1).attr("text-anchor", "end").attr("font-size", `10px`);
-    xAxis.selectAll("line").attr("stroke", "black").attr("stroke-width", 0.5);
-    yAxis.selectAll("line").attr("stroke", "black").attr("stroke-width", 0.5);
-    xAxis.select("path").attr("stroke", "rgba(243, 244, 246, 1)");
-    yAxis.select("path").attr("stroke", "rgba(243, 244, 246, 1)");
+    xAxis.select("path").style("opacity", 0);
+    yAxis.select("path").style("opacity", 0);
 
+    /* Add x = 0 and / or y = 0 line, if applicable */
+    const zeroXLine = svg.selectAll(".x-zero")
+    const zeroYLine = svg.selectAll(".y-zero")
+    if (["Line Chart", "Scatter Plot"].includes(plotType) && Math.min(...xTicks) <= 0 && Math.max(...xTicks) >= 0) {
+        zeroXLine
+            .attr("x1", x(0 as any) as number)
+            .attr("x2", x(0 as any) as number)
+            .attr("y1", margins.top)
+            .attr("y2", height - margins.bottom)
+            .style("opacity", 1);
+    }  
+    else {
+        zeroXLine.style("opacity", 0);
+    }
+    if (["Bar Chart", "Line Chart", "Scatter Plot"].includes(plotType) && Math.min(...yTicks) <= 0 && Math.max(...yTicks) >= 0) {
+        zeroYLine
+            .attr("x1", margins.left)
+            .attr("x2", width)
+            .attr("y1", y(0 as any) as number)
+            .attr("y2", y(0 as any) as number)
+            .style("opacity", 1);
+    }
+    else {
+        zeroYLine.style("opacity", 0);
+    }
+    
     return {xAxis, yAxis}
 };
 
-/* 
-  Draw plot borders 
-*/
 export const drawBorders = (
   svg: d3.Selection<null, unknown, null, undefined>,
   height: number,
@@ -114,94 +142,118 @@ export const drawBorders = (
       .attr("y1", height - margins.bottom )
       .attr("x2", width + margins.left)
       .attr("y2", height - margins.bottom)
-      .attr("stroke", foreground)
-      .attr("stroke-width", 0.5);
     svg.select(".leftLine")
       .attr("x1", margins.left)
       .attr("y1", margins.top)
       .attr("x2", margins.left)
       .attr("y2", height - margins.bottom)
-      .attr("stroke", foreground)
-      .attr("stroke-width", 0.5);
     svg.select(".topLine")
       .attr("x1", 0)
       .attr("y1", margins.top)
       .attr("x2", width + margins.left)
       .attr("y2", margins.top)
-      .attr("stroke", foreground)
-      .attr("stroke-width", 0.5);
 };
 
-/* 
-  Calculate tick spacing for x and y axes
-*/
-export const calculateTicks = (length: number, scaleX: string, scaleY: string, minY: number, maxY: number, minX: number = 0, maxX: number = 0, forceIntegerYTicks: boolean = false) => {
-    
-    let xTicks = [];
-    let yTicks = [];
-    const [absMinX, absMaxX] = [Math.abs(minX), Math.abs(maxX)]
-    const [absMinY, absMaxY] = [Math.abs(minY), Math.abs(maxY)]
-    const numTicks = length >= 2 ? Math.min(30, length) : 3;
-
-    if (scaleX === "log") {
-        const xTickSpacing = (Math.log10(absMaxX) - Math.log10(absMinX)) / (numTicks - 1);
-        for (let i = 0; i < numTicks; i++) {
-            const xTick = Math.pow(10, Math.log10(absMinX) + i * xTickSpacing);
-            xTicks.push(xTick);
-        }
-    } else {
-        const xTickSpacing = (maxX - minX) / (numTicks - 1);
-        for (let i = 0; i < numTicks; i++) {
-            const xTick = minX + i * xTickSpacing;
-            xTicks.push(xTick);
-        }
+const tooltipTemplate = (data: InfoCardData) => {
+    let template = `
+    <p>${data.x.name}</p>
+    <p class="font-bold">${data.x.value}</p>
+    <div style="border-bottom: 1px solid var(--foreground); margin: 4px 0;"></div>
+    <p>${data.y.name}</p>
+    <p class="font-bold">${data.y.value}</p>
+    `
+    if (data.group) {
+        const groupTemplate = `
+        <p>${data.group.name}</p>
+        <p class="font-bold">${data.group.value}</p>
+        <div style="border-bottom: 1px solid var(--foreground); margin: 4px 0;"></div>
+        `
+        template = groupTemplate + template
     }
+    return template
+}
 
-    if (scaleY === "log") {
-        const yTickSpacing = (Math.log10(absMaxY) - Math.log10(absMinY)) / (numTicks - 1);
-        for (let i = 0; i < numTicks; i++) {
-            const yTick = Math.pow(10, Math.log10(absMinY) + i * yTickSpacing);
-            yTicks.push(yTick);
-        }
-    } else {
-        if (forceIntegerYTicks) {
-            const step = Math.ceil(maxY / (numTicks - 1)) || 1;
-            yTicks = [];
-            for (let current = 0; current <= maxY; current += step) {
-                yTicks.push(current);
-            }
-            if (yTicks[yTicks.length - 1] < maxY) {
-                yTicks.push(maxY);
-            }
-        } else {
-            const yTickSpacing = (maxY - minY) / (numTicks - 1);
-            for (let i = 0; i < numTicks; i++) {
-                const yTick = minY + i * yTickSpacing;
-                yTicks.push(yTick);
-            }    
-        }
-    }
-    return {xTicks, yTicks};
+const keyTemplate = (keys: GroupingColors) => {
+    const value = (entry: { key: string, color: string }) => entry.key.toString().slice(0, 8).replace(/^"|"$/g, '');
+    return (`
+    <p class="font-bold text-sm">Grouping values</p>
+    ${keys.map((entry, index) => `
+    <div id=${entry.key} class="key flex flex-row gap-2 items-center">
+        <div class="rounded-full h-2 w-2" style="background-color: ${entry.color}; color: ${entry.color}"></div>
+        <p class="text-xs text-foreground">${value(entry)}</p>
+    </div>
+    `).join("\n")}`)
+}
+
+const positionTooltip = (event: any, target: any, tooltip: any) => {
+    const [x, y] = d3.pointer(event, target);  
+    tooltip.style("left", `${x - 100}px`).style("top", `${y - 50}px`)
 };
 
-/* 
-    Check if values can be plotted using log scale
+/** Utility functions to process plot data, including:
+ * Calculating the x and y axis tick values
+ * Checking if an axis data range can be turned to log scale
+ * Reversing the axis domain to compute log scaled values if all numbers in the range are strictly negative
+ * Checking if a table's logs has values for a given axis property, and getting those values, if applicable
+ * Combine plot logs data across tables
 */
+function niceIncrement(min: number, max: number, count = 10) {
+    const rawStep = (max - min) / count;
+    const base = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const factors = [1, 2, 2.5, 5, 10];
+    const bestStep = factors.map(f => base * f).reduce((prev, curr) => Math.abs(curr - rawStep) < Math.abs(prev - rawStep) ? curr : prev);
+    return bestStep;
+  }
+  
+function generateTicks(min: number, max: number, count = 10, isLogScale = false) {
+  
+    // Handle log scale on negative range by computing abs bounds and using a log scale, if applicable
+    const absMin = Math.min(Math.abs(min), Math.abs(max))
+    const absMax = Math.max(Math.abs(min), Math.abs(max))
+    const minValue = isLogScale ? Math.log10(absMin) : min;
+    const maxValue = isLogScale ? Math.log10(absMax) : max;
+  
+    // Increment tick values
+    const step = niceIncrement(minValue, maxValue, count);
+    const start = Math.floor(minValue / step) * step;
+    const end = Math.ceil(maxValue / step) * step;
+    let ticks = [];
+    for (let tick = start; tick <= end + step * 0.5; tick += step) {
+      ticks.push(tick);
+    }
+  
+    // Adjust for log scale, if applicable.
+    if (isLogScale) ticks = ticks.map(t => Math.pow(10, t))
+  
+    // Remove out of bound ticks and add min / max value to the ticks if not already included.
+    // Adjust for log scale with negative range, if applicable
+    if (min < 0 && max < 0 && isLogScale) {
+      ticks = ticks.filter(t => t >= absMin && t <= absMax)
+      if (!ticks.includes(absMin)) ticks.unshift(absMin)
+      if (!ticks.includes(absMax)) ticks.push(absMax)
+    }
+    else {
+      ticks = ticks.filter(t => t >= min && t <= max)
+      if (!ticks.includes(min)) ticks.unshift(min)
+      if (!ticks.includes(max)) ticks.push(max)  
+    }
+  
+    return ticks;
+}
+
 export function checkLogScalability (
     logs: LogProps[],
+    fields: LogFieldsResponseProps,
     table: string,
     axisProperty: string,
     scale: string,
     setScale: (scale: string) => void,
     setLogScaleEnabled: (enabled: boolean) => void
 ) {
-    const entries = logs.map(log => {
-        const logEntries = log[`${table.length ? (table + ".") : ""}entries`] as LogItemProps;
-        return logEntries ? logEntries[axisProperty] : undefined
-    });
-    const allPositive = entries.every(v => v > 0);
-    const allNegative = entries.every(v => v < 0);
-    const hasZero = entries.some(v => v === 0);
+    const values = logs.map(log => getValue(fields, axisProperty, log, table));
+    const allPositive = values.every(v => v > 0);
+    const allNegative = values.every(v => v < 0);
+    const hasZero = values.some(v => v === 0);
     const condition = (allPositive || allNegative) && !hasZero;
     if (!condition) {
         setLogScaleEnabled(false)
@@ -215,8 +267,7 @@ export function checkLogScalability (
     return scale;
 }
 
-/* Reverse the axis domain to compute log scales if all numbers are strictly negative */
-export const reverseOrKeepDomain = (values: number[], domain: number[], reverseX: boolean) => {
+const reverseOrKeepDomain = (values: number[], domain: number[], reverseX: boolean) => {
     if (reverseX) {
         const absXValues = values.map(v => Math.abs(v));
         const [absMinX, absMaxX] = d3.extent(absXValues) as number[];
@@ -225,7 +276,6 @@ export const reverseOrKeepDomain = (values: number[], domain: number[], reverseX
     return domain
 }
 
-/* Check if a log has values for a selected axis property */
 const hasProperty = (fields: LogFieldsResponseProps, axisProperty: string, log: LogProps, table: string) => {
     const fieldType = fields[axisProperty] ? fields[axisProperty].field_type : "entry"
     const hasValues = fieldType === "derived_entry"
@@ -236,66 +286,27 @@ const hasProperty = (fields: LogFieldsResponseProps, axisProperty: string, log: 
     return hasValues
 }
 
-/* Get value of a selected axis property from a log */
 const getValue = (fields: LogFieldsResponseProps, axisProperty: string, log: LogProps, table: string) => {
+    if (!hasProperty(fields, axisProperty, log, table)) return undefined;
     const fieldType = fields[axisProperty] ? fields[axisProperty].field_type : "entry"
-    const values = fieldType === "derived_entry"
+    let value = fieldType === "derived_entry"
         ? (log[`${table}.derived_entries`] as LogItemProps)[axisProperty]
         : fieldType === "param"
             ? (log[`${table}.params`] as LogItemProps)[axisProperty]
             : (log[`${table}.entries`] as LogItemProps)[axisProperty]
-    return values
+    const dataType = fields[axisProperty] ? fields[axisProperty].data_type : "float"
+    if (dataType === "timestamp") value = new Date(value).getTime()
+    return value
 }
 
-/* 
-    Hover tooltip and grouping key templates
-    NB: Styling should use regular HTML notation (class instead of className, etc.)
-        since the components are parsed through the .html method
-*/
-export const tooltipTemplate = (data: InfoCardData) => {
-    let template = `
-    <p>${data.x.name}</p>
-    <p class="font-bold">
-        ${data.x.value}
-    </p>
-    <p>${data.y.name}</p>
-    <p class="font-bold">
-        ${data.y.value}
-    </p>
-    `
-    if (data.group) {
-        const groupTemplate = `
-        <p>${data.group.name}</p>
-        <p class="font-bold">
-            ${data.group.value}
-        </p>
-        `
-        template = groupTemplate + template
-    }
-    return template
-}
-
-export const keyTemplate = (keys: GroupingColors) => {
-    return (`
-    <p class="font-bold text-sm">Grouping values</p>
-    ${keys.map((entry, index) => `
-    <div id=${entry.key} class="key flex flex-row gap-2 items-center">
-        <div class="rounded-full h-2 w-2" style="background-color: ${entry.color}; color: ${entry.color}"></div>
-        <p class="text-xs text-foreground">${entry.key.split(".").length > 1 ? entry.key.split(".")[1].slice(0, 7) : entry.key}</p>
-    </div>
-    `).join("\n")}`)
-}
-
-/* Function to handle tooltip positioning dynamically. Ensuring it remains within the bounds of the plot */
-const positionTooltip = (event: any, target: any, tooltip: any) => {
-    const [x, y] = d3.pointer(event, target);  
-    tooltip.style("left", `${x - 100}px`).style("top", `${y - 50}px`)
-};
-
-/* 
-  Draw bar chart plot
+/** Main plot functions including:
+ * Bar chart: Group data by x-axis key and compute a reduction metric value for the y-axis property per x-axis value. Accepts any data type.
+ * Line chart: Plot single y-axis versus x-axis line, or one line per group. Accepts floats, ints or timestamps.
+ * Scatter plot: Plot y-axis versus x-axis dots with a single color or one color per grouped value. Accepts floats or ints.
+ * Histogram: Plot frequency per x-axis value for given bin size. Accepts floats, ints or timestamps. 
 */
 export const drawBarChart = (
+    container: d3.Selection<null, unknown, null, undefined>,
     svg: d3.Selection<null, unknown, null, undefined>,
     scaleX: string,
     scaleY: string,
@@ -318,25 +329,26 @@ export const drawBarChart = (
     g.selectAll("path.line-item").remove();
     g.selectAll("rect.hist-item").remove();
     g.selectAll("text.correlation").remove();
+    g.selectAll("text.correlation-group").remove();
     g.selectAll("path.best-fit").remove()
+    container.select(".groupingKey").style("opacity", 0)
 
     // Prepare data
     const properties = Object.entries(fields).map(([name]) => name);
-    const xAxis = selectedXAxisProperty === "Log Time" ? properties[0] : selectedXAxisProperty;
-    const yAxis = selectedYAxisProperty;
-
+    const xAxisProperty = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties.at(0);
+    const yAxisProperty = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : properties.at(0);
     let data: DataLabel[] = [];
-    if (xAxis && yAxis) {
+    if (xAxisProperty && yAxisProperty) {
         const filteredData = logs.filter(log => {
-            const hasX = hasProperty(fields, xAxis, log, xTable)
-            const hasY = hasProperty(fields, yAxis, log, yTable)
+            const hasX = hasProperty(fields, xAxisProperty, log, xTable)
+            const hasY = hasProperty(fields, yAxisProperty, log, yTable)
             return hasX && hasY
         });
         const statistic = (vals: number[]) => parseFloat(computeStatistic(metric, vals));
         const groups = d3.rollup(
             filteredData,
-            v => statistic(v.map(log => toComputableValue(getValue(fields, yAxis, log, yTable)))),
-            d => JSON.stringify(getValue(fields, xAxis, d, xTable))
+            v => statistic(v.map(log => toComputableValue(getValue(fields, yAxisProperty, log, yTable)))),
+            d => JSON.stringify(getValue(fields, xAxisProperty, d, xTable))
         );
         data = Array.from(groups, ([group, value]) => [group, value]) as DataLabel[];
         data.sort((a, b) => {
@@ -361,18 +373,33 @@ export const drawBarChart = (
     // Define scales
     const [width, height] = [dimensions.width, dimensions.height];
     const xDomain = data.map(d => d[0])
+    const xRange = [margins.left, width - margins.right]
     let [minY, maxY] = d3.extent(data.map(d => d[1])) as [number, number];
-    if (minY === maxY) {
-        minY = minY - 1
-        maxY = maxY + 1
+    if (minY === undefined || maxY === undefined) {
+        minY = 0;
+        maxY = 1;
+    } else if (minY === maxY) {
+        minY = minY - 1;
+        maxY = maxY + 1;
+    } else if (minY > 0 && maxY > 0) {
+        minY = Math.min(0, minY)
+    } else if (minY < 0 && maxY < 0) {
+        minY = Math.min(0, minY)
     }
     let yDomain = [minY, maxY]
-    const xScale = d3.scaleBand().domain(xDomain).range([margins.left, width - margins.right]).padding(0.2);
-    const yScale = (scaleY === "log" ? d3.scaleLog() : d3.scaleLinear()).domain(yDomain).range([height - margins.bottom, margins.top + axisPadding]).nice();
+    const xScale = d3.scaleBand().domain(xDomain).range(xRange).padding(0.2);
+    const yRange = [
+        height - margins.bottom - axisPadding * Number(data.some(d => d[1] < 0)), 
+        margins.top + axisPadding * Number(data.some(d => d[1] > 0))
+    ]
+    const yScale = (scaleY === "log" ? d3.scaleLog() : d3.scaleLinear()).domain(yDomain).range(yRange);
 
     // Draw axes
-    const {xTicks, yTicks} = calculateTicks(data.length, scaleX, scaleY, minY, maxY);
-    drawAxes("Bar Chart", svg, dimensions, margins, xScale, yScale, xTicks, yTicks, false);
+    const [xTicks, yTicks] = [
+        generateTicks(0, 0, 10, scaleX === "log"),
+        generateTicks(minY, maxY, 10, scaleY === "log")
+    ]
+    drawAxes("Bar Chart", svg, dimensions, margins, xScale, yScale, xTicks, yTicks);
 
     // Draw bars
     const t = svg.transition().duration(500);
@@ -405,16 +432,16 @@ export const drawBarChart = (
         );
 
     // Hover events
-    const tooltip = d3.select(".plotTooltip").style("opacity", 0);
+    const tooltip = container.select(".plotTooltip").style("opacity", 0);
     const handleMouseOver = (event: any, d: DataLabel) => {
         const currentKey = d[0];
         tooltip.html(tooltipTemplate({
             x: { 
-                name: xAxis!, 
+                name: xAxisProperty!, 
                 value: d[0] 
             },
             y: { 
-                name: `${yAxis}(${metric})`,
+                name: `${yAxisProperty}(${metric})`,
                 value: d[1] 
             }
         })).transition().style("opacity", 1);
@@ -435,11 +462,8 @@ export const drawBarChart = (
         .on("mouseout", handleMouseOut);
 };
 
-/* 
-  Draw line chart plot
-*/
-
 export const drawLineChart = (
+  container: d3.Selection<null, unknown, null, undefined>,
   svg: d3.Selection<null, unknown, null, undefined>,
   scaleX: string,
   scaleY: string,
@@ -462,6 +486,7 @@ export const drawLineChart = (
     g.selectAll("rect.bar-item").remove();
     g.selectAll("rect.hist-item").remove();
     g.selectAll("text.correlation").remove();
+    g.selectAll("text.correlation-group").remove();
     g.selectAll("path.best-fit").remove();
 
     // Prepare data:
@@ -473,26 +498,27 @@ export const drawLineChart = (
     let data : DataPoint[] | GroupedDataPoint[] = [];
     const properties = Object
             .entries(fields)
-            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int"))
+            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp"))
             .map(([name]) => name);
-    const xAxis = selectedXAxisProperty;
-    const yAxis = selectedYAxisProperty && metrics.includes(selectedYAxisProperty) ? properties.at(0) : selectedYAxisProperty;
-    const xTime = xAxis === "Log Time";
-    if (xAxis && yAxis) {
+    const xAxisProperty = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties.at(0);
+    const yAxisProperty = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : properties.at(0);
+    let xType : string | undefined;
+    if (xAxisProperty && yAxisProperty) {
+        xType = fields[xAxisProperty].data_type
         const filteredData = logs.filter((log) => {
             const hasGroup = groupBy ? hasProperty(fields, groupBy, log, xTable) : true
-            const hasX = hasProperty(fields, xAxis, log, xTable)
-            const hasY = hasProperty(fields, yAxis, log, yTable)    
+            const hasX = hasProperty(fields, xAxisProperty, log, xTable)
+            const hasY = hasProperty(fields, yAxisProperty, log, yTable)    
             return hasGroup && hasX && hasY;
         });
         const sortedData = filteredData.sort((a, b) => {
-            const valueA = getValue(fields, xAxis, a, xTable)
-            const valueB = getValue(fields, yAxis, b, yTable)
+            const valueA = getValue(fields, xAxisProperty, a, xTable)
+            const valueB = getValue(fields, xAxisProperty, b, xTable)
             return valueA - valueB;
         });
         const getData = (logs: LogProps[]) => logs.map(d => [
-            getValue(fields, xAxis, d, xTable),
-            getValue(fields, yAxis, d, yTable)
+            getValue(fields, xAxisProperty, d, xTable),
+            getValue(fields, yAxisProperty, d, yTable)
         ])  as DataPoint[]
         data = groupBy 
             ?   d3  .groups(sortedData, d => getValue(fields, groupBy, d, xTable))
@@ -518,7 +544,7 @@ export const drawLineChart = (
     ]
     const [[minX = 0, maxX = 0], [minY = 0, maxY = 0]] = [d3.extent(xValues), d3.extent(yValues)];
     const [xAxisScale, yAxisScale] = [
-        xTime ? d3.scaleTime : scaleX === "log" ? d3.scaleLog : d3.scaleLinear as any,
+        scaleX === "log" ? d3.scaleLog : d3.scaleLinear as any,
         scaleY === "log" ? d3.scaleLog : d3.scaleLinear
     ];
     const reverseX = scaleX === "log" && xValues.every(v => v < 0);
@@ -527,18 +553,25 @@ export const drawLineChart = (
         reverseOrKeepDomain(xValues, [minX, maxX], reverseX), 
         reverseOrKeepDomain(yValues, [minY, maxY], reverseY)
     ]
+    const [xRange, yRange] = [
+        [margins.left + axisPadding, width - margins.right - axisPadding],
+        [height - margins.bottom - axisPadding, margins.top + axisPadding]
+    ]
     const [x, y] = [
-        xAxisScale().domain(xDomain).range([margins.left + axisPadding, width - margins.right - axisPadding]),
-        yAxisScale().domain(yDomain).range([height - margins.bottom - axisPadding, margins.top + axisPadding])
+        xAxisScale().domain(xDomain).range(xRange),
+        yAxisScale().domain(yDomain).range(yRange)
     ];
 
     // Draw axes
-    const {xTicks, yTicks} = calculateTicks(xValues.length, scaleX, scaleY, minY, maxY, minX, maxX);
-    drawAxes("Line Chart", svg, dimensions, margins, x, y, xTicks, yTicks, xTime, reverseX, reverseY);
+    const [xTicks, yTicks] = [
+        generateTicks(minX, maxX, 10, scaleX === "log"),
+        generateTicks(minY, maxY, 10, scaleY === "log")
+    ]
+    drawAxes("Line Chart", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY, xType);
 
     // Add grouping key and hide tooltip
-    const key = d3.select(".groupingKey").style("opacity", 0)
-    const tooltip = d3.select(".plotTooltip").style("opacity", 0)
+    const key = container.select(".groupingKey").style("opacity", 0)
+    const tooltip = container.select(".plotTooltip").style("opacity", 0)
 
     // Plot lines.
     // If grouping, plot one line per group, each with their color, and attach the grouping key.
@@ -556,7 +589,7 @@ export const drawLineChart = (
     if (groupBy) {        
         let domain = (data as GroupedDataPoint[]).map((d) => JSON.stringify(d[0]));
         domain = Array.from(new Set(domain))
-        const color = d3.scaleOrdinal().domain(domain).range(d3.schemeSet3);
+        const color = d3.scaleOrdinal().domain(domain).range(d3.schemeCategory10);
         const colors = domain.map((key) => ({key: key, color: color(key) as string}));
         g.selectAll("path.line-item")
             .data(
@@ -568,7 +601,7 @@ export const drawLineChart = (
             .on("mouseout", (event, d) => leaveLine())
             .attr("class", "line")
             .attr("fill", "none")
-            .attr("stroke", d => color(d[0]) as string)
+            .attr("stroke", d => color(JSON.stringify(d[0])) as string)
             .attr("stroke-width", 2)
             .attr("d", d => lineGenerator(d[1]))
             .attr("class", "line-item");
@@ -616,10 +649,8 @@ export const drawLineChart = (
     }
 };
 
-/* 
-  Draw scatter plot
-*/
 export const drawScatterPlot = (
+  container: d3.Selection<null, unknown, null, undefined>,
   svg: d3.Selection<null, unknown, null, undefined>,
   scaleX: string,
   scaleY: string,
@@ -641,6 +672,7 @@ export const drawScatterPlot = (
     g.selectAll("path.line-item").remove();
     g.selectAll("rect.bar-item").remove();
     g.selectAll("rect.hist-item").remove();
+    g.selectAll("text.correlation-group").remove();
     g.selectAll("text.correlation").remove();
     if (showRegression != "true") g.selectAll("path.best-fit").remove()
 
@@ -650,9 +682,8 @@ export const drawScatterPlot = (
             .entries(fields)
             .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int"))
             .map(([name]) => name);
-    const xAxisProperty = selectedXAxisProperty === "Log Time" ? properties.at(0) : selectedXAxisProperty;
-    const yAxisProperty = selectedYAxisProperty && metrics.includes(selectedYAxisProperty) ? properties.at(0) : selectedYAxisProperty;            
-
+    const xAxisProperty = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties.at(0);
+    const yAxisProperty = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : properties.at(0);
     if (xAxisProperty && yAxisProperty) {
         data = logs.filter((log) => {
             const hasGroup = groupBy ? hasProperty(fields, groupBy, log, xTable) : true
@@ -679,36 +710,65 @@ export const drawScatterPlot = (
         reverseOrKeepDomain(xValues, [minX, maxX], reverseX), 
         reverseOrKeepDomain(yValues, [minY, maxY], reverseY)
     ]
-    const [x, y] = [
-        xScale().domain(xDomain).range([margins.left + axisPadding, width - margins.right - axisPadding]),
-        yScale().domain(yDomain).range([height - margins.bottom - axisPadding, margins.top + axisPadding])
+    const [xRange, yRange] = [
+        [margins.left + axisPadding, width - margins.right - axisPadding],
+        [height - margins.bottom - axisPadding, margins.top + axisPadding]
     ]
+    const [x, y] = [
+        xScale().domain(xDomain).range(xRange),
+        yScale().domain(yDomain).range(yRange)
+    ]
+
     // Draw axes
-    const {xTicks, yTicks} = calculateTicks(data.length, scaleX, scaleY, minY, maxY, minX, maxX);
-    drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, false, reverseX, reverseY);
+    const [xTicks, yTicks] = [
+        generateTicks(minX, maxX, 10, scaleX === "log"),
+        generateTicks(minY, maxY, 10, scaleY === "log")
+    ]
+    drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY);
+
+    // Add tooltip and grouping key
+    const tooltip = container.select(".plotTooltip").style("opacity", 0)
+    const key = container.select(".groupingKey").style("opacity", 0)
 
     // Add data points
+    // If grouping is set:
+    // - Generate a color scheme based on the grouping values
+    // - Color the points based on their groupBy value
+    // - Pass the color info to the grouping key
+    let color = d3.scaleOrdinal<string>().range(d3.schemeCategory10);
+    if (groupBy) {
+        let domain = data.map(d => JSON.stringify(getValue(fields, groupBy, d, xTable)));
+        domain = Array.from(new Set(domain));
+        color.domain(domain);
+        const colors = domain.map((key) => ({ key: key, color: color(key) as string }));
+        key
+            .html(keyTemplate(colors))
+            .transition()
+            .style("opacity", 1);
+    }    
     const points = g
         .selectAll("circle.data-point")
         .data(data, (d: unknown) => (d as LogProps).id); // Use unique identifier to track point transitions
-    const enteringPoints = points
+        const enteringPoints = points
         .enter()
         .append("circle")
         .attr("class", "data-point")
-        .attr("fill", primary)
-        .attr("stroke", primary)
-        .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable) as number) : getValue(fields, xAxisProperty as string, d, xTable) as number))
-        .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable) as number) : getValue(fields, yAxisProperty as string, d, yTable) as number))
+        .attr("fill", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
+        .attr("stroke", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
+        .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable)) : getValue(fields, xAxisProperty as string, d, xTable)))
+        .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable)) : getValue(fields, yAxisProperty as string, d, yTable)))
         .attr("r", 0)
         .on("mouseover", (event, data) => hoverOnPoint(event, data, xTable, yTable))
-        .on("mouseout", (event, data) => leavePoint(event, data));
+        .on("mouseout", (event, data) => leavePoint(event, data));    
     enteringPoints
         .merge(points as any)
         .transition()
         .duration(500)
-        .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable) as number) : getValue(fields, xAxisProperty as string, d, xTable) as number))
-        .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable) as number) : getValue(fields, yAxisProperty as string, d, yTable) as number))
-        .attr("r", 3);
+        .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable)) : getValue(fields, xAxisProperty as string, d, xTable)))
+        .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable)) : getValue(fields, yAxisProperty as string, d, yTable)))
+        .attr("r", 3)
+        .attr("fill", d => groupBy ? color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
+        .attr("stroke", d => groupBy ? color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary);
     points.exit()
         .transition()
         .duration(500)
@@ -730,31 +790,6 @@ export const drawScatterPlot = (
         .attr("stroke", "none")
         .style("pointer-events", "all")
         .attr("class", "hover-area");
-
-    // Add tooltip and grouping key
-    const tooltip = d3.select(".plotTooltip").style("opacity", 0)
-    const key = d3.select(".groupingKey").style("opacity", 0)
-
-    // If grouping is set. 
-    // Generate a color scheme based on the grouping values
-    // Color the points based on their groupBy value
-    // Pass the color info to the grouping key
-    if (groupBy) {
-
-        let domain = data.map(d => JSON.stringify(getValue(fields, groupBy, d, xTable) as string));
-        domain = Array.from(new Set(domain));
-        const color = d3.scaleOrdinal().domain(domain).range(d3.schemeSet3);
-        const colors = domain.map((key) => ({key: key, color: color(key) as string}));
-        key
-            .html(keyTemplate(colors))
-            .transition()
-            .style("opacity", 1)
-
-        points
-            .attr("fill", (d: LogProps) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) as string)
-            .attr("stroke", (d: LogProps) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) as string)
-
-    }
 
     // When hovering on point.
     // - Set info card position and content
@@ -785,6 +820,15 @@ export const drawScatterPlot = (
                 .duration(200)
                 .attr("r", d => getValue(fields, groupBy, d as LogProps, xTable) === getValue(fields, groupBy, data, xTable) ? 4 : 2)
                 .style("opacity", d => getValue(fields, groupBy, d as LogProps, xTable) === getValue(fields, groupBy, data, xTable) ? 1 : 0.5);
+            g.selectAll("path.best-fit")
+                .transition()
+                .duration(200)
+                .style("opacity", (d: any) => d.groupKey === groupBy ? 1 : 0.5
+            );
+            g.selectAll("text.correlation-group")
+                .transition()
+                .duration(200)
+                .style("opacity", (d: any) => d.groupKey === groupBy ? 1 : 0.5);
             key.selectAll(".key")
                 .each(function (d, i) {
                     const id = d3.select(this).attr("id")
@@ -825,6 +869,10 @@ export const drawScatterPlot = (
                 .transition()
                 .duration(200)
                 .style("opacity", 1)
+            g.selectAll("path.best-fit, text.correlation-group")
+                .transition()
+                .duration(200)
+                .style("opacity", 1);
         } else {
             g.selectAll("circle.data-point")
             .transition()
@@ -841,7 +889,7 @@ export const drawScatterPlot = (
         
         const xMean = d3.mean(xValues) || 0;
         const yMean = d3.mean(yValues) || 0;
-        
+
         const numerator = d3.sum(xValues.map((x, i) => (x - xMean) * (yValues[i] - yMean)));
         const denominator = d3.sum(xValues.map(x => (x - xMean) ** 2));
         
@@ -854,64 +902,140 @@ export const drawScatterPlot = (
     };
 
     if (data.length > 1 && showRegression === "true") {
-        
-        // Draw line
-        const allPoints = data.map(d => [getValue(fields, xAxisProperty as string, d, xTable), getValue(fields, yAxisProperty as string, d, yTable)]) as DataPoint[];
-        const regression = calculateRegression(allPoints);
-        const line = d3.line<[number, number]>().x(d => x(d[0])).y(d => y(d[1]));
-        g
-            .selectAll("path.best-fit")
-            .data([regression])
-            .join("path")
-            .attr("d", d => {
-                const xMin = x.domain()[0];
-                const xMax = x.domain()[1];
-                return line([
-                  [xMin, d.m * xMin + d.b],
-                  [xMax, d.m * xMax + d.b]
-                ]);
-            })
-            .attr("stroke", primary)
-            .attr("stroke-width", 2)
-            .attr("fill", "none")
-            .attr("class", "best-fit");
+        if (groupBy) {
 
-        // Get SVG coordinates of line endpoints
-        const lineStart = [minX, regression.m * minX + regression.b];
-        const lineEnd = [maxX, regression.m * maxX + regression.b];
-        const [xStartPx, yStartPx] = [x(lineStart[0]), y(lineStart[1])];
-        const [xEndPx, yEndPx] = [x(lineEnd[0]), y(lineEnd[1])];
+            // Group the data and calculate regression for each group
+            let groups = data.map(d => JSON.stringify(getValue(fields, groupBy, d, xTable)));
+            groups = Array.from(new Set(groups))
+            const color = d3.scaleOrdinal().domain(groups).range(d3.schemeCategory10);
 
-        // Calculate angle in degrees
-        const dx = xEndPx - xStartPx;
-        const dy = yEndPx - yStartPx;
-        const angleRad = Math.atan2(dy, dx);
-        const angleDeg = angleRad * 180 / Math.PI;
+            const groupRegressions = groups.map(groupKey => {
+                const groupData = data.filter(d => 
+                    JSON.stringify(getValue(fields, groupBy, d, xTable)) === groupKey
+                );
+                const points = groupData.map(d => [
+                    getValue(fields, xAxisProperty as string, d, xTable),
+                    getValue(fields, yAxisProperty as string, d, yTable)
+                ]) as DataPoint[];
+                
+                return {
+                    ...calculateRegression(points),
+                    groupKey: groupKey
+                };
+            });
 
-        // Position at line tip
-        const textOffset = -60;
-        const textX = xEndPx + (dx / Math.hypot(dx, dy)) * textOffset;
-        const textY = yEndPx + (dy / Math.hypot(dx, dy)) * textOffset - 20;
-        g
-            .selectAll("text.correlation")
-            .data([0])
-            .join("text")
-            .attr("x", textX)
-            .attr("y", textY)
-            .attr("transform", `rotate(${angleDeg},${textX},${textY})`)
-            .attr("text-anchor", dx < 0 ? "end" : "start")
-            .attr("dominant-baseline", "middle")
-            .attr("fill", primary)
-            .text(`r = ${regression.r.toFixed(2)}`)
-            .attr("class", "correlation");
+            // Draw regression lines for each group
+            const line = d3.line<[number, number]>()
+                .x(d => x(d[0]))
+                .y(d => y(d[1]));
+            
+            g.selectAll("path.best-fit")
+                .data(groupRegressions, (d: any) => d.groupKey) // Object constancy
+                .join("path")
+                .attr("d", d => {
+                    const xMin = x.domain()[0];
+                    const xMax = x.domain()[1];
+                    return line([
+                        [xMin, d.m * xMin + d.b],
+                        [xMax, d.m * xMax + d.b]
+                    ]);
+                })
+                .attr("stroke", (d: any) => color(d.groupKey) as string)
+                .attr("stroke-width", 2)
+                .attr("fill", "none")
+                .attr("class", "best-fit");
+            
+            g.selectAll("text.correlation-group")
+                .data(groupRegressions, (d: any) => d.groupKey)
+                .join(
+                    enter => enter.append("text")
+                        .attr("class", "correlation-group")
+                        .attr("dominant-baseline", "middle"),
+                    update => update,
+                    exit => exit.remove()
+                )
+                .each(function(d) {
+                    const xMin = x.domain()[0];
+                    const xMax = x.domain()[1];
+                    const lineStart = [xMin, d.m * xMin + d.b];
+                    const lineEnd = [xMax, d.m * xMax + d.b];
+                    
+                    const [xStartPx, yStartPx] = [x(lineStart[0]), y(lineStart[1])];
+                    const [xEndPx, yEndPx] = [x(lineEnd[0]), y(lineEnd[1])];
+                    const dx = xEndPx - xStartPx;
+                    const dy = yEndPx - yStartPx;
+                    
+                    const angleRad = Math.atan2(dy, dx);
+                    const angleDeg = angleRad * 180 / Math.PI;
+                    const textOffset = -60;
+                    const textX = xEndPx + (dx / Math.hypot(dx, dy)) * textOffset;
+                    const textY = yEndPx + (dy / Math.hypot(dx, dy)) * textOffset - 20;
+    
+                    d3.select(this)
+                        .attr("x", textX)
+                        .attr("y", textY)
+                        .attr("transform", `rotate(${angleDeg},${textX},${textY})`)
+                        .attr("text-anchor", dx < 0 ? "end" : "start")
+                        .attr("fill", color(d.groupKey) as string)
+                        .text(`r = ${d.r.toFixed(2)}`);
+                });
+        }
+        else {
+            // Draw line
+            const allPoints = data.map(d => [getValue(fields, xAxisProperty as string, d, xTable), getValue(fields, yAxisProperty as string, d, yTable)]) as DataPoint[];
+            const regression = calculateRegression(allPoints);
+            const line = d3.line<[number, number]>().x(d => x(d[0])).y(d => y(d[1]));
+            g
+                .selectAll("path.best-fit")
+                .data([regression])
+                .join("path")
+                .attr("d", d => {
+                    const xMin = x.domain()[0];
+                    const xMax = x.domain()[1];
+                    return line([
+                    [xMin, d.m * xMin + d.b],
+                    [xMax, d.m * xMax + d.b]
+                    ]);
+                })
+                .attr("stroke", primary)
+                .attr("stroke-width", 2)
+                .attr("fill", "none")
+                .attr("class", "best-fit");
+
+            // Get SVG coordinates of line endpoints
+            const lineStart = [minX, regression.m * minX + regression.b];
+            const lineEnd = [maxX, regression.m * maxX + regression.b];
+            const [xStartPx, yStartPx] = [x(lineStart[0]), y(lineStart[1])];
+            const [xEndPx, yEndPx] = [x(lineEnd[0]), y(lineEnd[1])];
+
+            // Calculate angle in degrees
+            const dx = xEndPx - xStartPx;
+            const dy = yEndPx - yStartPx;
+            const angleRad = Math.atan2(dy, dx);
+            const angleDeg = angleRad * 180 / Math.PI;
+
+            // Position at line tip
+            const textOffset = -60;
+            const textX = xEndPx + (dx / Math.hypot(dx, dy)) * textOffset;
+            const textY = yEndPx + (dy / Math.hypot(dx, dy)) * textOffset - 20;
+            g
+                .selectAll("text.correlation")
+                .data([0])
+                .join("text")
+                .attr("x", textX)
+                .attr("y", textY)
+                .attr("transform", `rotate(${angleDeg},${textX},${textY})`)
+                .attr("text-anchor", dx < 0 ? "end" : "start")
+                .attr("dominant-baseline", "middle")
+                .attr("fill", primary)
+                .text(`r = ${regression.r.toFixed(2)}`)
+                .attr("class", "correlation");
+        }
     }
 };
 
-
-/* 
-  Draw histogram
-*/
 export const drawHistogram = (
+    container: d3.Selection<null, unknown, null, undefined>,
     svg: d3.Selection<null, unknown, null, undefined>,
     scaleX: string,
     scaleY: string,
@@ -935,7 +1059,9 @@ export const drawHistogram = (
     g.selectAll("path.line-item").remove();
     g.selectAll("rect.bar-item").remove();
     g.selectAll("text.correlation").remove();
+    g.selectAll("text.correlation-group").remove();
     g.selectAll("path.best-fit").remove();
+    container.select(".groupingKey").style("opacity", 0)
 
     // Prepare data
     let data : number[] = [];
@@ -943,16 +1069,12 @@ export const drawHistogram = (
         .entries(fields)
         .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp"))
         .map(([name]) => name);
-    const xAxisProperty = selectedXAxisProperty === "Log Time" ? properties.at(0) : selectedXAxisProperty;
+    const xAxisProperty = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties.at(0);
     let xType : string | undefined;
     if (xAxisProperty) {
         xType = fields[xAxisProperty].data_type
         const filteredData = logs.filter((log) => hasProperty(fields, xAxisProperty, log, table));
-        data = filteredData.map((log) => {
-            let value = getValue(fields, xAxisProperty, log, table);
-            value = xType === "timestamp" ? new Date(value).getTime() : parseFloat(value)
-            return value;
-        })
+        data = filteredData.map((log) => getValue(fields, xAxisProperty, log, table))
     }
 
     // Define scales
@@ -966,12 +1088,22 @@ export const drawHistogram = (
     const x = xScale().domain([minX, maxX]).range(xRange)
     
     // Set bins
-    const bins = d3.bin().thresholds(binCount)
-    const buckets = bins(data)
+    const step = (maxX - minX)/binCount 
+    const thresholds = d3.range(minX, maxX, step)
+    const binGenerator = d3.bin().domain([minX, maxX]).thresholds(thresholds);
+    const buckets = binGenerator(data);
     if (binCounts[1] != data.length) {
+        const newBinCounts = [1, data.length]
+        setbinCounts(newBinCounts)
+        if (data.length > 0 && binCount === 0) {
+            const newCount = Math.min(10, data.length);
+            setbinCount(newCount.toString());
+        }
+        return;
+    }
+    if (binCount > binCounts[1]) {
         const count = Math.min(10, data.length)
         setbinCount(count.toString())
-        setbinCounts([1, data.length])
         return;
     }
 
@@ -979,8 +1111,11 @@ export const drawHistogram = (
     const y = yScale().domain([minY, maxY]).range(yRange)
 
     // Draw axes
-    const {xTicks, yTicks} = calculateTicks(data.length, scaleX, scaleY, minY, maxY, minX, maxX, true);
-    drawAxes("Histogram", svg, dimensions, margins, x, y, xTicks, yTicks, false, false, false, xType);
+    const [xTicks, yTicks] = [
+        generateTicks(minX, maxX, 10, scaleX === "log"),
+        generateTicks(minY, maxY, 10, scaleY === "log")
+    ]
+    drawAxes("Histogram", svg, dimensions, margins, x, y, xTicks, yTicks, false, false, xType);
 
     // Add histogram
     const bars = g
@@ -1013,7 +1148,7 @@ export const drawHistogram = (
         .remove();
 
     // Add tooltip
-    const tooltip = d3.select(".plotTooltip").style("opacity", 0)
+    const tooltip = container.select(".plotTooltip").style("opacity", 0)
 
     // Add mouse event handlers
     function hoverOnHist(event: any, bin: d3.Bin<number, number>) {
@@ -1021,7 +1156,9 @@ export const drawHistogram = (
         const hoverData = {
           group: {
             name: "Data Range",
-            value: `Min: ${formatNumber(minX)}, Max: ${formatNumber(maxX)}`
+            value: xType === "timestamp"
+              ? `Min: ${new Date(minX).toLocaleString()}, Max: ${new Date(maxX).toLocaleString()}`
+              : `Min: ${formatNumber(minX)}, Max: ${formatNumber(maxX)}`
           },
           x: {
             name: "Bar Range",
@@ -1059,18 +1196,3 @@ export const drawHistogram = (
           .style("opacity", 1);
     }
 };
-  
-/* 
-    ToDo:
-        Scatter:
-            - Add zooming
-        Line: 
-            - Add vertical scrolling
-        Bar: 
-            - Add vertical scolling
-        Historgram:
-            - Add vertical scolling
-        General:
-            - Fix inconsistent tooltip positioning
-            - Fix inconsistent plotting in fullscreen mode 
-*/

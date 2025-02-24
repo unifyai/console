@@ -2,7 +2,7 @@
 
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
-import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps, GroupedLogProps, GroupedLogPropsRaw } from "@/types/evals/logs";
+import { TableArguments, LogProps, GroupedLogProps } from "@/types/evals/logs";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -11,8 +11,8 @@ import {
   ColumnSizingState,
   GroupingState,
 } from "@tanstack/react-table";
-import { DerivedEntryActions, LogsActions } from "@/types/evals/grid";
-import React, { useEffect, useRef, useState } from "react";
+import { DerivedEntryActions, LogsActions, FieldsActions, Context } from "@/types/evals/grid";
+import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import { buildTree, nestedColumns, encodeRenderedDepth } from "@/utils/evals/table";
@@ -27,30 +27,31 @@ import FooterCell from "./Content/FooterCell";
 import GlobalFilter from "./Buttons/GlobalFilter";
 import PageController from "@/components/Common/Tables/Data/Buttons/PageController";
 import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
+import FreezeLogs from "./Buttons/FreezeLogs";
 import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
 import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
-import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
 import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
 import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data/Buttons/RowExpanding";
-import { maybeFlattenGroupedLogs } from "@/utils/evals/common";
-import { onGroupExpand } from "@/utils/evals/grouping";
+import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
+import ContextSelector from "./Content/ContextSelector";
 
 const LogsTable = ({
   interactive,
   project,
+  contexts,
   pending,
   item,
   tableArguments,
-  fields,
   tableDataItem_,
   setTableData,
   updateItem,
   logsActions,
+  fieldsActions,
   derivedEntryActions,
   filterExpression,
   sortingExpression,
@@ -62,15 +63,16 @@ const LogsTable = ({
 }: {
   interactive: boolean;
   project: string | undefined;
+  contexts: Context[];
   pending: boolean;
   tab: string;
   item: TileProps;
   tableArguments: TableArguments;
-  fields: LogFieldsResponseProps;
   tableDataItem_: TableDataItem;
   setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void;
   updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
   logsActions: LogsActions;
+  fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions,
   filterExpression: string | null,
   sortingExpression: string | null,
@@ -83,7 +85,10 @@ const LogsTable = ({
 
   // extract necessary fields
   const [tableDataItem, setTableDataItem] = useState(tableDataItem_);
-  const { logs, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
+  const { fields, logs, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
+  useEffect(() => {
+    setTableDataItem(tableDataItem_);
+  }, [tableDataItem_]);
 
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false); // if metric changed
@@ -103,8 +108,8 @@ const LogsTable = ({
   // Column definitions
   const entriesTree = buildTree(entriesProperties);
   const paramsTree = buildTree(paramsProperties);
-  const dataTypes = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type]))
-  const fieldTypes = Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].field_type]))
+  const dataTypes = fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type])) : {}
+  const fieldTypes = fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].field_type])) : {}
   const indicesTitle = "RowNumbering";
   const entriesTitle = "Entries";
   const paramsTitle = "Parameters";
@@ -261,7 +266,7 @@ const LogsTable = ({
     setGrouping,
     setColumnPinning,
     setColumnSizing,
-    setContext: updateItem(item, "context"),
+    setContext: updateItem(item, "column_context"),
     setDraggingColumns,
     setPinningState,
   };
@@ -318,20 +323,17 @@ const LogsTable = ({
     selectedCells
   ]);
 
-  useEffect(() => {
-    setTableDataItem(tableDataItem_);
-  }, [tableDataItem_]);
-
   // Top area: filters, page, etc.
   const tableTop = (
     <div className="mb-2 mx-1 flex flex-row justify-between gap-3 LogsTablePreferences">
       {project && columns.length > 0 && (
         <div className="flex flex-row gap-2 items-center">
-          <SelectionMenu
-            type="Contexts"
-            data={Object.keys(dataTypes).map(property => ({ path: property, type: "file" }))}
-            onClick={updateItem(item, "context")}
-            logs={logs}
+          <ContextSelector
+            contexts={contexts}
+            tableDataItem={tableDataItem}
+            item={item}
+            updateItem={updateItem}
+            context={context}
           />
           <GlobalFilter
             interactive={interactive}
@@ -369,6 +371,7 @@ const LogsTable = ({
             pageNumber={pageNumber}
             setPageNumber={updateItem(item, "page_number")}
           />
+          <FreezeLogs item={item} updateItem={updateItem} />
           <RefreshLogs
             item={item}
             project={project}
@@ -379,8 +382,9 @@ const LogsTable = ({
             hiddenColumns={item.hidden_columns}
             groupingExpression={groupingExpression}
             updateItem={updateItem}
-            setTableDataItem={setTableDataItem}
+            setTableData={setTableData}
             logsActions={logsActions}
+            fieldsActions={fieldsActions}
             logs={logs}
           />
         </div>
@@ -414,11 +418,12 @@ const LogsTable = ({
                 <DataTable<LogProps | GroupedLogProps>
                   className="LogsTable"
                   interactive={interactive}
+                  auto_update={item.auto_update === "true"}
                   data={logs}
                   columns={columns}
                   state={state}
                   setState={setState}
-                  ColumnFilters={(column) => (
+                  ColumnFilters={(column, filterLoading, setIsFiltered, setFilterLoading, open, setOpen, renderMode = "button") => (
                     <ColumnFilter
                       interactive={interactive}
                       setColumnFilterQuery={(filtersObj) => {
@@ -435,10 +440,16 @@ const LogsTable = ({
                         );
                       }}
                       boundaries={boundaries}
-                      columnFilters={searchParamToFilters(logsFilters, item.context)}
+                      columnFilters={searchParamToFilters(logsFilters, item.column_context)}
                       column={column.id}
                       dataTypes={dataTypes}
                       logs={logs}
+                      open={open}
+                      setOpen={setOpen}
+                      filterLoading={filterLoading}
+                      setIsFiltered={setIsFiltered}
+                      setFilterLoading={setFilterLoading}
+                      renderMode={renderMode as "button" | "menuItem"}
                     />
                   )}
                   ColumnCreate={(previousColumn: string, setOpen: (open: boolean) => void) => (
@@ -456,17 +467,22 @@ const LogsTable = ({
                       setOpen={setOpen}
                     />
                   )}
-                  ColumnUpdate={(key: string) => (
+                  ColumnUpdate={(colId: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode = "button") => (
                     <ColumnUpdate
                       project={project}
-                      key={key}
-                      previousEquation={fields[sanitizeId(key)].artifacts}
+                      colId={colId}
+                      open={open}
+                      setOpen={setOpen}
+                      previousEquation={fields[sanitizeId(colId)].artifacts}
                       currentTable={item.i}
                       tableArguments={tableArguments}
                       logs={logs}
                       update={derivedEntryActions.update}
                       setPending={setPending}
                       refresh={() => updateInterface()}
+                      updateLoading={updateLoading}
+                      setUpdateLoading={setUpdateLoading}
+                      renderMode={renderMode as "button" | "menuItem"}
                     />
                   )}
                   RowExpanding={(props: RowExpandingProps) => (
@@ -483,6 +499,7 @@ const LogsTable = ({
                           parentId,
                           project!,
                           item.context ?? null,
+                          item.column_context ?? null,
                           filterExpression,
                           sortingExpression,
                           groupingExpression,
@@ -500,7 +517,17 @@ const LogsTable = ({
                     />
                   )}
                   AggregatedCell={(cell, row) => (
-                    <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />
+                    <AggregatedCell
+                      cell={cell}
+                      metric={metric}
+                      getMetric={(key: string) => {
+                        const groupedMetrics = tableDataItem_.groupedMetrics;
+                        const newKey = key.replace("Entries/", "").replace("Parameters/", "");
+                        const groupingValue = row.getValue(key) as string;
+                        const value = groupedMetrics[groupingValue] ? groupedMetrics[groupingValue][newKey] : undefined;
+                        return typeof value === "number" ? value.toFixed(2) : value?.toString() ?? "";
+                      }}
+                    />
                   )}
                   FooterCell={(column, resizeMap, table) =>
                     <FooterCell
@@ -518,7 +545,7 @@ const LogsTable = ({
                     </FooterCell>
                   }
                   ExtraComponents={(table) => {
-                    return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} context={item.context} />
+                    return <DeleteCells project={project} selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} columnContext={item.column_context} context={item.context} />
                   }}
                   ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
                     <CellPopover cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />

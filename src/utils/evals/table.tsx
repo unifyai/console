@@ -476,8 +476,12 @@ export const nestedColumns = (
 				}
 
 				// If cellValue itself is undefined or null, display a fallback
-				if (cellValue === undefined || cellValue === null) {
-					return "–"; // or "N/A", or any other fallback string
+				if (cellValue === undefined) {
+					return " ";
+				}
+
+				if (cellValue === null) {
+					return "-";
 				}
 
 				// Depending on the dataType, format the incoming value
@@ -769,7 +773,7 @@ export function getCoreRowModel<TData extends RowData>(): (
 			// Add necessary props to support manual server-side grouping
             row.groupingColumnId = (originalRows[i] as any).groupingColumnId
             row.groupingValue = (originalRows[i] as any)[row.groupingColumnId]
-			row.groupingIndex = (originalRows[i] as any)[row.groupingIndex]
+			row.groupingIndex = (originalRows[i] as any).groupingIndex
 
             // Keep track of every row in a flat array
             rowModel.flatRows.push(row)

@@ -57,7 +57,8 @@ function pickDataView(
   baseLogIndex: number,
   compLogIndexes: number[],
   diffMode: LogComparisonProps["diffMode"],
-  splitView: boolean
+  splitView: boolean,
+  displayMode: "text" | "markdown" | undefined
 ) {
   let finalValue = baseValue;
   if (finalValue === undefined && comparables && comparables.length > 0) {
@@ -73,6 +74,7 @@ function pickDataView(
         comparisonLogsIndex={compLogIndexes}
         diffMode={diffMode}
         splitView={splitView}
+        displayMode={displayMode}
       />
     );
   }
@@ -85,6 +87,7 @@ function pickDataView(
         comparisonLogsIndex={compLogIndexes}
         diffMode={diffMode}
         splitView={splitView}
+        displayMode={displayMode}
       />
     );
   }
@@ -97,6 +100,7 @@ function pickDataView(
         comparisonLogsIndex={compLogIndexes}
         diffMode={diffMode}
         splitView={splitView}
+        displayMode={displayMode}
       />
     );
   }
@@ -109,6 +113,7 @@ function pickDataView(
         comparisonLogsIndex={compLogIndexes}
         diffMode={diffMode}
         splitView={splitView}
+        displayMode={displayMode}
       />
     );
   }
@@ -121,6 +126,7 @@ function pickDataView(
         comparisonLogsIndex={compLogIndexes}
         diffMode={diffMode}
         splitView={splitView}
+        displayMode={displayMode}
       />
     );
   }
@@ -133,6 +139,7 @@ function pickDataView(
         comparisonLogsIndex={compLogIndexes}
         diffMode={diffMode}
         splitView={splitView}
+        displayMode={displayMode}
       />
     );
   }
@@ -145,6 +152,7 @@ function pickDataView(
       comparisonLogsIndex={compLogIndexes}
       diffMode={diffMode}
       splitView={splitView}
+      displayMode={displayMode}
     />
   );
 }
@@ -223,6 +231,7 @@ export default function ChatOutView({
   comparisonLogsIndex,
   diffMode = "none",
   splitView = false,
+  displayMode = "markdown",
 }: LogComparisonProps) {
   // SINGLE MODE
   const singleMode = !comparables || comparables.length === 0;
@@ -310,6 +319,7 @@ export default function ChatOutView({
                     comparisonLogsIndex={[]}
                     diffMode={diffMode}
                     splitView={splitView}
+                    displayMode={displayMode}
                   />
                 </div>
               </AccordionContent>
@@ -326,7 +336,7 @@ export default function ChatOutView({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border-l ml-4 pl-1">
-                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView)}
+                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView, displayMode)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -342,7 +352,7 @@ export default function ChatOutView({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border-l ml-4 pl-1">
-                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView)}
+                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView, displayMode)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -595,6 +605,7 @@ export default function ChatOutView({
                   comparisonLogsIndex={comparisonLogsIndex}
                   diffMode={diffMode}
                   splitView={splitView}
+                  displayMode={displayMode}
                 />
               </div>
             </AccordionContent>
@@ -615,7 +626,8 @@ export default function ChatOutView({
                     baseLogIndex,
                     comparisonLogsIndex,
                     diffMode,
-                    splitView
+                    splitView,
+                    displayMode
                   )}
                 </div>
               </AccordionContent>
@@ -637,7 +649,8 @@ export default function ChatOutView({
                     baseLogIndex,
                     comparisonLogsIndex,
                     diffMode,
-                    splitView
+                    splitView,
+                    displayMode
                   )}
                 </div>
               </AccordionContent>
@@ -864,7 +877,8 @@ export default function ChatOutView({
                   baseLogIndex,
                   comparisonLogsIndex,
                   diffMode,
-                  splitView
+                  splitView,
+                  displayMode
                 )}
               </div>
             </AccordionContent>
@@ -886,7 +900,8 @@ export default function ChatOutView({
                   baseLogIndex,
                   comparisonLogsIndex,
                   diffMode,
-                  splitView
+                  splitView,
+                  displayMode
                 )}
               </div>
             </AccordionContent>

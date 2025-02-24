@@ -23,7 +23,7 @@ const customKeysTableColumns = (
         header: ({column}: {column: Column<CustomKey, unknown>}) => 
           <div className="flex flex-row justify-between gap-2 items-center">
             <p>{"Name"}</p>
-            <ColumnSort column={column} data={data}/>
+            <ColumnSort column={column} data={data} sortLoading={false} setSortLoading={() => {}} setIsSorted={() => {}} renderMode="button"/>
           </div>,
         cell: ({cell}: {cell: Cell<CustomKey, unknown>}) => path.basename(cell.getValue() as string)
     }
@@ -32,7 +32,7 @@ const customKeysTableColumns = (
         header: ({column}: {column: Column<CustomKey, unknown>}) => 
           <div className="flex flex-row justify-between gap-2 items-center">
             <p>{"Value"}</p>
-            <ColumnSort column={column} data={data}/>
+            <ColumnSort column={column} data={data} sortLoading={false} setSortLoading={() => {}} setIsSorted={() => {}} renderMode="button"/>
           </div>,
         cell: ({cell}: {cell: Cell<CustomKey, unknown>}) => {
           const value = cell.getValue() as string;
@@ -53,7 +53,7 @@ const customKeysTableColumns = (
             <DeleteDialog 
               deletingFunction={customKeyActions.delete}
               type="custom key"
-              resource={name}
+              args={[name]}
             />
             <RenameDialog 
               renamingFunction={customKeyActions.rename}

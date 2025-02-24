@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Dispatch, SetStateAction } from "react";
 import { Filters, FiltersByColumn } from "@/types/evals/columns";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -13,43 +13,79 @@ import { Input } from "@/components/UI/input";
 import { Slider } from "@/components/UI/slider";
 import { initFilters, combineFilters } from "@/utils/evals/filters";
 import { Trash, Plus, CircleX, LoaderCircle } from "lucide-react";
-import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
+import {  DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/UI/dialog";
+import { sanitizeId } from "@/utils/evals/columnOperations";
 
 interface NumericFilter {
     key: number,
-    mode: "==" | "!=" | ">=" | "=<" | ">" | "<",
+    mode: "==" | "!=" | ">=" | "=<" | ">" | "<" | "exists" | "isNone",
     join: "&&" | "||",
     value: string
 }
 
-const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, boundaries, logs }: {
+const NumericColumnFilter = ({
+    interactive,
+    column,
+    columnFilters,
+    setColumnFilterQuery,
+    boundaries,
+    dataTypes,
+    logs,
+    open,
+    setOpen,
+    filterLoading,
+    setFilterLoading,
+    setIsFiltered,
+    renderMode
+}: {
     interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
     boundaries: {minimums: {[key: string]: number;}, maximums: {[key: string]: number}},
-    logs: LogProps[] | GroupedLogProps[]
+    dataTypes: {[key: string]: string},
+    logs: LogProps[] | GroupedLogProps[],
+    open: boolean,
+    setOpen: Dispatch<SetStateAction<boolean>>,
+    filterLoading: boolean,
+    setFilterLoading: (filterLoading: boolean) => void,
+    setIsFiltered: (isFiltered: boolean) => void,
+    renderMode: "button" | "menuItem"
 }) => {
 
     /* Display loader when data updates */
-    const [loading, setLoading] = useState(false);
     const [spinnerColor, setSpinnerColor] = useState("white");
     useEffect(() => {
-        setLoading(false);
+        setFilterLoading(false);
     },[logs])
 
     /* Initialize filters */
     const options = [
-        {name: "==", label: "="  , description: "Filter for values equal to.."},
+        {name: "==", label: "=="  , description: "Filter for values equal to.."},
         {name: "!=", label: "!=" , description: "Filter for values not equal to.."},
         {name: ">",  label: ">"  , description: "Filter for values greater than.."},
         {name: ">=", label: ">=" , description: "Filter for values greater or equal to.."},
         {name: "<",  label: "<"  , description: "Filter for values less than.."},
-        {name: "<=", label: "<=" , description: "Filter for values less or equal to.."}
+        {name: "<=", label: "<=" , description: "Filter for values less or equal to.."},
+        {name: "exists", label: "exists" , description: "Filter for existing values.."},
+        {name: "isNone", label: "isNone" , description: "Filter for none values.."}
     ]
     const modes = options.map(option => option.name)
+
     const [minValue, maxValue] = [boundaries.minimums[column], boundaries.maximums[column]]
+    const sliderMin = Math.floor(minValue);
+    const sliderMax = Math.ceil(maxValue);
+
+    // Choose step size based on data type
+    let stepSize = 1; // default step for non-float
+    if (dataTypes[column] === "float") {
+        const range = sliderMax - sliderMin;
+        // Avoid dividing by zero if range is 0
+        stepSize = range !== 0 ? range / 1000 : 1;
+    }
+
     let defaultFilter : NumericFilter = {key: 0, mode: "==", join: "&&", value: ""}
     let initialValues : NumericFilter[] = []
     if (columnFilters[column]) {
@@ -58,7 +94,12 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
         initialValues.push(defaultFilter)
     }
     const [filters, setFilters] = useState(initialValues);
-    
+    const isFiltered = column in columnFilters;
+
+    useEffect(() => {
+        setIsFiltered(isFiltered);
+    }, [isFiltered])
+
     /* Event handlers */
     const onInput = (value: any, filter: NumericFilter) => {
         const newFilters = [...filters]
@@ -84,7 +125,7 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
         }
         setColumnFilterQuery(newColumnFilters);
         setSpinnerColor("white")
-        setLoading(true);
+        setFilterLoading(true);
         setOpen(false);
     }
     const onReset = () => {
@@ -94,7 +135,7 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
         setFilters([defaultFilter])
         setColumnFilterQuery(newColumnFilters)
         setSpinnerColor("primary")
-        setLoading(true);
+        setFilterLoading(true);
         setOpen(false)
     }
     const onEnter : KeyboardEventHandler = (event) => {
@@ -104,9 +145,12 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
     }
 
     /* Dialog interactions */
-    const [open, setOpen] = useState(false);
     const close = <BaseButton size="sm" icon={<CircleX/>} onClick={() => setOpen(false)} className="top-0 right-0 scale-60 absolute" variant="warning"/>
-    const button = <ActionButton icon={loading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : <Filter/>} tooltip="Filter" variant={column in columnFilters ? "primary" : undefined} disabled={!interactive || loading}/>
+    const button = renderMode === "button" ? (
+        <ActionButton icon={filterLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : <Filter/>} tooltip="Filter" variant={isFiltered ? "primary" : undefined} disabled={!interactive || filterLoading}/>
+    ) : (
+        <Filter className="h-4 w-4"/>
+    )
     const reset = <ActionButton tooltip="Delete all filters" variant="warning" icon={<Trash/>} onClick={() => onReset()}/> 
     const submit = <SubmitButton text="Save" onClick={() => onSubmit()}/>
     const append = 
@@ -144,6 +188,28 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
                 </DropdownMenuItem>
             )}
         </BaseDropdown>
+    const valueInput = (filter: NumericFilter, option: {name: string, label: string, description: string} ) => 
+        <Input
+            className="-ms-px rounded-s-none shadow-none focus-visible:z-10"
+            placeholder={option.description}
+            type="text"
+            value={filter.value}
+            onInput={(input: any) => onInput(input.currentTarget.value, filter)}
+            onKeyDown={onEnter}
+            inputMode="decimal"
+        />
+    const toggleInput = (filter: NumericFilter) =>     
+        <BaseButton 
+            text={filter.value} 
+            variant="outline" 
+            className="rounded-none rounded-tr-lg rounded-br-lg" 
+            onClick={() => {
+                const newFilters = [...filters]
+                newFilters.find(f => f.key === filter.key)!.value === "true" 
+                    ? newFilters.find(f => f.key === filter.key)!.value = "false"
+                    : newFilters.find(f => f.key === filter.key)!.value = "true"
+            }}
+        />
     const filterInput = (filter: NumericFilter, withSlider: boolean) => {
         const option = options.find(option => option.name === filter.mode)!;
         return (
@@ -154,17 +220,12 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
                     onOptionChange={(option) => {
                         const newFilters = [...filters]
                         newFilters.find(f => f.key === filter.key)!.mode = option.name as "==" | "!="
+                        if (["exists", "isNone"].includes(option.name)) {
+                            newFilters.find(f => f.key === filter.key)!.value = "true"
+                        }
                     }}
                 >
-                    <Input
-                        className="-ms-px rounded-s-none shadow-none focus-visible:z-10"
-                        placeholder={option.description}
-                        type="text"
-                        value={filter.value}
-                        onInput={(input: any) => onInput(input.currentTarget.value, filter)}
-                        onKeyDown={onEnter}
-                        inputMode="decimal"
-                    />
+                    {["exists", "isNone"].includes(option.name) ? toggleInput(filter) : valueInput(filter, option)}
                 </InputWithStartSelect>
                 {withSlider && 
                     <div className="flex flex-col grow w-full px-2">
@@ -172,15 +233,21 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
                             className="mb-2 flex w-full items-center justify-between gap-2 text-xs font-medium text-muted-foreground"
                             aria-hidden="true"
                         >
-                            <span>{minValue}</span>
-                            <span>{maxValue}</span>
+                            <span>{sliderMin}</span>
+                            <span>{sliderMax}</span>
                         </span>
                         <Slider
                             className="w-full"
                             value={[parseFloat(filter.value)]}
-                            onValueChange={(value) => onInput(value[0].toString(), filter)}
-                            min={minValue}
-                            max={maxValue}
+                            onValueChange={(vals) => {
+                                const val = vals[0];
+                                // Force it to 3 decimal places
+                                const precise = parseFloat(val.toFixed(3));
+                                onInput(precise.toString(), filter);
+                            }}
+                            min={sliderMin}
+                            max={sliderMax}
+                            step={stepSize}
                             aria-label="Slider with input"
                         />
                     </div>
@@ -198,28 +265,99 @@ const NumericColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
                 setFilters(newFilters)
             }}
         />
+    
+    const filterContent = (
+        <div className="flex flex-col gap-3 px-2 pt-4 pb-2">
+            {filters.map((filter, index) => 
+                <div key={index} className="grid grid-cols-8 items-center">
+                    {filters.length > 0 && filter.key != 0 && <div className="col-span-1">{join(filter)}</div>}
+                    <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-6" : "col-span-7"}`}>{filterInput(filter, !["==", "!=", "exists", "isNone"].includes(filter.mode))}</div>
+                    <div className="col-span-1 text-center">{remove(filter)}</div>
+                </div>
+            )}
+            <div className="flex flex-row gap-2 justify-between">
+                {append}
+                <div className="flex flex-row gap-2 justify-end">
+                    {reset}
+                    {submit}
+                </div>
+            </div>
+            {/* {close} */}
+        </div>
+    )
 
     return (
-        <BaseDropdown button={button} open={interactive && open} setOpen={setOpen}>
-            <div className="flex flex-col gap-3 px-2 pt-4 pb-2">
-                {filters.map((filter, index) => 
-                    <div key={index} className="grid grid-cols-8 items-center">
-                        {filters.length > 0 && filter.key != 0 && <div className="col-span-1">{join(filter)}</div>}
-                        <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-6" : "col-span-7"}`}>{filterInput(filter, !["==", "!="].includes(filter.mode))}</div>
-                        <div className="col-span-1 text-center">{remove(filter)}</div>
-                    </div>
+        <Dialog
+          // Tie the <Dialog> open to the parent state if not "menuItem" mode
+          open={renderMode === "menuItem" ? undefined : interactive && open}
+          onOpenChange={renderMode === "menuItem" ? undefined : setOpen}
+        >
+            <DialogTrigger asChild>
+                {renderMode === "menuItem" ? (
+                    // Because this is inside a parent DropdownMenuItem, 
+                    // we must prevent the parent from closing automatically:
+                    <DropdownMenuItem
+                        onSelect={(e) => e.preventDefault()}
+                        className="
+                            relative 
+                            flex 
+                            cursor-pointer 
+                            select-none 
+                            items-center 
+                            gap-2 
+                            rounded-sm 
+                            px-2 
+                            py-1.5 
+                            text-sm 
+                            outline-none 
+                            transition-colors 
+                            focus:bg-accent 
+                            focus:text-accent-foreground 
+                            data-[highlighted]:bg-accent 
+                            data-[highlighted]:text-accent-foreground 
+                            data-[disabled]:pointer-events-none 
+                            data-[disabled]:opacity-50 
+                            [&>svg]:size-4 
+                            [&>svg]:shrink-0
+                        "
+                    >
+                        {button}
+                        <span>Filter by this column</span>
+                    </DropdownMenuItem>
+                ) : (
+                    button
                 )}
-                <div className="flex flex-row gap-2 justify-between">
-                    {append}
-                    <div className="flex flex-row gap-2 justify-end">
-                        {reset}
-                        {submit}
-                    </div>
-                </div>
-                {close}
-            </div>
-        </BaseDropdown>
-    );
+            </DialogTrigger>
+    
+            <DialogContent 
+                // Stop clicks from closing the parent if it’s still around
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={(e) => e.stopPropagation()}
+                onPointerOver={(e) => e.stopPropagation()}
+                className="sm:max-w-lg"
+            >
+                <DialogHeader>
+                    <DialogTitle>Numeric Filters</DialogTitle>
+                    <DialogDescription>
+                        Apply numeric filters to <strong>{sanitizeId(column)}</strong>.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {/* The main filter UI */}
+                {filterContent}
+        
+                {/* 
+                    If you wanted a separate <DialogFooter>:
+                    <DialogFooter>
+                        <div className="flex flex-row gap-2 justify-end">
+                            {reset}
+                            {submit}
+                        </div>
+                    </DialogFooter>
+                */}
+            </DialogContent>
+        </Dialog>
+      );
 }
 
 export default NumericColumnFilter;

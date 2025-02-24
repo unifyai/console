@@ -71,7 +71,7 @@ const Interface = ({
                 paths={datasets.map((entry) => entry.path)}
               />
               <DeleteDialog
-                resource={selectedDataset.path}
+                args={[selectedDataset.path]}
                 type="dataset"
                 deletingFunction={deleteDataset}
               />

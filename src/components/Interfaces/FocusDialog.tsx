@@ -3,31 +3,34 @@
 import { Dispatch, SetStateAction } from "react";
 import { DoublePanels } from "../Common/Body/DoublePanels";
 import ActionButton from "../Common/Buttons/Action";
+import BaseDropdown from "../Common/Dropdowns/Base";
 import Card from "./Card";
 import { Badge } from "../UI/badge";
+import { DropdownMenuItem } from "../UI/dropdown-menu";
 import { TableArguments } from "@/types/evals/logs";
-import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
-import { ContextActions, DerivedEntryActions, Interface, ItemType, LogsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
-import { X } from "lucide-react";
+import { DerivedEntryActions, Interface, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps, Context } from "@/types/evals/grid";
+import { Plus, X } from "lucide-react";
+import { icons } from "@/constants/logs";
 
 const FocusDialog = ({
     maxTiles,
     maxTileItems,
-    mode,
+    edit,
+    interactive,
     project,
+    contexts,
     pending,
     dataPending,
     tilePending,
     setTilePending,
-    fields,
     tableNames,
     tableData,
     plotData,
     tableArguments,
     logsActions,
+    fieldsActions,
     derivedEntryActions,
-    contextActions,
     items,
     filterExpressions,
     sortingExpressions,
@@ -40,22 +43,23 @@ const FocusDialog = ({
     setMaxTiles,
     setFocusDialog,
 }: {
-    maxTiles: string[],
-    maxTileItems: (TileProps | undefined)[],
-    mode: "edit" | "interactive" | "dashboard",
+    maxTiles: [string | undefined, string | undefined],
+    maxTileItems: [TileProps | undefined, TileProps | undefined],
+    edit: boolean,
+    interactive: boolean,
     project: string | undefined,
+    contexts: Context[],
     pending: boolean,
     dataPending: boolean,
     tilePending: { [key: string]: boolean },
     setTilePending: (tilePending: { [key: string]: boolean }) => void,
-    fields: LogFieldsResponseProps,
     tableNames: string[],
     tableData: TableDataProps,
     plotData: PlotDataProps,
     tableArguments: TableArguments,
     logsActions: LogsActions,
+    fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
-    contextActions: ContextActions,
     items: TileProps[],
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
@@ -64,26 +68,27 @@ const FocusDialog = ({
     offsets: number[],
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: any | undefined) => void,
     updateInterface: (savedInterface?: Interface | null) => Promise<ResponseProps>,
-    setMaxTiles: Dispatch<SetStateAction<string[]>>,
+    setMaxTiles: Dispatch<SetStateAction<[string | undefined, string | undefined]>>,
     setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void,
     setFocusDialog: Dispatch<SetStateAction<boolean>>,
 }) => {
-    const tiles = maxTileItems.map((item: TileProps | undefined) => {
+    const tiles = maxTileItems.map((item: TileProps | undefined, idx: number) => {
         return (
             item
                 ? <div className="h-full relative pt-2">
                     <Card
-                        mode={mode}
+                        edit={edit}
+                        interactive={interactive}
                         project={project}
                         pending={pending || dataPending || (item.tab == "Table" ? tilePending[item.i] : false)}
+                        contexts={contexts}
                         tableNames={tableNames}
                         tableData={tableData}
                         tableArguments={tableArguments}
-                        fields={fields}
                         plotData={plotData}
                         logsActions={logsActions}
+                        fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}
-                        contextActions={contextActions}
                         index={item.i}
                         item={item}
                         items={items}
@@ -97,22 +102,17 @@ const FocusDialog = ({
                         updateInterface={updateInterface}
                         setTableData={setTableData}
                     />
-                    <div className={"w-full px-2 transition-all absolute -top-1 flex justify-between " + (mode == "edit" ? "h-20" : "h-10")}>
+                    <div className={"w-full px-2 transition-all absolute -top-1 flex justify-between " + (edit ? "h-20" : "h-10")}>
                         <div>
-                            <Badge
-                                className="no-drag"
-                                variant="primary"
-                            >
-                                {item.i}
-                            </Badge>
+                            <Badge variant="primary">{item.i}</Badge>
                         </div>
                         <div className="mb-auto">
                             <ActionButton
-                                className="no-drag remove cursor-pointer hover:z-10"
+                                className="remove cursor-pointer hover:z-10"
                                 onClick={() => {
-                                    const newMaxTiles = maxTiles.filter(t => t != item.i);
-                                    setMaxTiles(newMaxTiles);
-                                    if (newMaxTiles.length == 0)
+                                    maxTiles[idx] = undefined;
+                                    setMaxTiles([...maxTiles]);
+                                    if (maxTiles[0] == undefined && maxTiles[1] == undefined)
                                         setFocusDialog(false);
                                 }}
                                 icon={<X />}
@@ -122,7 +122,29 @@ const FocusDialog = ({
                         </div>
                     </div>
                 </div>
-                : <></>
+                : <div className="h-full w-full flex justify-center items-center">
+                    <div className="w-fit">
+                        <BaseDropdown
+                            button={<ActionButton
+                                tooltip="Select Tile"
+                                icon={<Plus />}
+                                variant="outline"
+                                size="default"
+                            />}
+                        >
+                            {items.filter(item => !maxTiles.includes(item.i)).map((item, idx_) => <DropdownMenuItem
+                                key={idx_}
+                                onSelect={() => {
+                                    maxTiles[idx] = item.i;
+                                    setMaxTiles([...maxTiles]);
+                                }}
+                                className="w-64 flex justify-between items-center"
+                            >
+                                <span>{item.i}</span>{item.tab ? icons[item.tab as keyof typeof icons] : ""}
+                            </DropdownMenuItem>)}
+                        </BaseDropdown>
+                    </div>
+                </div>
         );
     });
     return (

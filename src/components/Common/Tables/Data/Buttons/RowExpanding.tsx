@@ -30,7 +30,7 @@ const RowExpanding = ({
             if (row.getIsExpanded() && !row.original.isPopulated) {
                 setIsLoading(true);
                 try {
-                    const groupingValue = row.original.groupingValue;
+                    const groupingValue = row.getValue(groupingColumnId);
                     const parentId = row.original.id.split('>').slice(0, -1).join('>');
                     await onExpand(groupingColumnId, groupingValue as string, parentId, setExpandingRowId);
                 } finally {

@@ -1,31 +1,34 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import Selection from "@/components/Interfaces/Details/Selection/Selection";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
-import { Plus } from "lucide-react";
-import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
+import { TableArguments } from "@/types/evals/logs";
 import LogsPlot from "@/components/Interfaces/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Interfaces/Table/Table";
-import { DerivedEntryActions, ContextActions, ItemType, LogsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
-import { maybeFlattenGroupedLogs } from "@/utils/evals/common";
+import { DerivedEntryActions, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
+import { icons, tabTypes } from "@/constants/logs";
+import { Context } from "@/types/evals/grid";
+import { Plus } from "lucide-react";
 
 const Card = ({
-    mode,
+    edit,
+    interactive,
     project,
     pending,
-    fields,
+    contexts,
     tableNames,
     tableData,
     plotData,
     tableArguments,
     logsActions,
+    fieldsActions,
     derivedEntryActions,
-    contextActions,
     index,
     item,
     items,
@@ -39,17 +42,18 @@ const Card = ({
     updateInterface,
     setTableData,
 }: {
-    mode: "edit" | "interactive" | "dashboard",
+    edit: boolean,
+    interactive: boolean,
     project: string | undefined,
     pending: boolean,
-    fields: LogFieldsResponseProps,
+    contexts: Context[],
     tableNames: string[],
     tableData: TableDataProps,
     plotData: PlotDataProps,
     tableArguments: TableArguments,
     logsActions: LogsActions,
+    fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
-    contextActions: ContextActions,
     index: string,
     item: TileProps,
     items: TileProps[],
@@ -63,11 +67,10 @@ const Card = ({
     updateInterface: () => Promise<ResponseProps>,
     setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void,
 }) => {
-    
+
     const router = useRouter();
     const [initial, setInitial] = useState(true);
     const tab = items.find(item => item.i == index)?.tab;
-    const tabTypes = ["Table", "Plot", "View"];
     const relevantItem = item.table ? items.find(it => it.i == item.table) : undefined;
 
     // Use a ref to compare the needed properties so we only update if something truly changed.
@@ -84,6 +87,7 @@ const Card = ({
         item.table_type,
         item.filters,
         item.context,
+        item.column_context,
         item.common_filter,
         item.sorting,
         item.grouping,
@@ -92,39 +96,45 @@ const Card = ({
         item.plot_type,
         item.x_axis,
         item.y_axis,
+        item.plot_group_by
     ]);
+
+    useEffect(() => {
+        if (item.tab != "View" && !initial)
+            setPending(true);
+    }, [item.tab, item.table_type, item.context, item.column_context]);
 
     useEffect(() => {
         setInitial(false);
     }, []);
 
-    return (<div className="no-drag relative flex w-full h-full border rounded-lg">
+    return (<div className="relative flex w-full h-full border">
         <div className={"w-full flex-1 flex flex-col items-center " + (tab ? "mt-2" : "justify-center")}>
             <div className="flex gap-4 z-20">
-                {mode == "edit" && <div className="w-fit">
+                {edit && <div className="w-fit">
                     <BaseDropdown
                         button={<ActionButton
-                            tooltip="Add Tab"
-                            text={tab || undefined}
-                            icon={tab ? undefined : <Plus />}
+                            tooltip="Select Tile Type"
+                            text={item.tab}
+                            icon={item.tab ? undefined : <Plus />}
                             variant="outline"
                             size="default"
                         />}
                     >
-                        {(mode != "edit" ? [] : tabTypes).map((tab, idx) => <DropdownMenuItem
+                        {(!edit ? [] : tabTypes).map((tab, idx) => <DropdownMenuItem
                             key={idx}
                             onSelect={() => {
                                 if (item.tab == undefined && tab == "Table")
                                     updateItem(item, "table_type")("Data Table");
                                 updateItem(item, "tab")(tab);
                             }}
-                            className="w-64 no-drag"
+                            className="w-64 flex justify-between items-center"
                         >
-                            {tab}
+                            <span>{tab}</span>{icons[tab as keyof typeof icons]}
                         </DropdownMenuItem>)}
                     </BaseDropdown>
                 </div>}
-                {tab && mode == "edit" && tab == "View" && <div className="w-fit">
+                {tab && edit && tab == "View" && <div className="w-fit">
                     <BaseDropdown
                         button={<ActionButton
                             tooltip="Select Table"
@@ -133,45 +143,14 @@ const Card = ({
                             size="default"
                         />}
                     >
-                        {(mode != "edit" ? [] : tableNames).map((tile, idx) => <DropdownMenuItem
+                        {(!edit ? [] : tableNames).map((tile, idx) => <DropdownMenuItem
                             key={idx}
                             onSelect={() => updateItem(item, "table")(tile)}
                             disabled={(tableData[tile]?.logs || []).length == 0}
-                            className="w-64 no-drag"
+                            className="w-64"
                         >
                             {tile}
                             {(tableData[tile]?.logs || []).length ? "" : " (empty table)"}
-                        </DropdownMenuItem>)}
-                    </BaseDropdown>
-                </div>}
-                {tab && mode == "edit" && tab == "Table" && <div className="w-fit">
-                    <BaseDropdown
-                        button={<ActionButton
-                            tooltip="Select Table Type"
-                            text={item.table_type}
-                            variant="outline"
-                            size="default"
-                        />}
-                    >
-                        {["Data Table", "Derived Table"].map((tableType, idx) => <DropdownMenuItem
-                            key={idx}
-                            onSelect={() => {
-                                if (tableType == "Derived Table") {
-                                    if (!item.prev_context) {
-                                        contextActions.create(`Derived_${item.i}`, project as string);
-                                        updateItem(item, "context")(`Derived_${item.i}`);
-                                        updateItem(item, "prev_context")(`Derived_${item.i}`);
-                                    }
-                                    else
-                                        updateItem(item, "context")(item.prev_context);
-                                }
-                                else
-                                    updateItem(item, "context")(undefined);
-                                    updateItem(item, "table_type")(tableType);
-                            }}
-                            className="w-64 no-drag"
-                        >
-                            {tableType}
                         </DropdownMenuItem>)}
                     </BaseDropdown>
                 </div>}
@@ -188,19 +167,23 @@ const Card = ({
                 updateItem={updateItem}
             /></div>}
             {tab?.includes("Plot") && <LogsPlot
-                interactive={["edit", "interactive"].includes(mode)}
-                logs={plotData[item.i]?.plotLogs || []}
-                fields={plotData[item.i]?.plotFields || {}}
+                interactive={interactive}
+                pending={pending}
+                logsActions={logsActions}
+                fieldsActions={fieldsActions}
+                project={project}
+                plotDataItem_={plotData[item.i]}
+                tableNames={tableNames}
                 item={item}
                 updateItem={updateItem}
             />}
             {tab?.includes("Table") && <LogsTable
-                interactive={["edit", "interactive"].includes(mode)}
+                interactive={interactive}
                 project={project}
+                contexts={contexts}
                 pending={pending}
                 tab={tab}
                 item={item}
-                fields={fields}
                 tableArguments={tableArguments}
                 tableDataItem_={{
                     ...(tableData[item.i] || {}),
@@ -214,6 +197,7 @@ const Card = ({
                 }}
                 setTableData={setTableData}
                 updateItem={updateItem}
+                fieldsActions={fieldsActions}
                 logsActions={logsActions}
                 derivedEntryActions={derivedEntryActions}
                 filterExpression={filterExpressions ? filterExpressions[items.findIndex(it => it.i === item.i)] : null}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, CSSProperties, ReactNode } from "react";
+import { useState, CSSProperties, ReactNode, useRef, SetStateAction, Dispatch, useEffect } from "react";
 
 import { flexRender, Header, Column, Table, Cell } from "@tanstack/react-table";
 import { useSortable } from "@dnd-kit/sortable";
@@ -9,6 +9,10 @@ import { CSS, Transform } from "@dnd-kit/utilities";
 import { TableHead } from "@/components/UI/table";
 import { getNextLeafColumn, getPreviousLeafColumn } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
+import { getCellsFromHeader, getSelectableTableCells } from "@/hooks/Logs/useCellSelection";
+import { getColumnGroupIDs } from "@/utils/evals/table";
+
+// Column action components
 import ColumnSort from "../Buttons/ColumnSort";
 import ColumnGroupBy from "../Buttons/ColumnGroupBy";
 import ColumnHide from "../Buttons/ColumnHide";
@@ -16,12 +20,24 @@ import ColumnShow from "../Buttons/ColumnShow";
 import ColumnContext from "../Buttons/ColumnContext";
 import ColumnResizer from "../Buttons/ColumnResize";
 import ColumnPinner from "../Buttons/ColumnPinner";
-import { getCellsFromHeader, getSelectableTableCells } from "@/hooks/Logs/useCellSelection";
-import { getColumnGroupIDs } from "@/utils/evals/table";
+
+// Shadcn UI dropdown
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuTrigger,
+  DropdownMenuItem,
+} from "@/components/UI/dropdown-menu";
+
+// Icon / button
+import ActionButton from "@/components/Common/Buttons/Action";
+import { MoreHorizontal, Group, ArrowUpDown, Filter, FolderTree, EyeOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 
 const DataTableHeader = ({
   interactive,
+  auto_update,
   data,
   table,
   header,
@@ -43,9 +59,12 @@ const DataTableHeader = ({
   columnPinning,
   pinningState,
   setPinningState,
-  children
+  children,
+  columnActionsApplied,
+  setColumnActionsApplied
 }: {
   interactive?: boolean,
+  auto_update?: boolean,
   data: any[],
   table: Table<any>,
   header: Header<any, unknown>,
@@ -61,9 +80,9 @@ const DataTableHeader = ({
   setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void,
   grouping: string[],
   setGrouping: (grouping: string[]) => void,
-  ColumnFilters?: (column: Column<any | unknown>) => ReactNode,
+  ColumnFilters?: (column: Column<any | unknown>, filterLoading: boolean, setIsFiltered: (isFiltered: boolean) => void, setFilterLoading: (filterLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode,
   ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode,
-  ColumnUpdate?: (key: string) => ReactNode,
+  ColumnUpdate?: (key: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem" ) => ReactNode,
   context: string | null,
   setContext: (context: string | null) => void,
   draggingColumns: DraggingColumnsState,
@@ -72,7 +91,9 @@ const DataTableHeader = ({
   columnPinning: { left?: string[]; right?: string[] },
   pinningState: PinningColumnState,
   setPinningState: (state: PinningColumnState) => void,
-  children?: ReactNode
+  children?: ReactNode,
+  columnActionsApplied: { [depth: number]: { [columnId: string]: boolean } },
+  setColumnActionsApplied: Dispatch<SetStateAction<{ [depth: number]: { [columnId: string]: boolean } }>>
 }) => {
 
   const { attributes, listeners, setNodeRef, isDragging, transform } = useSortable({
@@ -97,6 +118,7 @@ const DataTableHeader = ({
   const isParentColumn = header.column.columnDef.meta?.isParent;
   const isNotUtilColumn = header.column.columnDef.meta?.columnType != "util";
   const isDerivedColumn = header.column.columnDef.meta?.fieldType === "derived_entry";
+  const isImageColumn = header.column.columnDef.meta?.dataType === "image";
 
   // Handle pinning animation
   const isPinning = pinningState.isPinning && (
@@ -134,6 +156,64 @@ const DataTableHeader = ({
     }
   } : {};
 
+  // Track loading states for column actions
+  const [groupLoading, setGroupLoading] = useState(false);
+  const [sortLoading, setSortLoading] = useState(false);
+  const [filterLoading, setFilterLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
+
+  // Determine which actions should be shown in dropdown vs as buttons
+  const [isGrouped, setIsGrouped] = useState(false);
+  const [isSorted, setIsSorted] = useState(false);
+  const [isFiltered, setIsFiltered] = useState(false);
+
+  // Open states for dialogs
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [updateOpen, setUpdateOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    if (groupLoading || sortLoading || filterLoading || updateLoading) {
+      setDropdownOpen(false);
+    }
+    else {
+      setDropdownOpen(false);
+    }
+  }, [data, groupLoading, sortLoading, filterLoading, updateLoading])
+
+  const showGroupButton = () => {
+    return (!isImageColumn && (groupLoading || isGrouped));
+  }
+
+  const showSortButton = () => {
+    return (!isParentColumn && (sortLoading || isSorted));
+  }
+
+  const showFilterButton = () => {
+    return (!isParentColumn && (filterLoading || isFiltered));
+  }
+
+  const showUpdateButton = () => {
+    return (!isParentColumn && isDerivedColumn && updateLoading);
+  }
+
+  const hasActiveActions = showGroupButton() || showSortButton() || showFilterButton() || showUpdateButton();
+
+  useEffect(() => {
+    setColumnActionsApplied((prev) => {
+      const depth = header.column.columnDef.meta?.renderedDepth ?? 0;
+      const columnId = header.column.id;
+  
+      return {
+        ...prev,
+        [depth]: {
+          ...prev[depth], // Preserve existing columns at the same depth
+          [columnId]: hasActiveActions, // Update the current column
+        },
+      };
+    });
+  }, [hasActiveActions, groupLoading, isGrouped, sortLoading, isSorted, filterLoading, isFiltered, updateLoading, data]);  
+
   // Handle header coloring.
   // - Applies selection (hover) background color on any column header for which all (some) cells are selected
   // - Applied selection (hover) background color index column header if all (some) table cells are selected
@@ -164,6 +244,66 @@ const DataTableHeader = ({
       : isAllTableSelected() ? `var(--primary)` : hovered ? "var(--muted)" : "var(--background)",
   };
 
+  // Visible action buttons for active states
+  const renderVisibleActions = () => (
+    <>
+      <div
+          className={`${showGroupButton() ? "" : "hidden"}`}
+      >
+        {(
+          <ColumnGroupBy
+          interactive={interactive}
+          auto_update={auto_update}
+          column={header.column}
+          grouping={grouping}
+          setGrouping={setGrouping}
+          data={data}
+          groupLoading={groupLoading}
+          setGroupLoading={setGroupLoading}
+          setIsGrouped={setIsGrouped}
+          renderMode="button"
+        />
+        )}
+      </div>
+      <div
+          className={`${showSortButton() ? "" : "hidden"}`}
+      >
+        {(
+          <ColumnSort
+          interactive={interactive}
+          column={header.column}
+          data={data}
+          sortLoading={sortLoading}
+          setSortLoading={setSortLoading}
+          setIsSorted={setIsSorted}
+          renderMode="button"             
+        />
+        )}
+      </div>
+      {showFilterButton() && (
+        ColumnFilters && ColumnFilters(
+          header.column,
+          filterLoading,
+          setIsFiltered,
+          setFilterLoading,
+          filterOpen,
+          setFilterOpen,
+          "button"
+        )
+      )}
+      {showUpdateButton() && (
+        ColumnUpdate && ColumnUpdate(
+          header.column.id,
+          updateLoading,
+          setUpdateLoading,
+          updateOpen,
+          setUpdateOpen,
+          "button"
+        )
+      )}
+    </>
+  );
+
   return (
     <TableHead 
       colSpan={header.colSpan} 
@@ -176,80 +316,282 @@ const DataTableHeader = ({
       {/* Grab area */}
       {isNotUtilColumn && 
         <div 
-          className="cursor-grabbing h-3 w-full absolute" 
+          className="cursor-grabbing h-2 w-full absolute" 
           {...attributes} 
           {...listeners}
         />
       }
 
       {/* Header content */}
-      <div className={`px-2 py-2 ${!isNotUtilColumn ? "h-10" : ""}`}>
+      <div className={`px-2 py-1 ${!isNotUtilColumn ? "h-10" : ""}`}>
 
-        {/* Header name with column selection */}
+        {/* Single outer div to handle hovered logic. Distinguish parent vs child inside. */}
         <div
-          className={`flex items-center justify-center h-full text-center px-2 py-1 select-none ${!isNotUtilColumn ? "h-10" : ""}`}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
           onMouseDown={(e) => cellSelection.handleCellMouseDown(e, header)}
           onMouseUp={(e) => cellSelection.handleCellMouseUp(e, header)}
           onMouseOver={(e) => cellSelection.handleCellMouseOver(e, header)}
+          className={`flex items-center justify-center h-full text-center px-1 select-none ${
+            !isNotUtilColumn ? "h-10" : ""
+          }`}
         >
           {header.isPlaceholder ? null : (
             <>
-              {!isParentColumn ? (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="text-center flex-shrink-0 mr-4">
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>type: {header.column.columnDef.meta?.dataType || 'unknown'}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+              {isParentColumn ? (
+                <>
+                  {/* PARENT COLUMN LAYOUT */}
+                  <span className="text-center flex-shrink-0 mr-4">
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </span>
+                  {/* parent inlined dropdown */}
+                  {interactive == true && (
+                    <div
+                      className="flex items-center gap-0.5"
+                      onMouseDown={(e) => e.stopPropagation()}
+                    onMouseUp={(e) => e.stopPropagation()}
+                  >
+                    <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                      <DropdownMenuTrigger asChild>
+                        <ActionButton
+                          tooltip="Parent Column Actions"
+                          icon={<MoreHorizontal className="h-4 w-4" />}
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDropdownOpen(true);
+                          }}
+                        />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="min-w-[8rem]">
+                        <DropdownMenuGroup>
+                          {!isGrouped && (
+                            <DropdownMenuItem>
+                              <ColumnGroupBy
+                                interactive={interactive}
+                                auto_update={auto_update}
+                                column={header.column}
+                                grouping={grouping}
+                                setGrouping={setGrouping}
+                                data={data}
+                                groupLoading={groupLoading}
+                                setGroupLoading={setGroupLoading}
+                                setIsGrouped={setIsGrouped}
+                                renderMode="menuItem"
+                              />
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem>
+                            <ColumnContext
+                              interactive={interactive}
+                              column={header.column}
+                              context={context}
+                              setContext={setContext}
+                              data={data}
+                              renderMode="menuItem"
+                            />
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <ColumnHide
+                              column={header.column}
+                              columnVisibility={columnVisibility}
+                              setColumnVisibility={setColumnVisibility}
+                              renderMode="menuItem"
+                            />
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    </div>
+                  )}
+                </>
               ) : (
-                <span className="text-center flex-shrink-0 mr-4">
-                  {flexRender(header.column.columnDef.header, header.getContext())}
-                </span>
-              )}
+                isNotUtilColumn && (
+                  <>
+                    {/* CHILD COLUMN LAYOUT */}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center justify-between w-full cursor-pointer">
+                            <span className="text-center flex-1">
+                              {flexRender(header.column.columnDef.header, header.getContext())}
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>type: {header.column.columnDef.meta?.dataType || "unknown"}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
 
-              {/* Inline Column Actions for Parent Columns */}
-              {isParentColumn && (
-                <div
-                  className="flex items-center gap-0.75"
-                  onMouseDown={(e) => e.stopPropagation()} // Prevent event bubbling for action buttons
-                  onMouseUp={(e) => e.stopPropagation()}   // Prevent event bubbling for action buttons
-                >
-                  <ColumnGroupBy interactive={interactive} column={header.column} grouping={grouping} setGrouping={setGrouping} data={data}/>
-                  <ColumnContext interactive={interactive} column={header.column} context={context} setContext={setContext} data={data}/>
-                </div>
+                    {/* triple-dot for child columns */}
+                    {interactive == true && (
+                      <div className="ml-4 flex-none dropdown-menu" onMouseDown={(e) => e.stopPropagation()}>
+                        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                          <DropdownMenuTrigger asChild>
+                            <ActionButton
+                              tooltip="Child Column Actions"
+                              icon={<MoreHorizontal className="h-4 w-4" />}
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDropdownOpen(true);
+                              }}
+                            />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            className="min-w-[8rem]"
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => e.stopPropagation()}
+                            onPointerOver={(e) => e.stopPropagation()}
+                          >
+                            <DropdownMenuGroup>
+                            {!isImageColumn && !isGrouped && (
+                              <DropdownMenuItem>
+                                  <ColumnGroupBy
+                                    interactive={interactive}
+                                    auto_update={auto_update}
+                                    column={header.column}
+                                    grouping={grouping}
+                                    setGrouping={setGrouping}
+                                    data={data}
+                                    groupLoading={groupLoading}
+                                    setGroupLoading={setGroupLoading}
+                                    setIsGrouped={setIsGrouped}
+                                    renderMode="menuItem"
+                                  />
+                                </DropdownMenuItem>
+                              )}
+                              {!isSorted && (
+                                <DropdownMenuItem>
+                                  <ColumnSort
+                                    interactive={interactive}
+                                    column={header.column}
+                                    data={data}
+                                    sortLoading={sortLoading}
+                                    setSortLoading={setSortLoading}
+                                    setIsSorted={setIsSorted}
+                                    renderMode="menuItem"
+                                  />
+                                </DropdownMenuItem>
+                              )}
+                              {ColumnFilters && (
+                                ColumnFilters(
+                                  header.column,
+                                  filterLoading,
+                                  setIsFiltered,
+                                  setFilterLoading,
+                                  filterOpen,
+                                  setFilterOpen,
+                                  "menuItem",
+                                )
+                              )}
+                              <DropdownMenuItem>
+                                <ColumnHide
+                                  column={header.column}
+                                  columnVisibility={columnVisibility}
+                                  setColumnVisibility={setColumnVisibility}
+                                  renderMode="menuItem"
+                                />
+                              </DropdownMenuItem>
+                              {isDerivedColumn && ColumnUpdate && (
+                                  ColumnUpdate(
+                                    header.column.id,
+                                    updateLoading,
+                                    setUpdateLoading,
+                                    updateOpen,
+                                    setUpdateOpen,
+                                    "menuItem",
+                                  )
+                                )}
+                            </DropdownMenuGroup>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    )}
+                  </>
+                )
               )}
             </>
           )}
         </div>
 
-        {/* Absolutely positioned ColumnHide */}
+        {/* 
+          Always render the row of action icons,
+          but hide it with a class if there are no active actions
+        */}
         {!header.isPlaceholder && isNotUtilColumn && (
           <div
-            className="absolute top-0 right-0 z-10"
-            onMouseDown={(e) => e.stopPropagation()} // Prevent drag interference
-            onMouseUp={(e) => e.stopPropagation()} // Prevent drag interference
+            className={`flex items-center justify-left gap-1 ${
+              hasActiveActions ? "" : "hidden"
+            }`}
           >
-            <ColumnHide column={header.column} columnVisibility={columnVisibility} setColumnVisibility={setColumnVisibility}/>
+            {renderVisibleActions()}
           </div>
         )}
 
-        {/* Column actions */}
-        {!header.isPlaceholder && isNotUtilColumn &&
-          <div className="flex items-center justify-center gap-1 mt-2">
-            {!isParentColumn && <ColumnGroupBy interactive={interactive} column={header.column} grouping={grouping} setGrouping={setGrouping} data={data}/>}
-            {!isParentColumn && <ColumnSort interactive={interactive} column={header.column} data={data}/>}
-            {!isParentColumn && ColumnFilters && ColumnFilters(header.column)}
-            {!isParentColumn && isDerivedColumn && ColumnUpdate && ColumnUpdate(header.column.id)}
+        {/* Hidden action components for group, sort, filter, context, hide (need to be rendered on the DOM even if hidden in order to be able to forward refs) */}
+        {(!hasActiveActions) && (
+          <div className={`${
+            Object.values(columnActionsApplied[header.column.columnDef.meta?.renderedDepth ?? 0] || {}).some(Boolean)
+            ? "invisible"
+            : "hidden"
+          }`}>
+            {!isImageColumn && (
+              <ColumnGroupBy
+                interactive={interactive}
+                auto_update={auto_update}
+                column={header.column}
+                grouping={grouping}
+                setGrouping={setGrouping}
+                data={data}
+                groupLoading={groupLoading}
+                setGroupLoading={setGroupLoading}
+                setIsGrouped={setIsGrouped}
+                renderMode="button"
+              />
+            )}
+            {!isParentColumn && (
+              <ColumnSort
+                interactive={interactive}
+                column={header.column}
+                data={data}
+                sortLoading={sortLoading}
+                setSortLoading={setSortLoading}
+                setIsSorted={setIsSorted}
+                renderMode="button"
+              />
+            )}
+            {!isParentColumn && ColumnFilters && (
+              ColumnFilters(
+                header.column,
+                filterLoading,
+                setIsFiltered,
+                setFilterLoading,
+                filterOpen,
+                setFilterOpen,
+                "button"
+              )
+            )}
+            {isParentColumn && <ColumnContext
+              interactive={interactive}
+              column={header.column}
+              context={context}
+              setContext={setContext}
+              data={data}
+              renderMode="button"
+            />}
+            <ColumnHide
+              column={header.column}
+              columnVisibility={columnVisibility}
+              setColumnVisibility={setColumnVisibility}
+              renderMode="button"
+            />
           </div>
-        }
+        )}
 
         {/* Right edge components stack */}
         <div className="absolute -right-2 top-0 bottom-0" style={{ width: '15px', height: '100%' }}>

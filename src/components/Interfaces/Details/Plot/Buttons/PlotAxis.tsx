@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { metrics } from "@/constants/logs";
-import { ChevronDown, LoaderCircle } from "lucide-react";
+import { ChevronDown, Loader2, LoaderCircle } from "lucide-react";
 import { LogProps, LogFieldsResponseProps } from "@/types/evals/logs";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { DropdownMenuItem, DropdownMenuGroup, DropdownMenuSub, DropdownMenuPortal, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/UI/dropdown-menu";
 
-const PlotAxis = ({ interactive, fields, axisProperty, setAxisProperty, axis, plotType, logs, metric, setMetric }: {
+const PlotAxis = ({ interactive, pending, fields, axisProperty, setAxisProperty, axis, plotType, logs, metric, setMetric }: {
     interactive: boolean
+    pending: boolean
     fields: LogFieldsResponseProps,
     axisProperty: string | undefined,
     setAxisProperty: (x: string | undefined) => void,
@@ -32,7 +33,7 @@ const PlotAxis = ({ interactive, fields, axisProperty, setAxisProperty, axis, pl
         properties = Object
             .entries(fields)
             .map(([name]) => name);
-    } else if (plotType === "Histogram") {
+    } else if (plotType === "Histogram" || plotType === "Line Chart") {
         properties = Object
             .entries(fields)
             .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp"))
@@ -51,13 +52,19 @@ const PlotAxis = ({ interactive, fields, axisProperty, setAxisProperty, axis, pl
     }, {}) as {[key: string]: string[]};
 
     /* Selection handler */
-    const onSelect = (selection: string, metric?: string) => {
-        if (metric) {
-            setAxisProperty(selection)
-            setMetric(metric)
+    const onSelect = (axisSelection: string, metricSelection?: string) => {
+        if (metricSelection) {
+            if (axisSelection === axisProperty && metricSelection === metric) {
+                setAxisProperty(undefined)
+                setMetric("mean")
+            }
+            else {
+                setAxisProperty(axisSelection)
+                setMetric(metricSelection)    
+            }
         } 
         else {
-            setAxisProperty(selection)
+            setAxisProperty(axisSelection === axisProperty ? undefined : axisSelection)
         } 
         setLoading(true)
     }
@@ -78,7 +85,7 @@ const PlotAxis = ({ interactive, fields, axisProperty, setAxisProperty, axis, pl
     return (
         <BaseDropdown button={button} open={interactive ? undefined : false}>
             {Object.entries(choices).map(([table, columns], choiceIndex) => {
-                const tableTrigger = <DropdownMenuSubTrigger disabled={loading} className="hover:text-white data-[state=open]:text-white">{table}</DropdownMenuSubTrigger>
+                const tableTrigger = <DropdownMenuSubTrigger className="hover:text-white data-[state=open]:text-white">{table}</DropdownMenuSubTrigger>
                 const tableOptions = columns.map((column, optionIndex) => {
 
                     const selection = `${table}.${column}`
@@ -118,6 +125,9 @@ const PlotAxis = ({ interactive, fields, axisProperty, setAxisProperty, axis, pl
                 )
             })
         }
+        {pending && <div className="flex justify-center items-center w-full">
+            <Loader2 className="animate-spin my-1" size={16} />
+        </div>}
         </BaseDropdown>
     );
 }

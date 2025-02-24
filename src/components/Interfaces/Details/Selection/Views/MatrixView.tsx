@@ -107,6 +107,7 @@ export default function MatrixView({
   splitView = false,
   version = "",
   comparableVersions = [],
+  displayMode = "markdown",
 }: LogComparisonProps) {
   const multiMode = !!(comparables && comparables.length > 0);
   const baseStr = matrixToString(value);

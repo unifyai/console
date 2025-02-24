@@ -48,7 +48,6 @@ export default function DataTableRow<TData extends LogProps | GroupedLogProps>({
 }: DataTableRowProps<TData>) {
     const isExpanding = expandingRowId === row.original.id;
     const hasSkeletonSubRows = isExpanding && 'groupCount' in row.original && typeof row.original.groupCount === 'number' && row.original.groupCount > 0 && !row.original.isPopulated;
-    const skeletonCount = hasSkeletonSubRows && 'groupCount' in row.original && typeof row.original.groupCount === 'number' ? row.original.groupCount : 0;
 
     return (
         <>
@@ -75,7 +74,7 @@ export default function DataTableRow<TData extends LogProps | GroupedLogProps>({
                     </SortableContext>
                 ))}
             </TableRow>
-            {hasSkeletonSubRows && renderSkeletonRows(skeletonCount)}
+            {hasSkeletonSubRows && renderSkeletonRows(2)}
         </>
     );
 }

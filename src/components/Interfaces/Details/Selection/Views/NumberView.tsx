@@ -106,6 +106,7 @@ export default function NumberView({
   version = "",
   comparableVersions = [],
   scientificNotation = false,
+  displayMode = "markdown",
 }: LogComparisonProps & { scientificNotation?: boolean }) {
   // Single vs. multiple
   const singleMode = !comparables || comparables.length === 0;
@@ -323,14 +324,14 @@ export default function NumberView({
                 {/* Base */}
                 <div className="relative border rounded p-2 w-fit min-w-24 text-start group">
                   <div className="flex-col items-start justify-between gap-5">
+                    <CopyButton
+                      className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                      content={String(baseNum)}
+                      copyMessage="Copied base!"
+                    />
                     <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
-                    <p className="text-sm pt-5">{formatNumberVal(baseNum)}</p>
+                    <p className="text-sm pt-2">{formatNumberVal(baseNum)}</p>
                   </div>
-                  <CopyButton
-                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                    content={String(baseNum)}
-                    copyMessage="Copied base!"
-                  />
                 </div>
 
                 {/* Symbol */}
@@ -339,33 +340,33 @@ export default function NumberView({
                 {/* Comparable */}
                 <div className="relative border rounded p-2 w-fit min-w-24 text-start group">
                   <div className="flex-col items-start justify-between gap-5">
+                    <CopyButton
+                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                        content={String(compVal)}
+                        copyMessage="Copied comp!"
+                    />
                     <RowBadge rowNumbers={rowNums} mode="none" />
-                    <p className="text-sm pt-5">{formatNumberVal(compVal)}</p>
+                    <p className="text-sm pt-2">{formatNumberVal(compVal)}</p>
                   </div>
-                  <CopyButton
-                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                    content={String(compVal)}
-                    copyMessage="Copied comp!"
-                  />
                 </div>
 
                 <span className="mx-2 text-xl font-bold">=</span>
 
                 {/* Result */}
                 <div className="relative border rounded p-2 w-fit min-w-24 text-start bg-background group">
-                  <div className="flex-col items-start justify-between gap-5">
-                    <p>Result</p>
-                    {Number.isFinite(result) ? (
-                      <p className="text-sm pt-5">{formatNumberVal(result)}</p>
-                    ) : (
-                      <p className="text-sm pt-5">∞</p>
-                    )}
+                  <div className="flex flex-col">
+                    <CopyButton
+                      className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                      content={String(result)}
+                      copyMessage="Copied result!"
+                    />
+                    <p className="text-sm">Result</p>
+                    <p className="text-sm mt-2">
+                      {Number.isFinite(result) 
+                        ? formatNumberVal(result)
+                        : "∞"}
+                    </p>
                   </div>
-                  <CopyButton
-                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                    content={String(result)}
-                    copyMessage="Copied result!"
-                  />
                 </div>
               </div>
             </div>

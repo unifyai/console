@@ -4,14 +4,38 @@ import { useEffect, useState } from "react";
 import { Column } from "@tanstack/react-table";
 import { SortDesc, SortAsc, ArrowUpDown, LoaderCircle } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
-const ColumnSort = ({interactive, column, data}: {interactive?: boolean, column: Column<any | unknown>, data: any[]}) => {
+import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
+
+type ColumnSortProps = {
+    interactive?: boolean,
+    column: Column<any | unknown>,
+    data: any[],
+    sortLoading: boolean,
+    setSortLoading: (sortLoading: boolean) => void,
+    setIsSorted: (isSorted: boolean) => void,
+    renderMode: "button" | "menuItem"
+}
+
+const ColumnSort = (({
+    interactive,
+    column,
+    data,
+    sortLoading,
+    setSortLoading,
+    setIsSorted,
+    renderMode
+}: ColumnSortProps) => {
 
     /* Display loader when data updates */
-    const [loading, setLoading] = useState(false);
     const [spinnerColor, setSpinnerColor] = useState("white");
     useEffect(() => {
-        setLoading(false);
+        setSortLoading(false);
     },[data])
+
+    const isSorted = column.getIsSorted() === "asc" || column.getIsSorted() === "desc";
+    useEffect(() => {
+        setIsSorted(isSorted);
+    }, [isSorted])
 
     const states = [
         { key: false, tooltip: "Sort descending", icon: <ArrowUpDown/> },
@@ -20,20 +44,28 @@ const ColumnSort = ({interactive, column, data}: {interactive?: boolean, column:
     ];
     const state = states.find(state => state.key === column.getIsSorted())!;
     const tooltip = state.tooltip;
-    const icon = loading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon
-    const variant = column.getIsSorted() ? "primary" : undefined;
+    const icon = sortLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon
+    const variant = isSorted ? "primary" : undefined;
     const onClick = () => {
         column.toggleSorting()
+        setSortLoading(true)
         if (!column.getNextSortingOrder()) 
             setSpinnerColor("primary") 
         else 
             setSpinnerColor("white")
-        setLoading(true)
     }
 
-    return(
-        <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false || loading}/>
+    return (
+        renderMode === "menuItem" ? (
+            <DropdownMenuItem onClick={onClick} className="flex items-center gap-2 cursor-pointer">
+                <ArrowUpDown className="h-4 w-4"/>
+                <span>Sort descending</span>
+            </DropdownMenuItem>
+        ) : (
+            <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={!interactive || sortLoading}/>
+        )
     );
-}
+
+});
 
 export default ColumnSort;

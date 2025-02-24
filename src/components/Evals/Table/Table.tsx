@@ -40,8 +40,8 @@ import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Evals/Table/Buttons/ColumnCreate";
-import { maybeFlattenGroupedLogs } from "@/utils/evals/common";
 import { DerivedEntryActions, LogsActions } from "@/types/evals/grid";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 
 const LogsTable = ({
   searchParams,
@@ -457,7 +457,7 @@ const LogsTable = ({
               />
               <DeleteDialog
                 type="project"
-                resource={project}
+                args={[project]}
                 deletingFunction={projectActions.delete}
                 variant="outline"
                 onDelete={() => {
@@ -469,7 +469,7 @@ const LogsTable = ({
           )}
           {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
         </div>
-        {project && 
+        {/* {project && 
           <RefreshLogs 
             context={context}
             project={project}
@@ -478,7 +478,7 @@ const LogsTable = ({
             getLatest={logsActions.getLatest}
             logs={logs}
           />
-        }
+        } */}
       </div>
 
       {/* If truly pending or logs not present, show a spinner */}
@@ -497,7 +497,7 @@ const LogsTable = ({
                 columns={columns}
                 state={state}
                 setState={setState}
-                ColumnFilters={(column) => (
+                ColumnFilters={(column, filterLoading, setIsFiltered, setFilterLoading, open, setOpen) => (
                   <ColumnFilter
                     setColumnFilterQuery={(filtersObj) => {
                       const keys = Object.keys(filtersObj);
@@ -540,9 +540,9 @@ const LogsTable = ({
                     }
                   </FooterCell>
                 }
-                ExtraComponents={(table) => {
-                  return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} context={context ?? undefined}/>
-                }}
+                // ExtraComponents={(table) => {
+                //   return <DeleteCells selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} context={context ?? undefined}/>
+                // }}
                 ExtraCellContent={(cell, isCellExpanded, setExpandedCells) => 
                   <CellPopover cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells}/>
                 }

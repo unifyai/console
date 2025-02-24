@@ -7,13 +7,15 @@ import { ResponseProps } from "@/types/common";
 import { GroupedLogProps, LogFieldsProps, LogProps } from "@/types/evals/logs";
 import { getPartAfterFirstUnderscore } from "@/utils/evals/selection";
 import { processContext, sanitizeId } from "@/utils/evals/columnOperations";
-import { maybeFlattenGroupedLogs } from "@/utils/evals/common";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 
-const DeleteCells = ({ selectedCells, logs, deleteLogFields, context }: {
+const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context, columnContext }: {
+	project: string,
 	selectedCells: string[],
 	logs: LogProps[] | GroupedLogProps[],
-	deleteLogFields: (fields: LogFieldsProps) => Promise<ResponseProps>,
-	context: string | undefined
+	deleteLogFields: (project: string, context: string | null, columnContext: string | null, ids_and_fields: LogFieldsProps, source_type: string | null) => Promise<ResponseProps>,
+	context: string | undefined,
+	columnContext: string | undefined
 }) => {
 	const [showDialog, setShowDialog] = useState(false);
 
@@ -40,13 +42,15 @@ const DeleteCells = ({ selectedCells, logs, deleteLogFields, context }: {
 
 	const fieldsToDelete = deletableCells.map(cell => [
 		parseInt(cell.split("_").at(0) as string), 
-		context ? processContext("merge", context, sanitizeId(getPartAfterFirstUnderscore(cell))) : sanitizeId(getPartAfterFirstUnderscore(cell))  
+		columnContext ? processContext("merge", columnContext, sanitizeId(getPartAfterFirstUnderscore(cell))) : sanitizeId(getPartAfterFirstUnderscore(cell))
 	])
+
+	const args = [project, context, columnContext, fieldsToDelete]
 
 	return (showDialog &&
 		<DeleteDialog
 			deletingFunction={deleteLogFields}
-			resource={fieldsToDelete}
+			args={args}
 			type="log entries"
 			showDialog={showDialog}
 			setShowDialog={setShowDialog}

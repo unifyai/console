@@ -26,14 +26,15 @@ import { RowExpandingProps } from "./Buttons/RowExpanding";
 interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     className?: string;
     interactive?: boolean;
+    auto_update?: boolean;
     data: TData[];
     columns: ColumnDef<TData, unknown>[];
     state: StateProps;
     setState: SetStateProps;
     FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>) => ReactNode;
-    ColumnFilters?: (column: TanstackColumn<any | unknown>) => ReactNode;
+    ColumnFilters?: (column: TanstackColumn<any | unknown>, filterLoading: boolean, setIsFiltered: (isFiltered: boolean) => void, setFilterLoading: (filterLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode;
     ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode;
-    ColumnUpdate?: (key: string) => ReactNode;
+    ColumnUpdate?: (key: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode;
     AggregatedCell?: (cell: TanstackCell<any, unknown>, row: TanstackRow<any | unknown>) => ReactNode;
     ExtraCellContent?: (cell: TanstackCell<any, unknown>, isCellExpanded: (cell: TanstackCell<any, unknown>) => boolean, setExpandedCells: Dispatch<SetStateAction<{[k: string]: boolean}>>) => ReactNode;
     ExtraComponents?: (table: TanstackTable<any | unknown>) => ReactNode;
@@ -43,6 +44,7 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
 export default function DataTable<TData extends LogProps | GroupedLogProps>({
     className,
     interactive,
+    auto_update,
     data,
     columns,
     state,
@@ -75,6 +77,8 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
         state.grouping,
         setIsUpdatingLogs
     );
+
+    const [columnActionsApplied, setColumnActionsApplied] = useState<{ [depth: number]: { [columnId: string]: boolean } }>({});
 
     // Effect to handle data updates
     useEffect(() => {
@@ -151,7 +155,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     });
 
     // Helper function to render skeleton rows
-    const renderSkeletonRows = (count: number = 10) => (
+    const renderSkeletonRows = (count: number = 2) => (
         Array.from({ length: count }).map((_, rowIdx) => (
             <TableRow key={rowIdx} className="animate-pulse">
                 {finalColumns.map((col, colIdx) => (
@@ -183,6 +187,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                             <DataTableHeader
                                                 key={header.id}
                                                 interactive={interactive}
+                                                auto_update={auto_update}
                                                 data={data}
                                                 header={header}
                                                 table={table}
@@ -204,6 +209,8 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                 columnPinning={state.columnPinning}
                                                 pinningState={state.pinningState}
                                                 setPinningState={setState.setPinningState}
+                                                columnActionsApplied={columnActionsApplied}
+                                                setColumnActionsApplied={setColumnActionsApplied}
                                             />
                                         ))}
                                     </SortableContext>
@@ -214,7 +221,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                         <TableBody className="contents overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
                             {isUpdatingLogs ? (
                                 // Show skeletons for the entire table when updating logs globally
-                                renderSkeletonRows(10)
+                                renderSkeletonRows(2)
                             ) : table.getRowModel().rows?.length ? (
                                 table.getRowModel().rows.map((row) => (
                                     <>
@@ -244,7 +251,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                          typeof row.original.groupCount === 'number' &&
                                          row.original.groupCount > 0 &&
                                          !row.original.isPopulated &&
-                                         renderSkeletonRows(row.original.groupCount)}
+                                         renderSkeletonRows(2)}
                                     </>
                                 ))
                             ) : (

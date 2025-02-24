@@ -23,7 +23,7 @@ const customEndpointsTableColumns = (
         header: ({column}: {column: Column<CustomEndpoint, unknown>}) => 
           <div className="flex flex-row justify-between gap-2 items-center">
             <p>{"Name"}</p>
-            <ColumnSort column={column} data={data}/>
+            <ColumnSort column={column} data={data} sortLoading={false} setSortLoading={() => {}} setIsSorted={() => {}} renderMode="button"/>
           </div>,
         cell: ({cell}: {cell: Cell<CustomEndpoint, unknown>}) => path.basename(cell.getValue() as string)
     }
@@ -32,7 +32,7 @@ const customEndpointsTableColumns = (
         header: ({column}: {column: Column<CustomEndpoint, unknown>}) => 
           <div className="flex flex-row justify-between gap-2 items-center">
             <p>{"URL"}</p>
-            <ColumnSort column={column} data={data}/>
+            <ColumnSort column={column} data={data} sortLoading={false} setSortLoading={() => {}} setIsSorted={() => {}} renderMode="button"/>
           </div>
     }
     const key = { 
@@ -40,7 +40,7 @@ const customEndpointsTableColumns = (
         header: ({column}: {column: Column<CustomEndpoint, unknown>}) => 
           <div className="flex flex-row justify-between gap-2 items-center">
             <p>{"API Key"}</p>
-            <ColumnSort column={column} data={data}/>
+            <ColumnSort column={column} data={data} sortLoading={false} setSortLoading={() => {}} setIsSorted={() => {}} renderMode="button"/>
           </div>,
         cell: ({row}: {row: Row<any | unknown>}) => {
           const endpoint = row.original as CustomEndpoint;
@@ -54,7 +54,7 @@ const customEndpointsTableColumns = (
       header: ({column}: {column: Column<CustomEndpoint, unknown>}) => 
         <div className="flex flex-row justify-between gap-2 items-center">
           <p>{"Model Argument"}</p>
-          <ColumnSort column={column} data={data}/>
+          <ColumnSort column={column} data={data} sortLoading={false} setSortLoading={() => {}} setIsSorted={() => {}} renderMode="button"/>
         </div>
     }
     const actions = { 
@@ -71,7 +71,7 @@ const customEndpointsTableColumns = (
             <DeleteDialog 
               deletingFunction={customEndpointActions.delete}
               type="custom endpoint"
-              resource={name}
+              args={[name]}
             />
             <RenameDialog 
               renamingFunction={customEndpointActions.rename}

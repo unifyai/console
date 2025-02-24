@@ -22,10 +22,29 @@ import Tooltip from "@/components/Common/Misc/Tooltip";
 import { CircleMinus } from "lucide-react";
 
 import RawView from "./Views/RawView";
-import { isTrace, isDict, isList, isImage, isMatrix, isNumber, isTimestamp, isChat } from "@/utils/evals/selection";
 import { 
-  Waypoints, CurlyBraces, Brackets, ImageIcon, Grid, Text, Hash, Clock, MessagesSquare, 
-  FoldVertical, UnfoldVertical 
+  isTrace,
+  isDict,
+  isList,
+  isImage,
+  isMatrix,
+  isNumber,
+  isTimestamp,
+  isChat
+} from "@/utils/evals/selection";
+
+import {
+  Waypoints,
+  CurlyBraces,
+  Brackets,
+  ImageIcon,
+  Grid,
+  Text,
+  Hash,
+  Clock,
+  MessagesSquare,
+  FoldVertical,
+  UnfoldVertical
 } from "lucide-react";
 
 import { ItemType, TileProps } from "@/types/evals/grid";
@@ -39,7 +58,7 @@ type SourceType = "entries" | "params";
 type DiffMode = "none" | "lines" | "words" | "characters";
 
 /**
- * getValueType: detects top-level type
+ * getValueType: detects top-level type for a single value
  */
 function getValueType(value: any):
   "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat"
@@ -56,7 +75,7 @@ function getValueType(value: any):
 }
 
 /**
- * getTypeIcon: returns appropriate icon for type
+ * getTypeIcon: returns appropriate icon
  */
 function getTypeIcon(valueType: string) {
   switch (valueType) {
@@ -82,7 +101,49 @@ function getTypeIcon(valueType: string) {
 }
 
 /**
- * getSelectionView: specialized or raw, optionally passing forceExpandAll
+ * unifyType: uses baseVal + comparables to decide on a single type. 
+ * If multiple distinct types appear, fallback to "string."
+ * (We skip null/undefined/empty-string in the union.)
+ */
+function unifyType(
+  baseVal: any,
+  comps: any[]
+):
+  "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat"
+{
+  // gather all non-undefined, non-empty-string
+  const allVals: any[] = [];
+  if (baseVal !== undefined && baseVal !== null && !(typeof baseVal === "string" && baseVal.trim().length === 0)) {
+    allVals.push(baseVal);
+  }
+  comps.forEach(c => {
+    if (c !== undefined && c !== null && !(typeof c === "string" && c.trim().length === 0)) {
+      allVals.push(c);
+    }
+  });
+
+  // if we still have nothing => "string"
+  if (allVals.length === 0) {
+    return "string";
+  }
+
+  // gather distinct types
+  const typeSet = new Set<string>();
+  for (const val of allVals) {
+    const t = getValueType(val);
+    typeSet.add(t);
+  }
+
+  // if exactly one => use it; else fallback to "string"
+  if (typeSet.size === 1) {
+    return Array.from(typeSet)[0] as any;
+  }
+  return "string";
+}
+
+/**
+ * getSelectionView: specialized or raw, using unifyType(...) 
+ * for the final type, not just getValueType(value).
  */
 function getSelectionView(
   value: any,
@@ -93,10 +154,11 @@ function getSelectionView(
   comparisonLogsIndex: number[],
   diffMode: DiffMode,
   splitView: boolean,
-  rawMode: boolean,
+  displayMode: "text" | "markdown" | "raw",
   forceExpandAll?: boolean
 ) {
-  if (rawMode) {
+  // if raw => skip type logic
+  if (displayMode === "raw") {
     return (
       <RawView
         value={value}
@@ -110,8 +172,11 @@ function getSelectionView(
       />
     );
   }
-  const valueType = getValueType(value);
-  switch (valueType) {
+
+  // unify the type from base + comps
+  const finalType = unifyType(value, comparables);
+
+  switch (finalType) {
     case "trace":
       return (
         <TraceView
@@ -125,6 +190,7 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          displayMode={displayMode}
         />
       );
     case "chat":
@@ -138,6 +204,7 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          displayMode={displayMode}
         />
       );
     case "dict":
@@ -152,6 +219,7 @@ function getSelectionView(
           version={version}
           comparableVersions={comparableVersions}
           forceExpandAll={forceExpandAll}
+          displayMode={displayMode}
         />
       );
     case "list":
@@ -166,6 +234,7 @@ function getSelectionView(
           version={version}
           comparableVersions={comparableVersions}
           forceExpandAll={forceExpandAll}
+          displayMode={displayMode}
         />
       );
     case "image":
@@ -179,6 +248,7 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          displayMode={displayMode}
         />
       );
     case "matrix":
@@ -192,6 +262,7 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          displayMode={displayMode}
         />
       );
     case "number":
@@ -205,6 +276,7 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          displayMode={displayMode}
         />
       );
     case "timestamp":
@@ -218,9 +290,11 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          displayMode={displayMode}
         />
       );
     default:
+      // fallback => "string"
       return (
         <StringView
           value={value}
@@ -231,6 +305,7 @@ function getSelectionView(
           splitView={splitView}
           version={version}
           comparableVersions={comparableVersions}
+          displayMode={displayMode}
         />
       );
   }
@@ -246,7 +321,7 @@ export default function SelectionEntry({
   comparisonLogsIndex,
   diffMode,
   splitView,
-  rawMode,
+  displayMode,
   version = "",
   comparableVersions = [],
   tableItem,
@@ -258,13 +333,13 @@ export default function SelectionEntry({
   source?: SourceType;
   property: string;
   value: any;
-  baseLog: LogProps;
+  baseLog: LogProps | undefined;
   baseLogIndex: number;
   comparisonLogs?: LogProps[];
   comparisonLogsIndex: number[];
   diffMode: DiffMode;
   splitView: boolean;
-  rawMode: boolean;
+  displayMode: "text" | "markdown" | "raw";
   version?: string;
   comparableVersions?: string[];
   tableItem: TileProps | undefined;
@@ -274,17 +349,11 @@ export default function SelectionEntry({
   editMode?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
-
-  // local expandAll for top-level dict/list
   const [expandAll, setExpandAll] = useState(false);
-
-  // Add a state to track if this accordion item is open
   const [isOpen, setIsOpen] = useState(false);
-
-  // New state to store previous accordion values
   const [prevAccordionValues, setPrevAccordionValues] = useState<string[]>([]);
 
-  // Gather comparables
+  // Gather comparables from the relevant container
   let comps = (comparisonLogs ?? []).map((cl) => {
     const container = source === "params" ? cl.params ?? {} : cl.entries ?? {};
     return container[property];
@@ -293,22 +362,33 @@ export default function SelectionEntry({
   // Possibly read paramVersion structure
   let rawValue = value;
   if (source === "params" && value && typeof value === "object") {
-    rawValue = value.paramValue;
+    rawValue = value.paramValue; 
     comps = comps.map((c) => c?.paramValue);
   }
 
-  const valueType = getValueType(rawValue);
-  const icon = getTypeIcon(valueType);
+  // Check if everything is effectively empty => skip rendering entirely
+  function isEmptyOrBlank(v: any): boolean {
+    if (v === null || v === undefined) return true;
+    if (typeof v === "string" && v.trim().length === 0) return true;
+    return false;
+  }
+  const allVals = [rawValue, ...comps];
+  const allEmpty = allVals.every(isEmptyOrBlank);
+  if (allEmpty) {
+    // do not render at all
+    return null;
+  }
 
-  // "remove from selection" function
-  const handleDeselectColumn = (event: React.MouseEvent) => {
-    event.stopPropagation();
+  // unify the type from base + comparables for the icon
+  const unifiedType = unifyType(rawValue, comps);
+  const icon = getTypeIcon(unifiedType);
+
+  const handleDeselectColumn = () => {
     if (onHideColumn) {
       onHideColumn(property);
     }
   };
 
-  // forcibly open or close the parent's accordion item => ensures dict is mounted
   const forciblySetAccordionOpen = (open: boolean) => {
     if (onAccordionValueChange) {
       if (open) {
@@ -319,20 +399,17 @@ export default function SelectionEntry({
     }
   };
 
-  // Modify the expand/collapse toggle function
   const handleExpandToggle = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent trigger's onClick from firing
+    e.stopPropagation();
     if (!expandAll) {
-      // Expand: force the accordion open (if needed) and expand all child items
       forciblySetAccordionOpen(true);
       setExpandAll(true);
     } else {
-      // Collapse All: collapse the child items but do not fold the parent entry
       setExpandAll(false);
     }
   };
 
-  // specialized or raw
+  // specialized or raw content
   const renderedContent = getSelectionView(
     rawValue,
     comps,
@@ -342,7 +419,7 @@ export default function SelectionEntry({
     comparisonLogsIndex,
     diffMode || "none",
     splitView,
-    rawMode,
+    displayMode,
     expandAll
   );
 
@@ -350,13 +427,14 @@ export default function SelectionEntry({
     <AccordionItem
       value={property}
       onDragStart={() => {
-        // Save the current expanded accordion values (optionally)
-        setPrevAccordionValues(typeof onAccordionValueChange === "function" ? /* read your current expanded values */ [] : []);
-        // Collapse this accordion item (and others if desired)
+        setPrevAccordionValues(
+          typeof onAccordionValueChange === "function"
+            ? []
+            : []
+        );
         onAccordionValueChange?.([]);
       }}
       onDragEnd={() => {
-        // Optionally restore the previous accordion expansion
         onAccordionValueChange?.(prevAccordionValues);
       }}
     >
@@ -364,7 +442,7 @@ export default function SelectionEntry({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onClick={() => {
-          if (!editMode) { // In edit mode, do not allow toggling expansion.
+          if (!editMode) {
             setIsOpen(!isOpen);
             setExpandAll(false);
           }
@@ -372,20 +450,24 @@ export default function SelectionEntry({
         className="flex items-center relative group"
       >
         <div className="inline-flex items-center gap-2">
-          <Tooltip content={hovered ? "Hide column" : valueType}>
+          <Tooltip content={hovered ? "Hide column" : unifiedType}>
             <span
               className="cursor-pointer inline-flex items-center transition duration-200"
               onClick={handleDeselectColumn}
             >
-              {hovered ? <CircleMinus className="h-4 w-4 text-red-500" /> : icon}
+              {hovered ? (
+                <CircleMinus className="h-4 w-4 text-muted-foreground2" />
+              ) : (
+                icon
+              )}
             </span>
           </Tooltip>
-          <Tooltip content={valueType}>
+          <Tooltip content={unifiedType}>
             <span>{property}</span>
           </Tooltip>
         </div>
 
-        {(!editMode && isOpen && (valueType === "dict" || valueType === "list")) && (
+        {(!editMode && isOpen && (unifiedType === "dict" || unifiedType === "list")) && (
           <div className="absolute right-5 flex gap-1 items-center">
             <Button
               variant="ghost"
