@@ -96,7 +96,9 @@ const Card = ({
         item.plot_type,
         item.x_axis,
         item.y_axis,
-        item.plot_group_by
+        item.plot_group_by,
+        item.auto_update,
+        item.freeze
     ]);
 
     useEffect(() => {
