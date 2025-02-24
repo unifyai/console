@@ -7,7 +7,7 @@ import { TableArguments } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
 import { DerivedEntryActions, Context, ContextActions, Interface, InterfaceActions, ItemType, LogsActions, FieldsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
-import { Brackets, Copy, EyeOff, Grid2x2, Grip, Loader2, Maximize2, X } from "lucide-react";
+import { Braces, Copy, EyeOff, Grid2x2, Grip, Loader2, Maximize2, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { Badge } from "../UI/badge";
 import { Dialog, DialogContent } from "../UI/dialog";
@@ -375,7 +375,7 @@ const CardGrid = ({
                                             </Tooltip>
                                             {(![undefined, "default"].includes(el.context || context)) && el.tab == "Table" && <Tooltip content="Context">
                                                 <Badge variant="primary" className="flex gap-1">
-                                                    <Brackets size={14} />
+                                                    <Braces size={14} />
                                                     {el.context || context}
                                                 </Badge>
                                             </Tooltip>}

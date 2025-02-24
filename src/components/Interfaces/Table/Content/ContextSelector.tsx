@@ -9,7 +9,7 @@ import BaseDropdown from "../../../Common/Dropdowns/Base";
 import { DropdownMenuItem, DropdownMenuSubTrigger } from "../../../UI/dropdown-menu";
 import { Context, ItemType, TableDataItem, TableDataProps } from "@/types/evals/grid";
 import { TileProps } from "@/types/evals/grid";
-import { Brackets, Check, FolderTree, Grid2x2 } from "lucide-react";
+import { Braces, Check, FolderTree, Grid2x2 } from "lucide-react";
 
 const ContextSelector = ({
     contexts,
@@ -40,7 +40,7 @@ const ContextSelector = ({
             >
                 <div className="flex flex-col gap-6 pt-2">
                     <div>
-                        <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">Context: <Brackets size={18} /></div>
+                        <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">Context: <Braces size={18} /></div>
                         {contexts.length > 0 ? contexts.map((context_: Context) => <DropdownMenuItem
                             key={context_.name}
                             onSelect={() => ((item?.context || context) != context_.name) && (finalSetContext && finalSetContext(context_.name))}
