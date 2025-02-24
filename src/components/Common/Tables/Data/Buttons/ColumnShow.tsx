@@ -60,6 +60,16 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
 
                 // If we find a column at the same depth
                 const depth = isUtilColumn ? header.depth - 1 : currentDepth;  // Adjust depth for util columns
+
+                // If no parent, check for hidden columns at the root level
+                if (!col.parent?.id) {
+                    const hiddenColumns = allColumns
+                        .filter(c => c.columnDef.meta?.renderedDepth === depth && !columnVisibility[c.id])
+                        .map(c => c.id)
+                    hidden.push(...hiddenColumns)
+                    break;
+                }
+
                 if (col.columnDef.meta.renderedDepth === depth) {
                     // Only consider as immediate right neighbor if it has a different parent
                     if (col.parent?.id !== header.column.parent?.id) {
@@ -175,7 +185,7 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
                     </DropdownMenuGroup>
 
     const derived = ColumnCreate ? ColumnCreate(header.column.id, setOpen) : null;
-    
+
     return (
         <div className="absolute -right-2 z-10 hover:opacity-100 opacity-0 transition-all">
             <BaseDropdown button={columnButton} open={open} setOpen={setOpen}>
