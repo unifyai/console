@@ -2,7 +2,7 @@
 
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
-import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps, GroupedLogProps, GroupedLogPropsRaw } from "@/types/evals/logs";
+import { TableArguments, LogProps, GroupedLogProps } from "@/types/evals/logs";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -11,7 +11,7 @@ import {
   ColumnSizingState,
   GroupingState,
 } from "@tanstack/react-table";
-import { DerivedEntryActions, LogsActions, FieldsActions } from "@/types/evals/grid";
+import { DerivedEntryActions, LogsActions, FieldsActions, Context } from "@/types/evals/grid";
 import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
@@ -29,20 +29,21 @@ import PageController from "@/components/Common/Tables/Data/Buttons/PageControll
 import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
 import FreezeLogs from "./Buttons/FreezeLogs";
 import RefreshLogs from "./Buttons/RefreshLogs";
-import { filtersToExpression, combineFilters, searchParamToFilters } from "@/utils/evals/filters";
+import { searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
 import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
-import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
-import { DraggingColumnsState, FiltersByColumn, PinningColumnState } from "@/types/evals/columns";
+import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
 import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
 import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data/Buttons/RowExpanding";
-import { onGroupExpand, maybeFlattenGroupedLogs, getGroupingFilters } from "@/utils/evals/grouping";
+import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
+import ContextSelector from "./Content/ContextSelector";
 
 const LogsTable = ({
   interactive,
   project,
+  contexts,
   pending,
   item,
   tableArguments,
@@ -62,6 +63,7 @@ const LogsTable = ({
 }: {
   interactive: boolean;
   project: string | undefined;
+  contexts: Context[];
   pending: boolean;
   tab: string;
   item: TileProps;
@@ -326,11 +328,12 @@ const LogsTable = ({
     <div className="mb-2 mx-1 flex flex-row justify-between gap-3 LogsTablePreferences">
       {project && columns.length > 0 && (
         <div className="flex flex-row gap-2 items-center">
-          <SelectionMenu
-            type="Contexts"
-            data={Object.keys(dataTypes).map(property => ({ path: property, type: "file" }))}
-            onClick={updateItem(item, "column_context")}
-            logs={logs}
+          <ContextSelector
+            contexts={contexts}
+            tableDataItem={tableDataItem}
+            item={item}
+            updateItem={updateItem}
+            context={context}
           />
           <GlobalFilter
             interactive={interactive}

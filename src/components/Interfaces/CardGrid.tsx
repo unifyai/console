@@ -21,7 +21,6 @@ import InterfaceButtons from "./InterfaceButtons";
 import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./ProjectButtons";
 import EditTileName from "./EditTileName";
-import AddTile from "./AddTile";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -363,7 +362,7 @@ const CardGrid = ({
                                         setTableData={setTableData}
                                     />
                                     <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-2 flex justify-between " + (edit ? "h-16" : "h-10")}>
-                                        <div className="mb-auto">
+                                        <div className="mb-auto flex gap-2">
                                             <Badge
                                                 className="cursor-pointer"
                                                 variant="primary"
@@ -371,6 +370,12 @@ const CardGrid = ({
                                             >
                                                 {el.i}
                                             </Badge>
+                                            {((el.context || context) != "default") && <Badge variant="primary">
+                                                {"Context: " + (el.context || context)}
+                                            </Badge>}
+                                            {(el.column_context || columnContext) && <Badge variant="primary">
+                                                {"Col Context: " + (el.column_context || columnContext)}
+                                            </Badge>}
                                         </div>
                                         <div className="flex gap-2 mb-auto">
                                             <ActionButton
