@@ -18,6 +18,7 @@ const ContextSelector = ({
     updateItem,
     context,
     setContext,
+    button,
 }: {
     contexts: Context[],
     tableDataItem?: TableDataItem,
@@ -25,13 +26,15 @@ const ContextSelector = ({
     updateItem?: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
     context?: string,
     setContext?: (context: string) => void,
+    button?: React.ReactNode,
 }) => {
     const finalSetContext = (updateItem != undefined && item != undefined) ? updateItem(item, "context") : setContext;
+    console.log(item, updateItem, tableDataItem);
 
     return (
         <div className="w-fit">
             <BaseDropdown
-                button={<ActionButton
+                button={button || <ActionButton
                     tooltip="Edit Context and Column Context"
                     icon={<FolderTree/>}
                     variant="outline"
@@ -40,10 +43,16 @@ const ContextSelector = ({
             >
                 <div className="flex flex-col gap-6 pt-2">
                     <div>
-                        <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">Context: <Braces size={18} /></div>
+                        <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">
+                            <Braces size={18} /> Context
+                        </div>
                         {contexts.length > 0 ? contexts.map((context_: Context) => <DropdownMenuItem
                             key={context_.name}
-                            onSelect={() => ((item?.context || context) != context_.name) && (finalSetContext && finalSetContext(context_.name))}
+                            onSelect={() => (
+                                (item?.context || context) != context_.name
+                                ? (finalSetContext && finalSetContext(context_.name))
+                                : (finalSetContext && finalSetContext(""))
+                            )}
                             className="w-64 justify-between"
                         >
                             {context_.name}{(
@@ -52,14 +61,11 @@ const ContextSelector = ({
                         </DropdownMenuItem>) : <></>}
                     </div>
                     {item && updateItem && (tableDataItem != undefined) && <div>
-                        <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">Column Context: <Grid2x2 size={18} /></div>
-                        {/* Add None option at the root level */}
-                        <DropdownMenuItem
-                            onSelect={() => (item.column_context != "") && updateItem(item, "column_context")("")}
-                            className="w-64 justify-between"
-                        >
-                            None{(item.column_context == undefined || item.column_context == "") && <Check />}
-                        </DropdownMenuItem>
+                        {tableDataItem.columnContexts && tableDataItem.columnContexts.length > 0 && (
+                            <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">
+                                <Grid2x2 size={18} /> Column Context
+                            </div>
+                        )}
                         {(() => {
                             interface TreeNode {
                                 path: string;
@@ -103,7 +109,8 @@ const ContextSelector = ({
                                         <DropdownMenuItem
                                             onSelect={() => (
                                                 (node.path.slice(0, -1) != item.column_context)
-                                                && updateItem(item, "column_context")(node.path.slice(0, -1))
+                                                ? updateItem(item, "column_context")(node.path.slice(0, -1))
+                                                : updateItem(item, "column_context")("")
                                             )}
                                             className="w-64 justify-between"
                                         >
@@ -125,7 +132,8 @@ const ContextSelector = ({
                                                         <DropdownMenuItem
                                                             onSelect={() => (
                                                                 (node.path.slice(0, -1) != item.column_context)
-                                                                && updateItem(item, "column_context")(node.path.slice(0, -1))
+                                                                ? updateItem(item, "column_context")(node.path.slice(0, -1))
+                                                                : updateItem(item, "column_context")("")
                                                             )}
                                                         >
                                                             {isTopLevel ? "<root>" : nodeName}{item.column_context == node.path.slice(0, -1) && <Check />}

@@ -22,6 +22,7 @@ import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./ProjectButtons";
 import EditTileName from "./EditTileName";
 import Tooltip from "../Common/Misc/Tooltip";
+import ContextSelector from "./Table/Content/ContextSelector";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -319,7 +320,7 @@ const CardGrid = ({
                         }}
                         className="layout interactive-grid flex-1"
                         cols={{ lg: 12, md: 12, sm: 12, xs: 10, xxs: 8 }}
-                        rowHeight={100}
+                        rowHeight={110}
                         margin={[0, 0]}
                         containerPadding={[0, 0]}
                         isDraggable={edit}
@@ -363,28 +364,46 @@ const CardGrid = ({
                                         setTableData={setTableData}
                                     />
                                     <div className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (edit ? "h-16" : "h-10")}>
-                                        <div className="mb-auto flex gap-2">
+                                        <div className="mb-auto flex gap-2 ml-1">
                                             <Tooltip content="Tile Type">
                                                 <Badge
-                                                    className="cursor-pointer"
+                                                    className="cursor-pointer text-sm font-normal mb-1"
                                                     variant="primary"
                                                     onClick={() => edit ? setEditTile(el.i) : undefined}
                                                 >
                                                     {el.i}
                                                 </Badge>
                                             </Tooltip>
-                                            {(![undefined, "default"].includes(el.context || context)) && el.tab == "Table" && <Tooltip content="Context">
-                                                <Badge variant="primary" className="flex gap-1">
-                                                    <Braces size={14} />
-                                                    {el.context || context}
-                                                </Badge>
-                                            </Tooltip>}
-                                            {(el.column_context || columnContext) && el.tab == "Table" && <Tooltip content="Column Context">
-                                                <Badge variant="primary" className="flex gap-1">
-                                                    <Grid2x2 size={14} />
-                                                    {el.column_context || columnContext}
-                                                </Badge>
-                                            </Tooltip>}
+                                            {(![undefined, "default"].includes(el.context || context)) && el.tab == "Table" && <ContextSelector
+                                                contexts={contexts}
+                                                tableDataItem={tableData[el.i || ""]}
+                                                item={el}
+                                                updateItem={updateItem}
+                                                context={context}
+                                                setContext={setContext}
+                                                button={
+                                                    <Tooltip content="Context">
+                                                        <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
+                                                            <Braces size={18} />
+                                                            {el.context || context}
+                                                        </Badge>
+                                                    </Tooltip>
+                                                }
+                                            />}
+                                            {(el.column_context || columnContext) && el.tab == "Table" && <ContextSelector
+                                                contexts={contexts}
+                                                tableDataItem={tableData[el.i || ""]}
+                                                item={el}
+                                                updateItem={updateItem}
+                                                context={context}
+                                                setContext={setContext}
+                                                button={<Tooltip content="Column Context">
+                                                    <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
+                                                        <Grid2x2 size={18} />
+                                                        {el.column_context || columnContext}
+                                                    </Badge>
+                                                </Tooltip>}
+                                            />}
                                         </div>
                                         <div className="flex-1 flex justify-end gap-2 mb-auto opacity-0 hover:opacity-100">
                                             <ActionButton
