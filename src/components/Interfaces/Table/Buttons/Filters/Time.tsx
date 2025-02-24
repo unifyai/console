@@ -10,7 +10,7 @@ import { Filter } from "lucide-react";
 import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { KeyboardEventHandler } from "react";
 import { initFilters, combineFilters, defaultRelativeDate, defaultAbsoluteDate, initDefaultDate } from "@/utils/evals/filters";
-import { Trash, Plus, CircleX, Clock, History, LoaderCircle } from "lucide-react";
+import { Trash, Plus, Minus, CircleX, Clock, History, LoaderCircle } from "lucide-react";
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { DateTimeInput } from "@/components/Common/Time/DateTimeInput";
 import { AbsoluteDateString, RelativeDateString } from "@/types/evals/filters";
@@ -47,10 +47,10 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
 
     /* Initialize filters */
     const options = [
-        {name: ">",  label: ">"  , description: "Filter for values greater than.."},
-        {name: "<",  label: "<"  , description: "Filter for values less than.."},
-        {name: "exists", label: "exists" , description: "Filter for existing values.."},
-        {name: "isNone", label: "isNone" , description: "Filter for none values.."}
+        {name: ">",  label: ">"  , description: `Filter for ${column} values greater than..`},
+        {name: "<",  label: "<"  , description: `Filter for ${column} values less than..`},
+        {name: "exists", label: "exists" , description: `Filter for ${column} existing values..`},
+        {name: "isNone", label: "isNone" , description: `Filter for ${column} none values..`}
     ]
     const modes = options.map(option => option.name)
     let defaultFilter : TimeFilter = {key: 0, mode: ">", join: "&&", value: defaultRelativeDate}
@@ -271,7 +271,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
     const remove = (filter: TimeFilter) =>
         <ActionButton
             tooltip="Remove filter"
-            icon={<Trash/>}
+            icon={<Minus/>}
             onClick={() => {
                 let newFilters = filters.filter(f => f.key != filter.key)
                 newFilters = newFilters.map((f, i) => ({key: i, mode: f.mode, join: i === 0 ? "&&" : f.join, value: f.value}))
@@ -283,9 +283,9 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
     const filterContent = (
         <div className="flex flex-col gap-3 px-2 pt-4 pb-2">
             {filters.map((filter, index) => 
-                <div key={index} className="grid grid-cols-8 items-center">
+                <div key={index} className="grid grid-cols-10 items-center">
                     {filters.length > 0 && filter.key != 0 && <div className="col-span-1">{join(filter)}</div>}
-                    <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-6" : "col-span-7"}`}>{filterInput(filter)}</div>
+                    <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-8" : "col-span-9"}`}>{filterInput(filter)}</div>
                     <div className="col-span-1 text-center">{remove(filter)}</div>
                 </div>
             )}
@@ -350,14 +350,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
             onPointerUp={(e) => e.stopPropagation()}
             onPointerOver={(e) => e.stopPropagation()}
             className="sm:max-w-2xl"
-          >
-            <DialogHeader>
-              <DialogTitle>Time Filters</DialogTitle>
-              <DialogDescription>
-                Apply time-based filters to <strong>{sanitizeId(column)}</strong>.
-              </DialogDescription>
-            </DialogHeader>
-    
+          >    
             {filterContent}
           </DialogContent>
         </Dialog>

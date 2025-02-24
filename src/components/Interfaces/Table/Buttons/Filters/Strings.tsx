@@ -6,7 +6,7 @@ import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import BaseButton from "@/components/Common/Buttons/Base";
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import { Filter, Plus, Trash, CircleX, LoaderCircle, ChevronRightIcon } from "lucide-react";
+import { Filter, Plus, Minus, Trash, CircleX, LoaderCircle, ChevronRightIcon } from "lucide-react";
 import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { Input } from "@/components/UI/input";
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
@@ -44,10 +44,10 @@ const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
 
     /* Init filters */
     const options = [
-        {name: "in", label: "Includes", description: "Filter for values included in.."},
-        {name: "not in", label: "Excludes", description: "Filter for values not included in.."},
-        {name: "exists", label: "Exists" , description: "Filter for existing values.."},
-        {name: "isNone", label: "Is None" , description: "Filter for none values.."}
+        {name: "in", label: "Includes", description: `Filter for ${column} values included in..`},
+        {name: "not in", label: "Excludes", description: `Filter for ${column} values not included in..`},
+        {name: "exists", label: "Exists" , description: `Filter for ${column} existing values..`},
+        {name: "isNone", label: "Is None" , description: `Filter for ${column} none values..`}
     ]
     const modes = options.map(option => option.name)
     let defaultFilter : StringFilter = {key: 0, mode: "in", join: "&&", value: ""}
@@ -194,7 +194,7 @@ const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
     const remove = (filter: StringFilter) =>
         <ActionButton
             tooltip="Remove filter"
-            icon={<Trash/>}
+            icon={<Minus/>}
             onClick={() => {
                 let newFilters = filters.filter(f => f.key != filter.key)
                 newFilters = newFilters.map((f, i) => ({key: i, mode: f.mode, join: i === 0 ? "&&" : f.join, value: f.value}))
@@ -206,9 +206,9 @@ const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
     const filterContent = (
         <div className="flex flex-col gap-3 px-2 pt-4 pb-2">
             {filters.map((filter, index) => 
-                <div key={index} className="grid grid-cols-8 items-center">
+                <div key={index} className="grid grid-cols-10 items-center">
                     {filters.length > 0 && filter.key != 0 && <div className="col-span-1">{join(filter)}</div>}
-                    <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-6" : "col-span-7"}`}>{filterInput(filter)}</div>
+                    <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-8" : "col-span-9"}`}>{filterInput(filter)}</div>
                     <div className="col-span-1 text-center">{remove(filter)}</div>
                 </div>
             )}
@@ -270,12 +270,6 @@ const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
             onPointerOver={(e) => e.stopPropagation()}
             className="sm:max-w-lg"
           >
-            <DialogHeader>
-              <DialogTitle>String Filters</DialogTitle>
-              <DialogDescription>
-                Apply string filters to <strong>{sanitizeId(column)}</strong>.
-              </DialogDescription>
-            </DialogHeader>
 
             {/* The main filter UI */}
             {filterContent}
