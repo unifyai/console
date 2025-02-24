@@ -32,7 +32,7 @@ const ContextSelector = ({
         <div className="w-fit">
             <BaseDropdown
                 button={<ActionButton
-                    tooltip="Edit context and column context"
+                    tooltip="Edit Context and Column Context"
                     icon={<FolderTree/>}
                     variant="outline"
                     size="sm"
