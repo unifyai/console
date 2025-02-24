@@ -246,16 +246,18 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
     // - Commas and dots
     const optionNames = options.map(opt => escapeRegex(opt.name)).sort((a, b) => b.length - a.length);
     const tokenRegex = new RegExp(
-      `(${optionNames.join('|')}|\\s+|\\.|\\+|\\-|\\*|\\/|\\(|\\)|,|\\[|\\]|\\{|\\})`,
+      `("(?:[^"\\\\]|\\\\.)*"|'(?:[^'\\\\]|\\\\.)*'|${optionNames.join('|')}|\\s+|\\.|\\+|\\-|\\*|\\/|\\(|\\)|,|\\[|\\]|\\{|\\})`,
       'gi'
     );
     const tokens = text.split(tokenRegex).filter(token => token !== undefined && token !== '');
 
     // Process each token differently:
-    // a- Option tokens are highlighted with the corresponding option color, provided the following and previous characters are valid delimiters
-    // b- Dots preceded by an option are highlighted in orange
-    // c- Other tokens are returned as is
+    // a- If tokens are surrounded in quotes, skip highlighting, otherwise
+    // b- Highlight option tokens, provided the following and previous characters are valid delimiters
+    // c- Dots preceded by an option are highlighted in orange
+    // d- Other tokens are returned as is
     return tokens.map((token, index) => {
+      if ((token.startsWith('"') && token.endsWith('"')) || (token.startsWith("'") && token.endsWith("'"))) return <span key={index}>{token}</span>;
       const option = options.find(opt => opt.name.toLowerCase() === token.toLowerCase());
       if (token === '.') {
         const prevToken = tokens[index - 1];
