@@ -3,11 +3,11 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Card from "./Card";
-import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
+import { TableArguments } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
 import { DerivedEntryActions, Context, ContextActions, Interface, InterfaceActions, ItemType, LogsActions, FieldsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
-import { Copy, EyeOff, Grip, Loader2, Maximize2, Plus, X } from "lucide-react";
+import { Brackets, Copy, EyeOff, Grid2x2, Grip, Loader2, Maximize2, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { Badge } from "../UI/badge";
 import { Dialog, DialogContent } from "../UI/dialog";
@@ -374,12 +374,14 @@ const CardGrid = ({
                                                 </Badge>
                                             </Tooltip>
                                             {(![undefined, "default"].includes(el.context || context)) && el.tab == "Table" && <Tooltip content="Context">
-                                                <Badge variant="primary">
+                                                <Badge variant="primary" className="flex gap-1">
+                                                    <Brackets size={14} />
                                                     {el.context || context}
                                                 </Badge>
                                             </Tooltip>}
                                             {(el.column_context || columnContext) && el.tab == "Table" && <Tooltip content="Column Context">
-                                                <Badge variant="primary">
+                                                <Badge variant="primary" className="flex gap-1">
+                                                    <Grid2x2 size={14} />
                                                     {el.column_context || columnContext}
                                                 </Badge>
                                             </Tooltip>}
