@@ -15,6 +15,9 @@ import { SidebarTrigger } from "@/components/UI/sidebar"
 import ThemeLoader from "@/components/ThemeLoader";
 import LoadingScreen from "@/components/LoadingScreen";
 
+import { InterfaceStoreProvider } from "@/components/Providers/Stores/InterfaceStoreProvider";
+import { TableStoreProvider } from "@/components/Providers/Stores/TableStoreProvider";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -26,7 +29,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <NavMenu/>
                 <main className="overflow-hidden relative container min-h-full h-full max-w-full w-full flex flex-row bg-background">
                     <Tour buttonClassName="absolute top-2 right-3 bg-transparent hover:bg-primary z-50 opacity-50 hover:opacity-100"/>
-                    <NuqsAdapter>{children}</NuqsAdapter>
+                    <NuqsAdapter>
+                      <InterfaceStoreProvider>
+                        <TableStoreProvider>
+                          {children}
+                        </TableStoreProvider>
+                      </InterfaceStoreProvider>
+                    </NuqsAdapter>
                 </main>
               </ThemeLoader>
             </Providers>

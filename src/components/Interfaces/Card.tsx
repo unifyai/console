@@ -17,70 +17,67 @@ import { Context } from "@/types/evals/grid";
 import { Plus } from "lucide-react";
 import { ExpandProvider } from "@/contexts/ExpandContext";
 
+import { useInterfaceContext } from "@/components/Providers/Stores/InterfaceStoreProvider";
+
 const Card = ({
-    edit,
-    interactive,
+    index,
     project,
-    pending,
     contexts,
     context,
     tableNames,
-    tableData,
     plotData,
     tableArguments,
     logsActions,
     fieldsActions,
     derivedEntryActions,
-    index,
-    item,
-    items,
     filterExpressions,
     sortingExpressions,
     groupingExpressions,
     groupSortingExpressions,
     limit,
     offsets,
-    setPending,
-    updateItem,
     updateInterface,
-    setTableData,
 }: {
-    edit: boolean,
-    interactive: boolean,
+    index: string,
     project: string | undefined,
-    pending: boolean,
     contexts: Context[],
     context: string | undefined,
     tableNames: string[],
-    tableData: TableDataProps,
     plotData: PlotDataProps,
     tableArguments: TableArguments,
     logsActions: LogsActions,
     fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
-    index: string,
-    item: TileProps,
-    items: TileProps[],
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
     groupingExpressions: (string | null)[],
     groupSortingExpressions: (string | null)[],
     limit: number,
     offsets: number[],
-    setPending: (pending: boolean) => void,
-    updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
     updateInterface: () => Promise<ResponseProps>,
-    setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void,
 }) => {
 
     const router = useRouter();
-    const [initial, setInitial] = useState(true);
-    const tab = items.find(item => item.i == index)?.tab;
-    const relevantItem = item.table ? items.find(it => it.i == item.table) : undefined;
+
+    const item = useInterfaceContext((s) => s.items.find(it => it.i == index));
+    const items = useInterfaceContext((s) => s.items);
+    const tableData = useInterfaceContext((s) => s.tableData);
+    const updateItem = useInterfaceContext((s) => s.updateItem);
+
+    const edit = useInterfaceContext((s) => s.edit);
+    const interactive = useInterfaceContext((s) => s.interactive);
+    const tilePending = useInterfaceContext((s) => s.tilePending);
+    const pending = useInterfaceContext((s) => s.pending || s.dataPending || (item?.tab === "Table" ? tilePending[item?.i] : false));
+    const setPending = useInterfaceContext((s) => s.setPending);
+
+    const initial = useInterfaceContext((s) => s.cardInitial);
+    const setInitial = useInterfaceContext((s) => s.setCardInitial);
+
+    const tab = item?.tab;
 
     // Use a ref to compare the needed properties so we only update if something truly changed.
     useEffect(() => {
-        if (item.tab != "View" && !initial) {
+        if (item?.tab != "View" && !initial) {
             updateInterface().then(() => {
                 router.refresh();
             }).catch(error => {
@@ -88,29 +85,29 @@ const Card = ({
             });
         }
     }, [
-        item.tab,
-        item.table_type,
-        item.filters,
-        item.context,
-        item.column_context,
-        item.common_filter,
-        item.sorting,
-        item.grouping,
-        item.group_sorting,
-        item.page_number,
-        item.metric,
-        item.plot_type,
-        item.x_axis,
-        item.y_axis,
-        item.plot_group_by,
-        item.auto_update,
-        item.freeze
+        item?.tab,
+        item?.table_type,
+        item?.filters,
+        item?.context,
+        item?.column_context,
+        item?.common_filter,
+        item?.sorting,
+        item?.grouping,
+        item?.group_sorting,
+        item?.page_number,
+        item?.metric,
+        item?.plot_type,
+        item?.x_axis,
+        item?.y_axis,
+        item?.plot_group_by,
+        item?.auto_update,
+        item?.freeze
     ]);
 
     useEffect(() => {
-        if (item.tab != "View" && !initial)
+        if (item?.tab != "View" && !initial)
             setPending(true);
-    }, [item.tab, item.table_type, item.context, item.column_context]);
+    }, [item?.tab, item?.table_type, item?.context, item?.column_context]);
 
     useEffect(() => {
         setInitial(false);
@@ -123,8 +120,8 @@ const Card = ({
                     <BaseDropdown
                         button={<ActionButton
                             tooltip="Select Tile Type"
-                            text={item.tab}
-                            icon={item.tab ? undefined : <Plus />}
+                            text={item?.tab}
+                            icon={item?.tab ? undefined : <Plus />}
                             variant="outline"
                             size="default"
                         />}
@@ -132,9 +129,9 @@ const Card = ({
                         {(!edit ? [] : tabTypes).map((tab, idx) => <DropdownMenuItem
                             key={idx}
                             onSelect={() => {
-                                if (item.tab == undefined && tab == "Table")
-                                    updateItem(item, "table_type")("Data Table");
-                                updateItem(item, "tab")(tab);
+                                if (item?.tab == undefined && tab == "Table")
+                                    updateItem(item as TileProps, "table_type")("Data Table");
+                                updateItem(item as TileProps, "tab")(tab);
                             }}
                             className="w-64 flex justify-between items-center"
                         >
@@ -146,7 +143,7 @@ const Card = ({
                     <BaseDropdown
                         button={<ActionButton
                             tooltip="Select Table"
-                            text={item.table || "Select Table"}
+                            text={item?.table || "Select Table"}
                             variant="outline"
                             size="default"
                         />}
@@ -163,65 +160,47 @@ const Card = ({
                     </BaseDropdown>
                 </div>}
             </div>
-            {tab?.includes("View") && <div className="w-full overflow-auto">
-                <ExpandProvider>
-                    <Selection
-                    params={item.table ? tableData[item.table]?.params : {}}
-                    logs={item.table ? maybeFlattenGroupedLogs(tableData[item.table]?.logs || []) : []}
-                    selection_={relevantItem?.selected}
-                    baseIndex_={relevantItem?.base_index}
-                    columnOrdering_={relevantItem?.column_order}
-                    hiddenColumns_={relevantItem?.hidden_columns}
-                    tableItem={items.find(it => it.i == item.table) || {i: item.table, x: -1, y: -1, w: -1, h: -1} as TileProps}
-                    item={item}
+            {tab?.includes("View") && (
+                <div className="w-full overflow-auto">
+                    <ExpandProvider>
+                        <Selection
+                            index={item?.i || ""}
+                        />
+                    </ExpandProvider>
+                </div>
+            )}
+            {tab?.includes("Plot") && (
+                <LogsPlot
+                    interactive={interactive}
+                    pending={pending}
+                    logsActions={logsActions}
+                    fieldsActions={fieldsActions}
+                    project={project}
+                    plotDataItem_={plotData[item?.i || ""]}
+                    tableNames={tableNames}
+                    item={item as TileProps}
                     updateItem={updateItem}
-                    />
-                </ExpandProvider>
-            </div>}
-            {tab?.includes("Plot") && <LogsPlot
-                interactive={interactive}
-                pending={pending}
-                logsActions={logsActions}
-                fieldsActions={fieldsActions}
-                project={project}
-                plotDataItem_={plotData[item.i]}
-                tableNames={tableNames}
-                item={item}
-                updateItem={updateItem}
-            />}
-            {tab?.includes("Table") && <LogsTable
-                interactive={interactive}
-                project={project}
-                contexts={contexts}
-                context_={context}
-                pending={pending}
-                tab={tab}
-                item={item}
-                tableArguments={tableArguments}
-                tableDataItem_={{
-                    ...(tableData[item.i] || {}),
-                    logs: tableData[item.i]?.logs || [],
-                    entriesProperties: tableData[item.i]?.entriesProperties || [],
-                    paramsProperties: tableData[item.i]?.paramsProperties || [],
-                    metrics: tableData[item.i]?.metrics || {},
-                    logsData: tableData[item.i]?.logsData || { params: {}, logs: [], count: 0, groups: {} },
-                    totalPages: tableData[item.i]?.totalPages || 0,
-                    boundaries: tableData[item.i]?.boundaries || { minimus: {}, maximums: {} }
-                }}
-                setTableData={setTableData}
-                updateItem={updateItem}
-                fieldsActions={fieldsActions}
-                logsActions={logsActions}
-                derivedEntryActions={derivedEntryActions}
-                filterExpression={filterExpressions ? filterExpressions[items.findIndex(it => it.i === item.i)] : null}
-                sortingExpression={sortingExpressions ? sortingExpressions[items.findIndex(it => it.i === item.i)] : null}
-                groupingExpression={groupingExpressions ? groupingExpressions[items.findIndex(it => it.i === item.i)] : null}
-                groupSortingExpression={groupSortingExpressions ? groupSortingExpressions[items.findIndex(it => it.i === item.i)] : null}
-                limit={limit}
-                offset={offsets ? offsets[items.findIndex(it => it.i === item.i)] : 0}
-                updateInterface={updateInterface}
-                setPending={setPending}
-            />}
+                />
+            )}
+            {tab?.includes("Table") && (
+                <LogsTable
+                    index={index}
+                    project={project}
+                    contexts={contexts}
+                    context_={context}
+                    tableArguments={tableArguments}
+                    fieldsActions={fieldsActions}
+                    logsActions={logsActions}
+                    derivedEntryActions={derivedEntryActions}
+                    filterExpression={filterExpressions ? filterExpressions[items.findIndex(it => it.i === item?.i)] : null}
+                    sortingExpression={sortingExpressions ? sortingExpressions[items.findIndex(it => it.i === item?.i)] : null}
+                    groupingExpression={groupingExpressions ? groupingExpressions[items.findIndex(it => it.i === item?.i)] : null}
+                    groupSortingExpression={groupSortingExpressions ? groupSortingExpressions[items.findIndex(it => it.i === item.i)] : null}
+                    limit={limit}
+                    offset={offsets ? offsets[items.findIndex(it => it.i === item?.i)] : 0}
+                    updateInterface={updateInterface}
+                />
+            )}
         </div>
     </div>);
 };

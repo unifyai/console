@@ -370,7 +370,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
 
     return <CardGrid
         project_={project}
-        projects_={projects}
+        projects={projects}
         contexts={contexts}
         interfaces_={Object.keys(interfacesTemp_).sort()}
         tableNames={tableNames}
@@ -379,7 +379,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         plotData={plotData}
         savedInterface={savedInterface}
         interfaceCreated={interfaceCreated}
-        tempInterfaceCreated_={tempInterfaceCreated}
+        tempInterfaceCreated={tempInterfaceCreated}
         interface_1={interface_1}
         filterExpressions={filterExpressions}
         sortingExpressions={sortingExpressions}

@@ -14,19 +14,13 @@ import { Plus, X } from "lucide-react";
 import { icons } from "@/constants/logs";
 
 const FocusDialog = ({
+    project,
     maxTiles,
     maxTileItems,
     edit,
-    interactive,
-    project,
     contexts,
     context,
-    pending,
-    dataPending,
-    tilePending,
-    setTilePending,
     tableNames,
-    tableData,
     plotData,
     tableArguments,
     logsActions,
@@ -39,25 +33,17 @@ const FocusDialog = ({
     groupSortingExpressions,
     limit,
     offsets,
-    updateItem,
     updateInterface,
-    setTableData,
     setMaxTiles,
     setFocusDialog,
 }: {
+    project: string | undefined,
     maxTiles: [string | undefined, string | undefined],
     maxTileItems: [TileProps | undefined, TileProps | undefined],
     edit: boolean,
-    interactive: boolean,
-    project: string | undefined,
     contexts: Context[],
     context: string | undefined,
-    pending: boolean,
-    dataPending: boolean,
-    tilePending: { [key: string]: boolean },
-    setTilePending: (tilePending: { [key: string]: boolean }) => void,
     tableNames: string[],
-    tableData: TableDataProps,
     plotData: PlotDataProps,
     tableArguments: TableArguments,
     logsActions: LogsActions,
@@ -70,10 +56,8 @@ const FocusDialog = ({
     groupSortingExpressions: (string | null)[],
     limit: number,
     offsets: number[],
-    updateItem: (item: TileProps, attrName: ItemType) => (newValue: any | undefined) => void,
     updateInterface: (savedInterface?: Interface | null) => Promise<ResponseProps>,
     setMaxTiles: Dispatch<SetStateAction<[string | undefined, string | undefined]>>,
-    setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void,
     setFocusDialog: Dispatch<SetStateAction<boolean>>,
 }) => {
     const tiles = maxTileItems.map((item: TileProps | undefined, idx: number) => {
@@ -81,32 +65,23 @@ const FocusDialog = ({
             item
                 ? <div className="h-full relative pt-2">
                     <Card
-                        edit={edit}
-                        interactive={interactive}
-                        project={project}
-                        pending={pending || dataPending || (item.tab == "Table" ? tilePending[item.i] : false)}
+                        index={item.i}
+                        project={project || undefined}
                         contexts={contexts}
                         context={context}
                         tableNames={tableNames}
-                        tableData={tableData}
                         tableArguments={tableArguments}
                         plotData={plotData}
                         logsActions={logsActions}
                         fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}
-                        index={item.i}
-                        item={item}
-                        items={items}
                         filterExpressions={filterExpressions}
                         sortingExpressions={sortingExpressions}
                         groupingExpressions={groupingExpressions}
                         groupSortingExpressions={groupSortingExpressions}
                         limit={limit}
                         offsets={offsets}
-                        setPending={(p: boolean) => setTilePending({ ...tilePending, [item.i]: p })}
-                        updateItem={updateItem}
                         updateInterface={updateInterface}
-                        setTableData={setTableData}
                     />
                     <div className={"w-full px-2 transition-all absolute -top-1 flex justify-between " + (edit ? "h-20" : "h-10")}>
                         <div>

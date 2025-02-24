@@ -50,6 +50,9 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { TileProps, ItemType } from "@/types/evals/grid";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
+
+import { useInterfaceContext } from "@/components/Providers/Stores/InterfaceStoreProvider";
 
 import { useExpandContextSelector } from "@/contexts/ExpandContext";
 import {
@@ -253,33 +256,23 @@ function buildLogWithChosenColumns(
  * Main "Selection" Component
  *   - Merged logic from old & new code
  ******************************************************************************/
-export default function Selection({
-  params,
-  logs,
-  selection_,
-  baseIndex_,
-  columnOrdering_,
-  hiddenColumns_,
-  tableItem,
-  item,
-  updateItem,
-}: {
-  params: Record<string, unknown>;
-  logs: LogProps[];
-  selection_: string | undefined;
-  baseIndex_: string | undefined;
-  columnOrdering_: string | undefined;
-  hiddenColumns_: string | undefined;
-  tableItem: TileProps | undefined;
-  item: TileProps;
-  updateItem: (item: TileProps, attrName: ItemType) => (
-    newValue: string | undefined
-  ) => void;
-}) {
-  /*******************************************************************************
-   * Prepare sorted logs & selection data
-   ******************************************************************************/
-  const sortedLogs = useMemo(() => [...logs], [logs]);
+export default function Selection({index}: {index: string}) {
+
+  const item = useInterfaceContext((s) => s.items.find(it => it.i == index));
+  const tableItem = useInterfaceContext((s) => s.items.find(it => it.i == item?.table))  || { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps;
+  const relevantItem = useInterfaceContext((s) => s.items.find(it => it.i == item?.table)) || undefined;
+  const tableData = useInterfaceContext((s) => s.tableData);
+  const updateItem = useInterfaceContext((s) => s.updateItem);
+  const params = useMemo(() => tableData[item?.table || ""]?.params || {}, [tableData, item?.table]);
+  const logs = useMemo(() => maybeFlattenGroupedLogs(tableData[item?.table || ""]?.logs || []), [tableData, item?.table]);
+  const selection_ = useMemo(() => relevantItem?.selected || undefined, [relevantItem?.selected]);
+  const columnOrdering_ = useMemo(() => relevantItem?.column_order || undefined, [relevantItem?.column_order]);
+  const hiddenColumns_ = useMemo(() => relevantItem?.hidden_columns || undefined, [relevantItem?.hidden_columns]);
+  const baseIndex_ = useMemo(() => relevantItem?.base_index || undefined, [relevantItem?.base_index]);
+
+  const sortedLogs = useMemo(() => {
+    return [...logs];
+  }, [logs]);
 
   // Use context selectors to only subscribe to the parts of the context we need
   const openKeys = useExpandContextSelector(ctx => ctx.openKeys);
@@ -370,8 +363,8 @@ export default function Selection({
   if (baseIndex_ && !isNaN(parseInt(baseIndex_, 10))) {
     baseIndexParam = parseInt(baseIndex_, 10);
   }
-  if (item.base_index && !isNaN(parseInt(item.base_index, 10))) {
-    baseIndexParam = parseInt(item.base_index, 10);
+  if (item?.base_index && !isNaN(parseInt(item?.base_index, 10))) {
+    baseIndexParam = parseInt(item?.base_index, 10);
   }
   if (baseIndexParam < 0 || baseIndexParam >= selectedRowIndices.length) {
     baseIndexParam = 0;
@@ -876,8 +869,8 @@ export default function Selection({
                 const newIdx = selectedRowIndices.findIndex(
                   (r) => rowLabel(r) === newLabel
                 );
-                if (newIdx >= 0 && String(newIdx) !== item.base_index) {
-                  updateItem(item, "base_index")(String(newIdx));
+                if (newIdx >= 0 && String(newIdx) !== item?.base_index) {
+                  updateItem(item as TileProps, "base_index")(String(newIdx));
                 }
               }}
               placeholder="Pick base row"
@@ -938,7 +931,7 @@ export default function Selection({
             diffMode={diffMode}
             splitView={splitView}
             tableItem={tableItem}
-            item={item}
+            item={item as TileProps}
             updateItem={updateItem}
             onEntriesExpandToggle={onEntriesExpandToggle}
             onParamsExpandToggle={onParamsExpandToggle}
@@ -1051,7 +1044,7 @@ function SelectionPanel({
   };
 
   // baseIndex from item/baseIndex
-  let baseIndexParam = parseInt(item.base_index ?? "0", 10);
+  let baseIndexParam = parseInt(item?.base_index ?? "0", 10);
   if (isNaN(baseIndexParam)) {
     baseIndexParam = 0;
   }

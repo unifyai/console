@@ -16,64 +16,46 @@ import Tooltip from "../Common/Misc/Tooltip";
 import AddTile from "./AddTile";
 import ContextSelector from "./Table/Content/ContextSelector";
 
+import { useInterfaceContext } from "../Providers/Stores/InterfaceStoreProvider";
+
 const InterfaceButtons = ({
-    edit,
-    interactive,
+    project_,
     interface_,
-    project,
-    context,
-    pending,
-    anyTilePending,
     contexts,
-    items,
-    newCounter,
-    copied,
-    resetting,
-    saveSuccess,
-    hiddenItems,
     savedInterface,
-    setItems,
-    setNewCounter,
-    setCopied,
-    setResetting,
-    setEdit,
-    setInteractive,
-    setFocusDialog,
-    setDataPending,
-    setContext,
-    setSaveDialog,
     updateInterface,
 }: {
-    edit: boolean,
-    interactive: boolean,
     project_: string | null,
     interface_: string | null,
-    project: string | null,
-    context: string | undefined,
-    pending: boolean,
-    anyTilePending: boolean,
     contexts: Context[],
-    items: TileProps[],
-    newCounter: number,
-    copied: string | undefined,
-    resetting: boolean,
-    saveSuccess: boolean | undefined,
-    hiddenItems: TileProps[],
     savedInterface: Interface,
-    setItems: (value: SetStateAction<TileProps[]>) => void,
-    setNewCounter: (value: SetStateAction<number>) => void,
-    setCopied: (value: SetStateAction<string | undefined>) => void,
-    setResetting: (value: SetStateAction<boolean>) => void,
-    setEdit: (value: SetStateAction<boolean>) => void,
-    setInteractive: (value: SetStateAction<boolean>) => void,
-    setFocusDialog: (value: SetStateAction<boolean>) => void,
-    setDataPending: (value: SetStateAction<boolean>) => void,
-    setContext: (value: SetStateAction<string | undefined>) => void,
-    setSaveDialog: (value: SetStateAction<boolean>) => void,
-    updateInterface: (savedInterface?: Interface | null) => Promise<ResponseProps>
+    updateInterface: (savedInterface?: Interface | null) => Promise<ResponseProps>,
 }) => {
     const router = useRouter();
 
+    const project = useInterfaceContext((s) => s.project);
+    const pending = useInterfaceContext((s) => s.pending);
+    const context = useInterfaceContext((s) => s.context);
+    const items = useInterfaceContext((s) => s.items);
+    const newCounter = useInterfaceContext((s) => s.newCounter);
+    const copied = useInterfaceContext((s) => s.copied);
+    const resetting = useInterfaceContext((s) => s.resetting);
+    const saveSuccess = useInterfaceContext((s) => s.saveSuccess);
+    const edit = useInterfaceContext((s) => s.edit);
+    const interactive = useInterfaceContext((s) => s.interactive);
+    const anyTilePending = useInterfaceContext((s) => Object.entries(s.tilePending).some(([_, val]) => val));
+    const setItems = useInterfaceContext((s) => s.setItems);
+    const setNewCounter = useInterfaceContext((s) => s.setNewCounter);
+    const setCopied = useInterfaceContext((s) => s.setCopied);
+    const setResetting = useInterfaceContext((s) => s.setResetting);
+    const setEdit = useInterfaceContext((s) => s.setEdit);
+    const setInteractive = useInterfaceContext((s) => s.setInteractive);
+    const setFocusDialog = useInterfaceContext((s) => s.setFocusDialog);
+    const setDataPending = useInterfaceContext((s) => s.setDataPending);
+    const setContext = useInterfaceContext((s) => s.setContext);
+    const setSaveDialog = useInterfaceContext((s) => s.setSaveDialog);
+
+    const hiddenItems = items.filter((it) => !it.visible);
     const saveIcon = saveSuccess ? <Check /> : saveSuccess == false ? <TriangleAlert /> : <Save />;
     const resetIcon = resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
     const variant = saveSuccess == false ? "destructive" : "outline";
@@ -135,7 +117,7 @@ const InterfaceButtons = ({
             />
             <AddTile
                 edit={edit}
-                project={project}
+                project={project_ as string}
                 pending={pending}
                 items={items}
                 newCounter={newCounter}
