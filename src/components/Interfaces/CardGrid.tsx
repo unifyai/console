@@ -21,6 +21,7 @@ import InterfaceButtons from "./InterfaceButtons";
 import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./ProjectButtons";
 import EditTileName from "./EditTileName";
+import Tooltip from "../Common/Misc/Tooltip";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -361,23 +362,29 @@ const CardGrid = ({
                                         updateInterface={updateInterface}
                                         setTableData={setTableData}
                                     />
-                                    <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-2 flex justify-between " + (edit ? "h-16" : "h-10")}>
+                                    <div className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (edit ? "h-16" : "h-10")}>
                                         <div className="mb-auto flex gap-2">
-                                            <Badge
-                                                className="cursor-pointer"
-                                                variant="primary"
-                                                onClick={() => edit ? setEditTile(el.i) : undefined}
-                                            >
-                                                {el.i}
-                                            </Badge>
-                                            {((el.context || context) != "default") && el.tab == "Table" && <Badge variant="primary">
-                                                {"Context: " + (el.context || context)}
-                                            </Badge>}
-                                            {(el.column_context || columnContext) && el.tab == "Table" && <Badge variant="primary">
-                                                {"Col Context: " + (el.column_context || columnContext)}
-                                            </Badge>}
+                                            <Tooltip content="Tile Type">
+                                                <Badge
+                                                    className="cursor-pointer"
+                                                    variant="primary"
+                                                    onClick={() => edit ? setEditTile(el.i) : undefined}
+                                                >
+                                                    {el.i}
+                                                </Badge>
+                                            </Tooltip>
+                                            {(![undefined, "default"].includes(el.context || context)) && el.tab == "Table" && <Tooltip content="Context">
+                                                <Badge variant="primary">
+                                                    {el.context || context}
+                                                </Badge>
+                                            </Tooltip>}
+                                            {(el.column_context || columnContext) && el.tab == "Table" && <Tooltip content="Column Context">
+                                                <Badge variant="primary">
+                                                    {el.column_context || columnContext}
+                                                </Badge>
+                                            </Tooltip>}
                                         </div>
-                                        <div className="flex gap-2 mb-auto">
+                                        <div className="flex-1 flex justify-end gap-2 mb-auto opacity-0 hover:opacity-100">
                                             <ActionButton
                                                 className="cursor-pointer hover:z-10"
                                                 onClick={() => {
