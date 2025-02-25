@@ -15,7 +15,7 @@ const ContextSelector = ({
     setContext,
     button,
 }: {
-    index: string,
+    index?: string,
     contexts: Context[],
     context?: string,
     setContext?: (context: string) => void,
@@ -24,7 +24,7 @@ const ContextSelector = ({
 
     const item = useInterfaceContext((s) => s.items.find((it) => it.i === index));
     const updateItem = useInterfaceContext((s) => s.updateItem);
-    const tableDataItem = useInterfaceContext((s) => s.tableData[index]);
+    const tableDataItem = useInterfaceContext((s) => s.tableData[index ?? ""]);
 
     const finalSetContext = (updateItem != undefined && item != undefined) ? (ctx: string) => {
         if (ctx != item.context) {
