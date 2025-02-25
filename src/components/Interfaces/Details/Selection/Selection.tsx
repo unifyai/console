@@ -62,11 +62,6 @@ import {
  * Helper & Utility Functions
  ******************************************************************************/
 
-/** Basic logging utility for debugging. */
-function debugLog(area: string, msg: string, data?: any) {
-  console.log(`[Selection:${area}]`, msg, data ?? "");
-}
-
 /** Data shape checks from both old & new code. */
 function isDict(val: any): boolean {
   return val && typeof val === "object" && !Array.isArray(val);
@@ -292,19 +287,16 @@ export default function Selection({
 
   const selectedCells = useMemo(() => {
     const arr = selection_ ? selection_.split(",") : [];
-    debugLog("selection", "Parsed selected cells:", arr);
     return arr;
   }, [selection_]);
 
   const indexToColumns = useMemo(() => {
     const map = buildIndexToColumnsMapFromId(selectedCells, sortedLogs);
-    debugLog("columns", "Index->Columns map:", map);
     return map;
   }, [selectedCells, sortedLogs]);
 
   const selectedRowIndices = useMemo(() => {
     const arr = buildRowIndicesInSelectionOrder(selectedCells, sortedLogs);
-    debugLog("rows", "Row selection order:", arr);
     return arr;
   }, [selectedCells, sortedLogs]);
 
@@ -487,13 +479,6 @@ export default function Selection({
     } else {
       subPaths = gatherAllSubPaths(rawVal, rootPath, prefixStr, 0);
     }
-    
-    console.log(`[Selection:gatherSubpathsForProperty] ${propName}`, {
-      isParams,
-      rootPath,
-      subPathCount: subPaths.length,
-      hasComparables: comparables.length > 0
-    });
     
     return new Set(subPaths);
   }

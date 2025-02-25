@@ -136,22 +136,13 @@ function handleRecursiveToggle(
   openKeys: Set<string>,
   setOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>
 ) {
-  console.log(`[ListView:handleRecursiveToggle] path=${path}, prefix=${prefix}, level=${nestingLevel}`, {
-    baseValue,
-    openKeysCount: openKeys.size
-  });
-
   let subPaths: string[];
   if (comparables && comparables.length > 0) {
     subPaths = gatherAllSubPathsMulti(baseValue, comparables, path, prefix, nestingLevel);
   } else {
     subPaths = gatherAllSubPaths(baseValue, path, prefix, nestingLevel);
   }
-  console.log(`[ListView:handleRecursiveToggle] subPaths gathered:`, subPaths);
-
   const allOpen = subPaths.every((p) => openKeys.has(p));
-  console.log(`[ListView:handleRecursiveToggle] allOpen=${allOpen}`);
-
   setOpenKeys((prev) => {
     const next = new Set(prev);
     if (allOpen) {
@@ -190,16 +181,6 @@ export default function ListView({
 
   // Check if value is a list but don't return early
   const isValidList = isList(value);
-  
-  // Only log if we have a valid list
-  if (isValidList) {
-    console.log(`[ListView:render] prefix=${prefix}, parentPath=${parentPath}, nesting=${nestingLevel}`, {
-      length: value.length,
-      openKeysCount: openKeys.size,
-      forceExpandAll,
-      forceCollapseAll,
-    });
-  }
 
   // Single vs multi
   const multiMode = comparables && comparables.length > 0;
@@ -231,16 +212,7 @@ export default function ListView({
   useEffect(() => {
     if (!isValidList || !parentPath) return; // if we have no valid list or parent path, we can't proceed
     
-    if (forceExpandAll || forceCollapseAll) {
-      console.log(`[ListView:useEffect(forceExpand|collapseAll)] Starting global expand/collapse`, {
-        parentPath,
-        multiMode,
-        value,
-        comparables,
-        valueLength: Array.isArray(value) ? value.length : 0,
-        hasComparables: comparables && comparables.length > 0
-      });
-      
+    if (forceExpandAll || forceCollapseAll) {      
       const newSet = new Set(openKeys);
       
       // Choose the appropriate path gathering function based on mode
@@ -248,27 +220,10 @@ export default function ListView({
       if (multiMode) {
         // In multi-mode, use gatherAllSubPathsMulti to include items from comparables
         subPaths = gatherAllSubPathsMulti(value, comparables || [], parentPath, prefix, nestingLevel);
-        console.log(`[ListView:useEffect] Using multi-mode path gathering`, {
-          parentPath, 
-          subPathCount: subPaths.length,
-          compareCount: comparables ? comparables.length : 0
-        });
       } else {
         // In single-mode, use the original method
         subPaths = gatherAllSubPaths(value, parentPath, prefix, nestingLevel);
-        console.log(`[ListView:useEffect] Using single-mode path gathering`, {
-          parentPath,
-          subPathCount: subPaths.length
-        });
       }
-      
-      console.log(`[ListView:useEffect(forceExpand|collapseAll)] parentPath=${parentPath}`, {
-        subPathsCount: subPaths.length,
-        subPaths,
-        forceExpandAll,
-        forceCollapseAll,
-        multiMode
-      });
 
       if (forceExpandAll) {
         subPaths.forEach((sp) => newSet.add(sp));
@@ -292,7 +247,6 @@ export default function ListView({
         arr.push(itemLabel(i));
       }
     }
-    console.log(`[ListView:openValues] computed:`, arr);
     return arr;
   }, [itemCount, openKeys, isValidList, buildItemPath, itemLabel]);
 

@@ -296,11 +296,6 @@ function getSelectionView(
   }
 }
 
-/** debug helper */
-function debugLog(area: string, msg: string, data?: any) {
-  console.log(`[SelectionEntry:${area}]`, msg, data || '');
-}
-
 //////////////////////////////////////////////////////////////////////////////
 // The main "SelectionEntry" component
 //////////////////////////////////////////////////////////////////////////////
@@ -410,20 +405,6 @@ export default function SelectionEntry({
     return subPaths.every((p) => openKeys.has(p));
   }, [isDictOrList, subPaths, openKeys]);
   
-  // Lifecycle logging - moved before early return
-  useEffect(() => {
-    if (!isEmpty) {
-      debugLog('lifecycle', `SelectionEntry for ${property}`, {
-        unifiedType,
-        isDictOrList,
-        topLevelPath,
-        subPathsCount: subPaths.length,
-        allOpen,
-        openKeysCount: openKeys.size
-      });
-    }
-  }, [isEmpty, property, unifiedType, isDictOrList, topLevelPath, subPaths, allOpen, openKeys]);
-  
   // Return early if empty - after all hooks have been called
   if (isEmpty) {
     return null;
@@ -437,15 +418,6 @@ export default function SelectionEntry({
   const handleGlobalExpandToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!isDictOrList) return;
-
-    debugLog('expand', `Toggle expand for ${property}`, {
-      currentlyAllOpen: allOpen,
-      subPaths,
-      openKeys: Array.from(openKeys),
-      value: rawValue,
-      unifiedType,
-      topLevelPath
-    });
 
     setOpenKeys((prev) => {
       const next = new Set(prev);

@@ -136,16 +136,6 @@ function handleRecursiveToggle(
   openKeys: Set<string>,
   setOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>
 ) {
-  console.log(`[DictionaryView:handleRecursiveToggle] Starting recursive toggle`, {
-    path,
-    prefix,
-    nestingLevel,
-    baseValueType: typeof baseValue,
-    isDict: isDict(baseValue),
-    isList: isList(baseValue),
-    currentOpenKeys: Array.from(openKeys)
-  });
-
   // gather any subpaths under "path"
   let subPaths: string[];
   if (comparables && comparables.length > 0) {
@@ -156,41 +146,22 @@ function handleRecursiveToggle(
     subPaths = gatherAllSubPaths(baseValue, path, prefix, nestingLevel);
   }
   
-  console.log(`[DictionaryView:handleRecursiveToggle] Gathered subpaths`, {
-    path,
-    subPaths,
-    count: subPaths.length
-  });
-
   // check if all are open
   const allOpen = subPaths.every((sp) => openKeys.has(sp));
-
-  console.log(`[DictionaryView:handleRecursiveToggle] Determined expansion state`, {
-    path,
-    allOpen,
-    willExpand: !allOpen
-  });
 
   setOpenKeys((prev) => {
     const next = new Set(prev);
     if (allOpen) {
       // collapse - remove them
       subPaths.forEach((sp) => {
-        console.log(`[DictionaryView:handleRecursiveToggle] Collapsing subpath ${sp}`);
         next.delete(sp);
       });
     } else {
       // expand - add them
       subPaths.forEach((sp) => {
-        console.log(`[DictionaryView:handleRecursiveToggle] Expanding subpath ${sp}`);
         next.add(sp);
       });
     }
-    console.log(`[DictionaryView:handleRecursiveToggle] Final state after ${allOpen ? 'collapse' : 'expand'}`, {
-      path,
-      openKeysCount: next.size,
-      openKeys: Array.from(next)
-    });
     return next;
   });
 }
@@ -228,19 +199,6 @@ export default function DictionaryView({
 
   // Check if base is a dict first but don't return early
   const isValidDict = isDict(value);
-  
-  // Log only if we have a valid dictionary
-  if (isValidDict) {
-    console.log(`[DictionaryView:render] Rendering dictionary view`, {
-      prefix,
-      nestingLevel,
-      parentPath,
-      valueKeys: Object.keys(value),
-      openKeysCount: openKeys.size,
-      forceExpandAll,
-      forceCollapseAll
-    });
-  }
 
   const singleMode = !comparables || comparables.length === 0;
 
@@ -281,15 +239,6 @@ export default function DictionaryView({
       // Use parentPath directly as the root path for gathering subpaths
       // This ensures consistency with the top-level property path
       if (parentPath) {
-        console.log(`[DictionaryView:useEffect(forceExpand|collapseAll)] Starting global expand/collapse`, {
-          parentPath,
-          multiMode: !singleMode,
-          value,
-          comparables,
-          valueKeys: Object.keys(value),
-          hasComparables: comparables && comparables.length > 0
-        });
-
         const newSet = new Set(openKeys);
         
         // Choose the appropriate path gathering function based on mode
@@ -297,28 +246,10 @@ export default function DictionaryView({
         if (!singleMode) {
           // In multi-mode, use gatherAllSubPathsMulti to include keys from comparables
           subPaths = gatherAllSubPathsMulti(value, comparables, parentPath, prefix, nestingLevel);
-          console.log(`[DictionaryView:useEffect] Using multi-mode path gathering`, {
-            parentPath, 
-            subPathCount: subPaths.length,
-            compareCount: comparables.length
-          });
         } else {
           // In single-mode, use the original gatherAllSubPaths
           subPaths = gatherAllSubPaths(value, parentPath, prefix, nestingLevel);
-          console.log(`[DictionaryView:useEffect] Using single-mode path gathering`, {
-            parentPath,
-            subPathCount: subPaths.length
-          });
         }
-        
-        console.log(`[DictionaryView:useEffect(forceExpand|collapseAll)]`, {
-          parentPath,
-          subPathsCount: subPaths.length,
-          subPaths,
-          forceExpandAll,
-          forceCollapseAll,
-          multiMode: !singleMode
-        });
 
         if (forceExpandAll) {
           // expand all subpaths
@@ -523,15 +454,6 @@ export default function DictionaryView({
         return builtPath;
       })
       .filter((p) => openKeys.has(p));
-
-    console.log(`[DictionaryView:openValues] Computed open values`, {
-      prefix,
-      nestingLevel,
-      parentPath,
-      paths,
-      openKeysCount: openKeys.size
-    });
-
     return paths;
   }, [allKeys, openKeys, parentPath, prefix, nestingLevel, isValidDict]);
 
@@ -547,28 +469,10 @@ export default function DictionaryView({
           type="multiple"
           value={openValues}
           onValueChange={(newVals) => {
-            console.log(`[DictionaryView:accordion] Value change`, {
-              prefix,
-              nestingLevel,
-              parentPath,
-              oldVals: openValues,
-              newVals,
-              openKeysCount: openKeys.size
-            });
-
             const oldSet = new Set(openValues);
             const nextSet = new Set(newVals);
             const changedAdded = Array.from(nextSet).filter((v) => !oldSet.has(v));
             const changedRemoved = Array.from(oldSet).filter((v) => !nextSet.has(v));
-
-            console.log(`[DictionaryView:accordion] Detected changes`, {
-              prefix,
-              nestingLevel,
-              parentPath,
-              added: changedAdded,
-              removed: changedRemoved
-            });
-
             setOpenKeys((prev) => {
               const updated = new Set(prev);
               changedAdded.forEach((v) => {
@@ -576,13 +480,6 @@ export default function DictionaryView({
               });
               changedRemoved.forEach((v) => {
                 updated.delete(v);
-              });
-              console.log(`[DictionaryView:accordion] Final state after changes`, {
-                prefix,
-                nestingLevel,
-                parentPath,
-                openKeysCount: updated.size,
-                openKeys: Array.from(updated)
               });
               return updated;
             });
