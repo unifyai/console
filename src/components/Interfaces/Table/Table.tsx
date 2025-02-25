@@ -374,6 +374,8 @@ const LogsTable = ({
             totalPages={totalPages}
             pageNumber={pageNumber}
             setPageNumber={updateItem(item, "page_number")}
+            pageLogs={logs.length}
+            totalLogs={logsData.count}
           />
           <FreezeLogs item={item} updateItem={updateItem} />
           <RefreshLogs
