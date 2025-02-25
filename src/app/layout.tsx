@@ -1,6 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { ThemeProvider } from 'next-themes'
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 import "@/styles/globals.css";
 import "@fortawesome/fontawesome-svg-core/styles.css";
@@ -22,6 +23,7 @@ export default function RootLayout({
       <body>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
+          <SpeedInsights />
         </ThemeProvider>
       </body>
     </html>
