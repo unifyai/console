@@ -129,7 +129,7 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, create, set
                         onKeyDown={onEnter}
                     />
 
-    const entry = <FormulaInput options={options} value={expression} setValue={handleExpression} onEnter={onEnter}/>
+    const entry = <FormulaInput options={options} value={expression} setValue={handleExpression} onEnter={onEnter} className="left-8"/>
     
     const warning = (error: string) => 
                     <p className="flex justify-start text-sm text-destructive">{error}</p>

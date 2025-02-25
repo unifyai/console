@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, KeyboardEvent, useRef, KeyboardEventHandler } from 'react';
-import { Input } from "@/components/UI/input";
+import { cn } from "@/lib/utils"
 import { listToHexColors } from "@/utils/misc/color";
 import { TbMathFunction } from "react-icons/tb";
 
@@ -15,10 +15,14 @@ interface FormulaInputProps {
   options: AutocompleteOption[],
   value: string,
   setValue: (value: string) => void,
-  onEnter?: KeyboardEventHandler
+  onEnter?: KeyboardEventHandler,
+  withIcon?: boolean,
+  className?: string,
+  placeholder?: string,
+  withAutocomplete?: boolean
 }
 
-const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) => {
+const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, className, placeholder = "Press Tab for suggestions", withAutocomplete = true}: FormulaInputProps) => {
 
   /* Generate colors for each option type */
   const optionTypes = Array.from(new Set(options.map(option => option.type)))
@@ -52,7 +56,7 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
     );
 
     setFilteredOptions(filtered);
-    setShowSuggestions(filtered.length > 0);
+    setShowSuggestions(withAutocomplete && filtered.length > 0);
     setHighlightedIndex(-1);
   };
 
@@ -85,7 +89,7 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
           // Select the first suggestion
           selectSuggestion(filteredOptions[0].name)
         }
-        else {
+        else if (withAutocomplete) {
           // Show all options if at start of input or previous character is a whitespace
           const cursorPosition = containerRef.current?.selectionStart ?? 0;
           if (cursorPosition === 0 || value[cursorPosition - 1] === " ") {
@@ -135,7 +139,7 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
     setValue(newValue);
     
     // If option has children, show them as next suggestions
-    if (selectedOption?.children?.length) {
+    if (selectedOption?.children?.length && withAutocomplete ) {
       const nextOptions = options.filter(opt => selectedOption.children.includes(opt.name));
       setFilteredOptions(nextOptions);
       setShowSuggestions(true);
@@ -198,10 +202,10 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
   }, []);
 
   /* Styles */
-  const sharedStyle = `
+  const sharedStyle = cn(`
     flex 
     absolute left-8 right-0
-    h-9 w-[90%]
+    h-8 w-[90%]
     rounded-none border border-input 
     px-3 py-1 inset-0
     text-base md:text-sm
@@ -210,9 +214,9 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
     caret-foreground
     focus:outline-none focus:ring-2 focus:ring-blue-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring
     font-sans leading-none tracking-normal
-  `;
-  const containerStyle = "z-10 rounded-none rounded-tr-lg rounded-br-lg bg-transparent text-transparent"
-  const overlayStyle   = "z-20 rounded-none rounded-tr-lg rounded-br-lg overflow-x-auto whitespace-pre-wrap pointer-events-none"
+  `, className);
+  const containerStyle = "z-10 rounded-none rounded-tr-md rounded-br-md bg-transparent text-transparent"
+  const overlayStyle   = "z-20 rounded-none rounded-tr-md rounded-br-md overflow-x-auto whitespace-pre-wrap pointer-events-none"
 
   /* Invisible formula input container */
   const container = 
@@ -279,7 +283,7 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
   };  
   const overlay = 
     <div ref={overlayRef} style={{scrollbarWidth: "none"}} className={`${sharedStyle} ${overlayStyle} p-0 leading-none box-border inline-flex items-center`}>
-      {value === '' ? "Press Tab for suggestions" : getHighlightedContent(value)}
+      {value === '' || !value ? placeholder : getHighlightedContent(value)}
     </div>
 
   /* Autocomplete suggestions dropdown.*/
@@ -290,8 +294,8 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
       className="
         absolute z-20 left-0 mt-[40px] 
         w-full h-fit max-h-[150px] overflow-y-auto 
-        border rounded-none rounded-tr-lg rounded-br-lg 
-        bg-background shadow-lg
+        border rounded-none rounded-tr-md rounded-br-md 
+        bg-background shadow-md
       "
     >
       {filteredOptions.map((option, index) => (
@@ -317,14 +321,14 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
     </div>
 
   /* Button that just shows an fx symbol */
-  const icon = <TbMathFunction className="absolute rounded-none rounded-tl-lg rounded-bl-lg border p-2 h-9 w-8 left-0 top-0"/>
+  const icon = withIcon && <TbMathFunction className="absolute rounded-none rounded-tl-md rounded-bl-md border p-2 h-8 w-8 left-0 top-0"/>
   
   return (
     <div ref={wrapperRef} className="formula-input-container relative min-h-9 pl-8">
       {icon}
       {container}
       {overlay}
-      {showSuggestions && suggestions}
+      {withAutocomplete && showSuggestions && suggestions}
     </div>
   );
 };

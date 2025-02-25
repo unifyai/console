@@ -256,3 +256,8 @@ export function combineFilters (
 	});
 	return filters;
 }
+
+/* 
+	Potentially wrap a filter value in quotes
+*/
+export const maybeWrapFilterInQuotes = (value: string) => (value.startsWith('"') && value.endsWith('"')) ? value : `"${value}"`

@@ -2,7 +2,7 @@ import CardGrid from "@/components/Interfaces/CardGrid";
 import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, LogItemProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { Context, ContextActions, DerivedEntryActions, FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
-import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
+import { searchParamToFilters, filtersToExpression, maybeWrapFilterInQuotes } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -96,22 +96,33 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
     /* Handle filters */
     // 1- Convert filters search param value to a nested dictionary representation of column, function and values
     // 2- Join column filters with the corresponding filter functions and values using "and"
-    // 3- Join common filters with the "in" filter function and common filter value using "or"
+    // 3- Join common filters with the "in" filter function and common filter value using "or", or pass the expression if filtering by expression
     // 4- Join common and column filters into a single filter expression
     const logsFilters: { [column: string]: { [fn: string]: string } }[] = tableItems.map(
         item => searchParamToFilters(item.filters, item.column_context)
     );
     const columnFiltersExpressions = logsFilters.map((filter, idx) => filtersToExpression(filter, fields[idx]));
-    const commonFiltersExpressions = tableItems.map(
-        (item, idx) => item.common_filter && fields[idx]
-            ? Object
-                .keys(
-                    Object.fromEntries(Object.entries(fields[idx]).filter(([_, attributes]) => attributes.data_type != "image")) // Exclude images
-                )
-                .map(column => `${item.common_filter} in to_str(${item.column_context ? processContext("merge", item.column_context, column) : column})`)
-                .join(" or ")
-            : ""
-    );
+    const commonFiltersExpressions = tableItems.map((item, idx) => {
+        if (item.common_filter && fields[idx]) {
+            const commonFilterMode = item.common_filter.split("§")[0]
+            const commonFilterValue = item.common_filter.split("§")[1]
+            if (!commonFilterValue) return ""
+            if (commonFilterMode === "expression") {
+                let filter = commonFilterValue;
+                const processFilter = (value: string, column: string, column_context: string | undefined) => value.replace(new RegExp(column, "g"), column_context ? processContext("merge", column_context, column) : column) 
+                Object.keys(fields).forEach(column => processFilter(filter, column, item.column_context)) 
+                return filter
+            }
+            else {
+                const validFields = Object.fromEntries(Object.entries(fields[idx]).filter(([_, attributes]) => attributes.data_type != "image")) // Exclude images
+                const filterValue = maybeWrapFilterInQuotes(commonFilterValue)
+                const processFilter = (value: string, column: string, column_context: string | undefined) => `${value} in to_str(${column_context ? processContext("merge", column_context, column) : column})`
+                const filter = Object.keys(validFields).map(column => processFilter(filterValue, column, item.column_context)).join(" or ")
+                return filter
+            }
+        }
+        return ""
+    });
     let filterExpressions: (string | null)[] = tableItems.map((item, idx) => {
         const columnFiltersExpression = columnFiltersExpressions[idx];
         const commonFiltersExpression = commonFiltersExpressions[idx];

@@ -205,7 +205,7 @@ const LogsTable = ({
         : undefined
     );
   }
-  
+
   const sorting: ColumnSort[] = sortingStr
     ? sortingStr.split(",").map((c) => {
       const [key, order] = c.split("@");
@@ -352,10 +352,12 @@ const LogsTable = ({
           <GlobalFilter
             interactive={interactive}
             logsFilters={logsFilters}
-            commonFilter_={commonFilter}
-            setCommonFilter_={updateItem(item, "common_filter")}
+            commonFilter={commonFilter}
+            setCommonFilter={updateItem(item, "common_filter")}
             setLogsFilters={setLogsFilters}
             logs={logs}
+            currentTable={item.i}
+            tableArguments={tableArguments}
           />
           <VisibilityFilter
             fields={fields}
