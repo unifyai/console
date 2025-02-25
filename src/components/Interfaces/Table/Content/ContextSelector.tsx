@@ -1,13 +1,9 @@
 "use client";
 
-import { DropdownMenuSubContent } from "@radix-ui/react-dropdown-menu";
-import { DropdownMenuPortal } from "@radix-ui/react-dropdown-menu";
-import { DropdownMenuSub } from "@radix-ui/react-dropdown-menu";
-import { DropdownMenuGroup } from "@radix-ui/react-dropdown-menu";
 import ActionButton from "../../../Common/Buttons/Action";
 import BaseDropdown from "../../../Common/Dropdowns/Base";
-import { DropdownMenuItem, DropdownMenuSubTrigger } from "../../../UI/dropdown-menu";
-import { Context, ItemType, TableDataItem, TableDataProps } from "@/types/evals/grid";
+import { DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuSub, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSubTrigger } from "../../../UI/dropdown-menu";
+import { Context, ItemType, TableDataItem } from "@/types/evals/grid";
 import { TileProps } from "@/types/evals/grid";
 import { Braces, Check, FolderTree, Grid2x2 } from "lucide-react";
 
@@ -29,143 +25,152 @@ const ContextSelector = ({
     button?: React.ReactNode,
 }) => {
     const finalSetContext = (updateItem != undefined && item != undefined) ? updateItem(item, "context") : setContext;
-    console.log(item, updateItem, tableDataItem);
+
+    interface TreeNode {
+        path: string;
+        children: { [key: string]: TreeNode };
+        isComplete: boolean;
+    }
+
+    const buildTree = (paths: string[]) => {
+        const root: TreeNode = { path: '', children: {}, isComplete: false };
+
+        paths.forEach(path => {
+            let current = root;
+            const parts = path.split('/').filter(Boolean);
+
+            let currentPath = '';
+            parts.forEach((part, index) => {
+                currentPath += part + '/';
+                if (!current.children[part]) {
+                    current.children[part] = {
+                        path: currentPath,
+                        children: {},
+                        isComplete: index === parts.length - 1
+                    };
+                }
+                current = current.children[part];
+            });
+        });
+
+        return root;
+    };
+
+    const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, setter }: {
+        node: TreeNode,
+        nodeName: string,
+        isTopLevel: boolean,
+        showRoot: boolean,
+        attr: string | undefined,
+        setter: (context: string) => void
+    }) => {
+        const hasChildren = Object.keys(node.children).length > 0;
+
+        // If this is a leaf node (no children)
+        if (!hasChildren && item != undefined) {
+            return (
+                <DropdownMenuItem
+                    key={nodeName}
+                    onSelect={() => (
+                        (node.path.slice(0, -1) != attr)
+                            ? setter(node.path.slice(0, -1))
+                            : setter("")
+                    )}
+                    className="w-48 justify-between"
+                >
+                    {nodeName}{attr == node.path.slice(0, -1) && <Check />}
+                </DropdownMenuItem>
+            );
+        }
+
+        // If this is a parent node with children
+        return (
+            <DropdownMenuGroup className="w-48">
+                <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="hover:text-white data-[state=open]:text-white">
+                        {nodeName}
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                        <DropdownMenuSubContent>
+                            {/* Make the current path selectable */}
+                            {node.isComplete && item != undefined && showRoot && (
+                                <DropdownMenuItem
+                                    key={nodeName}
+                                    onSelect={() => (
+                                        (node.path.slice(0, -1) != attr)
+                                            ? setter(node.path.slice(0, -1))
+                                            : setter("")
+                                    )}
+                                    className="w-48 justify-between"
+                                >
+                                    {isTopLevel ? "<root>" : nodeName}{attr == node.path.slice(0, -1) && <Check />}
+                                </DropdownMenuItem>
+                            )}
+                            {/* Render all child nodes */}
+                            {Object.entries(node.children).map(([childName, childNode], idx) => (
+                                <RenderMenuItems
+                                    key={idx}
+                                    node={childNode}
+                                    nodeName={childName}
+                                    isTopLevel={false}
+                                    showRoot={showRoot}
+                                    attr={attr}
+                                    setter={setter}
+                                />
+                            ))}
+                        </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                </DropdownMenuSub>
+            </DropdownMenuGroup>
+        );
+    };
+
+    // Build and render the tree
+    const contextTree = buildTree(contexts.map(context => context.name));
+    const columnContextTree = buildTree(tableDataItem?.columnContexts || []);
 
     return (
         <div className="w-fit">
             <BaseDropdown
                 button={button || <ActionButton
                     tooltip="Edit Context and Column Context"
-                    icon={<FolderTree/>}
+                    icon={<FolderTree />}
                     variant="outline"
                     size="sm"
                 />}
             >
-                <div className="flex flex-col gap-6 pt-2">
-                    <div>
+                <div className="flex flex-col gap-4">
+                    {contexts.length > 0 ? <div className="pt-2">
                         <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">
                             <Braces size={18} /> Context
                         </div>
-                        {contexts.length > 0 ? contexts.map((context_: Context) => <DropdownMenuItem
-                            key={context_.name}
-                            onSelect={() => (
-                                (item?.context || context) != context_.name
-                                ? (finalSetContext && finalSetContext(context_.name))
-                                : (finalSetContext && finalSetContext(""))
-                            )}
-                            className="w-64 justify-between"
-                        >
-                            {context_.name}{(
-                                (item?.context || context) == context_.name
-                            ) && <Check />}
-                        </DropdownMenuItem>) : <></>}
-                    </div>
-                    {item && updateItem && (tableDataItem != undefined) && <div>
-                        {tableDataItem.columnContexts && tableDataItem.columnContexts.length > 0 && (
-                            <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">
-                                <Grid2x2 size={18} /> Column Context
-                            </div>
-                        )}
-                        {(() => {
-                            interface TreeNode {
-                                path: string;
-                                children: { [key: string]: TreeNode };
-                                isComplete: boolean;
-                            }
-
-                            const buildTree = (paths: string[]) => {
-                                const root: TreeNode = { path: '', children: {}, isComplete: false };
-
-                                paths.forEach(path => {
-                                    let current = root;
-                                    const parts = path.split('/').filter(Boolean);
-
-                                    let currentPath = '';
-                                    parts.forEach((part, index) => {
-                                        currentPath += part + '/';
-                                        if (!current.children[part]) {
-                                            current.children[part] = {
-                                                path: currentPath,
-                                                children: {},
-                                                isComplete: index === parts.length - 1
-                                            };
-                                        }
-                                        current = current.children[part];
-                                    });
-                                });
-
-                                return root;
-                            };
-
-                            const RenderMenuItems = ({ node, nodeName, isTopLevel }: {
-                                node: TreeNode,
-                                nodeName: string,
-                                isTopLevel?: boolean
-                            }) => {
-                                const hasChildren = Object.keys(node.children).length > 0;
-
-                                if (!hasChildren) {
-                                    return (
-                                        <DropdownMenuItem
-                                            onSelect={() => (
-                                                (node.path.slice(0, -1) != item.column_context)
-                                                ? updateItem(item, "column_context")(node.path.slice(0, -1))
-                                                : updateItem(item, "column_context")("")
-                                            )}
-                                            className="w-64 justify-between"
-                                        >
-                                            {nodeName}{item.column_context == node.path.slice(0, -1) && <Check />}
-                                        </DropdownMenuItem>
-                                    );
-                                }
-
-                                return (
-                                    <DropdownMenuGroup>
-                                        <DropdownMenuSub>
-                                            <DropdownMenuSubTrigger className="hover:text-white data-[state=open]:text-white">
-                                                {nodeName}
-                                            </DropdownMenuSubTrigger>
-                                            <DropdownMenuPortal>
-                                                <DropdownMenuSubContent>
-                                                    {/* Make the current path selectable with "root" label */}
-                                                    {node.isComplete && (
-                                                        <DropdownMenuItem
-                                                            onSelect={() => (
-                                                                (node.path.slice(0, -1) != item.column_context)
-                                                                ? updateItem(item, "column_context")(node.path.slice(0, -1))
-                                                                : updateItem(item, "column_context")("")
-                                                            )}
-                                                        >
-                                                            {isTopLevel ? "<root>" : nodeName}{item.column_context == node.path.slice(0, -1) && <Check />}
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                    {/* Render children */}
-                                                    {Object.entries(node.children).map(([childName, childNode], idx) => (
-                                                        <RenderMenuItems
-                                                            key={idx}
-                                                            node={childNode}
-                                                            nodeName={childName}
-                                                            isTopLevel={false}
-                                                        />
-                                                    ))}
-                                                </DropdownMenuSubContent>
-                                            </DropdownMenuPortal>
-                                        </DropdownMenuSub>
-                                    </DropdownMenuGroup>
-                                );
-                            };
-
-                            // Build and render the tree
-                            const tree = buildTree(tableDataItem?.columnContexts || []);
-                            return Object.entries(tree.children).map(([name, node], idx) => (
-                                <RenderMenuItems
-                                    key={idx}
-                                    node={node}
-                                    nodeName={name}
-                                    isTopLevel={true}
-                                />
-                            ));
-                        })()}
+                        {Object.entries(contextTree.children).map(([name, node], idx) => (
+                            <RenderMenuItems
+                                key={idx}
+                                node={node}
+                                nodeName={name}
+                                isTopLevel={true}
+                                showRoot={true}
+                                attr={item?.context || context}
+                                setter={(ctx: string) => finalSetContext && finalSetContext(ctx)}
+                            />
+                        ))}
+                    </div> : <></>}
+                    {item && updateItem && (tableDataItem != undefined) && tableDataItem.columnContexts && tableDataItem.columnContexts.length > 0 && <div className="pt-2">
+                        <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">
+                            <Grid2x2 size={18} /> Column Context
+                        </div>
+                        {Object.entries(columnContextTree.children).map(([name, node], idx) => (
+                            <RenderMenuItems
+                                key={idx}
+                                node={node}
+                                nodeName={name}
+                                isTopLevel={true}
+                                showRoot={true}
+                                attr={item.column_context}
+                                setter={updateItem(item, "column_context")}
+                            />
+                        ))}
                     </div>}
                 </div>
             </BaseDropdown>
