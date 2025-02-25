@@ -6,7 +6,7 @@ import NumericColumnFilter from "./Numbers";
 import TimeColumnFilter from "./Time";
 import ImageColumnFilter from "./Images";
 import BooleanColumnFilter from "./Bools";
-import ObjectColumnFilter from "./Objects";
+import ListColumnFilter from "./Lists";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 import { Dispatch, SetStateAction } from "react";
@@ -108,8 +108,8 @@ const ColumnFilter = ({
         setIsFiltered={setIsFiltered}
         renderMode={renderMode}/>
     }
-    else if (dataTypes[column] === "dict" || dataTypes[column] === "list"){
-        filter = <ObjectColumnFilter
+    else if (dataTypes[column] === "list"){
+        filter = <ListColumnFilter
         interactive={interactive}
         column={column}
         columnFilters={columnFilters}

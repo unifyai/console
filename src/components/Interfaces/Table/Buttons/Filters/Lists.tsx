@@ -15,14 +15,14 @@ import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/UI/dialog";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 
-interface ObjectFilter {
+interface ListFilter {
     key: number,
-    mode: "in" | "not in" | "in str" | "not in str" | "exists" | "isNone",
+    mode: "in" | "not in" | "exists" | "isNone",
     join: "&&" | "||",
     value: string
 }
 
-const ObjectColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, logs, open, setOpen, filterLoading, setFilterLoading, setIsFiltered, renderMode }: {
+const ListColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, logs, open, setOpen, filterLoading, setFilterLoading, setIsFiltered, renderMode }: {
     interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn
@@ -46,14 +46,12 @@ const ObjectColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
     const options = [
         {name: "in", label: "Includes", description: `Filter for ${column} values included in..`},
         {name: "not in", label: "Excludes", description: `Filter for ${column} values not included in..`},
-        {name: "in str", label: "Includes string", description: `Filter for values included in ${column} string..`},
-        {name: "not in str", label: "Excludes string", description: `Filter for values not included in ${column} string..`},
         {name: "exists", label: "Exists" , description: `Filter for existing ${column} values..`},
         {name: "isNone", label: "Is None" , description: `Filter for none ${column} values..`}
     ]
     const modes = options.map(option => option.name)
-    let defaultFilter : ObjectFilter = {key: 0, mode: "in", join: "&&", value: ""}
-    let initialValues : ObjectFilter[] = [];
+    let defaultFilter : ListFilter = {key: 0, mode: "in", join: "&&", value: ""}
+    let initialValues : ListFilter[] = [];
     if (columnFilters[column]) {
         initFilters(column, columnFilters, initialValues, modes)
     } else {
@@ -67,7 +65,7 @@ const ObjectColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
     }, [isFiltered])
 
     /* Event handlers */
-    const onInput = (input: any, filter: ObjectFilter) => {
+    const onInput = (input: any, filter: ListFilter) => {
         const newFilters = [...filters]
         newFilters.find(f => f.key === filter.key)!.value = input.currentTarget.value
         setFilters(newFilters)
@@ -79,7 +77,7 @@ const ObjectColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
                 key: f.key, 
                 mode: f.mode, 
                 join: f.join, 
-                value: f.value.startsWith('"') && f.value.endsWith('"') ? f.value : `"${f.value}"`  // Need to wrap in quotes
+                value: f.value
             }))
             const filter : Filters = combineFilters(newFilters, modes)
             newColumnFilters = {...columnFilters, [column]: filter}
@@ -137,7 +135,7 @@ const ObjectColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
         </BaseDropdown>
 
     // Filter row
-    const join = (filter: ObjectFilter) => 
+    const join = (filter: ListFilter) => 
         <BaseDropdown button={<ActionButton tooltip="Update joining method" text={filter.join === "&&" ? "and" : "or"}/>}>
             {["And", "Or"].map((method, index) => 
                 <DropdownMenuItem 
@@ -154,7 +152,7 @@ const ObjectColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
                 </DropdownMenuItem>
             )}
         </BaseDropdown>
-    const valueInput = (filter: ObjectFilter, option: {name: string, label: string, description: string} ) => 
+    const valueInput = (filter: ListFilter, option: {name: string, label: string, description: string} ) => 
         <Input
             className="-ms-px rounded-s-none shadow-none focus-visible:z-10"
             placeholder={option.description}
@@ -163,7 +161,7 @@ const ObjectColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
             onInput={(input: any) => onInput(input, filter)}
             onKeyDown={onEnter}
         />
-    const toggleInput = (filter: ObjectFilter) =>     
+    const toggleInput = (filter: ListFilter) =>     
         <BaseButton 
             text={filter.value} 
             variant="outline" 
@@ -175,7 +173,7 @@ const ObjectColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
                     : newFilters.find(f => f.key === filter.key)!.value = "true"
             }}
         />
-    const filterInput = (filter: ObjectFilter) => {
+    const filterInput = (filter: ListFilter) => {
         const option = options.find(option => option.name === filter.mode)!;
         return (
             <InputWithStartSelect
@@ -193,7 +191,7 @@ const ObjectColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
             </InputWithStartSelect>
         )
     }
-    const remove = (filter: ObjectFilter) =>
+    const remove = (filter: ListFilter) =>
         <ActionButton
             tooltip="Remove filter"
             icon={<Minus/>}
@@ -273,6 +271,12 @@ const ObjectColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
             className="sm:max-w-lg"
           >
 
+            <DialogHeader>
+              <DialogDescription>
+                Search for string numeric list items by wrapping the filter value in quotes, otherwise just type the desired filter value.
+              </DialogDescription>
+            </DialogHeader>
+
             {/* The main filter UI */}
             {filterContent}
 
@@ -290,4 +294,4 @@ const ObjectColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
       );
 }
 
-export default ObjectColumnFilter;
+export default ListColumnFilter;

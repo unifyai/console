@@ -187,7 +187,7 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
         <BaseButton 
             text={filter.value === "True" ? "true" : filter.value === "False" ? "false" : filter.value} 
             variant="outline" 
-            className="rounded-none rounded-tr-lg rounded-br-lg"
+            className="rounded-none rounded-tr-lg rounded-br-lg w-full"
             onKeyDown={onEnter}
             onClick={() => {
                 const newFilters = [...filters]
