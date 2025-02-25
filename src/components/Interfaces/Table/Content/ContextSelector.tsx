@@ -29,19 +29,109 @@ const ContextSelector = ({
     button?: React.ReactNode,
 }) => {
     const finalSetContext = (updateItem != undefined && item != undefined) ? updateItem(item, "context") : setContext;
-    console.log(item, updateItem, tableDataItem);
+
+    interface TreeNode {
+        path: string;
+        children: { [key: string]: TreeNode };
+        isComplete: boolean;
+    }
+
+    const buildTree = (paths: string[]) => {
+        const root: TreeNode = { path: '', children: {}, isComplete: false };
+
+        paths.forEach(path => {
+            let current = root;
+            const parts = path.split('/').filter(Boolean);
+
+            let currentPath = '';
+            parts.forEach((part, index) => {
+                currentPath += part + '/';
+                if (!current.children[part]) {
+                    current.children[part] = {
+                        path: currentPath,
+                        children: {},
+                        isComplete: index === parts.length - 1
+                    };
+                }
+                current = current.children[part];
+            });
+        });
+
+        return root;
+    };
+
+    const RenderMenuItems = ({ node, nodeName, isTopLevel }: {
+        node: TreeNode,
+        nodeName: string,
+        isTopLevel?: boolean
+    }) => {
+        const hasChildren = Object.keys(node.children).length > 0;
+
+        if (!hasChildren && item != undefined && updateItem != undefined) {
+            return (
+                <DropdownMenuItem
+                    onSelect={() => (
+                        (node.path.slice(0, -1) != item.column_context)
+                            ? updateItem(item, "column_context")(node.path.slice(0, -1))
+                            : updateItem(item, "column_context")("")
+                    )}
+                    className="w-64 justify-between"
+                >
+                    {nodeName}{item.column_context == node.path.slice(0, -1) && <Check />}
+                </DropdownMenuItem>
+            );
+        }
+
+        return (
+            <DropdownMenuGroup>
+                <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="hover:text-white data-[state=open]:text-white">
+                        {nodeName}
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                        <DropdownMenuSubContent>
+                            {/* Make the current path selectable with "root" label */}
+                            {node.isComplete && item != undefined && updateItem != undefined && (
+                                <DropdownMenuItem
+                                    onSelect={() => (
+                                        (node.path.slice(0, -1) != item.column_context)
+                                            ? updateItem(item, "column_context")(node.path.slice(0, -1))
+                                            : updateItem(item, "column_context")("")
+                                    )}
+                                >
+                                    {isTopLevel ? "<root>" : nodeName}{item.column_context == node.path.slice(0, -1) && <Check />}
+                                </DropdownMenuItem>
+                            )}
+                            {/* Render children */}
+                            {Object.entries(node.children).map(([childName, childNode], idx) => (
+                                <RenderMenuItems
+                                    key={idx}
+                                    node={childNode}
+                                    nodeName={childName}
+                                    isTopLevel={false}
+                                />
+                            ))}
+                        </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                </DropdownMenuSub>
+            </DropdownMenuGroup>
+        );
+    };
+
+    // Build and render the tree
+    const tree = buildTree(tableDataItem?.columnContexts || []);
 
     return (
         <div className="w-fit">
             <BaseDropdown
                 button={button || <ActionButton
                     tooltip="Edit Context and Column Context"
-                    icon={<FolderTree/>}
+                    icon={<FolderTree />}
                     variant="outline"
                     size="sm"
                 />}
             >
-                <div className="flex flex-col gap-6 pt-2">
+                <div className="flex flex-col gap-4 pt-2">
                     <div>
                         <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">
                             <Braces size={18} /> Context
@@ -50,8 +140,8 @@ const ContextSelector = ({
                             key={context_.name}
                             onSelect={() => (
                                 (item?.context || context) != context_.name
-                                ? (finalSetContext && finalSetContext(context_.name))
-                                : (finalSetContext && finalSetContext(""))
+                                    ? (finalSetContext && finalSetContext(context_.name))
+                                    : (finalSetContext && finalSetContext(""))
                             )}
                             className="w-64 justify-between"
                         >
@@ -61,111 +151,19 @@ const ContextSelector = ({
                         </DropdownMenuItem>) : <></>}
                     </div>
                     {item && updateItem && (tableDataItem != undefined) && <div>
-                        {tableDataItem.columnContexts && tableDataItem.columnContexts.length > 0 && (
+                        {tableDataItem.columnContexts && tableDataItem.columnContexts.length > 0 && <>
                             <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">
                                 <Grid2x2 size={18} /> Column Context
                             </div>
-                        )}
-                        {(() => {
-                            interface TreeNode {
-                                path: string;
-                                children: { [key: string]: TreeNode };
-                                isComplete: boolean;
-                            }
-
-                            const buildTree = (paths: string[]) => {
-                                const root: TreeNode = { path: '', children: {}, isComplete: false };
-
-                                paths.forEach(path => {
-                                    let current = root;
-                                    const parts = path.split('/').filter(Boolean);
-
-                                    let currentPath = '';
-                                    parts.forEach((part, index) => {
-                                        currentPath += part + '/';
-                                        if (!current.children[part]) {
-                                            current.children[part] = {
-                                                path: currentPath,
-                                                children: {},
-                                                isComplete: index === parts.length - 1
-                                            };
-                                        }
-                                        current = current.children[part];
-                                    });
-                                });
-
-                                return root;
-                            };
-
-                            const RenderMenuItems = ({ node, nodeName, isTopLevel }: {
-                                node: TreeNode,
-                                nodeName: string,
-                                isTopLevel?: boolean
-                            }) => {
-                                const hasChildren = Object.keys(node.children).length > 0;
-
-                                if (!hasChildren) {
-                                    return (
-                                        <DropdownMenuItem
-                                            onSelect={() => (
-                                                (node.path.slice(0, -1) != item.column_context)
-                                                ? updateItem(item, "column_context")(node.path.slice(0, -1))
-                                                : updateItem(item, "column_context")("")
-                                            )}
-                                            className="w-64 justify-between"
-                                        >
-                                            {nodeName}{item.column_context == node.path.slice(0, -1) && <Check />}
-                                        </DropdownMenuItem>
-                                    );
-                                }
-
-                                return (
-                                    <DropdownMenuGroup>
-                                        <DropdownMenuSub>
-                                            <DropdownMenuSubTrigger className="hover:text-white data-[state=open]:text-white">
-                                                {nodeName}
-                                            </DropdownMenuSubTrigger>
-                                            <DropdownMenuPortal>
-                                                <DropdownMenuSubContent>
-                                                    {/* Make the current path selectable with "root" label */}
-                                                    {node.isComplete && (
-                                                        <DropdownMenuItem
-                                                            onSelect={() => (
-                                                                (node.path.slice(0, -1) != item.column_context)
-                                                                ? updateItem(item, "column_context")(node.path.slice(0, -1))
-                                                                : updateItem(item, "column_context")("")
-                                                            )}
-                                                        >
-                                                            {isTopLevel ? "<root>" : nodeName}{item.column_context == node.path.slice(0, -1) && <Check />}
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                    {/* Render children */}
-                                                    {Object.entries(node.children).map(([childName, childNode], idx) => (
-                                                        <RenderMenuItems
-                                                            key={idx}
-                                                            node={childNode}
-                                                            nodeName={childName}
-                                                            isTopLevel={false}
-                                                        />
-                                                    ))}
-                                                </DropdownMenuSubContent>
-                                            </DropdownMenuPortal>
-                                        </DropdownMenuSub>
-                                    </DropdownMenuGroup>
-                                );
-                            };
-
-                            // Build and render the tree
-                            const tree = buildTree(tableDataItem?.columnContexts || []);
-                            return Object.entries(tree.children).map(([name, node], idx) => (
+                            {Object.entries(tree.children).map(([name, node], idx) => (
                                 <RenderMenuItems
                                     key={idx}
                                     node={node}
                                     nodeName={name}
                                     isTopLevel={true}
                                 />
-                            ));
-                        })()}
+                            ))}
+                        </>}
                     </div>}
                 </div>
             </BaseDropdown>
