@@ -609,9 +609,9 @@ const DataTableHeader = ({
                 </div>
             )}
 
-            {/* Column show - middle third */}
+            {/* Column show - half */}
             {!header.isPlaceholder && (
-                <div className="absolute top-1/3 right-0" style={{ height: '33.33%' }}>
+                <div className="absolute top-1.5 right-0" style={{ height: '33.33%' }}>
                     <ColumnShow
                         table={table}
                         header={header}
@@ -624,10 +624,6 @@ const DataTableHeader = ({
                 </div>
             )}
 
-            {/* Column resizer - bottom third */}
-            <div className="absolute bottom-0 right-0" style={{ height: '33.33%' }}>
-                <ColumnResizer column={header.column} resizeHandler={resizeMap[header.column.id]}/>
-            </div>
         </div>
       </div>
       {children}

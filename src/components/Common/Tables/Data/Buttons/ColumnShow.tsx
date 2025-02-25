@@ -51,7 +51,7 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
         if (currentColumnIndex !== -1) {
             // Look at columns to the right of the current column in the columnOrder array
             const allColumns = table.getAllFlatColumns();
-            for (let i = currentColumnIndex + 1; i < columnOrder.length; i++) {
+            for (let i = currentColumnIndex; i < columnOrder.length; i++) {
                 const colId = columnOrder[i];
                 const col = allColumns.find(c => c.id === colId);
 
@@ -172,7 +172,7 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
     if (!shouldShowButton) return null;
 
     // Sub components
-    const columnButtonLabel = hiddenColumns.length > 0 ? "Show Column" : "New Column";
+    const columnButtonLabel = "Add Column";
     const columnButton = <ActionButton tooltip={columnButtonLabel} icon={<CirclePlus />} />
     const hidden =  <DropdownMenuGroup>
                         {hiddenColumns.map((column, index) =>
@@ -185,7 +185,7 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
                     </DropdownMenuGroup>
 
     const derived = ColumnCreate ? ColumnCreate(header.column.id, setOpen) : null;
-
+    
     return (
         <div className="absolute -right-2 z-10 hover:opacity-100 opacity-0 transition-all">
             <BaseDropdown button={columnButton} open={open} setOpen={setOpen}>
