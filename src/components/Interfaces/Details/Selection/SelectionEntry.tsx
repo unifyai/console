@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { LogProps } from "@/types/evals/logs";
 import {
   AccordionItem,
@@ -19,10 +19,10 @@ import TimestampView from "./Views/TimestampView";
 import ChatOutView from "./Views/ChatView/ChatOutView";
 
 import Tooltip from "@/components/Common/Misc/Tooltip";
-import { CircleMinus } from "lucide-react";
+import { CircleMinus, FoldVertical, UnfoldVertical } from "lucide-react";
 
 import RawView from "./Views/RawView";
-import { 
+import {
   isTrace,
   isDict,
   isList,
@@ -42,41 +42,64 @@ import {
   Text,
   Hash,
   Clock,
-  MessagesSquare,
-  FoldVertical,
-  UnfoldVertical
+  MessagesSquare
 } from "lucide-react";
 
-import { ItemType, TileProps } from "@/types/evals/grid";
-import { sanitizeId } from "@/utils/evals/columnOperations";
-import { Button } from "@/components/UI/button"; // for expand/collapse toggles
+import { useExpandContext } from "@/contexts/ExpandContext";
+import {
+  makePrefixedDictPath,
+  makePrefixedListPath,
+  gatherAllSubPaths
+} from "@/utils/evals/pathUtils";
 
-/**
- * Type definitions
- */
+import { ItemType, TileProps } from "@/types/evals/grid";
+
+//////////////////////////////////////////////////////////////////////////////
+// Type definitions
+//////////////////////////////////////////////////////////////////////////////
 type SourceType = "entries" | "params";
 type DiffMode = "none" | "lines" | "words" | "characters";
 
+//////////////////////////////////////////////////////////////////////////////
+// Helpers
+//////////////////////////////////////////////////////////////////////////////
+function isEmptyOrBlank(v: any): boolean {
+  return v == null || (typeof v === "string" && !v.trim());
+}
+
 /**
- * getValueType: detects top-level type for a single value
+ * If multiple distinct types appear among base+comparables, treat as string.
  */
 function getValueType(value: any):
   "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat"
 {
-  if (isTrace(value))   return "trace";
-  if (isDict(value))    return "dict";
-  if (isList(value))    return "list";
-  if (isImage(value))   return "image";
-  if (isMatrix(value))  return "matrix";
-  if (isNumber(value))  return "number";
+  if (isTrace(value))     return "trace";
+  if (isDict(value))      return "dict";
+  if (isList(value))      return "list";
+  if (isImage(value))     return "image";
+  if (isMatrix(value))    return "matrix";
+  if (isNumber(value))    return "number";
   if (isTimestamp(value)) return "timestamp";
-  if (isChat(value))    return "chat";
+  if (isChat(value))      return "chat";
   return "string";
 }
 
-/**
- * getTypeIcon: returns appropriate icon
- */
+function unifyType(baseVal: any, comps: any[]): string {
+  const arr = [];
+  if (!isEmptyOrBlank(baseVal)) arr.push(baseVal);
+  comps.forEach((c) => {
+    if (!isEmptyOrBlank(c)) arr.push(c);
+  });
+  if (!arr.length) return "string";
+
+  const typeSet = new Set<string>();
+  arr.forEach((val) => {
+    typeSet.add(getValueType(val));
+  });
+  if (typeSet.size === 1) return Array.from(typeSet)[0];
+  return "string";
+}
+
 function getTypeIcon(valueType: string) {
   switch (valueType) {
     case "trace":
@@ -101,214 +124,204 @@ function getTypeIcon(valueType: string) {
 }
 
 /**
- * unifyType: uses baseVal + comparables to decide on a single type. 
- * If multiple distinct types appear, fallback to "string."
- * (We skip null/undefined/empty-string in the union.)
- */
-function unifyType(
-  baseVal: any,
-  comps: any[]
-):
-  "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat"
-{
-  // gather all non-undefined, non-empty-string
-  const allVals: any[] = [];
-  if (baseVal !== undefined && baseVal !== null && !(typeof baseVal === "string" && baseVal.trim().length === 0)) {
-    allVals.push(baseVal);
-  }
-  comps.forEach(c => {
-    if (c !== undefined && c !== null && !(typeof c === "string" && c.trim().length === 0)) {
-      allVals.push(c);
-    }
-  });
-
-  // if we still have nothing => "string"
-  if (allVals.length === 0) {
-    return "string";
-  }
-
-  // gather distinct types
-  const typeSet = new Set<string>();
-  for (const val of allVals) {
-    const t = getValueType(val);
-    typeSet.add(t);
-  }
-
-  // if exactly one => use it; else fallback to "string"
-  if (typeSet.size === 1) {
-    return Array.from(typeSet)[0] as any;
-  }
-  return "string";
-}
-
-/**
- * getSelectionView: specialized or raw, using unifyType(...) 
- * for the final type, not just getValueType(value).
+ * Render specialized subcomponent or raw for the given value/comparables.
  */
 function getSelectionView(
-  value: any,
-  comparables: any[],
+  val: any,
+  comps: any[],
   version: string,
-  comparableVersions: string[],
+  vers: string[],
   baseLogIndex: number,
-  comparisonLogsIndex: number[],
+  compLogIndex: number[],
   diffMode: DiffMode,
   splitView: boolean,
   displayMode: "text" | "markdown" | "raw",
-  forceExpandAll?: boolean
+  nestingLevel: number,
+  prefix: string,
+  parentPath: string
 ) {
-  // if raw => skip type logic
+  // If user wants "raw"
   if (displayMode === "raw") {
     return (
       <RawView
-        value={value}
-        comparables={comparables}
+        value={val}
+        comparables={comps}
         version={version}
-        comparableVersions={comparableVersions}
+        comparableVersions={vers}
         baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={comparisonLogsIndex}
+        comparisonLogsIndex={compLogIndex}
         diffMode={diffMode}
         splitView={splitView}
       />
     );
   }
 
-  // unify the type from base + comps
-  const finalType = unifyType(value, comparables);
+  // unify
+  const finalType = unifyType(val, comps);
 
   switch (finalType) {
     case "trace":
       return (
         <TraceView
-          value={Array.isArray(value) ? value : [value]}
-          comparables={comparables.map((c) =>
-            Array.isArray(c) ? c : c ? [c] : []
-          )}
+          value={Array.isArray(val) ? val : [val]}
+          comparables={comps.map((c) => (Array.isArray(c) ? c : c ? [c] : []))}
           baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={comparisonLogsIndex}
+          comparisonLogsIndex={compLogIndex}
           diffMode={diffMode}
           splitView={splitView}
           version={version}
-          comparableVersions={comparableVersions}
+          comparableVersions={vers}
           displayMode={displayMode}
         />
       );
     case "chat":
       return (
         <ChatOutView
-          value={value}
-          comparables={comparables}
+          value={val}
+          comparables={comps}
           baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={comparisonLogsIndex}
+          comparisonLogsIndex={compLogIndex}
           diffMode={diffMode}
           splitView={splitView}
           version={version}
-          comparableVersions={comparableVersions}
+          comparableVersions={vers}
           displayMode={displayMode}
         />
       );
     case "dict":
       return (
         <DictionaryView
-          value={value}
-          comparables={comparables}
+          value={val}
+          comparables={comps}
           baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={comparisonLogsIndex}
+          comparisonLogsIndex={compLogIndex}
           diffMode={diffMode}
           splitView={splitView}
           version={version}
-          comparableVersions={comparableVersions}
-          forceExpandAll={forceExpandAll}
+          comparableVersions={vers}
           displayMode={displayMode}
+          nestingLevel={nestingLevel}
+          prefix={prefix}
+          parentPath={parentPath}
         />
       );
     case "list":
       return (
         <ListView
-          value={value}
-          comparables={comparables}
+          value={val}
+          comparables={comps}
           baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={comparisonLogsIndex}
+          comparisonLogsIndex={compLogIndex}
           diffMode={diffMode}
           splitView={splitView}
           version={version}
-          comparableVersions={comparableVersions}
-          forceExpandAll={forceExpandAll}
+          comparableVersions={vers}
           displayMode={displayMode}
+          nestingLevel={nestingLevel}
+          prefix={prefix}
         />
       );
     case "image":
       return (
         <ImageView
-          value={value}
-          comparables={comparables}
+          value={val}
+          comparables={comps}
           baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={comparisonLogsIndex}
+          comparisonLogsIndex={compLogIndex}
           diffMode={diffMode}
           splitView={splitView}
           version={version}
-          comparableVersions={comparableVersions}
+          comparableVersions={vers}
           displayMode={displayMode}
         />
       );
     case "matrix":
       return (
         <MatrixView
-          value={value}
-          comparables={comparables}
+          value={val}
+          comparables={comps}
           baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={comparisonLogsIndex}
+          comparisonLogsIndex={compLogIndex}
           diffMode={diffMode}
           splitView={splitView}
           version={version}
-          comparableVersions={comparableVersions}
+          comparableVersions={vers}
           displayMode={displayMode}
         />
       );
     case "number":
       return (
         <NumberView
-          value={value}
-          comparables={comparables}
+          value={val}
+          comparables={comps}
           baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={comparisonLogsIndex}
+          comparisonLogsIndex={compLogIndex}
           diffMode={diffMode}
           splitView={splitView}
           version={version}
-          comparableVersions={comparableVersions}
+          comparableVersions={vers}
           displayMode={displayMode}
         />
       );
     case "timestamp":
       return (
         <TimestampView
-          value={value}
-          comparables={comparables}
+          value={val}
+          comparables={comps}
           baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={comparisonLogsIndex}
+          comparisonLogsIndex={compLogIndex}
           diffMode={diffMode}
           splitView={splitView}
           version={version}
-          comparableVersions={comparableVersions}
+          comparableVersions={vers}
           displayMode={displayMode}
         />
       );
     default:
-      // fallback => "string"
       return (
         <StringView
-          value={value}
-          comparables={comparables}
+          value={val}
+          comparables={comps}
           baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={comparisonLogsIndex}
+          comparisonLogsIndex={compLogIndex}
           diffMode={diffMode}
           splitView={splitView}
           version={version}
-          comparableVersions={comparableVersions}
+          comparableVersions={vers}
           displayMode={displayMode}
         />
       );
   }
+}
+
+/** debug helper */
+function debugLog(area: string, msg: string, data?: any) {
+  console.log(`[SelectionEntry:${area}]`, msg, data || '');
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// The main "SelectionEntry" component
+//////////////////////////////////////////////////////////////////////////////
+interface SelectionEntryProps {
+  source?: SourceType;
+  property: string;
+  value: any;
+  baseLog: LogProps | undefined;
+  baseLogIndex: number;
+  comparisonLogs?: LogProps[];
+  comparisonLogsIndex: number[];
+  diffMode: DiffMode;
+  splitView: boolean;
+  displayMode: "text" | "markdown" | "raw";
+  version?: string;
+  comparableVersions?: string[];
+  tableItem: TileProps | undefined;
+  updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
+  onAccordionValueChange?: (value: string[]) => void;
+  onHideColumn?: (prop: string) => void;
+  editMode?: boolean;
+  forceExpandAll?: boolean;
+  forceCollapseAll?: boolean;
 }
 
 export default function SelectionEntry({
@@ -329,87 +342,104 @@ export default function SelectionEntry({
   onAccordionValueChange,
   onHideColumn,
   editMode = false,
-}: {
-  source?: SourceType;
-  property: string;
-  value: any;
-  baseLog: LogProps | undefined;
-  baseLogIndex: number;
-  comparisonLogs?: LogProps[];
-  comparisonLogsIndex: number[];
-  diffMode: DiffMode;
-  splitView: boolean;
-  displayMode: "text" | "markdown" | "raw";
-  version?: string;
-  comparableVersions?: string[];
-  tableItem: TileProps | undefined;
-  updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
-  onAccordionValueChange?: (value: string[]) => void;
-  onHideColumn?: (prop: string) => void;
-  editMode?: boolean;
-}) {
+  forceExpandAll,
+  forceCollapseAll,
+}: SelectionEntryProps) {
   const [hovered, setHovered] = useState(false);
-  const [expandAll, setExpandAll] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
   const [prevAccordionValues, setPrevAccordionValues] = useState<string[]>([]);
+  const { openKeys, setOpenKeys } = useExpandContext();
 
-  // Gather comparables from the relevant container
-  let comps = (comparisonLogs ?? []).map((cl) => {
-    const container = source === "params" ? cl.params ?? {} : cl.entries ?? {};
-    return container[property];
+  // gather comparables
+  const comps = (comparisonLogs ?? []).map((cl) => {
+    const container = source === "params" ? (cl.params || {}) : (cl.entries || {});
+    const rawVal = container[property];
+    if (source === "params" && rawVal && typeof rawVal === "object") {
+      return rawVal.paramValue; // param object with paramValue
+    }
+    return rawVal;
   });
 
-  // Possibly read paramVersion structure
+  // Possibly handle paramValue on the base as well
   let rawValue = value;
   if (source === "params" && value && typeof value === "object") {
-    rawValue = value.paramValue; 
-    comps = comps.map((c) => c?.paramValue);
+    rawValue = value.paramValue;
   }
 
-  // Check if everything is effectively empty => skip rendering entirely
-  function isEmptyOrBlank(v: any): boolean {
-    if (v === null || v === undefined) return true;
-    if (typeof v === "string" && v.trim().length === 0) return true;
-    return false;
-  }
+  // skip if empty
   const allVals = [rawValue, ...comps];
-  const allEmpty = allVals.every(isEmptyOrBlank);
-  if (allEmpty) {
-    // do not render at all
+  if (allVals.every(isEmptyOrBlank)) {
     return null;
   }
 
-  // unify the type from base + comparables for the icon
+  // find type
   const unifiedType = unifyType(rawValue, comps);
   const icon = getTypeIcon(unifiedType);
 
-  const handleDeselectColumn = () => {
-    if (onHideColumn) {
-      onHideColumn(property);
-    }
-  };
+  function handleDeselectColumn() {
+    onHideColumn?.(property);
+  }
 
-  const forciblySetAccordionOpen = (open: boolean) => {
-    if (onAccordionValueChange) {
-      if (open) {
-        onAccordionValueChange([property]);
-      } else {
-        onAccordionValueChange([]);
-      }
-    }
-  };
+  // is it dict/list?
+  const isDictOrList = unifiedType === "dict" || unifiedType === "list";
 
-  const handleExpandToggle = (e: React.MouseEvent) => {
+  // We'll pass nestingLevel=0 for top-level
+  const childNesting = 0;
+
+  // Build the top-level path for dictionaries/lists
+  const topLevelPath = useMemo(() => {
+    if (!isDictOrList) return "";
+    const prefixStr = source === "entries" ? "entries" : "params";
+    // at top-level, we keep nestingLevel = 0
+    return makePrefixedDictPath(prefixStr, 0, property);
+  }, [isDictOrList, property, source]);
+
+  // We'll gather all subpaths for a fully recursive approach
+  // when user clicks the global expand button (the "FoldVertical / UnfoldVertical").
+  const subPaths = useMemo(() => {
+    if (!isDictOrList) return [];
+    if (!topLevelPath) return [];
+    const prefixStr = source === "entries" ? "entries" : "params";
+
+    // fully gather everything
+    const paths = gatherAllSubPaths(rawValue, topLevelPath, prefixStr, 0);
+    return paths;
+  }, [rawValue, isDictOrList, topLevelPath, source]);
+
+  // check if all subPaths are in openKeys => allOpen
+  const allOpen = useMemo(() => {
+    if (!isDictOrList) return false;
+    if (!subPaths.length) return false;
+    return subPaths.every((p) => openKeys.has(p));
+  }, [isDictOrList, subPaths, openKeys]);
+
+  // global expand/collapse => fully recursive
+  const handleGlobalExpandToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!expandAll) {
-      forciblySetAccordionOpen(true);
-      setExpandAll(true);
-    } else {
-      setExpandAll(false);
-    }
+    if (!isDictOrList) return;
+
+    debugLog('expand', `Toggle expand for ${property}`, {
+      currentlyAllOpen: allOpen,
+      subPaths,
+      openKeys: Array.from(openKeys),
+      value: rawValue,
+      unifiedType,
+      topLevelPath
+    });
+
+    setOpenKeys((prev) => {
+      const next = new Set(prev);
+      if (allOpen) {
+        // collapse everything
+        subPaths.forEach((p) => next.delete(p));
+      } else {
+        // expand everything
+        subPaths.forEach((p) => next.add(p));
+      }
+      return next;
+    });
   };
 
-  // specialized or raw content
+  // subcomponent that actually renders the value
   const renderedContent = getSelectionView(
     rawValue,
     comps,
@@ -417,21 +447,34 @@ export default function SelectionEntry({
     comparableVersions,
     baseLogIndex,
     comparisonLogsIndex,
-    diffMode || "none",
+    diffMode,
     splitView,
     displayMode,
-    expandAll
+    childNesting, // now always 0 if top-level
+    source === "entries" ? "entries" : "params",
+    topLevelPath // Pass the top-level path as parentPath
   );
+
+  // For the shadcn <AccordionItem>, we unify property => so the parent's "onValueChange" logic sees a simpler string
+  const itemValue = property;
+
+  // Lifecycle logging
+  useEffect(() => {
+    debugLog('lifecycle', `SelectionEntry for ${property}`, {
+      unifiedType,
+      isDictOrList,
+      topLevelPath,
+      subPathsCount: subPaths.length,
+      allOpen,
+      openKeysCount: openKeys.size
+    });
+  }, [property, unifiedType, isDictOrList, topLevelPath, subPaths, allOpen, openKeys]);
 
   return (
     <AccordionItem
-      value={property}
+      value={itemValue}
       onDragStart={() => {
-        setPrevAccordionValues(
-          typeof onAccordionValueChange === "function"
-            ? []
-            : []
-        );
+        setPrevAccordionValues([]);
         onAccordionValueChange?.([]);
       }}
       onDragEnd={() => {
@@ -441,10 +484,11 @@ export default function SelectionEntry({
       <AccordionTrigger
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        onClick={() => {
-          if (!editMode) {
-            setIsOpen(!isOpen);
-            setExpandAll(false);
+        onClick={(evt) => {
+          // if we're in edit mode, block toggling
+          if (editMode) {
+            evt.preventDefault();
+            evt.stopPropagation();
           }
         }}
         className="flex items-center relative group"
@@ -467,14 +511,11 @@ export default function SelectionEntry({
           </Tooltip>
         </div>
 
-        {(!editMode && isOpen && (unifiedType === "dict" || unifiedType === "list")) && (
+        {!editMode && isDictOrList && subPaths.length > 0 && (
           <div className="absolute right-5 flex gap-1 items-center">
-            <Button
-              variant="ghost"
-              onClick={handleExpandToggle}
-            >
-              {expandAll ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
-            </Button>
+            <button className="p-1 hover:bg-muted rounded" onClick={handleGlobalExpandToggle}>
+              {allOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+            </button>
           </div>
         )}
       </AccordionTrigger>

@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useEffect } from "react";
 import {
   Accordion,
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
 } from "@/components/UI/accordion";
+import { Button } from "@/components/UI/button";
+import { FoldVertical } from "lucide-react";
 
 import {
   isList,
@@ -18,61 +20,49 @@ import {
   isTimestamp,
   isChat,
 } from "@/utils/evals/selection";
+import {
+  gatherAllSubPaths,
+  makePrefixedListPath,
+  sanitizePropertyKey,
+} from "@/utils/evals/pathUtils";
+import { useExpandContext } from "@/contexts/ExpandContext";
 
+import { LogComparisonProps } from "./types";
+import { getValueType, getTypeIcon } from "./ViewTypes";
+import RowBadge from "./RowBadge";
+
+// Subcomponents (similar to dictionary)
+import TraceView from "./TraceView";
+import ChatView from "./ChatView";
 import DictionaryView from "./DictionaryView";
 import ImageView from "./ImageView";
 import MatrixView from "./MatrixView";
 import StringView from "./StringView";
-import TraceView from "./TraceView";
 import NumberView from "./NumberView";
 import TimestampView from "./TimestampView";
-import ChatView from "./ChatView";
 
-import { LogComparisonProps } from "./types";
-import { getValueType, getTypeIcon } from "./ViewTypes";
-
-import { Button } from "@/components/UI/button";
-import { FoldVertical, UnfoldVertical } from "lucide-react";
-
-// RowBadge is used to display row-based “insert/delete” badges
-import RowBadge from "./RowBadge";
-
-/*───────────────────────────────────────────────────────────────────────────
-  unifyType: merges baseVal + comparables to produce a single type.
-  If multiple distinct types appear, fallback to "string."
-───────────────────────────────────────────────────────────────────────────*/
+/*────────────────────────────────────────────────────────────────────────────
+  unifyType => merges base + comps => single type. If multiple distinct => "string."
+────────────────────────────────────────────────────────────────────────────*/
 function unifyType(baseVal: any, comps: any[]): string {
-  // Gather all values
-  const rawVals = [baseVal, ...comps];
-
-  // Filter out null, undefined, empty string
-  const filtered = rawVals.filter((v) => {
+  const filtered = [baseVal, ...comps].filter((v) => {
     if (v === null || v === undefined) return false;
     if (typeof v === "string" && v.trim().length === 0) return false;
     return true;
   });
+  if (!filtered.length) return "string";
 
-  // If we have nothing => "string"
-  if (filtered.length === 0) {
-    return "string";
-  }
-
-  // Gather distinct types among the non-empty values
   const typeSet = new Set<string>();
   for (const val of filtered) {
-    const t = getValueType(val);
-    typeSet.add(t);
+    typeSet.add(getValueType(val));
   }
-
   return typeSet.size === 1 ? Array.from(typeSet)[0] : "string";
 }
 
-/*───────────────────────────────────────────────────────────────────────────
-  pickView => specialized sub-view
-───────────────────────────────────────────────────────────────────────────*/
-function pickView(
-  props: LogComparisonProps & { forceExpandAll?: boolean }
-): JSX.Element {
+/*────────────────────────────────────────────────────────────────────────────
+  pickView => specialized child rendering
+────────────────────────────────────────────────────────────────────────────*/
+function pickView(props: LogComparisonProps & { prefix?: string; parentPath?: string; nestingLevel?: number }) {
   const { value } = props;
 
   if (isTrace(value)) {
@@ -103,276 +93,343 @@ function pickView(
   return <StringView {...props} />;
 }
 
-/*───────────────────────────────────────────────────────────────────────────
-  toggleOneItemExpand => toggles just that item label expansion
-───────────────────────────────────────────────────────────────────────────*/
-function toggleOneItemExpand(
-  label: string,
-  openItems: string[],
-  setOpenItems: React.Dispatch<React.SetStateAction<string[]>>,
-  childForceExpand: string[],
-  setChildForceExpand: React.Dispatch<React.SetStateAction<string[]>>
+/*────────────────────────────────────────────────────────────────────────────
+  presenceDiff => highlight inserted/deleted items in multi-mode
+────────────────────────────────────────────────────────────────────────────*/
+function presenceDiff(
+  baseVal: any,
+  compVals: any[],
+  baseRowIndex: number,
+  compRowIndices: number[]
 ) {
-  if (!childForceExpand.includes(label)) {
-    setChildForceExpand((prev) => [...prev, label]);
-  } else {
-    setChildForceExpand((prev) => prev.filter((it) => it !== label));
-  }
+  const baseHas = baseVal !== undefined;
+  const redSet = new Set<number>();
+  const greenSet = new Set<number>();
+
+  compVals.forEach((val, i) => {
+    const row = compRowIndices[i];
+    const cHas = val !== undefined;
+    if (baseHas && !cHas) {
+      redSet.add(row);
+    } else if (!baseHas && cHas) {
+      greenSet.add(row);
+    }
+  });
+
+  return {
+    redRows: Array.from(redSet).sort((a, b) => a - b),
+    greenRows: Array.from(greenSet).sort((a, b) => a - b),
+  };
 }
 
-/*───────────────────────────────────────────────────────────────────────────
-  ListView component
-  - Preserves expansions, icons, single vs. multi logic, etc.
-  - Now includes presence‐diff highlighting in multi‐mode.
-───────────────────────────────────────────────────────────────────────────*/
-type ListViewProps = LogComparisonProps & {
-  forceExpandAll?: boolean;
-};
+/*────────────────────────────────────────────────────────────────────────────
+  handleRecursiveToggle => expand/collapse entire sublist recursively
+────────────────────────────────────────────────────────────────────────────*/
+function handleRecursiveToggle(
+  baseValue: unknown,
+  path: string,
+  prefix: string,
+  nestingLevel: number,
+  openKeys: Set<string>,
+  setOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>
+) {
+  console.log(`[ListView:handleRecursiveToggle] path=${path}, prefix=${prefix}, level=${nestingLevel}`, {
+    baseValue,
+    openKeysCount: openKeys.size
+  });
 
-const ListView: React.FC<ListViewProps> = (props) => {
-  const {
-    value,
-    comparables,
-    baseLogIndex,
-    comparisonLogsIndex,
-    version = "",
-    comparableVersions = [],
-    diffMode = "none",
-    splitView = false,
-    forceExpandAll = false,
-    displayMode = "markdown",
-  } = props;
+  const subPaths = gatherAllSubPaths(baseValue, path, prefix, nestingLevel);
+  console.log(`[ListView:handleRecursiveToggle] subPaths gathered:`, subPaths);
 
-  // single vs multi
-  const singleMode = !comparables || comparables.length === 0;
+  const allOpen = subPaths.every((p) => openKeys.has(p));
+  console.log(`[ListView:handleRecursiveToggle] allOpen=${allOpen}`);
 
-  // figure out how many items
-  let itemCount = Array.isArray(value) ? value.length : 0;
-  if (!singleMode && comparables) {
-    const compLens = comparables.map((c) => (isList(c) ? c.length : 0));
+  setOpenKeys((prev) => {
+    const next = new Set(prev);
+    if (allOpen) {
+      subPaths.forEach((sp) => next.delete(sp));
+    } else {
+      subPaths.forEach((sp) => next.add(sp));
+    }
+    return next;
+  });
+}
+
+/*────────────────────────────────────────────────────────────────────────────
+  "ListView" main component
+────────────────────────────────────────────────────────────────────────────*/
+interface ListViewProps extends LogComparisonProps {
+  prefix?: string;
+  parentPath?: string;    // parent's fully qualified path
+  nestingLevel?: number;
+}
+
+export default function ListView({
+  value,
+  comparables,
+  baseLogIndex,
+  comparisonLogsIndex,
+  version = "",
+  comparableVersions = [],
+  diffMode = "none",
+  splitView = false,
+  displayMode = "markdown",
+  nestingLevel = 0,
+  prefix = "entries",
+  parentPath = "",
+}: ListViewProps) {
+  const { openKeys, setOpenKeys, forceExpandAll, forceCollapseAll } = useExpandContext();
+
+  if (!isList(value)) {
+    return <p className="text-red-500">ListView: base value is not a list.</p>;
+  }
+
+  console.log(`[ListView:render] prefix=${prefix}, parentPath=${parentPath}, nesting=${nestingLevel}`, {
+    length: value.length,
+    openKeysCount: openKeys.size,
+    forceExpandAll,
+    forceCollapseAll,
+  });
+
+  // Single vs multi
+  const multiMode = comparables && comparables.length > 0;
+  const baseArr = (Array.isArray(value) ? value : []) as any[];
+
+  // itemCount => max length among base & comps
+  let itemCount = baseArr.length;
+  if (multiMode) {
+    const compLens = (comparables ?? []).map((c) => (isList(c) ? c.length : 0));
     itemCount = Math.max(itemCount, ...compLens);
   }
 
-  // Pre-build item labels: "Item 0", "Item 1", ...
-  const allItemLabels = useMemo(
-    () => Array.from({ length: itemCount }, (_, i) => `Item ${i}`),
-    [itemCount]
-  );
+  // On mount or if forceExpandAll/forceCollapseAll changes => expand/collapse all
+  useEffect(() => {
+    if (!parentPath) return; // if we have no parent path, we can't unify a root
+    if (forceExpandAll || forceCollapseAll) {
+      const newSet = new Set(openKeys);
+      // gather all subPaths for the entire array
+      const subPaths = gatherAllSubPaths(value, parentPath, prefix, nestingLevel);
+      console.log(`[ListView:useEffect(forceExpand|collapseAll)] parentPath=${parentPath}`, {
+        subPathsCount: subPaths.length,
+        forceExpandAll,
+        forceCollapseAll
+      });
 
-  // State for expansions
-  const [openItems, setOpenItems] = useState<string[]>([]);
-  const [childForceExpand, setChildForceExpand] = useState<string[]>([]);
+      if (forceExpandAll) {
+        subPaths.forEach((sp) => newSet.add(sp));
+      } else {
+        subPaths.forEach((sp) => newSet.delete(sp));
+      }
+      setOpenKeys(newSet);
+    }
+  }, [forceExpandAll, forceCollapseAll, parentPath, prefix, nestingLevel, openKeys, value]);
 
-  // guess item type => used only for default expansions
-  function guessItemType(index: number): string {
-    let sample: any = Array.isArray(value) ? value[index] : undefined;
-    if (sample === undefined && !singleMode && comparables) {
-      for (const c of comparables) {
-        if (isList(c) && c[index] !== undefined) {
-          sample = c[index];
-          break;
+  // function to label => "Item 0"
+  function itemLabel(i: number) {
+    return `Item ${i}`;
+  }
+
+  // function to build child path => if parentPath => parentPath + "." + i
+  // else => makePrefixedListPath(prefix, nestingLevel, i)
+  function buildItemPath(i: number) {
+    if (parentPath) {
+      return parentPath + "." + i;
+    } else {
+      return makePrefixedListPath(prefix, nestingLevel, i);
+    }
+  }
+
+  // We define "openValues" similarly to dictionary => which items are open
+  const openValues = useMemo(() => {
+    const arr: string[] = [];
+    for (let i = 0; i < itemCount; i++) {
+      const path = buildItemPath(i);
+      // We store the "AccordionItem value" as itemLabel(i).
+      // If openKeys.has(path) => this means we want item i open => itemLabel(i).
+      if (openKeys.has(path)) {
+        arr.push(itemLabel(i));
+      }
+    }
+    console.log(`[ListView:openValues] computed:`, arr);
+    return arr;
+  }, [itemCount, openKeys]);
+
+  // onValueChange => compare old vs. new => toggle difference
+  function handleValueChange(newVals: string[]) {
+    const oldSet = new Set(openValues);
+    const nextSet = new Set(newVals);
+
+    // find changed => for each changed => toggleKey( buildItemPath(...) )
+    for (let i = 0; i < itemCount; i++) {
+      const lbl = itemLabel(i);
+      const had = oldSet.has(lbl);
+      const now = nextSet.has(lbl);
+      if (had !== now) {
+        const path = buildItemPath(i);
+        // toggle
+        if (openKeys.has(path)) {
+          // remove
+          setOpenKeys((prev) => {
+            const updated = new Set(prev);
+            updated.delete(path);
+            return updated;
+          });
+        } else {
+          // add
+          setOpenKeys((prev) => {
+            const updated = new Set(prev);
+            updated.add(path);
+            return updated;
+          });
         }
       }
     }
-    return getValueType(sample);
   }
 
-  // build default expansions => item is opened if it's string/number/matrix/image
-  const defaultOpenItems = useMemo(() => {
-    return allItemLabels.filter((label, i) => {
-      const t = guessItemType(i);
-      return ["string", "number", "matrix", "image"].includes(t);
-    });
-  }, [allItemLabels]);
-
-  // On mount, set default expansions
-  useEffect(() => {
-    setOpenItems(defaultOpenItems);
-  }, [defaultOpenItems.join(",")]);
-
-  // If forceExpandAll changes, open or close everything
-  useEffect(() => {
-    if (forceExpandAll) {
-      setOpenItems(allItemLabels);
-      setChildForceExpand(allItemLabels);
-    } else {
-      // revert to default
-      setOpenItems(defaultOpenItems);
-      setChildForceExpand(defaultOpenItems);
-    }
-  }, [forceExpandAll, allItemLabels, defaultOpenItems]);
-
-  if (!isList(value)) {
-    return <p className="text-red-500">ListView: Value is not a valid list.</p>;
-  }
-
-  // Single‐mode => only base array
+  /*─────────────────────────────────────────────────────────────────────────
+    renderSingleItem => for single-mode
+  ──────────────────────────────────────────────────────────────────────────*/
   function renderSingleItem(index: number) {
-    const label = `Item ${index}`;
-    const arrValue = Array.isArray(value) ? value[index] : undefined;
-
-    // unify => baseVal=arrValue, no comps => unifyType(arrValue, [])
+    const lbl = itemLabel(index);
+    const arrValue = baseArr[index];
     const finalType = unifyType(arrValue, []);
     const icon = getTypeIcon(finalType);
+    const path = buildItemPath(index);
+    const isOpen = openKeys.has(path);
 
-    const isOpen = openItems.includes(label);
-    const isChildForceExpand = childForceExpand.includes(label);
-
-    const childProps: LogComparisonProps & { forceExpandAll?: boolean } = {
-      value: arrValue,
-      comparables: [],
-      baseLogIndex,
-      comparisonLogsIndex: [],
-      diffMode,
-      splitView,
-      version,
-      comparableVersions,
-      displayMode,
-      forceExpandAll: isChildForceExpand,
-    };
+    // If it's isDict/isList => show FoldVertical button
+    function handleExpandClick(e: React.MouseEvent) {
+      e.stopPropagation();
+      handleRecursiveToggle(
+        arrValue,
+        path,
+        prefix,
+        nestingLevel,
+        openKeys,
+        setOpenKeys
+      );
+    }
 
     return (
-      <AccordionItem key={label} value={label}>
+      <AccordionItem key={lbl} value={lbl}>
         <AccordionTrigger className="relative group flex items-center justify-between">
           <span className="inline-flex items-center gap-2">
-            {icon} {label}
+            {icon} {lbl}
           </span>
           {isOpen && (finalType === "dict" || finalType === "list") && (
             <div className="absolute right-5 flex gap-1 items-center">
-              <Button
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleOneItemExpand(
-                    label,
-                    openItems,
-                    setOpenItems,
-                    childForceExpand,
-                    setChildForceExpand
-                  );
-                }}
-              >
-                {isChildForceExpand ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+              <Button variant="ghost" onClick={handleExpandClick}>
+                <FoldVertical size={16} />
               </Button>
             </div>
           )}
         </AccordionTrigger>
         <AccordionContent>
-          <div className="border-l ml-4 pl-1">{pickView(childProps)}</div>
+          <div className="border-l ml-4 pl-1">
+            {pickView({
+              value: arrValue,
+              comparables: [],
+              baseLogIndex,
+              comparisonLogsIndex: [],
+              diffMode,
+              splitView,
+              version,
+              comparableVersions,
+              displayMode,
+              prefix,
+              parentPath: path,
+              nestingLevel: nestingLevel + 1,
+            })}
+          </div>
         </AccordionContent>
       </AccordionItem>
     );
   }
 
-  // Multi‐mode => base array + comparables
+  /*─────────────────────────────────────────────────────────────────────────
+    renderMultiItem => presence diff in multi-mode
+  ──────────────────────────────────────────────────────────────────────────*/
   function renderMultiItem(index: number) {
-    const label = `Item ${index}`;
-    const baseArr = Array.isArray(value) ? value : [];
+    const lbl = itemLabel(index);
     const baseVal = baseArr[index];
-    // gather subVals => [baseVal, ...others]
-    const subVals = [baseVal];
-    (comparables ?? []).forEach((c) => {
-      if (isList(c)) {
-        subVals.push(c[index]);
-      } else {
-        subVals.push(undefined);
-      }
-    });
-
-    // unify => baseVal + comps
-    const finalType = unifyType(subVals[0], subVals.slice(1));
+    const compVals = (comparables ?? []).map((c) => (isList(c) ? c[index] : undefined));
+    const finalType = unifyType(baseVal, compVals);
     const icon = getTypeIcon(finalType);
 
-    const isOpen = openItems.includes(label);
-    const isChildForceExpand = childForceExpand.includes(label);
+    const path = buildItemPath(index);
+    const isOpen = forceExpandAll || openKeys.has(path);
 
-    // Presence‐diff logic:
-    const baseHas = subVals[0] !== undefined;
-    const redSet = new Set<number>();
-    const greenSet = new Set<number>();
-    subVals.slice(1).forEach((cmp, i) => {
-      const rowIdx = comparisonLogsIndex[i];
-      const cmpHas = cmp !== undefined;
-      if (baseHas && !cmpHas) {
-        redSet.add(rowIdx);
-      } else if (!baseHas && cmpHas) {
-        greenSet.add(rowIdx);
-      }
-    });
-    const redRows = Array.from(redSet).sort((a, b) => a - b);
-    const greenRows = Array.from(greenSet).sort((a, b) => a - b);
-
+    // presence diff
+    const { redRows, greenRows } = presenceDiff(baseVal, compVals, baseLogIndex, comparisonLogsIndex);
     let labelColor = "";
-    if (redRows.length > 0 && baseHas) {
+    const baseHas = baseVal !== undefined;
+    if (baseHas && redRows.length > 0) {
       labelColor = "text-red-600";
-    } else if (greenRows.length > 0 && !baseHas) {
+    } else if (!baseHas && greenRows.length > 0) {
       labelColor = "text-green-600";
     }
 
-    const childProps: LogComparisonProps & { forceExpandAll?: boolean } = {
-      value: subVals[0],
-      comparables: subVals.slice(1),
-      baseLogIndex,
-      comparisonLogsIndex,
-      diffMode,
-      splitView,
-      version,
-      comparableVersions,
-      displayMode,
-      forceExpandAll: isChildForceExpand,
-    };
+    function handleExpandClick(e: React.MouseEvent) {
+      e.stopPropagation();
+      handleRecursiveToggle(
+        baseVal,
+        path,
+        prefix,
+        nestingLevel,
+        openKeys,
+        setOpenKeys
+      );
+    }
 
     return (
-      <AccordionItem key={label} value={label}>
+      <AccordionItem key={lbl} value={lbl}>
         <AccordionTrigger
           className={`relative group flex items-center justify-between ${labelColor}`}
         >
           <span className="inline-flex items-center gap-2">
-            {icon} {label}
+            {icon} {lbl}
             {(redRows.length > 0 || greenRows.length > 0) && (
               <div className="ml-2 flex gap-1">
-                {redRows.length > 0 && (
-                  <RowBadge rowNumbers={redRows} mode="delete" />
-                )}
-                {greenRows.length > 0 && (
-                  <RowBadge rowNumbers={greenRows} mode="insert" />
-                )}
+                {redRows.length > 0 && <RowBadge rowNumbers={redRows} mode="delete" />}
+                {greenRows.length > 0 && <RowBadge rowNumbers={greenRows} mode="insert" />}
               </div>
             )}
           </span>
-
           {isOpen && (finalType === "dict" || finalType === "list") && (
             <div className="absolute right-5 flex gap-1 items-center">
-              <Button
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleOneItemExpand(
-                    label,
-                    openItems,
-                    setOpenItems,
-                    childForceExpand,
-                    setChildForceExpand
-                  );
-                }}
-              >
-                {isChildForceExpand ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+              <Button variant="ghost" onClick={handleExpandClick}>
+                <FoldVertical size={16} />
               </Button>
             </div>
           )}
         </AccordionTrigger>
         <AccordionContent>
-          <div className="border-l ml-4 pl-1">{pickView(childProps)}</div>
+          <div className="border-l ml-4 pl-1">
+            {pickView({
+              value: baseVal,
+              comparables: compVals,
+              baseLogIndex,
+              comparisonLogsIndex,
+              diffMode,
+              splitView,
+              version,
+              comparableVersions,
+              displayMode,
+              prefix,
+              parentPath: path,
+              nestingLevel: nestingLevel + 1,
+            })}
+          </div>
         </AccordionContent>
       </AccordionItem>
     );
   }
 
-  // Renders all items
+  // Actually render all items
   function renderAllItems() {
     const items: JSX.Element[] = [];
     for (let i = 0; i < itemCount; i++) {
-      if (singleMode) {
+      if (!comparables || !comparables.length) {
         items.push(renderSingleItem(i));
       } else {
         items.push(renderMultiItem(i));
@@ -381,18 +438,43 @@ const ListView: React.FC<ListViewProps> = (props) => {
     return items;
   }
 
+  function handleAccordionValueChange(newVals: string[]) {
+    const oldSet = new Set(openValues);
+    const nextSet = new Set(newVals);
+
+    for (let i = 0; i < itemCount; i++) {
+      const lbl = `Item ${i}`;
+      const had = oldSet.has(lbl);
+      const now = nextSet.has(lbl);
+      if (had !== now) {
+        const path = buildItemPath(i);
+        // toggle
+        if (openKeys.has(path)) {
+          setOpenKeys((prev) => {
+            const updated = new Set(prev);
+            updated.delete(path);
+            return updated;
+          });
+        } else {
+          setOpenKeys((prev) => {
+            const updated = new Set(prev);
+            updated.add(path);
+            return updated;
+          });
+        }
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <Accordion
-        key={`list-${forceExpandAll ? "open" : "closed"}`}
         type="multiple"
-        value={openItems}
-        onValueChange={setOpenItems}
+        value={openValues}
+        onValueChange={handleAccordionValueChange}
       >
         {renderAllItems()}
       </Accordion>
     </div>
   );
-};
-
-export default ListView;
+}

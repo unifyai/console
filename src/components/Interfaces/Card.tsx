@@ -16,6 +16,7 @@ import { icons, tabTypes } from "@/constants/logs";
 import ContextSelector from "./ContextSelector";
 import { Context } from "@/types/evals/grid";
 import { Plus } from "lucide-react";
+import { ExpandProvider } from "@/contexts/ExpandContext";
 
 const Card = ({
     edit,
@@ -162,17 +163,21 @@ const Card = ({
                     updateItem={updateItem}
                 />}
             </div>
-            {tab?.includes("View") && <div className="w-full overflow-auto"><Selection
-                params={item.table ? tableData[item.table]?.params : {}}
-                logs={item.table ? maybeFlattenGroupedLogs(tableData[item.table]?.logs || []) : []}
-                selection_={relevantItem?.selected}
-                baseIndex_={relevantItem?.base_index}
-                columnOrdering_={relevantItem?.column_order}
-                hiddenColumns_={relevantItem?.hidden_columns}
-                tableItem={items.find(it => it.i == item.table) || {i: item.table, x: -1, y: -1, w: -1, h: -1} as TileProps}
-                item={item}
-                updateItem={updateItem}
-            /></div>}
+            {tab?.includes("View") && <div className="w-full overflow-auto">
+                <ExpandProvider>
+                    <Selection
+                    params={item.table ? tableData[item.table]?.params : {}}
+                    logs={item.table ? maybeFlattenGroupedLogs(tableData[item.table]?.logs || []) : []}
+                    selection_={relevantItem?.selected}
+                    baseIndex_={relevantItem?.base_index}
+                    columnOrdering_={relevantItem?.column_order}
+                    hiddenColumns_={relevantItem?.hidden_columns}
+                    tableItem={items.find(it => it.i == item.table) || {i: item.table, x: -1, y: -1, w: -1, h: -1} as TileProps}
+                    item={item}
+                    updateItem={updateItem}
+                    />
+                </ExpandProvider>
+            </div>}
             {tab?.includes("Plot") && <LogsPlot
                 interactive={interactive}
                 pending={pending}

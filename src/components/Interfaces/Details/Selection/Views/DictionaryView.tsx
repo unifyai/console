@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useEffect } from "react";
 import {
   Accordion,
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
 } from "@/components/UI/accordion";
+import { Button } from "@/components/UI/button";
+import { FoldVertical, UnfoldVertical } from "lucide-react";
 
 import {
   isDict,
@@ -18,52 +20,50 @@ import {
   isTimestamp,
   isChat,
 } from "@/utils/evals/selection";
+import {
+  gatherAllSubPaths,
+  makePrefixedDictPath,
+  sanitizePropertyKey,
+} from "@/utils/evals/pathUtils";
+import { useExpandContext } from "@/contexts/ExpandContext";
 
 import { LogComparisonProps } from "./types";
 import { getValueType, getTypeIcon } from "./ViewTypes";
+import RowBadge from "./RowBadge";
 
+// Subcomponents
+import TraceView from "./TraceView";
+import ChatView from "./ChatView";
 import ListView from "./ListView";
 import ImageView from "./ImageView";
 import MatrixView from "./MatrixView";
 import StringView from "./StringView";
-import TraceView from "./TraceView";
 import NumberView from "./NumberView";
 import TimestampView from "./TimestampView";
-import ChatView from "./ChatView";
-
-import { Button } from "@/components/UI/button";
-import { FoldVertical, UnfoldVertical } from "lucide-react";
-
-// RowBadge is used to show “insert/delete” row sets
-import RowBadge from "./RowBadge";
 
 /*────────────────────────────────────────────────────────────────────────────
-  1) unifyType: merges baseVal + comparables to produce a single type.
-     If multiple distinct types appear, fallback to "string."
+  unifyType => merges base + comps => single type. If multiple distinct => "string."
 ────────────────────────────────────────────────────────────────────────────*/
 function unifyType(baseVal: any, comps: any[]): string {
   const filtered = [baseVal, ...comps].filter((v) => {
-    if (v === undefined || v === null) return false;
+    if (v == null) return false;
     if (typeof v === "string" && v.trim() === "") return false;
     return true;
   });
-  if (filtered.length === 0) return "string";
+  if (!filtered.length) return "string";
 
   const typeSet = new Set<string>();
   for (const val of filtered) {
-    const t = getValueType(val);
-    typeSet.add(t);
+    typeSet.add(getValueType(val));
   }
   return typeSet.size === 1 ? Array.from(typeSet)[0] : "string";
 }
 
 /*────────────────────────────────────────────────────────────────────────────
-  2) pickView => specialized or fallback, with optional forceExpandAll
+  pickView => specialized child rendering
 ────────────────────────────────────────────────────────────────────────────*/
-function pickView(
-  props: LogComparisonProps & { forceExpandAll?: boolean }
-): JSX.Element {
-  const { value } = props;
+function pickView(props: LogComparisonProps & { prefix?: string; parentPath?: string }) {
+  const { value, parentPath = "", prefix = "", nestingLevel = 0 } = props;
 
   if (isTrace(value)) {
     const arr = Array.isArray(value) ? value : [value];
@@ -94,287 +94,441 @@ function pickView(
 }
 
 /*────────────────────────────────────────────────────────────────────────────
-  3) toggleOnePropertyExpand => toggles child expansions for a single key
+  presenceDiff => highlight inserted/deleted dictionary keys (multi-mode)
 ────────────────────────────────────────────────────────────────────────────*/
-function toggleOnePropertyExpand(
-  propertyKey: string,
-  openItems: string[],
-  setOpenItems: React.Dispatch<React.SetStateAction<string[]>>,
-  childForceExpand: string[],
-  setChildForceExpand: React.Dispatch<React.SetStateAction<string[]>>
+function presenceDiff(
+  baseVal: any,
+  compVals: any[],
+  baseRow: number,
+  compRows: number[]
 ) {
-  if (!childForceExpand.includes(propertyKey)) {
-    setChildForceExpand((prev) => [...prev, propertyKey]);
-  } else {
-    setChildForceExpand((prev) => prev.filter((k) => k !== propertyKey));
-  }
+  const baseHas = baseVal !== undefined;
+  const redSet = new Set<number>();
+  const greenSet = new Set<number>();
+
+  compVals.forEach((cVal, i) => {
+    const row = compRows[i];
+    const cHas = cVal !== undefined;
+    if (baseHas && !cHas) {
+      redSet.add(row);
+    } else if (!baseHas && cHas) {
+      greenSet.add(row);
+    }
+  });
+
+  return {
+    redRows: Array.from(redSet).sort((a, b) => a - b),
+    greenRows: Array.from(greenSet).sort((a, b) => a - b),
+  };
 }
 
 /*────────────────────────────────────────────────────────────────────────────
-  DictionaryView component
-  - Preserves expansions, icons, triggers, and now includes presence-diff for keys
+  handleRecursiveToggle => expand/collapse everything under the given path
 ────────────────────────────────────────────────────────────────────────────*/
-type DictionaryViewProps = LogComparisonProps & {
-  forceExpandAll?: boolean;
-};
+function handleRecursiveToggle(
+  baseValue: unknown,
+  path: string,
+  prefix: string,
+  nestingLevel: number,
+  openKeys: Set<string>,
+  setOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>
+) {
+  console.log(`[DictionaryView:handleRecursiveToggle] Starting recursive toggle`, {
+    path,
+    prefix,
+    nestingLevel,
+    baseValueType: typeof baseValue,
+    isDict: isDict(baseValue),
+    isList: isList(baseValue),
+    currentOpenKeys: Array.from(openKeys)
+  });
 
-const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
+  // gather any subpaths under "path"
+  const subPaths = gatherAllSubPaths(baseValue, path, prefix, nestingLevel);
+  console.log(`[DictionaryView:handleRecursiveToggle] Gathered subpaths`, {
+    path,
+    subPaths,
+    count: subPaths.length
+  });
+
+  // check if all are open
+  const allOpen = subPaths.every((sp) => openKeys.has(sp));
+
+  console.log(`[DictionaryView:handleRecursiveToggle] Determined expansion state`, {
+    path,
+    allOpen,
+    willExpand: !allOpen
+  });
+
+  setOpenKeys((prev) => {
+    const next = new Set(prev);
+    if (allOpen) {
+      // collapse - remove them
+      subPaths.forEach((sp) => {
+        console.log(`[DictionaryView:handleRecursiveToggle] Collapsing subpath ${sp}`);
+        next.delete(sp);
+      });
+    } else {
+      // expand - add them
+      subPaths.forEach((sp) => {
+        console.log(`[DictionaryView:handleRecursiveToggle] Expanding subpath ${sp}`);
+        next.add(sp);
+      });
+    }
+    console.log(`[DictionaryView:handleRecursiveToggle] Final state after ${allOpen ? 'collapse' : 'expand'}`, {
+      path,
+      openKeysCount: next.size,
+      openKeys: Array.from(next)
+    });
+    return next;
+  });
+}
+
+/*────────────────────────────────────────────────────────────────────────────
+  DictionaryView => dictionary-level expansions, presence diffs, icons,
+  "forceExpandAll / forceCollapseAll" logic in one pass
+────────────────────────────────────────────────────────────────────────────*/
+interface DictionaryViewProps extends LogComparisonProps {
+  prefix?: string;
+  parentPath?: string;        // The parent's fully qualified path (e.g. "entries.dict.0.a")
+  nestingLevel?: number;
+}
+
+export default function DictionaryView({
+  value,
+  comparables,
+  baseLogIndex,
+  comparisonLogsIndex,
+  version = "",
+  comparableVersions = [],
+  diffMode = "none",
+  splitView = false,
+  displayMode = "markdown",
+  nestingLevel = 0,
+  prefix = "entries",
+  parentPath = "", // new param to track parent's path
+}: DictionaryViewProps) {
   const {
-    value,
-    comparables,
-    baseLogIndex,
-    comparisonLogsIndex,
-    version = "",
-    comparableVersions = [],
-    nestingLevel = 0,
-    diffMode = "none",
-    splitView = false,
-    displayMode = "markdown",
-    forceExpandAll = false,
-  } = props;
+    openKeys,
+    setOpenKeys,
+    forceExpandAll,
+    forceCollapseAll,
+  } = useExpandContext();
 
-  // Collect keys + data from base + comps
-  const allKeysAndData = useMemo(() => {
-    let keys: string[] = [];
-    let dicts: any[] = [];
-    let indexes: number[] = [];
-
-    if (!comparables || comparables.length === 0) {
-      // single-mode
-      keys = Object.keys(value || {}).sort();
-      dicts = [value];
-      indexes = [baseLogIndex];
-    } else {
-      // multi-mode
-      const joined = [value, ...comparables];
-      dicts = joined;
-      indexes = [baseLogIndex, ...comparisonLogsIndex];
-
-      const union = new Set<string>();
-      joined.forEach((obj) => {
-        if (obj && isDict(obj)) {
-          Object.keys(obj).forEach((k) => union.add(k));
-        }
-      });
-      keys = Array.from(union).sort();
-    }
-
-    return { allKeys: keys, allDicts: dicts, allIndexes: indexes };
-  }, [value, comparables, baseLogIndex, comparisonLogsIndex]);
-
-  // For dictionary expansions
-  const [openItems, setOpenItems] = useState<string[]>([]);
-  const [childForceExpand, setChildForceExpand] = useState<string[]>([]);
-
-  // If forceExpandAll changes, open or close everything
-  useEffect(() => {
-    if (forceExpandAll) {
-      setOpenItems(allKeysAndData.allKeys);
-      setChildForceExpand(allKeysAndData.allKeys);
-    } else {
-      // revert to default
-      // We'll auto-open simple types like string/number/image by default:
-      const defaults = allKeysAndData.allKeys.filter((k) => {
-        const sample = allKeysAndData.allDicts[0]?.[k];
-        const t = getValueType(sample);
-        return ["string", "number", "matrix", "image"].includes(t);
-      });
-      setOpenItems(defaults);
-      setChildForceExpand(defaults);
-    }
-  }, [forceExpandAll, allKeysAndData.allKeys, allKeysAndData.allDicts]);
-
+  // confirm base is a dict
   if (!isDict(value)) {
     return (
       <p className="text-red-500">
-        DictionaryView: Base Value is not a dictionary.
+        DictionaryView: base value is not a dictionary.
       </p>
     );
   }
 
-  // Single property rendering => used in single-mode
-  function renderSingleProperty(propKey: string, val: any) {
-    // unify => baseVal=val, no comps => unifyType(val, [])
-    const valType = unifyType(val, []);
-    const icon = getTypeIcon(valType);
-    const isOpen = openItems.includes(propKey);
-    const isChildForceExpand = childForceExpand.includes(propKey);
+  console.log(`[DictionaryView:render] Rendering dictionary view`, {
+    prefix,
+    nestingLevel,
+    parentPath,
+    valueKeys: Object.keys(value),
+    openKeysCount: openKeys.size,
+    forceExpandAll,
+    forceCollapseAll
+  });
 
-    const childProps: LogComparisonProps & { forceExpandAll?: boolean } = {
-      value: val,
-      comparables: [],
-      baseLogIndex,
-      comparisonLogsIndex: [],
-      nestingLevel: nestingLevel + 1,
-      diffMode,
-      splitView,
-      version,
-      comparableVersions,
-      displayMode,
-      forceExpandAll: isChildForceExpand,
-    };
+  const singleMode = !comparables || comparables.length === 0;
+
+  // gather union of all dictionary keys
+  const { allKeys, rowIndices } = useMemo(() => {
+    if (singleMode) {
+      const baseObjKeys = Object.keys(value).sort();
+      return {
+        allKeys: baseObjKeys,
+        rowIndices: [baseLogIndex],
+      };
+    } else {
+      const arr = [value, ...comparables];
+      const union = new Set<string>();
+      arr.forEach((dict) => {
+        if (dict && typeof dict === "object" && !Array.isArray(dict)) {
+          Object.keys(dict).forEach((k) => union.add(k));
+        }
+      });
+      const sortedKeys = Array.from(union).sort();
+      return {
+        allKeys: sortedKeys,
+        rowIndices: [baseLogIndex, ...comparisonLogsIndex],
+      };
+    }
+  }, [value, comparables, singleMode, baseLogIndex, comparisonLogsIndex]);
+
+  // On mount or if forceExpandAll/forceCollapseAll changes => one pass
+  useEffect(() => {
+    if (forceExpandAll || forceCollapseAll) {
+      // Use parentPath directly as the root path for gathering subpaths
+      // This ensures consistency with the top-level property path
+      if (parentPath) {
+        const newSet = new Set(openKeys);
+        const subPaths = gatherAllSubPaths(value, parentPath, prefix, nestingLevel);
+        console.log(`[DictionaryView:useEffect(forceExpand|collapseAll)]`, {
+          parentPath,
+          subPathsCount: subPaths.length,
+          subPaths,
+          forceExpandAll,
+          forceCollapseAll
+        });
+
+        if (forceExpandAll) {
+          // expand all subpaths
+          subPaths.forEach((sp) => newSet.add(sp));
+        } else {
+          // collapse all subpaths
+          subPaths.forEach((sp) => newSet.delete(sp));
+        }
+
+        setOpenKeys(newSet);
+      }
+    }
+  }, [forceExpandAll, forceCollapseAll, openKeys, parentPath, prefix, nestingLevel, value]);
+
+  /*─────────────────────────────────────────────────────────────────────────
+    renderSingleKey => only base has data
+  ──────────────────────────────────────────────────────────────────────────*/
+  function renderSingleKey(k: string) {
+    const baseVal = (value as Record<string, unknown>)[k];
+    const type = unifyType(baseVal, []);
+    const icon = getTypeIcon(type);
+
+    // Build a fully qualified path that includes the parent's path if present
+    const path = parentPath
+      ? parentPath + "." + sanitizePropertyKey(k) // e.g. "entries.dict.0.a.sub_question"
+      : makePrefixedDictPath(prefix, nestingLevel, k);
+
+    const isOpen = openKeys.has(path);
+
+    function handleExpandToggle(e: React.MouseEvent) {
+      e.stopPropagation();
+      handleRecursiveToggle(
+        baseVal,
+        path,
+        prefix,
+        nestingLevel,
+        openKeys,
+        setOpenKeys
+      );
+    }
 
     return (
-      <AccordionItem key={propKey} value={propKey}>
+      <AccordionItem key={k} value={path}>
         <AccordionTrigger className="relative group flex items-center justify-between">
           <span className="inline-flex items-center gap-2">
-            {icon} {propKey}
+            {icon} {k}
           </span>
-          {isOpen && (valType === "dict" || valType === "list") && (
+          {(type === "dict" || type === "list") && (
             <div className="absolute right-5 flex gap-1 items-center">
               <Button
                 variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleOnePropertyExpand(
-                    propKey,
-                    openItems,
-                    setOpenItems,
-                    childForceExpand,
-                    setChildForceExpand
-                  );
-                }}
+                onClick={handleExpandToggle}
               >
-                {isChildForceExpand ? (
-                  <FoldVertical size={16} />
-                ) : (
-                  <UnfoldVertical size={16} />
-                )}
+                <FoldVertical size={16} />
               </Button>
             </div>
           )}
         </AccordionTrigger>
+
         <AccordionContent>
-          <div className="border-l ml-4 pl-1">{pickView(childProps)}</div>
+          <div className="border-l ml-4 pl-1">
+            {pickView({
+              value: baseVal,
+              comparables: [],
+              baseLogIndex,
+              comparisonLogsIndex: [],
+              version,
+              comparableVersions,
+              diffMode,
+              splitView,
+              displayMode,
+              nestingLevel: nestingLevel + 1,
+              prefix,
+              parentPath: path, // pass the newly built path on
+            })}
+          </div>
         </AccordionContent>
       </AccordionItem>
     );
   }
 
-  // Multi property => used in multi-mode
-  function renderMultiProperty(propKey: string) {
-    const dicts = allKeysAndData.allDicts;
-    const subValues = dicts.map((d) => (d && isDict(d) ? d[propKey] : undefined));
-    const baseVal = subValues[0];
-    const compVals = subValues.slice(1);
+  /*─────────────────────────────────────────────────────────────────────────
+    renderMultiKey => presence diff
+  ──────────────────────────────────────────────────────────────────────────*/
+  function renderMultiKey(k: string) {
+    const dictVals = [value, ...comparables];
+    const fieldVals = dictVals.map((d) => (d && isDict(d) ? d[k] : undefined));
+    const baseVal = fieldVals[0];
+    const compVals = fieldVals.slice(1);
 
-    // Presence-diff logic:
-    const baseHasIt = baseVal !== undefined;
-    const redSet = new Set<number>();
-    const greenSet = new Set<number>();
-    compVals.forEach((cVal, i) => {
-      const row = allKeysAndData.allIndexes[i + 1];
-      const compHasIt = cVal !== undefined;
-      if (baseHasIt && !compHasIt) {
-        redSet.add(row);
-      } else if (!baseHasIt && compHasIt) {
-        greenSet.add(row);
-      }
-    });
-    const redRows = Array.from(redSet).sort((a, b) => a - b);
-    const greenRows = Array.from(greenSet).sort((a, b) => a - b);
+    const { redRows, greenRows } = presenceDiff(
+      baseVal,
+      compVals,
+      rowIndices[0],
+      rowIndices.slice(1)
+    );
+
     let labelColor = "";
-    if (redRows.length > 0 && baseHasIt) {
+    const baseHas = baseVal !== undefined;
+    if (baseHas && redRows.length > 0) {
       labelColor = "text-red-600";
-    } else if (greenRows.length > 0 && !baseHasIt) {
+    } else if (!baseHas && greenRows.length > 0) {
       labelColor = "text-green-600";
     }
 
-    // unify type for the property
     const propType = unifyType(baseVal, compVals);
     const icon = getTypeIcon(propType);
 
-    const isOpen = openItems.includes(propKey);
-    const isChildForceExpand = childForceExpand.includes(propKey);
+    // Build path that includes parent.
+    const path = parentPath
+      ? parentPath + "." + sanitizePropertyKey(k)
+      : makePrefixedDictPath(prefix, nestingLevel, k);
 
-    const childProps: LogComparisonProps & { forceExpandAll?: boolean } = {
-      value: baseVal,
-      comparables: compVals,
-      baseLogIndex: allKeysAndData.allIndexes[0],
-      comparisonLogsIndex: allKeysAndData.allIndexes.slice(1),
-      nestingLevel: nestingLevel + 1,
-      diffMode,
-      splitView,
-      version,
-      comparableVersions,
-      displayMode,
-      forceExpandAll: isChildForceExpand,
-    };
+    const isOpen = openKeys.has(path);
+
+    function handleExpandToggle(e: React.MouseEvent) {
+      e.stopPropagation();
+      handleRecursiveToggle(
+        baseVal,
+        path,
+        prefix,
+        nestingLevel,
+        openKeys,
+        setOpenKeys
+      );
+    }
 
     return (
-      <AccordionItem key={propKey} value={propKey}>
+      <AccordionItem key={k} value={path}>
         <AccordionTrigger
           className={`relative group flex items-center justify-between ${labelColor}`}
         >
           <span className="inline-flex items-center gap-2">
-            {icon} {propKey}
+            {icon} {k}
             {(redRows.length > 0 || greenRows.length > 0) && (
-              <div className="flex gap-1 ml-2">
-                {redRows.length > 0 && (
-                  <RowBadge rowNumbers={redRows} mode="delete" />
-                )}
-                {greenRows.length > 0 && (
-                  <RowBadge rowNumbers={greenRows} mode="insert" />
-                )}
+              <div className="ml-2 flex gap-1">
+                {redRows.length > 0 && <RowBadge rowNumbers={redRows} mode="delete" />}
+                {greenRows.length > 0 && <RowBadge rowNumbers={greenRows} mode="insert" />}
               </div>
             )}
           </span>
-          {isOpen && (propType === "dict" || propType === "list") && (
+          {(propType === "dict" || propType === "list") && (
             <div className="absolute right-5 flex gap-1 items-center">
               <Button
                 variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleOnePropertyExpand(
-                    propKey,
-                    openItems,
-                    setOpenItems,
-                    childForceExpand,
-                    setChildForceExpand
-                  );
-                }}
+                onClick={handleExpandToggle}
               >
-                {isChildForceExpand ? (
-                  <FoldVertical size={16} />
-                ) : (
-                  <UnfoldVertical size={16} />
-                )}
+                <FoldVertical size={16} />
               </Button>
             </div>
           )}
         </AccordionTrigger>
+
         <AccordionContent>
-          <div className="border-l ml-4 pl-1">{pickView(childProps)}</div>
+          <div className="border-l ml-4 pl-1">
+            {pickView({
+              value: baseVal,
+              comparables: compVals,
+              baseLogIndex: rowIndices[0],
+              comparisonLogsIndex: rowIndices.slice(1),
+              version,
+              comparableVersions,
+              diffMode,
+              splitView,
+              displayMode,
+              nestingLevel: nestingLevel + 1,
+              prefix,
+              parentPath: path, // pass forward
+            })}
+          </div>
         </AccordionContent>
       </AccordionItem>
     );
   }
 
-  function renderProperties() {
-    return allKeysAndData.allKeys.map((propKey) => {
-      if (!comparables || comparables.length === 0) {
-        // single-mode
-        const val = value[propKey];
-        return renderSingleProperty(propKey, val);
-      } else {
-        // multi-mode
-        return renderMultiProperty(propKey);
-      }
+  /*─────────────────────────────────────────────────────────────────────────
+    Build final
+  ──────────────────────────────────────────────────────────────────────────*/
+  const openValues = useMemo(() => {
+    // Gather all keys => build path => check if open
+    // But we rely on the <Accordion value> = path approach:
+    // So we only keep the ones that are in openKeys
+    const paths = allKeys
+      .map((k) => {
+        // same logic as in renderSingleKey / renderMultiKey
+        const builtPath = parentPath
+          ? parentPath + "." + sanitizePropertyKey(k)
+          : makePrefixedDictPath(prefix, nestingLevel, k);
+        return builtPath;
+      })
+      .filter((p) => openKeys.has(p));
+
+    console.log(`[DictionaryView:openValues] Computed open values`, {
+      prefix,
+      nestingLevel,
+      parentPath,
+      paths,
+      openKeysCount: openKeys.size
     });
-  }
+
+    return paths;
+  }, [allKeys, openKeys, parentPath, prefix, nestingLevel]);
 
   return (
     <div className="flex flex-col gap-2">
       <Accordion
-        key={`dict-${forceExpandAll ? "open" : "closed"}`}
         type="multiple"
-        value={openItems}
-        onValueChange={setOpenItems}
+        value={openValues}
+        onValueChange={(newVals) => {
+          console.log(`[DictionaryView:accordion] Value change`, {
+            prefix,
+            nestingLevel,
+            parentPath,
+            oldVals: openValues,
+            newVals,
+            openKeysCount: openKeys.size
+          });
+
+          const oldSet = new Set(openValues);
+          const nextSet = new Set(newVals);
+          const changedAdded = Array.from(nextSet).filter((v) => !oldSet.has(v));
+          const changedRemoved = Array.from(oldSet).filter((v) => !nextSet.has(v));
+
+          console.log(`[DictionaryView:accordion] Detected changes`, {
+            prefix,
+            nestingLevel,
+            parentPath,
+            added: changedAdded,
+            removed: changedRemoved
+          });
+
+          setOpenKeys((prev) => {
+            const updated = new Set(prev);
+            changedAdded.forEach((v) => {
+              updated.add(v);
+            });
+            changedRemoved.forEach((v) => {
+              updated.delete(v);
+            });
+            console.log(`[DictionaryView:accordion] Final state after changes`, {
+              prefix,
+              nestingLevel,
+              parentPath,
+              openKeysCount: updated.size,
+              openKeys: Array.from(updated)
+            });
+            return updated;
+          });
+        }}
       >
-        {renderProperties()}
+        {allKeys.map((k) => (
+          singleMode ? renderSingleKey(k) : renderMultiKey(k)
+        ))}
       </Accordion>
     </div>
   );
-};
-
-export default DictionaryView;
+}
