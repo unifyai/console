@@ -113,6 +113,9 @@ export function separateFunctionFilters (filter: string) {
 function joinFunctionFilters (filter: string, fn: string, cKey: string, fields: LogFieldsResponseProps) {
 	let joined = '';
 
+	/* Fallback value */
+	if (!filter) return ""
+
 	/* Single filters: Filters with a single value per function */
 	// Handle images
 	if (fields[cKey] && fields[cKey].data_type === "image") {
@@ -147,6 +150,9 @@ function joinFunctionFilters (filter: string, fn: string, cKey: string, fields: 
 			else if (fn === "exists") {
 				joined += value.includes("true") ? `exists(${cKey})` : `not exists(${cKey})` 
 			}
+			else if (["in str", "not in str"].includes(fn)) {
+				joined += `${value} ${fn.replace(" str", "")} to_str(${cKey})`
+			}
 			else if (["in", "not in"].includes(fn)) {
 				joined += `${value} ${fn} ${cKey}`
 			}
@@ -170,6 +176,7 @@ function joinFunctionFilters (filter: string, fn: string, cKey: string, fields: 
 export function filtersToExpression (columnFilters: FiltersByColumn, fields: LogFieldsResponseProps) {
 	if (Object.keys(columnFilters).length === 0) return ""
 	let expression = ""
+
 	Object.entries(columnFilters).forEach(([cKey, filter]) => 
 		Object.entries(filter).forEach(([fn, value]) => {
 		  expression += joinFunctionFilters(value, fn, cKey, fields)
@@ -186,7 +193,7 @@ export function filtersToExpression (columnFilters: FiltersByColumn, fields: Log
 export function searchParamToFilters (searchExpression: string | undefined, columnContext: string | undefined) {
 	if (!searchExpression) return {}
 	const filters = searchExpression
-		.split(",")
+		.split("§")
 		.map(filter => {
 				let [column, fn, value] = filter.split("@");
 				if (columnContext)

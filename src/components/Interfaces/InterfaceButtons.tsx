@@ -14,7 +14,7 @@ import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import Tooltip from "../Common/Misc/Tooltip";
 import AddTile from "./AddTile";
-import ContextSelector from "./ContextSelector";
+import ContextSelector from "./Table/Content/ContextSelector";
 
 const InterfaceButtons = ({
     edit,

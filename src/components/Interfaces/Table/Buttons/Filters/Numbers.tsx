@@ -12,7 +12,7 @@ import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { Input } from "@/components/UI/input";
 import { Slider } from "@/components/UI/slider";
 import { initFilters, combineFilters } from "@/utils/evals/filters";
-import { Trash, Plus, CircleX, LoaderCircle } from "lucide-react";
+import { Trash, Plus, Minus, CircleX, LoaderCircle } from "lucide-react";
 import {  DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/UI/dialog";
@@ -63,14 +63,14 @@ const NumericColumnFilter = ({
 
     /* Initialize filters */
     const options = [
-        {name: "==", label: "=="  , description: "Filter for values equal to.."},
-        {name: "!=", label: "!=" , description: "Filter for values not equal to.."},
-        {name: ">",  label: ">"  , description: "Filter for values greater than.."},
-        {name: ">=", label: ">=" , description: "Filter for values greater or equal to.."},
-        {name: "<",  label: "<"  , description: "Filter for values less than.."},
-        {name: "<=", label: "<=" , description: "Filter for values less or equal to.."},
-        {name: "exists", label: "exists" , description: "Filter for existing values.."},
-        {name: "isNone", label: "isNone" , description: "Filter for none values.."}
+        {name: "==", label: "==" , description: `Filter ${column} for values equal to..`},
+        {name: "!=", label: "!=" , description: `Filter ${column} for values not equal to..`},
+        {name: ">",  label: ">"  , description: `Filter ${column} for values greater than..`},
+        {name: ">=", label: ">=" , description: `Filter ${column} for values greater or equal to..`},
+        {name: "<",  label: "<"  , description: `Filter ${column} for values less than..`},
+        {name: "<=", label: "<=" , description: `Filter ${column} for values less or equal to..`},
+        {name: "exists", label: "exists" , description: `Filter ${column} for existing values..`},
+        {name: "isNone", label: "isNone" , description: `Filter ${column} for none values..`}
     ]
     const modes = options.map(option => option.name)
 
@@ -213,7 +213,7 @@ const NumericColumnFilter = ({
     const filterInput = (filter: NumericFilter, withSlider: boolean) => {
         const option = options.find(option => option.name === filter.mode)!;
         return (
-            <div className="flex flex-row gap-2">
+            <div className="flex flex-row gap-2 w-full">
                 <InputWithStartSelect
                     options={options}
                     option={option}
@@ -257,7 +257,7 @@ const NumericColumnFilter = ({
     const remove = (filter: NumericFilter) =>
         <ActionButton
             tooltip="Remove filter"
-            icon={<Trash/>}
+            icon={<Minus/>}
             onClick={() => {
                 let newFilters = filters.filter(f => f.key != filter.key)
                 newFilters = newFilters.map((f, i) => ({key: i, mode: f.mode, join: i === 0 ? "&&" : f.join, value: f.value}))
@@ -269,9 +269,9 @@ const NumericColumnFilter = ({
     const filterContent = (
         <div className="flex flex-col gap-3 px-2 pt-4 pb-2">
             {filters.map((filter, index) => 
-                <div key={index} className="grid grid-cols-8 items-center">
+                <div key={index} className="grid grid-cols-10 items-center">
                     {filters.length > 0 && filter.key != 0 && <div className="col-span-1">{join(filter)}</div>}
-                    <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-6" : "col-span-7"}`}>{filterInput(filter, !["==", "!=", "exists", "isNone"].includes(filter.mode))}</div>
+                    <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-8" : "col-span-9"}`}>{filterInput(filter, !["==", "!=", "exists", "isNone"].includes(filter.mode))}</div>
                     <div className="col-span-1 text-center">{remove(filter)}</div>
                 </div>
             )}
@@ -336,12 +336,6 @@ const NumericColumnFilter = ({
                 onPointerOver={(e) => e.stopPropagation()}
                 className="sm:max-w-lg"
             >
-                <DialogHeader>
-                    <DialogTitle>Numeric Filters</DialogTitle>
-                    <DialogDescription>
-                        Apply numeric filters to <strong>{sanitizeId(column)}</strong>.
-                    </DialogDescription>
-                </DialogHeader>
 
                 {/* The main filter UI */}
                 {filterContent}

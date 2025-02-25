@@ -2,7 +2,7 @@
 
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
-import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps, GroupedLogProps, GroupedLogPropsRaw } from "@/types/evals/logs";
+import { TableArguments, LogProps, GroupedLogProps } from "@/types/evals/logs";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -11,7 +11,7 @@ import {
   ColumnSizingState,
   GroupingState,
 } from "@tanstack/react-table";
-import { DerivedEntryActions, LogsActions, FieldsActions } from "@/types/evals/grid";
+import { DerivedEntryActions, LogsActions, FieldsActions, Context } from "@/types/evals/grid";
 import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
@@ -29,20 +29,22 @@ import PageController from "@/components/Common/Tables/Data/Buttons/PageControll
 import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
 import FreezeLogs from "./Buttons/FreezeLogs";
 import RefreshLogs from "./Buttons/RefreshLogs";
-import { filtersToExpression, combineFilters, searchParamToFilters } from "@/utils/evals/filters";
+import { searchParamToFilters } from "@/utils/evals/filters";
+import { FiltersByColumn } from "@/types/evals/columns";
 import CellPopover from "./Content/CellPopover";
 import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
-import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
-import { DraggingColumnsState, FiltersByColumn, PinningColumnState } from "@/types/evals/columns";
+import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
 import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
 import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data/Buttons/RowExpanding";
-import { onGroupExpand, maybeFlattenGroupedLogs, getGroupingFilters } from "@/utils/evals/grouping";
+import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
+import ContextSelector from "./Content/ContextSelector";
 
 const LogsTable = ({
   interactive,
   project,
+  contexts,
   pending,
   item,
   tableArguments,
@@ -62,6 +64,7 @@ const LogsTable = ({
 }: {
   interactive: boolean;
   project: string | undefined;
+  contexts: Context[];
   pending: boolean;
   tab: string;
   item: TileProps;
@@ -189,7 +192,20 @@ const LogsTable = ({
   };
 
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-
+  const setLogsFilters = (filtersObj: FiltersByColumn) => {
+    const keys = Object.keys(filtersObj);
+    updateItem(item, "filters")(
+      keys.length
+        ? Object.entries(filtersObj)
+          .map(([cKey, val]) =>
+            Object.entries(val).map(([fn, val2]) => `${cKey}@${fn}@${val2}`)
+          )
+          .flat()
+          .join("§")
+        : undefined
+    );
+  }
+  
   const sorting: ColumnSort[] = sortingStr
     ? sortingStr.split(",").map((c) => {
       const [key, order] = c.split("@");
@@ -326,30 +342,19 @@ const LogsTable = ({
     <div className="mb-2 mx-1 flex flex-row justify-between gap-3 LogsTablePreferences">
       {project && columns.length > 0 && (
         <div className="flex flex-row gap-2 items-center">
-          <SelectionMenu
-            type="Contexts"
-            data={Object.keys(dataTypes).map(property => ({ path: property, type: "file" }))}
-            onClick={updateItem(item, "column_context")}
-            logs={logs}
+          <ContextSelector
+            contexts={contexts}
+            tableDataItem={tableDataItem}
+            item={item}
+            updateItem={updateItem}
+            context={context}
           />
           <GlobalFilter
             interactive={interactive}
             logsFilters={logsFilters}
             commonFilter_={commonFilter}
             setCommonFilter_={updateItem(item, "common_filter")}
-            setLogsFilters={(obj) => {
-              const keys = Object.keys(obj);
-              updateItem(item, "filters")(
-                keys.length
-                  ? Object.entries(obj)
-                    .map(([colKey, val]) =>
-                      Object.entries(val).map(([fn, val2]) => `${colKey}@${fn}@${val2}`)
-                    )
-                    .flat()
-                    .join(",")
-                  : undefined
-              );
-            }}
+            setLogsFilters={setLogsFilters}
             logs={logs}
           />
           <VisibilityFilter
@@ -423,19 +428,7 @@ const LogsTable = ({
                   ColumnFilters={(column, filterLoading, setIsFiltered, setFilterLoading, open, setOpen, renderMode = "button") => (
                     <ColumnFilter
                       interactive={interactive}
-                      setColumnFilterQuery={(filtersObj) => {
-                        const keys = Object.keys(filtersObj);
-                        updateItem(item, "filters")(
-                          keys.length
-                            ? Object.entries(filtersObj)
-                              .map(([cKey, val]) =>
-                                Object.entries(val).map(([fn, val2]) => `${cKey}@${fn}@${val2}`)
-                              )
-                              .flat()
-                              .join(",")
-                            : undefined
-                        );
-                      }}
+                      setColumnFilterQuery={setLogsFilters}
                       boundaries={boundaries}
                       columnFilters={searchParamToFilters(logsFilters, item.column_context)}
                       column={column.id}

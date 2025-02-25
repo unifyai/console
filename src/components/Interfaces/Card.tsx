@@ -13,7 +13,6 @@ import LogsTable from "@/components/Interfaces/Table/Table";
 import { DerivedEntryActions, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import { icons, tabTypes } from "@/constants/logs";
-import ContextSelector from "./ContextSelector";
 import { Context } from "@/types/evals/grid";
 import { Plus } from "lucide-react";
 import { ExpandProvider } from "@/contexts/ExpandContext";
@@ -98,7 +97,9 @@ const Card = ({
         item.plot_type,
         item.x_axis,
         item.y_axis,
-        item.plot_group_by
+        item.plot_group_by,
+        item.auto_update,
+        item.freeze
     ]);
 
     useEffect(() => {
@@ -111,12 +112,12 @@ const Card = ({
     }, []);
 
     return (<div className="relative flex w-full h-full border">
-        <div className={"w-full flex-1 flex flex-col items-center " + (tab ? "mt-2" : "justify-center")}>
+        <div className={"w-full flex-1 flex flex-col items-center " + ((!edit && tab) ? "mt-4" : tab ? "mt-2" : "justify-center")}>
             <div className="flex gap-4 z-20">
                 {edit && <div className="w-fit">
                     <BaseDropdown
                         button={<ActionButton
-                            tooltip="Add Tab"
+                            tooltip="Select Tile Type"
                             text={item.tab}
                             icon={item.tab ? undefined : <Plus />}
                             variant="outline"
@@ -156,12 +157,6 @@ const Card = ({
                         </DropdownMenuItem>)}
                     </BaseDropdown>
                 </div>}
-                {tab && edit && tab == "Table" && <ContextSelector
-                    contexts={contexts}
-                    tableData={tableData}
-                    item={item}
-                    updateItem={updateItem}
-                />}
             </div>
             {tab?.includes("View") && <div className="w-full overflow-auto">
                 <ExpandProvider>
@@ -192,6 +187,7 @@ const Card = ({
             {tab?.includes("Table") && <LogsTable
                 interactive={interactive}
                 project={project}
+                contexts={contexts}
                 pending={pending}
                 tab={tab}
                 item={item}

@@ -80,7 +80,12 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
         if (highlightedIndex >= 0) {
           // Handle normal selection
           selectSuggestion(filteredOptions[highlightedIndex].name);
-        } else {
+        } 
+        else if (showSuggestions && filteredOptions.length) {
+          // Select the first suggestion
+          selectSuggestion(filteredOptions[0].name)
+        }
+        else {
           // Show all options if at start of input or previous character is a whitespace
           const cursorPosition = containerRef.current?.selectionStart ?? 0;
           if (cursorPosition === 0 || value[cursorPosition - 1] === " ") {
@@ -102,6 +107,7 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
         break
       case 'Enter':
         if (highlightedIndex >= 0) selectSuggestion(filteredOptions[highlightedIndex].name)
+        if (showSuggestions && filteredOptions.length) selectSuggestion(filteredOptions[0].name)
         if (!showSuggestions && onEnter) onEnter(e)
         break;
     }
@@ -141,6 +147,7 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
   
     // Move cursor to end of inserted text
     setTimeout(() => {
+      containerRef.current?.focus();
       const newCursorPosition = cursorPosition + option.length + suffix.length + 1;
       containerRef.current?.setSelectionRange(newCursorPosition, newCursorPosition);
     }, 0);
@@ -200,7 +207,7 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
     text-base md:text-sm
     shadow-sm 
     transition-colors 
-    caret-gray-800
+    caret-foreground
     focus:outline-none focus:ring-2 focus:ring-blue-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring
     font-sans leading-none tracking-normal
   `;
@@ -227,50 +234,49 @@ const FormulaInput = ({options, value, setValue, onEnter}: FormulaInputProps) =>
   /* Rendered formula input overlay that shows the text input with color styling using a highligher function
      which splits the input into tokens and conditionally styles each token with a corresponding text color
   */
+  const delimiters = /[\s\+\-\*\/\.,\(\)\{\}]/;
+  const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const getHighlightedContent = (text: string) => {
 
-    // Split into tokens (words, dots, and whitespace)
-    const tokens = text.split(/(\s+|\.)/g);
-    const elements: JSX.Element[] = [];
-    let previousOption: AutocompleteOption | null = null;
-  
-    tokens.forEach((token, index) => {
+    // Split text into tokens using comprehensive regex accounting for :
+    // - Option names
+    // - Whitespace
+    // - Mathematical operators
+    // - Parentheses and brackets
+    // - Commas and dots
+    const optionNames = options.map(opt => escapeRegex(opt.name)).sort((a, b) => b.length - a.length);
+    const tokenRegex = new RegExp(
+      `("(?:[^"\\\\]|\\\\.)*"|'(?:[^'\\\\]|\\\\.)*'|${optionNames.join('|')}|\\s+|\\.|\\+|\\-|\\*|\\/|\\(|\\)|,|\\[|\\]|\\{|\\})`,
+      'gi'
+    );
+    const tokens = text.split(tokenRegex).filter(token => token !== undefined && token !== '');
 
-      // Skip empty tokens caused by split
-      if (token === '') return;
-  
-      // Handle whitespace (retain original formatting)
-      if (token.match(/^\s+$/)) {
-        elements.push(<span key={index}>{token}</span>);
-        previousOption = null;
-        return;
-      }
-  
-      // Style dot if it follows a parent option with children
+    // Process each token differently:
+    // a- If tokens are surrounded in quotes, skip highlighting, otherwise
+    // b- Highlight option tokens, provided the following and previous characters are valid delimiters
+    // c- Dots preceded by an option are highlighted in orange
+    // d- Other tokens are returned as is
+    return tokens.map((token, index) => {
+      if ((token.startsWith('"') && token.endsWith('"')) || (token.startsWith("'") && token.endsWith("'"))) return <span key={index}>{token}</span>;
+      const option = options.find(opt => opt.name.toLowerCase() === token.toLowerCase());
       if (token === '.') {
-        if (previousOption?.children?.length) {
-          elements.push(<span key={index} className="text-orange-400">.</span>);
-        } else {
-          elements.push(<span key={index}>.</span>);
-        }
-        previousOption = null;
-        return;
+        const prevToken = tokens[index - 1];
+        const parentOption = options.find(opt => opt.name === prevToken);
+        return parentOption?.children ? (
+          <span key={index} className="text-orange-400">.</span>
+        ) : (
+          <span key={index}>.</span>
+        );
       }
-  
-      // Check if token matches an option
-      const option = options.find((opt) => opt.name.toLowerCase() === token.toLowerCase());
       if (option) {
-        const color = colors.find((c) => c.type === option.type)!.color;
-        elements.push(<span key={index} style={{ color }}>{token}</span>);
-        previousOption = option; // Track for next token
-      } else {
-        elements.push(<span key={index}>{token}</span>);
-        previousOption = null;
+        if (tokens[index-1] && !delimiters.test(tokens[index-1])) return <span key={index}>{token}</span>
+        if (tokens[index+1] && !delimiters.test(tokens[index+1])) return <span key={index}>{token}</span>
+        const color = colors.find(c => c.type === option.type)!.color;
+        return <span key={index} style={{ color }}>{token}</span>;
       }
+      return <span key={index}>{token}</span>;
     });
-  
-    return elements;
-  };
+  };  
   const overlay = 
     <div ref={overlayRef} style={{scrollbarWidth: "none"}} className={`${sharedStyle} ${overlayStyle} p-0 leading-none box-border inline-flex items-center`}>
       {value === '' ? "Press Tab for suggestions" : getHighlightedContent(value)}

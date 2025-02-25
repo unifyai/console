@@ -1,49 +1,58 @@
+"use client";
+
 import { DropdownMenuSubContent } from "@radix-ui/react-dropdown-menu";
-
 import { DropdownMenuPortal } from "@radix-ui/react-dropdown-menu";
-
 import { DropdownMenuSub } from "@radix-ui/react-dropdown-menu";
-
 import { DropdownMenuGroup } from "@radix-ui/react-dropdown-menu";
-import ActionButton from "../Common/Buttons/Action";
-import BaseDropdown from "../Common/Dropdowns/Base";
-import { DropdownMenuItem, DropdownMenuSubTrigger } from "../UI/dropdown-menu";
-import { Context, ItemType, TableDataProps } from "@/types/evals/grid";
+import ActionButton from "../../../Common/Buttons/Action";
+import BaseDropdown from "../../../Common/Dropdowns/Base";
+import { DropdownMenuItem, DropdownMenuSubTrigger } from "../../../UI/dropdown-menu";
+import { Context, ItemType, TableDataItem, TableDataProps } from "@/types/evals/grid";
 import { TileProps } from "@/types/evals/grid";
-import { Check } from "lucide-react";
+import { Braces, Check, FolderTree, Grid2x2 } from "lucide-react";
 
 const ContextSelector = ({
     contexts,
-    tableData,
+    tableDataItem,
     item,
     updateItem,
     context,
     setContext,
+    button,
 }: {
     contexts: Context[],
-    tableData?: TableDataProps,
+    tableDataItem?: TableDataItem,
     item?: TileProps,
     updateItem?: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
     context?: string,
     setContext?: (context: string) => void,
+    button?: React.ReactNode,
 }) => {
     const finalSetContext = (updateItem != undefined && item != undefined) ? updateItem(item, "context") : setContext;
+    console.log(item, updateItem, tableDataItem);
+
     return (
         <div className="w-fit">
             <BaseDropdown
-                button={<ActionButton
-                    tooltip="Select Table Type"
-                    text={(item ? (item.column_context || item.context) : context) ? "Edit Context" : "Select Context"}
+                button={button || <ActionButton
+                    tooltip="Edit Context and Column Context"
+                    icon={<FolderTree/>}
                     variant="outline"
-                    size="default"
+                    size="sm"
                 />}
             >
                 <div className="flex flex-col gap-6 pt-2">
                     <div>
-                        <div className="font-bold text-sm px-2 pb-2 border-b">Context:</div>
+                        <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">
+                            <Braces size={18} /> Context
+                        </div>
                         {contexts.length > 0 ? contexts.map((context_: Context) => <DropdownMenuItem
                             key={context_.name}
-                            onSelect={() => ((item?.context || context) != context_.name) && (finalSetContext && finalSetContext(context_.name))}
+                            onSelect={() => (
+                                (item?.context || context) != context_.name
+                                ? (finalSetContext && finalSetContext(context_.name))
+                                : (finalSetContext && finalSetContext(""))
+                            )}
                             className="w-64 justify-between"
                         >
                             {context_.name}{(
@@ -51,15 +60,12 @@ const ContextSelector = ({
                             ) && <Check />}
                         </DropdownMenuItem>) : <></>}
                     </div>
-                    {item && updateItem && tableData && <div>
-                        <div className="font-bold text-sm px-2 pb-2 border-b">Column Context:</div>
-                        {/* Add None option at the root level */}
-                        <DropdownMenuItem
-                            onSelect={() => (item.column_context != "") && updateItem(item, "column_context")("")}
-                            className="w-64 justify-between"
-                        >
-                            None{(item.column_context == undefined || item.column_context == "") && <Check />}
-                        </DropdownMenuItem>
+                    {item && updateItem && (tableDataItem != undefined) && <div>
+                        {tableDataItem.columnContexts && tableDataItem.columnContexts.length > 0 && (
+                            <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">
+                                <Grid2x2 size={18} /> Column Context
+                            </div>
+                        )}
                         {(() => {
                             interface TreeNode {
                                 path: string;
@@ -101,7 +107,11 @@ const ContextSelector = ({
                                 if (!hasChildren) {
                                     return (
                                         <DropdownMenuItem
-                                            onSelect={() => (node.path != item.column_context) && updateItem(item, "column_context")(node.path)}
+                                            onSelect={() => (
+                                                (node.path.slice(0, -1) != item.column_context)
+                                                ? updateItem(item, "column_context")(node.path.slice(0, -1))
+                                                : updateItem(item, "column_context")("")
+                                            )}
                                             className="w-64 justify-between"
                                         >
                                             {nodeName}{item.column_context == node.path.slice(0, -1) && <Check />}
@@ -120,7 +130,11 @@ const ContextSelector = ({
                                                     {/* Make the current path selectable with "root" label */}
                                                     {node.isComplete && (
                                                         <DropdownMenuItem
-                                                            onSelect={() => (node.path != item.column_context) && updateItem(item, "column_context")(node.path)}
+                                                            onSelect={() => (
+                                                                (node.path.slice(0, -1) != item.column_context)
+                                                                ? updateItem(item, "column_context")(node.path.slice(0, -1))
+                                                                : updateItem(item, "column_context")("")
+                                                            )}
                                                         >
                                                             {isTopLevel ? "<root>" : nodeName}{item.column_context == node.path.slice(0, -1) && <Check />}
                                                         </DropdownMenuItem>
@@ -142,7 +156,7 @@ const ContextSelector = ({
                             };
 
                             // Build and render the tree
-                            const tree = buildTree(tableData[item.i]?.columnContexts || []);
+                            const tree = buildTree(tableDataItem?.columnContexts || []);
                             return Object.entries(tree.children).map(([name, node], idx) => (
                                 <RenderMenuItems
                                     key={idx}

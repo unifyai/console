@@ -3,11 +3,11 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Card from "./Card";
-import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
+import { TableArguments } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
 import { DerivedEntryActions, Context, ContextActions, Interface, InterfaceActions, ItemType, LogsActions, FieldsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
-import { Copy, EyeOff, Grip, Loader2, Maximize2, Plus, X } from "lucide-react";
+import { Braces, Copy, EyeOff, Grid2x2, Grip, Loader2, Maximize2, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { Badge } from "../UI/badge";
 import { Dialog, DialogContent } from "../UI/dialog";
@@ -21,7 +21,8 @@ import InterfaceButtons from "./InterfaceButtons";
 import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./ProjectButtons";
 import EditTileName from "./EditTileName";
-import AddTile from "./AddTile";
+import Tooltip from "../Common/Misc/Tooltip";
+import ContextSelector from "./Table/Content/ContextSelector";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -319,7 +320,7 @@ const CardGrid = ({
                         }}
                         className="layout interactive-grid flex-1"
                         cols={{ lg: 12, md: 12, sm: 12, xs: 10, xxs: 8 }}
-                        rowHeight={100}
+                        rowHeight={110}
                         margin={[0, 0]}
                         containerPadding={[0, 0]}
                         isDraggable={edit}
@@ -362,17 +363,49 @@ const CardGrid = ({
                                         updateInterface={updateInterface}
                                         setTableData={setTableData}
                                     />
-                                    <div className={"w-full px-2 opacity-0 hover:opacity-100 transition-all absolute -top-2 flex justify-between " + (edit ? "h-16" : "h-10")}>
-                                        <div className="mb-auto">
-                                            <Badge
-                                                className="cursor-pointer"
-                                                variant="primary"
-                                                onClick={() => edit ? setEditTile(el.i) : undefined}
-                                            >
-                                                {el.i}
-                                            </Badge>
+                                    <div className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (edit ? "h-16" : "h-10")}>
+                                        <div className="mb-auto flex gap-2 ml-1">
+                                            <Tooltip content="Tile Type">
+                                                <Badge
+                                                    className="cursor-pointer text-sm font-normal mb-1"
+                                                    variant="primary"
+                                                    onClick={() => edit ? setEditTile(el.i) : undefined}
+                                                >
+                                                    {el.i}
+                                                </Badge>
+                                            </Tooltip>
+                                            {(![undefined, "default"].includes(el.context || context)) && el.tab == "Table" && <ContextSelector
+                                                contexts={contexts}
+                                                tableDataItem={tableData[el.i || ""]}
+                                                item={el}
+                                                updateItem={updateItem}
+                                                context={context}
+                                                setContext={setContext}
+                                                button={
+                                                    <Tooltip content="Context">
+                                                        <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
+                                                            <Braces size={18} />
+                                                            {el.context || context}
+                                                        </Badge>
+                                                    </Tooltip>
+                                                }
+                                            />}
+                                            {(el.column_context || columnContext) && el.tab == "Table" && <ContextSelector
+                                                contexts={contexts}
+                                                tableDataItem={tableData[el.i || ""]}
+                                                item={el}
+                                                updateItem={updateItem}
+                                                context={context}
+                                                setContext={setContext}
+                                                button={<Tooltip content="Column Context">
+                                                    <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
+                                                        <Grid2x2 size={18} />
+                                                        {el.column_context || columnContext}
+                                                    </Badge>
+                                                </Tooltip>}
+                                            />}
                                         </div>
-                                        <div className="flex gap-2 mb-auto">
+                                        <div className="flex-1 flex justify-end gap-2 mb-auto opacity-0 hover:opacity-100">
                                             <ActionButton
                                                 className="cursor-pointer hover:z-10"
                                                 onClick={() => {
