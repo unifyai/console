@@ -61,9 +61,9 @@ const PageController = ({ interactive, totalPages, pageNumber, setPageNumber, pa
                     />
                 </PaginationItem>
                 {startEllipses && <PaginationItem><PaginationEllipsis /></PaginationItem>}
-                {pageWindow.map(page => (
+                {pageWindow.map((page) => (
                     pageNum === page 
-                        ? <Tooltip content={`Showing ${pageLogs} of ${totalLogs} logs`}>{paginationItem(page)}</Tooltip> 
+                        ? <Tooltip key={page} content={`Showing ${pageLogs} of ${totalLogs} logs`}>{paginationItem(page)}</Tooltip> 
                         : paginationItem(page)
                 ))}
                 {endEllipses && <PaginationItem><PaginationEllipsis className={interactive ? "" : "opacity-50"} /></PaginationItem>}
