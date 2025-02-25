@@ -79,7 +79,7 @@ export function computeStatistic(statistic: string, data: number[]): string {
 /* 
   Extract logs, parameters, and their respective keys, accounting for context and sorting preferences.
 */
-export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFieldsResponseProps, context: string | null, sorting: string | null, hiddenColumns: string | undefined) {
+export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFieldsResponseProps, column_context: string | null, sorting: string | null, hiddenColumns: string | undefined) {
     const params = logsResponse.params;
     const rawLogs = logsResponse.logs;
 
@@ -101,10 +101,10 @@ export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFiel
       Object.entries(fields).filter(entry => entry[1].field_type === "param").map(entry => entry[0]),
       Object.entries(fields).filter(entry => entry[1].field_type != "param").map(entry => entry[0])
     ]
-    if (context){
+    if (column_context){
       [paramsProperties, entriesProperties] = [
-        paramsProperties.filter(property => property.includes(context)).map(property => processContext("split", context, property)),
-        entriesProperties.filter(property => property.includes(context)).map(property => processContext("split", context, property))
+        paramsProperties.filter(property => property.includes(column_context)).map(property => processContext("split", column_context, property)),
+        entriesProperties.filter(property => property.includes(column_context)).map(property => processContext("split", column_context, property))
       ]
     }
     if (hiddenColumns) {
@@ -120,15 +120,15 @@ export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFiel
 
 const getColumnMetrics = async (
   project: string | null,
-  context: string | null,
+  column_context: string | null,
   columns: string[],
   expression: string | null,
   metric: string | undefined,
   logsActions: LogsActions
 ) => {
   let fullColumns = columns
-  if (context)
-    fullColumns = fullColumns.map(column => processContext("merge", context, column))
+  if (column_context)
+    fullColumns = fullColumns.map(column => processContext("merge", column_context, column))
   const metricValues = await Promise.all(
     fullColumns.map(async (key) => {
       try {
@@ -157,7 +157,7 @@ export const getLogsDetails = async (
   item: TileProps,
   logsData: LogsResponseProps,
   fields: LogFieldsResponseProps,
-  context: string | null,
+  column_context: string | null,
   project: string | null,
   filterExpression: string | null,
   groupingExpression: string | null,
@@ -168,7 +168,7 @@ export const getLogsDetails = async (
 ) => {
   // Unpack log data
   const { entriesProperties, paramsProperties, logs, params } = extractLogsData(
-    logsData, fields, context, sorting, hiddenColumns
+    logsData, fields, column_context, sorting, hiddenColumns
   );
 
   let groupedMetrics: {[key: string]: {[key: string]: number | string}} = {};
@@ -200,9 +200,9 @@ export const getLogsDetails = async (
   // Min / max bounds are used to set the filtering range for numeric columns
   const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
   const [metrics, minimums, maximums] = await Promise.all([
-    getColumnMetrics(project, context, columns, filterExpression, item.metric, logsActions),
-    getColumnMetrics(project, context, columns, null, "min", logsActions),
-    getColumnMetrics(project, context, columns, null, "max", logsActions)
+    getColumnMetrics(project, column_context, columns, filterExpression, item.metric, logsActions),
+    getColumnMetrics(project, column_context, columns, null, "min", logsActions),
+    getColumnMetrics(project, column_context, columns, null, "max", logsActions)
   ]);
 
   // Min-max boundaries for numeric and time-like column filters

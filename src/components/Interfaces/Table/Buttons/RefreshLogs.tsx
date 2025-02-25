@@ -71,10 +71,10 @@ async function updateLogs (
         )
         .then(async (logsData: LogsResponseProps) => {
             const totalPages = Math.ceil(logsData.count / 16);
-            const context = item.context ?? null;
+            const column_context = item.column_context ?? null;
             const sorting = item.sorting ?? null;
             const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
-                item, logsData, fields, context, project, filterExpression, groupingExpression, item.metric, sorting, undefined, logsActions
+                item, logsData, fields, column_context, project, filterExpression, groupingExpression, item.metric, sorting, undefined, logsActions
             )
             await new Promise<void>(resolve => {
                 setTableData(prev => {
