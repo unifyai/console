@@ -55,6 +55,7 @@ import { useExpandContext } from "@/contexts/ExpandContext";
 import {
   makePrefixedDictPath,
   gatherAllSubPaths,
+  gatherAllSubPathsMulti,
 } from "@/utils/evals/pathUtils";
 
 /*******************************************************************************
@@ -285,6 +286,10 @@ export default function Selection({
    ******************************************************************************/
   const sortedLogs = useMemo(() => [...logs], [logs]);
 
+  // Get expand context at the top level to use across the component
+  const expandContext = useExpandContext();
+  const { openKeys, setOpenKeys, forceExpandAll, forceCollapseAll } = expandContext;
+
   const selectedCells = useMemo(() => {
     const arr = selection_ ? selection_.split(",") : [];
     debugLog("selection", "Parsed selected cells:", arr);
@@ -312,14 +317,10 @@ export default function Selection({
   }, [hiddenColumns_]);
 
   /*******************************************************************************
-   * ExpandContext usage (from new code)
-   ******************************************************************************/
-  const { openKeys, setOpenKeys, forceExpandAll, forceCollapseAll } = useExpandContext();
-
-  /*******************************************************************************
    * Panel & Display States
    ******************************************************************************/
   const [panelCount, setPanelCount] = useState(1);
+  const [panels, setPanels] = useState<{baseRowIndex: number}[]>([{baseRowIndex: selectedRowIndices[0]}]);
 
   // Distinguish "display mode" from "diff mode" 
   // The user can cycle display among markdown/text/raw
@@ -342,6 +343,11 @@ export default function Selection({
   // Because the new code uses ExpandContext, we must forcibly close all expansions
   // when edit mode turns ON, and restore them when edit mode turns OFF.
   const [savedOpenKeys, setSavedOpenKeys] = useState<Set<string>>(new Set());
+
+  // Update panels when panelCount changes
+  useEffect(() => {
+    setPanels(Array.from({ length: panelCount }).map(() => ({ baseRowIndex: selectedRowIndices[0] })));
+  }, [panelCount, selectedRowIndices]);
 
   function toggleEditMode() {
     if (!editMode) {
@@ -437,25 +443,59 @@ export default function Selection({
   }
 
   function gatherSubpathsForProperty(isParams: boolean, propName: string) {
-    if (!baseLog) return [];
-    let rawVal: any = isParams
-      ? baseLog.params?.[propName]
-      : baseLog.entries?.[propName];
-
-    // If param object with { paramValue, paramVersion }
-    if (rawVal && typeof rawVal === "object" && "paramValue" in rawVal) {
-      rawVal = rawVal.paramValue;
+    // Check if we're dealing with params and if baseLog even exists
+    if (!baseLog) return new Set<string>();
+    
+    // Decide whether to use "entries" or "params"
+    const propContainer = isParams ? (baseLog.params || {}) : (baseLog.entries || {});
+    // Find the raw value for the target property
+    const raw = propContainer[propName];
+    
+    // For params, unwrap the .paramValue
+    const rawVal = isParams && raw && typeof raw === "object" ? raw.paramValue : raw;
+    
+    // Empty? Nothing to expand.
+    if (!rawVal) return new Set<string>();
+    
+    // Build the appropriate root path for this property
+    const prefixStr = isParams ? "params" : "entries";
+    const rootPath = makePrefixedDictPath(prefixStr, 0, propName);
+    
+    // For multi-mode path gathering
+    const compareProps = panels.filter(sp => {
+      return sp.baseRowIndex !== baseIndexParam && sp.baseRowIndex >= 0;
+    });
+    
+    let comparables: any[] = [];
+    
+    // For multi-mode, gather comparable values from the selected logs
+    if (compareProps.length > 0) {
+      comparables = compareProps.map(sp => {
+        const log = sortedLogs[sp.baseRowIndex];
+        if (!log) return undefined;
+        
+        const container = isParams ? (log.params || {}) : (log.entries || {});
+        const val = container[propName];
+        return isParams && val && typeof val === "object" ? val.paramValue : val;
+      }).filter(v => v !== undefined);
     }
-    if (isAllEmpty(rawVal)) return [];
-
-    const prefix = isParams ? "params" : "entries";
-    const topPath = makePrefixedDictPath(prefix, 0, propName);
-
-    if (isDict(rawVal) || isList(rawVal)) {
-      return gatherAllSubPaths(rawVal, topPath, prefix, 0);
+    
+    // Now gather all subpaths - use gatherAllSubPathsMulti if we have comparables
+    let subPaths: string[];
+    if (comparables.length > 0) {
+      subPaths = gatherAllSubPathsMulti(rawVal, comparables, rootPath, prefixStr, 0);
     } else {
-      return [topPath];
+      subPaths = gatherAllSubPaths(rawVal, rootPath, prefixStr, 0);
     }
+    
+    console.log(`[Selection:gatherSubpathsForProperty] ${propName}`, {
+      isParams,
+      rootPath,
+      subPathCount: subPaths.length,
+      hasComparables: comparables.length > 0
+    });
+    
+    return new Set(subPaths);
   }
 
   function areAllOpen_Entries(): boolean {
@@ -464,27 +504,46 @@ export default function Selection({
     if (forceExpandAll) return true;
     const visibleE = entryKeysFromBase.filter((k) => entriesFilter[k] !== false);
     if (!visibleE.length) return false;
+    
+    // Check both the top-level items and their subpaths
     const subPathSet = new Set<string>();
-    visibleE.forEach((k) =>
-      gatherSubpathsForProperty(false, k).forEach((sp) => subPathSet.add(sp))
-    );
-    if (!subPathSet.size) return false;
-    return Array.from(subPathSet).every((sp) => openKeys.has(sp));
+    
+    // Include paths for the top-level entries themselves
+    const prefixStr = "entries";
+    visibleE.forEach((k) => {
+      // Add the root path for this entry
+      const rootPath = makePrefixedDictPath(prefixStr, 0, k);
+      subPathSet.add(rootPath);
+      
+      // Also add all subpaths
+      const spList = gatherSubpathsForProperty(false, k);
+      spList.forEach((sp) => subPathSet.add(sp));
+    });
+
+    return subPathSet.size > 0 && Array.from(subPathSet).every((sp) => openKeys.has(sp));
   }
 
   function onEntriesExpandToggle() {
     if (editMode) return;
     if (!baseLog) return;
+    
     const visibleE = entryKeysFromBase.filter((k) => entriesFilter[k] !== false);
     const subPathSet = new Set<string>();
-    visibleE.forEach((k) =>
-      gatherSubpathsForProperty(false, k).forEach((sp) => subPathSet.add(sp))
-    );
-    const currentlyAllOpen = areAllOpen_Entries();
-    debugLog("expand", "Toggle entries expansion", {
-      visibleCount: visibleE.length,
-      currentlyAllOpen,
+    
+    // Include paths for the top-level entries themselves
+    const prefixStr = "entries";
+    visibleE.forEach((k) => {
+      // Add the root path for this entry
+      const rootPath = makePrefixedDictPath(prefixStr, 0, k);
+      subPathSet.add(rootPath);
+      
+      // Also add all subpaths
+      const spList = gatherSubpathsForProperty(false, k);
+      spList.forEach((sp) => subPathSet.add(sp));
     });
+    
+    const currentlyAllOpen = areAllOpen_Entries();
+    
     setOpenKeys((prev) => {
       const next = new Set(prev);
       if (currentlyAllOpen) {
@@ -502,27 +561,46 @@ export default function Selection({
     if (forceExpandAll) return true;
     const visibleP = paramKeysFromBase.filter((k) => paramsFilter[k] !== false);
     if (!visibleP.length) return false;
+    
+    // Check both the top-level items and their subpaths
     const subPathSet = new Set<string>();
-    visibleP.forEach((k) =>
-      gatherSubpathsForProperty(true, k).forEach((sp) => subPathSet.add(sp))
-    );
-    if (!subPathSet.size) return false;
-    return Array.from(subPathSet).every((sp) => openKeys.has(sp));
+    
+    // Include paths for the top-level params themselves
+    const prefixStr = "params";
+    visibleP.forEach((k) => {
+      // Add the root path for this param
+      const rootPath = makePrefixedDictPath(prefixStr, 0, k);
+      subPathSet.add(rootPath);
+      
+      // Also add all subpaths
+      const spList = gatherSubpathsForProperty(true, k);
+      spList.forEach((sp) => subPathSet.add(sp));
+    });
+
+    return subPathSet.size > 0 && Array.from(subPathSet).every((sp) => openKeys.has(sp));
   }
 
   function onParamsExpandToggle() {
     if (editMode) return;
     if (!baseLog) return;
+    
     const visibleP = paramKeysFromBase.filter((k) => paramsFilter[k] !== false);
     const subPathSet = new Set<string>();
-    visibleP.forEach((k) =>
-      gatherSubpathsForProperty(true, k).forEach((sp) => subPathSet.add(sp))
-    );
-    const currentlyAllOpen = areAllOpen_Params();
-    debugLog("expand", "Toggle params expansion", {
-      visibleCount: visibleP.length,
-      currentlyAllOpen,
+    
+    // Include paths for the top-level params themselves
+    const prefixStr = "params";
+    visibleP.forEach((k) => {
+      // Add the root path for this param
+      const rootPath = makePrefixedDictPath(prefixStr, 0, k);
+      subPathSet.add(rootPath);
+      
+      // Also add all subpaths
+      const spList = gatherSubpathsForProperty(true, k);
+      spList.forEach((sp) => subPathSet.add(sp));
     });
+    
+    const currentlyAllOpen = areAllOpen_Params();
+    
     setOpenKeys((prev) => {
       const next = new Set(prev);
       if (currentlyAllOpen) {
@@ -533,6 +611,42 @@ export default function Selection({
       return next;
     });
   }
+
+  // Helper function for accordion values
+  const getAccordionValue = useCallback((filtered: string[], isParams: boolean) => {
+    return filtered.filter(col => {
+      const paths = gatherSubpathsForProperty(isParams, col);
+      return Array.from(paths).some(path => openKeys.has(path));
+    });
+  }, [openKeys, gatherSubpathsForProperty]);
+
+  // Helper function for accordion value changes
+  const handleAccordionValueChange = useCallback((newVals: string[], filtered: string[], isParams: boolean) => {
+    const currentValues = new Set(getAccordionValue(filtered, isParams));
+    const newValues = new Set(newVals);
+    
+    // Find added and removed values
+    const added = Array.from(newValues).filter(val => !currentValues.has(val));
+    const removed = Array.from(currentValues).filter(val => !newValues.has(val));
+    
+    setOpenKeys(prev => {
+      const next = new Set(prev);
+      
+      // For added values, add all their paths
+      added.forEach(col => {
+        const paths = gatherSubpathsForProperty(isParams, col);
+        Array.from(paths).forEach(path => next.add(path));
+      });
+      
+      // For removed values, remove all their paths
+      removed.forEach(col => {
+        const paths = gatherSubpathsForProperty(isParams, col);
+        Array.from(paths).forEach(path => next.delete(path));
+      });
+      
+      return next;
+    });
+  }, [openKeys, setOpenKeys, getAccordionValue, gatherSubpathsForProperty]);
 
   /*******************************************************************************
    * If no rows selected, just show hints
@@ -817,7 +931,8 @@ export default function Selection({
         {Array.from({ length: panelCount }).map((_, idx) => (
           <SelectionPanel
             key={`panel-${idx}`}
-            logs={sortedLogs}
+            logs={logs}
+            sortedLogs={sortedLogs}
             params={params}
             selectedRowIndices={selectedRowIndices}
             columnOrdering={columnOrdering}
@@ -843,6 +958,7 @@ export default function Selection({
             globalParamOrderings={globalParamOrderings}
             setGlobalParamOrderings={setGlobalParamOrderings}
             panelId={idx}
+            panels={panels}
           />
         ))}
       </div>
@@ -857,6 +973,7 @@ export default function Selection({
 function SelectionPanel({
   panelId,
   logs,
+  sortedLogs,
   params,
   selectedRowIndices,
   columnOrdering,
@@ -881,9 +998,11 @@ function SelectionPanel({
   setGlobalEntryOrderings,
   globalParamOrderings,
   setGlobalParamOrderings,
+  panels,
 }: {
   panelId: number;
   logs: LogProps[];
+  sortedLogs: LogProps[];
   params: Record<string, unknown>;
   selectedRowIndices: number[];
   columnOrdering: string[];
@@ -908,7 +1027,35 @@ function SelectionPanel({
   setGlobalEntryOrderings: Dispatch<SetStateAction<{ [key: string]: string[] }>>;
   globalParamOrderings: { [key: string]: string[] };
   setGlobalParamOrderings: Dispatch<SetStateAction<{ [key: string]: string[] }>>;
+  panels: {baseRowIndex: number}[];
 }) {
+  // Get the expand context at the SelectionPanel component level
+  const { openKeys, setOpenKeys } = useExpandContext();
+
+  // Add versions
+  const version = "";
+  const comparableVersions: string[] = [];
+
+  // Create a local handleAccordionValueChange function
+  const handleAccordionValueChange = (newVals: string[], filtered: string[], isParams: boolean) => {
+    const next = new Set(openKeys);
+    
+    // For shallow toggling, only update the root path for each property
+    filtered.forEach(prop => {
+      const prefixStr = isParams ? "params" : "entries";
+      const rootPath = makePrefixedDictPath(prefixStr, 0, prop);
+      const shouldBeOpen = newVals.includes(prop);
+      
+      if (shouldBeOpen) {
+        next.add(rootPath);
+      } else {
+        next.delete(rootPath);
+      }
+    });
+    
+    setOpenKeys(next);
+  };
+
   // baseIndex from item/baseIndex
   let baseIndexParam = parseInt(item.base_index ?? "0", 10);
   if (isNaN(baseIndexParam)) {
@@ -1101,9 +1248,9 @@ function SelectionPanel({
   }
 
   /*****************************************************************************
-   * Build param section with reorder & expand/collapse toggles
+   * ParamSection Component - Converted from buildParamSection function
    *****************************************************************************/
-  function buildParamSection() {
+  function ParamSection() {
     if (!baseLog) return null;
 
     // Visible columns
@@ -1116,6 +1263,14 @@ function SelectionPanel({
     if (!filtered.length) return null;
 
     const allOpen = areAllOpenParams();
+
+    // Calculate accordionValue based on only the root paths of each property
+    const accordionValue = filtered.filter((prop) => {
+      // Check if the root path itself is in openKeys (for shallow toggling)
+      const prefixStr = "params";
+      const rootPath = makePrefixedDictPath(prefixStr, 0, prop);
+      return openKeys.has(rootPath);
+    });
 
     return (
       <div className="flex flex-col gap-2">
@@ -1135,39 +1290,44 @@ function SelectionPanel({
           onDragEnd={handleParamDragEnd}
         >
           <SortableContext items={filtered} strategy={verticalListSortingStrategy}>
-            <Accordion type="multiple">
-              {filtered.map((col) => {
-                const baseVal = baseLog.params?.[col];
-                const compVals = comparisonLogs.map((cl) => cl.params?.[col]);
-                return (
-                  <SortableAccordionItem
-                    key={`param-${col}`}
-                    id={col}
+            <Accordion 
+              type="multiple"
+              value={accordionValue}
+              onValueChange={(newValues) => {
+                handleAccordionValueChange(newValues, filtered, true);
+              }}
+            >
+              {filtered.map((prop) => (
+                <SortableAccordionItem
+                  key={prop}
+                  id={prop}
+                  editMode={editMode}
+                >
+                  <SelectionEntry
+                    source="params"
+                    property={prop}
+                    value={baseLog.params?.[prop]}
+                    baseLog={baseLog}
+                    baseLogIndex={selectedRowIndices[baseRowIndex]}
+                    comparisonLogs={comparisonLogs}
+                    comparisonLogsIndex={comparisonRowIndices}
+                    diffMode={diffMode}
+                    splitView={splitView}
+                    displayMode={displayMode}
+                    tableItem={tableItem}
+                    updateItem={updateItem}
+                    version={version}
+                    comparableVersions={comparableVersions}
+                    onHideColumn={(p) => {
+                      setParamsFilter((prev) => ({
+                        ...prev,
+                        [p]: false,
+                      }));
+                    }}
                     editMode={editMode}
-                  >
-                    <SelectionEntry
-                      source="params"
-                      property={col}
-                      value={baseVal}
-                      baseLog={baseLog ?? undefined}
-                      baseLogIndex={baseRowIndex + 1}
-                      comparisonLogs={comparisonLogs}
-                      comparisonLogsIndex={comparisonRowIndices.map(
-                        (x) => x + 1
-                      )}
-                      diffMode={diffMode}
-                      splitView={splitView}
-                      displayMode={displayMode}
-                      onHideColumn={(p) => {
-                        setParamsFilter((prev) => ({ ...prev, [p]: false }));
-                      }}
-                      tableItem={tableItem}
-                      updateItem={updateItem}
-                      editMode={editMode}
-                    />
-                  </SortableAccordionItem>
-                );
-              })}
+                  />
+                </SortableAccordionItem>
+              ))}
             </Accordion>
           </SortableContext>
         </DndContext>
@@ -1176,11 +1336,12 @@ function SelectionPanel({
   }
 
   /*****************************************************************************
-   * Build entries section
+   * EntriesSection Component - Converted from buildEntriesSection function
    *****************************************************************************/
-  function buildEntriesSection() {
+  function EntriesSection() {
     if (!baseLog) return null;
 
+    // Visible columns
     const cols = entryOrder.filter((col) => entriesFilter[col] !== false);
     const filtered = cols.filter((col) => {
       const baseVal = baseLog.entries?.[col];
@@ -1190,6 +1351,14 @@ function SelectionPanel({
     if (!filtered.length) return null;
 
     const allOpen = areAllOpenEntries();
+    
+    // Calculate accordionValue based on only the root paths of each property
+    const accordionValue = filtered.filter((prop) => {
+      // Check if the root path itself is in openKeys (for shallow toggling)
+      const prefixStr = "entries";
+      const rootPath = makePrefixedDictPath(prefixStr, 0, prop);
+      return openKeys.has(rootPath);
+    });
 
     return (
       <div className="flex flex-col gap-2">
@@ -1209,39 +1378,44 @@ function SelectionPanel({
           onDragEnd={handleEntryDragEnd}
         >
           <SortableContext items={filtered} strategy={verticalListSortingStrategy}>
-            <Accordion type="multiple">
-              {filtered.map((col) => {
-                const baseVal = baseLog.entries?.[col];
-                const compVals = comparisonLogs.map((cl) => cl.entries?.[col]);
-                return (
-                  <SortableAccordionItem
-                    key={`entry-${col}`}
-                    id={col}
+            <Accordion 
+              type="multiple"
+              value={accordionValue}
+              onValueChange={(newValues) => {
+                handleAccordionValueChange(newValues, filtered, false);
+              }}
+            >
+              {filtered.map((prop) => (
+                <SortableAccordionItem
+                  key={prop}
+                  id={prop}
+                  editMode={editMode}
+                >
+                  <SelectionEntry
+                    source="entries"
+                    property={prop}
+                    value={baseLog.entries?.[prop]}
+                    baseLog={baseLog}
+                    baseLogIndex={selectedRowIndices[baseRowIndex]}
+                    comparisonLogs={comparisonLogs}
+                    comparisonLogsIndex={comparisonRowIndices}
+                    diffMode={diffMode}
+                    splitView={splitView}
+                    displayMode={displayMode}
+                    tableItem={tableItem}
+                    updateItem={updateItem}
+                    version={version}
+                    comparableVersions={comparableVersions}
+                    onHideColumn={(p) => {
+                      setEntriesFilter((prev) => ({
+                        ...prev,
+                        [p]: false,
+                      }));
+                    }}
                     editMode={editMode}
-                  >
-                    <SelectionEntry
-                      source="entries"
-                      property={col}
-                      value={baseVal}
-                      baseLog={baseLog ?? undefined}
-                      baseLogIndex={baseRowIndex + 1}
-                      comparisonLogs={comparisonLogs}
-                      comparisonLogsIndex={comparisonRowIndices.map(
-                        (x) => x + 1
-                      )}
-                      diffMode={diffMode}
-                      splitView={splitView}
-                      displayMode={displayMode}
-                      onHideColumn={(p) => {
-                        setEntriesFilter((prev) => ({ ...prev, [p]: false }));
-                      }}
-                      tableItem={tableItem}
-                      updateItem={updateItem}
-                      editMode={editMode}
-                    />
-                  </SortableAccordionItem>
-                );
-              })}
+                  />
+                </SortableAccordionItem>
+              ))}
             </Accordion>
           </SortableContext>
         </DndContext>
@@ -1262,8 +1436,8 @@ function SelectionPanel({
   return (
     <div className="flex flex-col w-full h-full overflow-hidden">
       <div className="flex-1 overflow-y-auto px-5 min-h-0 space-y-6">
-        {buildParamSection()}
-        {buildEntriesSection()}
+        <ParamSection />
+        <EntriesSection />
       </div>
     </div>
   );

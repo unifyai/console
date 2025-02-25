@@ -8,7 +8,8 @@ import {
   AccordionContent,
 } from "@/components/UI/accordion";
 import { Button } from "@/components/UI/button";
-import { FoldVertical } from "lucide-react";
+import { FoldVertical, UnfoldVertical } from "lucide-react";
+import ActionButton from "@/components/Common/Buttons/Action";
 
 import {
   isList,
@@ -22,6 +23,7 @@ import {
 } from "@/utils/evals/selection";
 import {
   gatherAllSubPaths,
+  gatherAllSubPathsMulti,
   makePrefixedListPath,
   sanitizePropertyKey,
 } from "@/utils/evals/pathUtils";
@@ -127,6 +129,7 @@ function presenceDiff(
 ────────────────────────────────────────────────────────────────────────────*/
 function handleRecursiveToggle(
   baseValue: unknown,
+  comparables: unknown[],
   path: string,
   prefix: string,
   nestingLevel: number,
@@ -138,7 +141,12 @@ function handleRecursiveToggle(
     openKeysCount: openKeys.size
   });
 
-  const subPaths = gatherAllSubPaths(baseValue, path, prefix, nestingLevel);
+  let subPaths: string[];
+  if (comparables && comparables.length > 0) {
+    subPaths = gatherAllSubPathsMulti(baseValue, comparables, path, prefix, nestingLevel);
+  } else {
+    subPaths = gatherAllSubPaths(baseValue, path, prefix, nestingLevel);
+  }
   console.log(`[ListView:handleRecursiveToggle] subPaths gathered:`, subPaths);
 
   const allOpen = subPaths.every((p) => openKeys.has(p));
@@ -180,39 +188,86 @@ export default function ListView({
 }: ListViewProps) {
   const { openKeys, setOpenKeys, forceExpandAll, forceCollapseAll } = useExpandContext();
 
-  if (!isList(value)) {
-    return <p className="text-red-500">ListView: base value is not a list.</p>;
+  // Check if value is a list but don't return early
+  const isValidList = isList(value);
+  
+  // Only log if we have a valid list
+  if (isValidList) {
+    console.log(`[ListView:render] prefix=${prefix}, parentPath=${parentPath}, nesting=${nestingLevel}`, {
+      length: value.length,
+      openKeysCount: openKeys.size,
+      forceExpandAll,
+      forceCollapseAll,
+    });
   }
-
-  console.log(`[ListView:render] prefix=${prefix}, parentPath=${parentPath}, nesting=${nestingLevel}`, {
-    length: value.length,
-    openKeysCount: openKeys.size,
-    forceExpandAll,
-    forceCollapseAll,
-  });
 
   // Single vs multi
   const multiMode = comparables && comparables.length > 0;
-  const baseArr = (Array.isArray(value) ? value : []) as any[];
+  const baseArr = isValidList ? (Array.isArray(value) ? value : []) as any[] : [];
 
   // itemCount => max length among base & comps
   let itemCount = baseArr.length;
-  if (multiMode) {
+  if (isValidList && multiMode) {
     const compLens = (comparables ?? []).map((c) => (isList(c) ? c.length : 0));
     itemCount = Math.max(itemCount, ...compLens);
   }
 
+  // Define buildItemPath function before using it in hooks
+  function buildItemPath(i: number) {
+    if (parentPath) {
+      return parentPath + "." + i;
+    } else {
+      return makePrefixedListPath(prefix, nestingLevel, i);
+    }
+  }
+
+  // function to label => "Item 0"
+  function itemLabel(i: number) {
+    return `Item ${i}`;
+  }
+
   // On mount or if forceExpandAll/forceCollapseAll changes => expand/collapse all
+  // Always call useEffect but conditionally execute its body
   useEffect(() => {
-    if (!parentPath) return; // if we have no parent path, we can't unify a root
+    if (!isValidList || !parentPath) return; // if we have no valid list or parent path, we can't proceed
+    
     if (forceExpandAll || forceCollapseAll) {
+      console.log(`[ListView:useEffect(forceExpand|collapseAll)] Starting global expand/collapse`, {
+        parentPath,
+        multiMode,
+        value,
+        comparables,
+        valueLength: Array.isArray(value) ? value.length : 0,
+        hasComparables: comparables && comparables.length > 0
+      });
+      
       const newSet = new Set(openKeys);
-      // gather all subPaths for the entire array
-      const subPaths = gatherAllSubPaths(value, parentPath, prefix, nestingLevel);
+      
+      // Choose the appropriate path gathering function based on mode
+      let subPaths: string[];
+      if (multiMode) {
+        // In multi-mode, use gatherAllSubPathsMulti to include items from comparables
+        subPaths = gatherAllSubPathsMulti(value, comparables || [], parentPath, prefix, nestingLevel);
+        console.log(`[ListView:useEffect] Using multi-mode path gathering`, {
+          parentPath, 
+          subPathCount: subPaths.length,
+          compareCount: comparables ? comparables.length : 0
+        });
+      } else {
+        // In single-mode, use the original method
+        subPaths = gatherAllSubPaths(value, parentPath, prefix, nestingLevel);
+        console.log(`[ListView:useEffect] Using single-mode path gathering`, {
+          parentPath,
+          subPathCount: subPaths.length
+        });
+      }
+      
       console.log(`[ListView:useEffect(forceExpand|collapseAll)] parentPath=${parentPath}`, {
         subPathsCount: subPaths.length,
+        subPaths,
         forceExpandAll,
-        forceCollapseAll
+        forceCollapseAll,
+        multiMode
       });
 
       if (forceExpandAll) {
@@ -222,25 +277,12 @@ export default function ListView({
       }
       setOpenKeys(newSet);
     }
-  }, [forceExpandAll, forceCollapseAll, parentPath, prefix, nestingLevel, openKeys, value]);
-
-  // function to label => "Item 0"
-  function itemLabel(i: number) {
-    return `Item ${i}`;
-  }
-
-  // function to build child path => if parentPath => parentPath + "." + i
-  // else => makePrefixedListPath(prefix, nestingLevel, i)
-  function buildItemPath(i: number) {
-    if (parentPath) {
-      return parentPath + "." + i;
-    } else {
-      return makePrefixedListPath(prefix, nestingLevel, i);
-    }
-  }
+  }, [forceExpandAll, forceCollapseAll, parentPath, prefix, nestingLevel, openKeys, value, multiMode, comparables, isValidList, setOpenKeys]);
 
   // We define "openValues" similarly to dictionary => which items are open
   const openValues = useMemo(() => {
+    if (!isValidList) return [];
+    
     const arr: string[] = [];
     for (let i = 0; i < itemCount; i++) {
       const path = buildItemPath(i);
@@ -252,7 +294,12 @@ export default function ListView({
     }
     console.log(`[ListView:openValues] computed:`, arr);
     return arr;
-  }, [itemCount, openKeys]);
+  }, [itemCount, openKeys, isValidList, buildItemPath, itemLabel]);
+
+  // Early return after all hooks are called
+  if (!isValidList) {
+    return <p className="text-red-500">ListView: base value is not a list.</p>;
+  }
 
   // onValueChange => compare old vs. new => toggle difference
   function handleValueChange(newVals: string[]) {
@@ -302,6 +349,7 @@ export default function ListView({
       e.stopPropagation();
       handleRecursiveToggle(
         arrValue,
+        [],
         path,
         prefix,
         nestingLevel,
@@ -318,9 +366,13 @@ export default function ListView({
           </span>
           {isOpen && (finalType === "dict" || finalType === "list") && (
             <div className="absolute right-5 flex gap-1 items-center">
-              <Button variant="ghost" onClick={handleExpandClick}>
-                <FoldVertical size={16} />
-              </Button>
+              <ActionButton
+                variant="ghost"
+                size="icon"
+                tooltip={isOpen ? "Collapse All Children" : "Expand All Children"}
+                onClick={handleExpandClick}
+                icon={isOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+              />
             </div>
           )}
         </AccordionTrigger>
@@ -373,6 +425,7 @@ export default function ListView({
       e.stopPropagation();
       handleRecursiveToggle(
         baseVal,
+        compVals,
         path,
         prefix,
         nestingLevel,
@@ -397,9 +450,13 @@ export default function ListView({
           </span>
           {isOpen && (finalType === "dict" || finalType === "list") && (
             <div className="absolute right-5 flex gap-1 items-center">
-              <Button variant="ghost" onClick={handleExpandClick}>
-                <FoldVertical size={16} />
-              </Button>
+              <ActionButton
+                variant="ghost"
+                size="icon"
+                tooltip={isOpen ? "Collapse All Children" : "Expand All Children"}
+                onClick={handleExpandClick}
+                icon={isOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+              />
             </div>
           )}
         </AccordionTrigger>

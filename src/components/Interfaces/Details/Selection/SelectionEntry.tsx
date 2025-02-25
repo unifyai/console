@@ -20,6 +20,7 @@ import ChatOutView from "./Views/ChatView/ChatOutView";
 
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { CircleMinus, FoldVertical, UnfoldVertical } from "lucide-react";
+import ActionButton from "@/components/Common/Buttons/Action";
 
 import RawView from "./Views/RawView";
 import {
@@ -49,7 +50,8 @@ import { useExpandContext } from "@/contexts/ExpandContext";
 import {
   makePrefixedDictPath,
   makePrefixedListPath,
-  gatherAllSubPaths
+  gatherAllSubPaths,
+  gatherAllSubPathsMulti
 } from "@/utils/evals/pathUtils";
 
 import { ItemType, TileProps } from "@/types/evals/grid";
@@ -365,27 +367,21 @@ export default function SelectionEntry({
     rawValue = value.paramValue;
   }
 
-  // skip if empty
+  // Check if empty for conditional rendering later
   const allVals = [rawValue, ...comps];
-  if (allVals.every(isEmptyOrBlank)) {
-    return null;
-  }
+  const isEmpty = allVals.every(isEmptyOrBlank);
 
-  // find type
-  const unifiedType = unifyType(rawValue, comps);
-  const icon = getTypeIcon(unifiedType);
-
-  function handleDeselectColumn() {
-    onHideColumn?.(property);
-  }
-
-  // is it dict/list?
-  const isDictOrList = unifiedType === "dict" || unifiedType === "list";
+  // find type - moved before early return
+  const unifiedType = !isEmpty ? unifyType(rawValue, comps) : "";
+  const icon = !isEmpty ? getTypeIcon(unifiedType) : null;
+  
+  // is it dict/list? - moved before early return
+  const isDictOrList = !isEmpty && (unifiedType === "dict" || unifiedType === "list");
 
   // We'll pass nestingLevel=0 for top-level
   const childNesting = 0;
 
-  // Build the top-level path for dictionaries/lists
+  // Build the top-level path for dictionaries/lists - moved before early return
   const topLevelPath = useMemo(() => {
     if (!isDictOrList) return "";
     const prefixStr = source === "entries" ? "entries" : "params";
@@ -396,21 +392,46 @@ export default function SelectionEntry({
   // We'll gather all subpaths for a fully recursive approach
   // when user clicks the global expand button (the "FoldVertical / UnfoldVertical").
   const subPaths = useMemo(() => {
-    if (!isDictOrList) return [];
-    if (!topLevelPath) return [];
+    if (!isDictOrList || !topLevelPath) return [];
     const prefixStr = source === "entries" ? "entries" : "params";
 
-    // fully gather everything
-    const paths = gatherAllSubPaths(rawValue, topLevelPath, prefixStr, 0);
-    return paths;
-  }, [rawValue, isDictOrList, topLevelPath, source]);
+    // In multi-mode, use gatherAllSubPathsMulti to include keys from comparables
+    if (comps && comps.length > 0) {
+      return gatherAllSubPathsMulti(rawValue, comps, topLevelPath, prefixStr, 0);
+    } else {
+      // In single-mode, use the original gatherAllSubPaths
+      return gatherAllSubPaths(rawValue, topLevelPath, prefixStr, 0);
+    }
+  }, [rawValue, isDictOrList, topLevelPath, source, comps]);
 
   // check if all subPaths are in openKeys => allOpen
   const allOpen = useMemo(() => {
-    if (!isDictOrList) return false;
-    if (!subPaths.length) return false;
+    if (!isDictOrList || !subPaths.length) return false;
     return subPaths.every((p) => openKeys.has(p));
   }, [isDictOrList, subPaths, openKeys]);
+  
+  // Lifecycle logging - moved before early return
+  useEffect(() => {
+    if (!isEmpty) {
+      debugLog('lifecycle', `SelectionEntry for ${property}`, {
+        unifiedType,
+        isDictOrList,
+        topLevelPath,
+        subPathsCount: subPaths.length,
+        allOpen,
+        openKeysCount: openKeys.size
+      });
+    }
+  }, [isEmpty, property, unifiedType, isDictOrList, topLevelPath, subPaths, allOpen, openKeys]);
+  
+  // Return early if empty - after all hooks have been called
+  if (isEmpty) {
+    return null;
+  }
+
+  function handleDeselectColumn() {
+    onHideColumn?.(property);
+  }
 
   // global expand/collapse => fully recursive
   const handleGlobalExpandToggle = (e: React.MouseEvent) => {
@@ -458,18 +479,6 @@ export default function SelectionEntry({
   // For the shadcn <AccordionItem>, we unify property => so the parent's "onValueChange" logic sees a simpler string
   const itemValue = property;
 
-  // Lifecycle logging
-  useEffect(() => {
-    debugLog('lifecycle', `SelectionEntry for ${property}`, {
-      unifiedType,
-      isDictOrList,
-      topLevelPath,
-      subPathsCount: subPaths.length,
-      allOpen,
-      openKeysCount: openKeys.size
-    });
-  }, [property, unifiedType, isDictOrList, topLevelPath, subPaths, allOpen, openKeys]);
-
   return (
     <AccordionItem
       value={itemValue}
@@ -513,9 +522,13 @@ export default function SelectionEntry({
 
         {!editMode && isDictOrList && subPaths.length > 0 && (
           <div className="absolute right-5 flex gap-1 items-center">
-            <button className="p-1 hover:bg-muted rounded" onClick={handleGlobalExpandToggle}>
-              {allOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
-            </button>
+            <ActionButton
+              variant="ghost"
+              size="icon"
+              tooltip={allOpen ? "Collapse All" : "Expand All"}
+              onClick={handleGlobalExpandToggle}
+              icon={allOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+            />
           </div>
         )}
       </AccordionTrigger>

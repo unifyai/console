@@ -9,6 +9,7 @@ import {
 } from "@/components/UI/accordion";
 import { Button } from "@/components/UI/button";
 import { FoldVertical, UnfoldVertical } from "lucide-react";
+import ActionButton from "@/components/Common/Buttons/Action";
 
 import {
   isDict,
@@ -22,6 +23,7 @@ import {
 } from "@/utils/evals/selection";
 import {
   gatherAllSubPaths,
+  gatherAllSubPathsMulti,
   makePrefixedDictPath,
   sanitizePropertyKey,
 } from "@/utils/evals/pathUtils";
@@ -127,6 +129,7 @@ function presenceDiff(
 ────────────────────────────────────────────────────────────────────────────*/
 function handleRecursiveToggle(
   baseValue: unknown,
+  comparables: unknown[],
   path: string,
   prefix: string,
   nestingLevel: number,
@@ -144,7 +147,15 @@ function handleRecursiveToggle(
   });
 
   // gather any subpaths under "path"
-  const subPaths = gatherAllSubPaths(baseValue, path, prefix, nestingLevel);
+  let subPaths: string[];
+  if (comparables && comparables.length > 0) {
+    // In multi-mode, use gatherAllSubPathsMulti to include all keys
+    subPaths = gatherAllSubPathsMulti(baseValue, comparables, path, prefix, nestingLevel);
+  } else {
+    // In single-mode, use the original method
+    subPaths = gatherAllSubPaths(baseValue, path, prefix, nestingLevel);
+  }
+  
   console.log(`[DictionaryView:handleRecursiveToggle] Gathered subpaths`, {
     path,
     subPaths,
@@ -215,29 +226,30 @@ export default function DictionaryView({
     forceCollapseAll,
   } = useExpandContext();
 
-  // confirm base is a dict
-  if (!isDict(value)) {
-    return (
-      <p className="text-red-500">
-        DictionaryView: base value is not a dictionary.
-      </p>
-    );
+  // Check if base is a dict first but don't return early
+  const isValidDict = isDict(value);
+  
+  // Log only if we have a valid dictionary
+  if (isValidDict) {
+    console.log(`[DictionaryView:render] Rendering dictionary view`, {
+      prefix,
+      nestingLevel,
+      parentPath,
+      valueKeys: Object.keys(value),
+      openKeysCount: openKeys.size,
+      forceExpandAll,
+      forceCollapseAll
+    });
   }
-
-  console.log(`[DictionaryView:render] Rendering dictionary view`, {
-    prefix,
-    nestingLevel,
-    parentPath,
-    valueKeys: Object.keys(value),
-    openKeysCount: openKeys.size,
-    forceExpandAll,
-    forceCollapseAll
-  });
 
   const singleMode = !comparables || comparables.length === 0;
 
-  // gather union of all dictionary keys
+  // gather union of all dictionary keys - handle invalid dict case inside
   const { allKeys, rowIndices } = useMemo(() => {
+    if (!isValidDict) {
+      return { allKeys: [], rowIndices: [] };
+    }
+    
     if (singleMode) {
       const baseObjKeys = Object.keys(value).sort();
       return {
@@ -258,22 +270,54 @@ export default function DictionaryView({
         rowIndices: [baseLogIndex, ...comparisonLogsIndex],
       };
     }
-  }, [value, comparables, singleMode, baseLogIndex, comparisonLogsIndex]);
+  }, [value, comparables, singleMode, baseLogIndex, comparisonLogsIndex, isValidDict]);
 
   // On mount or if forceExpandAll/forceCollapseAll changes => one pass
+  // Always call useEffect, but conditionally execute its body
   useEffect(() => {
+    if (!isValidDict) return;
+    
     if (forceExpandAll || forceCollapseAll) {
       // Use parentPath directly as the root path for gathering subpaths
       // This ensures consistency with the top-level property path
       if (parentPath) {
+        console.log(`[DictionaryView:useEffect(forceExpand|collapseAll)] Starting global expand/collapse`, {
+          parentPath,
+          multiMode: !singleMode,
+          value,
+          comparables,
+          valueKeys: Object.keys(value),
+          hasComparables: comparables && comparables.length > 0
+        });
+
         const newSet = new Set(openKeys);
-        const subPaths = gatherAllSubPaths(value, parentPath, prefix, nestingLevel);
+        
+        // Choose the appropriate path gathering function based on mode
+        let subPaths: string[];
+        if (!singleMode) {
+          // In multi-mode, use gatherAllSubPathsMulti to include keys from comparables
+          subPaths = gatherAllSubPathsMulti(value, comparables, parentPath, prefix, nestingLevel);
+          console.log(`[DictionaryView:useEffect] Using multi-mode path gathering`, {
+            parentPath, 
+            subPathCount: subPaths.length,
+            compareCount: comparables.length
+          });
+        } else {
+          // In single-mode, use the original gatherAllSubPaths
+          subPaths = gatherAllSubPaths(value, parentPath, prefix, nestingLevel);
+          console.log(`[DictionaryView:useEffect] Using single-mode path gathering`, {
+            parentPath,
+            subPathCount: subPaths.length
+          });
+        }
+        
         console.log(`[DictionaryView:useEffect(forceExpand|collapseAll)]`, {
           parentPath,
           subPathsCount: subPaths.length,
           subPaths,
           forceExpandAll,
-          forceCollapseAll
+          forceCollapseAll,
+          multiMode: !singleMode
         });
 
         if (forceExpandAll) {
@@ -287,7 +331,7 @@ export default function DictionaryView({
         setOpenKeys(newSet);
       }
     }
-  }, [forceExpandAll, forceCollapseAll, openKeys, parentPath, prefix, nestingLevel, value]);
+  }, [forceExpandAll, forceCollapseAll, openKeys, parentPath, prefix, nestingLevel, value, comparables, singleMode, isValidDict, setOpenKeys]);
 
   /*─────────────────────────────────────────────────────────────────────────
     renderSingleKey => only base has data
@@ -308,6 +352,7 @@ export default function DictionaryView({
       e.stopPropagation();
       handleRecursiveToggle(
         baseVal,
+        [],
         path,
         prefix,
         nestingLevel,
@@ -315,6 +360,9 @@ export default function DictionaryView({
         setOpenKeys
       );
     }
+
+    // Build tooltip text
+    const isPathOpen = openKeys.has(path);
 
     return (
       <AccordionItem key={k} value={path}>
@@ -324,12 +372,13 @@ export default function DictionaryView({
           </span>
           {(type === "dict" || type === "list") && (
             <div className="absolute right-5 flex gap-1 items-center">
-              <Button
+              <ActionButton
                 variant="ghost"
+                size="icon"
+                tooltip={isPathOpen ? "Collapse All Children" : "Expand All Children"}
                 onClick={handleExpandToggle}
-              >
-                <FoldVertical size={16} />
-              </Button>
+                icon={isPathOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+              />
             </div>
           )}
         </AccordionTrigger>
@@ -394,6 +443,7 @@ export default function DictionaryView({
       e.stopPropagation();
       handleRecursiveToggle(
         baseVal,
+        compVals,
         path,
         prefix,
         nestingLevel,
@@ -401,6 +451,9 @@ export default function DictionaryView({
         setOpenKeys
       );
     }
+
+    // Build tooltip text
+    const isPathOpen = openKeys.has(path);
 
     return (
       <AccordionItem key={k} value={path}>
@@ -418,12 +471,13 @@ export default function DictionaryView({
           </span>
           {(propType === "dict" || propType === "list") && (
             <div className="absolute right-5 flex gap-1 items-center">
-              <Button
+              <ActionButton
                 variant="ghost"
+                size="icon"
+                tooltip={isPathOpen ? "Collapse All Children" : "Expand All Children"}
                 onClick={handleExpandToggle}
-              >
-                <FoldVertical size={16} />
-              </Button>
+                icon={isPathOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+              />
             </div>
           )}
         </AccordionTrigger>
@@ -454,6 +508,9 @@ export default function DictionaryView({
     Build final
   ──────────────────────────────────────────────────────────────────────────*/
   const openValues = useMemo(() => {
+    // If not a valid dictionary, return empty array
+    if (!isValidDict) return [];
+    
     // Gather all keys => build path => check if open
     // But we rely on the <Accordion value> = path approach:
     // So we only keep the ones that are in openKeys
@@ -476,59 +533,66 @@ export default function DictionaryView({
     });
 
     return paths;
-  }, [allKeys, openKeys, parentPath, prefix, nestingLevel]);
+  }, [allKeys, openKeys, parentPath, prefix, nestingLevel, isValidDict]);
 
+  // Return with conditional rendering based on isValidDict
   return (
     <div className="flex flex-col gap-2">
-      <Accordion
-        type="multiple"
-        value={openValues}
-        onValueChange={(newVals) => {
-          console.log(`[DictionaryView:accordion] Value change`, {
-            prefix,
-            nestingLevel,
-            parentPath,
-            oldVals: openValues,
-            newVals,
-            openKeysCount: openKeys.size
-          });
-
-          const oldSet = new Set(openValues);
-          const nextSet = new Set(newVals);
-          const changedAdded = Array.from(nextSet).filter((v) => !oldSet.has(v));
-          const changedRemoved = Array.from(oldSet).filter((v) => !nextSet.has(v));
-
-          console.log(`[DictionaryView:accordion] Detected changes`, {
-            prefix,
-            nestingLevel,
-            parentPath,
-            added: changedAdded,
-            removed: changedRemoved
-          });
-
-          setOpenKeys((prev) => {
-            const updated = new Set(prev);
-            changedAdded.forEach((v) => {
-              updated.add(v);
-            });
-            changedRemoved.forEach((v) => {
-              updated.delete(v);
-            });
-            console.log(`[DictionaryView:accordion] Final state after changes`, {
+      {!isValidDict ? (
+        <p className="text-red-500">
+          DictionaryView: base value is not a dictionary.
+        </p>
+      ) : (
+        <Accordion
+          type="multiple"
+          value={openValues}
+          onValueChange={(newVals) => {
+            console.log(`[DictionaryView:accordion] Value change`, {
               prefix,
               nestingLevel,
               parentPath,
-              openKeysCount: updated.size,
-              openKeys: Array.from(updated)
+              oldVals: openValues,
+              newVals,
+              openKeysCount: openKeys.size
             });
-            return updated;
-          });
-        }}
-      >
-        {allKeys.map((k) => (
-          singleMode ? renderSingleKey(k) : renderMultiKey(k)
-        ))}
-      </Accordion>
+
+            const oldSet = new Set(openValues);
+            const nextSet = new Set(newVals);
+            const changedAdded = Array.from(nextSet).filter((v) => !oldSet.has(v));
+            const changedRemoved = Array.from(oldSet).filter((v) => !nextSet.has(v));
+
+            console.log(`[DictionaryView:accordion] Detected changes`, {
+              prefix,
+              nestingLevel,
+              parentPath,
+              added: changedAdded,
+              removed: changedRemoved
+            });
+
+            setOpenKeys((prev) => {
+              const updated = new Set(prev);
+              changedAdded.forEach((v) => {
+                updated.add(v);
+              });
+              changedRemoved.forEach((v) => {
+                updated.delete(v);
+              });
+              console.log(`[DictionaryView:accordion] Final state after changes`, {
+                prefix,
+                nestingLevel,
+                parentPath,
+                openKeysCount: updated.size,
+                openKeys: Array.from(updated)
+              });
+              return updated;
+            });
+          }}
+        >
+          {allKeys.map((k) => (
+            singleMode ? renderSingleKey(k) : renderMultiKey(k)
+          ))}
+        </Accordion>
+      )}
     </div>
   );
 }
