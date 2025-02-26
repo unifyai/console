@@ -42,7 +42,7 @@ const EditTileName = ({
             setEditTile(undefined);
             setNewTileName(undefined);
         }}>
-            <DialogContent className="w-1/6">
+            <DialogContent className="w-72">
                 <div className="mt-6 flex gap-2">
                     <Input
                         placeholder={"Enter new tile name..."}
