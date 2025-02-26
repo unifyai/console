@@ -5,7 +5,7 @@ import BaseDropdown from "../../../Common/Dropdowns/Base";
 import { DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuSub, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSubTrigger } from "../../../UI/dropdown-menu";
 import { Context, ItemType, TableDataItem } from "@/types/evals/grid";
 import { TileProps } from "@/types/evals/grid";
-import { Braces, Check, FolderTree, Grid2x2 } from "lucide-react";
+import { Braces, Check, Folder, FolderTree, Grid2x2 } from "lucide-react";
 
 const ContextSelector = ({
     contexts,
@@ -103,7 +103,7 @@ const ContextSelector = ({
                                     )}
                                     className="w-48 justify-between"
                                 >
-                                    {isTopLevel ? "<root>" : nodeName}{attr == node.path.slice(0, -1) && <Check />}
+                                    {isTopLevel ? <Folder className="w-4 h-4" /> : nodeName}{attr == node.path.slice(0, -1) && <Check />}
                                 </DropdownMenuItem>
                             )}
                             {/* Render all child nodes */}
