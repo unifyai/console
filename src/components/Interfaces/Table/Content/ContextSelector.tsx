@@ -25,6 +25,7 @@ const ContextSelector = ({
     button?: React.ReactNode,
 }) => {
     const finalSetContext = (updateItem != undefined && item != undefined) ? updateItem(item, "context") : setContext;
+    const disabled = !contexts.length && !tableDataItem?.columnContexts?.length;
 
     interface TreeNode {
         path: string;
@@ -163,8 +164,9 @@ const ContextSelector = ({
                     icon={<FolderTree />}
                     variant="outline"
                     size="sm"
-                    disabled={!contexts.length && !tableDataItem?.columnContexts?.length}
+                    disabled={disabled}
                 />}
+                open={disabled ? false : undefined}
             >
                 <div className="flex flex-col gap-4">
                     {contexts.length > 0 ? <div className="pt-2">
