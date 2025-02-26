@@ -46,6 +46,7 @@ async function updateLogs (
     filterExpression: string | null,
     sortingExpression: string | null,
     groupingExpression: string | null,
+    groupSortingExpression: string | null,
     project: string, 
     logsActions: LogsActions, 
     fieldsActions: FieldsActions,
@@ -60,8 +61,9 @@ async function updateLogs (
             item.context ?? null, 
             item.column_context ?? null, 
             filterExpression, 
-            sortingExpression, 
-            groupingExpression, 
+            sortingExpression,
+            groupingExpression,
+            groupSortingExpression,
             null, 
             null, 
             20, // Hardcoded limit value (20) will need to be passed down from Main
@@ -103,7 +105,7 @@ async function updateLogs (
     });
 }
 
-const RefreshLogs = ({ item, project, pending, fields, filterExpression, sortingExpression, groupingExpression, hiddenColumns, updateItem, setTableData, logs, logsActions, fieldsActions }: {
+const RefreshLogs = ({ item, project, pending, fields, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, hiddenColumns, updateItem, setTableData, logs, logsActions, fieldsActions }: {
     item: TileProps,
     project: string,
     pending: boolean,
@@ -111,6 +113,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
     filterExpression: string | null,
     sortingExpression: string | null,
     groupingExpression: string | null,
+    groupSortingExpression: string | null,
     hiddenColumns: string | undefined,
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
     setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void,
@@ -135,13 +138,13 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
         const interval = setInterval(() => {
             if (!running && !pending) {
                 running = true;
-                updateLogs(item, filterExpression, sortingExpression, groupingExpression, project, logsActions, fieldsActions, setTableData).then(() => {
+                updateLogs(item, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, project, logsActions, fieldsActions, setTableData).then(() => {
                     running = false;
                 });
             }
         }, 5000);
         return () => clearInterval(interval)
-    }, [item.auto_update, pauseRefresh, item.context, item.column_context, filterExpression, sortingExpression, groupingExpression]);
+    }, [item.auto_update, pauseRefresh, item.context, item.column_context, filterExpression, sortingExpression, groupingExpression, groupSortingExpression]);
 
     const onAutoClick = () => updateItem(item, "auto_update")(item.auto_update === "true" ? "false" : "true")
     const autoRefresh =
@@ -180,16 +183,16 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
     // time where we compare with the timestamp set on loading the component
     const [lastUpdated, setLastUpdated] = useState<string>("")
 
-    useEffect(() => { logsActions.getLatest(project, item.context ?? null, item.column_context ?? null, filterExpression, sortingExpression, null, null, null, 0).then(latest => setLastUpdated(latest)) }, [])
+    useEffect(() => { logsActions.getLatest(project, item.context ?? null, item.column_context ?? null, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, null, null, null, null, null).then(latest => setLastUpdated(latest)) }, [])
 
     const onManualClick = () => {
         setLoading(true);
         setRefreshClick(true);
-        logsActions.getLatest(project, item.context ?? null, item.column_context ?? null, filterExpression, sortingExpression, null, null, null, 0).then(latest => {
+        logsActions.getLatest(project, item.context ?? null, item.column_context ?? null, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, null, null, null, null, null).then(latest => {
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime();
             if (latestTs > lastCheckTs) {
-                updateLogs(item, filterExpression, sortingExpression, groupingExpression, project, logsActions, fieldsActions, setTableData).then(() => {
+                updateLogs(item, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, project, logsActions, fieldsActions, setTableData).then(() => {
                     setLastUpdated(latest)
                 });
             } else {

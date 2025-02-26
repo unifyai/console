@@ -48,6 +48,7 @@ const DataTableHeader = ({
   setColumnVisibility,
   grouping,
   setGrouping,
+  ColumnGroupSort,
   ColumnFilters,
   ColumnCreate,
   ColumnUpdate,
@@ -80,6 +81,7 @@ const DataTableHeader = ({
   setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void,
   grouping: string[],
   setGrouping: (grouping: string[]) => void,
+  ColumnGroupSort?: (column: Column<any | unknown>, groupSortLoading: boolean, setGroupSortLoading: (groupSortLoading: boolean) => void, setIsGroupSorted: (isGroupSorted: boolean) => void, renderMode: "button" | "menuItem") => ReactNode,
   ColumnFilters?: (column: Column<any | unknown>, filterLoading: boolean, setIsFiltered: (isFiltered: boolean) => void, setFilterLoading: (filterLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode,
   ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode,
   ColumnUpdate?: (key: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem" ) => ReactNode,
@@ -159,12 +161,14 @@ const DataTableHeader = ({
   // Track loading states for column actions
   const [groupLoading, setGroupLoading] = useState(false);
   const [sortLoading, setSortLoading] = useState(false);
+  const [groupSortLoading, setGroupSortLoading] = useState(false);
   const [filterLoading, setFilterLoading] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
 
   // Determine which actions should be shown in dropdown vs as buttons
   const [isGrouped, setIsGrouped] = useState(false);
   const [isSorted, setIsSorted] = useState(false);
+  const [isGroupSorted, setIsGroupSorted] = useState(false);
   const [isFiltered, setIsFiltered] = useState(false);
 
   // Open states for dialogs
@@ -189,6 +193,10 @@ const DataTableHeader = ({
     return (!isParentColumn && (sortLoading || isSorted));
   }
 
+  const showGroupSortButton = () => {
+    return (!isParentColumn && (groupSortLoading || isGroupSorted))
+  }
+
   const showFilterButton = () => {
     return (!isParentColumn && (filterLoading || isFiltered));
   }
@@ -197,7 +205,7 @@ const DataTableHeader = ({
     return (!isParentColumn && isDerivedColumn && updateLoading);
   }
 
-  const hasActiveActions = showGroupButton() || showSortButton() || showFilterButton() || showUpdateButton();
+  const hasActiveActions = showGroupSortButton() || showGroupButton() || showSortButton() || showFilterButton() || showUpdateButton();
 
   useEffect(() => {
     setColumnActionsApplied((prev) => {
@@ -278,6 +286,17 @@ const DataTableHeader = ({
           setIsSorted={setIsSorted}
           renderMode="button"             
         />
+        )}
+      </div>
+      <div
+          className={`${showGroupSortButton() ? "" : "hidden"}`}
+      >
+        {ColumnGroupSort && ColumnGroupSort(
+          header.column,
+          groupSortLoading,
+          setGroupSortLoading,
+          setIsGroupSorted,
+          "button"
         )}
       </div>
       {showFilterButton() && (
@@ -476,6 +495,17 @@ const DataTableHeader = ({
                                     setIsSorted={setIsSorted}
                                     renderMode="menuItem"
                                   />
+                                </DropdownMenuItem>
+                              )}
+                              {!isGroupSorted && !isGrouped && grouping.length && ColumnGroupSort && (
+                                <DropdownMenuItem>
+                                  {ColumnGroupSort(
+                                    header.column,
+                                    groupSortLoading,
+                                    setGroupSortLoading,
+                                    setIsGroupSorted,
+                                    "menuItem"
+                                  )}
                                 </DropdownMenuItem>
                               )}
                               {ColumnFilters && (

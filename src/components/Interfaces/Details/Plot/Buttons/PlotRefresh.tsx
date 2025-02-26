@@ -16,7 +16,7 @@ const fetchLatestTimestamps = async (tables: string[], args: PlotArguments, proj
             const tableColumnContext = tableArgs ? tableArgs["column_context"] : null;
             const tableFilters = tableArgs ? tableArgs["filter_expr"] : null;
             const tableSubset = tableArgs ? tableArgs["subset"] : null;
-            return logsActions.getLatest(project, tableContext, tableColumnContext, tableFilters, null, tableSubset, null, null, 0);
+            return logsActions.getLatest(project, tableContext, tableColumnContext, tableFilters, null, null, null, tableSubset, null, null, null, null);
         })
     );
     const latestTimestamp = new Date(Math.max(...latestDates.map(t => new Date(t).getTime())))
@@ -78,7 +78,7 @@ const fetchAndMergeLogs = async (tables: string[], args: PlotArguments, project:
             const tableColumnContext = tableArgs ? tableArgs["column_context"] : null;
             const tableFilters = tableArgs ? tableArgs["filter_expr"] : null;
             const tableSubset = tableArgs ? tableArgs["subset"] : null;
-            const tableData = await logsActions.get(project, tableContext, tableColumnContext, tableFilters, null, null, tableSubset, null, 0, null, null, Date.now().toString())
+            const tableData = await logsActions.get(project, tableContext, tableColumnContext, tableFilters, null, null, null, tableSubset, null, 0, null, null, Date.now().toString())
             const tableLogs = tableData.logs as LogProps[]
             data[table] = {plotLogs: tableLogs}
         })

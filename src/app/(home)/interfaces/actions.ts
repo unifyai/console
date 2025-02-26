@@ -89,7 +89,7 @@ export const createLogs = async (apiKey: string) => {
 
 // get logs
 export const getLogs = async (apiKey: string) => {
-    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, _timestamp: string | null) => {
+    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, _timestamp: string | null) => {
         "use server";
 
         try {
@@ -105,6 +105,7 @@ export const getLogs = async (apiKey: string) => {
                         .map(expr => `&group_by=${encodeURIComponent(expr.trim())}`) // Encode separately
                         .join("")  // Concatenate each `group_by` separately
                     : "")
+                + (groupSortingExpression ? `&group_sorting=${encodeURIComponent(groupSortingExpression)}` : "")
                 + (from_fields ? `&from_fields=${encodeURIComponent(from_fields)}` : "")
                 + (exclude_fields ? `&exclude_fields=${encodeURIComponent(exclude_fields)}` : "")
                 + (limit ? `&limit=${limit}` : "")
@@ -167,19 +168,27 @@ export const getLogMetrics = async (apiKey: string) => {
 
 // get latest timestamp
 export const getLatestTimestamp = async (apiKey: string) => {
-    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null) => {
+    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null) => {
         "use server";
 
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/logs/latest_timestamp?project=${project}`
             + (context ? `&context=${context}` : "")
             + (columnContext ? `&column_context=${columnContext}` : "")
-            + (filterExpression ? `&filter_expr=${filterExpression}` : "")
+            + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
             + (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : "")
+            + (groupingExpression 
+                ? groupingExpression
+                    .split(",")  // Split into individual grouping expressions
+                    .map(expr => `&group_by=${encodeURIComponent(expr.trim())}`) // Encode separately
+                    .join("")  // Concatenate each `group_by` separately
+                : "")
+            + (groupSortingExpression ? `&group_sorting=${encodeURIComponent(groupSortingExpression)}` : "")
             + (from_fields ? `&from_fields=${encodeURIComponent(from_fields)}` : "")
             + (exclude_fields ? `&exclude_fields=${encodeURIComponent(exclude_fields)}` : "")
             + (limit ? `&limit=${limit}` : "")
-            + (offset ? `&offset=${offset}` : ""),
+            + (offset ? `&offset=${offset}` : "")
+            + (group_depth !== null && group_depth !== undefined ? `&group_depth=${group_depth}` : ""),
             { method: "GET", headers: { apiKey: apiKey } }
         );
         return await response.json();

@@ -28,6 +28,7 @@ export interface TileProps {
     hidden_columns?: string;
     sorting?: string;
     grouping?: string;
+    group_sorting?: string;
     columns_pin_left?: string;
     columns_pin_right?: string;
     selected?: string;
@@ -100,6 +101,7 @@ export type ItemType =
     | "hidden_columns"
     | "sorting"
     | "grouping"
+    | "group_sorting"
     | "columns_pin_left"
     | "columns_pin_right"
     | "table"
@@ -133,8 +135,8 @@ export interface ProjectsActions {
 
 export interface LogsActions {
     create: (project: string, params: { system_message: string }[], entries: { question: string, response: string, score: number }[]) => Promise<ResponseProps>,
-    get: (project: string, context: string | null, column_context: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, _timestamp: string | null) => Promise<LogsResponseProps>,
-    getLatest: (project: string, context: string | null, column_context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number) => Promise<string>,
+    get: (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, _timestamp: string | null) => Promise<LogsResponseProps>,
+    getLatest: (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null) => Promise<string>,
     getMetrics: (project: string, filterExpression: string | null, metricName: string, keyName: string) => Promise<number>,
     delete: (project: string, context: string | null, column_context: string | null, ids_and_fields: LogFieldsProps, source_type: string | null) => Promise<ResponseProps>,
 }

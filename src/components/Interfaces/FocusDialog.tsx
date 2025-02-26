@@ -36,6 +36,7 @@ const FocusDialog = ({
     filterExpressions,
     sortingExpressions,
     groupingExpressions,
+    groupSortingExpressions,
     limit,
     offsets,
     updateItem,
@@ -66,6 +67,7 @@ const FocusDialog = ({
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
     groupingExpressions: (string | null)[],
+    groupSortingExpressions: (string | null)[],
     limit: number,
     offsets: number[],
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: any | undefined) => void,
@@ -98,6 +100,7 @@ const FocusDialog = ({
                         filterExpressions={filterExpressions}
                         sortingExpressions={sortingExpressions}
                         groupingExpressions={groupingExpressions}
+                        groupSortingExpressions={groupSortingExpressions}
                         limit={limit}
                         offsets={offsets}
                         setPending={(p: boolean) => setTilePending({ ...tilePending, [item.i]: p })}

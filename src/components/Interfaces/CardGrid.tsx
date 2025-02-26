@@ -42,6 +42,7 @@ const CardGrid = ({
     filterExpressions,
     sortingExpressions,
     groupingExpressions,
+    groupSortingExpressions,
     limit,
     offsets,
     projectActions,
@@ -66,6 +67,7 @@ const CardGrid = ({
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
     groupingExpressions: (string | null)[],
+    groupSortingExpressions: (string | null)[],
     limit: number,
     offsets: number[],
     projectActions: ProjectsActions,
@@ -353,6 +355,7 @@ const CardGrid = ({
                                         filterExpressions={filterExpressions}
                                         sortingExpressions={sortingExpressions}
                                         groupingExpressions={groupingExpressions}
+                                        groupSortingExpressions={groupSortingExpressions}
                                         limit={limit}
                                         offsets={offsets}
                                         setPending={(p: boolean) => setTilePending({ ...tilePending, [el.i]: p })}
@@ -484,6 +487,7 @@ const CardGrid = ({
                         filterExpressions={filterExpressions}
                         sortingExpressions={sortingExpressions}
                         groupingExpressions={groupingExpressions}
+                        groupSortingExpressions={groupSortingExpressions}
                         limit={limit}
                         offsets={offsets}
                         updateItem={updateItem}

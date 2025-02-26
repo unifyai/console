@@ -37,6 +37,7 @@ const Card = ({
     filterExpressions,
     sortingExpressions,
     groupingExpressions,
+    groupSortingExpressions,
     limit,
     offsets,
     setPending,
@@ -63,6 +64,7 @@ const Card = ({
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
     groupingExpressions: (string | null)[],
+    groupSortingExpressions: (string | null)[],
     limit: number,
     offsets: number[],
     setPending: (pending: boolean) => void,
@@ -94,6 +96,7 @@ const Card = ({
         item.common_filter,
         item.sorting,
         item.grouping,
+        item.group_sorting,
         item.page_number,
         item.metric,
         item.plot_type,
@@ -213,6 +216,7 @@ const Card = ({
                 filterExpression={filterExpressions ? filterExpressions[items.findIndex(it => it.i === item.i)] : null}
                 sortingExpression={sortingExpressions ? sortingExpressions[items.findIndex(it => it.i === item.i)] : null}
                 groupingExpression={groupingExpressions ? groupingExpressions[items.findIndex(it => it.i === item.i)] : null}
+                groupSortingExpression={groupSortingExpressions ? groupSortingExpressions[items.findIndex(it => it.i === item.i)] : null}
                 limit={limit}
                 offset={offsets ? offsets[items.findIndex(it => it.i === item.i)] : 0}
                 updateInterface={updateInterface}

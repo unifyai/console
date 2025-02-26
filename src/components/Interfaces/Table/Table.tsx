@@ -37,6 +37,7 @@ import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
 import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
+import ColumnGroupSort from "@/components/Interfaces/Table/Buttons/ColumnGroupSort";
 import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data/Buttons/RowExpanding";
 import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import ContextSelector from "./Content/ContextSelector";
@@ -58,6 +59,7 @@ const LogsTable = ({
   filterExpression,
   sortingExpression,
   groupingExpression,
+  groupSortingExpression,
   limit,
   offset,
   updateInterface,
@@ -80,6 +82,7 @@ const LogsTable = ({
   filterExpression: string | null,
   sortingExpression: string | null,
   groupingExpression: string | null,
+  groupSortingExpression: string | null,
   limit: number,
   offset: number,
   updateInterface: () => Promise<ResponseProps>,
@@ -173,6 +176,7 @@ const LogsTable = ({
   const columnOrderStr = item.column_order;
   const hiddenColumns = item.hidden_columns;
   const groupingStr = item.grouping;
+  const groupSortingStr = item.group_sorting;
   const columnsPinLeft = item.columns_pin_left;
   const columnsPinRight = item.columns_pin_right;
   const context = item.context;
@@ -223,6 +227,17 @@ const LogsTable = ({
   const setGrouping = (g: GroupingState) =>
     updateItem(item, "grouping")(g.length ? g.join(",") : undefined);
 
+  const groupSorting: ColumnSort[] = groupSortingStr
+    ? groupSortingStr.split(",").map((c) => {
+      const [key, order] = c.split("@");
+      const id = entriesProperties.includes(key) ? `Entries/${key}` : `Parameters/${key}`;
+      const desc = order === "true";
+      return { id, desc };
+    })
+    : [];
+  const setGroupSorting = (s: ColumnSort[]) =>
+    updateItem(item, "group_sorting")(s.map((item) => `${sanitizeId(item.id)}@${item.desc}`).join(","));
+
   const columnPinning: ColumnPinningState = {
     left: columnsPinLeft ? columnsPinLeft.split(",") : [indicesTitle],
     right: columnsPinRight ? columnsPinRight.split(",") : [],
@@ -261,6 +276,7 @@ const LogsTable = ({
     selectedCells,
     metric,
     sorting,
+    groupSorting,
     columnVisibility,
     columnOrder,
     columnFilters,
@@ -276,6 +292,7 @@ const LogsTable = ({
     setSelectedCells: (cells: string[]) => updateItem(item, "selected")(cells.join(",")),
     setMetric: updateItem(item, "metric"),
     setSorting,
+    setGroupSorting,
     setColumnVisibility,
     setColumnOrder: (order: string[]) => updateItem(item, "column_order")(order.join(",")),
     setColumnFilters,
@@ -293,6 +310,7 @@ const LogsTable = ({
   const prevCommonFilterRef = useRef(commonFilter);
   const prevSortingRef = useRef(sortingStr);
   const prevGroupingRef = useRef(groupingStr);
+  const prevGroupSortingRef = useRef(groupSortingStr);
 
   // Prune base/comparison IDs if user REALLY changes page or filters
   useEffect(() => {
@@ -301,8 +319,9 @@ const LogsTable = ({
     const commonChanged = prevCommonFilterRef.current !== commonFilter;
     const sortingChanged = prevSortingRef.current !== sortingStr;
     const groupingChanged = prevGroupingRef.current !== groupingStr;
+    const groupSortingChanged = prevGroupSortingRef.current !== groupSortingStr;
 
-    if (pageChanged || filtersChanged || commonChanged || sortingChanged || groupingChanged) {
+    if (pageChanged || filtersChanged || commonChanged || sortingChanged || groupingChanged || groupSortingChanged) {
       // If base no longer valid, remove it
       const flattenedLogs = maybeFlattenGroupedLogs(logs);
       if (baseLog && !(flattenedLogs).some((l) => l.id === baseLog.id)) {
@@ -329,6 +348,7 @@ const LogsTable = ({
     prevCommonFilterRef.current = commonFilter;
     prevSortingRef.current = sortingStr;
     prevGroupingRef.current = groupingStr;
+    prevGroupSortingRef.current = groupSortingStr;
   }, [
     logs,
     pageNumber,
@@ -336,6 +356,7 @@ const LogsTable = ({
     commonFilter,
     sortingStr,
     groupingStr,
+    groupSortingStr,
     selectedCells
   ]);
 
@@ -389,6 +410,7 @@ const LogsTable = ({
             sortingExpression={sortingExpression}
             hiddenColumns={item.hidden_columns}
             groupingExpression={groupingExpression}
+            groupSortingExpression={groupSortingExpression}
             updateItem={updateItem}
             setTableData={setTableData}
             logsActions={logsActions}
@@ -431,6 +453,19 @@ const LogsTable = ({
                   columns={columns}
                   state={state}
                   setState={setState}
+                  ColumnGroupSort={(column, groupSortLoading, setGroupSortLoading, setIsGroupSorted, renderMode = "button") => (
+                    <ColumnGroupSort
+                      interactive={interactive}
+                      column={column}
+                      groupSorting={groupSorting}
+                      setGroupSorting={setGroupSorting}
+                      logs={logs}
+                      groupSortLoading={groupSortLoading}
+                      setGroupSortLoading={setGroupSortLoading}
+                      setIsGroupSorted={setIsGroupSorted}
+                      renderMode={renderMode}
+                    />
+                  )}
                   ColumnFilters={(column, filterLoading, setIsFiltered, setFilterLoading, open, setOpen, renderMode = "button") => (
                     <ColumnFilter
                       interactive={interactive}
@@ -499,6 +534,7 @@ const LogsTable = ({
                           filterExpression,
                           sortingExpression,
                           groupingExpression,
+                          groupSortingExpression,
                           limit,
                           offset,
                           logsActions,

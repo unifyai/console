@@ -147,13 +147,32 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
     /* Handle grouping */
 	const groupingExpressions = tableItems.map(item => item.grouping ? item.grouping : null);
 
+    // Handle group sorting
+    const groupSortingObjects = tableItems.map(item => item.group_sorting && item.grouping ? Object.fromEntries(
+        item.group_sorting.split(",").map(value => {
+            const group = item.column_context ? processContext("merge", item.column_context, item.grouping!.split(",")[0]) : item.grouping!.split(",")[0] 
+            const field = item.column_context ? processContext("merge", item.column_context, value.split("@")[0]) : value.split("@")[0]
+            const direction = value.split("@")[1].replace("true", "descending").replace("false", "ascending")
+            const metric = item.metric ?? "mean"
+            return [group, {field, direction, metric}]
+        }))
+    : "");
+
+    const groupSortingExpressions = groupSortingObjects.map(
+        sortingObject => sortingObject ? JSON.stringify(sortingObject) : null
+    )
+
     // Aggregate table arguments and init plot arguments
     let tableArguments: TableArguments = tableItems.map((item, idx) => {
         let tableArguments_: TableArguments = { [item.i]: {getLogs_parameters: { filter_expr: "" }, available_fields: {}} };
         const filterExpression = filterExpressions[idx];
         const sortingExpression = sortingExpressions[idx];
+        const groupingExpression = groupingExpressions[idx];
+        const groupSortingExpression = groupSortingExpressions[idx];
         if (filterExpression) tableArguments_[item.i].getLogs_parameters["filter_expr"] = filterExpression;
         if (sortingExpression) tableArguments_[item.i].getLogs_parameters["sorting"] = sortingExpression;
+        if (groupingExpression) tableArguments_[item.i].getLogs_parameters["grouping"] = groupingExpression;
+        if (groupSortingExpression) tableArguments_[item.i].getLogs_parameters["group_sorting"] = groupSortingExpression;
         if (item.context) tableArguments_[item.i].getLogs_parameters["context"] = item.context;
         if (item.column_context) tableArguments_[item.i].getLogs_parameters["column_context"] = item.column_context;
         return tableArguments_;
@@ -188,6 +207,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                 filterExpressions[idx],
                 sortingExpressions[idx],
                 groupingExpressions[idx],
+                groupSortingExpressions[idx],
                 null,
                 null,
                 limit,
@@ -245,7 +265,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                     }
                     if (subset) plotArguments[table.i]["subset"] = subset
 
-                    data = await logsActions.get(project, context ?? null, columnContext ?? null, filterExpression, null, null, subset, null, 0, null, null, Date.now().toString());
+                    data = await logsActions.get(project, context ?? null, columnContext ?? null, filterExpression, null, null, null, subset, null, null, null, null, Date.now().toString());
 
                     /* Replace param indices with actual param values */
                     if (Object.entries(data.logs).length && Object.entries(data.params).length) {
@@ -365,6 +385,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         filterExpressions={filterExpressions}
         sortingExpressions={sortingExpressions}
         groupingExpressions={groupingExpressions}
+        groupSortingExpressions={groupSortingExpressions}
         limit={limit}
         offsets={offsets}
         projectActions={projectsActions}
