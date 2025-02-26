@@ -1,10 +1,11 @@
 import React, {
-  createContext,
-  useContext,
   useState,
-  ReactNode,
   useCallback,
+  ReactNode,
+  useEffect,
+  useMemo
 } from "react";
+import { createContext, useContextSelector } from "use-context-selector";
 
 /**
  * The shape of our ExpandContext's value. We store:
@@ -29,8 +30,11 @@ type ExpandContextType = {
 /**
  * The actual React Context object, with a placeholder.
  * We'll throw an error if used outside of a provider.
+ * 
+ * We're using use-context-selector to optimize re-renders.
+ * Components will only re-render when the specific parts of the context they use change.
  */
-const ExpandContext = createContext<ExpandContextType | null>(null);
+const ExpandContext = createContext<ExpandContextType>(null as any);
 
 interface ExpandProviderProps {
   children: ReactNode;
@@ -126,7 +130,8 @@ export function ExpandProvider({ children }: ExpandProviderProps) {
     });
   }, [forceExpandAll, forceCollapseAll, openKeys]);
 
-  const value: ExpandContextType = {
+  // Memoize the context value to prevent unnecessary re-renders
+  const value = useMemo(() => ({
     openKeys,
     setOpenKeys,
     forceExpandAll,
@@ -134,7 +139,7 @@ export function ExpandProvider({ children }: ExpandProviderProps) {
     toggleKey,
     expandAll,
     collapseAll,
-  };
+  }), [openKeys, setOpenKeys, forceExpandAll, forceCollapseAll, toggleKey, expandAll, collapseAll]);
 
   return (
     <ExpandContext.Provider value={value}>
@@ -144,12 +149,32 @@ export function ExpandProvider({ children }: ExpandProviderProps) {
 }
 
 /**
- * useExpandContext:  consumer hook
+ * useExpandContextSelector: selective context consumer hook
+ * 
+ * This hook lets components subscribe to only the specific parts of the context they need,
+ * reducing unnecessary re-renders when other parts of the context change.
+ * 
+ * @param selector A function that extracts the needed value from the context
+ * @returns The selected value from the context
+ */
+export function useExpandContextSelector<T>(selector: (ctx: ExpandContextType) => T): T {
+  const selected = useContextSelector(ExpandContext, selector);
+  if (selected === undefined) {
+    throw new Error("useExpandContextSelector must be used within an <ExpandProvider>.");
+  }
+  return selected;
+}
+
+/**
+ * useExpandContext: consumer hook for backward compatibility
+ * 
+ * This hook returns the entire context and should be used sparingly.
+ * Prefer useExpandContextSelector when possible to minimize re-renders.
  */
 export function useExpandContext() {
-  const ctx = useContext(ExpandContext);
-  if (!ctx) {
+  const context = useContextSelector(ExpandContext, ctx => ctx);
+  if (!context) {
     throw new Error("useExpandContext must be used within an <ExpandProvider>.");
   }
-  return ctx;
+  return context;
 }

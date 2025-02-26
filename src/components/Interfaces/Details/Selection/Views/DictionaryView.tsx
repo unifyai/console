@@ -27,7 +27,7 @@ import {
   makePrefixedDictPath,
   sanitizePropertyKey,
 } from "@/utils/evals/pathUtils";
-import { useExpandContext } from "@/contexts/ExpandContext";
+import { useExpandContextSelector } from "@/contexts/ExpandContext";
 
 import { LogComparisonProps } from "./types";
 import { getValueType, getTypeIcon } from "./ViewTypes";
@@ -190,12 +190,11 @@ export default function DictionaryView({
   prefix = "entries",
   parentPath = "", // new param to track parent's path
 }: DictionaryViewProps) {
-  const {
-    openKeys,
-    setOpenKeys,
-    forceExpandAll,
-    forceCollapseAll,
-  } = useExpandContext();
+  // Use context selectors to only subscribe to the parts of the context we need
+  const openKeys = useExpandContextSelector(ctx => ctx.openKeys);
+  const setOpenKeys = useExpandContextSelector(ctx => ctx.setOpenKeys);
+  const forceExpandAll = useExpandContextSelector(ctx => ctx.forceExpandAll);
+  const forceCollapseAll = useExpandContextSelector(ctx => ctx.forceCollapseAll);
 
   // Check if base is a dict first but don't return early
   const isValidDict = isDict(value);
