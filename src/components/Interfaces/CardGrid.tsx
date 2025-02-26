@@ -315,7 +315,7 @@ const CardGrid = ({
                                 setPending(false);
                         }}
                         className="layout interactive-grid flex-1"
-                        cols={{ lg: 12, md: 12, sm: 12, xs: 10, xxs: 8 }}
+                        cols={{ lg: 12, md: 12, sm: 12, xs: 12, xxs: 12 }}
                         rowHeight={110}
                         margin={[0, 0]}
                         containerPadding={[0, 0]}
