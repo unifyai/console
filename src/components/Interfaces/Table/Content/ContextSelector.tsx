@@ -86,7 +86,7 @@ const ContextSelector = ({
                     )}
                     className="w-48 justify-between"
                 >
-                    {nodeName}{attr == nodePath.slice(0, -1) && <Check />}
+                    {nodeName}{attr == nodePath.slice(0, -1).replace("/<root>", "") && <Check />}
                 </DropdownMenuItem>
             );
         }
@@ -111,7 +111,7 @@ const ContextSelector = ({
                                     )}
                                     className="w-48 justify-between"
                                 >
-                                    {isTopLevel ? "<root>" : nodeName}{attr == nodePath.slice(0, -1) && <Check />}
+                                    {isTopLevel ? "<root>" : nodeName}{attr == nodePath.slice(0, -1).replace("/<root>", "") && <Check />}
                                 </DropdownMenuItem>
                             )}
                             {/* Render all child nodes */}

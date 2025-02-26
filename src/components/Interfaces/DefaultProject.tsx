@@ -58,7 +58,7 @@ const DefaultProject = ({ projects, logsActions, projectActions, interfaceAction
     setInterface: (interface_: string) => void
 }) => {
     const defaultProject = "Maths Assistant";
-    const disabled = projects == undefined || projects.includes(defaultProject);
+    const disabled = projects == undefined
     const [pending, setPending] = useState(false);
 
     return (
@@ -68,22 +68,26 @@ const DefaultProject = ({ projects, logsActions, projectActions, interfaceAction
                 <div className="absolute z-10 top-3 right-12">
                     <ActionButton
                         icon={pending ? <Loader2 className="animate-spin" /> : <Play />}
-                        tooltip={disabled ? "A project with this name already exists" : "Run Example"}
+                        tooltip={"Run Example"}
                         onClick={() => {
-                            setPending(true);
-                            projectActions.create(defaultProject).then(() => {
-                                interfaceActions.create(
-                                    "tab1", defaultProject, undefined, defaultItems, defaultNewCounter, true
-                                ).then(() => {
-                                    logsActions.create(
-                                        defaultProject, defaultLogs.params, defaultLogs.entries
+                            if (projects?.includes(defaultProject)) {
+                                setProject(defaultProject);
+                            } else {
+                                setPending(true);
+                                projectActions.create(defaultProject).then(() => {
+                                    interfaceActions.create(
+                                        "tab1", defaultProject, undefined, defaultItems, defaultNewCounter, true
                                     ).then(() => {
-                                        setPending(false);
-                                        setProject(defaultProject);
-                                        setInterface("tab1");
+                                        logsActions.create(
+                                            defaultProject, defaultLogs.params, defaultLogs.entries
+                                        ).then(() => {
+                                            setPending(false);
+                                            setProject(defaultProject);
+                                            setInterface("tab1");
+                                        });
                                     });
                                 });
-                            });
+                            }
                         }}
                         disabled={disabled}
                     />
