@@ -80,7 +80,6 @@ const CardGrid = ({
     // layout structure
     const [tableData, setTableData] = useState<TableDataProps>(initialTableData);
     const [context, setContext] = useState<string>();
-    const [columnContext, setColumnContext] = useState<string>();
     const [items, setItems] = useState<TileProps[]>([]);
     const [newCounter, setNewCounter] = useState(0);
     const [tempInterfaceCreated, setTempInterfaceCreated] = useState(tempInterfaceCreated_);
@@ -103,7 +102,7 @@ const CardGrid = ({
     // data fields
     const [interfaces, setInterfaces] = useState(interfaces_);
     const [projects, setProjects] = useState<string[]>(projects_ || []);
-    const [interface_, setInterface] = useQueryState("interface", { shallow: false });
+    const [interface_, setInterface] = useQueryState("tab", { shallow: false });
     const [project, setProject] = useQueryState("project", { shallow: false });
 
     // pending fields
@@ -165,13 +164,13 @@ const CardGrid = ({
         if (project && interface_) {
             const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
             Cookies.set("project", project, { expires: expirationDate });
-            Cookies.set("interface", interface_, { expires: expirationDate });
+            Cookies.set("tab", interface_, { expires: expirationDate });
             getLatestInterface();
         }
         else if (!project)
             Cookies.remove("project");
         else if (!interface_)
-            Cookies.remove("interface");
+            Cookies.remove("tab");
     }, [project, interface_]);
 
     // Only call updateInterface when items have truly changed.
@@ -242,7 +241,6 @@ const CardGrid = ({
                     interfaces={interfaces}
                     project={project}
                     context={context}
-                    columnContext={columnContext}
                     items={items}
                     newCounter={newCounter}
                     tableData={tableData}

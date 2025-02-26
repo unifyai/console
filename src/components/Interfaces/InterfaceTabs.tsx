@@ -1,7 +1,5 @@
-import { Trash, X } from "lucide-react";
-
+import { X } from "lucide-react";
 import { Plus } from "lucide-react";
-import { v4 as uuidv4 } from "uuid";
 import { TabsList, TabsTrigger } from "../UI/tabs";
 import { Input } from "../UI/input";
 import { SetStateAction, useEffect, useState } from "react";
@@ -16,7 +14,6 @@ const InterfaceTabs = ({
     interfaces,
     project,
     context,
-    columnContext,
     items,
     newCounter,
     tableData,
@@ -33,7 +30,6 @@ const InterfaceTabs = ({
     interfaces: string[],
     project: string,
     context: string | undefined,
-    columnContext: string | undefined,
     items: TileProps[],
     newCounter: number,
     tableData: TableDataProps,
@@ -84,8 +80,8 @@ const InterfaceTabs = ({
                                 else if (e.key == "Enter" && int_ == interface_2)
                                     setInterface_2(int_);
                             }}
-                            className="px-0 h-5 w-20 bg-transparent border-none outline-none focus:outline-none focus:border-none focus-visible:ring-0"
-                        /> : <div className="h-5 w-20 text-center">{int_}</div>}
+                            className="px-0 h-5 w-16 bg-transparent border-none outline-none focus:outline-none focus:border-none focus-visible:ring-0"
+                        /> : <div className="h-5 w-16 text-center">{int_}</div>}
                         <div
                             className={`z-10 absolute -top-1 -right-1 cursor-pointer mb-auto hover:text-white hover:bg-primary rounded-sm ${hoveredInterface == int_ ? "opacity-100" : "opacity-0"}`}
                             onMouseEnter={() => interface_ != int_ && setDeleting(true)}
@@ -109,13 +105,13 @@ const InterfaceTabs = ({
                 <ActionButton
                     variant="outline"
                     icon={<Plus />}
-                    tooltip={"Add new interface"}
+                    tooltip={"Add new tab"}
                     disabled={pending}
                     onClick={() => {
                         let initialIndex = interfaces.length + 1;
-                        while (interfaces.includes(`interface_${initialIndex}`))
+                        while (interfaces.includes(`tab${initialIndex}`))
                             initialIndex++;
-                        const newInterfaceName = `interface_${initialIndex}`;
+                        const newInterfaceName = `tab${initialIndex}`;
                         interfaceActions.create(
                             newInterfaceName, project, context, defaultItems, defaultNewCounter, true
                         ).then(() => {

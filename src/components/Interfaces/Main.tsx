@@ -21,7 +21,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
 }) => {
     const cookies_ = cookies();
     const cookiesProject = cookies_.get("project")?.value;
-    const cookiesInterface = cookies_.get("interface")?.value;
+    const cookiesInterface = cookies_.get("tab")?.value;
 
     // Get projects
     const projects: string[] = await projectsActions.get();
@@ -68,7 +68,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         new_counter: defaultNewCounter
     } as Interface;
     if (!interface_ && project && interface_1)
-        redirect(`/interfaces?project=${project}&interface=${interface_1}`);
+        redirect(`/interfaces?project=${project}&tab=${interface_1}`);
 
     // get table and plot items
     let tableItems = (currentInterface?.items || []).filter(item => item.tab == "Table");
