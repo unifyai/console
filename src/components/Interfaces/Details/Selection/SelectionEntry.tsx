@@ -46,7 +46,7 @@ import {
   MessagesSquare
 } from "lucide-react";
 
-import { useExpandContext } from "@/contexts/ExpandContext";
+import { useExpandContextSelector } from "@/contexts/ExpandContext";
 import {
   makePrefixedDictPath,
   makePrefixedListPath,
@@ -344,7 +344,10 @@ export default function SelectionEntry({
 }: SelectionEntryProps) {
   const [hovered, setHovered] = useState(false);
   const [prevAccordionValues, setPrevAccordionValues] = useState<string[]>([]);
-  const { openKeys, setOpenKeys } = useExpandContext();
+  
+  // Use context selectors to only subscribe to the parts of the context we need
+  const openKeys = useExpandContextSelector(ctx => ctx.openKeys);
+  const setOpenKeys = useExpandContextSelector(ctx => ctx.setOpenKeys);
 
   // gather comparables
   const comps = (comparisonLogs ?? []).map((cl) => {

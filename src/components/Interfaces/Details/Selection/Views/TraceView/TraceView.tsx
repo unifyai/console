@@ -36,6 +36,7 @@ import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/UI/h
 import TimelineViewButton from "./TimelineView";
 import { formatTime } from "@/utils/evals/format";
 import { DoublePanels } from "@/components/Common/Body/DoublePanels";
+import { ExpandProvider } from "@/contexts/ExpandContext";
 
 /*------------------------------------------------------------------------
   Helper functions for compressing row indices => "1-3,5,7-9", etc.
@@ -447,22 +448,24 @@ function PatchDetailPanel({
   const showTimelineButton = allRowIndexes.length === 1 || (allTraces.length > 1 && comparisonLogsIndex.length === 0);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <p className="font-bold text-sm">{node.name}</p>
-        {showTimelineButton && TimelineViewButton && <TimelineViewButton baseTrace={allTraces[0]} />}
+    <ExpandProvider>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <p className="font-bold text-sm">{node.name}</p>
+          {showTimelineButton && TimelineViewButton && <TimelineViewButton baseTrace={allTraces[0]} />}
+        </div>
+        
+        <Accordion type="multiple" defaultValue={["Inputs", "Outputs"]} className="mt-3">
+          {maybeRenderBlock("Inputs", bInputs, cInputs)}
+          {maybeRenderBlock("Outputs", bOutputs, cOutputs)}
+          {maybeRenderBlock("Code", bCode, cCode)}
+          {renderExecutionTime()}
+          {maybeRenderBlock("Errors", bErrors, cErrors)}
+          {renderCostBlock()}
+          {maybeRenderBlock("IDs", bId, cId)}
+        </Accordion>
       </div>
-      
-      <Accordion type="multiple" defaultValue={["Inputs", "Outputs"]} className="mt-3">
-        {maybeRenderBlock("Inputs", bInputs, cInputs)}
-        {maybeRenderBlock("Outputs", bOutputs, cOutputs)}
-        {maybeRenderBlock("Code", bCode, cCode)}
-        {renderExecutionTime()}
-        {maybeRenderBlock("Errors", bErrors, cErrors)}
-        {renderCostBlock()}
-        {maybeRenderBlock("IDs", bId, cId)}
-      </Accordion>
-    </div>
+    </ExpandProvider>
   );
 }
 
@@ -1016,16 +1019,18 @@ export default function UnifiedTraceView({
       return <p className="text-sm italic">Select a node on the left</p>;
     }
     return (
-      <PatchDetailPanel
-        node={selectedNode}
-        baseRowIndex={rowIndexes[0]}
-        comparisonLogsIndex={groupCompareRows}
-        allTraces={allTraces}
-        allRowIndexes={rowIndexes}
-        diffMode={diffMode}
-        splitView={splitView}
-        displayMode={displayMode}
-      />
+      <ExpandProvider>
+        <PatchDetailPanel
+          node={selectedNode}
+          baseRowIndex={rowIndexes[0]}
+          comparisonLogsIndex={groupCompareRows}
+          allTraces={allTraces}
+          allRowIndexes={rowIndexes}
+          diffMode={diffMode}
+          splitView={splitView}
+          displayMode={displayMode}
+        />
+      </ExpandProvider>
     );
   }
 

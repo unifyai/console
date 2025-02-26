@@ -51,7 +51,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { TileProps, ItemType } from "@/types/evals/grid";
 
-import { useExpandContext } from "@/contexts/ExpandContext";
+import { useExpandContextSelector } from "@/contexts/ExpandContext";
 import {
   makePrefixedDictPath,
   gatherAllSubPaths,
@@ -281,9 +281,13 @@ export default function Selection({
    ******************************************************************************/
   const sortedLogs = useMemo(() => [...logs], [logs]);
 
-  // Get expand context at the top level to use across the component
-  const expandContext = useExpandContext();
-  const { openKeys, setOpenKeys, forceExpandAll, forceCollapseAll } = expandContext;
+  // Use context selectors to only subscribe to the parts of the context we need
+  const openKeys = useExpandContextSelector(ctx => ctx.openKeys);
+  const setOpenKeys = useExpandContextSelector(ctx => ctx.setOpenKeys);
+  const forceExpandAll = useExpandContextSelector(ctx => ctx.forceExpandAll);
+  const forceCollapseAll = useExpandContextSelector(ctx => ctx.forceCollapseAll);
+  const expandAll = useExpandContextSelector(ctx => ctx.expandAll);
+  const collapseAll = useExpandContextSelector(ctx => ctx.collapseAll);
 
   const selectedCells = useMemo(() => {
     const arr = selection_ ? selection_.split(",") : [];
@@ -1014,8 +1018,9 @@ function SelectionPanel({
   setGlobalParamOrderings: Dispatch<SetStateAction<{ [key: string]: string[] }>>;
   panels: {baseRowIndex: number}[];
 }) {
-  // Get the expand context at the SelectionPanel component level
-  const { openKeys, setOpenKeys } = useExpandContext();
+  // Use context selectors to only subscribe to the parts of the context we need
+  const openKeys = useExpandContextSelector(ctx => ctx.openKeys);
+  const setOpenKeys = useExpandContextSelector(ctx => ctx.setOpenKeys);
 
   // Add versions
   const version = "";
