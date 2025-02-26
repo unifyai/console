@@ -417,7 +417,7 @@ const LogsTable = ({
           <Loader2 className="animate-spin my-36" />
         </div>
       ) : (
-        <div className="w-full h-full flex flex-col">
+        <div className="w-full h-full flex flex-col overflow-x-auto">
           {tableTop && tableTop}
           <div ref={tableRef} className="w-full h-fit overflow-y-auto tutorial-logs-table">
             {project ? (
