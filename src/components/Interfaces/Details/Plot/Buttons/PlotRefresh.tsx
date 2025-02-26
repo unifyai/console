@@ -5,7 +5,7 @@ import { RefreshCw, Power, Check } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { ItemType, LogsActions, FieldsActions, PlotDataItem, TileProps } from "@/types/evals/grid";
 import { PlotArguments, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
-import { getLogsDetails } from "@/utils/evals/common";
+import { processContext } from "@/utils/evals/columnOperations";
 import { LogProps } from "@/types/evals/logs";
 
 const fetchLatestTimestamps = async (tables: string[], args: PlotArguments, project: string, logsActions: LogsActions) => {
@@ -58,7 +58,7 @@ const fetchAndMergeFields = async (tables: string[], args: PlotArguments, projec
                 .entries(fields)
                 .filter(([name, { data_type, field_type, artifacts }]) => tableContext ? name.startsWith(tableContext) : name)
                 .map(([name, { data_type, field_type, artifacts }]) => {
-                    const newName = tableContext ? name.replace(tableContext, "") : name;
+                    const newName = tableContext ? processContext("split", tableContext, name) : name
                     const newFields = [`${table}.${newName}`, { data_type, field_type, artifacts }]
                     return newFields;
                 })

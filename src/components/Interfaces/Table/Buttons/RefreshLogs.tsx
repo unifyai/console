@@ -141,7 +141,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             }
         }, 5000);
         return () => clearInterval(interval)
-    }, [item.auto_update, pauseRefresh, item.context, filterExpression, sortingExpression, groupingExpression]);
+    }, [item.auto_update, pauseRefresh, item.context, item.column_context, filterExpression, sortingExpression, groupingExpression]);
 
     const onAutoClick = () => updateItem(item, "auto_update")(item.auto_update === "true" ? "false" : "true")
     const autoRefresh =
