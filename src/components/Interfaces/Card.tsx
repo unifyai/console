@@ -23,6 +23,7 @@ const Card = ({
     project,
     pending,
     contexts,
+    context,
     tableNames,
     tableData,
     plotData,
@@ -48,6 +49,7 @@ const Card = ({
     project: string | undefined,
     pending: boolean,
     contexts: Context[],
+    context: string | undefined,
     tableNames: string[],
     tableData: TableDataProps,
     plotData: PlotDataProps,
@@ -188,6 +190,7 @@ const Card = ({
                 interactive={interactive}
                 project={project}
                 contexts={contexts}
+                context_={context}
                 pending={pending}
                 tab={tab}
                 item={item}

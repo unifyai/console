@@ -91,11 +91,7 @@ const InterfaceButtons = ({
             <ContextSelector
                 contexts={contexts}
                 context={context}
-                setContext={(context: string) => {
-                    setContext(context);
-                    setDataPending(true);
-                    router.refresh();
-                }}
+                setContext={(context: string) => setContext(context)}
             />
             <ActionButton
                 className="transition-all"

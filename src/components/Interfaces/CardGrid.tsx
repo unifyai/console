@@ -136,14 +136,13 @@ const CardGrid = ({
         savedInterface: Interface | null = null,
     ) => {
         const context_1 = savedInterface != null ? savedInterface?.context : context;
-        const columnContext_1 = savedInterface != null ? savedInterface?.column_context : columnContext;
         const items_1 = savedInterface?.items || items;
         const newCounter_1 = savedInterface?.new_counter || newCounter;
         if (interface_ && project && interface_ == interface_1 && project == project_ && !pending) {
             if (tempInterfaceCreated)
-                return interfaceActions.update(interface_, project, context_1, columnContext_1, items_1, newCounter_1, undefined, true);
+                return interfaceActions.update(interface_, project, context_1, items_1, newCounter_1, undefined, true);
             else
-                return interfaceActions.create(interface_, project, context_1, columnContext_1, items_1, newCounter_1, true)
+                return interfaceActions.create(interface_, project, context_1, items_1, newCounter_1, true)
         }
         return Promise.reject();
     };
@@ -153,7 +152,6 @@ const CardGrid = ({
         interfaceActions.get(project as string, true).then((ints: Interface[]) => {
             const currentInterface = ints.find(i => i.name == interface_);
             setContext(currentInterface?.context);
-            setColumnContext(currentInterface?.column_context);
             setItems(currentInterface?.items || []);
             setNewCounter(currentInterface?.new_counter || 0);
             setTempInterfaceCreated(Boolean(currentInterface));
@@ -179,7 +177,7 @@ const CardGrid = ({
     // Only call updateInterface when items have truly changed.
     useEffect(() => {
         updateInterface();
-    }, [items, context, columnContext]);
+    }, [items, context]);
 
     // trigger update when table data changes (server reloaded)
     useEffect(() => {
@@ -342,6 +340,7 @@ const CardGrid = ({
                                         interactive={interactive}
                                         project={project || undefined}
                                         contexts={contexts}
+                                        context={context}
                                         pending={pending || dataPending || tilePending[el.i]}
                                         tableNames={tableNames}
                                         tableData={tableData}
@@ -374,33 +373,31 @@ const CardGrid = ({
                                                     {el.i}
                                                 </Badge>
                                             </Tooltip>
-                                            {(![undefined, "default"].includes(el.context || context)) && el.tab == "Table" && <ContextSelector
+                                            {el.context && el.tab == "Table" && <ContextSelector
                                                 contexts={contexts}
+                                                context={context}
                                                 tableDataItem={tableData[el.i || ""]}
                                                 item={el}
                                                 updateItem={updateItem}
-                                                context={context}
-                                                setContext={setContext}
                                                 button={
                                                     <Tooltip content="Context">
                                                         <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
                                                             <Braces size={18} />
-                                                            {el.context || context}
+                                                            {el.context}
                                                         </Badge>
                                                     </Tooltip>
                                                 }
                                             />}
-                                            {(el.column_context || columnContext) && el.tab == "Table" && <ContextSelector
+                                            {el.column_context && el.tab == "Table" && <ContextSelector
                                                 contexts={contexts}
+                                                context={context}
                                                 tableDataItem={tableData[el.i || ""]}
                                                 item={el}
                                                 updateItem={updateItem}
-                                                context={context}
-                                                setContext={setContext}
                                                 button={<Tooltip content="Column Context">
                                                     <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
                                                         <Grid2x2 size={18} />
-                                                        {el.column_context || columnContext}
+                                                        {el.column_context}
                                                     </Badge>
                                                 </Tooltip>}
                                             />}
@@ -473,6 +470,7 @@ const CardGrid = ({
                         interactive={interactive}
                         project={project || undefined}
                         contexts={contexts}
+                        context={context}
                         pending={pending}
                         dataPending={dataPending}
                         tilePending={tilePending}
@@ -518,9 +516,9 @@ const CardGrid = ({
                                 if (saveSuccess == undefined) {
                                     let response: ResponseProps | undefined = undefined;
                                     if (interfaceCreated)
-                                        response = await interfaceActions.update(interface_ as string, project as string, context, columnContext, items, newCounter, undefined, false);
+                                        response = await interfaceActions.update(interface_ as string, project as string, context, items, newCounter, undefined, false);
                                     else
-                                        response = await interfaceActions.create(interface_ as string, project as string, context, columnContext, items, newCounter, false);
+                                        response = await interfaceActions.create(interface_ as string, project as string, context, items, newCounter, false);
                                     if (response && "info" in response)
                                         setSaveSuccess(true);
                                     else

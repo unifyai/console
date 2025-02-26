@@ -45,6 +45,7 @@ const LogsTable = ({
   interactive,
   project,
   contexts,
+  context_,
   pending,
   item,
   tableArguments,
@@ -65,6 +66,7 @@ const LogsTable = ({
   interactive: boolean;
   project: string | undefined;
   contexts: Context[];
+  context_: string | undefined;
   pending: boolean;
   tab: string;
   item: TileProps;
@@ -344,10 +346,10 @@ const LogsTable = ({
         <div className="flex flex-row gap-2 items-center">
           <ContextSelector
             contexts={contexts}
+            context={context_}
             tableDataItem={tableDataItem}
             item={item}
             updateItem={updateItem}
-            context={context}
           />
           <GlobalFilter
             interactive={interactive}
