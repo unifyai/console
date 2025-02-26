@@ -24,7 +24,12 @@ const ContextSelector = ({
     setContext?: (context: string) => void,
     button?: React.ReactNode,
 }) => {
-    const finalSetContext = (updateItem != undefined && item != undefined) ? updateItem(item, "context") : setContext;
+    const finalSetContext = (updateItem != undefined && item != undefined) ? (ctx: string) => {
+        if (ctx != item.context) {
+            updateItem(item, "column_context")("")
+            updateItem(item, "context")(ctx)
+        }
+    } : setContext;
     const disabled = !contexts.length && !tableDataItem?.columnContexts?.length;
 
     interface TreeNode {
@@ -76,7 +81,7 @@ const ContextSelector = ({
                     key={nodeName}
                     onSelect={() => (
                         (nodePath.slice(0, -1) != attr)
-                            ? setter(nodePath.slice(0, -1))
+                            ? setter(nodePath.slice(0, -1).replace("/<root>", ""))
                             : setter("")
                     )}
                     className="w-48 justify-between"
@@ -101,7 +106,7 @@ const ContextSelector = ({
                                     key={`${nodeName}-root`}
                                     onSelect={() => (
                                         (nodePath.slice(0, -1) != attr)
-                                            ? setter(nodePath.slice(0, -1))
+                                            ? setter(nodePath.slice(0, -1).replace("/<root>", ""))
                                             : setter("")
                                     )}
                                     className="w-48 justify-between"
@@ -163,11 +168,17 @@ const ContextSelector = ({
     const contextPrefix = context || largestCommonPrefix;
     const contextTree = item == undefined
         ? largestCommonPrefix == "" ? buildTree(contextNames) : buildTree(
-            contextNames.map(name => name.slice(largestCommonPrefix.length))
+            contextNames.map(name => {
+                const slicedName = name.slice(largestCommonPrefix.length)
+                return slicedName == "" ? "<root>" : slicedName
+            })
         ) : buildTree(
             contextNames.filter(
                 name => name.startsWith(contextPrefix)
-            ).map(name => name.slice(contextPrefix.length))
+            ).map(name => {
+                const slicedName = name.slice(contextPrefix.length)
+                return slicedName == "" ? "<root>" : slicedName
+            })
         );
     const columnContextTree = buildTree(tableDataItem?.columnContexts || []);
 
@@ -177,7 +188,7 @@ const ContextSelector = ({
                 button={button || <ActionButton
                     tooltip={item == undefined ? "Edit Context" : "Edit Context and Column Context"}
                     icon={<FolderTree />}
-                    variant="outline"
+                    variant={item == undefined && context ? "primary" : "outline"}
                     size="sm"
                     disabled={disabled}
                 />}
