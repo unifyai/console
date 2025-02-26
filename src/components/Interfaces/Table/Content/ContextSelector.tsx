@@ -132,13 +132,15 @@ const ContextSelector = ({
     const contextNames = contexts.map(context => context.name);
 
     // Find the largest common prefix among all contextNames
-    if (contextNames.length === 0) return "";
-    if (contextNames.length === 1) return contextNames[0];
     let largestCommonPrefix = contextNames[0];
-    for (let i = 1; i < contextNames.length; i++) {
-        while (contextNames[i].indexOf(largestCommonPrefix) != 0) {
-            largestCommonPrefix = largestCommonPrefix.substring(0, largestCommonPrefix.length - 1);
-            if (largestCommonPrefix === "") return "";
+    if (contextNames.length === 0) largestCommonPrefix = "";
+    else if (contextNames.length === 1) largestCommonPrefix = contextNames[0];
+    else {
+        for (let i = 1; i < contextNames.length; i++) {
+            while (contextNames[i].indexOf(largestCommonPrefix) != 0) {
+                largestCommonPrefix = largestCommonPrefix.substring(0, largestCommonPrefix.length - 1);
+                if (largestCommonPrefix === "") break;
+            }
         }
     }
 
