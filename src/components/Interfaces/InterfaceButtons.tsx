@@ -85,7 +85,7 @@ const InterfaceButtons = ({
                 tooltip="Open Focus Pane"
                 icon={<FocusIcon />}
                 variant={"outline"}
-                disabled={anyTilePending || !project || !interface_ || pending}
+                disabled={!project || !interface_ || pending}
                 onClick={() => setFocusDialog(true)}
             />
             <ContextSelector
@@ -98,7 +98,7 @@ const InterfaceButtons = ({
                 tooltip={!project ? "Select a project first" : "Save Interface"}
                 icon={saveIcon}
                 variant={variant}
-                disabled={anyTilePending || !project || !interface_ || pending}
+                disabled={!project || !interface_ || pending}
                 onClick={async () => setSaveDialog(true)}
             />
             <ActionButton
@@ -106,7 +106,7 @@ const InterfaceButtons = ({
                 tooltip={!project ? "Select a project first" : "Return to last saved interface"}
                 icon={resetIcon}
                 variant="outline"
-                disabled={anyTilePending || !project || pending}
+                disabled={!project || pending}
                 onClick={async () => updateInterface(savedInterface).then(() => {
                     setResetting(true);
                     setEdit(true);
