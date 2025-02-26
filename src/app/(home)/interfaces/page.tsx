@@ -25,7 +25,7 @@ import {
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
 
-const InterfacesPage = async ({ searchParams }: { searchParams: { project?: string, interface?: string } }) => {
+const InterfacesPage = async ({ searchParams }: { searchParams: { project?: string, tab?: string } }) => {
     // get user and api key
     const user = await getCurrentUser();
     if (!user) {
@@ -76,7 +76,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
             <Suspense fallback={<SkeletonLoader />}>
                 <Main
                     project_={searchParams?.project}
-                    interface_={searchParams?.interface}
+                    interface_={searchParams?.tab}
                     projectsActions={projectsActions}
                     logsActions={logsActions}
                     derivedEntryActions={derivedEntryActions}

@@ -24,7 +24,13 @@ const ContextSelector = ({
     setContext?: (context: string) => void,
     button?: React.ReactNode,
 }) => {
-    const finalSetContext = (updateItem != undefined && item != undefined) ? updateItem(item, "context") : setContext;
+    const finalSetContext = (updateItem != undefined && item != undefined) ? (ctx: string) => {
+        if (ctx != item.context) {
+            updateItem(item, "column_context")("")
+            updateItem(item, "context")(ctx)
+        }
+    } : setContext;
+    const disabled = !contexts.length && !tableDataItem?.columnContexts?.length;
 
     interface TreeNode {
         path: string;
@@ -56,29 +62,31 @@ const ContextSelector = ({
         return root;
     };
 
-    const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, setter }: {
+    const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, setter }: {
         node: TreeNode,
         nodeName: string,
         isTopLevel: boolean,
         showRoot: boolean,
         attr: string | undefined,
+        prefix?: string,
         setter: (context: string) => void
     }) => {
         const hasChildren = Object.keys(node.children).length > 0;
+        const nodePath = prefix ? `${prefix}/${node.path}` : node.path;
 
         // If this is a leaf node (no children)
-        if (!hasChildren && item != undefined) {
+        if (!hasChildren) {
             return (
                 <DropdownMenuItem
                     key={nodeName}
                     onSelect={() => (
-                        (node.path.slice(0, -1) != attr)
-                            ? setter(node.path.slice(0, -1))
+                        (nodePath.slice(0, -1) != attr)
+                            ? setter(nodePath.slice(0, -1).replace("/<root>", ""))
                             : setter("")
                     )}
                     className="w-48 justify-between"
                 >
-                    {nodeName}{attr == node.path.slice(0, -1) && <Check />}
+                    {nodeName}{attr == nodePath.slice(0, -1).replace("/<root>", "") && <Check />}
                 </DropdownMenuItem>
             );
         }
@@ -93,17 +101,17 @@ const ContextSelector = ({
                     <DropdownMenuPortal>
                         <DropdownMenuSubContent>
                             {/* Make the current path selectable */}
-                            {node.isComplete && item != undefined && showRoot && (
+                            {showRoot && (
                                 <DropdownMenuItem
-                                    key={nodeName}
+                                    key={`${nodeName}-root`}
                                     onSelect={() => (
-                                        (node.path.slice(0, -1) != attr)
-                                            ? setter(node.path.slice(0, -1))
+                                        (nodePath.slice(0, -1) != attr)
+                                            ? setter(nodePath.slice(0, -1).replace("/<root>", ""))
                                             : setter("")
                                     )}
                                     className="w-48 justify-between"
                                 >
-                                    {isTopLevel ? <Folder className="w-4 h-4" /> : nodeName}{attr == node.path.slice(0, -1) && <Check />}
+                                    {isTopLevel ? <span className="flex items-center gap-1"><Folder size={16} /></span> : nodeName}{attr == nodePath.slice(0, -1).replace("/<root>", "") && <Check />}
                                 </DropdownMenuItem>
                             )}
                             {/* Render all child nodes */}
@@ -115,6 +123,7 @@ const ContextSelector = ({
                                     isTopLevel={false}
                                     showRoot={showRoot}
                                     attr={attr}
+                                    prefix={prefix}
                                     setter={setter}
                                 />
                             ))}
@@ -126,23 +135,71 @@ const ContextSelector = ({
     };
 
     // Build and render the tree
-    const contextTree = buildTree(contexts.map(context => context.name));
+    const contextNames = contexts.map(context => context.name);
+
+    // Find the largest common prefix among all contextNames
+    let largestCommonPrefix = "";
+    if (contextNames.length === 0) {
+        largestCommonPrefix = "";
+    } else if (contextNames.length === 1) {
+        largestCommonPrefix = contextNames[0];
+    } else {
+        // Split the first context by '/' to get path segments
+        const firstContextParts = contextNames[0].split('/');
+        let commonParts: string[] = [];
+
+        // Check each segment against all other contexts
+        for (let i = 0; i < firstContextParts.length; i++) {
+            let isCommon = true;
+            const currentPath = firstContextParts.slice(0, i + 1).join('/');
+            for (let j = 1; j < contextNames.length; j++) {
+                if (!contextNames[j].startsWith(currentPath + (i < firstContextParts.length - 1 ? '/' : ''))) {
+                    isCommon = false;
+                    break;
+                }
+            }
+            if (isCommon) commonParts = firstContextParts.slice(0, i + 1);
+            else break;
+        }
+        largestCommonPrefix = commonParts.join('/');
+    }
+
+    // filter contexts based on the prefixes and construct the tree
+    const contextPrefix = context || largestCommonPrefix;
+    const contextTree = item == undefined
+        ? largestCommonPrefix == "" ? buildTree(contextNames) : buildTree(
+            contextNames.map(name => {
+                const slicedName = name.slice(largestCommonPrefix.length)
+                return slicedName == "" ? "<root>" : slicedName
+            })
+        ) : buildTree(
+            contextNames.filter(
+                name => name.startsWith(contextPrefix)
+            ).map(name => {
+                const slicedName = name.slice(contextPrefix.length)
+                return slicedName == "" ? "<root>" : slicedName
+            })
+        );
     const columnContextTree = buildTree(tableDataItem?.columnContexts || []);
 
     return (
         <div className="w-fit">
             <BaseDropdown
                 button={button || <ActionButton
-                    tooltip="Edit Context and Column Context"
+                    tooltip={item == undefined ? "Edit Global Context" : "Edit Context and Column Context"}
                     icon={<FolderTree />}
-                    variant="outline"
+                    variant={item == undefined && context ? "primary" : "outline"}
                     size="sm"
+                    disabled={disabled}
                 />}
+                open={disabled ? false : undefined}
             >
                 <div className="flex flex-col gap-4">
                     {contexts.length > 0 ? <div className="pt-2">
                         <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">
-                            <Braces size={18} /> Context
+                            <Braces size={18} /> {item != undefined ? (
+                                contextPrefix == "" ? (context || "Context") : contextPrefix
+                            ) : (largestCommonPrefix == "" ? "Context" : largestCommonPrefix)}
                         </div>
                         {Object.entries(contextTree.children).map(([name, node], idx) => (
                             <RenderMenuItems
@@ -150,8 +207,9 @@ const ContextSelector = ({
                                 node={node}
                                 nodeName={name}
                                 isTopLevel={true}
-                                showRoot={true}
-                                attr={item?.context || context}
+                                showRoot={item == undefined}
+                                prefix={item == undefined ? largestCommonPrefix : contextPrefix}
+                                attr={item != undefined ? item.context : context}
                                 setter={(ctx: string) => finalSetContext && finalSetContext(ctx)}
                             />
                         ))}

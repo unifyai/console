@@ -45,6 +45,7 @@ const LogsTable = ({
   interactive,
   project,
   contexts,
+  context_,
   pending,
   item,
   tableArguments,
@@ -65,6 +66,7 @@ const LogsTable = ({
   interactive: boolean;
   project: string | undefined;
   contexts: Context[];
+  context_: string | undefined;
   pending: boolean;
   tab: string;
   item: TileProps;
@@ -339,15 +341,15 @@ const LogsTable = ({
 
   // Top area: filters, page, etc.
   const tableTop = (
-    <div className="mb-2 mx-1 flex flex-row justify-between gap-3 LogsTablePreferences">
+    <div className="mb-2 mx-1 flex flex-wrap justify-between gap-3 LogsTablePreferences">
       {project && columns.length > 0 && (
-        <div className="flex flex-row gap-2 items-center">
+        <div className="flex gap-2 items-center">
           <ContextSelector
             contexts={contexts}
+            context={context_}
             tableDataItem={tableDataItem}
             item={item}
             updateItem={updateItem}
-            context={context}
           />
           <GlobalFilter
             interactive={interactive}

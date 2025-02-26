@@ -20,6 +20,7 @@ const FocusDialog = ({
     interactive,
     project,
     contexts,
+    context,
     pending,
     dataPending,
     tilePending,
@@ -49,6 +50,7 @@ const FocusDialog = ({
     interactive: boolean,
     project: string | undefined,
     contexts: Context[],
+    context: string | undefined,
     pending: boolean,
     dataPending: boolean,
     tilePending: { [key: string]: boolean },
@@ -82,6 +84,7 @@ const FocusDialog = ({
                         project={project}
                         pending={pending || dataPending || (item.tab == "Table" ? tilePending[item.i] : false)}
                         contexts={contexts}
+                        context={context}
                         tableNames={tableNames}
                         tableData={tableData}
                         tableArguments={tableArguments}

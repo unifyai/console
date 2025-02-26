@@ -21,7 +21,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
 }) => {
     const cookies_ = cookies();
     const cookiesProject = cookies_.get("project")?.value;
-    const cookiesInterface = cookies_.get("interface")?.value;
+    const cookiesInterface = cookies_.get("tab")?.value;
 
     // Get projects
     const projects: string[] = await projectsActions.get();
@@ -54,8 +54,8 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                 ...item,
                 minW: undefined,
                 minH: undefined,
-                context: currentInterface?.context || item.context,
-                column_context: currentInterface?.column_context || item.column_context
+                context: item.context,
+                column_context: item.column_context
             }))
         }
     }
@@ -68,7 +68,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         new_counter: defaultNewCounter
     } as Interface;
     if (!interface_ && project && interface_1)
-        redirect(`/interfaces?project=${project}&interface=${interface_1}`);
+        redirect(`/interfaces?project=${project}&tab=${interface_1}`);
 
     // get table and plot items
     let tableItems = (currentInterface?.items || []).filter(item => item.tab == "Table");
@@ -173,7 +173,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                 .entries(fields[idx])
                 .filter(([name, { data_type, field_type, artifacts }]) => columnContext ? name.startsWith(columnContext) : name)
                 .map(([name, { data_type, field_type, artifacts }]) => {
-                    const newName = columnContext ? name.replace(columnContext, "") : name;
+                    const newName = columnContext ? processContext("split", columnContext, name) : name
                     return [`${item.i}.${newName}`, { data_type, field_type, artifacts }];
                 })
         )
@@ -220,23 +220,31 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                 // aggregate plot arguments
                 const context = table?.context;
                 const columnContext = table?.column_context;
-                const xAxis = context ? processContext("merge", context, item.x_axis) : item.x_axis;
-                const yAxis = context ? processContext("merge", context, item.y_axis) : item.y_axis;
-                const group = context ? processContext("merge", context, item.plot_group_by) : item.plot_group_by;
                 const filterExpression = filterExpressions[tableIdx];
                 if (filterExpression) plotArguments[table.i]["filter_expr"] = filterExpression
                 if (context) plotArguments[table.i]["context"] = context
                 if (columnContext) plotArguments[table.i]["column_context"] = columnContext;
+                
                 // get plot data
                 let data: LogsResponseProps = { params: {}, logs: [], count: 0, groups: [] };
-                if (xAxis) {
-                    let subset = xAxis.split(".").length > 1 ? xAxis.split(".")[1] : null;
-                    if (yAxis && yAxis.split(".").length > 1)
-                        subset += `&${yAxis.split(".")[1]}`
-                    if (group && group.split(".").length > 1)
-                        subset += `&${group.split(".")[1]}`
+                let [xAxis, yAxis, group] = [item.x_axis, item.y_axis, item.plot_group_by];
+                let subset = null;
+                if (xAxis && xAxis.split(".").length > 1) {
+                    xAxis = xAxis.split(".")[1]
+                    xAxis = columnContext ? processContext("merge", columnContext, xAxis) : xAxis;
+                    subset = xAxis
+                    if (yAxis && yAxis.split(".").length > 1) {
+                        yAxis = yAxis.split(".")[1]
+                        yAxis = columnContext ? processContext("merge", columnContext, yAxis) : yAxis;
+                        subset += `&${yAxis}`
+                    }
+                    if (group && group.split(".").length > 1) {
+                        group = group.split(".")[1]
+                        group = columnContext ? processContext("merge", columnContext, group) : group;
+                        subset += `&${group}`
+                    }
                     if (subset) plotArguments[table.i]["subset"] = subset
-    
+
                     data = await logsActions.get(project, context ?? null, columnContext ?? null, filterExpression, null, null, subset, null, 0, null, null, Date.now().toString());
 
                     /* Replace param indices with actual param values */

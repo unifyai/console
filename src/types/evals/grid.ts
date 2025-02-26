@@ -120,7 +120,6 @@ export interface Interface {
     name: string,
     project: string,
     context: string | undefined,
-    column_context: string | undefined,
     items: TileProps[],
     new_counter: number,
 }
@@ -156,7 +155,7 @@ export interface ContextActions {
 
 export interface InterfaceActions {
     get: (project: string, temporary: boolean) => Promise<Interface[]>,
-    create: (name: string, project: string, context: string | undefined, column_context: string | undefined, items: TileProps[], new_counter: number, temporary: boolean) => Promise<ResponseProps>,
-    update: (name: string, project: string, context: string | undefined, column_context: string | undefined, items: TileProps[], new_counter: number, new_name: string | undefined, temporary: boolean) => Promise<ResponseProps>,
+    create: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, temporary: boolean) => Promise<ResponseProps>,
+    update: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, new_name: string | undefined, temporary: boolean) => Promise<ResponseProps>,
     delete: (name: string, project: string, temporary: boolean) => Promise<ResponseProps>
 }
