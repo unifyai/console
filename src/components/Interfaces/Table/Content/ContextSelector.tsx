@@ -186,7 +186,7 @@ const ContextSelector = ({
         <div className="w-fit">
             <BaseDropdown
                 button={button || <ActionButton
-                    tooltip={item == undefined ? "Edit Context" : "Edit Context and Column Context"}
+                    tooltip={item == undefined ? "Edit Global Context" : "Edit Context and Column Context"}
                     icon={<FolderTree />}
                     variant={item == undefined && context ? "primary" : "outline"}
                     size="sm"
