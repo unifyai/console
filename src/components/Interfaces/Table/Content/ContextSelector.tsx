@@ -133,21 +133,35 @@ const ContextSelector = ({
     const contextNames = contexts.map(context => context.name);
 
     // Find the largest common prefix among all contextNames
-    let largestCommonPrefix = contextNames[0];
-    if (contextNames.length === 0) largestCommonPrefix = "";
-    else if (contextNames.length === 1) largestCommonPrefix = contextNames[0];
-    else {
-        for (let i = 1; i < contextNames.length; i++) {
-            while (contextNames[i].indexOf(largestCommonPrefix) != 0) {
-                largestCommonPrefix = largestCommonPrefix.substring(0, largestCommonPrefix.length - 1);
-                if (largestCommonPrefix === "") break;
+    let largestCommonPrefix = "";
+    if (contextNames.length === 0) {
+        largestCommonPrefix = "";
+    } else if (contextNames.length === 1) {
+        largestCommonPrefix = contextNames[0];
+    } else {
+        // Split the first context by '/' to get path segments
+        const firstContextParts = contextNames[0].split('/');
+        let commonParts: string[] = [];
+
+        // Check each segment against all other contexts
+        for (let i = 0; i < firstContextParts.length; i++) {
+            let isCommon = true;
+            const currentPath = firstContextParts.slice(0, i + 1).join('/');
+            for (let j = 1; j < contextNames.length; j++) {
+                if (!contextNames[j].startsWith(currentPath + (i < firstContextParts.length - 1 ? '/' : ''))) {
+                    isCommon = false;
+                    break;
+                }
             }
+            if (isCommon) commonParts = firstContextParts.slice(0, i + 1);
+            else break;
         }
+        largestCommonPrefix = commonParts.join('/');
     }
 
     // filter contexts based on the prefixes and construct the tree
     const contextPrefix = context || largestCommonPrefix;
-    const contextTree = item == undefined && largestCommonPrefix == ""
+    const contextTree = item == undefined
         ? buildTree(contextNames)
         : buildTree(
             contextNames.filter(
@@ -171,7 +185,9 @@ const ContextSelector = ({
                 <div className="flex flex-col gap-4">
                     {contexts.length > 0 ? <div className="pt-2">
                         <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">
-                            <Braces size={18} /> {item != undefined ? context || "Context" : "Context"}
+                            <Braces size={18} /> {item != undefined ? (
+                                contextPrefix == "" ? (context || "Context") : contextPrefix
+                            ) : "Context"}
                         </div>
                         {Object.entries(contextTree.children).map(([name, node], idx) => (
                             <RenderMenuItems
