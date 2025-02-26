@@ -108,19 +108,19 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
             )
             setFilters([defaultFilter])
         }
-        setColumnFilterQuery(newColumnFilters);
         setSpinnerColor("white")
         setFilterLoading(true)
+        setColumnFilterQuery(newColumnFilters);
         setOpen(false);
     }
     const onReset = () => {
         const newColumnFilters = Object.fromEntries(
             Object.entries(columnFilters).filter(([key, _]) => key != column)
         );
-        setFilters([defaultFilter])
-        setColumnFilterQuery(newColumnFilters)
         setSpinnerColor("primary")
         setFilterLoading(true)
+        setFilters([defaultFilter])
+        setColumnFilterQuery(newColumnFilters)
         setOpen(false)
     }
     const onEnter : KeyboardEventHandler = (event) => {

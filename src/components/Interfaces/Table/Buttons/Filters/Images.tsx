@@ -58,9 +58,9 @@ const ImageColumnFilter = ({
             newColumnFilters = {...columnFilters, [column]: {"isNone": newFilter}}
             setSpinnerColor("white")
         }
+        setFilterLoading(true)
         setFilter(newFilter)
         setColumnFilterQuery(newColumnFilters);
-        setFilterLoading(true)
     }
 
     /* Filter button */
