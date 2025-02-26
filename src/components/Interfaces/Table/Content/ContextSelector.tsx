@@ -162,8 +162,9 @@ const ContextSelector = ({
     // filter contexts based on the prefixes and construct the tree
     const contextPrefix = context || largestCommonPrefix;
     const contextTree = item == undefined
-        ? buildTree(contextNames)
-        : buildTree(
+        ? largestCommonPrefix == "" ? buildTree(contextNames) : buildTree(
+            contextNames.map(name => name.slice(largestCommonPrefix.length))
+        ) : buildTree(
             contextNames.filter(
                 name => name.startsWith(contextPrefix)
             ).map(name => name.slice(contextPrefix.length))
@@ -187,7 +188,7 @@ const ContextSelector = ({
                         <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">
                             <Braces size={18} /> {item != undefined ? (
                                 contextPrefix == "" ? (context || "Context") : contextPrefix
-                            ) : "Context"}
+                            ) : (largestCommonPrefix == "" ? "Context" : largestCommonPrefix)}
                         </div>
                         {Object.entries(contextTree.children).map(([name, node], idx) => (
                             <RenderMenuItems
@@ -196,7 +197,7 @@ const ContextSelector = ({
                                 nodeName={name}
                                 isTopLevel={true}
                                 showRoot={item == undefined}
-                                prefix={item == undefined ? undefined : contextPrefix}
+                                prefix={item == undefined ? largestCommonPrefix : contextPrefix}
                                 attr={item != undefined ? item.context : context}
                                 setter={(ctx: string) => finalSetContext && finalSetContext(ctx)}
                             />
