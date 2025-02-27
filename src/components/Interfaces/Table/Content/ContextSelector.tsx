@@ -74,6 +74,7 @@ const ContextSelector = ({
     }) => {
         const hasChildren = Object.keys(node.children).length > 0;
         const nodePath = prefix ? `${prefix}/${node.path}` : node.path;
+        const nonRootNodePath = nodePath.slice(0, -1).replace("/<root>", "");
 
         // If this is a leaf node (no children)
         if (!hasChildren) {
@@ -81,13 +82,16 @@ const ContextSelector = ({
                 <DropdownMenuItem
                     key={nodeName}
                     onSelect={() => (
-                        (nodePath.slice(0, -1) != attr)
-                            ? setter(nodePath.slice(0, -1).replace("/<root>", ""))
-                            : setter("")
+                        (nonRootNodePath != attr) ? setter(nonRootNodePath) : setter("")
                     )}
                     className="w-48 justify-between"
                 >
-                    {nodeName}{attr == nodePath.slice(0, -1).replace("/<root>", "") && <Check />}
+                    {nodeName == "<root>"
+                        ? <span className="flex items-center gap-1">
+                            <Folder size={16} />
+                        </span>
+                        : nodeName
+                    }{attr == nodePath.slice(0, -1).replace("/<root>", "") && <Check />}
                 </DropdownMenuItem>
             );
         }
@@ -106,13 +110,16 @@ const ContextSelector = ({
                                 <DropdownMenuItem
                                     key={`${nodeName}-root`}
                                     onSelect={() => (
-                                        (nodePath.slice(0, -1) != attr)
-                                            ? setter(nodePath.slice(0, -1).replace("/<root>", ""))
-                                            : setter("")
+                                        nonRootNodePath != attr ? setter(nonRootNodePath) : setter("")
                                     )}
                                     className="w-48 justify-between"
                                 >
-                                    {isTopLevel ? <span className="flex items-center gap-1"><Folder size={16} /></span> : nodeName}{attr == nodePath.slice(0, -1).replace("/<root>", "") && <Check />}
+                                    {isTopLevel
+                                        ? <span className="flex items-center gap-1">
+                                            <Folder size={16} />
+                                        </span>
+                                        : nodeName
+                                    }{attr == nodePath.slice(0, -1).replace("/<root>", "") && <Check />}
                                 </DropdownMenuItem>
                             )}
                             {/* Render all child nodes */}
