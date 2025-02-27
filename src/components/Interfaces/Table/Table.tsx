@@ -257,7 +257,7 @@ const LogsTable = ({
     })
     : [];
   const setGroupSorting = (s: ColumnSort[]) =>
-    updateItem(item, "group_sorting")(s.map((item) => `${sanitizeId(item.id)}@${item.desc}`).join(","));
+    updateItem(item as TileProps, "group_sorting")(s.map((item) => `${sanitizeId(item.id)}@${item.desc}`).join(","));
 
   const columnPinning: ColumnPinningState = {
     left: columnsPinLeft ? columnsPinLeft.split(",") : [indicesTitle],
@@ -389,7 +389,6 @@ const LogsTable = ({
           <ContextSelector
             index={index}
             contexts={contexts}
-            context={context}
             context={context_}
           />
           <GlobalFilter

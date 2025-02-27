@@ -455,7 +455,6 @@ const CardGrid = ({
                         interfaces={interfaces_}
                         project={project}
                         context={context}
-                        columnContext={columnContext}
                         items={items}
                         newCounter={newCounter}
                         tableData={tableData}

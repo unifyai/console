@@ -195,7 +195,7 @@ const Card = ({
                     filterExpression={filterExpressions ? filterExpressions[items.findIndex(it => it.i === item?.i)] : null}
                     sortingExpression={sortingExpressions ? sortingExpressions[items.findIndex(it => it.i === item?.i)] : null}
                     groupingExpression={groupingExpressions ? groupingExpressions[items.findIndex(it => it.i === item?.i)] : null}
-                    groupSortingExpression={groupSortingExpressions ? groupSortingExpressions[items.findIndex(it => it.i === item.i)] : null}
+                    groupSortingExpression={groupSortingExpressions ? groupSortingExpressions[items.findIndex(it => it.i === item?.i)] : null}
                     limit={limit}
                     offset={offsets ? offsets[items.findIndex(it => it.i === item?.i)] : 0}
                     updateInterface={updateInterface}
