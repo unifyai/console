@@ -1,11 +1,12 @@
 "use client";
 
+import Tooltip from "@/components/Common/Misc/Tooltip";
 import ActionButton from "../../../Common/Buttons/Action";
 import BaseDropdown from "../../../Common/Dropdowns/Base";
 import { DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuSub, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSubTrigger } from "../../../UI/dropdown-menu";
 import { Context, ItemType, TableDataItem } from "@/types/evals/grid";
 import { TileProps } from "@/types/evals/grid";
-import { Braces, Check, Folder, FolderTree, Grid2x2 } from "lucide-react";
+import { Braces, Check, Folder, FolderTree, Grid2x2, X } from "lucide-react";
 
 const ContextSelector = ({
     contexts,
@@ -196,10 +197,19 @@ const ContextSelector = ({
             >
                 <div className="flex flex-col gap-4">
                     {contexts.length > 0 ? <div className="pt-2">
-                        <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">
-                            <Braces size={18} /> {item != undefined ? (
-                                contextPrefix == "" ? (context || "Context") : contextPrefix
-                            ) : (largestCommonPrefix == "" ? "Context" : largestCommonPrefix)}
+                        <div className="font-bold text-sm px-2 pb-2 border-b flex justify-between items-center">
+                            <div className="flex gap-2 items-center">
+                                <Braces size={18} /> {item != undefined ? (
+                                    contextPrefix == "" ? (context || "Context") : contextPrefix
+                                ) : (largestCommonPrefix == "" ? "Context" : largestCommonPrefix)}
+                            </div>
+                            {(item != undefined ? item.context : context) && <Tooltip content="Clear Context">
+                                <X
+                                    size={18}
+                                    onClick={() => finalSetContext && finalSetContext("")}
+                                    className="cursor-pointer hover:text-primary"
+                                />
+                            </Tooltip>}
                         </div>
                         {Object.entries(contextTree.children).map(([name, node], idx) => (
                             <RenderMenuItems
@@ -215,8 +225,17 @@ const ContextSelector = ({
                         ))}
                     </div> : <></>}
                     {item && updateItem && (tableDataItem != undefined) && tableDataItem.columnContexts && tableDataItem.columnContexts.length > 0 && <div className="pt-2">
-                        <div className="font-bold text-sm px-2 pb-2 border-b flex gap-2 items-center">
-                            <Grid2x2 size={18} /> Column Context
+                        <div className="font-bold text-sm px-2 pb-2 border-b flex justify-between items-center">
+                            <div className="flex gap-2 items-center">
+                                <Grid2x2 size={18} /> Column Context
+                            </div>
+                            {item.column_context && <Tooltip content="Clear Column Context">
+                                <X
+                                    size={18}
+                                    onClick={() => updateItem(item, "column_context")("")}
+                                    className="cursor-pointer hover:text-primary"
+                                />
+                            </Tooltip>}
                         </div>
                         {Object.entries(columnContextTree.children).map(([name, node], idx) => (
                             <RenderMenuItems
