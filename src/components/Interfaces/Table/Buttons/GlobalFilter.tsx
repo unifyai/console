@@ -84,19 +84,21 @@ const GlobalFilter = ({ interactive, commonFilter, setCommonFilter, logs, setLog
     /* Close button */
     const onCloseClick = () => {
         setCommonFilter(undefined);
+        setGlobalFilter({mode: "search", value: ""});
         setLoadingInput(true);
         setLoadingReset(true);
     }
     const closeIcon = <X size={15} onClick={onCloseClick} className="cursor-pointer" /> 
     const closeClassName = `absolute z-10 right-2 ${mode === "expression" ? "top-[10px]" : "top-[8px]"}`
     const closeButton = commonFilter?.length && <div className={closeClassName}>{closeIcon}</div> 
-    
+
     /* Filter reset button */
     const resetIcon = loadingReset ? <LoaderCircle className="animate-spin text-primary"/> : <FilterX/>
     const resetTooltip = "Reset All Filters"
     const resetVariant = "warning_outline" 
     const onClick = () => {
         setLogsFilters({});
+        setGlobalFilter({mode: "search", value: ""});
         setCommonFilter(undefined);
         setLoadingReset(true);
     }
