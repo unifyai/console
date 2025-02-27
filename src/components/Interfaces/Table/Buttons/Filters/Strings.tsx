@@ -22,12 +22,11 @@ interface StringFilter {
     value: string
 }
 
-const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, logs, open, setOpen, filterLoading, setFilterLoading, setIsFiltered, renderMode }: {
+const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, open, setOpen, filterLoading, setFilterLoading, setIsFiltered, renderMode }: {
     interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
-    logs: LogProps[] | GroupedLogProps[],
     open: boolean,
     setOpen: Dispatch<SetStateAction<boolean>>,
     filterLoading: boolean,
@@ -38,9 +37,6 @@ const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
 
     /* Display loader when data updates */
     const [spinnerColor, setSpinnerColor] = useState("white");
-    useEffect(() => {
-        setFilterLoading(false);
-    },[logs])
 
     /* Init filters */
     const options = [

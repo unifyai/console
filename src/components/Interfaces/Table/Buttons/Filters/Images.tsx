@@ -12,7 +12,6 @@ type ImageColumnFilterProps = {
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
-    logs: LogProps[] | GroupedLogProps[],
     filterLoading: boolean,
     setFilterLoading: (filterLoading: boolean) => void,
     setIsFiltered: (isFiltered: boolean) => void,
@@ -24,7 +23,6 @@ const ImageColumnFilter = ({
     column,
     columnFilters,
     setColumnFilterQuery,
-    logs,
     filterLoading,
     setFilterLoading,
     setIsFiltered,
@@ -33,9 +31,6 @@ const ImageColumnFilter = ({
 
     /* Display loader when data updates */
     const [spinnerColor, setSpinnerColor] = useState("white");
-    useEffect(() => {
-        setFilterLoading(false);
-    },[logs])
 
     /* Init filter */
     const initialValue = columnFilters[column] && columnFilters[column]["isNone"] ? columnFilters[column]["isNone"] : "None"

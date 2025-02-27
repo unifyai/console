@@ -176,15 +176,18 @@ const DataTableHeader = ({
   const [updateOpen, setUpdateOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  // Event listeners to update open / loading states
   useEffect(() => {
-    if (groupLoading || sortLoading || filterLoading || updateLoading) {
+    if (groupSortLoading || groupLoading || sortLoading || filterLoading || updateLoading) {
       setDropdownOpen(false);
     }
     else {
       setDropdownOpen(false);
     }
-  }, [data, groupLoading, sortLoading, filterLoading, updateLoading])
+  }, [data, groupSortLoading, groupLoading, sortLoading, filterLoading, updateLoading])
+  useEffect(() => setFilterLoading(false),[data])
 
+  // Functions to control which buttons should be shown
   const showGroupButton = () => {
     return (!isImageColumn && (groupLoading || isGrouped));
   }
@@ -220,7 +223,7 @@ const DataTableHeader = ({
         },
       };
     });
-  }, [hasActiveActions, groupLoading, isGrouped, sortLoading, isSorted, filterLoading, isFiltered, updateLoading, data]);  
+  }, [hasActiveActions, isGroupSorted, groupSortLoading, groupLoading, isGrouped, sortLoading, isSorted, filterLoading, isFiltered, updateLoading, data]);  
 
   // Handle header coloring.
   // - Applies selection (hover) background color on any column header for which all (some) cells are selected
@@ -244,8 +247,8 @@ const DataTableHeader = ({
     minWidth: isDerivedColumn ? '150px' : undefined,
     zIndex: isColumnDragging || isPinned ? 1 : 0,
     borderRight: "1px solid var(--muted)",
-    borderBottom: "1px solid var(--muted)",
-    borderTop: "1px solid var(--muted)",
+    borderBottom: "1px solid var(--muted)", 
+    borderTop: "1px solid var(--muted)",   
     color: isAllColumnSelected(header) ? "var(--primary-foreground)" : "",
     backgroundColor: isNotUtilColumn
       ? isAllColumnSelected(header) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""

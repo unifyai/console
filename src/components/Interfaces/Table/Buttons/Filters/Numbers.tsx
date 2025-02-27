@@ -32,7 +32,6 @@ const NumericColumnFilter = ({
     setColumnFilterQuery,
     boundaries,
     dataTypes,
-    logs,
     open,
     setOpen,
     filterLoading,
@@ -46,7 +45,6 @@ const NumericColumnFilter = ({
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
     boundaries: {minimums: {[key: string]: number;}, maximums: {[key: string]: number}},
     dataTypes: {[key: string]: string},
-    logs: LogProps[] | GroupedLogProps[],
     open: boolean,
     setOpen: Dispatch<SetStateAction<boolean>>,
     filterLoading: boolean,
@@ -57,9 +55,6 @@ const NumericColumnFilter = ({
 
     /* Display loader when data updates */
     const [spinnerColor, setSpinnerColor] = useState("white");
-    useEffect(() => {
-        setFilterLoading(false);
-    },[logs])
 
     /* Initialize filters */
     const options = [

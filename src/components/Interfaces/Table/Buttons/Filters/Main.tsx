@@ -24,7 +24,6 @@ type ColumnFilterProps = {
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
     dataTypes: {[key: string]: string},
     boundaries: {minimums: {[key: string]: any}, maximums: {[key: string]: any}},
-    logs: LogProps[] | GroupedLogProps[],
     open: boolean,
     setOpen: Dispatch<SetStateAction<boolean>>,
     filterLoading: boolean,
@@ -40,7 +39,6 @@ const ColumnFilter = ({
     setColumnFilterQuery,
     dataTypes,
     boundaries,
-    logs,
     open,
     setOpen,
     filterLoading,
@@ -59,7 +57,6 @@ const ColumnFilter = ({
         columnFilters={columnFilters}
         setColumnFilterQuery={setColumnFilterQuery}
         boundaries={boundaries}
-        logs={logs}
         dataTypes={dataTypes}
         open={open}
         setOpen={setOpen}
@@ -74,7 +71,6 @@ const ColumnFilter = ({
         column={column}
         columnFilters={columnFilters}
         setColumnFilterQuery={setColumnFilterQuery}
-        logs={logs}
         open={open}
         setOpen={setOpen}
         filterLoading={filterLoading}
@@ -88,7 +84,6 @@ const ColumnFilter = ({
         column={column}
         columnFilters={columnFilters}
         setColumnFilterQuery={setColumnFilterQuery}
-        logs={logs}
         filterLoading={filterLoading}
         setFilterLoading={setFilterLoading}
         setIsFiltered={setIsFiltered}
@@ -100,7 +95,6 @@ const ColumnFilter = ({
         column={column}
         columnFilters={columnFilters}
         setColumnFilterQuery={setColumnFilterQuery}
-        logs={logs}
         open={open}
         setOpen={setOpen}
         filterLoading={filterLoading}
@@ -114,7 +108,6 @@ const ColumnFilter = ({
         column={column}
         columnFilters={columnFilters}
         setColumnFilterQuery={setColumnFilterQuery}
-        logs={logs}
         open={open}
         setOpen={setOpen}
         filterLoading={filterLoading}
@@ -128,7 +121,6 @@ const ColumnFilter = ({
         column={column}
         columnFilters={columnFilters}
         setColumnFilterQuery={setColumnFilterQuery}
-        logs={logs}
         open={open}
         setOpen={setOpen}
         filterLoading={filterLoading}
