@@ -7,18 +7,28 @@ import { CopyButton } from "@/components/Common/Buttons/Copy";
 import MarkdownRenderer from "./MarkdownRenderer";
 
 /**
- * Convert unknown => finite number, defaulting to 0 if not finite.
+ * Convert unknown => finite number or undefined if not a valid number.
  */
-function asFiniteNumber(val: unknown) {
+function asFiniteNumber(val: unknown): number | undefined {
   if (typeof val === "number" && Number.isFinite(val)) {
     return val;
   }
-  return 0;
+  return undefined;
+}
+
+/**
+ * Display value for a number or undefined
+ */
+function displayValue(val: number | undefined): React.ReactNode {
+  if (val === undefined) {
+    return <span className="italic text-muted-foreground">undefined value</span>;
+  }
+  return <span>{val}</span>;
 }
 
 /**
  * If diffMode === "none," we show everything grouped by numeric value
- * (like StringView “none” mode). We'll gather base + comparables => map<number, rowIndices>.
+ * (like StringView "none" mode). We'll gather base + comparables => map<number | undefined, rowIndices>.
  */
 function groupAllNumbersByValue(
   baseVal: unknown,
@@ -31,18 +41,24 @@ function groupAllNumbersByValue(
   const allNums = [baseNum, ...compNums];
   const allRows = [baseRow, ...compRows];
 
-  const map = new Map<number, number[]>();
+  // Use string keys to avoid issues with undefined as Map key
+  const map = new Map<string, number[]>();
   allNums.forEach((n, i) => {
-    if (!map.has(n)) {
-      map.set(n, []);
+    const key = n === undefined ? "undefined" : String(n);
+    if (!map.has(key)) {
+      map.set(key, []);
     }
-    map.get(n)!.push(allRows[i]);
+    map.get(key)!.push(allRows[i]);
   });
+  
   // Convert to array: { numVal, rows }
-  return Array.from(map.entries()).map(([numVal, rowArr]) => ({
-    numVal,
-    rows: rowArr.sort((a, b) => a - b),
-  }));
+  return Array.from(map.entries()).map(([key, rowArr]) => {
+    const numVal = key === "undefined" ? undefined : Number(key);
+    return {
+      numVal,
+      rows: rowArr.sort((a, b) => a - b),
+    };
+  });
 }
 
 /**
@@ -74,12 +90,17 @@ function groupVersionsForRows(
 
 /**
  * Apply the selected symbol operation:
- * - For “−”: result = compVal − baseVal
- * - For “+”: result = compVal + baseVal
- * - For “×”: result = compVal × baseVal
- * - For “÷”: result = compVal / baseVal   (if baseVal=0 => Infinity)
+ * - For "−": result = compVal − baseVal
+ * - For "+": result = compVal + baseVal
+ * - For "×": result = compVal × baseVal
+ * - For "÷": result = compVal / baseVal   (if baseVal=0 => Infinity)
  */
-function applySymbol(baseVal: number, compVal: number, symbol: string): number {
+function applySymbol(baseVal: number | undefined, compVal: number | undefined, symbol: string): number | undefined {
+  // If either value is undefined, result is undefined
+  if (baseVal === undefined || compVal === undefined) {
+    return undefined;
+  }
+  
   switch (symbol) {
     case "+":
       return compVal + baseVal;
@@ -90,7 +111,7 @@ function applySymbol(baseVal: number, compVal: number, symbol: string): number {
     case "÷":
       return baseVal === 0 ? Infinity : compVal / baseVal;
     default:
-      return 0;
+      return undefined;
   }
 }
 
@@ -155,11 +176,11 @@ export default function NumberView({
           {!versionEmpty && <p className="font-semibold">Value</p>}
           <div className="flex border rounded p-2 relative">
             <div>
-              <p className="text-sm">{baseNum}</p>
+              <p className="text-sm">{displayValue(baseNum)}</p>
             </div>
             <CopyButton
               className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
-              content={String(baseNum)}
+              content={baseNum !== undefined ? String(baseNum) : "undefined"}
               copyMessage="Copied number!"
               tooltipContent="Copy number"
             />
@@ -222,10 +243,10 @@ export default function NumberView({
                   <RowBadge rowNumbers={rowNums} mode="none" />
                   <CopyButton
                     className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
-                    content={String(numVal)}
+                    content={numVal !== undefined ? String(numVal) : "undefined"}
                     copyMessage="Copied number!"
                   />
-                  <p className="text-sm mt-2">{numVal}</p>
+                  <p className="text-sm mt-2">{displayValue(numVal)}</p>
                 </div>
               </div>
             </div>
@@ -239,18 +260,23 @@ export default function NumberView({
   const compNums = (comparables ?? []).map(asFiniteNumber);
 
   // Group comparables by numeric value => row sets
-  const map = new Map<number, number[]>();
+  const map = new Map<string, number[]>();
   compNums.forEach((cn, i) => {
     const r = comparisonLogsIndex[i];
-    if (!map.has(cn)) {
-      map.set(cn, []);
+    const key = cn === undefined ? "undefined" : String(cn);
+    if (!map.has(key)) {
+      map.set(key, []);
     }
-    map.get(cn)!.push(r);
+    map.get(key)!.push(r);
   });
-  const compBlocks = Array.from(map.entries()).map(([numVal, rows]) => ({
-    numVal,
-    rows: rows.sort((a, b) => a - b),
-  }));
+
+  const compBlocks = Array.from(map.entries()).map(([key, rows]) => {
+    const numVal = key === "undefined" ? undefined : Number(key);
+    return {
+      numVal,
+      rows: rows.sort((a, b) => a - b),
+    };
+  });
 
   return (
     <div className="space-y-4">
@@ -315,11 +341,11 @@ export default function NumberView({
                 <div className="relative border rounded p-2 w-fit min-w-24 text-start">
                   <div className="flex-col items-start justify-between gap-5">
                     <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
-                    <p className="text-sm pt-5">{baseNum}</p>
+                    <p className="text-sm pt-5">{displayValue(baseNum)}</p>
                   </div>
                   <CopyButton
                     className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
-                    content={String(baseNum)}
+                    content={baseNum !== undefined ? String(baseNum) : "undefined"}
                     copyMessage="Copied base!"
                   />
                 </div>
@@ -331,11 +357,11 @@ export default function NumberView({
                 <div className="relative border rounded p-2 w-fit min-w-24 text-start">
                   <div className="flex-col items-start justify-between gap-5">
                     <RowBadge rowNumbers={rowNums} mode="none" />
-                    <p className="text-sm pt-5">{compVal}</p>
+                    <p className="text-sm pt-5">{displayValue(compVal)}</p>
                   </div>
                   <CopyButton
                     className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
-                    content={String(compVal)}
+                    content={compVal !== undefined ? String(compVal) : "undefined"}
                     copyMessage="Copied comp!"
                   />
                 </div>
@@ -346,15 +372,19 @@ export default function NumberView({
                 <div className="relative border rounded p-2 w-fit min-w-24 text-start bg-background">
                   <div className="flex-col items-start justify-between gap-5">
                     <p>Result</p>
-                    {Number.isFinite(result) ? (
-                      <p className="text-sm pt-5">{result}</p>
+                    {result !== undefined ? (
+                      Number.isFinite(result) ? (
+                        <p className="text-sm pt-5">{result}</p>
+                      ) : (
+                        <p className="text-sm pt-5">∞</p>
+                      )
                     ) : (
-                      <p className="text-sm pt-5">∞</p>
+                      <p className="text-sm pt-5 italic text-muted-foreground">undefined value</p>
                     )}
                   </div>
                   <CopyButton
                     className="absolute top-1 right-1 text-gray-400 hover:text-gray-700"
-                    content={String(result)}
+                    content={result !== undefined ? String(result) : "undefined"}
                     copyMessage="Copied result!"
                   />
                 </div>
