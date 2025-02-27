@@ -187,8 +187,8 @@ export default function NavMenu() {
         </SidebarFooter>
       ) : (
         <SidebarFooter className="flex flex-row items-center justify-between px-4 py-2">
-          <SignOutButton />
           <DarkModeToggle />
+          <SignOutButton />
         </SidebarFooter>
       )}
     </Sidebar>
