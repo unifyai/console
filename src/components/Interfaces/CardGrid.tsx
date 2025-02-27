@@ -153,7 +153,12 @@ const CardGrid = ({
         interfaceActions.get(project as string, true).then((ints: Interface[]) => {
             const currentInterface = ints.find(i => i.name == interface_);
             setContext(currentInterface?.context);
-            setItems(currentInterface?.items || []);
+            setItems(currentInterface?.items.map(item => ({
+                ...item,
+                context: contexts.find(
+                    ctx => ctx.name == currentInterface?.context
+                )?.name ?? item.context
+            })) || []);
             setNewCounter(currentInterface?.new_counter || 0);
             setTempInterfaceCreated(Boolean(currentInterface));
             setPending(false);

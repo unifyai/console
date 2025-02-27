@@ -27,8 +27,8 @@ const ContextSelector = ({
 }) => {
     const finalSetContext = (updateItem != undefined && item != undefined) ? (ctx: string) => {
         if (ctx != item.context) {
-            updateItem(item, "column_context")("")
-            updateItem(item, "context")(ctx)
+            updateItem(item, "column_context")("");
+            updateItem(item, "context")(ctx);
         }
     } : setContext;
     const disabled = !contexts.length && !tableDataItem?.columnContexts?.length;
@@ -91,7 +91,7 @@ const ContextSelector = ({
                             <Folder size={16} />
                         </span>
                         : nodeName
-                    }{attr == nodePath.slice(0, -1).replace("/<root>", "") && <Check />}
+                    }{attr == nonRootNodePath && <Check />}
                 </DropdownMenuItem>
             );
         }
@@ -119,7 +119,7 @@ const ContextSelector = ({
                                             <Folder size={16} />
                                         </span>
                                         : nodeName
-                                    }{attr == nodePath.slice(0, -1).replace("/<root>", "") && <Check />}
+                                    }{attr == nonRootNodePath && <Check />}
                                 </DropdownMenuItem>
                             )}
                             {/* Render all child nodes */}

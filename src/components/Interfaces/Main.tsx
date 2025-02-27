@@ -54,7 +54,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                 ...item,
                 minW: undefined,
                 minH: undefined,
-                context: item.context,
+                context: contexts.find(ctx => ctx.name == currentInterface?.context)?.name ?? item.context,
                 column_context: item.column_context
             }))
         }
@@ -63,7 +63,6 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         name: interface_1 as string,
         project: project,
         context: undefined,
-        column_context: undefined,
         items: defaultItems,
         new_counter: defaultNewCounter
     } as Interface;

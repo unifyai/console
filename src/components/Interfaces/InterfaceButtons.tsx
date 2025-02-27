@@ -91,7 +91,27 @@ const InterfaceButtons = ({
             <ContextSelector
                 contexts={contexts}
                 context={context}
-                setContext={(context: string) => setContext(context)}
+                setContext={(ctx: string) => {
+                    setContext(ctx);
+                    setItems(items.map(item => {
+                        const validContext = contexts.some(c => c.name == ctx);
+                        const validItemContext = item.context?.startsWith(ctx);
+                        const prefixContexts = contexts.filter(c => c.name.startsWith(ctx));
+                        return {
+                            ...item,
+                            context: validContext
+                                ? ctx
+                                : validItemContext
+                                    ? item.context
+                                    : prefixContexts.length == 1
+                                        ? prefixContexts[0].name
+                                        : undefined,
+                            column_context: validItemContext ? item.column_context : undefined
+                        };
+                    }));
+                    setDataPending(true);
+                    router.refresh();
+                }}
             />
             <ActionButton
                 className="transition-all"
