@@ -210,9 +210,12 @@ const ContextSelector = ({
                         <div className="font-bold text-sm px-2 pb-2 border-b flex justify-between items-center">
                             <div className="flex gap-2 items-center">
                                 <Braces size={18} />
-                                <Tooltip content={contextHeader}>
-                                    {contextHeader.length > 20 ? contextHeader.slice(0, 20) + "..." : contextHeader}
-                                </Tooltip>
+                                {contextHeader == "Context"
+                                    ? contextHeader
+                                    : <Tooltip content={contextHeader}>
+                                        {contextHeader.length > 20 ? contextHeader.slice(0, 20) + "..." : contextHeader}
+                                    </Tooltip>
+                                }
                             </div>
                             {(item != undefined ? item.context : context) && <Tooltip content="Clear Context">
                                 <X
