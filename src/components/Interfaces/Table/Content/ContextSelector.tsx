@@ -189,6 +189,9 @@ const ContextSelector = ({
             })
         );
     const columnContextTree = buildTree(tableDataItem?.columnContexts || []);
+    const contextHeader = item != undefined ? (
+        contextPrefix == "" ? (context || "Context") : contextPrefix
+    ) : (largestCommonPrefix == "" ? "Context" : largestCommonPrefix);
 
     return (
         <div className="w-fit">
@@ -206,9 +209,10 @@ const ContextSelector = ({
                     {contexts.length > 0 ? <div className="pt-2">
                         <div className="font-bold text-sm px-2 pb-2 border-b flex justify-between items-center">
                             <div className="flex gap-2 items-center">
-                                <Braces size={18} /> {item != undefined ? (
-                                    contextPrefix == "" ? (context || "Context") : contextPrefix
-                                ) : (largestCommonPrefix == "" ? "Context" : largestCommonPrefix)}
+                                <Braces size={18} />
+                                <Tooltip content={contextHeader}>
+                                    {contextHeader.length > 20 ? contextHeader.slice(0, 20) + "..." : contextHeader}
+                                </Tooltip>
                             </div>
                             {(item != undefined ? item.context : context) && <Tooltip content="Clear Context">
                                 <X
