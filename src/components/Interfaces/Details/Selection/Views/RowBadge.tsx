@@ -5,10 +5,12 @@ import Tooltip from "@/components/Common/Misc/Tooltip"
 
 /**
  * Compresses row indices like [1,2,3,5,6,8] to a string "1-3,5-6,8".
+ * Adds 1 to each index to convert from 0-based (internal) to 1-based (display).
  */
 function compressRowNumbers(rows: number[]): string {
   if (!rows.length) return "";
-  const sorted = [...rows].sort((a, b) => a - b);
+  // Add 1 to each row number to convert from 0-based to 1-based
+  const sorted = [...rows].map(r => r + 1).sort((a, b) => a - b);
 
   const ranges: string[] = [];
   let start = sorted[0];
