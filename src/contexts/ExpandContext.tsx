@@ -63,32 +63,21 @@ export function ExpandProvider({ children }: ExpandProviderProps) {
    */
   const toggleKey = useCallback(
     (path: string) => {
-      console.log(`[ExpandContext:toggleKey] Start toggle for path: ${path}`, {
-        forceExpandAll,
-        forceCollapseAll,
-        currentOpenKeys: Array.from(openKeys),
-      });
-
       // If we're in "forceExpandAll" or "forceCollapseAll" mode, skip toggling 
       if (forceExpandAll) {
-        console.log('[ExpandContext:toggleKey] Toggle skipped - forceExpandAll is true');
         return;
       }
       if (forceCollapseAll) {
-        console.log('[ExpandContext:toggleKey] Toggle skipped - forceCollapseAll is true');
         return;
       }
 
       setOpenKeys((prev) => {
         const next = new Set(prev);
         if (next.has(path)) {
-          console.log(`[ExpandContext:toggleKey] Removing path: ${path}`);
           next.delete(path);
         } else {
-          console.log(`[ExpandContext:toggleKey] Adding path: ${path}`);
           next.add(path);
         }
-        console.log('[ExpandContext:toggleKey] New openKeys state:', Array.from(next));
         return next;
       });
     },
@@ -102,7 +91,6 @@ export function ExpandProvider({ children }: ExpandProviderProps) {
    * dictionary-level logic to do a single pass recursion).
    */
   const expandAll = useCallback(() => {
-    console.log('[ExpandContext:expandAll] Expanding all globally');
     setForceCollapseAll(false);
     setForceExpandAll(true);
     setOpenKeys(new Set()); // clear openKeys, as everything is considered open anyway
@@ -114,21 +102,10 @@ export function ExpandProvider({ children }: ExpandProviderProps) {
    * We'll also clear openKeys since forcibly collapsed items won't appear open.
    */
   const collapseAll = useCallback(() => {
-    console.log('[ExpandContext:collapseAll] Collapsing all globally');
     setForceExpandAll(false);
     setForceCollapseAll(true);
     setOpenKeys(new Set()); // none explicitly open
   }, []);
-
-  // Add effect to log state changes
-  React.useEffect(() => {
-    console.log('[ExpandContext:state] State updated:', {
-      forceExpandAll,
-      forceCollapseAll,
-      openKeysCount: openKeys.size,
-      openKeys: Array.from(openKeys),
-    });
-  }, [forceExpandAll, forceCollapseAll, openKeys]);
 
   // Memoize the context value to prevent unnecessary re-renders
   const value = useMemo(() => ({
