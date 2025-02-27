@@ -194,7 +194,7 @@ const DataTableHeader = ({
   }
 
   const showGroupSortButton = () => {
-    return (!isParentColumn && (groupSortLoading || isGroupSorted))
+    return (!isParentColumn && grouping.length && (groupSortLoading || isGroupSorted))
   }
 
   const showFilterButton = () => {
@@ -497,17 +497,20 @@ const DataTableHeader = ({
                                   />
                                 </DropdownMenuItem>
                               )}
-                              {!isGroupSorted && !isGrouped && grouping.length && ColumnGroupSort && (
-                                <DropdownMenuItem>
-                                  {ColumnGroupSort(
-                                    header.column,
-                                    groupSortLoading,
-                                    setGroupSortLoading,
-                                    setIsGroupSorted,
-                                    "menuItem"
-                                  )}
-                                </DropdownMenuItem>
-                              )}
+                              {!isGroupSorted && !isGrouped && grouping.length && ColumnGroupSort 
+                                  ? (
+                                      <DropdownMenuItem>
+                                        {ColumnGroupSort(
+                                          header.column,
+                                          groupSortLoading,
+                                          setGroupSortLoading,
+                                          setIsGroupSorted,
+                                          "menuItem"
+                                        )}
+                                      </DropdownMenuItem>
+                                    )
+                                  : null
+                              }
                               {ColumnFilters && (
                                 ColumnFilters(
                                   header.column,
