@@ -119,6 +119,7 @@ const DataTableCell = ({
     maxWidth: `${Math.round(cell.column.getSize())}px`,
     zIndex: isColumnDragging || isPinned ? 1 : 0,
     borderRight: "1px solid var(--muted)",
+    borderBottom: "1px solid var(--muted)",
     outline: "none",
     color: cell.column.id != "RowNumbering"
       ? isCellSelected(cell) ? "var(--primary-foreground)" : ""
