@@ -364,7 +364,7 @@ const LogsTable = ({
   const tableTop = (
     <div className="mb-2 mx-1 flex flex-wrap justify-between gap-3 LogsTablePreferences">
       {project && columns.length > 0 && (
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-wrap gap-2 items-center">
           <ContextSelector
             contexts={contexts}
             context={context_}
