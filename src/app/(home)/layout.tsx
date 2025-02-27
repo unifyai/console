@@ -25,7 +25,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <ThemeLoader>
               <NavMenu/>
                 <main className="overflow-hidden relative container min-h-full h-full max-w-full w-full flex flex-row bg-background">
-                    <SidebarTrigger className="absolute top-1/2 bg-transparent hover:bg-primary z-50"/>
                     <Tour buttonClassName="absolute top-2 right-3 bg-transparent hover:bg-primary z-50 opacity-50 hover:opacity-100"/>
                     <NuqsAdapter>{children}</NuqsAdapter>
                 </main>

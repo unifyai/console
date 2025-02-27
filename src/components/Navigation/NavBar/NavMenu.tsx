@@ -101,10 +101,19 @@ export default function NavMenu() {
     })();
   }, []);
 
-  // Set default open state
+  // Set default collapsed state
   useEffect(() => {
     setOpen(false);
   }, []);
+
+  // Handle hover expand/collapse
+  const handleMouseEnter = () => {
+    setOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    setOpen(false);
+  };
 
   const mainNavItems = NavList();
 
@@ -120,7 +129,11 @@ export default function NavMenu() {
     currentPath === item.href || currentPath.startsWith(`${item.href}/`);
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar 
+      collapsible="icon" 
+      onMouseEnter={handleMouseEnter} 
+      onMouseLeave={handleMouseLeave}
+    >
       {/* SidebarHeader with crossfade logos */}
       <SidebarHeader className="relative h-12 w-full flex items-center justify-center overflow-hidden">
         {/* Collapsed logo (ivyLogoOnly) */}
