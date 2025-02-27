@@ -364,7 +364,7 @@ export default function Selection({
    ******************************************************************************/
   const [entriesFilter, setEntriesFilter] = useState<Record<string, boolean>>({});
   const [paramsFilter, setParamsFilter] = useState<Record<string, boolean>>({});
-
+  
   // Determine the base row index
   let baseIndexParam = 0;
   if (baseIndex_ && !isNaN(parseInt(baseIndex_, 10))) {
@@ -390,10 +390,12 @@ export default function Selection({
   // Ensure filters have defaults for any new keys
   useEffect(() => {
     if (!baseLog) return;
-
+    
     const updatedE: Record<string, boolean> = { ...entriesFilter };
     entryKeysFromBase.forEach((k) => {
-      if (!(k in updatedE)) updatedE[k] = true;
+      if (!(k in updatedE)) {
+        updatedE[k] = true;
+      }
     });
     Object.keys(updatedE).forEach((k) => {
       if (!entryKeysFromBase.includes(k)) {
@@ -403,7 +405,9 @@ export default function Selection({
 
     const updatedP: Record<string, boolean> = { ...paramsFilter };
     paramKeysFromBase.forEach((k) => {
-      if (!(k in updatedP)) updatedP[k] = true;
+      if (!(k in updatedP)) {
+        updatedP[k] = true;
+      }
     });
     Object.keys(updatedP).forEach((k) => {
       if (!paramKeysFromBase.includes(k)) {
@@ -735,52 +739,9 @@ export default function Selection({
                   />
                 </div>
 
-                {/* Entries toggles */}
-                <div className="mt-2">
-                  <div className="flex justify-between items-center mb-1">
-                    <p className="font-bold text-sm">Entries</p>
-                    <Switch
-                      checked={entryKeysFromBase.every(
-                        (k) => entriesFilter[k] !== false
-                      )}
-                      onCheckedChange={(checked) => {
-                        const newVal: Record<string, boolean> = {};
-                        entryKeysFromBase.forEach((k) => {
-                          newVal[k] = checked;
-                        });
-                        if (!shallowEqualBooleanRecords(newVal, entriesFilter)) {
-                          setEntriesFilter(newVal);
-                        }
-                      }}
-                    />
-                  </div>
-                  {entryKeysFromBase.map((k) => (
-                    <div
-                      key={k}
-                      className="flex items-center justify-between py-1 pl-4"
-                    >
-                      <span className="text-sm max-w-[200px] truncate" title={k}>
-                        {k}
-                      </span>
-                      <Switch
-                        checked={entriesFilter[k] !== false}
-                        onCheckedChange={(checked) => {
-                          setEntriesFilter((prev) => {
-                            if (prev[k] === checked) {
-                              return prev;
-                            }
-                            const newObj = { ...prev, [k]: checked };
-                            return newObj;
-                          });
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                {/* Params toggles */}
+                {/* Params toggles - moved to appear before Entries */}
                 {paramKeysFromBase.length > 0 && (
-                  <div className="mt-4">
+                  <div className="mt-2">
                     <div className="flex justify-between items-center mb-1">
                       <p className="font-bold text-sm">Params</p>
                       <Switch
@@ -822,6 +783,49 @@ export default function Selection({
                     ))}
                   </div>
                 )}
+
+                {/* Entries toggles - moved to appear after Params */}
+                <div className="mt-4">
+                  <div className="flex justify-between items-center mb-1">
+                    <p className="font-bold text-sm">Entries</p>
+                    <Switch
+                      checked={entryKeysFromBase.every(
+                        (k) => entriesFilter[k] !== false
+                      )}
+                      onCheckedChange={(checked) => {
+                        const newVal: Record<string, boolean> = {};
+                        entryKeysFromBase.forEach((k) => {
+                          newVal[k] = checked;
+                        });
+                        if (!shallowEqualBooleanRecords(newVal, entriesFilter)) {
+                          setEntriesFilter(newVal);
+                        }
+                      }}
+                    />
+                  </div>
+                  {entryKeysFromBase.map((k) => (
+                    <div
+                      key={k}
+                      className="flex items-center justify-between py-1 pl-4"
+                    >
+                      <span className="text-sm max-w-[200px] truncate" title={k}>
+                        {k}
+                      </span>
+                      <Switch
+                        checked={entriesFilter[k] !== false}
+                        onCheckedChange={(checked) => {
+                          setEntriesFilter((prev) => {
+                            if (prev[k] === checked) {
+                              return prev;
+                            }
+                            const newObj = { ...prev, [k]: checked };
+                            return newObj;
+                          });
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </BasePopover>
@@ -1017,7 +1021,7 @@ function SelectionPanel({
   globalParamOrderings: { [key: string]: string[] };
   setGlobalParamOrderings: Dispatch<SetStateAction<{ [key: string]: string[] }>>;
   panels: {baseRowIndex: number}[];
-}) {
+}): React.ReactNode {
   // Use context selectors to only subscribe to the parts of the context we need
   const openKeys = useExpandContextSelector(ctx => ctx.openKeys);
   const setOpenKeys = useExpandContextSelector(ctx => ctx.setOpenKeys);
@@ -1148,33 +1152,41 @@ function SelectionPanel({
     const vKey = visibleParamsKey();
     const reorder = globalParamOrderings[vKey];
     const fallback = visibleParams();
+    
     if (reorder && !shallowArrayEquals(reorder, paramOrder)) {
       setParamOrder(reorder);
     } else if (!reorder && fallback.length !== paramOrder.length) {
       setParamOrder(fallback);
     }
-    // ensure we append any new paramKeys that weren't in paramOrder
-    const missing = paramKeys.filter((c) => !paramOrder.includes(c));
+    
+    // FIXED: Only consider visible keys (not filtered out) when checking for missing keys
+    const visible = visibleParams();
+    const missing = visible.filter((c) => !paramOrder.includes(c));
+    
     if (missing.length > 0) {
       setParamOrder((prev) => [...prev, ...missing]);
     }
-  }, [paramKeys, paramsFilter, globalParamOrderings]);
+  }, [panelId, paramKeys, paramsFilter, globalParamOrderings, paramOrder, visibleParamsKey]);
 
   useEffect(() => {
     const vKey = visibleEntriesKey();
     const reorder = globalEntryOrderings[vKey];
     const fallback = visibleEntries();
+    
     if (reorder && !shallowArrayEquals(reorder, entryOrder)) {
       setEntryOrder(reorder);
     } else if (!reorder && fallback.length !== entryOrder.length) {
       setEntryOrder(fallback);
     }
-    // ensure we append any new entryKeys
-    const missingE = entryKeys.filter((c) => !entryOrder.includes(c));
+    
+    // FIXED: Only consider visible keys (not filtered out) when checking for missing keys
+    const visible = visibleEntries();
+    const missingE = visible.filter((c) => !entryOrder.includes(c));
+    
     if (missingE.length > 0) {
       setEntryOrder((prev) => [...prev, ...missingE]);
     }
-  }, [entryKeys, entriesFilter, globalEntryOrderings]);
+  }, [panelId, entryKeys, entriesFilter, globalEntryOrderings, entryOrder, visibleEntriesKey]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
