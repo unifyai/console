@@ -30,9 +30,11 @@ import {
   Rows3,
   GripVertical,
   Grab,
+  ChevronsUpDown,
 } from "lucide-react";
 import { BasePopover } from "@/components/Common/Popovers/Base";
 import { Switch } from "@/components/UI/switch";
+import { Button } from "@/components/UI/button";
 
 import {
   DndContext,
@@ -376,6 +378,12 @@ export default function Selection({
   if (baseIndexParam < 0 || baseIndexParam >= selectedRowIndices.length) {
     baseIndexParam = 0;
   }
+  
+  // When in no-diff mode, always use the earliest selected row as base
+  if (diffMode === "none" && selectedRowIndices.length > 0) {
+    baseIndexParam = 0; // Force to first selected row in no-diff mode
+  }
+  
   const baseRowIndex = selectedRowIndices[baseIndexParam] ?? -1;
   const baseLog = baseRowIndex >= 0 ? sortedLogs[baseRowIndex] : null;
   
@@ -861,22 +869,36 @@ export default function Selection({
         <div className="border-b border-muted bg-background px-3 py-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Base:</span>
-            <Combobox
-              items={selectedRowIndices.map((rIdx, i) => ({
-                value: String(i),       // internal value = position in selection array
-                label: `Row ${rIdx + 1}`,  // Use actual row index (rIdx) + 1 for the label
-                dataIndex: i,
-              }))}
-              value={String(baseIndexParam)}
-              onValueChange={(newVal) => {
-                const idx = parseInt(newVal, 10);
-                if (!isNaN(idx) && String(idx) !== item.base_index) {
-                  updateItem(item, "base_index")(String(idx));
-                }
-              }}
-              placeholder="Pick base row"
-              className="w-[110px]"
-            />
+            {diffMode === "none" ? (
+              // When in no-diff mode, show a button styled like a disabled combobox
+              <Button 
+                variant="outline"
+                className="w-[110px] justify-between px-2 py-1 opacity-50 cursor-not-allowed"
+              >
+                {selectedRowIndices[baseIndexParam] !== undefined 
+                  ? `Row ${selectedRowIndices[baseIndexParam] + 1}` 
+                  : "Pick base row"}
+                <ChevronsUpDown className="ml-1 h-4 w-4 opacity-50" />
+              </Button>
+            ) : (
+              // Otherwise show the normal combobox
+              <Combobox
+                items={selectedRowIndices.map((rIdx, i) => ({
+                  value: String(i),       // internal value = position in selection array
+                  label: `Row ${rIdx + 1}`,  // Use actual row index (rIdx) + 1 for the label
+                  dataIndex: i,
+                }))}
+                value={String(baseIndexParam)}
+                onValueChange={(newVal) => {
+                  const idx = parseInt(newVal, 10);
+                  if (!isNaN(idx) && String(idx) !== item.base_index) {
+                    updateItem(item, "base_index")(String(idx));
+                  }
+                }}
+                placeholder="Pick base row"
+                className="w-[110px]"
+              />
+            )}
           </div>
           <div className="flex items-center gap-2">
             <ActionButton
