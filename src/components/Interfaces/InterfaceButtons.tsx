@@ -1,6 +1,6 @@
 "use client";
 
-import { Interface, TileProps } from "@/types/evals/grid";
+import { ContextActions, Interface, TileProps } from "@/types/evals/grid";
 import { Eye, Hammer, SquareMousePointer } from "lucide-react";
 import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
@@ -43,6 +43,7 @@ const InterfaceButtons = ({
     setContext,
     setSaveDialog,
     updateInterface,
+    contextActions,
 }: {
     edit: boolean,
     interactive: boolean,
@@ -70,7 +71,8 @@ const InterfaceButtons = ({
     setDataPending: (value: SetStateAction<boolean>) => void,
     setContext: (value: SetStateAction<string | undefined>) => void,
     setSaveDialog: (value: SetStateAction<boolean>) => void,
-    updateInterface: (savedInterface?: Interface | null) => Promise<ResponseProps>
+    updateInterface: (savedInterface?: Interface | null) => Promise<ResponseProps>,
+    contextActions: ContextActions
 }) => {
     const router = useRouter();
 
@@ -89,7 +91,8 @@ const InterfaceButtons = ({
                 onClick={() => setFocusDialog(true)}
             />
             <ContextSelector
-                contexts={contexts}
+                project={project || undefined}
+                contexts_={contexts}
                 context={context}
                 setContext={(ctx: string) => {
                     setContext(ctx);
@@ -112,6 +115,7 @@ const InterfaceButtons = ({
                     setDataPending(true);
                     router.refresh();
                 }}
+                contextActions={contextActions}
             />
             <ActionButton
                 className="transition-all"
@@ -189,7 +193,7 @@ const InterfaceButtons = ({
                 }}
             />
             <div className="flex items-center gap-2 border rounded-md p-1">
-                <Switch id="edit" checked={edit} onCheckedChange={() => setEdit(!edit)} />
+                <Switch id="edit" checked={edit} onCheckedChange={() => setEdit(!edit)} disabled={!project} />
                 <Label htmlFor="edit">
                     <Tooltip content="Edit">
                         <Hammer name="edit" size={18} color={edit ? "var(--primary)" : undefined} />
@@ -197,7 +201,7 @@ const InterfaceButtons = ({
                 </Label>
             </div>
             <div className="flex items-center gap-2 border rounded-md p-1">
-                <Switch id="interactive" checked={interactive} onCheckedChange={() => setInteractive(!interactive)} />
+                <Switch id="interactive" checked={interactive} onCheckedChange={() => setInteractive(!interactive)} disabled={!project} />
                 <Label htmlFor="interactive">
                     <Tooltip content="Interactive">
                         <SquareMousePointer name="interactive" size={18} color={interactive ? "var(--primary)" : undefined} />

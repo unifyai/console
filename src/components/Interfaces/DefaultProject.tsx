@@ -6,6 +6,7 @@ import { defaultItems, defaultLogs, defaultNewCounter } from "@/constants/logs";
 import { Dispatch, SetStateAction, useState } from "react";
 import FileDirectory from "../Tree/Directory/FileDirectory";
 import { FileProps } from "@/types/common";
+import ProjectButtons from "./ProjectButtons";
 
 const code = `
 \`\`\`python
@@ -51,22 +52,46 @@ with unify.Experiment():
 \`\`\`
 `;
 
-const DefaultProject = ({ projects, logsActions, projectActions, interfaceActions, setProject, setProjects, setInterface, setInterfaces, setDataPending, setPending }: {
+const DefaultProject = ({
+    project,
+    projects,
+    interfaces,
+    data,
+    refreshing,
+    pending,
+    dataPending,
+    projectActions,
+    interfaceActions,
+    logsActions,
+    setRefreshing,
+    setPending,
+    setDataPending,
+    setInterfaces,
+    setProjects,
+    setInterface,
+    setProject
+}: {
+    project: string | null,
     projects: string[] | undefined,
-    logsActions: LogsActions,
+    interfaces: string[],
+    data: FileProps[],
+    refreshing: boolean,
+    pending: boolean,
+    dataPending: boolean,
     projectActions: ProjectsActions,
     interfaceActions: InterfaceActions,
-    setProject: (project: string | null) => void,
-    setProjects: Dispatch<SetStateAction<string[]>>,
-    setInterface: (interface_: string | null) => void,
-    setInterfaces: Dispatch<SetStateAction<string[]>>,
-    setDataPending: Dispatch<SetStateAction<boolean>>,
-    setPending: Dispatch<SetStateAction<boolean>>
+    logsActions: LogsActions,
+    setRefreshing: (value: SetStateAction<boolean>) => void,
+    setPending: (value: SetStateAction<boolean>) => void,
+    setDataPending: (value: SetStateAction<boolean>) => void,
+    setInterfaces: (value: SetStateAction<string[]>) => void,
+    setProjects: (value: SetStateAction<string[]>) => void,
+    setInterface: (value: string | null) => void,
+    setProject: (value: string | null) => void,
 }) => {
     const defaultProject = "Maths Assistant";
     const disabled = projects == undefined
-    const [pending, setPendingLocal] = useState(false);
-    const data = (projects || []).map((p) => ({ path: p, type: "file" }));
+    const [pendingLocal, setPendingLocal] = useState(false);
 
     return projects == undefined || projects.length == 0 || (projects.length == 1 && projects[0] == defaultProject) ? (
         <div className="flex flex-col gap-4 justify-center items-center">
@@ -74,7 +99,7 @@ const DefaultProject = ({ projects, logsActions, projectActions, interfaceAction
             <div className="relative w-1/2 h-[700px] overflow-y-auto rounded-md border border-1 p-2">
                 <div className="absolute z-10 top-3 right-12">
                     <ActionButton
-                        icon={pending ? <Loader2 className="animate-spin" /> : <Play />}
+                        icon={pendingLocal ? <Loader2 className="animate-spin" /> : <Play />}
                         tooltip={"Run Example"}
                         onClick={() => {
                             if (projects?.includes(defaultProject)) {
@@ -105,21 +130,24 @@ const DefaultProject = ({ projects, logsActions, projectActions, interfaceAction
     ) : <div className="flex flex-col gap-4 justify-center items-center">
         <div className="mt-4 flex justify-center font-semibold">Please select a project</div>
         <div className="flex justify-center items-center">
-            <FileDirectory
+            <ProjectButtons
+                defaultProject={true}
+                project={project}
+                projects={projects}
+                interfaces={interfaces}
                 data={data}
-                renamingFunction={projectActions.rename}
-                setterFunction={(proj: FileProps | undefined) => {
-                    const newProj = proj ? proj.path : null;
-                    setPending(true);
-                    setDataPending(true);
-                    setInterfaces([]);
-                    setInterface(null);
-                    setProject(newProj);
-                }}
-                type="Projects"
-                defaultValue={undefined}
-                onOpen={() => projectActions.get().then(projects => setProjects(projects))}
-                isAutocompleteOpen={true}
+                refreshing={refreshing}
+                pending={pending}
+                dataPending={dataPending}
+                projectActions={projectActions}
+                interfaceActions={interfaceActions}
+                setRefreshing={setRefreshing}
+                setPending={setPending}
+                setDataPending={setDataPending}
+                setInterfaces={setInterfaces}
+                setProjects={setProjects}
+                setInterface={setInterface}
+                setProject={setProject}
             />
         </div>
     </div>;

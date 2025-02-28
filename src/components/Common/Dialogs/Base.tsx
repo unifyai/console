@@ -2,15 +2,16 @@
 import { ReactNode } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/UI/dialog";
 
-export default function BaseDialog ({button, title, description, body, footer, open, setOpen, onOpen}: {
+export default function BaseDialog ({button, title, description, body, footer, open, setOpen, onOpen, disabled}: {
     button: ReactNode, 
     title: string, 
     body: ReactNode, 
     footer?: ReactNode
     description?: string, 
     open?: boolean,
+    disabled?: boolean,
     setOpen?: (open: boolean) => void,
-    onOpen?: () => void
+    onOpen?: () => void,
 }) {
   const onOpenChange = (o: boolean) => {
     if (onOpen && o) onOpen()
@@ -19,7 +20,7 @@ export default function BaseDialog ({button, title, description, body, footer, o
   return (
     <Dialog open={open} onOpenChange={(o) => onOpenChange(o)}>
 
-      <DialogTrigger>
+      <DialogTrigger disabled={disabled}>
         {button}
       </DialogTrigger>
       

@@ -17,11 +17,12 @@ import { updateNode } from "@/utils/misc/directory";
 import CancelButton from "../../Common/Buttons/Cancel";
 import SettingButton from "../../Common/Buttons/Setting";
 
-export default function FileDirectory ({ type,  data, defaultValue, isAutocompleteOpen, setterFunction, renamingFunction, onOpen } : {
+export default function FileDirectory ({ type,  data, defaultValue, isAutocompleteOpen, disabled, setterFunction, renamingFunction, onOpen } : {
   type: string, 
   data: FileProps[],
   defaultValue?: string | undefined,
   isAutocompleteOpen?: boolean,
+  disabled?: boolean,
   setterFunction: (x: FileProps | undefined) => void,
   renamingFunction: (name: string, newName: string) => Promise<ResponseProps>,
   onOpen?: () => void,
@@ -74,7 +75,7 @@ export default function FileDirectory ({ type,  data, defaultValue, isAutocomple
     <div className="flex flex-row gap-2 items-center">
       <BaseDialog
         button={
-            <SettingButton variant="outline" icon={<Folder/>} tooltip={`Manage ${type}`}/>
+            <SettingButton variant="outline" icon={<Folder/>} tooltip={`Manage ${type}`} disabled={disabled} />
         }
         title="File Directory"
         description={`Search and organize your ${type.toLowerCase()} by folder. Double click on a file to select it.`}
@@ -97,11 +98,12 @@ export default function FileDirectory ({ type,  data, defaultValue, isAutocomple
           <CancelButton onClick={() => {
             setTree(initialTree);
             setHasChanged(false);
-          }}/>
-          <SubmitButton text="Save" onClick={onSubmit}/>
+          }} disabled={disabled}/>
+          <SubmitButton text="Save" onClick={onSubmit} disabled={disabled}/>
           </>
         }
         onOpen={onOpen}
+        disabled={disabled}
       />  
       <AutoComplete 
         type={type}
@@ -110,6 +112,7 @@ export default function FileDirectory ({ type,  data, defaultValue, isAutocomple
         isOpen={isAutocompleteOpen}
         onSelect={(currentValue: string) => handleSelection(currentValue, files)}
         onOpen={onOpen}
+        disabled={disabled}
       />
     </div>
   );

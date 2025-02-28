@@ -4,34 +4,40 @@ import Tooltip from "@/components/Common/Misc/Tooltip";
 import ActionButton from "../../../Common/Buttons/Action";
 import BaseDropdown from "../../../Common/Dropdowns/Base";
 import { DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuSub, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSubTrigger } from "../../../UI/dropdown-menu";
-import { Context, ItemType, TableDataItem } from "@/types/evals/grid";
+import { Context, ContextActions, ItemType, TableDataItem } from "@/types/evals/grid";
 import { TileProps } from "@/types/evals/grid";
 import { Braces, Check, Folder, FolderTree, Grid2x2, X } from "lucide-react";
+import { useState } from "react";
 
 const ContextSelector = ({
-    contexts,
+    project,
+    contexts_,
     tableDataItem,
     item,
     updateItem,
     context,
     setContext,
     button,
+    contextActions,
 }: {
-    contexts: Context[],
+    project: string | undefined,
+    contexts_: Context[],
     tableDataItem?: TableDataItem,
     item?: TileProps,
     updateItem?: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
     context?: string,
     setContext?: (context: string) => void,
     button?: React.ReactNode,
+    contextActions: ContextActions
 }) => {
+    const [contexts, setContexts] = useState<Context[]>(contexts_);
     const finalSetContext = (updateItem != undefined && item != undefined) ? (ctx: string) => {
         if (ctx != item.context) {
             updateItem(item, "column_context")("");
             updateItem(item, "context")(ctx);
         }
     } : setContext;
-    const disabled = !contexts.length && !tableDataItem?.columnContexts?.length;
+    const empty = contexts.length == 0 && tableDataItem?.columnContexts?.length == 0;
 
     interface TreeNode {
         path: string;
@@ -209,11 +215,17 @@ const ContextSelector = ({
                     icon={<FolderTree />}
                     variant={item == undefined && context ? "primary" : "outline"}
                     size="sm"
-                    disabled={disabled}
+                    disabled={!project}
                 />}
-                open={disabled ? false : undefined}
+                open={!project ? false : undefined}
+                setOpen={(isOpen) => {
+                    if (isOpen && project && contextActions) {
+                        contextActions.get(project).then(ctxs => setContexts(ctxs));
+                    }
+                }}
             >
                 <div className="flex flex-col gap-4">
+                    {empty && <div className="text-center text-sm">No contexts found.</div>}
                     {contexts.length > 0 ? <div className="pt-2">
                         <div className="font-bold text-sm px-2 pb-2 border-b flex justify-between items-center">
                             <div className="flex gap-2 items-center">

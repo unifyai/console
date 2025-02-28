@@ -224,6 +224,7 @@ const CardGrid = ({
             <div className="sticky top-0 z-10 bg-background p-2 flex justify-between w-full md:overflow-none overflow-x-auto">
                 {/* Project dropdown and add/delete buttons */}
                 <ProjectButtons
+                    defaultProject={false}
                     project={project}
                     projects={projects}
                     interfaces={interfaces}
@@ -290,21 +291,29 @@ const CardGrid = ({
                     setContext={setContext}
                     setSaveDialog={setSaveDialog}
                     updateInterface={updateInterface}
+                    contextActions={contextActions}
                 />
             </div>
             {interfaces.length == 0 ? (project && pending) ? <div className="flex justify-center">
                 <Loader2 className="animate-spin my-36" />
             </div> : !project ? <DefaultProject
+                project={project}
                 projects={projects}
-                logsActions={logsActions}
+                interfaces={interfaces}
+                data={data}
+                refreshing={refreshing}
+                pending={pending}
+                dataPending={dataPending}
                 projectActions={projectActions}
                 interfaceActions={interfaceActions}
-                setProject={setProject}
-                setProjects={setProjects}
-                setInterface={setInterface}
-                setInterfaces={setInterfaces}
+                setRefreshing={setRefreshing}
                 setPending={setPending}
                 setDataPending={setDataPending}
+                setInterfaces={setInterfaces}
+                setProjects={setProjects}
+                setInterface={setInterface}
+                setProject={setProject}
+                logsActions={logsActions}
             /> : <></> : interfaces.map((int_, idx) => <TabsContent
                 key={idx}
                 value={int_}
@@ -358,6 +367,7 @@ const CardGrid = ({
                                         logsActions={logsActions}
                                         fieldsActions={fieldsActions}
                                         derivedEntryActions={derivedEntryActions}
+                                        contextActions={contextActions}
                                         index={el.i}
                                         item={el}
                                         items={items}
@@ -384,11 +394,13 @@ const CardGrid = ({
                                                 </Badge>
                                             </Tooltip>
                                             {el.context && el.tab == "Table" && <ContextSelector
-                                                contexts={contexts}
+                                                project={project || undefined}
+                                                contexts_={contexts}
                                                 context={context}
                                                 tableDataItem={tableData[el.i || ""]}
                                                 item={el}
                                                 updateItem={updateItem}
+                                                contextActions={contextActions}
                                                 button={
                                                     <Tooltip content="Context">
                                                         <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
@@ -399,11 +411,13 @@ const CardGrid = ({
                                                 }
                                             />}
                                             {el.column_context && el.tab == "Table" && <ContextSelector
-                                                contexts={contexts}
+                                                project={project || undefined}
+                                                contexts_={contexts}
                                                 context={context}
                                                 tableDataItem={tableData[el.i || ""]}
                                                 item={el}
                                                 updateItem={updateItem}
+                                                contextActions={contextActions}
                                                 button={<Tooltip content="Column Context">
                                                     <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
                                                         <Grid2x2 size={18} />
@@ -492,6 +506,7 @@ const CardGrid = ({
                         logsActions={logsActions}
                         fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}
+                        contextActions={contextActions}
                         items={items}
                         filterExpressions={filterExpressions}
                         sortingExpressions={sortingExpressions}

@@ -10,6 +10,7 @@ import ActionButton from "../Common/Buttons/Action";
 import { SetStateAction } from "react";
 
 const ProjectButtons = ({
+    defaultProject,
     project,
     projects,
     interfaces,
@@ -27,6 +28,7 @@ const ProjectButtons = ({
     setInterface,
     setProject,
 }: {
+    defaultProject: boolean,
     project: string | null,
     projects: string[] | undefined,
     interfaces: string[],
@@ -45,6 +47,7 @@ const ProjectButtons = ({
     setProject: (value: string | null) => void,
 }) => {
     const router = useRouter();
+    const disabled = !project && !defaultProject;
 
     return (
         <div className="w-fit gap-2 flex flex-row items-center px-4">
@@ -61,6 +64,8 @@ const ProjectButtons = ({
                 }}
                 type="Projects"
                 defaultValue={project || undefined}
+                disabled={disabled}
+                isAutocompleteOpen={defaultProject ? true : undefined}
                 onOpen={() => projectActions.get().then(projects => setProjects(projects))}
             />
             {project && (
@@ -98,12 +103,12 @@ const ProjectButtons = ({
                     />
                 </div>
             )}
-            {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
+            {projects && <CreateProject creationFunction={projectActions.create} paths={projects} disabled={disabled} />}
             <ActionButton
                 variant="outline"
                 icon={refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
                 tooltip={"Refresh Interface"}
-                disabled={pending || dataPending}
+                disabled={disabled || pending || dataPending}
                 onClick={() => {
                     setRefreshing(true);
                     router.refresh();

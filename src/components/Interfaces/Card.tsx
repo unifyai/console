@@ -10,7 +10,7 @@ import { TableArguments } from "@/types/evals/logs";
 import LogsPlot from "@/components/Interfaces/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Interfaces/Table/Table";
-import { DerivedEntryActions, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
+import { DerivedEntryActions, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps, ContextActions } from "@/types/evals/grid";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import { icons, tabTypes } from "@/constants/logs";
 import { Context } from "@/types/evals/grid";
@@ -31,6 +31,7 @@ const Card = ({
     logsActions,
     fieldsActions,
     derivedEntryActions,
+    contextActions,
     index,
     item,
     items,
@@ -58,6 +59,7 @@ const Card = ({
     logsActions: LogsActions,
     fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
+    contextActions: ContextActions,
     index: string,
     item: TileProps,
     items: TileProps[],
@@ -213,6 +215,7 @@ const Card = ({
                 fieldsActions={fieldsActions}
                 logsActions={logsActions}
                 derivedEntryActions={derivedEntryActions}
+                contextActions={contextActions}
                 filterExpression={filterExpressions ? filterExpressions[items.findIndex(it => it.i === item.i)] : null}
                 sortingExpression={sortingExpressions ? sortingExpressions[items.findIndex(it => it.i === item.i)] : null}
                 groupingExpression={groupingExpressions ? groupingExpressions[items.findIndex(it => it.i === item.i)] : null}
