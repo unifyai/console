@@ -13,7 +13,7 @@ const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context, c
 	project: string,
 	selectedCells: string[],
 	logs: LogProps[] | GroupedLogProps[],
-	deleteLogFields: (project: string, context: string | null, columnContext: string | null, ids_and_fields: LogFieldsProps, source_type: string | null) => Promise<ResponseProps>,
+	deleteLogFields: (project: string, context: string | null, ids_and_fields: LogFieldsProps, source_type: string | null) => Promise<ResponseProps>,
 	context: string | undefined,
 	columnContext: string | undefined
 }) => {
@@ -45,7 +45,7 @@ const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context, c
 		columnContext ? processContext("merge", columnContext, sanitizeId(getPartAfterFirstUnderscore(cell))) : sanitizeId(getPartAfterFirstUnderscore(cell))
 	])
 
-	const args = [project, context, columnContext, fieldsToDelete]
+	const args = [project, context, fieldsToDelete]
 
 	return (showDialog &&
 		<DeleteDialog
