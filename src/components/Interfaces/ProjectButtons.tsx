@@ -61,6 +61,7 @@ const ProjectButtons = ({
                 }}
                 type="Projects"
                 defaultValue={project || undefined}
+                disabled={!project}
                 onOpen={() => projectActions.get().then(projects => setProjects(projects))}
             />
             {project && (
@@ -98,12 +99,12 @@ const ProjectButtons = ({
                     />
                 </div>
             )}
-            {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
+            {projects && <CreateProject creationFunction={projectActions.create} paths={projects} disabled={!project} />}
             <ActionButton
                 variant="outline"
                 icon={refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
                 tooltip={"Refresh Interface"}
-                disabled={pending || dataPending}
+                disabled={!project || pending || dataPending}
                 onClick={() => {
                     setRefreshing(true);
                     router.refresh();

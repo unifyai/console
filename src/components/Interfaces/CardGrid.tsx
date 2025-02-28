@@ -290,6 +290,7 @@ const CardGrid = ({
                     setContext={setContext}
                     setSaveDialog={setSaveDialog}
                     updateInterface={updateInterface}
+                    contextActions={contextActions}
                 />
             </div>
             {interfaces.length == 0 ? (project && pending) ? <div className="flex justify-center">
@@ -358,6 +359,7 @@ const CardGrid = ({
                                         logsActions={logsActions}
                                         fieldsActions={fieldsActions}
                                         derivedEntryActions={derivedEntryActions}
+                                        contextActions={contextActions}
                                         index={el.i}
                                         item={el}
                                         items={items}
@@ -384,11 +386,13 @@ const CardGrid = ({
                                                 </Badge>
                                             </Tooltip>
                                             {el.context && el.tab == "Table" && <ContextSelector
-                                                contexts={contexts}
+                                                project={project || undefined}
+                                                contexts_={contexts}
                                                 context={context}
                                                 tableDataItem={tableData[el.i || ""]}
                                                 item={el}
                                                 updateItem={updateItem}
+                                                contextActions={contextActions}
                                                 button={
                                                     <Tooltip content="Context">
                                                         <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
@@ -399,11 +403,13 @@ const CardGrid = ({
                                                 }
                                             />}
                                             {el.column_context && el.tab == "Table" && <ContextSelector
-                                                contexts={contexts}
+                                                project={project || undefined}
+                                                contexts_={contexts}
                                                 context={context}
                                                 tableDataItem={tableData[el.i || ""]}
                                                 item={el}
                                                 updateItem={updateItem}
+                                                contextActions={contextActions}
                                                 button={<Tooltip content="Column Context">
                                                     <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
                                                         <Grid2x2 size={18} />
@@ -492,6 +498,7 @@ const CardGrid = ({
                         logsActions={logsActions}
                         fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}
+                        contextActions={contextActions}
                         items={items}
                         filterExpressions={filterExpressions}
                         sortingExpressions={sortingExpressions}

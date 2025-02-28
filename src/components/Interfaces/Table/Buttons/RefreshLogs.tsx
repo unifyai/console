@@ -55,6 +55,19 @@ async function updateLogs (
     fieldsActions
     .get(project, item.context ?? null)
     .then(async (fields: LogFieldsResponseProps) => {
+        const allPrefixes = Object.keys(fields).map(
+            key => key.includes("/") ? key.split("/").slice(0, -1).join("/") : null
+        ).filter(key => key != null);
+        const columnContexts = Array.from(
+            new Set(allPrefixes.map(prefix => {
+                const parts = prefix.split("/");
+                let context = "";
+                return parts.map(part => {
+                    context += part + "/";
+                    return context;
+                });
+            }).flat().sort())
+        );
         logsActions
         .get(
             project, 
@@ -94,7 +107,8 @@ async function updateLogs (
                             params,
                             metrics,
                             boundaries,
-                            newCells
+                            newCells,
+                            columnContexts
                         }
                     };
                     resolve();

@@ -11,7 +11,7 @@ import {
   ColumnSizingState,
   GroupingState,
 } from "@tanstack/react-table";
-import { DerivedEntryActions, LogsActions, FieldsActions, Context } from "@/types/evals/grid";
+import { DerivedEntryActions, LogsActions, FieldsActions, Context, ContextActions } from "@/types/evals/grid";
 import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
@@ -55,6 +55,7 @@ const LogsTable = ({
   updateItem,
   logsActions,
   fieldsActions,
+  contextActions,
   derivedEntryActions,
   filterExpression,
   sortingExpression,
@@ -79,6 +80,7 @@ const LogsTable = ({
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions,
+  contextActions: ContextActions,
   filterExpression: string | null,
   sortingExpression: string | null,
   groupingExpression: string | null,
@@ -367,11 +369,13 @@ const LogsTable = ({
       {project && columns.length > 0 && (
         <div className="flex flex-wrap gap-2 items-center">
           <ContextSelector
-            contexts={contexts}
+            project={project}
+            contexts_={contexts}
             context={context_}
             tableDataItem={tableDataItem}
             item={item}
             updateItem={updateItem}
+            contextActions={contextActions}
           />
           <GlobalFilter
             interactive={interactive}
