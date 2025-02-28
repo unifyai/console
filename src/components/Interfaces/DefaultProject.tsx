@@ -103,8 +103,8 @@ const DefaultProject = ({ projects, logsActions, projectActions, interfaceAction
             </div>
         </div>
     ) : <div className="flex flex-col gap-4 justify-center items-center">
-            <div className="mt-4 flex justify-center font-semibold">Please select a project</div>
-            <div className="w-full flex justify-center items-center">
+        <div className="mt-4 flex justify-center font-semibold">Please select a project</div>
+        <div className="flex justify-center items-center">
             <FileDirectory
                 data={data}
                 renamingFunction={projectActions.rename}
@@ -119,6 +119,7 @@ const DefaultProject = ({ projects, logsActions, projectActions, interfaceAction
                 type="Projects"
                 defaultValue={undefined}
                 onOpen={() => projectActions.get().then(projects => setProjects(projects))}
+                isAutocompleteOpen={true}
             />
         </div>
     </div>;
