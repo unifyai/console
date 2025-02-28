@@ -12,7 +12,7 @@ import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 
 import { getCoreRowModel, handleDragCancel, handleDragEnd, handleDragMove, handleDragOver, handleDragStart } from "@/utils/evals/table";
-import { Table, TableHeader, TableRow, TableBody, TableCell, TableFooter } from "@/components/UI/table";
+import { Table, TableHeader, TableHead, TableRow, TableBody, TableCell, TableFooter } from "@/components/UI/table";
 
 import DataTableHeader from "./Content/Header";
 import DataTableRow from "./Content/Row";
@@ -182,43 +182,60 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                 >
                     <Table className={`relative w-full ${className}`} style={{ width: table.getTotalSize() }}>
                         <TableHeader className="sticky top-0 z-20 bg-background" style={{ boxShadow: '0 -4px 4px -4px gray inset' }}>
-                            {table.getHeaderGroups().map((headerGroup) => (
-                                <TableRow key={headerGroup.id}>
-                                    <SortableContext items={state.columnOrder} strategy={horizontalListSortingStrategy}>
-                                        {headerGroup.headers.map((header) => (
-                                            <DataTableHeader
-                                                key={header.id}
-                                                interactive={interactive}
-                                                auto_update={auto_update}
-                                                data={data}
-                                                header={header}
-                                                table={table}
-                                                isCellSelected={isCellSelected}
-                                                cellSelection={cellSelection}
-                                                resizeMap={resizeMap}
-                                                columnVisibility={state.columnVisibility}
-                                                setColumnVisibility={setState.setColumnVisibility}
-                                                grouping={state.grouping}
-                                                setGrouping={setState.setGrouping}
-                                                ColumnGroupSort={ColumnGroupSort}
-                                                ColumnFilters={ColumnFilters}
-                                                ColumnCreate={ColumnCreate}
-                                                ColumnUpdate={ColumnUpdate}
-                                                context={state.context}
-                                                setContext={setState.setContext}
-                                                draggingColumns={state.draggingColumns}
-                                                columnOrder={state.columnOrder}
-                                                setColumnOrder={setState.setColumnOrder}
-                                                columnPinning={state.columnPinning}
-                                                pinningState={state.pinningState}
-                                                setPinningState={setState.setPinningState}
-                                                columnActionsApplied={columnActionsApplied}
-                                                setColumnActionsApplied={setColumnActionsApplied}
-                                            />
-                                        ))}
-                                    </SortableContext>
-                                </TableRow>
-                            ))}
+                            {table.getRowModel().rows?.length 
+                                ? (
+                                    table.getHeaderGroups().map((headerGroup) => (
+                                        <TableRow key={headerGroup.id}>
+                                            <SortableContext items={state.columnOrder} strategy={horizontalListSortingStrategy}>
+                                                {headerGroup.headers.map((header) => (
+                                                    <DataTableHeader
+                                                        key={header.id}
+                                                        interactive={interactive}
+                                                        auto_update={auto_update}
+                                                        data={data}
+                                                        header={header}
+                                                        table={table}
+                                                        isCellSelected={isCellSelected}
+                                                        cellSelection={cellSelection}
+                                                        resizeMap={resizeMap}
+                                                        columnVisibility={state.columnVisibility}
+                                                        setColumnVisibility={setState.setColumnVisibility}
+                                                        grouping={state.grouping}
+                                                        setGrouping={setState.setGrouping}
+                                                        ColumnGroupSort={ColumnGroupSort}
+                                                        ColumnFilters={ColumnFilters}
+                                                        ColumnCreate={ColumnCreate}
+                                                        ColumnUpdate={ColumnUpdate}
+                                                        context={state.context}
+                                                        setContext={setState.setContext}
+                                                        draggingColumns={state.draggingColumns}
+                                                        columnOrder={state.columnOrder}
+                                                        setColumnOrder={setState.setColumnOrder}
+                                                        columnPinning={state.columnPinning}
+                                                        pinningState={state.pinningState}
+                                                        setPinningState={setState.setPinningState}
+                                                        columnActionsApplied={columnActionsApplied}
+                                                        setColumnActionsApplied={setColumnActionsApplied}
+                                                    />
+                                                ))}
+                                            </SortableContext>
+                                        </TableRow>
+                                    ))
+                                  )
+                                : <TableRow>
+                                    <TableHead style={{
+                                        boxShadow: '-4px 0 4px -4px gray inset',
+                                        minWidth: '120px',
+                                        borderLeft: "1px solid var(--muted)",
+                                        borderTop: "1px solid var(--muted)",   
+                                    }}/>
+                                    <TableHead style={{
+                                        borderLeft: "1px solid var(--muted)",
+                                        borderRight: "1px solid var(--muted)",
+                                        borderTop: "1px solid var(--muted)",   
+                                    }}/>
+                                  </TableRow>
+                            }
                         </TableHeader>
 
                         <TableBody className="contents overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
@@ -258,8 +275,10 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                     </Fragment>
                                 ))
                             ) : (
+                                /* Placeholder for empty table */
                                 <TableRow>
-                                    <TableCell colSpan={finalColumns.length} className="text-center">
+                                    <TableCell className="text-center min-w-[120px]" style={{boxShadow: '-4px 0 4px -4px gray inset', borderLeft: "1px solid var(--muted)", borderTop: "1px solid var(--muted)"}} ></TableCell>
+                                    <TableCell colSpan={finalColumns.length} className="text-center min-w-[150px]" style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)", borderTop: "1px solid var(--muted)"}} >
                                         No entry found
                                     </TableCell>
                                 </TableRow>
