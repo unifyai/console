@@ -2,7 +2,6 @@
 
 import { CSSProperties } from "react";
 import { Badge } from "@/components/UI/badge";
-import { TableCell } from "@/components/UI/table";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS, Transform } from "@dnd-kit/utilities";
@@ -50,6 +49,7 @@ const SummaryCell = ({ column, state, metrics, pending, draggingColumns }: {
 		transition: appliedTransition,
 		width: `calc(var(--header-${column.id}-size) * 1px)`,
 		zIndex: isColumnDragging || isPinned ? 1 : 0,
+		textAlign: "center"
 	};
     const metricTooltip = `${state.metric} ${["dict", "list", "tuple", "str"].includes(column.columnDef.meta?.dataType!) ? "length" : "value"}`;
 
@@ -58,13 +58,11 @@ const SummaryCell = ({ column, state, metrics, pending, draggingColumns }: {
 	logEntryMetric = logEntryMetric.toString() ?? ""
 
 	return (
-		<>
-			{<TableCell style={style} ref={setNodeRef}>
-				<Tooltip content={metricTooltip}>
-					{logEntryMetric}
-				</Tooltip>
-			</TableCell>}
-		</>
+		<div style={style} ref={setNodeRef}>
+			<Tooltip content={metricTooltip}>
+				{logEntryMetric}
+			</Tooltip>
+		</div>
 	);
 };
 

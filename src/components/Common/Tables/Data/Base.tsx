@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, ReactNode, MouseEvent, JSX, Ref, Dispatch, SetStateAction, useState, useEffect } from "react";
+import { Fragment, useMemo, ReactNode, MouseEvent, JSX, Ref, Dispatch, SetStateAction, useState, useEffect } from "react";
 
 import { ColumnFiltersState, ColumnPinningState, GroupingState, Header, SortingState, Updater, useReactTable } from "@tanstack/react-table";
 import { getFilteredRowModel, getExpandedRowModel } from "@tanstack/react-table";
@@ -227,7 +227,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                 renderSkeletonRows(2)
                             ) : table.getRowModel().rows?.length ? (
                                 table.getRowModel().rows.map((row) => (
-                                    <>
+                                    <Fragment key={row.id}>
                                         <DataTableRow
                                             key={row.id}
                                             row={row}
@@ -250,12 +250,12 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                         />
                                         {/* Show skeletons under the expanding row */}
                                         {expandingRowId === row.id && 
-                                         'groupCount' in row.original && 
-                                         typeof row.original.groupCount === 'number' &&
-                                         row.original.groupCount > 0 &&
-                                         !row.original.isPopulated &&
-                                         renderSkeletonRows(2)}
-                                    </>
+                                            'groupCount' in row.original && 
+                                            typeof row.original.groupCount === 'number' &&
+                                            row.original.groupCount > 0 &&
+                                            !row.original.isPopulated &&
+                                            renderSkeletonRows(2)}
+                                    </Fragment>
                                 ))
                             ) : (
                                 <TableRow>
