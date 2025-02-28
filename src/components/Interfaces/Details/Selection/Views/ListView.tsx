@@ -406,16 +406,21 @@ export default function ListView({
   const forceExpandAll = useExpandContextSelector(ctx => ctx.forceExpandAll);
   const forceCollapseAll = useExpandContextSelector(ctx => ctx.forceCollapseAll);
 
-  // Check if value is a list but don't return early
+  // Check if base is a valid list
   const isValidList = isList(value);
-
-  // Single vs multi
+  
+  // For multi-mode, check if any comparable is a valid list
   const multiMode = comparables && comparables.length > 0;
+  const hasValidComparables = multiMode && comparables.some(comp => isList(comp));
+  
+  // In multi-mode, we can proceed if either the base or any comparable is a valid list
+  const canProceed = isValidList || hasValidComparables;
+  
   const baseArr = isValidList ? (Array.isArray(value) ? value : []) as any[] : [];
 
   // itemCount => max length among base & comps
   let itemCount = baseArr.length;
-  if (isValidList && multiMode) {
+  if (canProceed && multiMode) {
     const compLens = (comparables ?? []).map((c) => (isList(c) ? c.length : 0));
     itemCount = Math.max(itemCount, ...compLens);
   }
@@ -437,7 +442,7 @@ export default function ListView({
   // On mount or if forceExpandAll/forceCollapseAll changes => expand/collapse all
   // Always call useEffect but conditionally execute its body
   useEffect(() => {
-    if (!isValidList || !parentPath) return; // if we have no valid list or parent path, we can't proceed
+    if (!canProceed || !parentPath) return; // if we don't have any valid lists or parent path, we can't proceed
     
     if (forceExpandAll || forceCollapseAll) {      
       const newSet = new Set(openKeys);
@@ -459,11 +464,11 @@ export default function ListView({
       }
       setOpenKeys(newSet);
     }
-  }, [forceExpandAll, forceCollapseAll, parentPath, prefix, nestingLevel, openKeys, value, multiMode, comparables, isValidList, setOpenKeys]);
+  }, [forceExpandAll, forceCollapseAll, parentPath, prefix, nestingLevel, openKeys, value, multiMode, comparables, canProceed, setOpenKeys]);
 
   // We define "openValues" similarly to dictionary => which items are open
   const openValues = useMemo(() => {
-    if (!isValidList) return [];
+    if (!canProceed) return [];
     
     const arr: string[] = [];
     for (let i = 0; i < itemCount; i++) {
@@ -475,11 +480,15 @@ export default function ListView({
       }
     }
     return arr;
-  }, [itemCount, openKeys, isValidList, buildItemPath]);
+  }, [itemCount, openKeys, canProceed, buildItemPath]);
 
   // Early return after all hooks are called
-  if (!isValidList) {
-    return <p className="text-red-500">ListView: base value is not a list.</p>;
+  if (!canProceed) {
+    return <p className="text-red-500">
+      {multiMode 
+        ? "ListView: neither base nor comparables are valid lists." 
+        : "ListView: base value is not a list."}
+    </p>;
   }
 
   // Transform comparables into arrays for the no-diff mode

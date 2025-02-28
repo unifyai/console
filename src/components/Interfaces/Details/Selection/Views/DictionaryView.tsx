@@ -405,14 +405,20 @@ export default function DictionaryView({
   const forceExpandAll = useExpandContextSelector(ctx => ctx.forceExpandAll);
   const forceCollapseAll = useExpandContextSelector(ctx => ctx.forceCollapseAll);
 
-  // Check if base is a dict first but don't return early
-  const isValidDict = isDict(value);
-
   const singleMode = !comparables || comparables.length === 0;
+  
+  // Check if base is a valid dict
+  const isValidDict = isDict(value);
+  
+  // For multi-mode, check if any comparable is a valid dict
+  const hasValidComparables = !singleMode && comparables.some(comp => isDict(comp));
+  
+  // In multi-mode, we can proceed if either the base or any comparable is a valid dict
+  const canProceed = isValidDict || (!singleMode && hasValidComparables);
 
   // gather union of all dictionary keys - handle invalid dict case inside
   const { allKeys, rowIndices } = useMemo(() => {
-    if (!isValidDict) {
+    if (singleMode && !isValidDict) {
       return { allKeys: [], rowIndices: [] };
     }
     
@@ -441,7 +447,7 @@ export default function DictionaryView({
   // On mount or if forceExpandAll/forceCollapseAll changes => one pass
   // Always call useEffect, but conditionally execute its body
   useEffect(() => {
-    if (!isValidDict) return;
+    if (!canProceed) return;
     
     if (forceExpandAll || forceCollapseAll) {
       // Use parentPath directly as the root path for gathering subpaths
@@ -470,7 +476,7 @@ export default function DictionaryView({
         setOpenKeys(newSet);
       }
     }
-  }, [forceExpandAll, forceCollapseAll, openKeys, parentPath, prefix, nestingLevel, value, comparables, singleMode, isValidDict, setOpenKeys]);
+  }, [forceExpandAll, forceCollapseAll, openKeys, parentPath, prefix, nestingLevel, value, comparables, singleMode, canProceed, setOpenKeys]);
 
   /*─────────────────────────────────────────────────────────────────────────
     renderSingleKey => only base has data
@@ -648,7 +654,7 @@ export default function DictionaryView({
   ──────────────────────────────────────────────────────────────────────────*/
   const openValues = useMemo(() => {
     // If not a valid dictionary, return empty array
-    if (!isValidDict) return [];
+    if (!canProceed) return [];
     
     // Gather all keys => build path => check if open
     // But we rely on the <Accordion value> = path approach:
@@ -663,14 +669,16 @@ export default function DictionaryView({
       })
       .filter((p) => openKeys.has(p));
     return paths;
-  }, [allKeys, openKeys, parentPath, prefix, nestingLevel, isValidDict]);
+  }, [allKeys, openKeys, parentPath, prefix, nestingLevel, canProceed]);
 
-  // Return with conditional rendering based on isValidDict
+  // Return with conditional rendering based on canProceed
   return (
     <div className="flex flex-col gap-2">
-      {!isValidDict ? (
+      {!canProceed ? (
         <p className="text-red-500">
-          DictionaryView: base value is not a dictionary.
+          {singleMode 
+            ? "DictionaryView: base value is not a dictionary." 
+            : "DictionaryView: neither base nor comparables are valid dictionaries."}
         </p>
       ) : diffMode === "none" && !singleMode ? (
         // No-diff mode with multiple values
