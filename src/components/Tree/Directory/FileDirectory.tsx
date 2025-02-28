@@ -17,13 +17,14 @@ import { updateNode } from "@/utils/misc/directory";
 import CancelButton from "../../Common/Buttons/Cancel";
 import SettingButton from "../../Common/Buttons/Setting";
 
-export default function FileDirectory ({ type,  data, defaultValue, setterFunction, renamingFunction, onOpen } : {
+export default function FileDirectory ({ type,  data, defaultValue, isAutocompleteOpen, setterFunction, renamingFunction, onOpen } : {
   type: string, 
   data: FileProps[],
   defaultValue?: string | undefined,
+  isAutocompleteOpen?: boolean,
   setterFunction: (x: FileProps | undefined) => void,
   renamingFunction: (name: string, newName: string) => Promise<ResponseProps>,
-  onOpen?: () => void
+  onOpen?: () => void,
 }) {
   
   // Initialize tree and keep a backup of the original for reference
@@ -106,6 +107,7 @@ export default function FileDirectory ({ type,  data, defaultValue, setterFuncti
         type={type}
         items={files.map((file) => ({label: file.name, value: file.path}))}
         defaultValue={defaultValue}
+        isOpen={isAutocompleteOpen}
         onSelect={(currentValue: string) => handleSelection(currentValue, files)}
         onOpen={onOpen}
       />

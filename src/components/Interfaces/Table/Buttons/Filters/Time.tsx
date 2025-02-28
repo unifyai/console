@@ -25,12 +25,11 @@ interface TimeFilter {
     value: string
 }
 
-const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, logs, open, setOpen, filterLoading, setFilterLoading, setIsFiltered, renderMode }: {
+const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, open, setOpen, filterLoading, setFilterLoading, setIsFiltered, renderMode }: {
     interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn,
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
-    logs: LogProps[] | GroupedLogProps[],
     open: boolean,
     setOpen: Dispatch<SetStateAction<boolean>>,
     filterLoading: boolean,
@@ -41,9 +40,6 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
 
     /* Display loader when data updates */
     const [spinnerColor, setSpinnerColor] = useState("white");
-    useEffect(() => {
-        setFilterLoading(false);
-    },[logs])
 
     /* Initialize filters */
     const options = [

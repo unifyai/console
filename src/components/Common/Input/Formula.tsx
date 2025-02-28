@@ -214,9 +214,10 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
     caret-foreground
     focus:outline-none focus:ring-2 focus:ring-blue-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring
     font-sans leading-none tracking-normal
+    overflow-x-auto
   `, className);
   const containerStyle = "z-10 rounded-none rounded-tr-md rounded-br-md bg-transparent text-transparent"
-  const overlayStyle   = "z-20 rounded-none rounded-tr-md rounded-br-md overflow-x-auto whitespace-pre-wrap pointer-events-none"
+  const overlayStyle   = "z-20 rounded-none rounded-tr-md rounded-br-md whitespace-pre pointer-events-none"
 
   /* Invisible formula input container */
   const container = 

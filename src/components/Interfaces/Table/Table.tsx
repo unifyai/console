@@ -171,6 +171,7 @@ const LogsTable = ({
   const metric = item.metric || "mean";
   const logsFilters = item.filters;
   const commonFilter = item.common_filter;
+
   const pageNumber = item.page_number;
   const sortingStr = item.sorting;
   const columnOrderStr = item.column_order;
@@ -474,7 +475,6 @@ const LogsTable = ({
                       columnFilters={searchParamToFilters(logsFilters, item.column_context)}
                       column={column.id}
                       dataTypes={dataTypes}
-                      logs={logs}
                       open={open}
                       setOpen={setOpen}
                       filterLoading={filterLoading}

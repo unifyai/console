@@ -109,7 +109,7 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, create, set
             }
             setLoading(false);
             setErrorMessage(error);
-            setTimeout(() => setErrorMessage(""), 5000);
+            setTimeout(() => setErrorMessage(""), 10000);
         })
     }
     const onEnter : KeyboardEventHandler = (e) => {
@@ -132,7 +132,7 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, create, set
     const entry = <FormulaInput options={options} value={expression} setValue={handleExpression} onEnter={onEnter} className="left-8"/>
     
     const warning = (error: string) => 
-                    <p className="flex justify-start text-sm text-destructive">{error}</p>
+                    <p style={{"scrollbar-width": "thin"} as React.CSSProperties} className="flex justify-start text-sm text-destructive overflow-x-auto max-w-[300px]">{error}</p>
     const submit =  <div className="flex justify-end">
                         <SubmitButton text="Apply" onClick={() => onSubmit()}/>
                     </div>
@@ -155,7 +155,7 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, create, set
                         </div>
 
                     </div>
-    const footer =  <div className="p-2 flex flex-row gap-1 justify-between">
+    const footer =  <div className="p-2 flex flex-row gap-5 justify-between w-full">
                         {warning(errorMessage)}
                         {name && expression && !nameError && submit}
                     </div>
@@ -180,7 +180,6 @@ export default ColumnCreate;
 /* TODO: 
     
     - Add button to refresh the values
-    - Add grouping when server side grouping is supported
     - Add dropdown options for: 
         (See https://github.com/unifyai/orchestra/blob/main/orchestra/web/api/log/helpers.py#L151 for source)
         functions: 

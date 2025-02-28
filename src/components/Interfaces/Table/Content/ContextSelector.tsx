@@ -143,7 +143,7 @@ const ContextSelector = ({
     };
 
     // Build and render the tree
-    const contextNames = contexts.map(context => context.name);
+    const contextNames = contexts.map(context => context.name).sort();
 
     // Find the largest common prefix among all contextNames
     let largestCommonPrefix = "";
@@ -179,6 +179,10 @@ const ContextSelector = ({
             contextNames.map(name => {
                 const slicedName = name.slice(largestCommonPrefix.length)
                 return slicedName == "" ? "<root>" : slicedName
+            }).sort((a, b) => {
+                if (a === "<root>") return -1;
+                if (b === "<root>") return 1;
+                return a.localeCompare(b);
             })
         ) : buildTree(
             contextNames.filter(
@@ -186,6 +190,10 @@ const ContextSelector = ({
             ).map(name => {
                 const slicedName = name.slice(contextPrefix.length)
                 return slicedName == "" ? "<root>" : slicedName
+            }).sort((a, b) => {
+                if (a === "<root>") return -1;
+                if (b === "<root>") return 1;
+                return a.localeCompare(b);
             })
         );
     const columnContextTree = buildTree(tableDataItem?.columnContexts || []);
@@ -225,7 +233,11 @@ const ContextSelector = ({
                                 />
                             </Tooltip>}
                         </div>
-                        {Object.entries(contextTree.children).map(([name, node], idx) => (
+                        {Object.entries(contextTree.children).sort((a, b) => {
+                            if (a[0] === "<root>") return -1;
+                            if (b[0] === "<root>") return 1;
+                            return a[0].localeCompare(b[0]);
+                        }).map(([name, node], idx) => (
                             <RenderMenuItems
                                 key={idx}
                                 node={node}
@@ -251,7 +263,11 @@ const ContextSelector = ({
                                 />
                             </Tooltip>}
                         </div>
-                        {Object.entries(columnContextTree.children).map(([name, node], idx) => (
+                        {Object.entries(columnContextTree.children).sort((a, b) => {
+                            if (a[0] === "<root>") return -1;
+                            if (b[0] === "<root>") return 1;
+                            return a[0].localeCompare(b[0]);
+                        }).map(([name, node], idx) => (
                             <RenderMenuItems
                                 key={idx}
                                 node={node}
