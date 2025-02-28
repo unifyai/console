@@ -224,6 +224,7 @@ const CardGrid = ({
             <div className="sticky top-0 z-10 bg-background p-2 flex justify-between w-full md:overflow-none overflow-x-auto">
                 {/* Project dropdown and add/delete buttons */}
                 <ProjectButtons
+                    defaultProject={false}
                     project={project}
                     projects={projects}
                     interfaces={interfaces}
@@ -296,16 +297,23 @@ const CardGrid = ({
             {interfaces.length == 0 ? (project && pending) ? <div className="flex justify-center">
                 <Loader2 className="animate-spin my-36" />
             </div> : !project ? <DefaultProject
+                project={project}
                 projects={projects}
-                logsActions={logsActions}
+                interfaces={interfaces}
+                data={data}
+                refreshing={refreshing}
+                pending={pending}
+                dataPending={dataPending}
                 projectActions={projectActions}
                 interfaceActions={interfaceActions}
-                setProject={setProject}
-                setProjects={setProjects}
-                setInterface={setInterface}
-                setInterfaces={setInterfaces}
+                setRefreshing={setRefreshing}
                 setPending={setPending}
                 setDataPending={setDataPending}
+                setInterfaces={setInterfaces}
+                setProjects={setProjects}
+                setInterface={setInterface}
+                setProject={setProject}
+                logsActions={logsActions}
             /> : <></> : interfaces.map((int_, idx) => <TabsContent
                 key={idx}
                 value={int_}
