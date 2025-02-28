@@ -378,7 +378,7 @@ export default function Selection({
   }
   const baseRowIndex = selectedRowIndices[baseIndexParam] ?? -1;
   const baseLog = baseRowIndex >= 0 ? sortedLogs[baseRowIndex] : null;
-
+  
   // For default toggles, gather keys from base (entries & params)
   const entryKeysFromBase = useMemo(() => {
     return baseLog ? Object.keys(baseLog.entries ?? {}) : [];
@@ -863,21 +863,15 @@ export default function Selection({
             <span className="text-sm text-muted-foreground">Base:</span>
             <Combobox
               items={selectedRowIndices.map((rIdx, i) => ({
-                value: rowLabel(rIdx),
-                label: rowLabel(rIdx),
+                value: String(i),       // internal value = position in selection array
+                label: `Row ${rIdx + 1}`,  // Use actual row index (rIdx) + 1 for the label
                 dataIndex: i,
               }))}
-              value={
-                selectedRowIndices[baseRowIndex] !== undefined
-                  ? rowLabel(selectedRowIndices[baseRowIndex])
-                  : ""
-              }
-              onValueChange={(newLabel) => {
-                const newIdx = selectedRowIndices.findIndex(
-                  (r) => rowLabel(r) === newLabel
-                );
-                if (newIdx >= 0 && String(newIdx) !== item.base_index) {
-                  updateItem(item, "base_index")(String(newIdx));
+              value={String(baseIndexParam)}
+              onValueChange={(newVal) => {
+                const idx = parseInt(newVal, 10);
+                if (!isNaN(idx) && String(idx) !== item.base_index) {
+                  updateItem(item, "base_index")(String(idx));
                 }
               }}
               placeholder="Pick base row"
@@ -1050,11 +1044,13 @@ function SelectionPanel({
     setOpenKeys(next);
   };
 
-  // baseIndex from item/baseIndex
+  // baseIndex from item/base_index
   let baseIndexParam = parseInt(item.base_index ?? "0", 10);
+
   if (isNaN(baseIndexParam)) {
     baseIndexParam = 0;
   }
+  
   if (baseIndexParam < 0 || baseIndexParam >= selectedRowIndices.length) {
     baseIndexParam = 0;
   }
@@ -1274,6 +1270,13 @@ function SelectionPanel({
       return openKeys.has(rootPath);
     });
 
+    // IMPORTANT: We need to pass the actual row indices to SelectionEntry
+    // baseRowIndex is already the 0-based row index, so no need to subtract 1
+    const baseIndexForSelection = baseRowIndex; // Don't subtract 1, it's already 0-based
+    
+    // Map the comparison row indices directly (they're already 0-based)
+    const compIndicesForSelection = comparisonRowIndices;
+    
     return (
       <div className="flex flex-col gap-2">
         <div className="sticky top-0 z-10 bg-background py-2 border-b border-muted flex items-center justify-between">
@@ -1310,9 +1313,9 @@ function SelectionPanel({
                     property={prop}
                     value={baseLog.params?.[prop]}
                     baseLog={baseLog}
-                    baseLogIndex={selectedRowIndices[baseRowIndex]}
+                    baseLogIndex={baseIndexForSelection}
                     comparisonLogs={comparisonLogs}
-                    comparisonLogsIndex={comparisonRowIndices}
+                    comparisonLogsIndex={compIndicesForSelection}
                     diffMode={diffMode}
                     splitView={splitView}
                     displayMode={displayMode}
@@ -1362,6 +1365,13 @@ function SelectionPanel({
       return openKeys.has(rootPath);
     });
 
+    // IMPORTANT: We need to pass the actual row indices to SelectionEntry
+    // baseRowIndex is already the 0-based row index, so no need to subtract 1
+    const baseIndexForSelection = baseRowIndex; // Don't subtract 1, it's already 0-based
+    
+    // Map the comparison row indices directly (they're already 0-based)
+    const compIndicesForSelection = comparisonRowIndices;
+    
     return (
       <div className="flex flex-col gap-2">
         <div className="sticky top-0 z-10 bg-background py-2 border-b border-muted flex items-center justify-between">
@@ -1398,9 +1408,9 @@ function SelectionPanel({
                     property={prop}
                     value={baseLog.entries?.[prop]}
                     baseLog={baseLog}
-                    baseLogIndex={selectedRowIndices[baseRowIndex]}
+                    baseLogIndex={baseIndexForSelection}
                     comparisonLogs={comparisonLogs}
-                    comparisonLogsIndex={comparisonRowIndices}
+                    comparisonLogsIndex={compIndicesForSelection}
                     diffMode={diffMode}
                     splitView={splitView}
                     displayMode={displayMode}

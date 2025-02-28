@@ -4,12 +4,20 @@ import React from "react"
 import Tooltip from "@/components/Common/Misc/Tooltip"
 
 /**
- * Compresses row indices like [1,2,3,5,6,8] to a string "1-3,5-6,8".
- * Adds 1 to each index to convert from 0-based (internal) to 1-based (display).
+ * Compresses row indices like [0,1,2,4,5,7] to a string "1-3,5-6,8".
+ * 
+ * IMPORTANT: This function ALWAYS assumes the input indices are 0-based
+ * (internal representation) and ALWAYS adds 1 to convert to 1-based (UI display).
+ * 
+ * @param rows Array of 0-based row indices
+ * @returns Formatted string of 1-based row numbers for display
  */
 function compressRowNumbers(rows: number[]): string {
   if (!rows.length) return "";
-  // Add 1 to each row number to convert from 0-based to 1-based
+
+  if (!rows.length) return "";
+  
+  // ALWAYS convert from 0-based to 1-based for display
   const sorted = [...rows].map(r => r + 1).sort((a, b) => a - b);
 
   const ranges: string[] = [];
@@ -40,6 +48,10 @@ function compressRowNumbers(rows: number[]): string {
 }
 
 export interface RowBadgeProps {
+  /**
+   * Array of 0-based row indices
+   * These are indices into the logs array, NOT UI row numbers
+   */
   rowNumbers: number[];
   /**
    * If true, it's interpreted as base rows. This can be superseded by "mode".
@@ -60,11 +72,8 @@ export interface RowBadgeProps {
 /**
  * RowBadge:
  *  - Renders "[3, 5-7, 9]" or "[2]" etc. with a color-coded background.
- *  - On hover, shows a tooltip according to "mode" and row count:
- *      - delete => "Only in row 3" or "Only in rows 1-2,4"
- *      - insert => "Changes in row 5" or "Changes in rows 2-3,6"
- *      - base   => "Base row 3" or "Base rows 2,4"  
- *      - none   => "Row 3" or "Rows 4,6-7"
+ *  - On hover, shows a tooltip according to "mode" and row count.
+ *  - IMPORTANT: Expects 0-based indices as input and converts to 1-based for display.
  */
 export default function RowBadge({
   rowNumbers,

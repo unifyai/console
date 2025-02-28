@@ -321,6 +321,19 @@ interface SelectionEntryProps {
   forceCollapseAll?: boolean;
 }
 
+/**
+ * SelectionEntry Component
+ * 
+ * This component renders a single entry from a selected log, showing differnt views
+ * based on the data type.
+ * 
+ * IMPORTANT: This component expects the following:
+ * - baseLogIndex: 0-based index of the row in the selection (expected to be 0-based)
+ * - comparisonLogsIndex: Array of 0-based indices for comparison rows
+ * 
+ * These indices are passed as-is to the view components, which should maintain them as 0-based
+ * until final display in RowBadge.
+ */
 export default function SelectionEntry({
   source = "entries",
   property,

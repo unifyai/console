@@ -75,6 +75,7 @@ export default function TimestampView({
   comparableVersions = [],
   displayMode = "markdown",
 }: LogComparisonProps) {
+
   // Single vs multiple
   const singleMode = !comparables || comparables.length === 0;
   const baseStr = typeof value === "string" ? value : String(value || "");
@@ -142,6 +143,7 @@ export default function TimestampView({
   //----------------------------------------
   if (diffMode === "none") {
     const allTimestamps = [baseStr, ...(comparables ?? []).map(String)];
+    // Create combined array of row indices (should be 0-based)
     const rowIdxs = [baseLogIndex, ...comparisonLogsIndex];
 
     const map = new Map<string, number[]>();
@@ -154,7 +156,7 @@ export default function TimestampView({
       ts,
       rows: rows.sort((a, b) => a - b),
     }));
-
+    
     return (
       <div className="space-y-4">
         {groupArr.map((group, idx) => {
@@ -226,7 +228,7 @@ export default function TimestampView({
     tsVal,
     rows: rows.sort((a, b) => a - b),
   }));
-
+  
   return (
     <div className="space-y-4">
       {compGroups.map((group, idx) => {
