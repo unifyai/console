@@ -143,7 +143,7 @@ const ContextSelector = ({
     };
 
     // Build and render the tree
-    const contextNames = contexts.map(context => context.name);
+    const contextNames = contexts.map(context => context.name).sort();
 
     // Find the largest common prefix among all contextNames
     let largestCommonPrefix = "";
@@ -152,24 +152,29 @@ const ContextSelector = ({
     } else if (contextNames.length === 1) {
         largestCommonPrefix = contextNames[0];
     } else {
-        // Split the first context by '/' to get path segments
-        const firstContextParts = contextNames[0].split('/');
-        let commonParts: string[] = [];
+        // Since contextNames are sorted alphabetically, we only need to compare the first and last entries
+        // to find the largest common prefix
+        const first = contextNames[0];
+        const last = contextNames[contextNames.length - 1];
+        let i = 0;
 
-        // Check each segment against all other contexts
-        for (let i = 0; i < firstContextParts.length; i++) {
-            let isCommon = true;
-            const currentPath = firstContextParts.slice(0, i + 1).join('/');
-            for (let j = 1; j < contextNames.length; j++) {
-                if (!contextNames[j].startsWith(currentPath + (i < firstContextParts.length - 1 ? '/' : ''))) {
-                    isCommon = false;
-                    break;
-                }
-            }
-            if (isCommon) commonParts = firstContextParts.slice(0, i + 1);
-            else break;
+        // Find how many characters match at the beginning
+        while (i < first.length && i < last.length && first.charAt(i) === last.charAt(i)) {
+            i++;
         }
-        largestCommonPrefix = commonParts.join('/');
+
+        // Make sure we don't cut in the middle of a path segment
+        let lastSlashPos = first.substring(0, i).lastIndexOf('/');
+        if (lastSlashPos === -1) {
+            // If there's no slash in the common part, check if the entire first string matches
+            if (i === first.length) {
+                largestCommonPrefix = first;
+            } else {
+                largestCommonPrefix = "";
+            }
+        } else {
+            largestCommonPrefix = first.substring(0, lastSlashPos + 1);
+        }
     }
 
     // filter contexts based on the prefixes and construct the tree
@@ -179,6 +184,10 @@ const ContextSelector = ({
             contextNames.map(name => {
                 const slicedName = name.slice(largestCommonPrefix.length)
                 return slicedName == "" ? "<root>" : slicedName
+            }).sort((a, b) => {
+                if (a === "<root>") return -1;
+                if (b === "<root>") return 1;
+                return a.localeCompare(b);
             })
         ) : buildTree(
             contextNames.filter(
@@ -186,6 +195,10 @@ const ContextSelector = ({
             ).map(name => {
                 const slicedName = name.slice(contextPrefix.length)
                 return slicedName == "" ? "<root>" : slicedName
+            }).sort((a, b) => {
+                if (a === "<root>") return -1;
+                if (b === "<root>") return 1;
+                return a.localeCompare(b);
             })
         );
     const columnContextTree = buildTree(tableDataItem?.columnContexts || []);
@@ -225,7 +238,11 @@ const ContextSelector = ({
                                 />
                             </Tooltip>}
                         </div>
-                        {Object.entries(contextTree.children).map(([name, node], idx) => (
+                        {Object.entries(contextTree.children).sort((a, b) => {
+                            if (a[0] === "<root>") return -1;
+                            if (b[0] === "<root>") return 1;
+                            return a[0].localeCompare(b[0]);
+                        }).map(([name, node], idx) => (
                             <RenderMenuItems
                                 key={idx}
                                 node={node}
@@ -251,7 +268,11 @@ const ContextSelector = ({
                                 />
                             </Tooltip>}
                         </div>
-                        {Object.entries(columnContextTree.children).map(([name, node], idx) => (
+                        {Object.entries(columnContextTree.children).sort((a, b) => {
+                            if (a[0] === "<root>") return -1;
+                            if (b[0] === "<root>") return 1;
+                            return a[0].localeCompare(b[0]);
+                        }).map(([name, node], idx) => (
                             <RenderMenuItems
                                 key={idx}
                                 node={node}
