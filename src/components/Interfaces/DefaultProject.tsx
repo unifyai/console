@@ -3,7 +3,9 @@ import ActionButton from "../Common/Buttons/Action";
 import MarkdownRender from "../Common/Code/MarkdownRender";
 import { InterfaceActions, LogsActions, ProjectsActions } from "@/types/evals/grid";
 import { defaultItems, defaultLogs, defaultNewCounter } from "@/constants/logs";
-import { useState } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
+import FileDirectory from "../Tree/Directory/FileDirectory";
+import { FileProps } from "@/types/common";
 
 const code = `
 \`\`\`python
@@ -49,19 +51,24 @@ with unify.Experiment():
 \`\`\`
 `;
 
-const DefaultProject = ({ projects, logsActions, projectActions, interfaceActions, setProject, setInterface }: {
+const DefaultProject = ({ projects, logsActions, projectActions, interfaceActions, setProject, setProjects, setInterface, setInterfaces, setDataPending, setPending }: {
     projects: string[] | undefined,
     logsActions: LogsActions,
     projectActions: ProjectsActions,
     interfaceActions: InterfaceActions,
-    setProject: (project: string) => void,
-    setInterface: (interface_: string) => void
+    setProject: (project: string | null) => void,
+    setProjects: Dispatch<SetStateAction<string[]>>,
+    setInterface: (interface_: string | null) => void,
+    setInterfaces: Dispatch<SetStateAction<string[]>>,
+    setDataPending: Dispatch<SetStateAction<boolean>>,
+    setPending: Dispatch<SetStateAction<boolean>>
 }) => {
     const defaultProject = "Maths Assistant";
     const disabled = projects == undefined
-    const [pending, setPending] = useState(false);
+    const [pending, setPendingLocal] = useState(false);
+    const data = (projects || []).map((p) => ({ path: p, type: "file" }));
 
-    return (
+    return projects == undefined || projects.length == 0 ? (
         <div className="flex flex-col gap-4 justify-center items-center">
             <div className="mt-4 flex justify-center font-semibold">Please select a project, create a project or get started with the example below</div>
             <div className="relative w-1/2 h-[700px] overflow-y-auto rounded-md border border-1 p-2">
@@ -73,7 +80,7 @@ const DefaultProject = ({ projects, logsActions, projectActions, interfaceAction
                             if (projects?.includes(defaultProject)) {
                                 setProject(defaultProject);
                             } else {
-                                setPending(true);
+                                setPendingLocal(true);
                                 projectActions.create(defaultProject).then(() => {
                                     interfaceActions.create(
                                         "tab1", defaultProject, undefined, defaultItems, defaultNewCounter, true
@@ -81,7 +88,7 @@ const DefaultProject = ({ projects, logsActions, projectActions, interfaceAction
                                         logsActions.create(
                                             defaultProject, defaultLogs.params, defaultLogs.entries
                                         ).then(() => {
-                                            setPending(false);
+                                            setPendingLocal(false);
                                             setProject(defaultProject);
                                             setInterface("tab1");
                                         });
@@ -95,7 +102,26 @@ const DefaultProject = ({ projects, logsActions, projectActions, interfaceAction
                 <MarkdownRender content={code} noBackground />
             </div>
         </div>
-    )
+    ) : <div className="flex flex-col gap-4 justify-center items-center">
+            <div className="mt-4 flex justify-center font-semibold">Please select a project</div>
+            <div className="w-full flex justify-center items-center">
+            <FileDirectory
+                data={data}
+                renamingFunction={projectActions.rename}
+                setterFunction={(proj: FileProps | undefined) => {
+                    const newProj = proj ? proj.path : null;
+                    setPending(true);
+                    setDataPending(true);
+                    setInterfaces([]);
+                    setInterface(null);
+                    setProject(newProj);
+                }}
+                type="Projects"
+                defaultValue={undefined}
+                onOpen={() => projectActions.get().then(projects => setProjects(projects))}
+            />
+        </div>
+    </div>;
 }
 
 export default DefaultProject;
