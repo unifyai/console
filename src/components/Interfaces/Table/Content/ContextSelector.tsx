@@ -37,7 +37,6 @@ const ContextSelector = ({
             updateItem(item, "context")(ctx);
         }
     } : setContext;
-    const disabled = !contexts.length && !tableDataItem?.columnContexts?.length;
 
     interface TreeNode {
         path: string;
@@ -215,9 +214,9 @@ const ContextSelector = ({
                     icon={<FolderTree />}
                     variant={item == undefined && context ? "primary" : "outline"}
                     size="sm"
-                    disabled={disabled}
+                    disabled={!project}
                 />}
-                open={disabled ? false : undefined}
+                open={!project ? false : undefined}
                 setOpen={(isOpen) => {
                     if (isOpen && project && contextActions) {
                         contextActions.get(project || "").then(ctxs => setContexts(ctxs));
