@@ -139,8 +139,8 @@ const ColumnUpdate = ({
     ) : (
         <TbMathFunction className="h-4 w-4"/>
     )
-    const body =    <div className="p-2 flex flex-col gap-1 h-full w-[400px]" onClick={(e) => e.stopPropagation()}>
-                        <FormulaInput options={options} value={expression} setValue={handleExpression} onEnter={onEnter}/>
+    const body =    <div className="flex flex-col gap-1 h-full" onClick={(e) => e.stopPropagation()}>
+                        <FormulaInput options={options} value={expression} setValue={handleExpression} onEnter={onEnter} className="left-8"/>
                     </div>
     const footer =  <div className="p-2 flex flex-row gap-1 justify-between">
                         {warning(errorMessage)}
