@@ -219,7 +219,7 @@ const ContextSelector = ({
                 open={!project ? false : undefined}
                 setOpen={(isOpen) => {
                     if (isOpen && project && contextActions) {
-                        contextActions.get(project || "").then(ctxs => setContexts(ctxs));
+                        contextActions.get(project).then(ctxs => setContexts(ctxs));
                     }
                 }}
             >
