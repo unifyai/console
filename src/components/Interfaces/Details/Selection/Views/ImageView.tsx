@@ -37,8 +37,8 @@ function groupImagesByValue(images: string[], rowIndexes: number[]) {
 
 /**
  * Simple presence-diff helper:
- * - If the base has an image, but a comparable is empty => “deleted” in comp
- * - If the base is empty, but a comparable has an image => “inserted” in comp
+ * - If the base has an image, but a comparable is empty => "deleted" in comp
+ * - If the base is empty, but a comparable has an image => "inserted" in comp
  */
 function gatherPresenceDiffs(
   baseSrc: string,
@@ -53,10 +53,10 @@ function gatherPresenceDiffs(
   compSrcs.forEach((val, i) => {
     const row = compIdxs[i];
     if (baseHas && val === "") {
-      // base has image, comp is empty => “delete” in comp
+      // base has image, comp is empty => "delete" in comp
       redSet.add(row);
     } else if (!baseHas && val !== "") {
-      // base is empty, comp has image => “insert” in comp
+      // base is empty, comp has image => "insert" in comp
       greenSet.add(row);
     }
   });
@@ -161,15 +161,18 @@ export default function ImageView({
     MULTI MODE: We have base + comparables
   ───────────────────────────────────────────────────────────────────────────*/
 
-  // (A) “No diff” => group identical raw strings so one image is shown for all rows that share it
+  // (A) "No diff" => group identical raw strings so one image is shown for all rows that share it
   if (diffMode === "none") {
     const allSources = [baseSrc, ...compSrcs];
     const allRows = [baseLogIndex, ...comparisonLogsIndex];
     const groups = groupImagesByValue(allSources, allRows);
 
+    // Filter out groups with empty images
+    const filteredGroups = groups.filter(group => isNonEmptyImage(group.src));
+
     return (
       <div className="space-y-4">
-        {groups.map((grp, i) => {
+        {filteredGroups.map((grp, i) => {
           const { src, rows } = grp;
           const versionGroups = groupVersionsForRows(
             rows,
@@ -275,10 +278,10 @@ export default function ImageView({
                   {versionGroups.map((vg, j) => {
                     const rowSet = vg.rows;
                     const hasBase = rowSet.includes(baseLogIndex);
-                    // Show base row with “delete” if changed, otherwise “none”
+                    // Show base row with "delete" if changed, otherwise "none"
                     const baseMode = hasBase && changed ? "delete" : "none";
 
-                    // For the other rows in rowSet, “insert” if changed
+                    // For the other rows in rowSet, "insert" if changed
                     const otherRows = rowSet.filter((r) => r !== baseLogIndex);
 
                     return (

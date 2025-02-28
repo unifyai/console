@@ -163,9 +163,20 @@ export default function MatrixView({
   if (diffMode === "none") {
     const groups = groupAllMatricesByValue(value, comparables, baseLogIndex, comparisonLogsIndex);
 
+    // Filter out groups with invalid matrices or empty matrix strings
+    const filteredGroups = groups.filter(group => {
+      // Skip if the matrix string indicates an invalid matrix
+      if (group.str === "(invalid matrix)") return false;
+      
+      // Skip if it's an empty matrix (after trimming whitespace)
+      if (group.str.trim() === "") return false;
+      
+      return true;
+    });
+
     return (
       <div className="space-y-4">
-        {groups.map((grp, idx) => {
+        {filteredGroups.map((grp, idx) => {
           const mat = grp.rawMatrix;
           const matStr = grp.str;
           const rowNums = grp.rows;

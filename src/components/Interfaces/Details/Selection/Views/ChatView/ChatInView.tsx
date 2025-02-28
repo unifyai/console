@@ -453,6 +453,14 @@ export default function ChatInView({
                   const msgs = gatherAll(block);
                   if (!msgs.length) return null;
 
+                  // Filter out cases where all messages are empty
+                  const allEmpty = msgs.every(m => 
+                    !m.content || 
+                    (typeof m.content === 'string' && m.content.trim() === '') ||
+                    (typeof m.content === 'object' && Object.keys(m.content).length === 0)
+                  );
+                  if (allEmpty) return null;
+
                   // We'll keep the existing logic of "userParts" vs. "non-userParts",
                   // but the role label is now generic.
                   const userParts = msgs.filter((m) => m.role === "user");
@@ -641,6 +649,14 @@ export default function ChatInView({
               {unified.map((block, i) => {
                 const msgs = gatherAll(block);
                 if (!msgs.length) return null;
+
+                // Filter out cases where all messages are empty
+                const allEmpty = msgs.every(m => 
+                  !m.content || 
+                  (typeof m.content === 'string' && m.content.trim() === '') ||
+                  (typeof m.content === 'object' && Object.keys(m.content).length === 0)
+                );
+                if (allEmpty) return null;
 
                 // group by role
                 const roles = Array.from(new Set(msgs.map((m) => m.role)));
