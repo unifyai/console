@@ -157,9 +157,19 @@ export default function TimestampView({
       rows: rows.sort((a, b) => a - b),
     }));
     
+    // Filter out groups with empty or invalid timestamps
+    const filteredGroups = groupArr.filter(group => {
+      // Skip empty timestamps
+      if (!group.ts || group.ts.trim() === "") return false;
+      
+      // Skip invalid timestamps (parseTimestamp will return null for invalid dates)
+      const parsedTimestamp = parseTimestamp(group.ts);
+      return parsedTimestamp !== null;
+    });
+    
     return (
       <div className="space-y-4">
-        {groupArr.map((group, idx) => {
+        {filteredGroups.map((group, idx) => {
           const tsVal = group.ts;
           const rowNumbers = group.rows;
 

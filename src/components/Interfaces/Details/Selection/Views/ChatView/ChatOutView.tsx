@@ -465,6 +465,13 @@ export default function ChatOutView({
                   const combined = gatherAll(block);
                   if (!combined.length) return null;
 
+                  // Filter out blocks where all messages are empty
+                  const allEmpty = combined.every(m => 
+                    (!m.content || (typeof m.content === 'string' && m.content.trim() === '')) && 
+                    (!m.toolCalls || m.toolCalls.length === 0)
+                  );
+                  if (allEmpty) return null;
+
                   // same user vs. asst approach as minimal tweak
                   const userParts = combined.filter((m) => m.role === "user");
                   const asstParts = combined.filter((m) => m.role !== "user");
@@ -681,6 +688,13 @@ export default function ChatOutView({
               {unified.map((block, i) => {
                 const combined = gatherAll(block);
                 if (!combined.length) return null;
+
+                // Filter out blocks where all messages are empty
+                const allEmpty = combined.every(m => 
+                  (!m.content || (typeof m.content === 'string' && m.content.trim() === '')) && 
+                  (!m.toolCalls || m.toolCalls.length === 0)
+                );
+                if (allEmpty) return null;
 
                 const roles = Array.from(new Set(combined.map((m) => m.role)));
 

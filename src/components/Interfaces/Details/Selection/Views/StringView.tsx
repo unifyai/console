@@ -221,9 +221,12 @@ export default function StringView({
       comparisonLogsIndex
     );
 
+    // Filter out groups where all values are undefined/empty
+    const filteredGroups = stringGroups.filter(group => group.text.trim() !== "");
+
     return (
       <div className="space-y-4">
-        {stringGroups.map((block, i) => {
+        {filteredGroups.map((block, i) => {
           // block.text => the main string value
           // block.rows => whichever rows share that string
           const textValue = block.text;

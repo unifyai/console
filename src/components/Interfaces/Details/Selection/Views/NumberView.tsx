@@ -7,13 +7,14 @@ import { CopyButton } from "@/components/Common/Buttons/Copy";
 import MarkdownRenderer from "./Markdown/MarkdownRenderer";
 
 /**
- * Convert unknown => finite number, defaulting to 0 if not finite.
+ * Convert unknown => finite number, or null if not a valid number.
  */
-function asFiniteNumber(val: unknown) {
+function asFiniteNumber(val: unknown): number | null {
   if (typeof val === "number" && Number.isFinite(val)) {
     return val;
   }
-  return 0;
+  // Return null instead of 0 for non-finite values
+  return null;
 }
 
 /**
@@ -31,8 +32,9 @@ function groupAllNumbersByValue(
   const allNums = [baseNum, ...compNums];
   const allRows = [baseRow, ...compRows];
 
-  const map = new Map<number, number[]>();
+  const map = new Map<number | null, number[]>();
   allNums.forEach((n, i) => {
+    // Use n as-is (could be null)
     if (!map.has(n)) {
       map.set(n, []);
     }
@@ -120,7 +122,8 @@ export default function NumberView({
   const baseNum = asFiniteNumber(value);
 
   // Helper function to format numbers when scientificNotation is enabled
-  function formatNumberVal(val: number): string {
+  function formatNumberVal(val: number | null): string {
+    if (val === null) return "(invalid number)";
     if (scientificNotation && val !== 0 && Math.abs(val) < 0.01) {
       return val.toExponential(2);
     }
@@ -167,12 +170,14 @@ export default function NumberView({
             <div>
               <p className="text-sm">{formatNumberVal(baseNum)}</p>
             </div>
-            <CopyButton
-              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-              content={String(baseNum)}
-              copyMessage="Copied number!"
-              tooltipContent="Copy number"
-            />
+            {baseNum !== null && (
+              <CopyButton
+                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                content={String(baseNum)}
+                copyMessage="Copied number!"
+                tooltipContent="Copy number"
+              />
+            )}
           </div>
         </div>
       </div>
@@ -187,9 +192,12 @@ export default function NumberView({
   if (diffMode === "none") {
     const groups = groupAllNumbersByValue(value, comparables, baseLogIndex, comparisonLogsIndex);
 
+    // Filter out groups where all values are null (invalid numbers)
+    const filteredGroups = groups.filter(group => group.numVal !== null);
+
     return (
       <div className="space-y-4">
-        {groups.map((grp, i) => {
+        {filteredGroups.map((grp, i) => {
           const numVal = grp.numVal;
           const rowNums = grp.rows;
 
@@ -230,11 +238,13 @@ export default function NumberView({
                 {!versionEmpty && <p className="font-semibold">Value</p>}
                 <div className="border rounded p-2 bg-background relative group">
                   <RowBadge rowNumbers={rowNums} mode="none" />
-                  <CopyButton
-                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                    content={String(numVal)}
-                    copyMessage="Copied number!"
-                  />
+                  {numVal !== null && (
+                    <CopyButton
+                      className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                      content={String(numVal)}
+                      copyMessage="Copied number!"
+                    />
+                  )}
                   <p className="text-sm mt-2">{formatNumberVal(numVal)}</p>
                 </div>
               </div>
@@ -249,7 +259,7 @@ export default function NumberView({
   const compNums = (comparables ?? []).map(asFiniteNumber);
 
   // Group comparables by numeric value => row sets
-  const map = new Map<number, number[]>();
+  const map = new Map<number | null, number[]>();
   compNums.forEach((cn, i) => {
     const r = comparisonLogsIndex[i];
     if (!map.has(cn)) {
@@ -278,6 +288,20 @@ export default function NumberView({
         const compVal = block.numVal;
         const rowNums = block.rows;
 
+        // Skip invalid number comparison blocks
+        if (compVal === null) {
+          return (
+            <div key={i} className="border rounded p-3 space-y-4">
+              <div className="space-y-2">
+                <div className="border rounded p-2 bg-background relative group">
+                  <RowBadge rowNumbers={rowNums} mode="none" />
+                  <p className="text-sm mt-2">(invalid number)</p>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
         // Combine base row + these rows for version listing
         const combinedRows = [baseLogIndex, ...rowNums];
         const versionGroups = groupVersionsForRows(
@@ -289,7 +313,9 @@ export default function NumberView({
         );
 
         // Evaluate final result: compVal [symbol] base
-        const result = applySymbol(baseNum, compVal, currentSymbol);
+        // Only calculate if both values are valid
+        const result = (baseNum !== null && compVal !== null) ? 
+          applySymbol(baseNum, compVal, currentSymbol) : null;
 
         return (
           <div key={i} className="border rounded p-3 space-y-4">
@@ -324,11 +350,13 @@ export default function NumberView({
                 {/* Base */}
                 <div className="relative border rounded p-2 w-fit min-w-24 text-start group">
                   <div className="flex-col items-start justify-between gap-5">
-                    <CopyButton
-                      className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                      content={String(baseNum)}
-                      copyMessage="Copied base!"
-                    />
+                    {baseNum !== null && (
+                      <CopyButton
+                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                        content={String(baseNum)}
+                        copyMessage="Copied base!"
+                      />
+                    )}
                     <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
                     <p className="text-sm pt-2">{formatNumberVal(baseNum)}</p>
                   </div>
@@ -340,11 +368,13 @@ export default function NumberView({
                 {/* Comparable */}
                 <div className="relative border rounded p-2 w-fit min-w-24 text-start group">
                   <div className="flex-col items-start justify-between gap-5">
-                    <CopyButton
+                    {compVal !== null && (
+                      <CopyButton
                         className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                         content={String(compVal)}
                         copyMessage="Copied comp!"
-                    />
+                      />
+                    )}
                     <RowBadge rowNumbers={rowNums} mode="none" />
                     <p className="text-sm pt-2">{formatNumberVal(compVal)}</p>
                   </div>
@@ -355,16 +385,17 @@ export default function NumberView({
                 {/* Result */}
                 <div className="relative border rounded p-2 w-fit min-w-24 text-start bg-background group">
                   <div className="flex flex-col">
-                    <CopyButton
-                      className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                      content={String(result)}
-                      copyMessage="Copied result!"
-                    />
+                    {result !== null && (
+                      <CopyButton
+                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                        content={String(result)}
+                        copyMessage="Copied result!"
+                      />
+                    )}
                     <p className="text-sm">Result</p>
                     <p className="text-sm mt-2">
-                      {Number.isFinite(result) 
-                        ? formatNumberVal(result)
-                        : "∞"}
+                      {result === null ? "(cannot calculate)" : 
+                       Number.isFinite(result) ? formatNumberVal(result) : "∞"}
                     </p>
                   </div>
                 </div>
