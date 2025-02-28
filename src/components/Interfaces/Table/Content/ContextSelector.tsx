@@ -37,6 +37,7 @@ const ContextSelector = ({
             updateItem(item, "context")(ctx);
         }
     } : setContext;
+    const empty = contexts.length == 0 && tableDataItem?.columnContexts?.length == 0;
 
     interface TreeNode {
         path: string;
@@ -224,6 +225,7 @@ const ContextSelector = ({
                 }}
             >
                 <div className="flex flex-col gap-4">
+                    {empty && <div className="text-center text-sm">No contexts found.</div>}
                     {contexts.length > 0 ? <div className="pt-2">
                         <div className="font-bold text-sm px-2 pb-2 border-b flex justify-between items-center">
                             <div className="flex gap-2 items-center">
