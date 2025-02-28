@@ -152,29 +152,24 @@ const ContextSelector = ({
     } else if (contextNames.length === 1) {
         largestCommonPrefix = contextNames[0];
     } else {
-        // Since contextNames are sorted alphabetically, we only need to compare the first and last entries
-        // to find the largest common prefix
-        const first = contextNames[0];
-        const last = contextNames[contextNames.length - 1];
-        let i = 0;
+        // Split the first context by '/' to get path segments
+        const firstContextParts = contextNames[0].split('/');
+        let commonParts: string[] = [];
 
-        // Find how many characters match at the beginning
-        while (i < first.length && i < last.length && first.charAt(i) === last.charAt(i)) {
-            i++;
-        }
-
-        // Make sure we don't cut in the middle of a path segment
-        let lastSlashPos = first.substring(0, i).lastIndexOf('/');
-        if (lastSlashPos === -1) {
-            // If there's no slash in the common part, check if the entire first string matches
-            if (i === first.length) {
-                largestCommonPrefix = first;
-            } else {
-                largestCommonPrefix = "";
+        // Check each segment against all other contexts
+        for (let i = 0; i < firstContextParts.length; i++) {
+            let isCommon = true;
+            const currentPath = firstContextParts.slice(0, i + 1).join('/');
+            for (let j = 1; j < contextNames.length; j++) {
+                if (!contextNames[j].startsWith(currentPath + (i < firstContextParts.length - 1 ? '/' : ''))) {
+                    isCommon = false;
+                    break;
+                }
             }
-        } else {
-            largestCommonPrefix = first.substring(0, lastSlashPos + 1);
+            if (isCommon) commonParts = firstContextParts.slice(0, i + 1);
+            else break;
         }
+        largestCommonPrefix = commonParts.join('/');
     }
 
     // filter contexts based on the prefixes and construct the tree
