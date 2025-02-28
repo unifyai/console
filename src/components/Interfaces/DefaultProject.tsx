@@ -68,7 +68,7 @@ const DefaultProject = ({ projects, logsActions, projectActions, interfaceAction
     const [pending, setPendingLocal] = useState(false);
     const data = (projects || []).map((p) => ({ path: p, type: "file" }));
 
-    return projects == undefined || projects.length == 0 ? (
+    return projects == undefined || projects.length == 0 || (projects.length == 1 && projects[0] == defaultProject) ? (
         <div className="flex flex-col gap-4 justify-center items-center">
             <div className="mt-4 flex justify-center font-semibold">Please select a project, create a project or get started with the example below</div>
             <div className="relative w-1/2 h-[700px] overflow-y-auto rounded-md border border-1 p-2">
