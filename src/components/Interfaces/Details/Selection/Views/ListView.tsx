@@ -490,6 +490,190 @@ export default function ListView({
   // For no-diff rendering, we need rowIndices
   const rowIndices = [baseLogIndex, ...comparisonLogsIndex];
 
+  // Define the renderSingleItem function for single-mode
+  function renderSingleItem(index: number) {
+    const lbl = itemLabel(index);
+    const arrValue = baseArr[index];
+    const finalType = unifyType(arrValue, []);
+    const icon = getTypeIcon(finalType);
+    const path = buildItemPath(index);
+    const isOpen = openKeys.has(path);
+
+    function handleExpandClick(e: React.MouseEvent) {
+      e.stopPropagation();
+      handleRecursiveToggle(
+        arrValue,
+        [],
+        path,
+        prefix,
+        nestingLevel,
+        openKeys,
+        setOpenKeys
+      );
+    }
+
+    return (
+      <AccordionItem key={lbl} value={lbl}>
+        <AccordionTrigger className="relative group flex items-center justify-between">
+          <span className="inline-flex items-center gap-2">
+            {icon} {lbl}
+          </span>
+          {isOpen && (finalType === "dict" || finalType === "list") && (
+            <div className="absolute right-5 flex gap-1 items-center">
+              <ActionButton
+                variant="ghost"
+                size="icon"
+                tooltip={isOpen ? "Collapse All Children" : "Expand All Children"}
+                onClick={handleExpandClick}
+                icon={isOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+              />
+            </div>
+          )}
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="border-l ml-4 pl-1">
+            {pickView({
+              value: arrValue,
+              comparables: [],
+              baseLogIndex,
+              comparisonLogsIndex: [],
+              diffMode,
+              splitView,
+              version,
+              comparableVersions,
+              displayMode,
+              prefix,
+              parentPath: path,
+              nestingLevel: nestingLevel + 1,
+            })}
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    );
+  }
+
+  // Define the renderMultiItem function for multi-mode
+  function renderMultiItem(index: number) {
+    const lbl = itemLabel(index);
+    const baseVal = baseArr[index];
+    const compVals = (comparables ?? []).map((c) => (isList(c) ? c[index] : undefined));
+    const finalType = unifyType(baseVal, compVals);
+    const icon = getTypeIcon(finalType);
+
+    const path = buildItemPath(index);
+    const isOpen = forceExpandAll || openKeys.has(path);
+
+    const { redRows, greenRows } = presenceDiff(baseVal, compVals, baseLogIndex, comparisonLogsIndex);
+    let labelColor = "";
+    const baseHas = baseVal !== undefined;
+    if (baseHas && redRows.length > 0) {
+      labelColor = "text-red-600";
+    } else if (!baseHas && greenRows.length > 0) {
+      labelColor = "text-green-600";
+    }
+
+    function handleExpandClick(e: React.MouseEvent) {
+      e.stopPropagation();
+      handleRecursiveToggle(
+        baseVal,
+        compVals,
+        path,
+        prefix,
+        nestingLevel,
+        openKeys,
+        setOpenKeys
+      );
+    }
+
+    return (
+      <AccordionItem key={lbl} value={lbl}>
+        <AccordionTrigger
+          className={`relative group flex items-center justify-between ${labelColor}`}
+        >
+          <span className="inline-flex items-center gap-2">
+            {icon} {lbl}
+            {(redRows.length > 0 || greenRows.length > 0) && (
+              <div className="ml-2 flex gap-1">
+                {redRows.length > 0 && <RowBadge rowNumbers={redRows} mode="delete" />}
+                {greenRows.length > 0 && <RowBadge rowNumbers={greenRows} mode="insert" />}
+              </div>
+            )}
+          </span>
+          {isOpen && (finalType === "dict" || finalType === "list") && (
+            <div className="absolute right-5 flex gap-1 items-center">
+              <ActionButton
+                variant="ghost"
+                size="icon"
+                tooltip={isOpen ? "Collapse All Children" : "Expand All Children"}
+                onClick={handleExpandClick}
+                icon={isOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+              />
+            </div>
+          )}
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="border-l ml-4 pl-1">
+            {pickView({
+              value: baseVal,
+              comparables: compVals,
+              baseLogIndex,
+              comparisonLogsIndex,
+              diffMode,
+              splitView,
+              version,
+              comparableVersions,
+              displayMode,
+              prefix,
+              parentPath: path,
+              nestingLevel: nestingLevel + 1,
+            })}
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    );
+  }
+
+  // Function to render all items
+  function renderAllItems() {
+    const items: JSX.Element[] = [];
+    for (let i = 0; i < itemCount; i++) {
+      if (!comparables || !comparables.length) {
+        items.push(renderSingleItem(i));
+      } else {
+        items.push(renderMultiItem(i));
+      }
+    }
+    return items;
+  }
+
+  // Handle accordion value change
+  function handleAccordionValueChange(newVals: string[]) {
+    const oldSet = new Set(openValues);
+    const nextSet = new Set(newVals);
+
+    for (let i = 0; i < itemCount; i++) {
+      const lbl = itemLabel(i);
+      const had = oldSet.has(lbl);
+      const now = nextSet.has(lbl);
+      if (had !== now) {
+        const path = buildItemPath(i);
+        if (openKeys.has(path)) {
+          setOpenKeys((prev) => {
+            const updated = new Set(prev);
+            updated.delete(path);
+            return updated;
+          });
+        } else {
+          setOpenKeys((prev) => {
+            const updated = new Set(prev);
+            updated.add(path);
+            return updated;
+          });
+        }
+      }
+    }
+  }
+
   // Return the appropriate view based on diffMode and multiMode
   return (
     <div className="flex flex-col gap-2">
