@@ -86,7 +86,7 @@ const PageController = ({ interactive, totalPages, pageNumber, setPageNumber, pa
         }
     }
     const paginationContent = (page: number, isHovered: boolean) => loading && pageNum == page ? <LoaderCircle className={`animate-spin ${isHovered ? "text-white" : "text-primary"}`} /> : page + 1;
-    const paginationItem = (page: number) => {
+    const PageItem = (page: number) => {
         const [isHovered, setIsHovered] = useState(false);
         return (
             <PaginationItem key={page}>
@@ -107,9 +107,9 @@ const PageController = ({ interactive, totalPages, pageNumber, setPageNumber, pa
     :   `Showing logs ${pageNum * limit + 1} to ${pageNum * limit + pageLogs} of ${totalLogs} logs`
     const pageButton = (page: number) => pageNum === page 
         ?   <Tooltip key={page} content={pageButtonTooltip}>
-                {paginationItem(page)}
+                {PageItem(page)}
             </Tooltip> 
-        :   paginationItem(page)
+        :   PageItem(page)
 
     return pageWindow.length ? (
         <Pagination>
