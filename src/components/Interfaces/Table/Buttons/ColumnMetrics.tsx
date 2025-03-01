@@ -16,7 +16,6 @@ const style: CSSProperties = {
     transition: "width transform 0.2s ease-in-out",
     whiteSpace: "nowrap",
     zIndex: 1,
-    alignItems: "center" 
 };
 
 const ColumnMetrics = ({interactive, metric, setMetric, colSpan = 1, logs}: {interactive: boolean, metric: string, setMetric: (x: string) => void, colSpan?: number, logs:LogProps[] | GroupedLogProps[]}) => {
@@ -33,15 +32,15 @@ const ColumnMetrics = ({interactive, metric, setMetric, colSpan = 1, logs}: {int
     }
 
     return (
-        <div style={style}>
+        <TableCell style={style} colSpan={colSpan} className="text-left">
             <BaseDropdown button={<ActionButton tooltip="Select metric" text={metric} icon={loading ? <LoaderCircle className="animate-spin text-primary"/> : <ChevronDown />} disabled={!interactive || loading} />} open={interactive ? undefined : false}>
-                {metrics.map((metric_, index) => (
+                {metrics.map((metric_, index) =>
                     <DropdownMenuCheckboxItem checked={metric === metric_} key={index} onClick={() => onClick(metric_)}>
                         {metric_}
                     </DropdownMenuCheckboxItem>
-                ))}
+                )}
             </BaseDropdown>
-        </div>
+        </TableCell>
     )
 }
 

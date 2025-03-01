@@ -415,10 +415,6 @@ const LogsTable = ({
             totalPages={totalPages}
             pageNumber={pageNumber || undefined}
             setPageNumber={setPageNumber}
-            totalLogs={logs.length}
-            pageLogs={logs.length}
-            limit={20}
-            logs={logs}
           />
         </div>
       )}

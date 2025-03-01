@@ -76,8 +76,12 @@ const FooterCell = ({
             ref={setNodeRef} 
             className="group/cell relative select-none overflow-visible"
         >
-            {children}
+            <div className="font-bold overflow-hidden text-nowrap text-ellipsis ...">
+                {children}
+            </div>
+
             <ColumnResizer column={column} resizeHandler={resizeMap[column.id]}/>
+
         </TableCell>
     );
 };
