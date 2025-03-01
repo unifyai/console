@@ -448,7 +448,7 @@ const LogsTable = ({
       ) : (
         <div className="w-full h-full flex flex-col">
           {tableTop && tableTop}
-          <div ref={tableRef} style={{"scrollbar-width": "thin"} as React.CSSProperties} className="w-fit h-fit pl-1 overflow-y-auto tutorial-logs-table">
+          <div ref={tableRef} className="w-full h-fit overflow-y-auto tutorial-logs-table">
             {project ? (
               <div className="relative flex-col gap-2">
                 {/* "summaryPending" can optionally show a small loader over the table if you like */}
@@ -575,7 +575,7 @@ const LogsTable = ({
                     >
                       {
                         column.columnDef.id === indicesTitle
-                          ? logs?.length ? <ColumnMetrics interactive={interactive} metric={state.metric} setMetric={setState.setMetric} logs={logs} /> : null
+                          ? <ColumnMetrics interactive={interactive} metric={state.metric} setMetric={setState.setMetric} logs={logs} />
                           : !column.getIsGrouped()
                             ? <SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} draggingColumns={state.draggingColumns} />
                             : null
