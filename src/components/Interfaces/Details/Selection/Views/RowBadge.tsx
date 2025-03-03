@@ -113,12 +113,12 @@ export default function RowBadge({
   let hoverText = "";
   switch (mode) {
     case "delete":
-      // "Only in row 3" or "Only in rows 3,5-7"
-      hoverText = `Only in ${rowOrRows} ${label}`;
+      // "Not in row 3" or "Not in rows 3,5-7"
+      hoverText = `Not in ${rowOrRows} ${label}`;
       break;
     case "insert":
-      // "Changes in row 3" or "Changes in rows 3,5-7"
-      hoverText = `Changes in ${rowOrRows} ${label}`;
+      // "Only in row 3" or "Only in rows 3,5-7"
+      hoverText = `Only in ${rowOrRows} ${label}`;
       break;
     case "base":
       // "Base row 3" or "Base rows 3,5-7"

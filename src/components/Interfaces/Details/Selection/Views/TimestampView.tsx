@@ -231,6 +231,11 @@ export default function TimestampView({
   const map = new Map<string, number[]>();
   allComps.forEach((ts, i) => {
     const row = comparisonLogsIndex[i];
+    // Skip adding empty or invalid timestamps to the map
+    if (!ts || ts.trim() === "") return;
+    const parsedTimestamp = parseTimestamp(ts);
+    if (parsedTimestamp === null) return;
+    
     if (!map.has(ts)) map.set(ts, []);
     map.get(ts)!.push(row);
   });

@@ -288,18 +288,9 @@ export default function NumberView({
         const compVal = block.numVal;
         const rowNums = block.rows;
 
-        // Skip invalid number comparison blocks
+        // Skip invalid number comparison blocks entirely
         if (compVal === null) {
-          return (
-            <div key={i} className="border rounded p-3 space-y-4">
-              <div className="space-y-2">
-                <div className="border rounded p-2 bg-background relative group">
-                  <RowBadge rowNumbers={rowNums} mode="none" />
-                  <p className="text-sm mt-2">(invalid number)</p>
-                </div>
-              </div>
-            </div>
-          );
+          return null;
         }
 
         // Combine base row + these rows for version listing

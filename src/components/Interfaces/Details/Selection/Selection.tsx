@@ -1111,7 +1111,8 @@ function SelectionPanel({
   /** Helper to union all param or entry keys from base + comps */
   function gatherUnionOfKeys(
     baseObj: Record<string, unknown> | undefined,
-    comps: (Record<string, unknown> | undefined)[]
+    comps: (Record<string, unknown> | undefined)[],
+    preferredOrder?: string[]
   ): string[] {
     const s = new Set<string>();
     if (baseObj) {
@@ -1126,6 +1127,20 @@ function SelectionPanel({
         }
       }
     });
+    
+    // If we have a preferred order, use it to order the keys
+    if (preferredOrder && preferredOrder.length > 0) {
+      // First get all keys that are both in the union and in the preferred order
+      const orderedKeys = preferredOrder.filter(key => s.has(key));
+      
+      // Then get any keys from the union that aren't in the preferred order
+      const remainingKeys = Array.from(s).filter(key => !preferredOrder.includes(key));
+      
+      // Return ordered keys followed by any remaining keys (which we'll sort for consistency)
+      return [...orderedKeys, ...remainingKeys.sort()];
+    }
+    
+    // If no preferred order, return all keys (default to sorted for backward compatibility)
     return Array.from(s).sort();
   }
 
@@ -1133,31 +1148,33 @@ function SelectionPanel({
     if (!baseLog) return [];
     return gatherUnionOfKeys(
       baseLog.entries,
-      comparisonLogs.map((cl) => cl.entries)
+      comparisonLogs.map((cl) => cl.entries),
+      columnOrdering
     );
-  }, [baseLog, comparisonLogs]);
+  }, [baseLog, comparisonLogs, columnOrdering]);
 
   const paramKeys = useMemo(() => {
     if (!baseLog) return [];
     return gatherUnionOfKeys(
       baseLog.params,
-      comparisonLogs.map((cl) => cl.params)
+      comparisonLogs.map((cl) => cl.params),
+      columnOrdering
     );
-  }, [baseLog, comparisonLogs]);
+  }, [baseLog, comparisonLogs, columnOrdering]);
 
   // Filter "visible" columns
   function visibleEntries(): string[] {
     return entryKeys.filter((col) => entriesFilter[col] !== false);
   }
   function visibleEntriesKey(): string {
-    const arr = [...visibleEntries()].sort();
+    const arr = [...visibleEntries()];
     return arr.join(",");
   }
   function visibleParams(): string[] {
     return paramKeys.filter((col) => paramsFilter[col] !== false);
   }
   function visibleParamsKey(): string {
-    const arr = [...visibleParams()].sort();
+    const arr = [...visibleParams()];
     return arr.join(",");
   }
 

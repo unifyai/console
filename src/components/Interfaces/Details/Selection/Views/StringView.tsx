@@ -221,7 +221,7 @@ export default function StringView({
       comparisonLogsIndex
     );
 
-    // Filter out groups where all values are undefined/empty
+    // Filter out groups where all values are empty strings
     const filteredGroups = stringGroups.filter(group => group.text.trim() !== "");
 
     return (

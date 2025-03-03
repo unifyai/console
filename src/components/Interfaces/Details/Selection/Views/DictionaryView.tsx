@@ -566,6 +566,11 @@ export default function DictionaryView({
       rowIndices.slice(1)
     );
 
+    // Determine if the key is present in all rows or absent in all rows
+    const allRows = [rowIndices[0], ...rowIndices.slice(1)];
+    const isAllPresent = redRows.length === 0 && greenRows.length === 0 && baseVal !== undefined;
+    const isAllAbsent = redRows.length === 0 && greenRows.length === 0 && baseVal === undefined;
+
     let labelColor = "";
     const baseHas = baseVal !== undefined;
     if (baseHas && redRows.length > 0) {
@@ -607,10 +612,14 @@ export default function DictionaryView({
         >
           <span className="inline-flex items-center gap-2">
             {icon} {k}
-            {(redRows.length > 0 || greenRows.length > 0) && (
+            {(redRows.length > 0 || greenRows.length > 0) ? (
               <div className="ml-2 flex gap-1">
                 {redRows.length > 0 && <RowBadge rowNumbers={redRows} mode="delete" />}
                 {greenRows.length > 0 && <RowBadge rowNumbers={greenRows} mode="insert" />}
+              </div>
+            ) : isAllPresent && (
+              <div className="ml-2 flex gap-1">
+                <RowBadge rowNumbers={allRows} mode="none" />
               </div>
             )}
           </span>
