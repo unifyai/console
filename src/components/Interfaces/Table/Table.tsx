@@ -575,7 +575,7 @@ const LogsTable = ({
                     >
                       {
                         column.columnDef.id === indicesTitle
-                          ? <ColumnMetrics interactive={interactive} metric={state.metric} setMetric={setState.setMetric} logs={logs} />
+                          ? logs?.length ? <ColumnMetrics interactive={interactive} metric={state.metric} setMetric={setState.setMetric} logs={logs} /> : null
                           : !column.getIsGrouped()
                             ? <SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} draggingColumns={state.draggingColumns} />
                             : null
