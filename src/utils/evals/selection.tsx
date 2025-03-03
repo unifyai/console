@@ -181,7 +181,6 @@ export const ImageDisplay = ({ value, className }: { value: string; className?: 
     );
   } else {
     return (
-      <a href={url} target="_blank" rel="noopener noreferrer">
         <Image
           src={url}
           alt="Image link"
@@ -190,7 +189,6 @@ export const ImageDisplay = ({ value, className }: { value: string; className?: 
           className={className}
           onError={handleImageError}
         />
-      </a>
     );
   }
 };

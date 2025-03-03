@@ -1,6 +1,9 @@
 "use client";
 
-import React, { Suspense } from "react";
+import React, { Suspense, useState, useCallback} from "react";
+import Lightbox from "yet-another-react-lightbox";
+import Zoom from "yet-another-react-lightbox/plugins/zoom";
+
 import { LogComparisonProps } from "./types";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 import RowBadge from "./RowBadge";
@@ -95,6 +98,68 @@ function groupVersionsForRows(
   }));
 }
 
+// Configure zoom settings for the lightbox
+const zoomConfig = {
+  maxZoomPixelRatio: 10, // Allow zooming up to 10x (default is 1-3)
+  zoomInMultiplier: 1.2, // Smaller steps for more gradual zooming (default is 2)
+  doubleTapDelay: 300, // Milliseconds for double tap/click detection
+  doubleClickMaxStops: 3, // Max number of steps on double-click
+  keyboardMoveDistance: 50, // Distance to move when using keyboard (pixels)
+  wheelZoomDistanceFactor: 100, // Control the zoom speed with wheel
+  pinchZoomDistanceFactor: 100, // Control pinch zoom sensitivity
+};
+
+// Lightbox configuration
+const lightboxConfig = {
+  carousel: {
+    finite: true, // Prevent looping through images
+  },
+  animation: {
+    swipe: 300, // Animation duration for swipe gestures
+  },
+  controller: {
+    touchAction: "pan-y", // Allow vertical scrolling on mobile
+  },
+  // Hide navigation arrows since we only have one slide
+  navigation: false
+};
+
+// New component to handle image display with lightbox
+function LightboxWrapper({ 
+  onOpenLightbox,
+  children,
+  className = "",
+  sourceValue
+}: { 
+  onOpenLightbox: () => void;
+  children: React.ReactNode;
+  className?: string;
+  sourceValue: string;
+}) {
+  // Check if it's a base64 image
+  const isBase64 = typeof sourceValue === 'string' && (
+    sourceValue.startsWith('data:image/') || 
+    /^[A-Za-z0-9+/]+={0,2}$/.test(sourceValue)
+  );
+
+  return (
+    <div className={`relative group ${className}`}>
+      <button
+        className="w-full text-left"
+        onClick={onOpenLightbox}
+      >
+        {children}
+      </button>
+      <CopyButton
+        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
+        content={sourceValue}
+        copyMessage={isBase64 ? "Copied base64 data!" : "Copied image URL!"}
+        tooltipContent={isBase64 ? "Copy base64 data" : "Copy image URL"}
+      />
+    </div>
+  );
+}
+
 export default function ImageView({
   value,
   comparables,
@@ -113,6 +178,19 @@ export default function ImageView({
   const baseVer = version || "";
   const compVers = comparableVersions || [];
   const versionEmpty = !baseVer && compVers.every((v) => !v);
+
+  /*───────────────────────────────────────────────────────────────────────────
+    Lightbox setup - simpler approach
+  ───────────────────────────────────────────────────────────────────────────*/
+
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+
+  const openLightbox = useCallback((src: string) => {
+    console.log('Opening lightbox with source:', src);
+    setLightboxSrc(src);
+    setLightboxOpen(true);
+  }, []);
 
   /*───────────────────────────────────────────────────────────────────────────
     SINGLE MODE: Just show the one image, optional version
@@ -146,13 +224,35 @@ export default function ImageView({
           {!hasImage ? (
             <p className="text-sm italic text-muted-foreground">No image</p>
           ) : (
-            <div className="border rounded p-2 bg-background group relative">
+            <LightboxWrapper 
+              className="border rounded p-2 bg-background"
+              onOpenLightbox={() => openLightbox(baseSrc)}
+              sourceValue={baseSrc}
+            >
               <Suspense fallback={<div>Loading image...</div>}>
                 <ImageDisplay value={baseSrc} />
               </Suspense>
-            </div>
+            </LightboxWrapper>
           )}
         </div>
+        
+        {/* Render the lightbox */}
+        {lightboxOpen && lightboxSrc && (
+          <Lightbox
+            open={lightboxOpen}
+            close={() => setLightboxOpen(false)}
+            slides={[{ src: lightboxSrc }]}
+            plugins={[Zoom]}
+            zoom={zoomConfig}
+            carousel={{ finite: true }}
+            animation={{ swipe: 300 }}
+            controller={{ touchAction: "pan-y" as const }}
+            render={{
+              buttonPrev: () => null,
+              buttonNext: () => null
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -213,12 +313,18 @@ export default function ImageView({
               {/* The actual image */}
               <div className="space-y-2">
                 {!versionEmpty && <p className="font-semibold text-sm">Image</p>}
-                <div className="border rounded p-2 bg-background relative group">
+                <div className="border rounded p-2 bg-background relative">
                   <RowBadge rowNumbers={rows} mode="none" />
                   {isNonEmptyImage(src) ? (
-                    <Suspense fallback={<div>Loading image...</div>}>
-                      <ImageDisplay value={src} />
-                    </Suspense>
+                    <LightboxWrapper 
+                      onOpenLightbox={() => openLightbox(src)}
+                      sourceValue={src}
+                      className=""
+                    >
+                      <Suspense fallback={<div>Loading image...</div>}>
+                        <ImageDisplay value={src} />
+                      </Suspense>
+                    </LightboxWrapper>
                   ) : (
                     <p className="text-sm italic text-muted-foreground">
                       No image
@@ -229,6 +335,24 @@ export default function ImageView({
             </div>
           );
         })}
+        
+        {/* Render the lightbox */}
+        {lightboxOpen && lightboxSrc && (
+          <Lightbox
+            open={lightboxOpen}
+            close={() => setLightboxOpen(false)}
+            slides={[{ src: lightboxSrc }]}
+            plugins={[Zoom]}
+            zoom={zoomConfig}
+            carousel={{ finite: true }}
+            animation={{ swipe: 300 }}
+            controller={{ touchAction: "pan-y" as const }}
+            render={{
+              buttonPrev: () => null,
+              buttonNext: () => null
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -322,12 +446,18 @@ export default function ImageView({
 
               <div className="flex flex-col gap-4">
                 {/* (1) Base block */}
-                <div className="border rounded p-2 bg-background relative group">
+                <div className="border rounded p-2 bg-background relative">
                   <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadgeMode} />
                   {isNonEmptyImage(baseSrc) ? (
                     <Suspense fallback={<div>Loading image...</div>}>
                       <div className="pt-2">
-                        <ImageDisplay value={baseSrc} />
+                        <LightboxWrapper 
+                          onOpenLightbox={() => openLightbox(baseSrc)}
+                          sourceValue={baseSrc}
+                          className=""
+                        >
+                          <ImageDisplay value={baseSrc} />
+                        </LightboxWrapper>
                       </div>
                     </Suspense>
                   ) : (
@@ -338,12 +468,18 @@ export default function ImageView({
                 </div>
 
                 {/* (2) Comparable block */}
-                <div className="border rounded p-2 bg-background relative group">
+                <div className="border rounded p-2 bg-background relative">
                   <RowBadge rowNumbers={rowNums} mode={compBadgeMode} />
                   {isNonEmptyImage(compSrc) ? (
                     <Suspense fallback={<div>Loading image...</div>}>
                       <div className="pt-2">
-                        <ImageDisplay value={compSrc} />
+                        <LightboxWrapper 
+                          onOpenLightbox={() => openLightbox(compSrc)}
+                          sourceValue={compSrc}
+                          className=""
+                        >
+                          <ImageDisplay value={compSrc} />
+                        </LightboxWrapper>
                       </div>
                     </Suspense>
                   ) : (
@@ -357,6 +493,24 @@ export default function ImageView({
           </div>
         );
       })}
+      
+      {/* Render the lightbox */}
+      {lightboxOpen && lightboxSrc && (
+        <Lightbox
+          open={lightboxOpen}
+          close={() => setLightboxOpen(false)}
+          slides={[{ src: lightboxSrc }]}
+          plugins={[Zoom]}
+          zoom={zoomConfig}
+          carousel={{ finite: true }}
+          animation={{ swipe: 300 }}
+          controller={{ touchAction: "pan-y" as const }}
+          render={{
+            buttonPrev: () => null,
+            buttonNext: () => null
+          }}
+        />
+      )}
     </div>
   );
 }

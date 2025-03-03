@@ -4,6 +4,7 @@ import { ThemeProvider } from 'next-themes'
 
 import "@/styles/globals.css";
 import "@fortawesome/fontawesome-svg-core/styles.css";
+import "yet-another-react-lightbox/styles.css";
 
 export const metadata: Metadata = {
   title: {
