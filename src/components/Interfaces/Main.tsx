@@ -212,6 +212,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                 limit,
                 offsets[idx],
                 groupingExpressions[idx] ? 0 : null,
+                null,
                 Date.now().toString(),
             );
 
@@ -264,7 +265,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                     }
                     if (subset) plotArguments[table.i]["subset"] = subset
 
-                    data = await logsActions.get(project, context ?? null, columnContext ?? null, filterExpression, null, null, null, subset, null, null, null, null, Date.now().toString());
+                    data = await logsActions.get(project, context ?? null, columnContext ?? null, filterExpression, null, null, null, subset, null, null, null, null, null, Date.now().toString());
 
                     /* Replace param indices with actual param values */
                     if (Object.entries(data.logs).length && Object.entries(data.params).length) {

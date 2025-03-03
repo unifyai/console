@@ -366,6 +366,7 @@ export async function onGroupExpand(
       limit,
       offset,
       0,
+      null,
       Date.now().toString()
     );
 

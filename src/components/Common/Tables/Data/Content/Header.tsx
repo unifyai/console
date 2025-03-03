@@ -50,6 +50,7 @@ const DataTableHeader = ({
   setGrouping,
   ColumnGroupSort,
   ColumnFilters,
+  ColumnDelete,
   ColumnCreate,
   ColumnUpdate,
   context,
@@ -83,6 +84,7 @@ const DataTableHeader = ({
   setGrouping: (grouping: string[]) => void,
   ColumnGroupSort?: (column: Column<any | unknown>, groupSortLoading: boolean, setGroupSortLoading: (groupSortLoading: boolean) => void, setIsGroupSorted: (isGroupSorted: boolean) => void, renderMode: "button" | "menuItem") => ReactNode,
   ColumnFilters?: (column: Column<any | unknown>, filterLoading: boolean, setIsFiltered: (isFiltered: boolean) => void, setFilterLoading: (filterLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode,
+  ColumnDelete?: (column: Column<any | unknown>) => ReactNode,
   ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode,
   ColumnUpdate?: (key: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem" ) => ReactNode,
   context: string | null,
@@ -542,7 +544,8 @@ const DataTableHeader = ({
                                     setUpdateOpen,
                                     "menuItem",
                                   )
-                                )}
+                              )}
+                              {ColumnDelete && !isGrouped && ColumnDelete(header.column)}
                             </DropdownMenuGroup>
                           </DropdownMenuContent>
                         </DropdownMenu>

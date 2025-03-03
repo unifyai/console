@@ -91,7 +91,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 	);
 	if (project) {
 
-		logsData = await logsActions.get(project, context ?? null, null, filterExpression, sortingExpression, groupingExpression, null, null, null, limit, offset, groupingExpression ? 0 : null, _timestamp)
+		logsData = await logsActions.get(project, context ?? null, null, filterExpression, sortingExpression, groupingExpression, null, null, null, limit, offset, groupingExpression ? 0 : null, "False", _timestamp)
 		totalPages = Math.ceil(logsData.count / limit);
 
 		const xAxis = context ? processContext("merge", context, searchParams.x_axis)  : searchParams.x_axis
@@ -100,12 +100,12 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 		if (xAxis) {
 			let subset = xAxis
 			if (searchParams.plot_type === "Bar Chart") 
-				plotData = await logsActions.get(project, context ?? null, null, filterExpression, null, null, null, subset, null, null, 0, null, _timestamp)
+				plotData = await logsActions.get(project, context ?? null, null, filterExpression, null, null, null, subset, null, null, 0, null, null, _timestamp)
 			else {
 				if (yAxis)
 					subset += `%26${yAxis}`
 					if (group) subset += `%26${group}`
-					plotData = await logsActions.get(project, context ?? null, null, filterExpression, null, null, null, subset, null, null, 0, null, _timestamp)
+					plotData = await logsActions.get(project, context ?? null, null, filterExpression, null, null, null, subset, null, null, 0, null, null, _timestamp)
 			}
 		}
 	}

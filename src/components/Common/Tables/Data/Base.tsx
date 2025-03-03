@@ -34,6 +34,7 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>) => ReactNode;
     ColumnGroupSort?: (column: TanstackColumn<any | unknown>, groupSortLoading: boolean, setGroupSortLoading: (groupSortLoading: boolean) => void, setIsGroupSorted: (isGroupSorted: boolean) => void, renderMode: "button" | "menuItem") => ReactNode;
     ColumnFilters?: (column: TanstackColumn<any | unknown>, filterLoading: boolean, setIsFiltered: (isFiltered: boolean) => void, setFilterLoading: (filterLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode;
+    ColumnDelete?: (column: TanstackColumn<any | unknown>) => ReactNode;
     ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode;
     ColumnUpdate?: (key: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode;
     AggregatedCell?: (cell: TanstackCell<any, unknown>, row: TanstackRow<any | unknown>) => ReactNode;
@@ -52,6 +53,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     setState,
     FooterCell,
     ColumnGroupSort,
+    ColumnDelete,
     ColumnFilters,
     ColumnCreate,
     ColumnUpdate,
@@ -201,6 +203,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                 grouping={state.grouping}
                                                 setGrouping={setState.setGrouping}
                                                 ColumnGroupSort={ColumnGroupSort}
+                                                ColumnDelete={ColumnDelete}
                                                 ColumnFilters={ColumnFilters}
                                                 ColumnCreate={ColumnCreate}
                                                 ColumnUpdate={ColumnUpdate}

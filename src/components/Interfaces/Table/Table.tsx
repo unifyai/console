@@ -21,6 +21,7 @@ import ColumnFilter from "./Buttons/Filters/Main";
 import AggregatedCell from "./Content/AggregatedCell";
 import VisibilityFilter from "./Buttons/VisibilityFilter";
 import DeleteCells from "./Buttons/DeleteCells";
+import ColumnDelete from "./Buttons/DeleteColumn";
 import ColumnMetrics from "./Buttons/ColumnMetrics";
 import SummaryCell from "./Content/SummaryCell";
 import FooterCell from "./Content/FooterCell";
@@ -487,6 +488,17 @@ const LogsTable = ({
                       setIsFiltered={setIsFiltered}
                       setFilterLoading={setFilterLoading}
                       renderMode={renderMode as "button" | "menuItem"}
+                    />
+                  )}
+                  ColumnDelete={(column) => (
+                    <ColumnDelete
+                      interactive={interactive}
+                      project={project}
+                      column={column.id}
+                      context={context}
+                      columnContext={item.column_context}
+                      getLogFieldsIds={logsActions.get}
+                      deleteLogFields={logsActions.delete}
                     />
                   )}
                   ColumnCreate={(previousColumn: string, setOpen: (open: boolean) => void) => (
