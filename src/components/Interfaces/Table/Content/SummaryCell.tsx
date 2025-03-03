@@ -55,7 +55,7 @@ const SummaryCell = ({ column, state, metrics, pending, draggingColumns }: {
 
 	let logEntryMetric = sanitizeId(column.id) in metrics ? metrics[sanitizeId(column.id)] : 0;
 	logEntryMetric = parseFloat(logEntryMetric) ? formatNumber(parseFloat(logEntryMetric)) : logEntryMetric
-	logEntryMetric = logEntryMetric.toString() ?? ""
+	logEntryMetric = logEntryMetric?.toString() ?? ""
 
 	return (
 		<>
