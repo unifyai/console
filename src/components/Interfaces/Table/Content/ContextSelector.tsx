@@ -6,8 +6,9 @@ import BaseDropdown from "../../../Common/Dropdowns/Base";
 import { DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuSub, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSubTrigger } from "../../../UI/dropdown-menu";
 import { Context, ContextActions, ItemType, TableDataItem } from "@/types/evals/grid";
 import { TileProps } from "@/types/evals/grid";
-import { Braces, Check, Folder, FolderTree, Grid2x2, X } from "lucide-react";
+import { Braces, Check, Folder, FolderTree, Grid2x2, X, Trash } from "lucide-react";
 import { useState } from "react";
+import DeleteDialog from "@/components/Common/Dialogs/Delete";
 
 const ContextSelector = ({
     project,
@@ -69,13 +70,15 @@ const ContextSelector = ({
         return root;
     };
 
-    const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, setter }: {
+    const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, setter, isColumnContext, project }: {
         node: TreeNode,
         nodeName: string,
         isTopLevel: boolean,
         showRoot: boolean,
         attr: string | undefined,
         prefix?: string,
+        isColumnContext?: boolean,
+        project: string | undefined,
         setter: (context: string) => void
     }) => {
         const hasChildren = Object.keys(node.children).length > 0;
@@ -90,14 +93,22 @@ const ContextSelector = ({
                     onSelect={() => (
                         (nonRootNodePath != attr) ? setter(nonRootNodePath) : setter("")
                     )}
-                    className="w-48 justify-between"
+                    className="w-48 justify-between items-center"
                 >
-                    {nodeName == "<root>"
-                        ? <span className="flex items-center gap-1">
-                            <Folder size={16} />
-                        </span>
-                        : nodeName
-                    }{attr == nonRootNodePath && <Check />}
+                    <div className="flex flex-row gap-2 items-center">
+                        {attr == nonRootNodePath ? <Check size={15}/> : <div className="w-4"/>}
+                        {nodeName == "<root>"
+                            ? <span className="flex items-center gap-1">
+                                <Folder size={16} />
+                            </span>
+                            : nodeName
+                        }
+                    </div>
+                    {!isColumnContext && project && 
+                        <div onClick={(e) => e.stopPropagation()}>
+                            <DeleteDialog variant="warning" type={"context"} args={[project, attr]} deletingFunction={contextActions.delete}/>
+                        </div>
+                    }
                 </DropdownMenuItem>
             );
         }
@@ -120,12 +131,15 @@ const ContextSelector = ({
                                     )}
                                     className="w-48 justify-between"
                                 >
-                                    {isTopLevel
-                                        ? <span className="flex items-center gap-1">
-                                            <Folder size={16} />
-                                        </span>
-                                        : nodeName
-                                    }{attr == nonRootNodePath && <Check />}
+                                    <div className="flex flex-row gap-2 items-center">
+                                        {attr == nonRootNodePath ? <Check size={15}/> : <div className="w-4"/>}
+                                        {isTopLevel
+                                            ? <span className="flex items-center gap-1">
+                                                <Folder size={16} />
+                                            </span>
+                                            : nodeName
+                                        }
+                                    </div> 
                                 </DropdownMenuItem>
                             )}
                             {/* Render all child nodes */}
@@ -139,6 +153,8 @@ const ContextSelector = ({
                                     attr={attr}
                                     prefix={prefix}
                                     setter={setter}
+                                    project={project}
+                                    isColumnContext={false}
                                 />
                             ))}
                         </DropdownMenuSubContent>
@@ -259,6 +275,8 @@ const ContextSelector = ({
                                 prefix={item == undefined ? largestCommonPrefix : contextPrefix}
                                 attr={item != undefined ? item.context : context}
                                 setter={(ctx: string) => finalSetContext && finalSetContext(ctx)}
+                                project={project}
+                                isColumnContext={false}
                             />
                         ))}
                     </div> : <></>}
@@ -288,6 +306,7 @@ const ContextSelector = ({
                                 showRoot={true}
                                 attr={item.column_context}
                                 setter={updateItem(item, "column_context")}
+                                project={project}
                             />
                         ))}
                     </div>}

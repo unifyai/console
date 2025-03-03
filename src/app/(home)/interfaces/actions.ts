@@ -352,3 +352,19 @@ export const createContext = async (apiKey: string) => {
         return await response.json();
     };
 };
+
+// delete context
+export const deleteContext = async (apiKey: string) => {
+    return async (project: string, context: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/context/${project}/${context}`,
+            {
+                method: "DELETE",
+                headers: { apiKey: apiKey }
+            }
+        );
+        return await response.json();
+    };
+};

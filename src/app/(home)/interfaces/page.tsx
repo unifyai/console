@@ -19,6 +19,7 @@ import {
     createDerivedEntry,
     updateDerivedEntry,
     createContext,
+    deleteContext,
     getContexts,
     createLogs,
 } from "./actions";
@@ -62,6 +63,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
     const contextActions = {
         get: await getContexts(apiKey),
         create: await createContext(apiKey),
+        delete: await deleteContext(apiKey)
     }
 
     const interfaceActions = {

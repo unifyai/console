@@ -153,6 +153,7 @@ export interface FieldsActions {
 export interface ContextActions {
     get: (project: string) => Promise<Context[]>,
     create: (name: string, project: string) => Promise<ResponseProps>,
+    delete: (project: string, context: string) => Promise<ResponseProps>
 }
 
 export interface InterfaceActions {

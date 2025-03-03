@@ -11,7 +11,7 @@ const DeleteDialog = ({ args, type, deletingFunction, showDialog, variant, setSh
     args: any[],
     type: string
     deletingFunction: (...args: any[]) => Promise<ResponseProps>,
-    variant?: "secondary" | "destructive" | "outline" | "ghost" | "link",
+    variant?: "secondary" | "destructive" | "outline" | "ghost" | "link" | "warning",
     showDialog?: boolean,
     setShowDialog?: Dispatch<SetStateAction<boolean>>
     onDelete?: () => void
@@ -48,11 +48,15 @@ const DeleteDialog = ({ args, type, deletingFunction, showDialog, variant, setSh
     // Dialog state and content
     const [open, setOpen] = useState(false)
     const onOpen = () => showDialog && setShowDialog ? setShowDialog(!showDialog) : setOpen(!open);
-    
     const tooltip = `Delete ${type}`
-    const button =   setShowDialog ? null : <ActionButton tooltip={tooltip} icon={<Trash/>} variant={variant} onClick={onOpen}/>
+    const onClick = (e:any) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onOpen()
+    }
+    const button =   setShowDialog ? null : <ActionButton tooltip={tooltip} icon={<Trash/>} variant={variant} onClick={onClick}/>
 
-    const title =   tooltip + "?"
+    const title =   tooltip + " ?"
     const body =    success ? messages["success"] : error ? messages["error"] : messages["warning"];
     const footer =  success ? null : <DeleteButton disabled={loading} onClick={onSubmit} loading={loading}/>
 
