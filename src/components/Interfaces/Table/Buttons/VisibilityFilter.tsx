@@ -21,9 +21,14 @@ const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, conte
     const handleAllCheck = () => {
         
         const state = anyHidden ? true : false;
-        const newColumnVisibility = Object.fromEntries(
-          Object.entries(columnVisibility).map(([key]) => [key, state])
-        );
+        const newColumnVisibility = {
+                "RowNumbering": true,
+                ...Object.fromEntries(
+                    Object.entries(columnVisibility)
+                          .filter(([k, _]) => k !== "RowNumbering")
+                          .map(([key]) => [key, state])
+                )
+        }
 
         setColumnVisibility(newColumnVisibility);
     };

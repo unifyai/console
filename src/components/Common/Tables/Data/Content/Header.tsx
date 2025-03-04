@@ -234,7 +234,9 @@ const DataTableHeader = ({
   const isAllColumnSelected = (header: Header<any, unknown>) =>
     table.getRowModel().rows.length && getCellsFromHeader(header).every(cell => isCellSelected(cell))
   const isAllTableSelected = () => 
-    table.getRowModel().rows.length && getSelectableTableCells(table).every(cell => isCellSelected(cell))
+    table.getRowModel().rows.length && 
+    getSelectableTableCells(table).every(cell => isCellSelected(cell)) && 
+    Object.entries(columnVisibility).filter(([, v]) => v).length != 1
 
   const style: CSSProperties = {
     boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,

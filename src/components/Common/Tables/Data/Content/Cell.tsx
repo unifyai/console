@@ -101,10 +101,12 @@ const DataTableCell = ({
   const [hovered, setHovered] = useState(false);
   const isSelectableCell = (cell: Cell<any, unknown>) =>
     !cell.getIsGrouped() && !cell.getIsAggregated() && !cell.getIsPlaceholder() && cell.column.getIsVisible()
-  const isAllRowSelected = (cell: Cell<any, unknown>) => 
-    cell.getContext().row.getAllCells()
-        .filter(c => isSelectableCell(c) && c.column.id != "RowNumbering")
-        .every(c => isCellSelected(c))
+  const isAllRowSelected = (cell: Cell<any, unknown>) => {
+    const dataCells = cell.getContext().row.getAllCells().filter(c => isSelectableCell(c) && c.column.id != "RowNumbering")
+    const allSelected = dataCells.every(c => isCellSelected(c))
+    const allHidden = Object.entries(state.columnVisibility).filter(([, v]) => v).length === 1 // Only RowNumbering column visible
+    return allSelected && !allHidden
+  }
 
   const style: CSSProperties = {
     boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
@@ -159,7 +161,7 @@ const DataTableCell = ({
       ref={setNodeRef}
       className={`group/cell relative select-none ${isNewCell ? 'animate-fade-accent' : ''}`}
     >
-      <div className="overflow-hidden text-nowrap text-ellipsis ...">
+      <div className="overflow-hidden text-nowrap text-ellipsis truncate ...">
         {shouldShowGrouping 
           ? (properties.includes(columnID) &&
             <div className="flex flex-row gap-2 items-center text-left truncate ... overflow-hidden">
