@@ -1,5 +1,5 @@
-import { Waypoints, CurlyBraces, Brackets, ImageIcon, Grid, Hash, Clock, MessagesSquare, Text } from "lucide-react";
-import { isTrace, isDict, isList, isImage, isMatrix, isNumber, isTimestamp, isChat } from "@/utils/evals/selection";
+import { Waypoints, CurlyBraces, Brackets, ImageIcon, Grid, Hash, Clock, MessagesSquare, Text, FileText } from "lucide-react";
+import { isTrace, isDict, isList, isImage, isMatrix, isNumber, isTimestamp, isChat, isPdf } from "@/utils/evals/selection";
 
 export function getTypeIcon(valueType: string) {
     switch (valueType) {
@@ -19,6 +19,8 @@ export function getTypeIcon(valueType: string) {
         return <Clock className="h-4 w-4 text-primary" />;
       case "chat":
         return <MessagesSquare className="h-4 w-4 text-primary" />;
+      case "pdf":
+        return <FileText className="h-4 w-4 text-primary" />;
       default:
         return <Text className="h-4 w-4 text-primary" />;
     }
@@ -26,11 +28,12 @@ export function getTypeIcon(valueType: string) {
 
   
 export function getValueType(value: any):
-  "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat"
+  "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat" | "pdf"
 {
   if (isTrace(value))   return "trace";
   if (isDict(value))    return "dict";
   if (isList(value))    return "list";
+  if (isPdf(value))     return "pdf";
   if (isImage(value))   return "image";
   if (isMatrix(value))  return "matrix";
   if (isNumber(value))  return "number";

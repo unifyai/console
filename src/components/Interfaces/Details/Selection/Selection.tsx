@@ -77,6 +77,15 @@ function isMatrix(val: any): boolean {
 function isImage(val: any): boolean {
   return typeof val === "string" && val.startsWith("data:image/");
 }
+/**
+ * Check if a value is a PDF link/path.
+ * Detects strings ending with .pdf, with optional query parameters
+ */
+export function isPdf(val: any): boolean {
+  if (typeof val !== 'string') return false;
+  const pdfRegex = /\.pdf(\?.*)?$/i;  // matches "myfile.pdf?version=123" and .PDF
+  return pdfRegex.test(val.trim());
+}
 function isTrace(val: any): boolean {
   // originally always false in old code
   return false;

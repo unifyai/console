@@ -7,7 +7,6 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@/components/UI/accordion";
-import { Button } from "@/components/UI/button";
 import { FoldVertical, UnfoldVertical } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
 
@@ -20,6 +19,7 @@ import {
   isNumber,
   isTimestamp,
   isChat,
+  isPdf,
 } from "@/utils/evals/selection";
 import {
   gatherAllSubPaths,
@@ -42,6 +42,7 @@ import MatrixView from "./MatrixView";
 import StringView from "./StringView";
 import NumberView from "./NumberView";
 import TimestampView from "./TimestampView";
+import PdfView from "./PdfView";
 
 /*────────────────────────────────────────────────────────────────────────────
   unifyType => merges base + comps => single type. If multiple distinct => "string."
@@ -91,6 +92,9 @@ function pickView(props: LogComparisonProps & { prefix?: string; parentPath?: st
   }
   if (isTimestamp(value)) {
     return <TimestampView {...props} />;
+  }
+  if (isPdf(value)) {
+    return <PdfView {...props} />;
   }
   return <StringView {...props} />;
 }
