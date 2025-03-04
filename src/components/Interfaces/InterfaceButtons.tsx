@@ -15,6 +15,7 @@ import { Label } from "../UI/label";
 import Tooltip from "../Common/Misc/Tooltip";
 import AddTile from "./AddTile";
 import ContextSelector from "./Table/Content/ContextSelector";
+import { LogsActions } from "@/types/evals/grid";
 
 const InterfaceButtons = ({
     edit,
@@ -44,6 +45,7 @@ const InterfaceButtons = ({
     setSaveDialog,
     updateInterface,
     contextActions,
+    logsActions
 }: {
     edit: boolean,
     interactive: boolean,
@@ -73,6 +75,7 @@ const InterfaceButtons = ({
     setSaveDialog: (value: SetStateAction<boolean>) => void,
     updateInterface: (savedInterface?: Interface | null) => Promise<ResponseProps>,
     contextActions: ContextActions
+    logsActions: LogsActions
 }) => {
     const router = useRouter();
 
@@ -116,6 +119,7 @@ const InterfaceButtons = ({
                     router.refresh();
                 }}
                 contextActions={contextActions}
+                logsActions={logsActions}
             />
             <ActionButton
                 className="transition-all"

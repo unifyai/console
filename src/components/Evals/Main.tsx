@@ -139,9 +139,10 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 			  try {
 				const result = await logsActions.getMetrics(
 				  project!,
+				  context ?? null,
 				  expression,
 				  metric ? metric : "mean",
-				  key
+				  [key]
 				);
 				return result;
 			  } catch (error) {

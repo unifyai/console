@@ -33,7 +33,7 @@ const ContextSelector = ({
     button?: React.ReactNode,
     contextActions: ContextActions,
     logsActions: LogsActions,
-    fields: string[]
+    fields?: string[]
 }) => {
     const [contexts, setContexts] = useState<Context[]>(contexts_);
     const finalSetContext = (updateItem != undefined && item != undefined) ? (ctx: string) => {
@@ -49,7 +49,7 @@ const ContextSelector = ({
         children: { [key: string]: TreeNode };
         isComplete: boolean;
     }
-
+    
     const buildTree = (paths: string[]) => {
         const root: TreeNode = { path: '', children: {}, isComplete: false };
 
@@ -108,16 +108,21 @@ const ContextSelector = ({
                             : nodeName
                         }
                     </div>
-                    {project && 
+
+                    {/* Delete column context */}
+                    {project && isColumnContext && fields &&  
                         <div onClick={(e) => e.stopPropagation()}>
-                            <DeleteDialog 
-                                variant="warning" 
-                                type={isColumnContext ? "column context" : "context"} 
-                                args={isColumnContext ? [project, context, fields.filter(field => field.startsWith(nodePath)).map(field => ([null, field])), "all"]: [project, context]} 
-                                deletingFunction={isColumnContext ? logsActions.delete : contextActions.delete}
-                            />
+                            <DeleteDialog variant="warning" type={"column context"} args={[project, context, fields.filter(field => field.startsWith(nodePath)).map(field => ([null, field])), "all"]} deletingFunction={logsActions.delete}/>
                         </div>
                     }
+
+                    {/* Delete context */}
+                    {project && !isColumnContext &&  
+                        <div onClick={(e) => e.stopPropagation()}>
+                            <DeleteDialog variant="warning" type={"context"} args={[project, context]} deletingFunction={contextActions.delete}/>
+                        </div>
+                    }
+                    
                 </DropdownMenuItem>
             );
         }

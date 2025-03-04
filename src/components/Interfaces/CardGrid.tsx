@@ -292,6 +292,7 @@ const CardGrid = ({
                     setSaveDialog={setSaveDialog}
                     updateInterface={updateInterface}
                     contextActions={contextActions}
+                    logsActions={logsActions}
                 />
             </div>
             {interfaces.length == 0 ? (project && pending) ? <div className="flex justify-center">
@@ -401,6 +402,8 @@ const CardGrid = ({
                                                 item={el}
                                                 updateItem={updateItem}
                                                 contextActions={contextActions}
+                                                logsActions={logsActions}
+                                                fields={[...tableData[el.i || ""].paramsProperties, ...tableData[el.i || ""].entriesProperties]}
                                                 button={
                                                     <Tooltip content="Context">
                                                         <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
@@ -418,6 +421,8 @@ const CardGrid = ({
                                                 item={el}
                                                 updateItem={updateItem}
                                                 contextActions={contextActions}
+                                                logsActions={logsActions}
+                                                fields={[...tableData[el.i || ""].paramsProperties, ...tableData[el.i || ""].entriesProperties]}
                                                 button={<Tooltip content="Column Context">
                                                     <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
                                                         <Grid2x2 size={18} />
