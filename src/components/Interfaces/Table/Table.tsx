@@ -2,7 +2,7 @@
 
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
-import { TableArguments, LogProps, GroupedLogProps } from "@/types/evals/logs";
+import { TableArguments, LogProps, GroupedLogProps, LogItemProps } from "@/types/evals/logs";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -94,11 +94,17 @@ const LogsTable = ({
 
   // extract necessary fields
   const [tableDataItem, setTableDataItem] = useState(tableDataItem_);
-  const { fields, logs, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
+  const { fields, logs, params, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
   useEffect(() => {
     setTableDataItem(tableDataItem_);
   }, [tableDataItem_]);
 
+  // Extract params values from logs
+  const paramsValues: LogItemProps = {};
+  const flatLogs = maybeFlattenGroupedLogs(logs)
+  if (Object.entries(params).length && Object.entries(logs).length)
+    flatLogs.map(log => Object.entries(log.params).map(([key, value]) => paramsValues[key] = params[key][value]))
+  
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false); // if metric changed
 
@@ -598,7 +604,7 @@ const LogsTable = ({
                     return <DeleteCells project={project} selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} columnContext={item.column_context} context={item.context} />
                   }}
                   ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
-                    <CellPopover cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />
+                    <CellPopover flatLogs={flatLogs} paramsValues={paramsValues} cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />
                   }
                 />
               </div>

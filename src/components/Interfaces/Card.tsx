@@ -213,6 +213,7 @@ const Card = ({
                 tableDataItem_={{
                     ...(tableData[item.i] || {}),
                     logs: tableData[item.i]?.logs || [],
+                    params: tableData[item.i]?.params || [],
                     entriesProperties: tableData[item.i]?.entriesProperties || [],
                     paramsProperties: tableData[item.i]?.paramsProperties || [],
                     metrics: tableData[item.i]?.metrics || {},
