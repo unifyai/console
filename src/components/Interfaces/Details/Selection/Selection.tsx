@@ -136,23 +136,28 @@ function buildIndexToColumnsMapFromId(
   selectedCells: string[],
   sortedLogs: LogProps[]
 ): Record<number, Set<string>> {
+  
   const map: Record<number, Set<string>> = {};
-  for (const token of selectedCells) {
+  for (const token of selectedCells) {    
     const underscorePos = token.indexOf("_");
-    if (underscorePos < 1) continue;
+    if (underscorePos < 1) {
+      continue;
+    }
+    
     const logIdStr = token.slice(0, underscorePos);
 
     let columnName = token.slice(underscorePos + 1);
-    const slashPos = columnName.indexOf("/");
-    if (slashPos >= 0) {
-      columnName = columnName.slice(slashPos + 1).trim();
-    }
-
+    
     const rowIndex = sortedLogs.findIndex((log) => String(log.id) === logIdStr);
-    if (rowIndex < 0) continue;
+    
+    if (rowIndex < 0) {
+      continue;
+    }
+    
     if (!map[rowIndex]) {
       map[rowIndex] = new Set<string>();
     }
+    
     map[rowIndex].add(columnName);
   }
   return map;
@@ -193,7 +198,6 @@ function buildLogWithChosenColumns(
 ): LogProps {
   const chosen = indexToColumns[rowIndex] ?? new Set<string>();
   const safeEntries = originalLog.entries ?? {};
-
   const afterHiddenEntries = Array.from(chosen).filter(
     (c) => !hiddenColumns.includes(c)
   );
@@ -204,7 +208,7 @@ function buildLogWithChosenColumns(
           .filter((c) => afterHiddenEntries.includes(c))
           .map(sanitizeId)
       : afterHiddenEntries.map(sanitizeId);
-
+  
   const newEntries: Record<string, unknown> = {};
   for (const c of finalColsEntries) {
     if (Object.prototype.hasOwnProperty.call(safeEntries, c)) {
@@ -212,16 +216,18 @@ function buildLogWithChosenColumns(
     }
   }
 
-  const safeParams = originalLog.params ?? {};
+  const safeParams = originalLog.params ?? {};  
   const afterHiddenParams = Array.from(chosen).filter(
     (c) => !hiddenColumns.includes(c)
   );
+  
   const finalColsParams =
     columnOrdering.length > 0
       ? columnOrdering
           .filter((c) => afterHiddenParams.includes(c))
           .map(sanitizeId)
       : afterHiddenParams.map(sanitizeId);
+  
 
   const newParams: Record<string, unknown> = {};
   for (const c of finalColsParams) {
@@ -229,6 +235,7 @@ function buildLogWithChosenColumns(
       continue;
     }
     const storedVal = safeParams[c];
+    
     if (typeof storedVal === "string" && globalParams.hasOwnProperty(c)) {
       const candidateObj = globalParams[c];
       if (candidateObj && typeof candidateObj === "object") {
@@ -278,7 +285,7 @@ export default function Selection({
     newValue: string | undefined
   ) => void;
 }) {
-  /*******************************************************************************
+  /******************************************************************************
    * Prepare sorted logs & selection data
    ******************************************************************************/
   const sortedLogs = useMemo(() => [...logs], [logs]);
@@ -293,25 +300,32 @@ export default function Selection({
 
   const selectedCells = useMemo(() => {
     const arr = selection_ ? selection_.split(",") : [];
-    return arr;
+    return arr.map(token => {
+      // token might look like "277932_Entries/trace"
+      // so let's rewrite the part after "_" as short.
+      const underscorePos = token.indexOf("_");
+      if (underscorePos < 1) return token;
+      const rowPart = token.slice(0, underscorePos); // e.g. "277932"
+      let colPart = token.slice(underscorePos + 1);  // e.g. "Entries/trace"
+      colPart = sanitizeId(colPart);               // => "trace"
+      return rowPart + "_" + colPart;               // => "277932_trace"
+    });
   }, [selection_]);
-
   const indexToColumns = useMemo(() => {
     const map = buildIndexToColumnsMapFromId(selectedCells, sortedLogs);
     return map;
   }, [selectedCells, sortedLogs]);
 
   const selectedRowIndices = useMemo(() => {
-    const arr = buildRowIndicesInSelectionOrder(selectedCells, sortedLogs);
-    return arr;
+    return buildRowIndicesInSelectionOrder(selectedCells, sortedLogs);
   }, [selectedCells, sortedLogs]);
 
   const columnOrdering = useMemo(() => {
-    return columnOrdering_ ? columnOrdering_.split(",") : [];
+    return columnOrdering_ ? columnOrdering_.split(",").map(sanitizeId) : [];
   }, [columnOrdering_]);
 
   const hiddenColumns = useMemo(() => {
-    return hiddenColumns_ ? hiddenColumns_.split(",") : [];
+    return hiddenColumns_ ? hiddenColumns_.split(",").map(sanitizeId) : [];
   }, [hiddenColumns_]);
 
   /*******************************************************************************
@@ -372,10 +386,10 @@ export default function Selection({
   if (baseIndex_ && !isNaN(parseInt(baseIndex_, 10))) {
     baseIndexParam = parseInt(baseIndex_, 10);
   }
-  if (item.base_index && !isNaN(parseInt(item.base_index, 10))) {
+  if (item.base_index) {
     baseIndexParam = parseInt(item.base_index, 10);
   }
-  if (baseIndexParam < 0 || baseIndexParam >= selectedRowIndices.length) {
+  if (selectedRowIndices.length === 0) {
     baseIndexParam = 0;
   }
   
@@ -447,7 +461,8 @@ export default function Selection({
   function isAllEmpty(val: any) {
     if (val === null || val === undefined) return true;
     if (typeof val === "string" && !val.trim()) return true;
-    return false;
+    const result = false;
+    return result;
   }
 
   function gatherSubpathsForProperty(isParams: boolean, propName: string) {
@@ -1076,13 +1091,14 @@ function SelectionPanel({
   if (baseIndexParam < 0 || baseIndexParam >= selectedRowIndices.length) {
     baseIndexParam = 0;
   }
-
+  
   const baseRowIndex = selectedRowIndices[baseIndexParam] ?? -1;
 
   const buildLogIfValid = useCallback(
     (rIdx: number) => {
       if (rIdx < 0 || rIdx >= logs.length) return null;
-      return buildLogWithChosenColumns(
+      
+      const result = buildLogWithChosenColumns(
         logs[rIdx],
         rIdx,
         params,
@@ -1090,6 +1106,8 @@ function SelectionPanel({
         columnOrdering,
         hiddenColumns
       );
+      
+      return result;
     },
     [logs, params, indexToColumns, columnOrdering, hiddenColumns]
   );
@@ -1164,14 +1182,16 @@ function SelectionPanel({
 
   // Filter "visible" columns
   function visibleEntries(): string[] {
-    return entryKeys.filter((col) => entriesFilter[col] !== false);
+    const filtered = entryKeys.filter((col) => entriesFilter[col] !== false);
+    return filtered;
   }
   function visibleEntriesKey(): string {
     const arr = [...visibleEntries()];
     return arr.join(",");
   }
   function visibleParams(): string[] {
-    return paramKeys.filter((col) => paramsFilter[col] !== false);
+    const filtered = paramKeys.filter((col) => paramsFilter[col] !== false);
+    return filtered;
   }
   function visibleParamsKey(): string {
     const arr = [...visibleParams()];
@@ -1274,13 +1294,19 @@ function SelectionPanel({
   function isAllEmpty(baseVal: any, comps: any[]): boolean {
     const arr = [baseVal, ...comps];
     for (const v of arr) {
-      if (!isBlank(v)) return false;
+      if (!isBlank(v)) {
+        return false;
+      }
     }
     return true;
   }
   function isBlank(v: any) {
-    if (v == null) return true;
-    if (typeof v === "string" && !v.trim()) return true;
+    if (v == null) {
+      return true;
+    }
+    if (typeof v === "string" && !v.trim()) {
+      return true;
+    }
     return false;
   }
 
