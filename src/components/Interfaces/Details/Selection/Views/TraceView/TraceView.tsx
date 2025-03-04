@@ -43,7 +43,10 @@ import { ExpandProvider } from "@/contexts/ExpandContext";
 ------------------------------------------------------------------------*/
 function compressRowNumbers(rows: number[]): string {
   if (!rows.length) return "";
-  const sorted = [...rows].sort((a, b) => a - b);
+  // Convert 0-based indices to 1-based for UI display
+  const sorted = [...rows]
+    .sort((a, b) => a - b)
+    .map(row => row + 1); // Add 1 to make it 1-based
 
   const ranges: string[] = [];
   let start = sorted[0];
