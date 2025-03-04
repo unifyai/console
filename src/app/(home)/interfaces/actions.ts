@@ -141,19 +141,22 @@ export const getLogFields = async (apiKey: string) => {
 export const getLogMetrics = async (apiKey: string) => {
     return async (
         project: string,
+        context: string | null,
         filterExpression: string | null,
         metricName: string,
-        keyName: string,
+        keyNames: string[]
     ) => {
         "use server";
 
         // Sanitize the keyName before using it in the request
-        const sanitizedKey = sanitizeKey(keyName);
+        const sanitizedKeyNames = keyNames.map(sanitizeKey);
 
         const response = await fetch(
             (
-                `${process.env.NEXTAUTH_URL}/api/logs/${metricName}?project=${project}&key=${sanitizedKey}`
-                +  (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
+                `${process.env.NEXTAUTH_URL}/api/logs/${metricName}?project=${project}`
+                + (context ? `&context=${context}` : "")
+                + `&key=${JSON.stringify(sanitizedKeyNames)}`
+                + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
             ),
             { method: "GET", headers: { apiKey: apiKey } }
         );

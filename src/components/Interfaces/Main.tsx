@@ -326,13 +326,25 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         tableItems.map(async (item, idx) => {
             const logsData = allLogsData[idx];
             const totalPages = allTotalPages[idx];
+            const context = item.context ?? null;
             const columnContext = item.column_context ?? null
             const sorting = item.sorting ?? null
             const hiddenColumns = item.hidden_columns;
 
             const { entriesProperties, paramsProperties, logs, params, metrics, groupedMetrics, boundaries } = await getLogsDetails(
-                item, logsData, fields[idx], columnContext, project, filterExpressions[idx], groupingExpressions[idx], item.metric, sorting, undefined, logsActions
-            )
+                item,
+                logsData,
+                fields[idx],
+                context,
+                columnContext,
+                project,
+                filterExpressions[idx],
+                groupingExpressions[idx],
+                item.metric,
+                sorting,
+                undefined,
+                logsActions
+            );
 
             // Append available fields to the table attributes
             tableArguments[item.i].available_fields = 

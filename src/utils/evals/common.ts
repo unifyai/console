@@ -120,6 +120,7 @@ export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFiel
 
 const getColumnMetrics = async (
   project: string | null,
+  context: string | null,
   column_context: string | null,
   columns: string[],
   expression: string | null,
@@ -129,34 +130,20 @@ const getColumnMetrics = async (
   let fullColumns = columns
   if (column_context)
     fullColumns = fullColumns.map(column => processContext("merge", column_context, column))
-  const metricValues = await Promise.all(
-    fullColumns.map(async (key) => {
-      try {
-        const result = await logsActions.getMetrics(
-          project!,
-          expression,
-          metric ? metric : "mean",
-          key
-        );
-        return result;
-      } catch (error) {
-        console.error(`Error fetching metric for key ${key}`);
-        return "";
-      }
-    })
+  return await logsActions.getMetrics(
+    project!,
+    context!,
+    expression,
+    metric ? metric : "mean",
+    fullColumns
   );
-  const metrics_: { [key: string]: any } = columns.length
-    ? columns
-      .map((key, index) => ({ [key]: metricValues[index] }))
-      .reduce((acc, curr) => ({ ...acc, ...curr }))
-    : {};
-  return metrics_
 }
 
 export const getLogsDetails = async (
   item: TileProps,
   logsData: LogsResponseProps,
   fields: LogFieldsResponseProps,
+  context: string | null,
   column_context: string | null,
   project: string | null,
   filterExpression: string | null,
@@ -171,38 +158,40 @@ export const getLogsDetails = async (
     logsData, fields, column_context, sorting, hiddenColumns
   );
 
+  const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
+
   let groupedMetrics: {[key: string]: {[key: string]: number | string}} = {};
   if (groupingExpression) {
     const dataTypes = fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type])) : {}
-    const allColumns = [...paramsProperties, ...entriesProperties];
-    Object.keys((logsData.logs as GroupedLogPropsRaw)[groupingExpression] || {}).filter(
+    const groupingValues = Object.keys((logsData.logs as GroupedLogPropsRaw)[(groupingExpression as string).split(",")[0]] || {}).filter(
       key => !["count", "group_count"].includes(key) && Boolean(key)
-    ).forEach(async (groupingValue) => {
+    );
+    const metrics = (await Promise.all(groupingValues.map(groupingValue => {
       const groupingColumnId = (groupingExpression as string).split(",")[0];
       const metric_ = metric ?? "mean";
       const { updatedFilterExpression } = getGroupingFilters(
         filterExpression, groupingColumnId, groupingValue, "", dataTypes, fields
       );
-      const metrics = await Promise.all(allColumns.map(async (key) => await logsActions.getMetrics(
-          project!,
-          updatedFilterExpression,
-          metric_,
-          key.replace("Entries/", "").replace("Parameters/", "")
-      )));
-      groupedMetrics[groupingValue] = metrics.map(
-        (metric, idx) => ({ [allColumns[idx]]: metric })).reduce((acc, curr) => ({ ...acc, ...curr }), {}
-      );
-    });
+      return getColumnMetrics(
+        project,
+        context,
+        column_context,
+        columns,
+        updatedFilterExpression,
+        metric_,
+        logsActions
+      )
+    })));
+    groupedMetrics = metrics.map((metric, idx) => ({ [groupingValues[idx]]: metric })).reduce((acc, curr) => ({ ...acc, ...curr }), {});
   }
 
   /* Handle column metrics */
   // Getting metrics for filtered logs, and min / max values for full logs.
   // Min / max bounds are used to set the filtering range for numeric columns
-  const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
   const [metrics, minimums, maximums] = await Promise.all([
-    getColumnMetrics(project, column_context, columns, filterExpression, item.metric, logsActions),
-    getColumnMetrics(project, column_context, columns, null, "min", logsActions),
-    getColumnMetrics(project, column_context, columns, null, "max", logsActions)
+    getColumnMetrics(project, context, column_context, columns, filterExpression, item.metric, logsActions),
+    getColumnMetrics(project, context, column_context, columns, null, "min", logsActions),
+    getColumnMetrics(project, context, column_context, columns, null, "max", logsActions)
   ]);
 
   // Min-max boundaries for numeric and time-like column filters
