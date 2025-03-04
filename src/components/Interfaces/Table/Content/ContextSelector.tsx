@@ -4,7 +4,7 @@ import Tooltip from "@/components/Common/Misc/Tooltip";
 import ActionButton from "../../../Common/Buttons/Action";
 import BaseDropdown from "../../../Common/Dropdowns/Base";
 import { DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuSub, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSubTrigger } from "../../../UI/dropdown-menu";
-import { Context, ContextActions, ItemType, TableDataItem } from "@/types/evals/grid";
+import { Context, ContextActions, ItemType, TableDataItem, LogsActions } from "@/types/evals/grid";
 import { TileProps } from "@/types/evals/grid";
 import { Braces, Check, Folder, FolderTree, Grid2x2, X, Trash } from "lucide-react";
 import { useState } from "react";
@@ -20,6 +20,8 @@ const ContextSelector = ({
     setContext,
     button,
     contextActions,
+    logsActions,
+    fields
 }: {
     project: string | undefined,
     contexts_: Context[],
@@ -29,7 +31,9 @@ const ContextSelector = ({
     context?: string,
     setContext?: (context: string) => void,
     button?: React.ReactNode,
-    contextActions: ContextActions
+    contextActions: ContextActions,
+    logsActions: LogsActions,
+    fields: string[]
 }) => {
     const [contexts, setContexts] = useState<Context[]>(contexts_);
     const finalSetContext = (updateItem != undefined && item != undefined) ? (ctx: string) => {
@@ -104,9 +108,14 @@ const ContextSelector = ({
                             : nodeName
                         }
                     </div>
-                    {!isColumnContext && project && 
+                    {project && 
                         <div onClick={(e) => e.stopPropagation()}>
-                            <DeleteDialog variant="warning" type={"context"} args={[project, attr]} deletingFunction={contextActions.delete}/>
+                            <DeleteDialog 
+                                variant="warning" 
+                                type={isColumnContext ? "column context" : "context"} 
+                                args={isColumnContext ? [project, context, fields.filter(field => field.startsWith(nodePath)).map(field => ([null, field])), "all"]: [project, context]} 
+                                deletingFunction={isColumnContext ? logsActions.delete : contextActions.delete}
+                            />
                         </div>
                     }
                 </DropdownMenuItem>
@@ -154,7 +163,7 @@ const ContextSelector = ({
                                     prefix={prefix}
                                     setter={setter}
                                     project={project}
-                                    isColumnContext={false}
+                                    isColumnContext={isColumnContext}
                                 />
                             ))}
                         </DropdownMenuSubContent>
@@ -305,6 +314,7 @@ const ContextSelector = ({
                                 isTopLevel={true}
                                 showRoot={true}
                                 attr={item.column_context}
+                                isColumnContext={true}
                                 setter={updateItem(item, "column_context")}
                                 project={project}
                             />

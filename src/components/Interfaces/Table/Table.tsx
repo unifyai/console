@@ -383,6 +383,8 @@ const LogsTable = ({
             item={item}
             updateItem={updateItem}
             contextActions={contextActions}
+            logsActions={logsActions}
+            fields={[...paramsProperties, ...entriesProperties]}
           />
           <GlobalFilter
             interactive={interactive}

@@ -20,16 +20,11 @@ type ColumnDeleteProps = {
 const ColumnDelete = ({ interactive, project, column, getLogFieldsIds, deleteLogFields, context, columnContext }: ColumnDeleteProps) => {
 	const [showDialog, setShowDialog] = useState(false);
     
-    const deletingFunction = async (project: string, context : string | null) => {
-        const sanitizedField = columnContext ? processContext("merge", columnContext, sanitizeId(column)) : sanitizeId(column)
-        const ids : any = await getLogFieldsIds(project, context ?? null, columnContext ?? null, null, null, null, null, sanitizedField, null, null, null, null, "True", null)
-        const fieldsToDelete : [number, string][] = ids.map((id: number) => ([id, sanitizeId(column)]))
-        return deleteLogFields(project, context, fieldsToDelete, "all")
-    }
-	const args = [project, context]
+    const sanitizedField = columnContext ? processContext("merge", columnContext, sanitizeId(column)) : sanitizeId(column)
+	const args = [project, context, [[null, sanitizedField]], "all"]
     const dialog = (showDialog &&
 		<DeleteDialog
-			deletingFunction={deletingFunction}
+			deletingFunction={deleteLogFields}
 			args={args}
 			type="column"
 			showDialog={showDialog}
