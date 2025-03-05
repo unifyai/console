@@ -1,6 +1,4 @@
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { getCurrentUser } from "@/lib/user/user";
-import { Suspense } from "react";
 import Main from "@/components/Interfaces/Main";
 import {
     getLogFields,
@@ -64,7 +62,8 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
         create: await createContext(apiKey),
     }
 
-    const interfaceActions = {
+    const tabActions = {
+        // TODO: In future versions, we'll support multiple interfaces per project
         create: await createInterface(apiKey),
         update: await updateInterface(apiKey),
         get: await getInterface(apiKey),
@@ -73,18 +72,16 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
 
     return (
         <div className="w-full h-full">
-            <Suspense fallback={<SkeletonLoader />}>
-                <Main
-                    project_={searchParams?.project}
-                    interface_={searchParams?.tab}
-                    projectsActions={projectsActions}
-                    logsActions={logsActions}
-                    derivedEntryActions={derivedEntryActions}
-                    contextActions={contextActions}
-                    fieldsActions={fieldsActions}
-                    interfaceActions={interfaceActions}
-                />
-            </Suspense>
+            <Main
+                project={searchParams?.project}
+                tab={searchParams?.tab}
+                projectsActions={projectsActions}
+                logsActions={logsActions}
+                derivedEntryActions={derivedEntryActions}
+                contextActions={contextActions}
+                fieldsActions={fieldsActions}
+                tabActions={tabActions}
+            />
         </div>
     );
 };
