@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Card from "./Card";
 import { TableArguments } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
-import { DerivedEntryActions, Context, ContextActions, Interface, InterfaceActions, ItemType, LogsActions, FieldsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
+import { DerivedEntryActions, Context, ContextActions, TabProps, TabActions, ItemType, LogsActions, FieldsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
 import { Braces, Copy, EyeOff, Grid2x2, Grip, Loader2, Maximize2, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
@@ -61,7 +61,7 @@ const CardGrid = ({
     tableData: TableDataProps,
     tableArguments: TableArguments,
     plotData: PlotDataProps,
-    savedInterface: Interface,
+    savedInterface: TabProps,
     interfaceCreated: boolean,
     tempInterfaceCreated: boolean,
     interface_1: string | null,
@@ -76,7 +76,7 @@ const CardGrid = ({
     fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
     contextActions: ContextActions,
-    interfaceActions: InterfaceActions
+    interfaceActions: TabActions
 }) => {
     const router = useRouter();
 
@@ -174,7 +174,7 @@ const CardGrid = ({
 
     // update interface – preserves context functionality
     const updateInterface = (
-        savedInterface: Interface | null = null,
+        savedInterface: TabProps | null = null,
     ) => {
         const context_1 = savedInterface != null ? savedInterface?.context : context;
         const items_1 = savedInterface?.items || items;
@@ -190,7 +190,7 @@ const CardGrid = ({
 
     // get latest interface (including context)
     const getLatestInterface = () => {
-        interfaceActions.get(project as string, true).then((ints: Interface[]) => {
+        interfaceActions.get(project as string, true).then((ints: TabProps[]) => {
             const currentInterface = ints.find(i => i.name == interface_);
             setContext(currentInterface?.context);
             setItems(currentInterface?.items.map(item => ({

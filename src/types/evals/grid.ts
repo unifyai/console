@@ -118,7 +118,7 @@ export interface Context {
     description: string
 }
 
-export interface Interface {
+export interface TabProps {
     name: string,
     project: string,
     context: string | undefined,
@@ -155,8 +155,8 @@ export interface ContextActions {
     create: (name: string, project: string) => Promise<ResponseProps>,
 }
 
-export interface InterfaceActions {
-    get: (project: string, temporary: boolean) => Promise<Interface[]>,
+export interface TabActions {
+    get: (project: string, temporary: boolean) => Promise<TabProps[]>,
     create: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, temporary: boolean) => Promise<ResponseProps>,
     update: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, new_name: string | undefined, temporary: boolean) => Promise<ResponseProps>,
     delete: (name: string, project: string, temporary: boolean) => Promise<ResponseProps>
