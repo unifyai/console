@@ -408,17 +408,19 @@ const LogsTable = ({
         </div>
       )}
       {project && (
-        <div className="w-fit scale-90 flex gap-2">
-          <PageController
-            interactive={interactive}
-            totalPages={totalPages}
-            pageNumber={pageNumber}
-            setPageNumber={updateItem(item, "page_number")}
-            pageLogs={logs.length}
-            totalLogs={logsData.count}
-            limit={limit}
-            logs={logs}
-          />
+        <div className="w-fit flex gap-2">
+          <div className="scale-90">
+            <PageController
+              interactive={interactive}
+              totalPages={totalPages}
+              pageNumber={pageNumber}
+              setPageNumber={updateItem(item, "page_number")}
+              pageLogs={logs.length}
+              totalLogs={logsData.count}
+              limit={limit}
+              logs={logs}
+            />
+          </div>
           <FreezeLogs item={item} updateItem={updateItem} />
           <RefreshLogs
             item={item}
