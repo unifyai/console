@@ -195,7 +195,7 @@ export function searchParamToFilters (searchExpression: string | undefined, colu
 	const filters = searchExpression
 		.split("§")
 		.map(filter => {
-				let [column, fn, value] = filter.split("@");
+				let [column, fn, value] = filter.split("~");
 				if (columnContext)
 					column = processContext("merge", columnContext, column)
 				return { [column]: { [fn]: value } };

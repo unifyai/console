@@ -215,7 +215,7 @@ const LogsTable = ({
       keys.length
         ? Object.entries(filtersObj)
           .map(([cKey, val]) =>
-            Object.entries(val).map(([fn, val2]) => `${cKey}@${fn}@${val2}`)
+            Object.entries(val).map(([fn, val2]) => `${cKey}~${fn}~${val2}`)
           )
           .flat()
           .join("§")
