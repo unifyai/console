@@ -43,11 +43,18 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
   const handleInputChange = (inputValue: string) => {
 
     setValue(inputValue);
-    const lastWord = inputValue.trim().split(' ').pop() || '';
     
+    // Show suggestions when ending with operator
+    const operatorTrigger = /[\+\-\*\/\%\(=<>]$/.test(inputValue);
+    if (operatorTrigger && withAutocomplete) {
+      setFilteredOptions(options);
+      setShowSuggestions(true);
+      return;
+    }
+
+    // Split by both spaces and operators to find current word
+    const lastWord = inputValue.split(/[\s\+\-\*\/\%\(=<>]/).pop() || ''; // Without ")"
     if (!lastWord) {
-      setFilteredOptions([]);
-      setShowSuggestions(false);
       return;
     }
 
@@ -90,35 +97,38 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
           selectSuggestion(filteredOptions[0].name)
         }
         else if (withAutocomplete) {
-          // Show all options if at start of input or previous character is a whitespace
+          // Show children suggestions if input preceded by a dot, otherwise show all suggestions
           const cursorPosition = containerRef.current?.selectionStart ?? 0;
-          if (cursorPosition === 0 || value[cursorPosition - 1] === " ") {
-            setFilteredOptions(options);
-            setShowSuggestions(true);
+          const textBeforeCursor = value.slice(0, cursorPosition);
+          const delimiters = /[\s\+\-\*\/\%\(=<>\.]/; // Without ")"
+          let matchStart = cursorPosition - 1;
+          while (matchStart >= 0 && !delimiters.test(textBeforeCursor[matchStart])) {
+            matchStart--;
           }
-          else if (value[cursorPosition - 1] === ".") {
-            // Show children options if the word before the last dot is a parent option
-            const lastWord = value.split(" ").at(-1)!.split(".").at(-2)!
-            const isParent = options.some(opt => opt.name === lastWord && opt.children.length)
-            if (isParent) {
-              const option = options.find(opt => opt.name === lastWord && opt.children.length)!
-              const childrenOptions = options.filter(opt => option.children.includes(opt.name));
+          if (textBeforeCursor[matchStart] === ".") {
+            const parentWord = textBeforeCursor.slice(0, matchStart).split(delimiters).pop();
+            const parentOption = options.find(opt => opt.name === parentWord && opt.children.length);
+            if (parentOption) {
+              const childrenOptions = options.filter(opt => parentOption.children.includes(opt.name));
               setFilteredOptions(childrenOptions);
-              setShowSuggestions(true);
+              return setShowSuggestions(true);
             }
           }
+          setFilteredOptions(options);
+          setShowSuggestions(true);
         }
         break
       case 'Enter':
         if (highlightedIndex >= 0) selectSuggestion(filteredOptions[highlightedIndex].name)
-        if (showSuggestions && filteredOptions.length) selectSuggestion(filteredOptions[0].name)
-        if (!showSuggestions && onEnter) onEnter(e)
+        else if (showSuggestions && filteredOptions.length) selectSuggestion(filteredOptions[0].name)
+        else if (!showSuggestions && onEnter) onEnter(e)
         break;
     }
   };
 
   const selectSuggestion = (option: string) => {
     const cursorPosition = containerRef.current?.selectionStart ?? 0;
+    const textBeforeCursor = value.slice(0, cursorPosition);
     const originalValue = value;
     let newValue = originalValue;
   
@@ -126,16 +136,21 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
     const selectedOption = options.find(opt => opt.name === option);
     const suffix = selectedOption?.children?.length ? '.' : ' ';
   
-    // Build new value with appropriate suffix
-    if (cursorPosition === 0 || originalValue[cursorPosition - 1] === " " || originalValue[cursorPosition - 1] === ".") {
-      newValue = originalValue.slice(0, cursorPosition) + option + suffix + originalValue.slice(cursorPosition);
-    } else {
-      const textBeforeCursor = originalValue.slice(0, cursorPosition);
-      const textAfterCursor = originalValue.slice(cursorPosition);
-      const lastWordStart = textBeforeCursor.lastIndexOf(" ") + 1;
-      newValue = textBeforeCursor.slice(0, lastWordStart) + option + suffix + textAfterCursor;
+    // Find start of current partial word using the same delimiters as input parsing, then
+    // Walk backwards to find word start, then
+    // Replace only the matching portion
+    const delimiters = /[\s\+\-\*\/\%\(\)=<>\.]/; // Without ")"
+    let matchStart = cursorPosition - 1;
+    while (matchStart >= 0 && !delimiters.test(textBeforeCursor[matchStart])) {
+      matchStart--;
     }
-  
+    matchStart++;
+    const partialWord = originalValue.slice(matchStart, cursorPosition);
+    if (option.toLowerCase().startsWith(partialWord.toLowerCase())) {
+      newValue = originalValue.slice(0, matchStart) + option + suffix + originalValue.slice(cursorPosition);
+    } else {
+      newValue = originalValue.slice(0, cursorPosition) + option + suffix + originalValue.slice(cursorPosition);
+    }
     setValue(newValue);
     
     // If option has children, show them as next suggestions
@@ -152,7 +167,8 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
     // Move cursor to end of inserted text
     setTimeout(() => {
       containerRef.current?.focus();
-      const newCursorPosition = cursorPosition + option.length + suffix.length + 1;
+      const insertedLength = option.length + suffix.length + 1;
+      const newCursorPosition = option.toLowerCase().startsWith(partialWord.toLowerCase()) ? matchStart + insertedLength : cursorPosition + insertedLength
       containerRef.current?.setSelectionRange(newCursorPosition, newCursorPosition);
     }, 0);
   };
