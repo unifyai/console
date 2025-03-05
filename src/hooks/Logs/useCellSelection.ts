@@ -333,7 +333,7 @@ export const useCellSelection = ({
       // Simple click:
       // - Select / deselect all row cells when clicking on index cell, if the row has any cell, or
       // - Select single cell, or deselect all if clicking on a selected cell
-      if (!e.ctrlKey && !e.shiftKey) {
+      if (!e.ctrlKey && !e.shiftKey && !e.metaKey) {
         let selectedStartCell = getCellSelectionData(cell)
         if (isRowIndexCell(cell)) {
           const rowCells = cell.row.getAllCells();
@@ -358,10 +358,10 @@ export const useCellSelection = ({
         }
       }
 
-      // Ctrl click:
+      // Ctrl (Cmd for Macs) click:
       // - Append /remove all row cells when clicking on index cell, if row has any cell, or
       // - Append single cell, or desect it if already selected
-      if (e.ctrlKey) {
+      if (e.ctrlKey || e.metaKey) {
         let selectedStartCell = getCellSelectionData(cell)
         if (isRowIndexCell(cell)) {
           const rowCells = cell.row.getAllCells();
@@ -409,7 +409,7 @@ export const useCellSelection = ({
         const firstCell = validCells.at(0) as Cell<any, any>;
 
         // Simple click: Select all leaf columns cells when clicking
-        if (!e.ctrlKey && !e.shiftKey) {
+        if (!e.ctrlKey && !e.shiftKey && !e.metaKey) {
           setSelectedCells(
             validCells.every(c => selectedCells.includes(c.id))
               ? []
@@ -420,8 +420,8 @@ export const useCellSelection = ({
           }
         }
 
-        // Ctrl click: Append all column leaf cells when clicking on index cell
-        if (e.ctrlKey) {
+        // Ctrl (Cmd for Macs) click: Append all column leaf cells when clicking on index cell
+        if (e.ctrlKey || e.metaKey) {
           setSelectedCells(
             validCells.every(c => selectedCells.includes(c.id))
               ? selectedCells.filter(c => !validCells.map(c => c.id).includes(c))
