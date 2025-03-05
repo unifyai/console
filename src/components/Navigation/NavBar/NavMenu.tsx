@@ -16,6 +16,7 @@ import {
 } from "@/components/UI/sidebar";
 import NavList from "./NavList";
 import UnifyLogo from "@/components/Common/Misc/UnifyLogo";
+import UnifyIcon from "@/components/Common/Misc/UnifyIcon";
 import DarkModeToggle from "./DarkModeToggle";
 import SignOutButton from "./SignOut";
 import { NavItem } from "@/types/navigation";
@@ -125,26 +126,29 @@ export default function NavMenu() {
       collapsible="icon"
     >
       {/* SidebarHeader with crossfade logos */}
-      <SidebarHeader className="relative h-12 w-full flex items-center justify-center overflow-hidden">
-        {/* Collapsed logo (ivyLogoOnly) */}
-        <Image
-          src={ivyLogoOnly}
-          alt="Logo (collapsed)"
-          priority
-          className={`
-            absolute h-5 w-5 object-contain 
-            transition-opacity duration-300 
-            ${state === "collapsed" ? "opacity-100" : "opacity-0"}
-          `}
-        />
-        {/* Expanded logo (UnifyLogo) */}
-        <div
-          className={`
-            transition-opacity duration-300 
-            ${state === "collapsed" ? "opacity-0" : "opacity-100"}
-          `}
-        >
-          <UnifyLogo theme={resolvedTheme} />
+      <SidebarHeader className="relative h-12 w-full flex items-center justify-center">
+        <div className="relative flex items-center justify-center h-full w-full">
+          {/* Collapsed logo (using UnifyIcon) */}
+          <div 
+            className={`
+              absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2
+              transition-opacity duration-300 ease-in-out
+              ${state === "collapsed" ? "opacity-100 z-10" : "opacity-0 z-0"}
+            `}
+          >
+            <UnifyIcon height={24} width={24} />
+          </div>
+          
+          {/* Expanded logo (UnifyLogo) */}
+          <div
+            className={`
+              absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2
+              transition-opacity duration-300 ease-in-out
+              ${state === "expanded" ? "opacity-100 z-10" : "opacity-0 z-0"}
+            `}
+          >
+            <UnifyLogo theme={resolvedTheme} />
+          </div>
         </div>
       </SidebarHeader>
 
