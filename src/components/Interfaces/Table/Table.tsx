@@ -570,6 +570,7 @@ const LogsTable = ({
                           dataTypes,
                           fields,
                           logs,
+                          logs.length ? [...entriesProperties, ...paramsProperties] : []
                         );
                       }}
                     />
@@ -582,7 +583,11 @@ const LogsTable = ({
                         const groupedMetrics = tableDataItem_.groupedMetrics;
                         const newKey = key.replace("Entries/", "").replace("Parameters/", "");
                         const groupingValue = row.getValue(key) as string;
-                        const value = groupedMetrics[groupingValue] ? groupedMetrics[groupingValue][newKey] : undefined;
+                        const groupingColumnId = row.groupingColumnId;
+                        const value = (
+                          groupedMetrics[groupingColumnId]
+                          && groupedMetrics[groupingColumnId][groupingValue]
+                        ) ? groupedMetrics[groupingColumnId][groupingValue][newKey] : undefined;
                         return typeof value === "number" ? value.toFixed(2) : value?.toString() ?? "";
                       }}
                     />

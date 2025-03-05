@@ -118,7 +118,7 @@ export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFiel
   return { entriesProperties, paramsProperties, logs, params };
 }
 
-const getColumnMetrics = async (
+export const getColumnMetrics = async (
   project: string | null,
   context: string | null,
   column_context: string | null,
@@ -160,14 +160,14 @@ export const getLogsDetails = async (
 
   const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
 
-  let groupedMetrics: {[key: string]: {[key: string]: number | string}} = {};
+  let groupedMetrics: {[key: string]: {[key: string]: {[key: string]: number | string}}} = {};
   if (groupingExpression) {
     const dataTypes = fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type])) : {}
     const groupingValues = Object.keys((logsData.logs as GroupedLogPropsRaw)[(groupingExpression as string).split(",")[0]] || {}).filter(
       key => !["count", "group_count"].includes(key) && Boolean(key)
     );
+    const groupingColumnId = (groupingExpression as string).split(",")[0];
     const metrics = (await Promise.all(groupingValues.map(groupingValue => {
-      const groupingColumnId = (groupingExpression as string).split(",")[0];
       const metric_ = metric ?? "mean";
       const { updatedFilterExpression } = getGroupingFilters(
         filterExpression, groupingColumnId, groupingValue, "", dataTypes, fields
@@ -182,7 +182,11 @@ export const getLogsDetails = async (
         logsActions
       )
     })));
-    groupedMetrics = metrics.map((metric, idx) => ({ [groupingValues[idx]]: metric })).reduce((acc, curr) => ({ ...acc, ...curr }), {});
+    groupedMetrics = {
+      [groupingColumnId]: metrics.map(
+        (metric, idx) => ({ [groupingValues[idx]]: metric })).reduce((acc, curr) => ({ ...acc, ...curr }), {}
+      )
+    }
   }
 
   /* Handle column metrics */
