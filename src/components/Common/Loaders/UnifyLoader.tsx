@@ -27,7 +27,7 @@ export const UnifyLoader = ({
           }}>
             <LoadingElement height={150} width={150} className="text-primary" />
           </div>
-          <p className="text-lg text-primary">{message}</p>
+          <p className="text-lg text-foreground">{message}</p>
         </div>
       }
     >
