@@ -43,7 +43,10 @@ import { ExpandProvider } from "@/contexts/ExpandContext";
 ------------------------------------------------------------------------*/
 function compressRowNumbers(rows: number[]): string {
   if (!rows.length) return "";
-  const sorted = [...rows].sort((a, b) => a - b);
+  // Convert 0-based indices to 1-based for UI display
+  const sorted = [...rows]
+    .sort((a, b) => a - b)
+    .map(row => row + 1); // Add 1 to make it 1-based
 
   const ranges: string[] = [];
   let start = sorted[0];
@@ -537,6 +540,18 @@ function CollapsiblePatchLineNode({
   const baseTime = node.baseSpanRef?.exec_time ?? 0;
   const targetTime = node.targetSpanRef?.exec_time ?? 0;
 
+  // Extract LLM usage data
+  const baseLlmUsage = node.baseSpanRef?.llm_usage;
+  const baseLlmUsageIncCache = node.baseSpanRef?.llm_usage_inc_cache;
+  const targetLlmUsage = node.targetSpanRef?.llm_usage;
+  const targetLlmUsageIncCache = node.targetSpanRef?.llm_usage_inc_cache;
+  
+  // Check if this is a cached call based on type OR cached tokens
+  const isBaseSpanCached = node.baseSpanRef?.type === "llm-cached" || 
+                          (baseLlmUsage?.prompt_tokens_details?.cached_tokens ?? 0) > 0;
+  const isTargetSpanCached = node.targetSpanRef?.type === "llm-cached" || 
+                           (targetLlmUsage?.prompt_tokens_details?.cached_tokens ?? 0) > 0;
+
   let timeLabel = "";
   let timeData: any = null;
 
@@ -590,10 +605,144 @@ function CollapsiblePatchLineNode({
     }
   }
 
-  const baseCost = node.baseSpanRef?.cost ?? 0;
-  const baseCostIncCache = node.baseSpanRef?.cost_inc_cache ?? 0;
-  const targetCost = node.targetSpanRef?.cost ?? 0;
-  const targetCostIncCache = node.targetSpanRef?.cost_inc_cache ?? 0;
+  console.log(node)
+
+  // Get costs from LLM usage if available, otherwise use direct cost properties
+  const baseCost = baseLlmUsage?.cost ?? node.baseSpanRef?.cost ?? 0;
+  const baseCostIncCache = baseLlmUsageIncCache?.cost ?? node.baseSpanRef?.cost_inc_cache ?? 0;
+  const targetCost = targetLlmUsage?.cost ?? node.targetSpanRef?.cost ?? 0;
+  const targetCostIncCache = targetLlmUsageIncCache?.cost ?? node.targetSpanRef?.cost_inc_cache ?? 0;
+
+  // Get token details - for cached calls, prefer llm_usage_inc_cache
+  const basePromptTokens = isBaseSpanCached 
+    ? (baseLlmUsageIncCache?.prompt_tokens ?? baseLlmUsage?.prompt_tokens ?? 0)
+    : (baseLlmUsage?.prompt_tokens ?? 0);
+  
+  const baseReasoningTokens = isBaseSpanCached
+    ? (baseLlmUsageIncCache?.reasoning_tokens ?? baseLlmUsage?.reasoning_tokens ?? 0)
+    : (baseLlmUsage?.reasoning_tokens ?? 0);
+  
+  const baseCompletionTokens = isBaseSpanCached
+    ? (baseLlmUsageIncCache?.completion_tokens ?? baseLlmUsage?.completion_tokens ?? 0)
+    : (baseLlmUsage?.completion_tokens ?? 0);
+  
+  const baseTotalTokens = isBaseSpanCached
+    ? (baseLlmUsageIncCache?.total_tokens ?? baseLlmUsage?.total_tokens ?? 0)
+    : (baseLlmUsage?.total_tokens ?? 0);
+  
+  const targetPromptTokens = isTargetSpanCached
+    ? (targetLlmUsageIncCache?.prompt_tokens ?? targetLlmUsage?.prompt_tokens ?? 0)
+    : (targetLlmUsage?.prompt_tokens ?? 0);
+  
+  const targetReasoningTokens = isTargetSpanCached
+    ? (targetLlmUsageIncCache?.reasoning_tokens ?? targetLlmUsage?.reasoning_tokens ?? 0)
+    : (targetLlmUsage?.reasoning_tokens ?? 0);
+  
+  const targetCompletionTokens = isTargetSpanCached
+    ? (targetLlmUsageIncCache?.completion_tokens ?? targetLlmUsage?.completion_tokens ?? 0)
+    : (targetLlmUsage?.completion_tokens ?? 0);
+  
+  const targetTotalTokens = isTargetSpanCached
+    ? (targetLlmUsageIncCache?.total_tokens ?? targetLlmUsage?.total_tokens ?? 0)
+    : (targetLlmUsage?.total_tokens ?? 0);
+
+  // Extract cached tokens info
+  const baseCachedTokens = baseLlmUsage?.prompt_tokens_details?.cached_tokens ?? 0;
+  const targetCachedTokens = targetLlmUsage?.prompt_tokens_details?.cached_tokens ?? 0;
+
+  // Calculate effective token count (excluding cached tokens)
+  const baseEffectiveTokens = baseTotalTokens - baseCachedTokens;
+  const targetEffectiveTokens = targetTotalTokens - targetCachedTokens;
+
+  // Prepare token label - show total tokens
+  let tokenLabel = "";
+  let tokenData: any = null;
+
+  if (!multiMode) {
+    if (baseTotalTokens > 0) {
+      tokenLabel = `${baseTotalTokens} ${baseCachedTokens > 0 ? `(${baseCachedTokens} cached)` : ""} tks`;
+      tokenData = {
+        title: "Token Usage",
+        basePromptTokens,
+        baseReasoningTokens,
+        baseCompletionTokens,
+        baseTotalTokens,
+        baseCachedTokens,
+        baseEffectiveTokens,
+        baseCost,
+        isBaseCached: isBaseSpanCached,
+        basePromptTokensDetails: baseLlmUsage?.prompt_tokens_details,
+        baseCompletionTokensDetails: baseLlmUsage?.completion_tokens_details,
+      };
+    }
+  } else {
+    if (node.marker === "+") {
+      if (targetTotalTokens > 0) {
+        tokenLabel = `${targetTotalTokens} ${targetCachedTokens > 0 ? `(${targetCachedTokens} cached)` : ""} tks`;
+        tokenData = {
+          title: "Token Usage (Comparison Only)",
+          targetPromptTokens,
+          targetReasoningTokens,
+          targetCompletionTokens,
+          targetTotalTokens,
+          targetCachedTokens,
+          targetEffectiveTokens,
+          targetCost,
+          isTargetCached: isTargetSpanCached,
+          targetPromptTokensDetails: targetLlmUsage?.prompt_tokens_details,
+          targetCompletionTokensDetails: targetLlmUsage?.completion_tokens_details,
+        };
+      }
+    } else if (node.marker === "-") {
+      if (baseTotalTokens > 0) {
+        tokenLabel = `${baseTotalTokens} ${baseCachedTokens > 0 ? `(${baseCachedTokens} cached)` : ""} tks`;
+        tokenData = {
+          title: "Token Usage (Base Only)",
+          basePromptTokens,
+          baseReasoningTokens,
+          baseCompletionTokens,
+          baseTotalTokens,
+          baseCachedTokens,
+          baseEffectiveTokens,
+          baseCost,
+          isBaseCached: isBaseSpanCached,
+          basePromptTokensDetails: baseLlmUsage?.prompt_tokens_details,
+          baseCompletionTokensDetails: baseLlmUsage?.completion_tokens_details,
+        };
+      }
+    } else {
+      if (baseTotalTokens > 0 || targetTotalTokens > 0) {
+        const diffTokens = targetTotalTokens - baseTotalTokens;
+        const diffEffectiveTokens = targetEffectiveTokens - baseEffectiveTokens;
+        const signTokens = diffTokens >= 0 ? "+" : "-";
+        tokenLabel = `${signTokens}${Math.abs(diffTokens)} tks`;
+        tokenData = {
+          title: "Token Usage",
+          basePromptTokens,
+          baseReasoningTokens,
+          baseCompletionTokens,
+          baseTotalTokens,
+          baseCachedTokens,
+          baseEffectiveTokens,
+          targetPromptTokens,
+          targetReasoningTokens,
+          targetCompletionTokens,
+          targetTotalTokens,
+          targetCachedTokens,
+          targetEffectiveTokens,
+          diffSignTokens: signTokens,
+          diffAbsTokens: Math.abs(diffTokens),
+          diffEffectiveTokens: diffEffectiveTokens,
+          isBaseCached: isBaseSpanCached,
+          isTargetCached: isTargetSpanCached,
+          basePromptTokensDetails: baseLlmUsage?.prompt_tokens_details,
+          baseCompletionTokensDetails: baseLlmUsage?.completion_tokens_details,
+          targetPromptTokensDetails: targetLlmUsage?.prompt_tokens_details,
+          targetCompletionTokensDetails: targetLlmUsage?.completion_tokens_details,
+        };
+      }
+    }
+  }
 
   let costLabel = "";
   let costData: any = null;
@@ -693,7 +842,7 @@ function CollapsiblePatchLineNode({
           {node.marker === " " ? "" : node.marker}
         </span>
 
-        {/* Span name + optional time/cost labels */}
+        {/* Span name + optional time/cost/token labels */}
         <div className="truncate flex items-center">
           {node.name}
           {timeLabel && timeData && (
@@ -723,6 +872,67 @@ function CollapsiblePatchLineNode({
                   {timeData.diffSign && (
                     <p>
                       Difference: {timeData.diffSign}{timeData.diffValue.toFixed(2)}{timeData.diffUnit}
+                    </p>
+                  )}
+                </div>
+              </HoverCardContent>
+            </HoverCard>
+          )}
+          {tokenLabel && tokenData && (
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <span className={`ml-2 text-xs ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'} underline cursor-pointer`}>
+                  {tokenLabel}
+                </span>
+              </HoverCardTrigger>
+              <HoverCardContent className="p-2 w-fit">
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p className="font-semibold">{tokenData.title}</p>
+                  {tokenData.baseTotalTokens > 0 && (
+                    <div>
+                      <p>Base Token Usage:{tokenData.isBaseCached ? " (From Cache)" : ""}</p>
+                      <ul className="list-disc ml-4">
+                        <li>Prompt: {tokenData.basePromptTokens}</li>
+                        {tokenData.baseReasoningTokens > 0 && (
+                          <li>Reasoning: {tokenData.baseReasoningTokens}</li>
+                        )}
+                        <li>Completion: {tokenData.baseCompletionTokens}</li>
+                        <li>Total: {tokenData.baseTotalTokens}</li>
+                        {tokenData.baseCachedTokens > 0 && (
+                          <>
+                            <li>Cached: {tokenData.baseCachedTokens}</li>
+                            <li>Effective (excl. cached): {tokenData.baseEffectiveTokens}</li>
+                          </>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                  {tokenData.targetTotalTokens > 0 && (
+                    <div>
+                      <p>Comparison Token Usage:{tokenData.isTargetCached ? " (From Cache)" : ""}</p>
+                      <ul className="list-disc ml-4">
+                        <li>Prompt: {tokenData.targetPromptTokens}</li>
+                        {tokenData.targetReasoningTokens > 0 && (
+                          <li>Reasoning: {tokenData.targetReasoningTokens}</li>
+                        )}
+                        <li>Completion: {tokenData.targetCompletionTokens}</li>
+                        <li>Total: {tokenData.targetTotalTokens}</li>
+                        {tokenData.targetCachedTokens > 0 && (
+                          <>
+                            <li>Cached: {tokenData.targetCachedTokens}</li>
+                            <li>Effective (excl. cached): {tokenData.targetEffectiveTokens}</li>
+                          </>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                  {tokenData.diffSignTokens && (
+                    <p>
+                      Difference: {tokenData.diffSignTokens}{tokenData.diffAbsTokens} tokens 
+                      {(tokenData.baseCachedTokens > 0 || tokenData.targetCachedTokens > 0 || 
+                       tokenData.isBaseCached || tokenData.isTargetCached) && 
+                        ` (Effective: ${tokenData.diffEffectiveTokens >= 0 ? '+' : ''}${tokenData.diffEffectiveTokens})`
+                      }
                     </p>
                   )}
                 </div>

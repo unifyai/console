@@ -170,9 +170,12 @@ export default function RawView({
     // Group identical raw text among base + comps
     const groups = groupAllRowsByValue(value, comparables, baseLogIndex, comparisonLogsIndex);
 
+    // Filter out groups with empty raw text
+    const filteredGroups = groups.filter(group => group.rawText.trim() !== "");
+
     return (
       <div className="space-y-4">
-        {groups.map((g, i) => {
+        {filteredGroups.map((g, i) => {
           // For each distinct raw text
           const rowNums = g.rows;
           // Also group param versions among these rows

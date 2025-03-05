@@ -7,7 +7,6 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@/components/UI/accordion";
-import { Button } from "@/components/UI/button";
 import { FoldVertical, UnfoldVertical } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
 
@@ -20,6 +19,7 @@ import {
   isNumber,
   isTimestamp,
   isChat,
+  isPdf,
 } from "@/utils/evals/selection";
 import {
   gatherAllSubPaths,
@@ -42,6 +42,7 @@ import MatrixView from "./MatrixView";
 import StringView from "./StringView";
 import NumberView from "./NumberView";
 import TimestampView from "./TimestampView";
+import PdfView from "./PdfView";
 
 /*────────────────────────────────────────────────────────────────────────────
   unifyType => merges base + comps => single type. If multiple distinct => "string."
@@ -91,6 +92,9 @@ function pickView(props: LogComparisonProps & { prefix?: string; parentPath?: st
   }
   if (isTimestamp(value)) {
     return <TimestampView {...props} />;
+  }
+  if (isPdf(value)) {
+    return <PdfView {...props} />;
   }
   return <StringView {...props} />;
 }
@@ -155,6 +159,229 @@ function handleRecursiveToggle(
 }
 
 /*────────────────────────────────────────────────────────────────────────────
+  groupRowsByValue => groups values by their JSON representation for no-diff mode
+────────────────────────────────────────────────────────────────────────────*/
+function groupRowsByValue(rowValuePairs: { rowIndex: number; val: any }[]) {
+  const map = new Map<string, { value: any; rows: number[] }>();
+  
+  rowValuePairs.forEach(({ rowIndex, val }) => {
+    // Use a stable JSON representation as the key for grouping
+    // Handle undefined/null values specially since they stringify differently
+    let key;
+    if (val === undefined) {
+      key = "::undefined::";
+    } else if (val === null) {
+      key = "::null::";
+    } else {
+      try {
+        key = JSON.stringify(val);
+      } catch (e) {
+        // If value can't be stringified (e.g., circular reference)
+        // use a fallback representation
+        key = `::object::${typeof val}::${Object.keys(val).sort().join(",")}`;
+      }
+    }
+
+    if (!map.has(key)) {
+      map.set(key, { value: val, rows: [] });
+    }
+    map.get(key)!.rows.push(rowIndex);
+  });
+
+  // Return an array of groups with sorted row indices
+  return Array.from(map.values()).map((group) => ({
+    value: group.value,
+    rows: group.rows.sort((a, b) => a - b),
+  }));
+}
+
+/*─────────────────────────────────────────────────────────────────────────
+  renderNoDiffMode => render in no-diff mode with superset indices and grouped values
+──────────────────────────────────────────────────────────────────────────*/
+function renderNoDiffMode(
+  itemCount: number,
+  baseArr: any[],
+  comparables: any[][],
+  rowIndices: number[],
+  openKeys: Set<string>,
+  setOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>,
+  buildItemPath: (i: number) => string,
+  itemLabel: (i: number) => string,
+  options: {
+    baseLogIndex: number,
+    comparisonLogsIndex: number[],
+    version: string,
+    comparableVersions: string[],
+    diffMode: "none" | "lines" | "words" | "characters",
+    splitView: boolean,
+    displayMode: "text" | "markdown",
+    nestingLevel: number,
+    prefix: string,
+    parentPath: string,
+  }
+) {
+  const { 
+    baseLogIndex, comparisonLogsIndex, version, comparableVersions, 
+    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath 
+  } = options;
+  
+  // Build the open values array for the accordion
+  const openValues: string[] = [];
+  for (let i = 0; i < itemCount; i++) {
+    const path = buildItemPath(i);
+    if (openKeys.has(path)) {
+      openValues.push(itemLabel(i));
+    }
+  }
+
+  // Function to handle accordion value change
+  function handleAccordionValueChange(newVals: string[]) {
+    const oldSet = new Set(openValues);
+    const nextSet = new Set(newVals);
+
+    for (let i = 0; i < itemCount; i++) {
+      const lbl = itemLabel(i);
+      const had = oldSet.has(lbl);
+      const now = nextSet.has(lbl);
+      if (had !== now) {
+        const path = buildItemPath(i);
+        // toggle
+        if (openKeys.has(path)) {
+          setOpenKeys((prev) => {
+            const updated = new Set(prev);
+            updated.delete(path);
+            return updated;
+          });
+        } else {
+          setOpenKeys((prev) => {
+            const updated = new Set(prev);
+            updated.add(path);
+            return updated;
+          });
+        }
+      }
+    }
+  }
+
+  return (
+    <Accordion
+      type="multiple"
+      value={openValues}
+      onValueChange={handleAccordionValueChange}
+    >
+      {Array.from({ length: itemCount }, (_, i) => {
+        // 1. Gather values for this index from all rows
+        const rowValuePairs: { rowIndex: number, val: any }[] = [];
+        
+        // Add base value if it exists
+        if (i < baseArr.length) {
+          rowValuePairs.push({ rowIndex: rowIndices[0], val: baseArr[i] });
+        }
+        
+        // Add comparable values if they exist
+        comparables.forEach((compArr, j) => {
+          if (compArr && i < compArr.length) {
+            rowValuePairs.push({ rowIndex: rowIndices[j + 1], val: compArr[i] });
+          }
+        });
+        
+        // 2. Group identical values
+        const groups = groupRowsByValue(rowValuePairs);
+        
+        // Collect all row indices for this index to show in the accordion trigger
+        const allRowsForIndex = rowValuePairs.map(pair => pair.rowIndex).sort((a, b) => a - b);
+        
+        // 3. Create the path for this index
+        const path = buildItemPath(i);
+        const lbl = itemLabel(i);
+        
+        // 4. Determine type and icon for the item (using the first non-undefined value)
+        const firstVal = rowValuePairs.find(p => p.val !== undefined)?.val;
+        const itemType = getValueType(firstVal);
+        const icon = getTypeIcon(itemType);
+        
+        // 5. Setup recursive toggle handler
+        const isPathOpen = openKeys.has(path);
+        function handleExpandClick(e: React.MouseEvent) {
+          e.stopPropagation();
+          // Find the first value that's a complex type
+          const complexVal = rowValuePairs.find(p => {
+            const v = p.val;
+            return isDict(v) || isList(v);
+          })?.val;
+          
+          if (complexVal) {
+            // We'll use just this one value for gathering sub-paths
+            // since we only need the structure, not the actual values
+            handleRecursiveToggle(
+              complexVal,
+              [], // No comparables in this context
+              path,
+              prefix,
+              nestingLevel,
+              openKeys,
+              setOpenKeys
+            );
+          }
+        }
+        
+        return (
+          <AccordionItem key={lbl} value={lbl}>
+            <AccordionTrigger className="relative group flex items-center justify-between">
+              <span className="inline-flex items-center gap-2">
+                {icon} {lbl}
+                {allRowsForIndex.length > 0 && (
+                  <div className="ml-2 flex gap-1">
+                    <RowBadge rowNumbers={allRowsForIndex} mode="none" />
+                  </div>
+                )}
+              </span>
+              {(itemType === "dict" || itemType === "list") && (
+                <div className="absolute right-5 flex gap-1 items-center">
+                  <ActionButton
+                    variant="ghost"
+                    size="icon"
+                    tooltip={isPathOpen ? "Collapse All Children" : "Expand All Children"}
+                    onClick={handleExpandClick}
+                    icon={isPathOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+                  />
+                </div>
+              )}
+            </AccordionTrigger>
+            
+            <AccordionContent>
+              <div className="border-l ml-4 pl-1">
+                {groups.map((group, idx) => (
+                  <div key={idx} className="mb-2">
+                    <RowBadge rowNumbers={group.rows} mode="none" />
+                    <div className="mt-1">
+                      {pickView({
+                        value: group.value,
+                        comparables: [], // No comparables since we're showing a single unified value
+                        baseLogIndex: group.rows[0], // Use the first row as the base
+                        comparisonLogsIndex: [], // No comparison indices
+                        version,
+                        comparableVersions,
+                        diffMode,
+                        splitView,
+                        displayMode,
+                        nestingLevel: nestingLevel + 1,
+                        prefix,
+                        parentPath: path,
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        );
+      })}
+    </Accordion>
+  );
+}
+
+/*────────────────────────────────────────────────────────────────────────────
   "ListView" main component
 ────────────────────────────────────────────────────────────────────────────*/
 interface ListViewProps extends LogComparisonProps {
@@ -183,16 +410,21 @@ export default function ListView({
   const forceExpandAll = useExpandContextSelector(ctx => ctx.forceExpandAll);
   const forceCollapseAll = useExpandContextSelector(ctx => ctx.forceCollapseAll);
 
-  // Check if value is a list but don't return early
+  // Check if base is a valid list
   const isValidList = isList(value);
-
-  // Single vs multi
+  
+  // For multi-mode, check if any comparable is a valid list
   const multiMode = comparables && comparables.length > 0;
+  const hasValidComparables = multiMode && comparables.some(comp => isList(comp));
+  
+  // In multi-mode, we can proceed if either the base or any comparable is a valid list
+  const canProceed = isValidList || hasValidComparables;
+  
   const baseArr = isValidList ? (Array.isArray(value) ? value : []) as any[] : [];
 
   // itemCount => max length among base & comps
   let itemCount = baseArr.length;
-  if (isValidList && multiMode) {
+  if (canProceed && multiMode) {
     const compLens = (comparables ?? []).map((c) => (isList(c) ? c.length : 0));
     itemCount = Math.max(itemCount, ...compLens);
   }
@@ -214,7 +446,7 @@ export default function ListView({
   // On mount or if forceExpandAll/forceCollapseAll changes => expand/collapse all
   // Always call useEffect but conditionally execute its body
   useEffect(() => {
-    if (!isValidList || !parentPath) return; // if we have no valid list or parent path, we can't proceed
+    if (!canProceed || !parentPath) return; // if we don't have any valid lists or parent path, we can't proceed
     
     if (forceExpandAll || forceCollapseAll) {      
       const newSet = new Set(openKeys);
@@ -236,11 +468,11 @@ export default function ListView({
       }
       setOpenKeys(newSet);
     }
-  }, [forceExpandAll, forceCollapseAll, parentPath, prefix, nestingLevel, openKeys, value, multiMode, comparables, isValidList, setOpenKeys]);
+  }, [forceExpandAll, forceCollapseAll, parentPath, prefix, nestingLevel, openKeys, value, multiMode, comparables, canProceed, setOpenKeys]);
 
   // We define "openValues" similarly to dictionary => which items are open
   const openValues = useMemo(() => {
-    if (!isValidList) return [];
+    if (!canProceed) return [];
     
     const arr: string[] = [];
     for (let i = 0; i < itemCount; i++) {
@@ -252,48 +484,26 @@ export default function ListView({
       }
     }
     return arr;
-  }, [itemCount, openKeys, isValidList, buildItemPath, itemLabel]);
+  }, [itemCount, openKeys, canProceed, buildItemPath]);
 
   // Early return after all hooks are called
-  if (!isValidList) {
-    return <p className="text-red-500">ListView: base value is not a list.</p>;
+  if (!canProceed) {
+    return <p className="text-red-500">
+      {multiMode 
+        ? "ListView: neither base nor comparables are valid lists." 
+        : "ListView: base value is not a list."}
+    </p>;
   }
 
-  // onValueChange => compare old vs. new => toggle difference
-  function handleValueChange(newVals: string[]) {
-    const oldSet = new Set(openValues);
-    const nextSet = new Set(newVals);
+  // Transform comparables into arrays for the no-diff mode
+  const comparableArrays = multiMode 
+    ? comparables.map(c => (isList(c) ? (c as any[]) : []))
+    : [];
 
-    // find changed => for each changed => toggleKey( buildItemPath(...) )
-    for (let i = 0; i < itemCount; i++) {
-      const lbl = itemLabel(i);
-      const had = oldSet.has(lbl);
-      const now = nextSet.has(lbl);
-      if (had !== now) {
-        const path = buildItemPath(i);
-        // toggle
-        if (openKeys.has(path)) {
-          // remove
-          setOpenKeys((prev) => {
-            const updated = new Set(prev);
-            updated.delete(path);
-            return updated;
-          });
-        } else {
-          // add
-          setOpenKeys((prev) => {
-            const updated = new Set(prev);
-            updated.add(path);
-            return updated;
-          });
-        }
-      }
-    }
-  }
+  // For no-diff rendering, we need rowIndices
+  const rowIndices = [baseLogIndex, ...comparisonLogsIndex];
 
-  /*─────────────────────────────────────────────────────────────────────────
-    renderSingleItem => for single-mode
-  ──────────────────────────────────────────────────────────────────────────*/
+  // Define the renderSingleItem function for single-mode
   function renderSingleItem(index: number) {
     const lbl = itemLabel(index);
     const arrValue = baseArr[index];
@@ -302,7 +512,6 @@ export default function ListView({
     const path = buildItemPath(index);
     const isOpen = openKeys.has(path);
 
-    // If it's isDict/isList => show FoldVertical button
     function handleExpandClick(e: React.MouseEvent) {
       e.stopPropagation();
       handleRecursiveToggle(
@@ -356,9 +565,7 @@ export default function ListView({
     );
   }
 
-  /*─────────────────────────────────────────────────────────────────────────
-    renderMultiItem => presence diff in multi-mode
-  ──────────────────────────────────────────────────────────────────────────*/
+  // Define the renderMultiItem function for multi-mode
   function renderMultiItem(index: number) {
     const lbl = itemLabel(index);
     const baseVal = baseArr[index];
@@ -369,8 +576,13 @@ export default function ListView({
     const path = buildItemPath(index);
     const isOpen = forceExpandAll || openKeys.has(path);
 
-    // presence diff
     const { redRows, greenRows } = presenceDiff(baseVal, compVals, baseLogIndex, comparisonLogsIndex);
+    
+    // Determine if the item is present in all rows or absent in all rows
+    const allRows = [baseLogIndex, ...comparisonLogsIndex];
+    const isAllPresent = redRows.length === 0 && greenRows.length === 0 && baseVal !== undefined;
+    const isAllAbsent = redRows.length === 0 && greenRows.length === 0 && baseVal === undefined;
+    
     let labelColor = "";
     const baseHas = baseVal !== undefined;
     if (baseHas && redRows.length > 0) {
@@ -399,10 +611,14 @@ export default function ListView({
         >
           <span className="inline-flex items-center gap-2">
             {icon} {lbl}
-            {(redRows.length > 0 || greenRows.length > 0) && (
+            {(redRows.length > 0 || greenRows.length > 0) ? (
               <div className="ml-2 flex gap-1">
                 {redRows.length > 0 && <RowBadge rowNumbers={redRows} mode="delete" />}
                 {greenRows.length > 0 && <RowBadge rowNumbers={greenRows} mode="insert" />}
+              </div>
+            ) : isAllPresent && (
+              <div className="ml-2 flex gap-1">
+                <RowBadge rowNumbers={allRows} mode="none" />
               </div>
             )}
           </span>
@@ -440,7 +656,7 @@ export default function ListView({
     );
   }
 
-  // Actually render all items
+  // Function to render all items
   function renderAllItems() {
     const items: JSX.Element[] = [];
     for (let i = 0; i < itemCount; i++) {
@@ -453,17 +669,17 @@ export default function ListView({
     return items;
   }
 
+  // Handle accordion value change
   function handleAccordionValueChange(newVals: string[]) {
     const oldSet = new Set(openValues);
     const nextSet = new Set(newVals);
 
     for (let i = 0; i < itemCount; i++) {
-      const lbl = `Item ${i}`;
+      const lbl = itemLabel(i);
       const had = oldSet.has(lbl);
       const now = nextSet.has(lbl);
       if (had !== now) {
         const path = buildItemPath(i);
-        // toggle
         if (openKeys.has(path)) {
           setOpenKeys((prev) => {
             const updated = new Set(prev);
@@ -481,15 +697,42 @@ export default function ListView({
     }
   }
 
+  // Return the appropriate view based on diffMode and multiMode
   return (
     <div className="flex flex-col gap-2">
-      <Accordion
-        type="multiple"
-        value={openValues}
-        onValueChange={handleAccordionValueChange}
-      >
-        {renderAllItems()}
-      </Accordion>
+      {diffMode === "none" && multiMode ? (
+        // No-diff mode with multiple values
+        renderNoDiffMode(
+          itemCount,
+          baseArr,
+          comparableArrays,
+          rowIndices,
+          openKeys,
+          setOpenKeys,
+          buildItemPath,
+          itemLabel,
+          {
+            baseLogIndex,
+            comparisonLogsIndex,
+            version,
+            comparableVersions,
+            diffMode: diffMode as "none",
+            splitView,
+            displayMode: displayMode as "text" | "markdown",
+            nestingLevel,
+            prefix,
+            parentPath,
+          }
+        )
+      ) : (
+        <Accordion
+          type="multiple"
+          value={openValues}
+          onValueChange={handleAccordionValueChange}
+        >
+          {renderAllItems()}
+        </Accordion>
+      )}
     </div>
   );
 }

@@ -30,9 +30,11 @@ import {
   Rows3,
   GripVertical,
   Grab,
+  ChevronsUpDown,
 } from "lucide-react";
 import { BasePopover } from "@/components/Common/Popovers/Base";
 import { Switch } from "@/components/UI/switch";
+import { Button } from "@/components/UI/button";
 
 import {
   DndContext,
@@ -50,17 +52,18 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { TileProps, ItemType, TableDataItem } from "@/types/evals/grid";
-import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
+
 import { useExpandContextSelector } from "@/contexts/ExpandContext";
 import {
   makePrefixedDictPath,
   gatherAllSubPaths,
   gatherAllSubPathsMulti,
 } from "@/utils/evals/pathUtils";
-import { useTile } from "@/contexts/hooks/useTile";
-import { useTableTile } from "@/contexts/hooks/useTableTile";
 import { Tile } from "@/contexts/slices/selectors/tile";
 import { TableTileData } from "@/contexts/slices/selectors/tableTile";
+import { useTableTile } from "@/contexts/hooks/useTableTile";
+import { useTile } from "@/contexts/hooks/useTile";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 
 /*******************************************************************************
  * Helper & Utility Functions
@@ -78,6 +81,15 @@ function isMatrix(val: any): boolean {
 }
 function isImage(val: any): boolean {
   return typeof val === "string" && val.startsWith("data:image/");
+}
+/**
+ * Check if a value is a PDF link/path.
+ * Detects strings ending with .pdf, with optional query parameters
+ */
+export function isPdf(val: any): boolean {
+  if (typeof val !== 'string') return false;
+  const pdfRegex = /\.pdf(\?.*)?$/i;  // matches "myfile.pdf?version=123" and .PDF
+  return pdfRegex.test(val.trim());
 }
 function isTrace(val: any): boolean {
   // originally always false in old code
@@ -138,23 +150,28 @@ function buildIndexToColumnsMapFromId(
   selectedCells: string[],
   sortedLogs: LogProps[]
 ): Record<number, Set<string>> {
+  
   const map: Record<number, Set<string>> = {};
-  for (const token of selectedCells) {
+  for (const token of selectedCells) {    
     const underscorePos = token.indexOf("_");
-    if (underscorePos < 1) continue;
+    if (underscorePos < 1) {
+      continue;
+    }
+    
     const logIdStr = token.slice(0, underscorePos);
 
     let columnName = token.slice(underscorePos + 1);
-    const slashPos = columnName.indexOf("/");
-    if (slashPos >= 0) {
-      columnName = columnName.slice(slashPos + 1).trim();
-    }
-
+    
     const rowIndex = sortedLogs.findIndex((log) => String(log.id) === logIdStr);
-    if (rowIndex < 0) continue;
+    
+    if (rowIndex < 0) {
+      continue;
+    }
+    
     if (!map[rowIndex]) {
       map[rowIndex] = new Set<string>();
     }
+    
     map[rowIndex].add(columnName);
   }
   return map;
@@ -195,7 +212,6 @@ function buildLogWithChosenColumns(
 ): LogProps {
   const chosen = indexToColumns[rowIndex] ?? new Set<string>();
   const safeEntries = originalLog.entries ?? {};
-
   const afterHiddenEntries = Array.from(chosen).filter(
     (c) => !hiddenColumns.includes(c)
   );
@@ -206,7 +222,7 @@ function buildLogWithChosenColumns(
           .filter((c) => afterHiddenEntries.includes(c))
           .map(sanitizeId)
       : afterHiddenEntries.map(sanitizeId);
-
+  
   const newEntries: Record<string, unknown> = {};
   for (const c of finalColsEntries) {
     if (Object.prototype.hasOwnProperty.call(safeEntries, c)) {
@@ -214,16 +230,18 @@ function buildLogWithChosenColumns(
     }
   }
 
-  const safeParams = originalLog.params ?? {};
+  const safeParams = originalLog.params ?? {};  
   const afterHiddenParams = Array.from(chosen).filter(
     (c) => !hiddenColumns.includes(c)
   );
+  
   const finalColsParams =
     columnOrdering.length > 0
       ? columnOrdering
           .filter((c) => afterHiddenParams.includes(c))
           .map(sanitizeId)
       : afterHiddenParams.map(sanitizeId);
+  
 
   const newParams: Record<string, unknown> = {};
   for (const c of finalColsParams) {
@@ -231,6 +249,7 @@ function buildLogWithChosenColumns(
       continue;
     }
     const storedVal = safeParams[c];
+    
     if (typeof storedVal === "string" && globalParams.hasOwnProperty(c)) {
       const candidateObj = globalParams[c];
       if (candidateObj && typeof candidateObj === "object") {
@@ -268,6 +287,9 @@ export default function Selection({
   interfaceId: string;
   projectId: string;
 }) {
+  /******************************************************************************
+   * Prepare sorted logs & selection data
+   ******************************************************************************/
   const { data: tileData, exists } = useTile(tileId, tabId, interfaceId, projectId);
 
   const { actions: tileActions } = useTile(tileId, tabId, interfaceId, projectId);
@@ -314,10 +336,8 @@ export default function Selection({
   const columnOrdering_ = useMemo(() => relevantItem?.column_order || undefined, [relevantItem?.column_order]);
   const hiddenColumns_ = useMemo(() => relevantItem?.hidden_columns || undefined, [relevantItem?.hidden_columns]);
   const baseIndex_ = useMemo(() => relevantItem?.base_index || undefined, [relevantItem?.base_index]);
-
-  const sortedLogs = useMemo(() => {
-    return [...logs];
-  }, [logs]);
+  
+  const sortedLogs = useMemo(() => [...logs], [logs]);
 
   // Use context selectors to only subscribe to the parts of the context we need
   const openKeys = useExpandContextSelector(ctx => ctx.openKeys);
@@ -329,25 +349,32 @@ export default function Selection({
 
   const selectedCells = useMemo(() => {
     const arr = selection_ ? selection_.split(",") : [];
-    return arr;
+    return arr.map(token => {
+      // token might look like "277932_Entries/trace"
+      // so let's rewrite the part after "_" as short.
+      const underscorePos = token.indexOf("_");
+      if (underscorePos < 1) return token;
+      const rowPart = token.slice(0, underscorePos); // e.g. "277932"
+      let colPart = token.slice(underscorePos + 1);  // e.g. "Entries/trace"
+      colPart = sanitizeId(colPart);               // => "trace"
+      return rowPart + "_" + colPart;               // => "277932_trace"
+    });
   }, [selection_]);
-
   const indexToColumns = useMemo(() => {
     const map = buildIndexToColumnsMapFromId(selectedCells, sortedLogs);
     return map;
   }, [selectedCells, sortedLogs]);
 
   const selectedRowIndices = useMemo(() => {
-    const arr = buildRowIndicesInSelectionOrder(selectedCells, sortedLogs);
-    return arr;
+    return buildRowIndicesInSelectionOrder(selectedCells, sortedLogs);
   }, [selectedCells, sortedLogs]);
 
   const columnOrdering = useMemo(() => {
-    return columnOrdering_ ? columnOrdering_.split(",") : [];
+    return columnOrdering_ ? columnOrdering_.split(",").map(sanitizeId) : [];
   }, [columnOrdering_]);
 
   const hiddenColumns = useMemo(() => {
-    return hiddenColumns_ ? hiddenColumns_.split(",") : [];
+    return hiddenColumns_ ? hiddenColumns_.split(",").map(sanitizeId) : [];
   }, [hiddenColumns_]);
 
   /*******************************************************************************
@@ -408,15 +435,21 @@ export default function Selection({
   if (baseIndex_ && !isNaN(parseInt(baseIndex_, 10))) {
     baseIndexParam = parseInt(baseIndex_, 10);
   }
-  if (item?.base_index && !isNaN(parseInt(item?.base_index, 10))) {
-    baseIndexParam = parseInt(item?.base_index, 10);
+  if (item?.base_index) {
+    baseIndexParam = parseInt(item.base_index, 10);
   }
-  if (baseIndexParam < 0 || baseIndexParam >= selectedRowIndices.length) {
+  if (selectedRowIndices.length === 0) {
     baseIndexParam = 0;
   }
+  
+  // When in no-diff mode, always use the earliest selected row as base
+  if (diffMode === "none" && selectedRowIndices.length > 0) {
+    baseIndexParam = 0; // Force to first selected row in no-diff mode
+  }
+  
   const baseRowIndex = selectedRowIndices[baseIndexParam] ?? -1;
   const baseLog = baseRowIndex >= 0 ? sortedLogs[baseRowIndex] : null;
-
+  
   // For default toggles, gather keys from base (entries & params)
   const entryKeysFromBase = useMemo(() => {
     return baseLog ? Object.keys(baseLog.entries ?? {}) : [];
@@ -477,7 +510,8 @@ export default function Selection({
   function isAllEmpty(val: any) {
     if (val === null || val === undefined) return true;
     if (typeof val === "string" && !val.trim()) return true;
-    return false;
+    const result = false;
+    return result;
   }
 
   function gatherSubpathsForProperty(isParams: boolean, propName: string) {
@@ -899,28 +933,36 @@ export default function Selection({
         <div className="border-b border-muted bg-background px-3 py-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Base:</span>
-            <Combobox
-              items={selectedRowIndices.map((rIdx, i) => ({
-                value: rowLabel(rIdx),
-                label: rowLabel(rIdx),
-                dataIndex: i,
-              }))}
-              value={
-                selectedRowIndices[baseRowIndex] !== undefined
-                  ? rowLabel(selectedRowIndices[baseRowIndex])
-                  : ""
-              }
-              onValueChange={(newLabel) => {
-                const newIdx = selectedRowIndices.findIndex(
-                  (r) => rowLabel(r) === newLabel
-                );
-                if (newIdx >= 0 && String(newIdx) !== item?.base_index) {
-                  updateItem(item as TileProps, "base_index")(String(newIdx));
-                }
-              }}
-              placeholder="Pick base row"
-              className="w-[110px]"
-            />
+            {diffMode === "none" ? (
+              // When in no-diff mode, show a button styled like a disabled combobox
+              <Button 
+                variant="outline"
+                className="w-[110px] justify-between px-2 py-1 opacity-50 cursor-not-allowed"
+              >
+                {selectedRowIndices[baseIndexParam] !== undefined 
+                  ? `Row ${selectedRowIndices[baseIndexParam] + 1}` 
+                  : "Pick base row"}
+                <ChevronsUpDown className="ml-1 h-4 w-4 opacity-50" />
+              </Button>
+            ) : (
+              // Otherwise show the normal combobox
+              <Combobox
+                items={selectedRowIndices.map((rIdx, i) => ({
+                  value: String(i),       // internal value = position in selection array
+                  label: `Row ${rIdx + 1}`,  // Use actual row index (rIdx) + 1 for the label
+                  dataIndex: i,
+                }))}
+                value={String(baseIndexParam)}
+                onValueChange={(newVal) => {
+                  const idx = parseInt(newVal, 10);
+                  if (!isNaN(idx) && String(idx) !== item?.base_index) {
+                    updateItem(item as TileProps, "base_index")(String(idx));
+                  }
+                }}
+                placeholder="Pick base row"
+                className="w-[110px]"
+              />
+            )}
           </div>
           <div className="flex items-center gap-2">
             <ActionButton
@@ -1088,21 +1130,24 @@ function SelectionPanel({
     setOpenKeys(next);
   };
 
-  // baseIndex from item/baseIndex
-  let baseIndexParam = parseInt(item?.base_index ?? "0", 10);
+  // baseIndex from item/base_index
+  let baseIndexParam = parseInt(item.base_index ?? "0", 10);
+
   if (isNaN(baseIndexParam)) {
     baseIndexParam = 0;
   }
+  
   if (baseIndexParam < 0 || baseIndexParam >= selectedRowIndices.length) {
     baseIndexParam = 0;
   }
-
+  
   const baseRowIndex = selectedRowIndices[baseIndexParam] ?? -1;
 
   const buildLogIfValid = useCallback(
     (rIdx: number) => {
       if (rIdx < 0 || rIdx >= logs.length) return null;
-      return buildLogWithChosenColumns(
+      
+      const result = buildLogWithChosenColumns(
         logs[rIdx],
         rIdx,
         params,
@@ -1110,6 +1155,8 @@ function SelectionPanel({
         columnOrdering,
         hiddenColumns
       );
+      
+      return result;
     },
     [logs, params, indexToColumns, columnOrdering, hiddenColumns]
   );
@@ -1131,7 +1178,8 @@ function SelectionPanel({
   /** Helper to union all param or entry keys from base + comps */
   function gatherUnionOfKeys(
     baseObj: Record<string, unknown> | undefined,
-    comps: (Record<string, unknown> | undefined)[]
+    comps: (Record<string, unknown> | undefined)[],
+    preferredOrder?: string[]
   ): string[] {
     const s = new Set<string>();
     if (baseObj) {
@@ -1146,6 +1194,20 @@ function SelectionPanel({
         }
       }
     });
+    
+    // If we have a preferred order, use it to order the keys
+    if (preferredOrder && preferredOrder.length > 0) {
+      // First get all keys that are both in the union and in the preferred order
+      const orderedKeys = preferredOrder.filter(key => s.has(key));
+      
+      // Then get any keys from the union that aren't in the preferred order
+      const remainingKeys = Array.from(s).filter(key => !preferredOrder.includes(key));
+      
+      // Return ordered keys followed by any remaining keys (which we'll sort for consistency)
+      return [...orderedKeys, ...remainingKeys.sort()];
+    }
+    
+    // If no preferred order, return all keys (default to sorted for backward compatibility)
     return Array.from(s).sort();
   }
 
@@ -1153,31 +1215,35 @@ function SelectionPanel({
     if (!baseLog) return [];
     return gatherUnionOfKeys(
       baseLog.entries,
-      comparisonLogs.map((cl) => cl.entries)
+      comparisonLogs.map((cl) => cl.entries),
+      columnOrdering
     );
-  }, [baseLog, comparisonLogs]);
+  }, [baseLog, comparisonLogs, columnOrdering]);
 
   const paramKeys = useMemo(() => {
     if (!baseLog) return [];
     return gatherUnionOfKeys(
       baseLog.params,
-      comparisonLogs.map((cl) => cl.params)
+      comparisonLogs.map((cl) => cl.params),
+      columnOrdering
     );
-  }, [baseLog, comparisonLogs]);
+  }, [baseLog, comparisonLogs, columnOrdering]);
 
   // Filter "visible" columns
   function visibleEntries(): string[] {
-    return entryKeys.filter((col) => entriesFilter[col] !== false);
+    const filtered = entryKeys.filter((col) => entriesFilter[col] !== false);
+    return filtered;
   }
   function visibleEntriesKey(): string {
-    const arr = [...visibleEntries()].sort();
+    const arr = [...visibleEntries()];
     return arr.join(",");
   }
   function visibleParams(): string[] {
-    return paramKeys.filter((col) => paramsFilter[col] !== false);
+    const filtered = paramKeys.filter((col) => paramsFilter[col] !== false);
+    return filtered;
   }
   function visibleParamsKey(): string {
-    const arr = [...visibleParams()].sort();
+    const arr = [...visibleParams()];
     return arr.join(",");
   }
 
@@ -1277,13 +1343,19 @@ function SelectionPanel({
   function isAllEmpty(baseVal: any, comps: any[]): boolean {
     const arr = [baseVal, ...comps];
     for (const v of arr) {
-      if (!isBlank(v)) return false;
+      if (!isBlank(v)) {
+        return false;
+      }
     }
     return true;
   }
   function isBlank(v: any) {
-    if (v == null) return true;
-    if (typeof v === "string" && !v.trim()) return true;
+    if (v == null) {
+      return true;
+    }
+    if (typeof v === "string" && !v.trim()) {
+      return true;
+    }
     return false;
   }
 
@@ -1312,6 +1384,13 @@ function SelectionPanel({
       return openKeys.has(rootPath);
     });
 
+    // IMPORTANT: We need to pass the actual row indices to SelectionEntry
+    // baseRowIndex is already the 0-based row index, so no need to subtract 1
+    const baseIndexForSelection = baseRowIndex; // Don't subtract 1, it's already 0-based
+    
+    // Map the comparison row indices directly (they're already 0-based)
+    const compIndicesForSelection = comparisonRowIndices;
+    
     return (
       <div className="flex flex-col gap-2">
         <div className="sticky top-0 z-10 bg-background py-2 border-b border-muted flex items-center justify-between">
@@ -1348,9 +1427,9 @@ function SelectionPanel({
                     property={prop}
                     value={baseLog.params?.[prop]}
                     baseLog={baseLog}
-                    baseLogIndex={selectedRowIndices[baseRowIndex]}
+                    baseLogIndex={baseIndexForSelection}
                     comparisonLogs={comparisonLogs}
-                    comparisonLogsIndex={comparisonRowIndices}
+                    comparisonLogsIndex={compIndicesForSelection}
                     diffMode={diffMode}
                     splitView={splitView}
                     displayMode={displayMode}
@@ -1400,6 +1479,13 @@ function SelectionPanel({
       return openKeys.has(rootPath);
     });
 
+    // IMPORTANT: We need to pass the actual row indices to SelectionEntry
+    // baseRowIndex is already the 0-based row index, so no need to subtract 1
+    const baseIndexForSelection = baseRowIndex; // Don't subtract 1, it's already 0-based
+    
+    // Map the comparison row indices directly (they're already 0-based)
+    const compIndicesForSelection = comparisonRowIndices;
+    
     return (
       <div className="flex flex-col gap-2">
         <div className="sticky top-0 z-10 bg-background py-2 border-b border-muted flex items-center justify-between">
@@ -1436,9 +1522,9 @@ function SelectionPanel({
                     property={prop}
                     value={baseLog.entries?.[prop]}
                     baseLog={baseLog}
-                    baseLogIndex={selectedRowIndices[baseRowIndex]}
+                    baseLogIndex={baseIndexForSelection}
                     comparisonLogs={comparisonLogs}
-                    comparisonLogsIndex={comparisonRowIndices}
+                    comparisonLogsIndex={compIndicesForSelection}
                     diffMode={diffMode}
                     splitView={splitView}
                     displayMode={displayMode}

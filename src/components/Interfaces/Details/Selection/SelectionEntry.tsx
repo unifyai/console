@@ -3,20 +3,22 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { LogProps } from "@/types/evals/logs";
 import {
+  Accordion,
+  AccordionContent,
   AccordionItem,
   AccordionTrigger,
-  AccordionContent
 } from "@/components/UI/accordion";
 
 import DictionaryView from "./Views/DictionaryView";
-import ListView from "./Views/ListView";
 import ImageView from "./Views/ImageView";
+import ListView from "./Views/ListView";
 import MatrixView from "./Views/MatrixView";
 import StringView from "./Views/StringView";
 import TraceView from "./Views/TraceView";
 import NumberView from "./Views/NumberView";
 import TimestampView from "./Views/TimestampView";
 import ChatOutView from "./Views/ChatView/ChatOutView";
+import PdfView from "./Views/PdfView";
 
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { CircleMinus, FoldVertical, UnfoldVertical } from "lucide-react";
@@ -33,6 +35,7 @@ import {
   isTimestamp,
   isChat
 } from "@/utils/evals/selection";
+import { isPdf } from "./Selection";
 
 import {
   Waypoints,
@@ -43,7 +46,8 @@ import {
   Text,
   Hash,
   Clock,
-  MessagesSquare
+  MessagesSquare,
+  FileText
 } from "lucide-react";
 
 import { useExpandContextSelector } from "@/contexts/ExpandContext";
@@ -73,11 +77,12 @@ function isEmptyOrBlank(v: any): boolean {
  * If multiple distinct types appear among base+comparables, treat as string.
  */
 function getValueType(value: any):
-  "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat"
+  "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat" | "pdf"
 {
   if (isTrace(value))     return "trace";
   if (isDict(value))      return "dict";
   if (isList(value))      return "list";
+  if (isPdf(value))       return "pdf";
   if (isImage(value))     return "image";
   if (isMatrix(value))    return "matrix";
   if (isNumber(value))    return "number";
@@ -120,6 +125,8 @@ function getTypeIcon(valueType: string) {
       return <Clock className="h-4 w-4 text-primary" />;
     case "chat":
       return <MessagesSquare className="h-4 w-4 text-primary" />;
+    case "pdf":
+      return <FileText className="h-4 w-4 text-primary" />;
     default:
       return <Text className="h-4 w-4 text-primary" />;
   }
@@ -223,6 +230,20 @@ function getSelectionView(
           prefix={prefix}
         />
       );
+    case "pdf":
+      return (
+        <PdfView
+          value={val}
+          comparables={comps}
+          baseLogIndex={baseLogIndex}
+          comparisonLogsIndex={compLogIndex}
+          diffMode={diffMode}
+          splitView={splitView}
+          version={version}
+          comparableVersions={vers}
+          displayMode={displayMode}
+        />
+      );
     case "image":
       return (
         <ImageView
@@ -321,6 +342,19 @@ interface SelectionEntryProps {
   forceCollapseAll?: boolean;
 }
 
+/**
+ * SelectionEntry Component
+ * 
+ * This component renders a single entry from a selected log, showing differnt views
+ * based on the data type.
+ * 
+ * IMPORTANT: This component expects the following:
+ * - baseLogIndex: 0-based index of the row in the selection (expected to be 0-based)
+ * - comparisonLogsIndex: Array of 0-based indices for comparison rows
+ * 
+ * These indices are passed as-is to the view components, which should maintain them as 0-based
+ * until final display in RowBadge.
+ */
 export default function SelectionEntry({
   source = "entries",
   property,
