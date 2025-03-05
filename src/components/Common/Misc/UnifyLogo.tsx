@@ -1,60 +1,19 @@
-import React from 'react';
-import { useTheme } from 'next-themes';
+import { Logo } from "@/utils/landingNav/consts";
 
-type UnifyLogoProps = {
-    theme?: string;
-    className?: string;
-};
+const UnifyLogo = ({ theme }: { theme: string | undefined }) => {
+    const DarkLogo = Logo.dark;
+    const LightLogo = Logo.light;
 
-const UnifyLogo = ({ theme, className = "" }: UnifyLogoProps) => {
-    const { theme: systemTheme } = useTheme();
-    const currentTheme = theme || systemTheme;
+    // If theme is undefined, don't render anything
+    if (theme === undefined) {
+        return null; // or return a placeholder
+    }
+
+    const LogoComponent = theme === 'dark' ? DarkLogo : LightLogo;
 
     return (
-        <a href="https://unify.ai" className={`flex items-center rounded-full p-2 w-fit ${className}`}>
-            <svg 
-                width="100" 
-                height="24" 
-                viewBox="0 0 77 20" 
-                fill="none" 
-                xmlns="http://www.w3.org/2000/svg"
-                className="text-foreground"
-            >
-                <g clipPath="url(#clip0_unify_logo)">
-                    {/* Text portion of the logo - will use text-foreground color */}
-                    <path 
-                        d="M24.9941 11.3182V4.90894H28.026V10.9766C28.026 12.5546 28.8703 13.4958 30.2712 13.4958C31.6721 13.4958 32.4992 12.5338 32.4992 10.9766V4.90894H35.5316V11.3182C35.5316 14.3139 33.4432 16.3157 30.2718 16.3157C27.1003 16.3157 24.9947 14.3139 24.9947 11.3182H24.9941Z" 
-                        fill="currentColor"
-                    />
-                    <path 
-                        d="M48.4711 9.27922V16.0018H45.4387V9.76473C45.4387 8.08754 44.7948 7.27906 43.4828 7.27906C41.9197 7.27906 40.966 8.38653 40.966 10.1714V16.0013H37.9336V4.90903H40.0139L40.605 6.28031C41.4536 5.28049 42.7942 4.64575 44.3206 4.64575C46.8767 4.64575 48.4705 6.47057 48.4705 9.27922H48.4711Z" 
-                        fill="currentColor"
-                    />
-                    <path 
-                        d="M50.9082 4.90893H53.9406V16.0017H50.9082V4.90893ZM50.9136 0.641602H53.9341V3.42999H50.9136V0.641602Z" 
-                        fill="currentColor"
-                    />
-                    <path 
-                        d="M63.3443 7.53108H60.5237V16.0018H57.4918V7.53108H55.5488V5.05872H57.5085V4.05411C57.5085 1.93084 58.7111 0.571289 61.0673 0.571289H63.3233V2.93172H61.6751C60.8766 2.93172 60.4439 3.3389 60.4439 4.12873V5.05872H63.3438V7.53108H63.3443Z" 
-                        fill="currentColor"
-                    />
-                    <path 
-                        d="M76.2496 4.90894L71.3615 15.8541C70.0172 18.8605 68.8356 19.9999 66.3188 19.9999H65.0688V17.3032H66.1184C67.5802 17.3032 67.9595 16.9184 68.6481 15.2418L68.6907 15.1517L63.9395 4.90894H67.2397L70.2311 11.7328L73.0243 4.90894H76.2491H76.2496Z" 
-                        fill="currentColor"
-                    />
-                    {/* Green portion of the logo - using text-primary */}
-                    <path 
-                        className="text-primary"
-                        d="M11.6156 0C8.03794 0 5.12676 2.87899 5.12676 6.41831C5.12676 9.2584 7.46249 11.5687 10.3338 11.5687C12.4982 11.5687 14.259 9.82706 14.259 7.6862C14.259 6.24457 13.0731 5.07155 11.6156 5.07155C10.5111 5.07155 9.61288 5.95998 9.61288 7.05252C9.61288 7.79652 10.2228 8.39982 10.975 8.39982C11.0973 8.39982 11.2153 8.38383 11.3279 8.35398C11.1113 8.66843 10.7465 8.87521 10.3338 8.87521C8.96469 8.87521 7.85044 7.77307 7.85044 6.41885C7.85044 4.36539 9.5396 2.69459 11.6156 2.69459C14.3986 2.69459 16.6626 4.93405 16.6626 7.68673C16.6626 11.1386 13.8237 13.9468 10.3338 13.9468C6.13757 13.9468 2.72368 10.57 2.72368 6.41938C2.72368 5.90988 2.76894 5.40358 2.85676 4.9058H0.101296C0.0344837 5.40624 0 5.91148 0 6.41938C0 12.0559 4.63591 16.6414 10.3343 16.6414C15.3259 16.6414 19.3869 12.6245 19.3869 7.68727C19.3863 3.44818 15.9008 0 11.6156 0Z" 
-                        fill="currentColor"
-                    />
-                </g>
-                <defs>
-                    <clipPath id="clip0_unify_logo">
-                        <rect width="76.25" height="20"/>
-                    </clipPath>
-                </defs>
-            </svg>
+        <a href="https://unify.ai" className='rounded-full pt-[10px] pb-[7px] px-[14px] w-fit'>
+            <LogoComponent height={20} width={150} />
         </a>
     );
 };

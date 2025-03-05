@@ -13,11 +13,7 @@ export default function ThemeLoader({ children }: { children: React.ReactNode })
   }, []);
 
   if (!mounted) {
-    return (
-      <div className="h-full w-full bg-transparent" style={{ backgroundColor: 'transparent', backgroundImage: 'none' }}>
-        <SkeletonLoader />
-      </div>
-    );
+    return <SkeletonLoader />;
   }
 
   return <>{children}</>;

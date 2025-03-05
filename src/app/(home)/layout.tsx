@@ -10,24 +10,21 @@ import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import "@/styles/globals.css";
 
-import ThemeLoader from "../../components/ThemeLoader";
+import { SidebarTrigger } from "@/components/UI/sidebar"
+import ThemeLoader from "@/components/ThemeLoader";
 import LoadingScreen from "@/components/LoadingScreen";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="h-screen w-screen bg-transparent" style={{ backgroundColor: 'transparent' }}>
-        <Suspense fallback={<LoadingScreen/>}>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <Providers>
-              <ThemeLoader>
-                <NavMenu/>
-                <main className="overflow-hidden relative container min-h-full h-full max-w-full w-full flex flex-row bg-transparent" 
-                      style={{ 
-                        backgroundColor: 'transparent',
-                        backgroundImage: 'none' 
-                      }}>
-                  <NuqsAdapter>{children}</NuqsAdapter>
+      <body className="h-screen w-screen">
+      <Suspense fallback={<LoadingScreen/>}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <Providers>
+            <ThemeLoader>
+              <NavMenu/>
+                <main className="overflow-hidden relative container min-h-full h-full max-w-full w-full flex flex-row bg-background">
+                    <NuqsAdapter>{children}</NuqsAdapter>
                 </main>
               </ThemeLoader>
             </Providers>
