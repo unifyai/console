@@ -14,7 +14,7 @@ const LoadingScreen: React.FC = () => {
                     backgroundImage: 'none'
                  }}>
                 <LoadingElement height={150} width={150} className="text-primary" />
-                <p className="text-lg text-foreground">Loading...</p>
+                <p className="text-lg text-primary">Loading...</p>
             </div>
         </div>  
     );
