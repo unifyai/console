@@ -181,7 +181,6 @@ export const ImageDisplay = ({ value, className }: { value: string; className?: 
     );
   } else {
     return (
-      <a href={url} target="_blank" rel="noopener noreferrer">
         <Image
           src={url}
           alt="Image link"
@@ -190,7 +189,6 @@ export const ImageDisplay = ({ value, className }: { value: string; className?: 
           className={className}
           onError={handleImageError}
         />
-      </a>
     );
   }
 };
@@ -291,20 +289,26 @@ export function isTimestamp(value: any): boolean {
  *  e.g. require an object with an "id" and a "choices" array.
  */
 export function isChat(value: any): boolean {
-  if (!value || typeof value !== "object") return false;
-  const isChatOut = (
-    "id" in value &&
-    "choices" in value &&
-    Array.isArray(value.choices)
-  );
-  const isChatIn = (
-    Array.isArray(value.messages) &&
-    (
-      ("model" in value && typeof value.model === "string") ||
-      value.messages.length >= 0
-    )
-  );
-  return isChatOut || isChatIn;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  // Basic check for chat-like structure
+  const hasMessages = 'messages' in value && Array.isArray(value.messages);
+  const hasRole = hasMessages && value.messages.every((m: any) => 'role' in m && typeof m.role === 'string');
+  const hasContent = hasMessages && value.messages.every((m: any) => 'content' in m && typeof m.content === 'string');
+
+  return hasMessages && hasRole && hasContent;
+}
+
+/**
+ * Check if a value is a PDF link/path.
+ * Detects strings ending with .pdf, with optional query parameters
+ */
+export function isPdf(value: any): boolean {
+  if (typeof value !== 'string') return false;
+  const pdfRegex = /\.pdf(\?.*)?$/i;  // matches "myfile.pdf?version=123" and .PDF
+  return pdfRegex.test(value.trim());
 }
 
 /**
