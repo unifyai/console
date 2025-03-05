@@ -11,6 +11,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarSeparator,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/UI/sidebar";
 import NavList from "./NavList";
@@ -24,7 +25,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/UI/avatar";
 import { useTheme } from "next-themes";
 import ivyLogoOnly from "@/public/ivy_logo_only.png";
 import Image from "next/image";
-import { User } from "lucide-react";
+import { User, Menu } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 
 /** A single nav item with an icon and label. */
@@ -106,15 +107,6 @@ export default function NavMenu() {
     setOpen(false);
   }, []);
 
-  // Handle hover expand/collapse
-  const handleMouseEnter = () => {
-    setOpen(true);
-  };
-
-  const handleMouseLeave = () => {
-    setOpen(false);
-  };
-
   const mainNavItems = NavList();
 
   // The user profile nav item
@@ -130,9 +122,7 @@ export default function NavMenu() {
 
   return (
     <Sidebar 
-      collapsible="icon" 
-      onMouseEnter={handleMouseEnter} 
-      onMouseLeave={handleMouseLeave}
+      collapsible="icon"
     >
       {/* SidebarHeader with crossfade logos */}
       <SidebarHeader className="relative h-12 w-full flex items-center justify-center overflow-hidden">
@@ -180,17 +170,23 @@ export default function NavMenu() {
 
       <SidebarSeparator />
 
-      {/* Hide entire footer in collapsed mode */}
-      {state === "collapsed" ? (
-        <SidebarFooter className="flex flex-row items-center justify-between px-2 py-2">
-          <DarkModeToggle />
-        </SidebarFooter>
-      ) : (
-        <SidebarFooter className="flex flex-row items-center justify-between px-4 py-2">
-          <DarkModeToggle />
-          <SignOutButton />
-        </SidebarFooter>
-      )}
+      {/* Footer with trigger, theme toggle, and sign out buttons */}
+      <SidebarFooter className="flex flex-row items-center px-2 py-2 gap-2">
+        {/* Sidebar trigger (always visible) */}
+        <SidebarTrigger 
+          className="h-8 w-8 opacity-80 hover:opacity-100"
+        >
+          <Menu className="h-4 w-4" />
+        </SidebarTrigger>
+        
+        {/* Only show these when expanded */}
+        {state === "expanded" && (
+          <div className="flex items-center gap-2 ml-auto">
+            <DarkModeToggle />
+            <SignOutButton />
+          </div>
+        )}
+      </SidebarFooter>
     </Sidebar>
   );
 }
