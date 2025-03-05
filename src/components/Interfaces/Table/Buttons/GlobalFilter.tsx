@@ -61,11 +61,11 @@ const GlobalFilter = ({ interactive, commonFilter, setCommonFilter, logs, curren
         }}
     const setExpression = (value: string) => setGlobalFilter((filter) => ({mode: filter.mode, value: value}))
     const expressionClassName = "left-0 top-0.5 w-[100%]"
-    const expressionPlaceholder = "Filter with an expression.."
+    const expressionPlaceholder = loading ? "Filtering logs.." : "Search all logs.."
     const expressionInput = <FormulaInput options={options} value={value} setValue={setExpression} onEnter={onEnter} withIcon={false} withAutocomplete={false} className={expressionClassName} placeholder={expressionPlaceholder}/>
 
     /* Filter input */
-    const placeholder = loading ? "Filtering logs.." : "Filter columns by character.."
+    const placeholder = loading ? "Filtering logs.." : "Search all logs.."
     const onInput = (input: FormEvent<HTMLInputElement>) => {
         setGlobalFilter((filter) => ({mode: filter.mode, value: input.currentTarget?.value}))
     } 
@@ -91,7 +91,7 @@ const GlobalFilter = ({ interactive, commonFilter, setCommonFilter, logs, curren
     return (
         <div className="flex flex-row items-center">
             {modeButton}
-            <div className="relative min-w-[200px]">
+            <div className="relative min-w-[250px]">
                 {mode === "search" ? filterInput : expressionInput}
                 {closeButton}
             </div>

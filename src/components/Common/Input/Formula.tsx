@@ -239,7 +239,7 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
   /* Rendered formula input overlay that shows the text input with color styling using a highligher function
      which splits the input into tokens and conditionally styles each token with a corresponding text color
   */
-  const delimiters = /[\s\+\-\*\/\.,\(\)\{\}]/;
+  const delimiters = /[\s\+\-\*\/\.,\(\)\{\}=><]/;
   const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const getHighlightedContent = (text: string) => {
 
@@ -251,7 +251,7 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
     // - Commas and dots
     const optionNames = options.map(opt => escapeRegex(opt.name)).sort((a, b) => b.length - a.length);
     const tokenRegex = new RegExp(
-      `("(?:[^"\\\\]|\\\\.)*"|'(?:[^'\\\\]|\\\\.)*'|${optionNames.join('|')}|\\s+|\\.|\\+|\\-|\\*|\\/|\\(|\\)|,|\\[|\\]|\\{|\\})`,
+      `("(?:[^"\\\\]|\\\\.)*"|'(?:[^'\\\\]|\\\\.)*'|${optionNames.join('|')}|\\s+|\\.|\\+|\\-|\\*|\\/|\\(|\\)|,|\\[|\\]|\\{|\\}|=|>|<)`,
       'gi'
     );
     const tokens = text.split(tokenRegex).filter(token => token !== undefined && token !== '');
