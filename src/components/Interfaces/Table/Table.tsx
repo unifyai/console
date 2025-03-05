@@ -42,12 +42,21 @@ import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data
 import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import ContextSelector from "./Content/ContextSelector";
 
-import { useTableContext } from "@/components/Providers/Stores/TableStoreProvider";
-import { useInterfaceContext } from "@/components/Providers/Stores/InterfaceStoreProvider";
+// Import new hooks
+import { useTile } from "@/contexts/hooks/useTile";
+import { useTab } from "@/contexts/hooks/useTab";
+import { useTableTile } from "@/contexts/hooks/useTableTile";
+import { useProject } from "@/contexts/hooks/useProject";
+
+// Import interfaces to check property existence
+import { Tile } from "@/contexts/slices/selectors/tile";
+import { TableTileData } from "@/contexts/slices/selectors/tableTile";
 
 const LogsTable = ({
-  index,
-  project,
+  tileId,
+  tabId,
+  interfaceId,
+  projectId,
   contexts,
   context_,
   tableArguments,
@@ -62,8 +71,10 @@ const LogsTable = ({
   offset,
   updateInterface,
 }: {
-  index: string;
-  project: string | undefined;
+  tileId: string;
+  tabId: string;
+  interfaceId: string;
+  projectId: string | undefined;
   contexts: Context[];
   context_: string | undefined;
   tableArguments: TableArguments;
@@ -78,40 +89,64 @@ const LogsTable = ({
   offset: number,
   updateInterface: () => Promise<ResponseProps>,
 }) => {
+  // Get access to the tab context and actions
+  const { tab: tabData, actions: tabActions } = useTab(tabId, interfaceId, projectId);
+  
+  // Get access to the tile and its actions
+  const { actions: tileActions } = useTile(tileId, tabId, interfaceId, projectId);
+  
+  // Get access to the table tile specific data and actions
+  const { data: tableData, actions: tableTileActions } = useTableTile(tileId, tabId, interfaceId, projectId);
 
-  // Pull from the interface store to find the tile item as TileProps, project, etc.
-  const item = useInterfaceContext((s) => s.items.find((it) => it.i === index));
-  const interactive = useInterfaceContext((s) => s.interactive);
-  const pending = useInterfaceContext((s) => s.pending || s.dataPending);
-  const tableData = useInterfaceContext((s) => s.tableData);
-  const setPending = useInterfaceContext((s) => s.setPending);
-  const updateItem = useInterfaceContext((s) => s.updateItem);
-  const setTableData = useInterfaceContext((s) => s.setTableData);
+  // Get the item representation for the current tile
+  const item = tileActions?.asTileItem();
 
-  // Pull needed states & actions from the table state store
-  const tableDataItem = tableData[index] as TableDataItem;
-  const setTableDataItem = useTableContext((s) => s.setTableDataItem);
+  // UI state from the tab
+  const interactive = tabData?.interactive || false;
+  const pending = tabData?.pending || tabData?.dataPending || false;
 
   // Basic states for quick feedback
-  const summaryPending = useTableContext((s) => s.summaryPending);
-  const setSummaryPendingStore = useTableContext((s) => s.setSummaryPending);  // if metric changed
+  const [summaryPending, setSummaryPending] = useState(false);
+  const [showSpinner, setShowSpinner] = useState(pending || !tableData?.tableDataItem?.logs);
 
-  // We skip complicated "loading" checks to avoid the stuck spinner:
-  // just show a spinner if logs are truly undefined or project is pending
-  // (for example, remove "loading" if you want). 
-  const showSpinner = useTableContext((s) => s.showSpinner);
-  const setShowSpinner = useTableContext((s) => s.setShowSpinner);
+  // Use the tableDataItem from the tile's table data
+  const tableDataItem = tableData?.tableDataItem;
 
-  useEffect(() => {
-    if (tableDataItem) {
-      setTableDataItem(tableDataItem);
+  // Create a generic updateItem function that checks property existence
+  const updateItem = (item: TileProps, propName: string) => (value: any) => {
+    if (!tileActions || !tableTileActions) return;
+
+    // Create a dummy Tile and TableTileData object to check property existence
+    const tileKeys = Object.keys({} as Tile);
+    const tableTileKeys = Object.keys({} as TableTileData);
+
+    // Check if the property belongs to Tile or TableTileData
+    if (tileKeys.includes(propName)) {
+      // Property exists on Tile, use tileActions.updateTile
+      tileActions.updateTile({ [propName]: value });
+    } else if (tableTileKeys.includes(propName)) {
+      // Property exists on TableTileData, use tableTileActions.updateTableData
+      tableTileActions.updateTableData({ [propName]: value });
+    } else {
+      // log error
+      console.error(`Property ${propName} not found in either Tile or TableTileData`);
     }
-  }, [tableDataItem, setTableDataItem]);
+  };
 
   useEffect(() => {
-    const logs = tableDataItem?.logs;
-    setShowSpinner(pending || !logs);
-  }, [pending, tableDataItem, setShowSpinner]);
+    setShowSpinner(pending || !tableDataItem?.logs);
+  }, [pending, tableDataItem?.logs]);
+
+  // Early return if no table data item is available
+  if (!tableDataItem) {
+    return (
+      <div className="flex-1 flex flex-col gap-4 w-full h-[80%] p-2 bg-background rounded-md">
+        <div className="flex justify-center items-center h-full w-full">
+          <Loader2 className="animate-spin my-36" />
+        </div>
+      </div>
+    );
+  }
 
   const {
     fields,
@@ -187,7 +222,7 @@ const LogsTable = ({
   // Always assign depth = 0 for the meta column types as passed here
   encodeRenderedDepth(columns, ["util", "paramsHeader", "entriesHeader"]);
 
-  // Various table states from the URL
+  // Various table states from the item
   const metric = item?.metric || "mean";
   const logsFilters = item?.filters;
   const commonFilter = item?.common_filter;
@@ -309,9 +344,14 @@ const LogsTable = ({
     pinningState,
   };
   const setState = {
-    setTableDataItem,
-    setSelectedCells: (cells: string[]) => updateItem(item as TileProps, "selected")(cells.join(",")),
-    setMetric: updateItem(item as TileProps, "metric"),
+    setTableDataItem: (newTableDataItem: TableDataItem) => {
+      // Update tableDataItem in the store
+      if (tileActions && tableData) {
+        tableTileActions?.updateTableData({ tableDataItem: newTableDataItem });
+      }
+    },
+    setSelectedCells: (cells: string[]) =>  updateItem(item as TileProps, "selected")(cells.join(",")),
+    setMetric: (newMetric: string) => updateItem(item as TileProps, "metric")(newMetric),
     setSorting,
     setGroupSorting,
     setColumnVisibility,
@@ -320,7 +360,7 @@ const LogsTable = ({
     setGrouping,
     setColumnPinning,
     setColumnSizing,
-    setContext: updateItem(item as TileProps, "column_context"),
+    setContext: (newContext: string) => updateItem(item as TileProps, "column_context")(newContext),
     setDraggingColumns,
     setPinningState,
   };
@@ -384,10 +424,13 @@ const LogsTable = ({
   // Top area: filters, page, etc.
   const tableTop = (
     <div className="mb-2 mx-1 flex flex-wrap justify-between gap-3 LogsTablePreferences">
-      {project && columns.length > 0 && (
+      {projectId && columns.length > 0 && (
         <div className="flex flex-wrap gap-2 items-center">
           <ContextSelector
-            index={index}
+            tileId={tileId}
+            tabId={tabId}
+            interfaceId={interfaceId}
+            projectId={projectId}
             contexts={contexts}
             context={context_}
           />
@@ -409,7 +452,7 @@ const LogsTable = ({
           />
         </div>
       )}
-      {project && (
+      {projectId && (
         <div className="w-fit scale-90 flex gap-2">
           <PageController
             interactive={interactive}
@@ -419,10 +462,13 @@ const LogsTable = ({
             pageLogs={logs.length}
             totalLogs={logsData.count}
           />
-          <FreezeLogs item={item as TileProps} updateItem={updateItem} />
+          <FreezeLogs 
+            item={item as TileProps} 
+            updateItem={updateItem} 
+          />
           <RefreshLogs
             item={item as TileProps}
-            project={project}
+            project={projectId}
             pending={showSpinner}
             fields={fields}
             filterExpression={filterExpression}
@@ -431,7 +477,17 @@ const LogsTable = ({
             groupingExpression={groupingExpression}
             groupSortingExpression={groupSortingExpression}
             updateItem={updateItem}
-            setTableData={setTableData}
+            setTableData={(updater) => {
+              // Create an adapter that wraps our simple update function to match expected signature
+              if (tileActions && tableData && item?.i) {
+                const newData = updater({
+                  [item.i]: tableDataItem
+                });
+                if (newData && newData[item.i]) {
+                  tableTileActions?.updateTableData({ tableDataItem: newData[item.i] });
+                }
+              }
+            }}
             logsActions={logsActions}
             fieldsActions={fieldsActions}
             logs={logs}
@@ -461,7 +517,7 @@ const LogsTable = ({
         <div className="w-full h-full flex flex-col">
           {tableTop && tableTop}
           <div ref={tableRef} className="w-full h-fit overflow-y-auto tutorial-logs-table">
-            {project ? (
+            {projectId ? (
               <div className="relative flex-col gap-2">
                 {/* "summaryPending" can optionally show a small loader over the table if you like */}
                 <DataTable<LogProps | GroupedLogProps>
@@ -503,12 +559,12 @@ const LogsTable = ({
                   )}
                   ColumnCreate={(previousColumn: string, setOpen: (open: boolean) => void) => (
                     <ColumnCreate
-                      project={project}
+                      project={projectId}
                       currentTable={item?.i || ""}
                       tableArguments={tableArguments}
                       logs={logs}
                       create={derivedEntryActions.create}
-                      setPending={setPending}
+                      setPending={() => tabActions?.setPending(true)}
                       refresh={() => updateInterface()}
                       columnOrder={columnOrder}
                       setColumnOrder={(order: string[]) => updateItem(item as TileProps, "column_order")(order.join(","))}
@@ -518,7 +574,7 @@ const LogsTable = ({
                   )}
                   ColumnUpdate={(colId: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode = "button") => (
                     <ColumnUpdate
-                      project={project}
+                      project={projectId}
                       colId={colId}
                       open={open}
                       setOpen={setOpen}
@@ -527,7 +583,7 @@ const LogsTable = ({
                       tableArguments={tableArguments}
                       logs={logs}
                       update={derivedEntryActions.update}
-                      setPending={setPending}
+                      setPending={() => tabActions?.setPending(true)}
                       refresh={() => updateInterface()}
                       updateLoading={updateLoading}
                       setUpdateLoading={setUpdateLoading}
@@ -546,7 +602,7 @@ const LogsTable = ({
                           groupingColumnId,
                           groupingValue,
                           parentId,
-                          project!,
+                          projectId!,
                           item?.context ?? null,
                           item?.column_context ?? null,
                           filterExpression,
@@ -557,7 +613,17 @@ const LogsTable = ({
                           offset,
                           logsActions,
                           setExpandingRowId,
-                          setTableData,
+                          (updater) => {
+                            // Create an adapter that wraps our simple update function to match expected signature
+                            if (tileActions && tableData && item?.i) {
+                              const newData = updater({
+                                [item.i]: tableDataItem
+                              });
+                              if (newData && newData[item.i]) {
+                                tableTileActions?.updateTableData({ tableDataItem: newData[item.i] });
+                              }
+                            }
+                          },
                           item as TileProps,
                           dataTypes,
                           fields,
@@ -595,7 +661,7 @@ const LogsTable = ({
                     </FooterCell>
                   }
                   ExtraComponents={(table) => {
-                    return <DeleteCells project={project} selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} columnContext={item?.column_context} context={item?.context} />
+                    return <DeleteCells project={projectId} selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} columnContext={item?.column_context} context={item?.context} />
                   }}
                   ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
                     <CellPopover cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />

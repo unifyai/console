@@ -1,193 +1,283 @@
 "use client";
 
-import { Interface, TileProps } from "@/types/evals/grid";
+import { TabProps, TileProps } from "@/types/evals/grid";
 import { Eye, Hammer, SquareMousePointer } from "lucide-react";
 import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
-import { Context } from "@/types/evals/grid";
 import { useRouter } from "next/navigation";
-import { SetStateAction } from "react";
 import { ResponseProps } from "@/types/common";
 import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import Tooltip from "../Common/Misc/Tooltip";
 import AddTile from "./AddTile";
 import ContextSelector from "./Table/Content/ContextSelector";
-
-import { useInterfaceContext } from "../Providers/Stores/InterfaceStoreProvider";
+import { useStoreContext } from "@/contexts/providers/StoreProvider";
+import { useInterface } from "@/contexts/hooks/useInterface";
+import { useTab } from "@/contexts/hooks/useTab";
+import { useState, SetStateAction } from "react";
+import { useTile } from "@/contexts/hooks/useTile";
+import { updateTab } from "@/contexts/slices/selectors/tab";
 
 const InterfaceButtons = ({
-    project_,
-    interface_,
-    contexts,
-    savedInterface,
+    interfaceId,
+    tabQueryParam,
+    newCounter,
+    setNewCounter,
     updateInterface,
+    focusDialog,
+    setFocusDialog,
+    saveDialog,
+    setSaveDialog,
 }: {
-    project_: string | null,
-    interface_: string | null,
-    contexts: Context[],
-    savedInterface: Interface,
-    updateInterface: (savedInterface?: Interface | null) => Promise<ResponseProps>,
+    interfaceId: string,
+    tabQueryParam: string | null,
+    newCounter: number,
+    setNewCounter: (newCounter: number) => void,
+    updateInterface: (savedInterface?: TabProps | null) => Promise<ResponseProps>,
+    focusDialog: boolean,
+    setFocusDialog: (value: SetStateAction<boolean>) => void,
+    saveDialog: boolean,
+    setSaveDialog: (value: SetStateAction<boolean>) => void,
 }) => {
     const router = useRouter();
 
-    const project = useInterfaceContext((s) => s.project);
-    const pending = useInterfaceContext((s) => s.pending);
-    const context = useInterfaceContext((s) => s.context);
-    const items = useInterfaceContext((s) => s.items);
-    const newCounter = useInterfaceContext((s) => s.newCounter);
-    const copied = useInterfaceContext((s) => s.copied);
-    const resetting = useInterfaceContext((s) => s.resetting);
-    const saveSuccess = useInterfaceContext((s) => s.saveSuccess);
-    const edit = useInterfaceContext((s) => s.edit);
-    const interactive = useInterfaceContext((s) => s.interactive);
-    const anyTilePending = useInterfaceContext((s) => Object.entries(s.tilePending).some(([_, val]) => val));
-    const setItems = useInterfaceContext((s) => s.setItems);
-    const setNewCounter = useInterfaceContext((s) => s.setNewCounter);
-    const setCopied = useInterfaceContext((s) => s.setCopied);
-    const setResetting = useInterfaceContext((s) => s.setResetting);
-    const setEdit = useInterfaceContext((s) => s.setEdit);
-    const setInteractive = useInterfaceContext((s) => s.setInteractive);
-    const setFocusDialog = useInterfaceContext((s) => s.setFocusDialog);
-    const setDataPending = useInterfaceContext((s) => s.setDataPending);
-    const setContext = useInterfaceContext((s) => s.setContext);
-    const setSaveDialog = useInterfaceContext((s) => s.setSaveDialog);
+    // Global states from the store
+    const project = useStoreContext(s => s.activeProjectId);
+    
+    // Tab states and actions - get all UI states from here
+    const { tab, actions: tabActions } = useTab(tabQueryParam || "", interfaceId);
 
-    const hiddenItems = items.filter((it) => !it.visible);
-    const saveIcon = saveSuccess ? <Check /> : saveSuccess == false ? <TriangleAlert /> : <Save />;
-    const resetIcon = resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
-    const variant = saveSuccess == false ? "destructive" : "outline";
+    // Get contexts from the interface data
+    const contexts = useStoreContext(state => {
+        const projectData = state.projectsById[project || ""];
+        return projectData?.contexts || [];
+    });
+
+    // Calculate derived state
+    const items = tab?.tiles ? Object.values(tab.tiles).map(tile => {
+        const { actions } = useTile(tile.id, tab.id, interfaceId, project);
+        return actions!.asTileItem();
+    }) : [];
+
+    // Get hidden items
+    const hiddenItems = items.filter(item => !item.visible);
+
+    const saveIcon = tab?.saveSuccess ? <Check /> : tab?.saveSuccess === false ? <TriangleAlert /> : <Save />;
+    const resetIcon = tab?.resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
+    const variant = tab?.saveSuccess === false ? "destructive" : "outline";
+
+    // Handle context change 
+    const handleContextChange = (contextId: string) => {
+        if (tabActions && tab) {
+            // First update the tab's context
+            tabActions.setContext(contextId);
+
+            // Then update each tile's context-related properties if needed
+            if (tab.tiles) {
+                Object.values(tab.tiles).forEach(tile => {
+                    // Get the corresponding item to check current context
+                    const item = items.find(i => i.i === tile.id);
+                    if (item) {
+                        const validContext = contexts.some(c => c.name === contextId);
+                        const validItemContext = item.context?.startsWith(contextId);
+                        const prefixContexts = contexts.filter(c => c.name.startsWith(contextId));
+                        
+                        // Determine the new context value based on conditions
+                        const newContext = validContext
+                            ? contextId
+                            : validItemContext
+                                ? item.context
+                                : prefixContexts.length === 1
+                                    ? prefixContexts[0].name
+                                    : undefined;
+
+                        // For table tiles, update context and column_context
+                        if (tile.type === 'Table' && tile.tableData) {
+                            tabActions.updateTableTile(tile.id, {
+                                context: newContext,
+                                columnContexts: validItemContext ? tile.tableData.tableDataItem?.columnContexts : []
+                            });
+                        }
+
+                        // For plot tiles, update context
+                        if (tile.type === 'Plot' && tile.plotData) {
+                            tabActions.updatePlotTile(tile.id, {
+                                context: newContext
+                            });
+                        }
+
+                        // For view tiles, update context
+                        if (tile.type === 'View' && tile.viewData) {
+                            tabActions.updateViewTile(tile.id, {
+                                context: newContext
+                            });
+                        }
+                    }
+                });
+            }
+            
+            // Set data pending and refresh
+            tabActions.setDataPending(true);
+            router.refresh();
+        }
+    };
+
+    // Handler for pasting tile
+    const handlePaste = () => {
+        if (tab?.copied && tabActions) {
+            const copiedTile = items.find(item => item.i === tab.copied);
+            if (copiedTile && tab) {
+                const tileToClone = tab.tiles[tab.copied];
+                if (tileToClone) {
+                    const newId = "Tile_" + newCounter;
+                    tabActions.initTile(newId, {
+                        type: tileToClone.type,
+                        name: `Copy of ${tileToClone.name}`,
+                        position: {
+                            x: (Object.keys(tab.tiles).length * 2) % 12,
+                            y: Math.floor((Object.keys(tab.tiles).length * 2) / 12),
+                            width: tileToClone.position.width,
+                            height: tileToClone.position.height
+                        },
+                        minW: undefined,
+                        minH: undefined,
+                        visible: true
+                    });
+                    setNewCounter(newCounter + 1);
+                    tabActions.setCopied(undefined);
+                }
+            }
+        }
+    };
 
     return (
-        <div className="flex gap-2 items-center pl-4 pr-10">
+        <div className="flex items-center gap-2 pl-4 pr-10">
+            {/* Left side - Focus and Context selector */}
             <ActionButton
                 className="transition-all"
                 tooltip="Open Focus Pane"
-                icon={<FocusIcon />}
+                icon={<FocusIcon/>}
                 variant={"outline"}
-                disabled={!project || !interface_ || pending}
+                disabled={!project || !tabQueryParam || tab?.pending}
                 onClick={() => setFocusDialog(true)}
             />
+            
             <ContextSelector
+                context={tab?.context || ""}
                 contexts={contexts}
-                context={context}
-                setContext={(ctx: string) => {
-                    setContext(ctx);
-                    setItems(items.map(item => {
-                        const validContext = contexts.some(c => c.name == ctx);
-                        const validItemContext = item.context?.startsWith(ctx);
-                        const prefixContexts = contexts.filter(c => c.name.startsWith(ctx));
-                        return {
-                            ...item,
-                            context: validContext
-                                ? ctx
-                                : validItemContext
-                                    ? item.context
-                                    : prefixContexts.length == 1
-                                        ? prefixContexts[0].name
-                                        : undefined,
-                            column_context: validItemContext ? item.column_context : undefined
-                        };
-                    }));
-                    setDataPending(true);
-                    router.refresh();
-                }}
+                setContext={handleContextChange}
             />
+            
+            {/* Middle - Save, Reset, AddTile */}
             <ActionButton
                 className="transition-all"
                 tooltip={!project ? "Select a project first" : "Save Interface"}
                 icon={saveIcon}
                 variant={variant}
-                disabled={!project || !interface_ || pending}
+                disabled={!project || !tabQueryParam || tab?.pending}
                 onClick={async () => setSaveDialog(true)}
             />
+
             <ActionButton
                 className="transition-all"
                 tooltip={!project ? "Select a project first" : "Return to last saved interface"}
                 icon={resetIcon}
                 variant="outline"
-                disabled={!project || pending}
-                onClick={async () => updateInterface(savedInterface).then(() => {
-                    setResetting(true);
-                    setEdit(true);
+                disabled={!project || tab?.pending}
+                onClick={async () => {
+                    await updateInterface(tab?.savedTab);
+                    tabActions?.setResetting(true);
+                    tabActions?.setEdit(true);
                     router.refresh();
-                })}
-            />
-            <AddTile
-                edit={edit}
-                project={project_ as string}
-                pending={pending}
-                items={items}
-                newCounter={newCounter}
-                setItems={setItems}
-                setNewCounter={setNewCounter}
-            />
-            <BaseDropdown
-                button={<ActionButton
-                    variant="outline"
-                    icon={<Eye />}
-                    tooltip="Show Hidden"
-                    size="sm"
-                    disabled={hiddenItems.length == 0 || pending}
-                />}
-            >
-                {hiddenItems.map((item, idx) => <DropdownMenuItem
-                    key={idx}
-                    onSelect={() => {
-                        setItems([...items.map(
-                            it => it.i == item.i ? {
-                                ...it,
-                                x: (items.length * 2) % 12,
-                                y: (items.length * 2) / 12,
-                                w: 4,
-                                h: 4,
-                                minW: undefined,
-                                minH: undefined,
-                                visible: true
-                            } : { ...it }
-                        )]);
-                    }}
-                    disabled={hiddenItems.length == 0}
-                    className="w-64"
-                >
-                    {item.i}
-                </DropdownMenuItem>)}
-            </BaseDropdown>
-            <ActionButton
-                variant="outline"
-                icon={<Clipboard />}
-                tooltip="Paste"
-                disabled={!copied || pending}
-                onClick={() => {
-                    const copiedItem = items.find(item => item.i == copied) as TileProps;
-                    setItems([
-                        ...items,
-                        { ...copiedItem, i: "Tile_" + newCounter }
-                    ]);
-                    setNewCounter(newCounter + 1);
-                    setCopied(undefined);
                 }}
             />
+
+            <AddTile
+                project={project || ""}
+                tabId={tabQueryParam || ""}
+                newCounter={newCounter}
+                setNewCounter={setNewCounter}
+            />
+
+            {/* Show hidden items dropdown */}
+            <BaseDropdown
+                button={
+                    <ActionButton
+                        variant="outline"
+                        icon={<Eye/>}
+                        tooltip="Show Hidden"
+                        size="sm"
+                        disabled={hiddenItems.length === 0 || tab?.pending}
+                    />
+                }
+            >
+                {hiddenItems.map((item, idx) => (
+                    <DropdownMenuItem
+                        key={idx}
+                        onSelect={() => {
+                            if (tabActions && item.i) {
+                                tabActions.updateTile(item.i, {
+                                    position: {
+                                        x: (Object.keys(tab?.tiles || {}).length * 2) % 12,
+                                        y: (Object.keys(tab?.tiles || {}).length * 2) / 12,
+                                        width: 4,
+                                        height: 4,
+                                    },
+                                    minW: undefined,
+                                    minH: undefined,
+                                    visible: true
+                                });
+                            }
+                        }}
+                        disabled={hiddenItems.length === 0}
+                        className="w-64"
+                    >
+                        {item.i}
+                    </DropdownMenuItem>
+                ))}
+            </BaseDropdown>
+
+            {/* Paste button */}
+            <ActionButton
+                variant="outline"
+                icon={<Clipboard/>}
+                tooltip="Paste"
+                disabled={!tab?.copied || tab?.pending}
+                onClick={handlePaste}
+            />
+
+            {/* Right side - Edit and Interactive mode switches */}
             <div className="flex items-center gap-2 border rounded-md p-1">
-                <Switch id="edit" checked={edit} onCheckedChange={() => setEdit(!edit)} />
-                <Label htmlFor="edit">
-                    <Tooltip content="Edit">
-                        <Hammer name="edit" size={18} color={edit ? "var(--primary)" : undefined} />
+                <Switch
+                    id="edit-mode"
+                    checked={tab?.edit || false}
+                    onCheckedChange={() => tabActions?.setEdit(!tab?.edit)}
+                    disabled={!project}
+                />
+                <Label htmlFor="edit-mode" className="cursor-pointer">
+                    <Tooltip content="Edit mode">
+                        <Hammer name="edit" size={18} color={tab?.edit ? "var(--primary)" : undefined} />
                     </Tooltip>
                 </Label>
             </div>
+
             <div className="flex items-center gap-2 border rounded-md p-1">
-                <Switch id="interactive" checked={interactive} onCheckedChange={() => setInteractive(!interactive)} />
-                <Label htmlFor="interactive">
-                    <Tooltip content="Interactive">
-                        <SquareMousePointer name="interactive" size={18} color={interactive ? "var(--primary)" : undefined} />
+                <Switch
+                    id="interactive-mode"
+                    checked={tab?.interactive || false}
+                    onCheckedChange={() => tabActions?.setInteractive(!tab?.interactive)}
+                    disabled={!project}
+                />
+                <Label htmlFor="interactive-mode" className="cursor-pointer">
+                    <Tooltip content="Interactive mode">
+                        <SquareMousePointer name="interactive" size={18} color={tab?.interactive ? "var(--primary)" : undefined} />
                     </Tooltip>
                 </Label>
             </div>
         </div>
-    )
+    );
 };
 
 export default InterfaceButtons;

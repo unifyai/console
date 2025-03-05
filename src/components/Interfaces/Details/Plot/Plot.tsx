@@ -18,11 +18,11 @@ import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogra
 import PlotAxis from "./Buttons/PlotAxis";
 import { ItemType, TileProps } from "@/types/evals/grid";
 
-const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataItem_ = {plotLogs: [], plotArguments: {}, plotFields: {}}, tableNames, logsActions, fieldsActions }: {
+const LogsPlot = ({ interactive, item, updateItem, projectId, pending, plotDataItem_ = {plotLogs: [], plotArguments: {}, plotFields: {}}, tableNames, logsActions, fieldsActions }: {
     interactive: boolean,
     item: TileProps,
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
-    project: string | undefined,
+    projectId: string | undefined,
     pending: boolean,
     tableNames: string[],
     logsActions: LogsActions,
@@ -295,8 +295,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                 className="absolute z-10 flex right-3 top-12 flex-col gap-1.5"
                 style={{transform: `scale(${scaleFactor}) translateX(${translateX}px) translateY(${translateY}px)`, transformOrigin: 'top left'}}
             >
-                {project &&
-                    <PlotRefresh tables={tableNames} project={project} item={item} pending={pending} args={args} setPlotDataItem={setPlotDataItem} logsActions={logsActions} fieldsActions={fieldsActions} updateItem={updateItem} logs={logs}/>
+                {projectId &&
+                    <PlotRefresh tables={tableNames} project={projectId} item={item} pending={pending} args={args} setPlotDataItem={setPlotDataItem} logsActions={logsActions} fieldsActions={fieldsActions} updateItem={updateItem} logs={logs}/>
                 }
                 {((plotType === "Histogram" && selectedXAxisProperty) || (selectedXAxisProperty && selectedYAxisProperty)) &&
                     <>

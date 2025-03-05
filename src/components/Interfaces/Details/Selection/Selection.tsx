@@ -49,17 +49,18 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { TileProps, ItemType } from "@/types/evals/grid";
+import { TileProps, ItemType, TableDataItem } from "@/types/evals/grid";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
-
-import { useInterfaceContext } from "@/components/Providers/Stores/InterfaceStoreProvider";
-
 import { useExpandContextSelector } from "@/contexts/ExpandContext";
 import {
   makePrefixedDictPath,
   gatherAllSubPaths,
   gatherAllSubPathsMulti,
 } from "@/utils/evals/pathUtils";
+import { useTile } from "@/contexts/hooks/useTile";
+import { useTableTile } from "@/contexts/hooks/useTableTile";
+import { Tile } from "@/contexts/slices/selectors/tile";
+import { TableTileData } from "@/contexts/slices/selectors/tableTile";
 
 /*******************************************************************************
  * Helper & Utility Functions
@@ -256,15 +257,59 @@ function buildLogWithChosenColumns(
  * Main "Selection" Component
  *   - Merged logic from old & new code
  ******************************************************************************/
-export default function Selection({index}: {index: string}) {
+export default function Selection({
+  tileId,
+  tabId,
+  interfaceId,
+  projectId,
+}: {
+  tileId: string;
+  tabId: string;
+  interfaceId: string;
+  projectId: string;
+}) {
+  const { data: tileData, exists } = useTile(tileId, tabId, interfaceId, projectId);
 
-  const item = useInterfaceContext((s) => s.items.find(it => it.i == index));
-  const tableItem = useInterfaceContext((s) => s.items.find(it => it.i == item?.table))  || { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps;
-  const relevantItem = useInterfaceContext((s) => s.items.find(it => it.i == item?.table)) || undefined;
-  const tableData = useInterfaceContext((s) => s.tableData);
-  const updateItem = useInterfaceContext((s) => s.updateItem);
-  const params = useMemo(() => tableData[item?.table || ""]?.params || {}, [tableData, item?.table]);
-  const logs = useMemo(() => maybeFlattenGroupedLogs(tableData[item?.table || ""]?.logs || []), [tableData, item?.table]);
+  const { actions: tileActions } = useTile(tileId, tabId, interfaceId, projectId);
+  const item = tileActions?.asTileItem();
+
+  // Get the table tile this selection references
+  const { data: tableTileData, actions: tableTileActions } = useTableTile(
+    item?.table || "", 
+    tabId, 
+    interfaceId, 
+    projectId
+  );
+
+  // Create equivalent references to match the old pattern
+  const tableItem = tableTileActions?.asTileItem() || 
+    { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps;
+  const relevantItem = tableTileActions?.asTileItem() || undefined;
+  const tableDataItem = tableTileData?.tableDataItem || {} as TableDataItem;
+
+  // Create an updateItem function that uses the new actions
+  const updateItem = (item: TileProps, propName: string) => (value: any) => {
+    if (!tileActions || !tableTileActions) return;
+
+    // Create a dummy Tile and TableTileData object to check property existence
+    const tileKeys = Object.keys({} as Tile);
+    const tableTileKeys = Object.keys({} as TableTileData);
+
+    // Check if the property belongs to Tile or TableTileData
+    if (tileKeys.includes(propName)) {
+      // Property exists on Tile, use tileActions.updateTile
+      tileActions.updateTile({ [propName]: value });
+    } else if (tableTileKeys.includes(propName)) {
+      // Property exists on TableTileData, use tableTileActions.updateTableData
+      tableTileActions.updateTableData({ [propName]: value });
+    } else {
+      // log error
+      console.error(`Property ${propName} not found in either Tile or TableTileData`);
+    }
+  };
+
+  const params = useMemo(() => tableDataItem?.params || {}, [tableDataItem, item?.table]);
+  const logs = useMemo(() => maybeFlattenGroupedLogs(tableDataItem?.logs || []), [tableDataItem, item?.table]);
   const selection_ = useMemo(() => relevantItem?.selected || undefined, [relevantItem?.selected]);
   const columnOrdering_ = useMemo(() => relevantItem?.column_order || undefined, [relevantItem?.column_order]);
   const hiddenColumns_ = useMemo(() => relevantItem?.hidden_columns || undefined, [relevantItem?.hidden_columns]);

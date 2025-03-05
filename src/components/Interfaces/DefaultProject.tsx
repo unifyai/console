@@ -1,9 +1,10 @@
 import { Loader2, Play } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import MarkdownRender from "../Common/Code/MarkdownRender";
-import { InterfaceActions, LogsActions, ProjectsActions } from "@/types/evals/grid";
 import { defaultItems, defaultLogs, defaultNewCounter } from "@/constants/logs";
 import { useState } from "react";
+import { useStoreContext } from "@/contexts/providers/StoreProvider";
+import { LogsActions, ProjectsActions, TabActions } from "@/types/evals/grid";
 
 const code = `
 \`\`\`python
@@ -49,15 +50,27 @@ with unify.Experiment():
 \`\`\`
 `;
 
-const DefaultProject = ({ projects, logsActions, projectActions, interfaceActions, setProject, setInterface }: {
-    projects: string[] | undefined,
-    logsActions: LogsActions,
+const DefaultProject = ({ 
+    setProjectQueryParam,
+    setTabQueryParam,
+    projectActions,
+    tabActions,
+    logsActions
+}: {
+    setProjectQueryParam: (project: string | null) => void,
+    setTabQueryParam: (tab: string | null) => void,
     projectActions: ProjectsActions,
-    interfaceActions: InterfaceActions,
-    setProject: (project: string) => void,
-    setInterface: (interface_: string) => void
+    tabActions: TabActions,
+    logsActions: LogsActions
 }) => {
     const defaultProject = "Maths Assistant";
+
+    // Access projects getter and setter from the store
+    const { projects, setProjects } = useStoreContext(state => ({
+        projects: state.projects,
+        setProjects: state.setProjects
+    }));
+
     const disabled = projects == undefined
     const [pending, setPending] = useState(false);
 
@@ -71,19 +84,19 @@ const DefaultProject = ({ projects, logsActions, projectActions, interfaceAction
                         tooltip={"Run Example"}
                         onClick={() => {
                             if (projects?.includes(defaultProject)) {
-                                setProject(defaultProject);
+                                setProjectQueryParam(defaultProject);
                             } else {
                                 setPending(true);
                                 projectActions.create(defaultProject).then(() => {
-                                    interfaceActions.create(
+                                    tabActions.create(
                                         "tab1", defaultProject, undefined, defaultItems, defaultNewCounter, true
                                     ).then(() => {
                                         logsActions.create(
                                             defaultProject, defaultLogs.params, defaultLogs.entries
                                         ).then(() => {
                                             setPending(false);
-                                            setProject(defaultProject);
-                                            setInterface("tab1");
+                                            setProjectQueryParam(defaultProject);
+                                            setTabQueryParam("tab1");
                                         });
                                     });
                                 });
@@ -95,7 +108,7 @@ const DefaultProject = ({ projects, logsActions, projectActions, interfaceAction
                 <MarkdownRender content={code} noBackground />
             </div>
         </div>
-    )
-}
+    );
+};
 
 export default DefaultProject;

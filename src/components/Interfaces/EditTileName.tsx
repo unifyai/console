@@ -4,34 +4,27 @@ import { Dispatch, SetStateAction, useState } from "react";
 import ActionButton from "../Common/Buttons/Action";
 import { Dialog, DialogContent } from "../UI/dialog";
 import { Input } from "../UI/input";
-import { TileProps } from "@/types/evals/grid";
+import { useTab } from "@/contexts/hooks/useTab";
 
 const EditTileName = ({
-    items,
+    tabId,
     editTile,
-    setItems,
-    setEditTile
+    setEditTile,
 }: {
-    items: TileProps[],
-    editTile: string,
-    setItems: Dispatch<SetStateAction<TileProps[]>>,
-    setEditTile: Dispatch<SetStateAction<string | undefined>>
+    tabId: string,
+    editTile: string | undefined,
+    setEditTile: Dispatch<SetStateAction<string | undefined>>,
 }) => {
     const [newTileName, setNewTileName] = useState<string>();
 
+    const { actions } = useTab(tabId);
+
     // edit tile name
     const saveTileName = () => {
-        if (newTileName) {
-            const newItems = items.map(
-                item => (
-                    item.i == editTile
-                        ? { ...item, i: newTileName }
-                        : item.table == editTile
-                            ? { ...item, table: newTileName }
-                            : { ...item }
-                )
-            );
-            setItems([...newItems]);
+        if (newTileName && editTile && actions) {
+            // Use the new renameTile method which handles both
+            // updating the tile name and updating references
+            actions.renameTile(editTile, newTileName);
         }
         setEditTile(undefined);
         setNewTileName(undefined);
@@ -49,8 +42,9 @@ const EditTileName = ({
                         value={newTileName || ""}
                         onInput={(input) => setNewTileName(input.currentTarget.value)}
                         onKeyDown={(e) => {
-                            if (e.key === "Enter")
+                            if (e.key === "Enter") {
                                 saveTileName();
+                            }
                         }}
                         className="h-8 w-48"
                     />

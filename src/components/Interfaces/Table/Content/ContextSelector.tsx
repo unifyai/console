@@ -6,33 +6,42 @@ import BaseDropdown from "../../../Common/Dropdowns/Base";
 import { DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuSub, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSubTrigger } from "../../../UI/dropdown-menu";
 import { Context } from "@/types/evals/grid";
 import { Braces, Check, Folder, FolderTree, Grid2x2, X } from "lucide-react";
-import { useInterfaceContext } from "@/components/Providers/Stores/InterfaceStoreProvider";
+import { useTile } from "@/contexts/hooks/useTile";
+import { useTableTile } from "@/contexts/hooks/useTableTile";
 
 const ContextSelector = ({
-    index,
+    tileId,
+    tabId,
+    interfaceId,
+    projectId,
     contexts,
     context,
     setContext,
     button,
 }: {
-    index?: string,
+    tileId?: string,
+    tabId?: string,
+    interfaceId?: string,
+    projectId?: string,
     contexts: Context[],
     context?: string,
     setContext?: (context: string) => void,
     button?: React.ReactNode,
 }) => {
 
-    const item = useInterfaceContext((s) => s.items.find((it) => it.i === index));
-    const updateItem = useInterfaceContext((s) => s.updateItem);
-    const tableDataItem = useInterfaceContext((s) => s.tableData[index ?? ""]);
-
-    const finalSetContext = (updateItem != undefined && item != undefined) ? (ctx: string) => {
-        if (ctx != item.context) {
-            updateItem(item, "column_context")("");
-            updateItem(item, "context")(ctx);
+    const { actions: tileActions } = tileId && tabId ? useTile(tileId, tabId, interfaceId, projectId) : { actions: null };
+    const { data: tableData, actions: tableTileActions } = tileId && tabId ? useTableTile(tileId, tabId, interfaceId, projectId) : { data: null, actions: null };
+    
+    const item = tileActions?.asTileItem();
+    
+    const finalSetContext = (tileActions && tableTileActions && item) ? (ctx: string) => {
+        if (ctx !== item.context) {
+            tableTileActions.updateTableData({ column_context: "" });
+            tileActions.updateTile({ context: ctx });
         }
     } : setContext;
-    const disabled = !contexts.length && !tableDataItem?.columnContexts?.length;
+    
+    const disabled = !contexts.length && !tableData?.tableDataItem?.columnContexts?.length;
 
     interface TreeNode {
         path: string;
@@ -189,7 +198,7 @@ const ContextSelector = ({
                 return slicedName == "" ? "<root>" : slicedName
             })
         );
-    const columnContextTree = buildTree(tableDataItem?.columnContexts || []);
+    const columnContextTree = buildTree(tableData?.tableDataItem?.columnContexts || []);
     const contextHeader = item != undefined ? (
         contextPrefix == "" ? (context || "Context") : contextPrefix
     ) : (largestCommonPrefix == "" ? "Context" : largestCommonPrefix);
@@ -239,7 +248,7 @@ const ContextSelector = ({
                             />
                         ))}
                     </div> : <></>}
-                    {item && updateItem && (tableDataItem != undefined) && tableDataItem.columnContexts && tableDataItem.columnContexts.length > 0 && <div className="pt-2">
+                    {item && tileActions && tableTileActions && (tableData?.tableDataItem?.columnContexts) && tableData.tableDataItem.columnContexts.length > 0 && <div className="pt-2">
                         <div className="font-bold text-sm px-2 pb-2 border-b flex justify-between items-center">
                             <div className="flex gap-2 items-center">
                                 <Grid2x2 size={18} /> Column Context
@@ -247,7 +256,7 @@ const ContextSelector = ({
                             {item.column_context && <Tooltip content="Clear Column Context">
                                 <X
                                     size={18}
-                                    onClick={() => updateItem(item, "column_context")("")}
+                                    onClick={() => tableTileActions.updateTableData({ column_context: "" })}
                                     className="cursor-pointer hover:text-primary"
                                 />
                             </Tooltip>}
@@ -260,7 +269,7 @@ const ContextSelector = ({
                                 isTopLevel={true}
                                 showRoot={true}
                                 attr={item.column_context}
-                                setter={updateItem(item, "column_context")}
+                                setter={(value) => tableTileActions.updateTableData({ column_context: value })}
                             />
                         ))}
                     </div>}
