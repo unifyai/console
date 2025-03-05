@@ -13,7 +13,7 @@ import {
 } from "@tanstack/react-table";
 import { DerivedEntryActions, LogsActions, FieldsActions, Context, ContextActions } from "@/types/evals/grid";
 import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Ungroup, ListX, FilterX } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import { buildTree, nestedColumns, encodeRenderedDepth } from "@/utils/evals/table";
 import { Badge } from "@/components/UI/badge";
@@ -42,6 +42,7 @@ import ColumnGroupSort from "@/components/Interfaces/Table/Buttons/ColumnGroupSo
 import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data/Buttons/RowExpanding";
 import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import ContextSelector from "./Content/ContextSelector";
+import ResetServerAction from "./Buttons/ResetServerAction";
 
 const LogsTable = ({
   interactive,
@@ -391,7 +392,6 @@ const LogsTable = ({
             logsFilters={logsFilters}
             commonFilter={commonFilter}
             setCommonFilter={updateItem(item, "common_filter")}
-            setLogsFilters={setLogsFilters}
             logs={logs}
             currentTable={item.i}
             tableArguments={tableArguments}
@@ -402,6 +402,9 @@ const LogsTable = ({
             setColumnVisibility={setColumnVisibility}
             context={item.context ?? null}
           />
+          <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => setGrouping([])}  icon={<Ungroup/>}/>
+          <ResetServerAction condition={sorting.length > 0} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => setSorting([])}  icon={<ListX/>}/>
+          <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); updateItem(item, "common_filter")(undefined)}}  icon={<FilterX/>}/>
         </div>
       )}
       {project && (
