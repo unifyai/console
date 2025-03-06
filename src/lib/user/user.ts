@@ -119,6 +119,18 @@ export async function updateUser(updatedUser: UserUpdateRequest): Promise<User> 
 }
 
 /**
+ * Deletes a user's account.
+ * @param userID The user's id.
+ * @returns The response message.
+ */
+export async function deleteUser(userID: string) {
+  const response = await OrchestraAdminClient.delete("/auth-user", {
+    params: { user_id: userID },
+  }) as { data: string };
+  return response.data;
+}
+
+/**
  * Updates a user's profile image.
  * 
  * @param id The ID of the user to update.
