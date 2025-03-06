@@ -29,8 +29,8 @@ const ContextSelector = ({
     button?: React.ReactNode,
 }) => {
 
-    const { actions: tileActions } = tileId && tabId ? useTile(tileId, tabId, interfaceId, projectId) : { actions: null };
-    const { data: tableData, actions: tableTileActions } = tileId && tabId ? useTableTile(tileId, tabId, interfaceId, projectId) : { data: null, actions: null };
+    const { actions: tileActions } = useTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
+    const { data: tableData, actions: tableTileActions } = useTableTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
     
     const item = tileActions?.asTileItem();
     

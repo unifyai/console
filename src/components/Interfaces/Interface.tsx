@@ -49,7 +49,7 @@ const Interface = ({
   const [projectQueryParam, setProjectQueryParam] = useQueryState("project", { shallow: false });
 
   // Get interface and project data from hooks
-  const { interface: interfaceData, exists } = useInterface(interfaceId);
+  const { interface: interfaceData } = useInterface(interfaceId);
   const { project: projectData } = useProject(projectQueryParam || null);
   const { tab: tabData, actions: tabActions } = useTab(tabQueryParam || "", interfaceId);
 
@@ -67,11 +67,6 @@ const Interface = ({
 
   // Get tile props using the getItems function from the tabActions
   const tileProps = !tabActions || !tabData ? [] : tabActions.getItems();
-  
-  // Fallback for non-existent interface
-  if (!exists) {
-    return <div>Interface not found</div>;
-  }
 
   // Get tabs and tiles data
   const tabs = Object.keys(interfaceData?.tabs || {});

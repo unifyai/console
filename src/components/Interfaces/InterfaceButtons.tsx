@@ -47,7 +47,7 @@ const InterfaceButtons = ({
     const project = useStoreContext(s => s.activeProjectId);
     
     // Tab states and actions - get all UI states from here
-    const { tab, actions: tabActions } = useTab(tabQueryParam || "", interfaceId);
+    const { tab: tabData, actions: tabActions } = useTab(tabQueryParam || "", interfaceId);
 
     // Get contexts from the interface data
     const contexts = useStoreContext(state => {
@@ -56,27 +56,24 @@ const InterfaceButtons = ({
     });
 
     // Calculate derived state
-    const items = tab?.tiles ? Object.values(tab.tiles).map(tile => {
-        const { actions } = useTile(tile.id, tab.id, interfaceId, project);
-        return actions!.asTileItem();
-    }) : [];
+    const items = !tabActions || !tabData ? [] : tabActions.getItems();
 
     // Get hidden items
     const hiddenItems = items.filter(item => !item.visible);
 
-    const saveIcon = tab?.saveSuccess ? <Check /> : tab?.saveSuccess === false ? <TriangleAlert /> : <Save />;
-    const resetIcon = tab?.resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
-    const variant = tab?.saveSuccess === false ? "destructive" : "outline";
+    const saveIcon = tabData?.saveSuccess ? <Check /> : tabData?.saveSuccess === false ? <TriangleAlert /> : <Save />;
+    const resetIcon = tabData?.resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
+    const variant = tabData?.saveSuccess === false ? "destructive" : "outline";
 
     // Handle context change 
     const handleContextChange = (contextId: string) => {
-        if (tabActions && tab) {
+        if (tabActions && tabData) {
             // First update the tab's context
             tabActions.setContext(contextId);
 
             // Then update each tile's context-related properties if needed
-            if (tab.tiles) {
-                Object.values(tab.tiles).forEach(tile => {
+            if (tabData.tiles) {
+                Object.values(tabData.tiles).forEach(tile => {
                     // Get the corresponding item to check current context
                     const item = items.find(i => i.i === tile.id);
                     if (item) {
@@ -126,18 +123,18 @@ const InterfaceButtons = ({
 
     // Handler for pasting tile
     const handlePaste = () => {
-        if (tab?.copied && tabActions) {
-            const copiedTile = items.find(item => item.i === tab.copied);
-            if (copiedTile && tab) {
-                const tileToClone = tab.tiles[tab.copied];
+        if (tabData?.copied && tabActions) {
+            const copiedTile = items.find(item => item.i === tabData.copied);
+            if (copiedTile && tabData) {
+                const tileToClone = tabData.tiles[tabData.copied];
                 if (tileToClone) {
                     const newId = "Tile_" + newCounter;
                     tabActions.initTile(newId, {
                         type: tileToClone.type,
                         name: `Copy of ${tileToClone.name}`,
                         position: {
-                            x: (Object.keys(tab.tiles).length * 2) % 12,
-                            y: Math.floor((Object.keys(tab.tiles).length * 2) / 12),
+                            x: (Object.keys(tabData.tiles).length * 2) % 12,
+                            y: Math.floor((Object.keys(tabData.tiles).length * 2) / 12),
                             width: tileToClone.position.width,
                             height: tileToClone.position.height
                         },
@@ -160,12 +157,12 @@ const InterfaceButtons = ({
                 tooltip="Open Focus Pane"
                 icon={<FocusIcon/>}
                 variant={"outline"}
-                disabled={!project || !tabQueryParam || tab?.pending}
+                disabled={!project || !tabQueryParam || tabData?.pending}
                 onClick={() => setFocusDialog(true)}
             />
             
             <ContextSelector
-                context={tab?.context || ""}
+                context={tabData?.context || ""}
                 contexts={contexts}
                 setContext={handleContextChange}
             />
@@ -176,7 +173,7 @@ const InterfaceButtons = ({
                 tooltip={!project ? "Select a project first" : "Save Interface"}
                 icon={saveIcon}
                 variant={variant}
-                disabled={!project || !tabQueryParam || tab?.pending}
+                disabled={!project || !tabQueryParam || tabData?.pending}
                 onClick={async () => setSaveDialog(true)}
             />
 
@@ -185,9 +182,9 @@ const InterfaceButtons = ({
                 tooltip={!project ? "Select a project first" : "Return to last saved interface"}
                 icon={resetIcon}
                 variant="outline"
-                disabled={!project || tab?.pending}
+                disabled={!project || tabData?.pending}
                 onClick={async () => {
-                    await updateInterface(tab?.savedTab);
+                    await updateInterface(tabData?.savedTab);
                     tabActions?.setResetting(true);
                     tabActions?.setEdit(true);
                     router.refresh();
@@ -209,7 +206,7 @@ const InterfaceButtons = ({
                         icon={<Eye/>}
                         tooltip="Show Hidden"
                         size="sm"
-                        disabled={hiddenItems.length === 0 || tab?.pending}
+                        disabled={hiddenItems.length === 0 || tabData?.pending}
                     />
                 }
             >
@@ -220,8 +217,8 @@ const InterfaceButtons = ({
                             if (tabActions && item.i) {
                                 tabActions.updateTile(item.i, {
                                     position: {
-                                        x: (Object.keys(tab?.tiles || {}).length * 2) % 12,
-                                        y: (Object.keys(tab?.tiles || {}).length * 2) / 12,
+                                        x: (Object.keys(tabData?.tiles || {}).length * 2) % 12,
+                                        y: (Object.keys(tabData?.tiles || {}).length * 2) / 12,
                                         width: 4,
                                         height: 4,
                                     },
@@ -244,7 +241,7 @@ const InterfaceButtons = ({
                 variant="outline"
                 icon={<Clipboard/>}
                 tooltip="Paste"
-                disabled={!tab?.copied || tab?.pending}
+                disabled={!tabData?.copied || tabData?.pending}
                 onClick={handlePaste}
             />
 
@@ -252,13 +249,13 @@ const InterfaceButtons = ({
             <div className="flex items-center gap-2 border rounded-md p-1">
                 <Switch
                     id="edit-mode"
-                    checked={tab?.edit || false}
-                    onCheckedChange={() => tabActions?.setEdit(!tab?.edit)}
+                    checked={tabData?.edit || false}
+                    onCheckedChange={() => tabActions?.setEdit(!tabData?.edit)}
                     disabled={!project}
                 />
                 <Label htmlFor="edit-mode" className="cursor-pointer">
                     <Tooltip content="Edit mode">
-                        <Hammer name="edit" size={18} color={tab?.edit ? "var(--primary)" : undefined} />
+                        <Hammer name="edit" size={18} color={tabData?.edit ? "var(--primary)" : undefined} />
                     </Tooltip>
                 </Label>
             </div>
@@ -266,13 +263,13 @@ const InterfaceButtons = ({
             <div className="flex items-center gap-2 border rounded-md p-1">
                 <Switch
                     id="interactive-mode"
-                    checked={tab?.interactive || false}
-                    onCheckedChange={() => tabActions?.setInteractive(!tab?.interactive)}
+                    checked={tabData?.interactive || false}
+                    onCheckedChange={() => tabActions?.setInteractive(!tabData?.interactive)}
                     disabled={!project}
                 />
                 <Label htmlFor="interactive-mode" className="cursor-pointer">
                     <Tooltip content="Interactive mode">
-                        <SquareMousePointer name="interactive" size={18} color={tab?.interactive ? "var(--primary)" : undefined} />
+                        <SquareMousePointer name="interactive" size={18} color={tabData?.interactive ? "var(--primary)" : undefined} />
                     </Tooltip>
                 </Label>
             </div>

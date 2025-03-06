@@ -110,19 +110,23 @@ const TileCard = ({
                 size="default"
               />}
             >
-              {(!tabData?.edit ? [] : tabTypes).map((tab, idx) => <DropdownMenuItem
-                key={idx}
-                onSelect={() => {
-                  const { actions: tableTileActions } = useTile(item.i, tabId, interfaceId);
-                  if (item?.tab == undefined && tab == "Table") {
-                    tableTileActions?.updateTableData({ table_type: "Data Table" });
-                  }
-                  tabActions?.updateTile(item.i, { type: tab });
-                }}
-                className="w-64 flex justify-between items-center"
-              >
-                <span>{tab}</span>{icons[tab as keyof typeof icons]}
-              </DropdownMenuItem>)}
+              {(!tabData?.edit ? [] : tabTypes).map((tab, idx) => {
+                const { actions: tableTileActions } = useTile(item.i, tabId, interfaceId, projectId);
+                return (
+                  <DropdownMenuItem
+                    key={idx}
+                    onSelect={() => {
+                      if (item?.tab == undefined && tab == "Table") {
+                        tableTileActions?.updateTableData({ table_type: "Data Table" });
+                      }
+                    tabActions?.updateTile(item.i, { type: tab });
+                    }}
+                    className="w-64 flex justify-between items-center"
+                  >
+                    <span>{tab}</span>{icons[tab as keyof typeof icons]}
+                  </DropdownMenuItem>
+                )
+              })}
             </BaseDropdown>
           </div>}
           {tab && tabData?.edit && tab == "View" && <div className="w-fit">
@@ -134,18 +138,22 @@ const TileCard = ({
                 size="default"
               />}
             >
-              {(!tabData?.edit ? [] : tableNames).map((tile, idx) => <DropdownMenuItem
-                key={idx}
-                onSelect={() => {
-                  const { actions: tableTileActions } = useTile(item.i, tabId, interfaceId);
-                  tableTileActions?.updateTableData({ table: tile });
-                }}
-                disabled={!logsLengths[tile]}
-                className="w-64"
-              >
-                {tile}
-                {logsLengths[tile] ? "" : " (empty table)"}
-              </DropdownMenuItem>)}
+              {(!tabData?.edit ? [] : tableNames).map((tile, idx) => {
+                const { actions: tableTileActions } = useTile(item.i, tabId, interfaceId, projectId);
+                return (
+                  <DropdownMenuItem
+                    key={idx}
+                    onSelect={() => {
+                      tableTileActions?.updateTableData({ table: tile });
+                    }}
+                    disabled={!logsLengths[tile]}
+                    className="w-64"
+                  >
+                    {tile}
+                    {logsLengths[tile] ? "" : " (empty table)"}
+                  </DropdownMenuItem>
+                )
+              })}
             </BaseDropdown>
           </div>}
         </div>

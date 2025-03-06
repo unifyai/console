@@ -31,14 +31,11 @@ export interface ProjectActions {
  * @returns Object containing project state, actions, and existence flag
  */
 export function useProject(projectId: string | null) {
-  // Early return if projectId is null
-  if (projectId === null) {
-    return { project: null, actions: null, exists: false };
-  }
+  // Always call hooks at the top level, unconditionally
   
   // Get project state from the store using useStoreContext
   const project = useStoreContext(state => 
-    state.projectsById[projectId] || null
+    projectId && state.projectsById ? state.projectsById[projectId] || null : null
   );
 
   // Instead of subscribing to the entire project object,
@@ -47,24 +44,24 @@ export function useProject(projectId: string | null) {
 
   // 1) Check if the project even exists
   const hasProject = useStoreContext((state) => {
-    return !!(projectId && state.projectsById[projectId]);
+    return !!(projectId && state.projectsById && state.projectsById[projectId]);
   });
 
   // 2) Subscriptions for each property we care about
   const name = useStoreContext((state) => {
-    if (!hasProject) return null;
+    if (!hasProject || !projectId) return null;
     return state.projectsById[projectId].name;
   });
   const description = useStoreContext((state) => {
-    if (!hasProject) return '';
+    if (!hasProject || !projectId) return '';
     return state.projectsById[projectId].description;
   });
   const activeInterfaceId = useStoreContext((state) => {
-    if (!hasProject) return null;
+    if (!hasProject || !projectId) return null;
     return state.projectsById[projectId].activeInterfaceId;
   });
   const interfaces = useStoreContext((state) => {
-    if (!hasProject) return null;
+    if (!hasProject || !projectId) return null;
     return state.projectsById[projectId].interfaces || null;
   });
   
@@ -80,40 +77,57 @@ export function useProject(projectId: string | null) {
   const actions = useMemo<ProjectActions>(() => ({
     // Basic project management
     initProject: (initialState) => {
-      storeInitProject(projectId, initialState);
+      if (projectId) {
+        storeInitProject(projectId, initialState);
+      }
     },
     
     updateProject: (updates) => {
-      storeUpdateProject(projectId, updates);
+      if (projectId) {
+        storeUpdateProject(projectId, updates);
+      }
     },
 
     removeProject: () => {
-      storeRemoveProject(projectId);
+      if (projectId) {
+        storeRemoveProject(projectId);
+      }
     },
 
     // Property setters
     setName: (name) => {
-      storeUpdateProject(projectId, { name });
+      if (projectId) {
+        storeUpdateProject(projectId, { name });
+      }
     },
 
     setDescription: (description) => {
-      storeUpdateProject(projectId, { description });
+      if (projectId) {
+        storeUpdateProject(projectId, { description });
+      }
     },
 
     // Interface management
     addInterface: (interfaceId, initialState) => {
-      storeInitInterface(projectId, interfaceId, initialState);
+      if (projectId) {
+        storeInitInterface(projectId, interfaceId, initialState);
+      }
     },
 
     removeInterface: (interfaceId) => {
-      storeRemoveInterface(projectId, interfaceId);
+      if (projectId) {
+        storeRemoveInterface(projectId, interfaceId);
+      }
     },
 
     setActiveInterface: (interfaceId) => {
-      storeSetActiveInterface(interfaceId);
-
-      if (!hasProject) return;
-      storeUpdateProject(projectId, { activeInterfaceId: interfaceId });
+      if (projectId) {
+        storeSetActiveInterface(interfaceId);
+        
+        if (hasProject) {
+          storeUpdateProject(projectId, { activeInterfaceId: interfaceId });
+        }
+      }
     },
 
     // Helper methods
@@ -141,7 +155,7 @@ export function useProject(projectId: string | null) {
     storeSetActiveInterface
   ]);
 
-  // We build a final 'interface' object from the narrower fields
+  // We build a final 'project' object from the narrower fields
   // so the calling component has a shape similar to before, if needed.
   const finalProject = hasProject
     ? {
@@ -150,6 +164,11 @@ export function useProject(projectId: string | null) {
         activeInterfaceId,
         interfaces,
     } as Project : null;
+
+  // Use projectId to conditionally return values, but only after all hooks are called
+  if (projectId === null) {
+    return { project: null, actions: null, exists: false };
+  }
 
   return {
     project: finalProject,

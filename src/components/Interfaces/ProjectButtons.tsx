@@ -17,8 +17,8 @@ const ProjectButtons = ({
     projectQueryParam,
     setProjectQueryParam,
     setTabQueryParam,
-    projectActions,
-    tabActions,
+    projectActions: serverProjectActions,
+    tabActions: serverTabActions,
 }: {
     interfaceId: string;
     tabQueryParam: string | null;
@@ -38,39 +38,37 @@ const ProjectButtons = ({
     const setProject = setProjectQueryParam;
 
     // Interface states and actions
-    const { interface: data, actions, exists } = useInterface(interfaceId);
-
-    if (!exists) return null;
+    const { interface: data, actions } = useInterface(interfaceId);
 
     const tabs = data?.tabs ? Object.keys(data.tabs) : [];
     const setTabs = actions?.setTabs!;
 
     // Tab states and actions
-    const { tab: tabData, actions: tabStateActions } = useTab(tabQueryParam || "");
+    const { tab: tabData, actions: tabActions } = useTab(tabQueryParam || "");
 
     return (
         <div className="w-fit gap-2 flex flex-row items-center px-4">
             <FileDirectory
                 data={projectsData}
-                renamingFunction={projectActions.rename}
+                renamingFunction={serverProjectActions.rename}
                 setterFunction={(proj: FileProps | undefined) => {
                     const newProj = proj ? proj.path : null;
-                    tabStateActions?.setPending(true);
-                    tabStateActions?.setDataPending(true);
+                    tabActions?.setPending(true);
+                    tabActions?.setDataPending(true);
                     setTabs([]);
                     setTabQueryParam(null);
                     setProject(newProj);
                 }}
                 type="Projects"
                 defaultValue={project || undefined}
-                onOpen={() => projectActions.get().then(projects => setProjects(projects))}
+                onOpen={() => serverProjectActions.get().then(projects => setProjects(projects))}
             />
             {project && (
                 <div className="flex flex-row gap-2">
                     <CloseProject
                         onClick={() => {
-                            tabStateActions?.setPending(true);
-                            tabStateActions?.setDataPending(true);
+                            tabActions?.setPending(true);
+                            tabActions?.setDataPending(true);
                             setTabQueryParam(null);
                             setTabs([]);
                             setProject(null);
@@ -80,34 +78,34 @@ const ProjectButtons = ({
                         type="project"
                         args={[project]}
                         deletingFunction={async (name: string) => {
-                            await Promise.all(tabs.map(tabId => tabActions.delete(
+                            await Promise.all(tabs.map(tabId => serverTabActions.delete(
                                 tabId, project, true
                             )))
-                            await Promise.all(tabs.map(tabId => tabActions.delete(
+                            await Promise.all(tabs.map(tabId => serverTabActions.delete(
                                 tabId, project, false
                             )))
-                            return await projectActions.delete(name);
+                            return await serverProjectActions.delete(name);
                         }}
                         variant="outline"
                         onDelete={() => {
-                            tabStateActions?.setPending(true);
-                            tabStateActions?.setDataPending(true);
+                            tabActions?.setPending(true);
+                            tabActions?.setDataPending(true);
                             setTabQueryParam(null);
                             setTabs([]);
                             setProject(null);
-                            projectActions.get().then(projects => setProjects(projects));
+                            serverProjectActions.get().then(projects => setProjects(projects));
                         }}
                     />
                 </div>
             )}
-            {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
+            {projects && <CreateProject creationFunction={serverProjectActions.create} paths={projects} />}
             <ActionButton
                 variant="outline"
                 icon={tabData?.refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
                 tooltip={"Refresh Interface"}
                 disabled={tabData?.pending || tabData?.dataPending}
                 onClick={() => {
-                    tabStateActions?.setRefreshing(true);
+                    tabActions?.setRefreshing(true);
                     router.refresh();
                 }}
             />

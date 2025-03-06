@@ -9,14 +9,13 @@ import { defaultItems, defaultNewCounter } from "@/constants/logs";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useInterface } from "@/contexts/hooks/useInterface";
 import { useTab } from "@/contexts/hooks/useTab";
-import { useTile } from "@/contexts/hooks/useTile";
 
 const InterfaceTabs = ({
     interfaceId,
     tabQueryParam,
     newCounter,
     setTabQueryParam,
-    tabActions,
+    tabActions: serverTabActions,
 }: {
     interfaceId: string,
     tabQueryParam: string | null,
@@ -31,27 +30,18 @@ const InterfaceTabs = ({
     const project = useStoreContext((s) => s.activeProjectId);
 
     // Interface states and actions
-    const { interface: interfaceData, actions: interfaceStateActions, exists: interfaceExists } = useInterface(interfaceId);
-
-    if (!interfaceExists) return null;
+    const { interface: interfaceData, actions: interfaceActions } = useInterface(interfaceId);
 
     const tabIds = Object.keys(interfaceData?.tabs || {});
-    const setTabs = interfaceStateActions?.setTabs!;
+    const setTabs = interfaceActions?.setTabs!;
 
     // Tab states and actions
-    const { tab: tabData, actions: tabStateActions } = useTab(tabQueryParam || "");
+    const { tab: tabData, actions: tabActions } = useTab(tabQueryParam || "");
     const context = tabData?.context!;
     const tiles = tabData?.tiles!;
 
     // Convert the tiles to TileProps format for backward compatibility
-    const items = !tiles ? defaultItems : Object.values(tiles).map(tile => {
-        // Get the tile using the useTile hook to access the asTileItem method
-            const { actions } = useTile(tile.id, tabQueryParam || null);
-            if (!actions) return null;
-
-        // Convert the tile to a TileProps object
-        return actions.asTileItem();
-    }).filter(Boolean) as TileProps[];
+    const items = !tiles ? defaultItems : tabActions?.getItems().filter(Boolean) as TileProps[];
 
     useEffect(() => {
         setTabQueryParamState(tabQueryParam || "");
@@ -74,13 +64,13 @@ const InterfaceTabs = ({
                             onInput={(event: React.ChangeEvent<HTMLInputElement>) => setTabQueryParamState(event.target.value)}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter" && tab_ != tabQueryParamState && !tabIds.includes(tabQueryParamState)) {
-                                    tabActions.update(
+                                    serverTabActions.update(
                                         tab_, project as string, context, items, newCounter, tabQueryParamState, true
                                     ).then(() => {
-                                        tabActions.update(
+                                        serverTabActions.update(
                                             tab_, project as string, context, items, newCounter, tabQueryParamState, false
                                         ).then(() => {
-                                            tabStateActions?.setPending(true);
+                                            tabActions?.setPending(true);
                                             setTabQueryParam(tabQueryParamState);
                                         });
                                     });
@@ -92,13 +82,13 @@ const InterfaceTabs = ({
                         /> : <div className="h-5 w-16 text-center">{tab_}</div>}
                         <div
                             className={`z-10 absolute -top-1 -right-1 cursor-pointer mb-auto hover:text-white hover:bg-primary rounded-sm ${hoveredTab == tab_ ? "opacity-100" : "opacity-0"}`}
-                            onMouseEnter={() => tabQueryParam != tab_ && tabStateActions?.setDeleting(true)}
-                            onMouseLeave={() => tabQueryParam != tab_ && tabStateActions?.setDeleting(false)}
+                            onMouseEnter={() => tabQueryParam != tab_ && tabActions?.setDeleting(true)}
+                            onMouseLeave={() => tabQueryParam != tab_ && tabActions?.setDeleting(false)}
                             onClick={() => {
-                                tabActions.delete(tab_, project as string, true).then(() => {
+                                serverTabActions.delete(tab_, project as string, true).then(() => {
                                     if (tabQueryParam == tab_)
-                                        tabStateActions?.setPending(true);
-                                    tabActions.delete(tab_, project as string, true).then(() => {
+                                        tabActions?.setPending(true);
+                                    serverTabActions.delete(tab_, project as string, true).then(() => {
                                         setTabs(tabIds.filter(i => i != tab_));
                                     });
                                 });
@@ -120,14 +110,14 @@ const InterfaceTabs = ({
                         while (tabIds.includes(`tab${initialIndex}`))
                             initialIndex++;
                         const newTabName = `tab${initialIndex}`;
-                        tabActions.create(
+                        serverTabActions.create(
                             newTabName, project as string, context, defaultItems, defaultNewCounter, true
                         ).then(() => {
-                            tabActions.create(
+                            serverTabActions.create(
                                 newTabName, project as string, context, defaultItems, defaultNewCounter, false
                             ).then(() => {
                                 setTabs([...tabIds, newTabName]);
-                                tabStateActions?.setPending(true);
+                                tabActions?.setPending(true);
                                 setTabQueryParam(newTabName);
                                 setTabQueryParamState(newTabName);
                             });

@@ -36,10 +36,7 @@ export interface InterfaceActions {
  * @returns Object containing interface state, actions, and existence flag
  */
 export function useInterface(interfaceId: string | null, projectId?: string | null) {
-  // Early return if interfaceId is null
-  if (interfaceId === null) {
-    return { interface: null, actions: null, exists: false };
-  }
+  // Call all hooks unconditionally at the top level
   
   // Get active project ID if not provided
   const activeProjectId = useStoreContext(state => 
@@ -52,21 +49,21 @@ export function useInterface(interfaceId: string | null, projectId?: string | nu
 
   // We first check if project or interface exist. If not, all below are null/undefined.
   const hasInterface = useStoreContext(state => {
-    if (!activeProjectId) return false;
+    if (!interfaceId || !activeProjectId) return false;
     const proj = state.projectsById[activeProjectId];
     return !!(proj && proj.interfaces && proj.interfaces[interfaceId]);
   });
 
   const name = useStoreContext(state => {
-    if (!hasInterface || !activeProjectId) return null;
+    if (!hasInterface || !activeProjectId || !interfaceId) return null;
     return state.projectsById[activeProjectId].interfaces[interfaceId].name;
   });
   const activeTabId = useStoreContext(state => {
-    if (!hasInterface || !activeProjectId) return null;
+    if (!hasInterface || !activeProjectId || !interfaceId) return null;
     return state.projectsById[activeProjectId].interfaces[interfaceId].activeTabId || null;
   });
   const tabs = useStoreContext(state => {
-    if (!hasInterface || !activeProjectId) return null;
+    if (!hasInterface || !activeProjectId || !interfaceId) return null;
     return state.projectsById[activeProjectId].interfaces[interfaceId].tabs || null;
   });
 
@@ -83,58 +80,58 @@ export function useInterface(interfaceId: string | null, projectId?: string | nu
   const actions = useMemo<InterfaceActions>(() => ({
     // Basic interface management
     initInterface: (initialState) => {
-      if (activeProjectId) {
+      if (activeProjectId && interfaceId) {
         storeInitInterface(activeProjectId, interfaceId, initialState);
       }
     },
     
     updateInterface: (updates) => {
-      if (activeProjectId) {
+      if (activeProjectId && interfaceId) {
         storeUpdateInterface(activeProjectId, interfaceId, updates);
       }
     },
     
     removeInterface: () => {
-      if (activeProjectId) {
+      if (activeProjectId && interfaceId) {
         storeRemoveInterface(activeProjectId, interfaceId);
       }
     },
     
     // Property setters
     setName: (name) => {
-      if (activeProjectId) {
+      if (activeProjectId && interfaceId) {
         storeUpdateInterface(activeProjectId, interfaceId, { name });
       }
     },
     
     // Tab management
     initTab: (tabId, initialState) => {
-      if (activeProjectId) {
+      if (activeProjectId && interfaceId) {
         storeInitTab(activeProjectId, interfaceId, tabId, initialState);
       }
     },
     
     removeTab: (tabId) => {
-      if (activeProjectId) {
+      if (activeProjectId && interfaceId) {
         storeRemoveTab(activeProjectId, interfaceId, tabId);
       }
     },
     
     updateTab: (tabId, updates) => {
-      if (activeProjectId) {
+      if (activeProjectId && interfaceId) {
         storeUpdateTab(activeProjectId, interfaceId, tabId, updates);
       }
     },
 
     setActiveTab: (tabId) => {
-      if (activeProjectId) {
+      if (activeProjectId && interfaceId) {
         storeSetActiveTab(activeProjectId, interfaceId, tabId);
       }
     },
 
     // New method to set tabs
     setTabs: (tabsInput) => {
-      if (activeProjectId) {
+      if (activeProjectId && interfaceId) {
         // Case 1: Empty object - clear all tabs
         if (Array.isArray(tabsInput) && tabsInput.length === 0) {
           storeUpdateInterface(activeProjectId, interfaceId, { tabs: {} });
@@ -213,6 +210,8 @@ export function useInterface(interfaceId: string | null, projectId?: string | nu
       return activeTabId;
     },
   }), [
+    interfaceId,
+    activeProjectId,
     hasInterface,
     name,
     tabs,
@@ -234,6 +233,11 @@ export function useInterface(interfaceId: string | null, projectId?: string | nu
         tabs,
         activeTabId
     } as Interface : null;
+
+  // Use interfaceId to conditionally return values, but only after all hooks are called
+  if (interfaceId === null) {
+    return { interface: null, actions: null, exists: false };
+  }
 
   return {
     interface: finalInterface,

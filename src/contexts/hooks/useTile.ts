@@ -47,10 +47,7 @@ export function useTile(
   interfaceId?: string | null,
   projectId?: string | null
 ) {
-  // Early return if tileId is null
-  if (tileId === null) {
-    return { data: null, actions: null, exists: false, tabId: null };
-  }
+  // Always call hooks at the top level, unconditionally
   
   // Get active project and interface IDs if not provided
   const activeProjectId = useStoreContext(state => 
@@ -72,7 +69,7 @@ export function useTile(
     if (activeTabId) return activeTabId;
     
     // Otherwise search for the tile in all tabs of the interface
-    if (!activeProjectId || !activeInterfaceId) return null;
+    if (!tileId || !activeProjectId || !activeInterfaceId) return null;
     const interfaceTabs = state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs;
     if (!interfaceTabs) return null;
     
@@ -92,7 +89,7 @@ export function useTile(
 
   // We'll check if this tab actually exists:
   const hasTile = useStoreContext((state) => {
-    if (!activeProjectId || !activeInterfaceId || !foundTabId) return false;
+    if (!tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return false;
     const tileObj =
       state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[foundTabId]?.tiles;
     return !!(tileObj && tileObj[tileId]);
@@ -100,88 +97,88 @@ export function useTile(
 
   // Narrow subscriptions for each property in the tile
   const name = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return '';
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return '';
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].name;
   });
   const type = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return 'view';
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return 'View';
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].type;
   });
   const position = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return { x:0,y:0,width:2,height:2 };
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return { x:0,y:0,width:2,height:2 };
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].position;
   });
   const minW = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].minW;
   });
   const minH = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].minH;
   });
   const visible = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return false;
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return false;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].visible;
   });
   const locked = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return false;
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return false;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].locked;
   });
   const pending = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return false;
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return false;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].pending;
   });
 
   // For tableData, plotData, viewData (we can subscribe or do a single subscription if we prefer)
   const tableData = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return null;
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return null;
     const tileRef = state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId];
     return tileRef.tableData || null;
   });
   const plotData = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return null;
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return null;
     const tileRef = state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId];
     return tileRef.plotData || null;
   });
   const viewData = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return null;
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return null;
     const tileRef = state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId];
     return tileRef.viewData || null;
   });
   const context = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].context;
   });
   const auto_update = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].auto_update;
   });
   const freeze = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].freeze;
   });
   const filters = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].filters;
   });
   const common_filter = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].common_filter;
   });
   const moved = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].moved;
   });
   const static_ = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].static;
   });
   const createdAt = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return new Date().toISOString();
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return new Date().toISOString();
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].createdAt || new Date().toISOString();
   });
   const updatedAt = useStoreContext((state) => {
-    if (!hasTile || !activeProjectId || !activeInterfaceId || !foundTabId) return new Date().toISOString();
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return new Date().toISOString();
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].updatedAt || new Date().toISOString();
   });
   
@@ -194,9 +191,9 @@ export function useTile(
   const storeUpdateViewTile = useStoreContext(state => state.updateViewTile);
   
   // Memoize all actions to prevent unnecessary re-renders
-  const actions = useMemo<TileActions>(() => {
+  const actions = useMemo<TileActions | null>(() => {
     // We'll build a complete tile object with all fields from the Tile interface
-    const tile = hasTile
+    const tile = hasTile && tileId
       ? {
           // Core tile properties
           id: tileId,
@@ -228,6 +225,9 @@ export function useTile(
           viewData
         }
       : null;
+
+    // If tileId is null, return null for actions
+    if (!tileId) return null;
 
     return {
         // Basic tile management
@@ -378,12 +378,12 @@ export function useTile(
                 tileProps.base_index = tile.tableData.base_index;
 
                 // If context not already set, try to get from tab
-                if (!tileProps.context) {
-                    tileProps.context = useStoreContext(state => 
-                        state.projectsById[activeProjectId!]?.interfaces?.[activeInterfaceId!]?.tabs?.[foundTabId!]?.context || ''
+                if (!tileProps.context && activeProjectId && activeInterfaceId && foundTabId) {
+                    const tabContext = useStoreContext(state => 
+                        state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[foundTabId]?.context || ''
                     );
+                    tileProps.context = tabContext;
                 }
-
             }
             else if (tile.type === 'Plot' && tile.plotData) {
                 // Add plot-specific properties from PlotTileData
@@ -413,10 +413,10 @@ export function useTile(
         },
     };
   }, [
+    tileId,
     activeProjectId,
     activeInterfaceId,
     foundTabId,
-    tileId,
     hasTile,
     name,
     type,
@@ -436,7 +436,7 @@ export function useTile(
   ]);
 
   // Construct a final "tile" object from the narrower fields
-  const finalTile = hasTile
+  const finalTile = hasTile && tileId
     ? {
         id: tileId,
         name,
@@ -450,6 +450,11 @@ export function useTile(
         viewData
       }
     : null;
+
+  // Use tileId to conditionally return values, but only after all hooks are called
+  if (tileId === null) {
+    return { data: null, actions: null, exists: false, tabId: null };
+  }
 
   return {
     data: finalTile,

@@ -79,7 +79,7 @@ const Tab = ({
     else if (!tabId) {
       Cookies.remove("tab");
     }
-  }, [projectId, tabId]);
+  }, [projectId, tabId, getLatestTab]);
 
   // Scroll to the bottom whenever new tiles are added
   useEffect(() => {

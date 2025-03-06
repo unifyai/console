@@ -110,7 +110,7 @@ const LogsTable = ({
   const [showSpinner, setShowSpinner] = useState(pending || !tableData?.tableDataItem?.logs);
 
   // Use the tableDataItem from the tile's table data
-  const tableDataItem = tableData?.tableDataItem;
+  const tableDataItem = tableData?.tableDataItem as TableDataItem;
 
   // Create a generic updateItem function that checks property existence
   const updateItem = (item: TileProps, propName: string) => (value: any) => {
@@ -136,17 +136,6 @@ const LogsTable = ({
   useEffect(() => {
     setShowSpinner(pending || !tableDataItem?.logs);
   }, [pending, tableDataItem?.logs]);
-
-  // Early return if no table data item is available
-  if (!tableDataItem) {
-    return (
-      <div className="flex-1 flex flex-col gap-4 w-full h-[80%] p-2 bg-background rounded-md">
-        <div className="flex justify-center items-center h-full w-full">
-          <Loader2 className="animate-spin my-36" />
-        </div>
-      </div>
-    );
-  }
 
   const {
     fields,
