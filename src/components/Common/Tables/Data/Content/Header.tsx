@@ -232,7 +232,7 @@ const DataTableHeader = ({
   // - Applied selection (hover) background color index column header if all (some) table cells are selected
   const [hovered, setHovered] = useState(false);
   const isAllColumnSelected = (header: Header<any, unknown>) =>
-    table.getRowModel().rows.length && getCellsFromHeader(header).every(cell => isCellSelected(cell))
+    table.getRowModel().rows.length && getCellsFromHeader(header).filter(cell => cell.getValue() !== undefined || cell.column.id === "RowNumbering").every(cell => isCellSelected(cell))
   const isAllTableSelected = () => 
     table.getRowModel().rows.length && 
     getSelectableTableCells(table).every(cell => isCellSelected(cell)) && 

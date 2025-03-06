@@ -13,10 +13,12 @@ export type UseCellSelectionProps = {
   setSelectedCells: (selectedCells: string[]) => void,
 };
 
+const isNotUndefinedCell = (cell: Cell<any, any>) => cell.getValue() !== undefined || cell.column.id === "RowNumbering"
 const isValidAdjacentTarget = (cell: Cell<any, any>) =>
   !cell.getIsPlaceholder() &&
   !cell.getIsAggregated() &&
-  !cell.getIsGrouped()
+  !cell.getIsGrouped() &&
+  isNotUndefinedCell(cell)
 const isVisibleCell = (cell: Cell<any, any>) => cell.column.getIsVisible()
 const isValidIndexSelectionTarget = (cell: Cell<any, any>) => isValidAdjacentTarget(cell) && cell.column.id != "RowNumbering"; 
 const isValidSelectionTarget = (cell: Cell<any, any>) => isValidIndexSelectionTarget(cell) && isVisibleCell(cell);
@@ -544,7 +546,7 @@ export const getCellsFromHeader = (header: Header<any, any>) => {
 
 export const getSelectableTableCells = (table: Table<any | unknown>) => {
   const headers = table.getLeafHeaders().filter(h => !h.column.getIsGrouped() && h.column.id != "RowNumbering")
-  const columnCells = headers.flatMap(h => getCellsFromHeader(h))
+  const columnCells = headers.flatMap(h => getCellsFromHeader(h)).filter(cell => isNotUndefinedCell(cell))
   return Array.from(new Set(columnCells))
 }
 

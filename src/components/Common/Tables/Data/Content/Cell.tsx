@@ -100,7 +100,7 @@ const DataTableCell = ({
   // - Applied background color on any index cell if all non aggregated, non placeholder, non grouped cells in the same row are selected
   const [hovered, setHovered] = useState(false);
   const isSelectableCell = (cell: Cell<any, unknown>) =>
-    !cell.getIsGrouped() && !cell.getIsAggregated() && !cell.getIsPlaceholder() && cell.column.getIsVisible()
+    !cell.getIsGrouped() && !cell.getIsAggregated() && !cell.getIsPlaceholder() && cell.column.getIsVisible() && (cell.column.id === "RowNumbering" || cell.getValue() !== undefined)
   const isAllRowSelected = (cell: Cell<any, unknown>) => {
     const dataCells = cell.getContext().row.getAllCells().filter(c => isSelectableCell(c) && c.column.id != "RowNumbering")
     const allSelected = dataCells.every(c => isCellSelected(c))
@@ -128,8 +128,11 @@ const DataTableCell = ({
       ? isCellSelected(cell) ? "var(--primary-foreground)" : ""
       : isSelectableCell(cell) && isAllRowSelected(cell) ? "var(--primary-foreground)" : "",
     backgroundColor: cell.column.id != "RowNumbering"
-      ? isCellSelected(cell) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
+      ? cell.getValue() === undefined ? "var(--muted)" : isCellSelected(cell) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
       : isSelectableCell(cell) && isAllRowSelected(cell) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : "",
+    backgroundImage: cell.column.id != "RowNumbering" && cell.getValue() === undefined 
+      ? 'repeating-linear-gradient(-45deg, rgba(0,0,0,0.1) 0 2px, transparent 1px 6px)' 
+      : undefined,
   };
 
   const [isLoading, setIsLoading] = useState(false);
