@@ -47,7 +47,7 @@ const ColumnDelete = ({ interactive, project, column, getLogFieldsIds, deleteLog
                 className="flex flex-row gap-2 items-center"
             >
                 <Trash className="h-4 w-4"/>
-                <span>Delete Column</span>
+                <span>Delete column</span>
             </div>
             {dialog}
         </DropdownMenuItem>

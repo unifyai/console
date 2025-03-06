@@ -317,7 +317,7 @@ const NumericColumnFilter = ({
                         "
                     >
                         {button}
-                        <span>Filter by this column</span>
+                        <span>Filter column</span>
                     </DropdownMenuItem>
                 ) : (
                     button

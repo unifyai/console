@@ -280,7 +280,7 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
                 "
               >
                 {button}
-                <span>Filter by this column</span>
+                <span>Filter column</span>
               </DropdownMenuItem>
             ) : (
               button

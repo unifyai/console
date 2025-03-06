@@ -334,7 +334,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
                 "
               >
                 {button}
-                <span>Filter by this column</span>
+                <span>Filter column</span>
               </DropdownMenuItem>
             ) : (
               button

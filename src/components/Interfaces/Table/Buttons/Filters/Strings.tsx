@@ -253,7 +253,7 @@ const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
                 "
               >
                 {button}
-                <span>Filter by this column</span>
+                <span>Filter column</span>
               </DropdownMenuItem>
             ) : (
               button

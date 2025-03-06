@@ -51,12 +51,12 @@ const ColumnGroupBy = (({
     const states = [
         { 
             key: false, 
-            tooltip: isParentColumn ? "Group All" : "Group by",
+            tooltip: isParentColumn ? "Group all" : "Group by",
             icon: <Group/>
         },
         { 
             key: true, 
-            tooltip: isParentColumn ? "Ungroup All" : "Ungroup by",
+            tooltip: isParentColumn ? "Ungroup all" : "Ungroup by",
             icon: <Ungroup/>
         },
     ];
@@ -102,7 +102,7 @@ const ColumnGroupBy = (({
         renderMode === "menuItem" ? (
             <DropdownMenuItem onClick={onClick} className="flex items-center gap-2 cursor-pointer">
                 <Group className="h-4 w-4"/>
-                <span>{isParentColumn ? "Group all child columns" : "Group by this column"}</span>
+                <span>{isParentColumn ? "Group children columns" : "Group column"}</span>
             </DropdownMenuItem>
         ) : (
             <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false || auto_update}/>

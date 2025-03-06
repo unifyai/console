@@ -138,9 +138,9 @@ const ColumnGroupSort = (({
     }, [isGroupSorted])
 
     const states = [
-        { key: false, nextKey: "desc", tooltip: "Sort group descending", icon: <GArrowUpDown/> },
-        { key: "asc", nextKey: false, tooltip: "Unsort group", icon: <GArrowUp/> },
-        { key: "desc", nextKey: "asc", tooltip: "Sort group ascending", icon: <GArrowDown/> },
+        { key: false, nextKey: "desc", tooltip: "Sort groups descending", icon: <GArrowUpDown/> },
+        { key: "asc", nextKey: false, tooltip: "Unsort groups", icon: <GArrowUp/> },
+        { key: "desc", nextKey: "asc", tooltip: "Sort groups ascending", icon: <GArrowDown/> },
     ];
     const state = states.find(state => state.key === sortingOrder)!;
     const tooltip = state.tooltip;
