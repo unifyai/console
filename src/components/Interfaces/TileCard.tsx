@@ -51,6 +51,13 @@ const TileCard = ({
     return tileProps.map(item => item.i);
   }, [tileProps]);
 
+  // Get the current item based on the index prop
+  const item = tileProps[index];
+  const tab = item.tab;
+  
+  // Call useTile once at the top level of the component for the current item
+  const { actions: tileActions } = useTile(item?.i, tabId, interfaceId, projectId);
+
   // Trigger update when table data changes (server reloaded)
   useEffect(() => {
     if (!tabData || !tabActions) return;
@@ -93,9 +100,6 @@ const TileCard = ({
     }, {});
   }, [tabData, tabActions]);
 
-  const item = tileProps[index];
-  const tab = item.tab;
-
   return (
     <div className="relative flex w-full h-full border">
       <div className={"w-full flex-1 flex flex-col items-center " + ((!tabData?.edit && tab) ? "mt-4" : tab ? "mt-2" : "justify-center")}>
@@ -111,15 +115,14 @@ const TileCard = ({
               />}
             >
               {(!tabData?.edit ? [] : tabTypes).map((tab, idx) => {
-                const { actions: tableTileActions } = useTile(item.i, tabId, interfaceId, projectId);
                 return (
                   <DropdownMenuItem
                     key={idx}
                     onSelect={() => {
                       if (item?.tab == undefined && tab == "Table") {
-                        tableTileActions?.updateTableData({ table_type: "Data Table" });
+                        tileActions?.updateTableData({ table_type: "Data Table" });
                       }
-                    tabActions?.updateTile(item.i, { type: tab });
+                      tabActions?.updateTile(item?.i, { type: tab });
                     }}
                     className="w-64 flex justify-between items-center"
                   >
@@ -139,12 +142,11 @@ const TileCard = ({
               />}
             >
               {(!tabData?.edit ? [] : tableNames).map((tile, idx) => {
-                const { actions: tableTileActions } = useTile(item.i, tabId, interfaceId, projectId);
                 return (
                   <DropdownMenuItem
                     key={idx}
                     onSelect={() => {
-                      tableTileActions?.updateTableData({ table: tile });
+                      tileActions?.updateTableData({ table: tile });
                     }}
                     disabled={!logsLengths[tile]}
                     className="w-64"
@@ -160,7 +162,7 @@ const TileCard = ({
 
         {/* Tile content */}
         <Tile
-            tileId={item.i}
+            tileId={item?.i}
             tabId={tabId}
             interfaceId={interfaceId}
             projectId={projectId}

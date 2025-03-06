@@ -290,13 +290,11 @@ export default function Selection({
   /******************************************************************************
    * Prepare sorted logs & selection data
    ******************************************************************************/
-  const { data: tileData, exists } = useTile(tileId, tabId, interfaceId, projectId);
-
-  const { actions: tileActions } = useTile(tileId, tabId, interfaceId, projectId);
-  const item = tileActions?.asTileItem();
+  const { actions: tileActionsWithId } = useTile(tileId, tabId, interfaceId, projectId);
+  const item = tileActionsWithId?.asTileItem();
 
   // Get the table tile this selection references
-  const { data: tableTileData, actions: tableTileActions } = useTableTile(
+  const { data: tileDataWithTable, actions: tileActionsWithTable } = useTile(
     item?.table || "", 
     tabId, 
     interfaceId, 
@@ -304,14 +302,14 @@ export default function Selection({
   );
 
   // Create equivalent references to match the old pattern
-  const tableItem = tableTileActions?.asTileItem() || 
+  const tableItem = tileActionsWithTable?.asTileItem() || 
     { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps;
-  const relevantItem = tableTileActions?.asTileItem() || undefined;
-  const tableDataItem = tableTileData?.tableDataItem || {} as TableDataItem;
+  const relevantItem = tileActionsWithTable?.asTileItem() || undefined;
+  const tableDataItem = tileDataWithTable?.tableData?.tableDataItem || {} as TableDataItem;
 
   // Create an updateItem function that uses the new actions
   const updateItem = (item: TileProps, propName: string) => (value: any) => {
-    if (!tileActions || !tableTileActions) return;
+    if (!tileActionsWithId || !tileActionsWithTable) return;
 
     // Create a dummy Tile and TableTileData object to check property existence
     const tileKeys = Object.keys({} as Tile);
@@ -320,10 +318,10 @@ export default function Selection({
     // Check if the property belongs to Tile or TableTileData
     if (tileKeys.includes(propName)) {
       // Property exists on Tile, use tileActions.updateTile
-      tileActions.updateTile({ [propName]: value });
+      tileActionsWithId.updateTile({ [propName]: value });
     } else if (tableTileKeys.includes(propName)) {
       // Property exists on TableTileData, use tableTileActions.updateTableData
-      tableTileActions.updateTableData({ [propName]: value });
+      tileActionsWithTable.updateTableData({ [propName]: value });
     } else {
       // log error
       console.error(`Property ${propName} not found in either Tile or TableTileData`);
