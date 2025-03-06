@@ -23,6 +23,7 @@ import ProjectButtons from "./ProjectButtons";
 import EditTileName from "./EditTileName";
 import Tooltip from "../Common/Misc/Tooltip";
 import ContextSelector from "./Table/Content/ContextSelector";
+import TutorialButton from "./TutorialButton";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -384,8 +385,15 @@ const CardGrid = ({
                                         setTableData={setTableData}
                                     />
                                     <div className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (edit ? "h-16" : "h-10")}>
-                                        <div className="mb-auto flex gap-2 ml-1">
-                                            <Tooltip content="Tile Type">
+                                        <div className="mb-auto flex gap-2 ml-1 items-center">
+                                            <TutorialButton 
+                                                url={
+                                                    el.tab === "Plot" ? "https://docs.unify.ai/interfaces/plots" :
+                                                    el.tab === "View" ? "https://docs.unify.ai/interfaces/views" :
+                                                    "https://docs.unify.ai/interfaces/tables"
+                                                }
+                                            />
+                                            <Tooltip content="Rename Tile">
                                                 <Badge
                                                     className="cursor-pointer text-sm font-normal mb-1"
                                                     variant="primary"
@@ -528,6 +536,7 @@ const CardGrid = ({
                 </Suspense>
             </DialogContent>
         </Dialog>}
+        {/*  */}
         {edit && editTile && <EditTileName
             items={items}
             editTile={editTile}

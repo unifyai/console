@@ -16,7 +16,6 @@ import { icons, tabTypes } from "@/constants/logs";
 import { Context } from "@/types/evals/grid";
 import { Plus } from "lucide-react";
 import { ExpandProvider } from "@/contexts/ExpandContext";
-import TutorialButton from "./TutorialButton";
 
 const Card = ({
     edit,
@@ -121,15 +120,6 @@ const Card = ({
 
     return (<div className="relative flex w-full h-full border">
         <div className={"w-full flex-1 flex flex-col items-center " + ((!edit && tab) ? "mt-4" : tab ? "mt-2" : "justify-center")}>
-            <div className="absolute top-2 right-3 z-20">
-                <TutorialButton 
-                    url={
-                        tab?.includes("Plot") ? "https://docs.unify.ai/interfaces/plots" :
-                        tab?.includes("View") ? "https://docs.unify.ai/interfaces/views" :
-                        "https://docs.unify.ai/interfaces/tables"
-                    }
-                />
-            </div>
             <div className="flex gap-4 z-20">
                 {edit && <div className="w-fit">
                     <BaseDropdown
