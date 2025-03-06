@@ -143,9 +143,6 @@ export function useProject(projectId: string | null) {
   }), [
     projectId,
     hasProject,
-    name,
-    description,
-    activeInterfaceId,
     interfaces,
     storeInitProject,
     storeUpdateProject,

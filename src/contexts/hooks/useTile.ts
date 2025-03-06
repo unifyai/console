@@ -83,6 +83,12 @@ export function useTile(
     return null;
   });
 
+  // Get the tab context at the top level so we can use it in asTileItem without calling useStoreContext there
+  const tabContext = useStoreContext(state => {
+    if (!activeProjectId || !activeInterfaceId || !foundTabId) return '';
+    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[foundTabId]?.context || '';
+  });
+
   // Instead of subscribing to the entire interface object,
   // we subscribe to individual properties. This way, changes in
   // unrelated fields won't cause a new reference for everything.
@@ -377,11 +383,8 @@ export function useTile(
                 tileProps.selected = tile.tableData.selected;
                 tileProps.base_index = tile.tableData.base_index;
 
-                // If context not already set, try to get from tab
-                if (!tileProps.context && activeProjectId && activeInterfaceId && foundTabId) {
-                    const tabContext = useStoreContext(state => 
-                        state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[foundTabId]?.context || ''
-                    );
+                // If context not already set, use the tab context we got at the top level
+                if (!tileProps.context) {
                     tileProps.context = tabContext;
                 }
             }
@@ -397,15 +400,15 @@ export function useTile(
                 tileProps.bin_count = tile.plotData.bin_count;
                 tileProps.regression_line = tile.plotData.regression_line;
                 
-                // If context not already set, use title from plotData
+                // If context not already set, use the tab context we got at the top level
                 if (!tileProps.context) {
-                    tileProps.context = tile.plotData.title || '';
+                    tileProps.context = tabContext;
                 }
             }
             else if (tile.type === 'View' && tile.viewData) {
                 // Add view-specific properties from ViewTileData
                 if (!tileProps.context) {
-                    tileProps.context = tile.viewData.title || '';
+                    tileProps.context = tabContext;
                 }
             }
 
@@ -427,6 +430,7 @@ export function useTile(
     tableData,
     plotData,
     viewData,
+    tabContext,
     storeUpdateTile,
     storeRemoveTile,
     storeInitTile,
