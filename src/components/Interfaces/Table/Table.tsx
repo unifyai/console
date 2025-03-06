@@ -403,7 +403,7 @@ const LogsTable = ({
             context={item.context ?? null}
           />
           <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => setGrouping([])}  icon={<Ungroup/>}/>
-          <ResetServerAction condition={sorting.length > 0} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => setSorting([])}  icon={<ListX/>}/>
+          <ResetServerAction condition={(sorting.length > 0 || groupSorting.length > 0)} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => {setSorting([]); setGroupSorting([])}}  icon={<ListX/>}/>
           <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); updateItem(item, "common_filter")(undefined)}}  icon={<FilterX/>}/>
         </div>
       )}
