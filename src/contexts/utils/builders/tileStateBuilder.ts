@@ -1,5 +1,6 @@
 import { PlotTileData } from "@/contexts/slices/selectors/plotTile";
 import { TableTileData } from "@/contexts/slices/selectors/tableTile";
+import { ViewTileData } from "@/contexts/slices/selectors/viewTile";
 import { Tile } from "@/contexts/slices/selectors/tile";
 import { TableDataProps } from "@/types/evals/grid";
 import { TableArguments } from "@/types/evals/logs";
@@ -116,5 +117,33 @@ export function buildPlotTileState(
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     } as PlotTileData,
+  } as Tile;
+}
+
+/**
+ * Build initial state for a view tile with view-specific data
+ */
+export function buildViewTileState(
+  tileId: string,
+  tileData: any = {},
+) {
+  const baseTile = buildTileState(tileId, tileData, 'View');
+  
+  // Add table-specific data
+  return {
+    ...baseTile,
+    viewData: {
+      // Fields from TableDataItem
+      id: tileId,
+      title: tileData.name || tileId,
+      loading: false,
+      error: null,
+      lastUpdated: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+
+      // Table-specific fields from TileProps
+      table: tileData.table || "",
+    } as ViewTileData,
   } as Tile;
 }

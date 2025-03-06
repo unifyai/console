@@ -61,7 +61,6 @@ import {
 } from "@/utils/evals/pathUtils";
 import { Tile } from "@/contexts/slices/selectors/tile";
 import { TableTileData } from "@/contexts/slices/selectors/tableTile";
-import { useTableTile } from "@/contexts/hooks/useTableTile";
 import { useTile } from "@/contexts/hooks/useTile";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 

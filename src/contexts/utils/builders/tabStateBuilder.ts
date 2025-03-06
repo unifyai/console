@@ -1,6 +1,6 @@
 import { PlotDataProps } from "@/types/evals/grid";
 import { TableDataProps } from "@/types/evals/grid";
-import { buildPlotTileState, buildTableTileState, buildTileState } from "./tileStateBuilder";
+import { buildPlotTileState, buildTableTileState, buildTileState, buildViewTileState } from "./tileStateBuilder";
 import { Tab } from "@/contexts/slices/selectors/tab";
 import { TableArguments } from "@/types/evals/logs";
 
@@ -14,8 +14,8 @@ export function buildTabState(
   isActive: boolean = false,
   order: number = 1,
   tableData: TableDataProps = {},
-  tableArguments: TableArguments = {},
   plotData: PlotDataProps = {},
+  tableArguments: TableArguments = {},
   limit: number,
   offsets: number[],
 ) {
@@ -44,7 +44,7 @@ export function buildTabState(
     updatedAt: new Date().toISOString(),
     tiles: {} as Record<string, any>
   } as Tab;
-  
+
   // If we have table tiles, add them
   if (Array.isArray(tabData.tableTiles)) {
     tabData.tableTiles.forEach((tile: any, index: number) => {
@@ -64,6 +64,13 @@ export function buildTabState(
   if (Array.isArray(tabData.plotTiles)) {
     tabData.plotTiles.forEach((tile: any) => {
       tab.tiles[tile.i] = buildPlotTileState(tile.i, tile, plotData);
+    });
+  }
+
+  // If we have view tiles, add them
+  if (Array.isArray(tabData.viewTiles)) {
+    tabData.viewTiles.forEach((tile: any) => {
+      tab.tiles[tile.i] = buildViewTileState(tile.i, tile);
     });
   }
   

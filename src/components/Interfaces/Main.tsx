@@ -93,6 +93,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     // get table and plot tiles
     let tableTiles = (currentTab?.items || []).filter(item => item.tab == "Table");
     let plotTiles = (currentTab?.items || []).filter(item => item.tab == "Plot");
+    let viewTiles = (currentTab?.items || []).filter(item => item.tab == "View");
 
     // Get fields
     const fields: LogFieldsResponseProps[] = await Promise.all(
@@ -405,6 +406,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                 name: currentTabId,
                 tableTiles,
                 plotTiles,
+                viewTiles,
                 items: currentTab?.items || [],
                 tabCreated,
                 tempTabCreated,
@@ -424,8 +426,8 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
         },
         currentProject,
         tableData,
-        tableArguments,
         plotData,
+        tableArguments,
         limit,
         offsets,
         contexts,
@@ -434,17 +436,17 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
 
     return (
         <StoreProvider initialState={initialState}>
-                <StoreUpdater initialState={initialState} />
-                    <div className="w-full h-full bg-white">
-                        <Interface
-                            interfaceId={currentInterfaceId}
-                            tabActions={tabActions}
-                            projectsActions={projectsActions}
-                            logsActions={logsActions}
-                            fieldsActions={fieldsActions}
-                            derivedEntryActions={derivedEntryActions}
-                        />
-                     </div>
+            <StoreUpdater initialState={initialState} />
+            <div className="w-full h-full bg-white">
+                <Interface
+                    interfaceId={currentInterfaceId}
+                    tabActions={tabActions}
+                    projectsActions={projectsActions}
+                    logsActions={logsActions}
+                    fieldsActions={fieldsActions}
+                    derivedEntryActions={derivedEntryActions}
+                />
+            </div>
         </StoreProvider>
     );
 };

@@ -13,8 +13,8 @@ export function buildInterfaceState(
   tabsData: any = {},
   defaultProjectId: string,
   tableData: TableDataProps = {},
-  tableArguments: TableArguments = {},
   plotData: PlotDataProps = {},
+  tableArguments: TableArguments = {},
   limit: number,
   offsets: number[],
   tabs: Record<string, TabProps> = {}
@@ -43,8 +43,8 @@ export function buildInterfaceState(
       true, // Active
       1, // First order
       tableData,
-      tableArguments,
       plotData,
+      tableArguments,
       limit,
       offsets,
     );
@@ -57,8 +57,8 @@ export function buildInterfaceState(
       true, // Active
       1, // First order
       tableData,
-      tableArguments,
       plotData,
+      tableArguments,
       limit,
       offsets,
     );
@@ -75,8 +75,8 @@ export function buildInterfaceState(
         false, // Not active
         order,
         tableData,
-        tableArguments,
         plotData,
+        tableArguments,
         limit,
         offsets,
       );
