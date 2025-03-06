@@ -373,16 +373,15 @@ export const createStoreSlice: StateCreator<
     
     if (tile && tile.type === 'View') {
       // Add a viewData property to the tile with the initialized view data
-      const viewData = { id: tileId, ...initialState };
-      viewTileLogic.initViewTile(tile, tileId, 'html', viewData);
+      viewTileLogic.initViewTile(tileId, initialState);
     }
   }),
   
   updateViewTile: (projectId, interfaceId, tabId, tileId, updates) => set(state => {
     const tile = state.projectsById[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.tiles?.[tileId];
     
-    if (tile && tile.type === 'View') {
-      viewTileLogic.updateViewTile(tile, updates);
+    if (tile && tile.type === 'View' && tile.viewData) {
+      viewTileLogic.updateViewTile(tile.viewData, updates);
     }
   }),
   
@@ -485,7 +484,10 @@ export const createStoreSlice: StateCreator<
                                 newTile.plotData
                               );
                             } else if (tile.type === 'View' && newTile.viewData) {
-                              viewTileLogic.updateViewTile(tile, newTile.viewData);
+                              tile.viewData = viewTileLogic.updateViewTile(
+                                tile.viewData || viewTileLogic.initViewTile(tileId),
+                                newTile.viewData
+                              );
                             }
                           }
                         }
