@@ -252,7 +252,8 @@ const DataTableHeader = ({
     zIndex: isColumnDragging || isPinned ? 1 : 0,
     borderLeft: header.column.id === "RowNumbering" ? "1px solid var(--muted)" : undefined,
     borderRight: "1px solid var(--muted)",
-    borderTop: "1px solid var(--muted)",   
+    borderTop: "1px solid var(--muted)",
+    borderBottom: header.depth >= 1 && !header.subHeaders.length ? "1px solid var(--muted)" : undefined,
     color: isAllColumnSelected(header) ? "var(--primary-foreground)" : "",
     backgroundColor: isNotUtilColumn
       ? isAllColumnSelected(header) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""

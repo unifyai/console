@@ -183,7 +183,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                     onDragCancel={(event) => handleDragCancel(setState.setDraggingColumns)}
                 >
                     <Table className={`relative w-full ${className}`} style={{ width: table.getTotalSize() }}>
-                        <TableHeader className="sticky top-0 z-20 bg-background" style={{ boxShadow: '0 -4px 4px -4px gray inset' }}>
+                        <TableHeader className="sticky top-0 z-20 bg-background">
                             {table.getHeaderGroups().map((headerGroup) => (
                                 <TableRow key={headerGroup.id}>
                                     <SortableContext items={state.columnOrder} strategy={horizontalListSortingStrategy}>
@@ -269,7 +269,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                             )}
                         </TableBody>
 
-                        <TableFooter className="sticky bottom-0 z-20 bg-background border-t-2 border-foreground" style={{ boxShadow: '0 4px 4px -4px gray inset' }}>
+                        <TableFooter className="sticky bottom-0 z-20 bg-background border-t-2 border-foreground">
                             <TableRow>
                                 {isUpdatingLogs ? (
                                     finalColumns.map((_, idx) => (
