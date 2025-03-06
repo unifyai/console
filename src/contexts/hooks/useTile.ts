@@ -1,7 +1,12 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback, useRef } from 'react';
 import { useStoreContext } from '../providers/StoreProvider';
 import { Tile, TilePosition } from '../slices/selectors/tile';
 import { TileProps } from '@/types/evals/grid';
+import { IStoreState } from '../store';
+
+// Define the valid tile types
+const tileTypes = ['Table', 'Plot', 'View'] as const;
+type TileType = (typeof tileTypes)[number];
 
 /**
  * Interface for tile-related actions
@@ -19,7 +24,7 @@ export interface TileActions {
   setPending: (pending: boolean) => void;
   
   // Type-specific management
-  setType: (type: 'table' | 'plot' | 'view', tabId?: string) => void;
+  setType: (type: 'Table' | 'Plot' | 'View', tabId?: string) => void;
   
   // Content management based on type
   updateTableData: (updates: any) => void;
@@ -32,6 +37,180 @@ export interface TileActions {
   // Conversion utilities
   asTileItem: () => TileProps;
 }
+
+/**
+ * Factory function to create TileActions without using hooks
+ * This can be used by both useTile and useTileActions
+ */
+export function createTileActions(
+  tileId: string,
+  tabId: string | null,
+  interfaceId: string | null,
+  projectId: string | null,
+  tile: Tile | null,
+  tabContext: string,
+  store: IStoreState
+): TileActions | null {
+  // If essential parameters are missing, return null
+  if (!tileId || !tabId || !projectId || !interfaceId || !tile) return null;
+  
+  return {
+    // Basic tile management
+    updateTile: (updates) => {
+      store.updateTile(projectId, interfaceId, tabId, tileId, updates);
+    },
+
+    removeTile: () => {
+      store.removeTile(projectId, interfaceId, tabId, tileId);
+    },
+
+    // Property setters
+    setName: (name) => {
+      store.updateTile(projectId, interfaceId, tabId, tileId, { name });
+    },
+
+    setPosition: (position) => {
+      store.updateTile(projectId, interfaceId, tabId, tileId, {
+        position: {
+          ...(tile.position || { x: 0, y: 0, width: 2, height: 2 }),
+          ...position
+        }
+      });
+    },
+
+    setVisible: (visible) => {
+      store.updateTile(projectId, interfaceId, tabId, tileId, { visible });
+    },
+
+    setLocked: (locked) => {
+      store.updateTile(projectId, interfaceId, tabId, tileId, { locked });
+    },
+
+    setPending: (pending) => {
+      store.updateTile(projectId, interfaceId, tabId, tileId, { pending });
+    },
+
+    // Type-specific management
+    setType: (type, newTabId) => {
+      const targetTabId = newTabId || tabId;
+      
+      // Need to create a new tile with the correct type
+      store.updateTile(projectId, interfaceId, targetTabId, tileId, { type });
+      
+      // Initialize type-specific data
+      if (type === 'Table') {
+        store.updateTableTile(projectId, interfaceId, targetTabId, tileId, {});
+      } else if (type === 'Plot') {
+        store.updatePlotTile(projectId, interfaceId, targetTabId, tileId, {});
+      } else if (type === 'View') {
+        store.updateViewTile(projectId, interfaceId, targetTabId, tileId, {});
+      }
+    },
+
+    // Content management based on type
+    updateTableData: (updates) => {
+      if (tile.type === 'Table') {
+        store.updateTableTile(projectId, interfaceId, tabId, tileId, updates);
+      }
+    },
+
+    updatePlotData: (updates) => {
+      if (tile.type === 'Plot') {
+        store.updatePlotTile(projectId, interfaceId, tabId, tileId, updates);
+      }
+    },
+
+    updateViewData: (updates) => {
+      if (tile.type === 'View') {
+        store.updateViewTile(projectId, interfaceId, tabId, tileId, updates);
+      }
+    },
+
+    // Tab relationship
+    moveToTab: (newTabId) => {
+      // Create a copy of the tile in the new tab
+      store.initTile(projectId, interfaceId, newTabId, tileId, tile);
+
+      // Remove from the old tab
+      store.removeTile(projectId, interfaceId, tabId, tileId);
+    },
+
+    // Conversion to TileProps for legacy components
+    asTileItem: () => {
+      // Create base TileProps from Tile's core properties
+      const tileProps: TileProps = {
+        i: tile.id,
+        x: tile.position.x,
+        y: tile.position.y,
+        w: tile.position.width,
+        h: tile.position.height,
+        minW: tile.minW,
+        minH: tile.minH,
+        visible: tile.visible,
+        tab: tile.type,
+        
+        // Common fields shared across tile types
+        moved: tile.moved,
+        static: tile.static,
+        context: tile.context,
+        auto_update: tile.auto_update,
+        freeze: tile.freeze,
+        filters: tile.filters,
+        common_filter: tile.common_filter
+      };
+
+      // Add type-specific properties based on the tile type
+      if (tile.type === 'Table' && tile.tableData) {
+        // Add table-specific properties from TableTileData
+        tileProps.table = tile.tableData.table;
+        tileProps.table_type = tile.tableData.table_type || 'Data Table';
+        tileProps.column_context = tile.tableData.column_context;
+        tileProps.page_number = tile.tableData.page_number;
+        tileProps.metric = tile.tableData.metric;
+        tileProps.column_order = tile.tableData.column_order;
+        tileProps.hidden_columns = tile.tableData.hidden_columns;
+        tileProps.sorting = tile.tableData.sorting;
+        tileProps.grouping = tile.tableData.grouping;
+        tileProps.group_sorting = tile.tableData.group_sorting;
+        tileProps.columns_pin_left = tile.tableData.columns_pin_left;
+        tileProps.columns_pin_right = tile.tableData.columns_pin_right;
+        tileProps.selected = tile.tableData.selected;
+        tileProps.base_index = tile.tableData.base_index;
+
+        // If context not already set, use the tab context
+        if (!tileProps.context) {
+          tileProps.context = tabContext;
+        }
+      } else if (tile.type === 'Plot' && tile.plotData) {
+        // Add plot-specific properties from PlotTileData
+        tileProps.plot_type = tile.plotData.plot_type;
+        tileProps.plot_scale_x = tile.plotData.plot_scale_x;
+        tileProps.plot_scale_y = tile.plotData.plot_scale_y;
+        tileProps.is_aggregated = tile.plotData.is_aggregated;
+        tileProps.x_axis = tile.plotData.x_axis;
+        tileProps.y_axis = tile.plotData.y_axis;
+        tileProps.plot_group_by = tile.plotData.plot_group_by;
+        tileProps.bin_count = tile.plotData.bin_count;
+        tileProps.regression_line = tile.plotData.regression_line;
+
+        // If context not already set, use the tab context
+        if (!tileProps.context) {
+          tileProps.context = tabContext;
+        }
+      } else if (tile.type === 'View' && tile.viewData) {
+        // Add table-specific properties from TableTileData
+        tileProps.table = tile.viewData.table;
+        
+        // If context not already set, use the tab context
+        if (!tileProps.context) {
+          tileProps.context = tabContext;
+        }
+      }
+
+      return tileProps;
+    }
+  };
+} 
 
 /**
  * Custom hook to access tile state and actions
@@ -94,11 +273,9 @@ export function useTile(
   // unrelated fields won't cause a new reference for everything.
 
   // We'll check if this tab actually exists:
-  const hasTile = useStoreContext((state) => {
+  const hasTile = useStoreContext(state => {
     if (!tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return false;
-    const tileObj =
-      state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[foundTabId]?.tiles;
-    return !!(tileObj && tileObj[tileId]);
+    return !!state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[foundTabId]?.tiles?.[tileId];
   });
 
   // Narrow subscriptions for each property in the tile
@@ -107,11 +284,11 @@ export function useTile(
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].name;
   });
   const type = useStoreContext((state) => {
-    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return 'View';
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].type;
   });
   const position = useStoreContext((state) => {
-    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return { x:0,y:0,width:2,height:2 };
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return { x: 0, y: 0, width: 2, height: 2 };
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].position;
   });
   const minW = useStoreContext((state) => {
@@ -188,272 +365,92 @@ export function useTile(
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].updatedAt || new Date().toISOString();
   });
   
-  // Get store actions
-  const storeUpdateTile = useStoreContext(state => state.updateTile);
-  const storeRemoveTile = useStoreContext(state => state.removeTile);
-  const storeInitTile = useStoreContext(state => state.initTile);
-  const storeUpdateTableTile = useStoreContext(state => state.updateTableTile);
-  const storeUpdatePlotTile = useStoreContext(state => state.updatePlotTile);
-  const storeUpdateViewTile = useStoreContext(state => state.updateViewTile);
+  // Get store for action factory
+  const store = useStoreContext(state => state);
   
-  // Memoize all actions to prevent unnecessary re-renders
-  const actions = useMemo<TileActions | null>(() => {
-    // We'll build a complete tile object with all fields from the Tile interface
-    const tile = hasTile && tileId
-      ? {
-          // Core tile properties
-          id: tileId,
-          name,
-          type,
-          position,
-          minW,
-          minH,
-          visible,
-          locked,
-          pending,
-          createdAt,
-          updatedAt,
-          
-          // Grid-specific optional fields
-          moved,
-          static: static_,
-          
-          // Common fields shared across tile types
-          context,
-          auto_update,
-          freeze,
-          filters,
-          common_filter,
-          
-          // Reference to the content-specific data
-          tableData,
-          plotData,
-          viewData
-        }
-      : null;
-
-    // If tileId is null, return null for actions
-    if (!tileId) return null;
-
+  // We'll build a complete tile object from the individual fields
+  const finalTile = useMemo<Tile | null>(() => {
+    if (!hasTile || !tileId) return null;
+    
     return {
-        // Basic tile management
-        updateTile: (updates) => {
-            if (activeProjectId && activeInterfaceId && foundTabId) {
-                storeUpdateTile(activeProjectId, activeInterfaceId, foundTabId, tileId, updates);
-            }
-        },
-
-        removeTile: () => {
-            if (activeProjectId && activeInterfaceId && foundTabId) {
-                storeRemoveTile(activeProjectId, activeInterfaceId, foundTabId, tileId);
-            }
-        },
-
-        // Property setters
-        setName: (name) => {
-            if (activeProjectId && activeInterfaceId && foundTabId) {
-                storeUpdateTile(activeProjectId, activeInterfaceId, foundTabId, tileId, { name });
-            }
-        },
-
-        setPosition: (position) => {
-            if (activeProjectId && activeInterfaceId && foundTabId) {
-                storeUpdateTile(activeProjectId, activeInterfaceId, foundTabId, tileId, { 
-                position: {
-                    ...(tile?.position || { x: 0, y: 0, width: 2, height: 2 }),
-                    ...position
-                } 
-                });
-            }
-        },
-
-        setVisible: (visible) => {
-            if (activeProjectId && activeInterfaceId && foundTabId) {
-                storeUpdateTile(activeProjectId, activeInterfaceId, foundTabId, tileId, { visible });
-            }
-        },
-
-        setLocked: (locked) => {
-            if (activeProjectId && activeInterfaceId && foundTabId) {
-                storeUpdateTile(activeProjectId, activeInterfaceId, foundTabId, tileId, { locked });
-            }
-        },
-
-        setPending: (pending) => {
-            if (activeProjectId && activeInterfaceId && foundTabId) {
-                storeUpdateTile(activeProjectId, activeInterfaceId, foundTabId, tileId, { pending });
-            }
-        },
-
-        // Type-specific management
-        setType: (type, tabId) => {
-            const targetTabId = tabId || foundTabId;
-            if (activeProjectId && activeInterfaceId && targetTabId) {
-                // Need to create a new tile with the correct type
-                storeUpdateTile(activeProjectId, activeInterfaceId, targetTabId, tileId, { type });
-                
-                // Initialize type-specific data
-                if (type === 'table') {
-                storeUpdateTableTile(activeProjectId, activeInterfaceId, targetTabId, tileId, {});
-                } else if (type === 'plot') {
-                storeUpdatePlotTile(activeProjectId, activeInterfaceId, targetTabId, tileId, {});
-                } else if (type === 'view') {
-                storeUpdateViewTile(activeProjectId, activeInterfaceId, targetTabId, tileId, {});
-                }
-            }
-        },
-
-        // Content management based on type
-        updateTableData: (updates) => {
-            if (activeProjectId && activeInterfaceId && foundTabId && tile?.type === 'Table') {
-                storeUpdateTableTile(activeProjectId, activeInterfaceId, foundTabId, tileId, updates);
-            }
-        },
-
-        updatePlotData: (updates) => {
-            if (activeProjectId && activeInterfaceId && foundTabId && tile?.type === 'Plot') {
-                storeUpdatePlotTile(activeProjectId, activeInterfaceId, foundTabId, tileId, updates);
-            }
-        },
-
-        updateViewData: (updates) => {
-            if (activeProjectId && activeInterfaceId && foundTabId && tile?.type === 'View') {
-                storeUpdateViewTile(activeProjectId, activeInterfaceId, foundTabId, tileId, updates);
-            }
-        },
-
-        // Tab relationship
-        moveToTab: (newTabId) => {
-            if (activeProjectId && activeInterfaceId && foundTabId && tile) {
-                // Create a copy of the tile in the new tab
-                storeInitTile(
-                activeProjectId,
-                activeInterfaceId,
-                newTabId,
-                tileId,
-                tile as Partial<Tile>
-                );
-
-                // Remove from the old tab
-                storeRemoveTile(activeProjectId, activeInterfaceId, foundTabId, tileId);
-            }
-        },
-
-        // Conversion to TileProps for legacy components
-        asTileItem: () => {
-            if (!tile) return {} as TileProps;
-            
-            // Create base TileProps from Tile's core properties
-            const tileProps: TileProps = {
-                i: tile.id,
-                x: tile.position.x,
-                y: tile.position.y,
-                w: tile.position.width,
-                h: tile.position.height,
-                minW: tile.minW,
-                minH: tile.minH,
-                visible: tile.visible,
-                tab: tile.type,
-                
-                // Common fields shared across tile types
-                moved: tile.moved,
-                static: tile.static,
-                context: tile.context,
-                auto_update: tile.auto_update,
-                freeze: tile.freeze,
-                filters: tile.filters,
-                common_filter: tile.common_filter
-            };
-
-            // Add type-specific properties based on the tile type
-            if (tile.type === 'Table' && tile.tableData) {
-                // Add table-specific properties from TableTileData
-                tileProps.table = tile.tableData.table;
-                tileProps.table_type = tile.tableData.table_type || 'Data Table';
-                tileProps.column_context = tile.tableData.column_context;
-                tileProps.page_number = tile.tableData.page_number;
-                tileProps.metric = tile.tableData.metric;
-                tileProps.column_order = tile.tableData.column_order;
-                tileProps.hidden_columns = tile.tableData.hidden_columns;
-                tileProps.sorting = tile.tableData.sorting;
-                tileProps.grouping = tile.tableData.grouping;
-                tileProps.group_sorting = tile.tableData.group_sorting;
-                tileProps.columns_pin_left = tile.tableData.columns_pin_left;
-                tileProps.columns_pin_right = tile.tableData.columns_pin_right;
-                tileProps.selected = tile.tableData.selected;
-                tileProps.base_index = tile.tableData.base_index;
-
-                // If context not already set, use the tab context we got at the top level
-                if (!tileProps.context) {
-                    tileProps.context = tabContext;
-                }
-            }
-            else if (tile.type === 'Plot' && tile.plotData) {
-                // Add plot-specific properties from PlotTileData
-                tileProps.plot_type = tile.plotData.plot_type;
-                tileProps.plot_scale_x = tile.plotData.plot_scale_x;
-                tileProps.plot_scale_y = tile.plotData.plot_scale_y;
-                tileProps.is_aggregated = tile.plotData.is_aggregated;
-                tileProps.x_axis = tile.plotData.x_axis;
-                tileProps.y_axis = tile.plotData.y_axis;
-                tileProps.plot_group_by = tile.plotData.plot_group_by;
-                tileProps.bin_count = tile.plotData.bin_count;
-                tileProps.regression_line = tile.plotData.regression_line;
-                
-                // If context not already set, use the tab context we got at the top level
-                if (!tileProps.context) {
-                    tileProps.context = tabContext;
-                }
-            }
-            else if (tile.type === 'View' && tile.viewData) {
-                // Add view-specific properties from ViewTileData
-                if (!tileProps.context) {
-                    tileProps.context = tabContext;
-                }
-            }
-
-            return tileProps;
-        },
+      // Core tile properties
+      id: tileId,
+      name,
+      type: type as TileType, // Cast to our defined TileType
+      position,
+      minW,
+      minH,
+      visible,
+      locked,
+      pending,
+      createdAt,
+      updatedAt,
+      
+      // Grid-specific optional fields
+      moved,
+      static: static_,
+      
+      // Common fields shared across tile types
+      context,
+      auto_update,
+      freeze,
+      filters,
+      common_filter,
+      
+      // Reference to the content-specific data
+      tableData,
+      plotData,
+      viewData
     };
   }, [
     tileId,
-    activeProjectId,
-    activeInterfaceId,
-    foundTabId,
     hasTile,
     name,
     type,
     position,
+    minW,
+    minH,
     visible,
     locked,
     pending,
+    createdAt,
+    updatedAt,
+    moved,
+    static_,
+    context,
+    auto_update,
+    freeze,
+    filters,
+    common_filter,
     tableData,
     plotData,
-    viewData,
-    tabContext,
-    storeUpdateTile,
-    storeRemoveTile,
-    storeInitTile,
-    storeUpdateTableTile,
-    storeUpdatePlotTile,
-    storeUpdateViewTile
+    viewData
   ]);
-
-  // Construct a final "tile" object from the narrower fields
-  const finalTile = hasTile && tileId
-    ? {
-        id: tileId,
-        name,
-        type,
-        position,
-        visible,
-        locked,
-        pending,
-        tableData,
-        plotData,
-        viewData
-      }
-    : null;
+  
+  // Use our factory to create actions
+  const actions = useMemo(() => {
+    if (!tileId || !foundTabId || !activeInterfaceId || !activeProjectId || !finalTile) {
+      return null;
+    }
+    
+    return createTileActions(
+      tileId, 
+      foundTabId, 
+      activeInterfaceId,
+      activeProjectId,
+      finalTile,
+      tabContext,
+      store
+    );
+  }, [
+    tileId, 
+    foundTabId, 
+    activeInterfaceId,
+    activeProjectId,
+    finalTile, 
+    tabContext,
+    store
+  ]);
 
   // Use tileId to conditionally return values, but only after all hooks are called
   if (tileId === null) {
@@ -465,4 +462,52 @@ export function useTile(
     actions,
     exists: hasTile,
   };
+}
+
+/**
+ * Hook to access tile actions for any tile without violating React hook rules
+ */
+export function useTileActions() {
+  // Access the global store
+  const store = useStoreContext(state => state);
+  
+  // Use a ref to cache tile actions
+  const tileActionsCache = useRef<Record<string, TileActions>>({});
+  
+  // Create a memoized function to get tile actions
+  const getTileActions = useCallback((
+    tileId: string, 
+    tabId: string | null, 
+    interfaceId?: string | null, 
+    projectId?: string | null
+  ): TileActions | null => {
+    if (!tileId || !tabId || !projectId || !interfaceId) return null;
+    
+    // Generate a cache key
+    const cacheKey = `${projectId}:${interfaceId}:${tabId}:${tileId}`;
+    
+    // Return cached actions if available
+    if (tileActionsCache.current[cacheKey]) {
+      return tileActionsCache.current[cacheKey];
+    }
+    
+    // Check if tile exists in store
+    const tile = store.projectsById?.[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.tiles?.[tileId];
+    if (!tile) return null;
+    
+    // Get tab context
+    const tabContext = store.projectsById?.[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.context || '';
+    
+    // Create actions using the factory
+    const actions = createTileActions(tileId, tabId, interfaceId, projectId, tile, tabContext, store);
+    
+    // Cache the actions
+    if (actions) {
+      tileActionsCache.current[cacheKey] = actions;
+    }
+    
+    return actions;
+  }, [store]);
+  
+  return { getTileActions };
 }

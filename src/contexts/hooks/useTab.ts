@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { useStoreContext } from '../providers/StoreProvider';
 import { Tab } from '../slices/selectors/tab';
-import { TileProps } from '@/types/evals/grid';
-import { useTile, TileActions } from './useTile';
 import { Tile } from '../slices/selectors/tile';
+import { TileProps } from '@/types/evals/grid';
+import { useTileActions, TileActions } from './useTile';
 
 /**
  * Interface for tab-related actions
@@ -56,6 +56,7 @@ export interface TabActions {
   getTiles: () => Tile[];
   getTileIds: () => string[];
   getTile: (tileId: string) => Tile | null;
+  getTileActions: (tileId: string) => TileActions | null;
   getItems: () => TileProps[];
 }
 
@@ -71,7 +72,10 @@ export function useTab(
   interfaceId?: string | null,
   projectId?: string | null
 ) {
-  // Always call hooks at the top level of the component, unconditionally
+  // Always call hooks at the top level, unconditionally
+  
+  // Get the tileActions hook at the top level
+  const { getTileActions: tileActionsGetter } = useTileActions();
   
   // Get active project ID and interface ID if not provided
   const activeProjectId = useStoreContext(state => 
@@ -81,116 +85,100 @@ export function useTab(
   const activeInterfaceId = useStoreContext(state => 
     interfaceId !== undefined ? interfaceId : state.activeInterfaceId
   );
-
-  // Check if tab exists - but still call this hook unconditionally
-  const hasTab = useStoreContext(state => {
+  
+  // Check if tab exists
+  const hasTab = useStoreContext((state) => {
     if (!tabId || !activeProjectId || !activeInterfaceId) return false;
-    const proj = state.projectsById[activeProjectId];
-    if (!proj || !proj.interfaces || !proj.interfaces[activeInterfaceId]) return false;
-    const iface = proj.interfaces[activeInterfaceId];
-    return !!(iface && iface.tabs && iface.tabs[tabId]);
+    return !!state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId];
   });
 
-  // Instead of subscribing to the entire interface object,
-  // we subscribe to individual properties. This way, changes in
-  // unrelated fields won't cause a new reference for everything.
-  // These must all be called unconditionally too
-  const name = useStoreContext(state => {
-    if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return "";
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.name || "";
+  // Subscribe to individual tab properties for more granular updates
+  const name = useStoreContext((state) => {
+    if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return '';
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].name;
   });
-
-  const visible = useStoreContext(state => {
+  const visible = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return false;
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.visible || false;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].visible;
   });
-
-  const active = useStoreContext(state => {
+  const active = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return false;
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.active || false;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].active;
   });
-
-  const order = useStoreContext(state => {
+  const order = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return 0;
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.order || 0;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].order;
   });
-
-  const context = useStoreContext(state => {
-    if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return "";
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.context || "";
+  const context = useStoreContext((state) => {
+    if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return '';
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].context;
   });
-
-  const tabCreated = useStoreContext(state => {
+  const tabCreated = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return false;
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.tabCreated || false;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].tabCreated;
   });
-
-  const tempTabCreated = useStoreContext(state => {
+  const tempTabCreated = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return false;
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.tempTabCreated || false;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].tempTabCreated;
   });
-
-  const savedTab = useStoreContext(state => {
-    if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return null;
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.savedTab || null;
+  const savedTab = useStoreContext((state) => {
+    if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return undefined;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].savedTab;
   });
-
-  const focusedTileIds = useStoreContext(state => {
+  const focusedTileIds = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return [undefined, undefined] as [string | undefined, string | undefined];
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.focusedTileIds || [undefined, undefined];
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].focusedTileIds;
   });
-
-  const tiles = useStoreContext(state => {
+  const tiles = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return {};
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.tiles || {};
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].tiles;
   });
-
-  const saveSuccess = useStoreContext(state => {
+  const saveSuccess = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return undefined;
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.saveSuccess;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].saveSuccess;
   });
-
-  const resetting = useStoreContext(state => {
+  const resetting = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return false;
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.resetting || false;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].resetting;
   });
-
-  const edit = useStoreContext(state => {
+  const edit = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return false;
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.edit || false;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].edit;
   });
-
-  const interactive = useStoreContext(state => {
+  const interactive = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return false;
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.interactive || false;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].interactive;
   });
-
-  const copied = useStoreContext(state => {
+  const copied = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return undefined;
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.copied;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].copied;
   });
-
-  const deleting = useStoreContext(state => {
+  const deleting = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return false;
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.deleting || false;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].deleting;
   });
-
-  const dataPending = useStoreContext(state => {
+  const dataPending = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return false;
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.dataPending || false;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].dataPending;
   });
-
-  const pending = useStoreContext(state => {
+  const pending = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return false;
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.pending || false;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].pending;
   });
-
-  const refreshing = useStoreContext(state => {
+  const refreshing = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return false;
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[tabId]?.refreshing || false;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].refreshing;
+  });
+  const createdAt = useStoreContext((state) => {
+    if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return new Date().toISOString();
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].createdAt || new Date().toISOString();
+  });
+  const updatedAt = useStoreContext((state) => {
+    if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return new Date().toISOString();
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].updatedAt || new Date().toISOString();
   });
 
-  // Get action functions for updating the tab state
+  // Get all the tab store actions
   const storeInitTab = useStoreContext(state => state.initTab);
   const storeUpdateTab = useStoreContext(state => state.updateTab);
   const storeRemoveTab = useStoreContext(state => state.removeTab);
@@ -212,282 +200,262 @@ export function useTab(
   const storeInitViewTile = useStoreContext(state => state.initViewTile);
   const storeUpdateViewTile = useStoreContext(state => state.updateViewTile);
 
-  // Pre-fetch all tile actions at the top level to avoid hook rule violations
-  const tileActionsMap: Record<string, TileActions | null> = {};
-  if (hasTab && tiles) {
-    Object.keys(tiles).map(tileId => {
-      const tileHook = useTile(tileId, tabId, activeInterfaceId || undefined, activeProjectId || undefined);
-      tileActionsMap[tileId] = tileHook.actions;
-    });
-  }
-
-  // Now we can safely use the early return AFTER all hooks have been called
-  if (!tabId) {
-    return { tab: null, actions: null, exists: false };
-  }
-
   // Define actions using useMemo and returning the appropriate actions object
-  const actions = useMemo<TabActions>(() => ({
-    // Basic tab management
-    initTab: (initialState) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeInitTab(activeProjectId, activeInterfaceId, tabId, initialState);
-      }
-    },
-    
-    updateTab: (updates) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTab(activeProjectId, activeInterfaceId, tabId, updates);
-      }
-    },
-    
-    removeTab: () => {
-      if (activeProjectId && activeInterfaceId) {
-        storeRemoveTab(activeProjectId, activeInterfaceId, tabId);
-      }
-    },
-    
-    // Property setters
-    setName: (name) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { name });
-      }
-    },
-
-    setVisible: (visible) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { visible });
-      }
-    },
-
-    setActive: (active) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { active });
-      }
-    },
-
-    setOrder: (order) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { order });
-      }
-    },
-
-    setContext: (context) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { context });
-      }
-    },
-    
-    // UI state property setters
-    setSaveSuccess: (saveSuccess) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { saveSuccess });
-      }
-    },
-    
-    setResetting: (resetting) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { resetting });
-      }
-    },
-    
-    setEdit: (edit) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { edit });
-      }
-    },
-    
-    setInteractive: (interactive) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { interactive });
-      }
-    },
-    
-    setCopied: (copied) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { copied });
-      }
-    },
-    
-    setDeleting: (deleting) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { deleting });
-      }
-    },
-    
-    setDataPending: (dataPending) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { dataPending });
-      }
-    },
-    
-    setPending: (pending) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { pending });
-      }
-    },
-    
-    setRefreshing: (refreshing) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { refreshing });
-      }
-    },
-
-    setTempTabCreated: (tempTabCreated) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { tempTabCreated });
-      }
-    },
-
-    setFocusedTileIds: (focusedTileIds) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { focusedTileIds });
-      }
-    },
-
-    // Tile management
-    initTile: (tileId, initialState) => {
-      if (activeProjectId && activeInterfaceId) {
-        // Just pass the initialState directly - type should be included in it
-        storeInitTile(activeProjectId, activeInterfaceId, tabId, tileId, initialState);
-
-        // Initialize specific tile data based on type
-        if (initialState?.type === 'Table') {
-          storeInitTableTile(activeProjectId, activeInterfaceId, tabId, tileId);
-        } else if (initialState?.type === 'Plot') {
-          storeInitPlotTile(activeProjectId, activeInterfaceId, tabId, tileId);
-        } else if (initialState?.type === 'View') {
-          storeInitViewTile(activeProjectId, activeInterfaceId, tabId, tileId);
+  const actions = useMemo<TabActions>(() => {
+    return {
+      // Basic tab management
+      initTab: (initialState) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeInitTab(activeProjectId, activeInterfaceId, tabId, initialState);
         }
-      }
-    },
-    
-    removeTile: (tileId) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeRemoveTile(activeProjectId, activeInterfaceId, tabId, tileId);
-      }
-    },
-    
-    // A specialized method for renaming tiles and updating references in one operation
-    renameTile: (tileId: string, newName: string) => {
-      if (activeProjectId && activeInterfaceId && tiles) {
-        // We'll need to update all tiles that reference this one
-        Object.entries(tiles).forEach(([id, tile]) => {
-          if (id === tileId) {
-            // If this is the tile being renamed, update its name
-            storeUpdateTile(activeProjectId, activeInterfaceId, tabId, id, {
-              id: newName,
-              name: newName 
-            });
-          }
-          else if (tile.type === 'Table' && tile.tableData?.table === tileId) {
-            // If this is a tile that references the renamed tile, update the reference
-            storeUpdateTile(activeProjectId, activeInterfaceId, tabId, id, {
-              tableData: { 
-                ...tile.tableData,
-                table: newName 
-              }
-            });
-          }
-        });
-      }
-    },
-    
-    updateTile: (tileId, updates) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTile(activeProjectId, activeInterfaceId, tabId, tileId, updates);
-      }
-    },
-    
-    // Table tile specific actions
-    initTableTile: (tileId, initialState) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeInitTableTile(activeProjectId, activeInterfaceId, tabId, tileId, initialState);
-      }
-    },
-    
-    updateTableTile: (tileId, updates) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateTableTile(activeProjectId, activeInterfaceId, tabId, tileId, updates);
-      }
-    },
-    
-    // Plot tile specific actions
-    initPlotTile: (tileId, initialState) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeInitPlotTile(activeProjectId, activeInterfaceId, tabId, tileId, initialState);
-      }
-    },
-    
-    updatePlotTile: (tileId, updates) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdatePlotTile(activeProjectId, activeInterfaceId, tabId, tileId, updates);
-      }
-    },
-
-    // View tile specific actions
-    initViewTile: (tileId, initialState) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeInitViewTile(activeProjectId, activeInterfaceId, tabId, tileId, initialState);
-      }
-    },
-
-    updateViewTile: (tileId, updates) => {
-      if (activeProjectId && activeInterfaceId) {
-        storeUpdateViewTile(activeProjectId, activeInterfaceId, tabId, tileId, updates);
-      }
-    },
-    
-    // Helper methods
-    getTiles: () => {
-      if (!hasTab || !tiles) return [];
-      return Object.values(tiles);
-    },
-    
-    getTileIds: () => {
-      if (!hasTab || !tiles) return [];
-      return Object.keys(tiles);
-    },
-    
-    getTile: (tileId) => {
-      if (!hasTab || !tiles) return null;
-      return tiles[tileId] || null;
-    },
-    
-    getItems: () => {
-      if (!hasTab || !tiles) return [];
+      },
       
-      return Object.keys(tiles).map(tileId => {
-        // Use the pre-fetched tile actions instead of calling useTile again
-        const actions = tileActionsMap[tileId];
-        
-        // If actions is null or asTileItem is not available, return an empty TileProps with required fields
-        return actions?.asTileItem?.() || {
-          i: tileId,
-          x: 0,
-          y: 0,
-          w: 1,
-          h: 1
-        } as TileProps;
-      });
-    },
+      updateTab: (updates) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, updates);
+        }
+      },
+      
+      removeTab: () => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeRemoveTab(activeProjectId, activeInterfaceId, tabId);
+        }
+      },
+      
+      // Property setters
+      setName: (name) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { name });
+        }
+      },
+      
+      setVisible: (visible) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { visible });
+        }
+      },
+      
+      setActive: (active) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { active });
+        }
+      },
+      
+      setOrder: (order) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { order });
+        }
+      },
+      
+      setContext: (context) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { context });
+        }
+      },
+      
+      // UI state property setters
+      setSaveSuccess: (saveSuccess) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { saveSuccess });
+        }
+      },
+      
+      setResetting: (resetting) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { resetting });
+        }
+      },
+      
+      setEdit: (edit) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { edit });
+        }
+      },
+      
+      setInteractive: (interactive) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { interactive });
+        }
+      },
+      
+      setCopied: (copied) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { copied });
+        }
+      },
+      
+      setDeleting: (deleting) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { deleting });
+        }
+      },
+      
+      setDataPending: (dataPending) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { dataPending });
+        }
+      },
+      
+      setPending: (pending) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { pending });
+        }
+      },
+      
+      setRefreshing: (refreshing) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { refreshing });
+        }
+      },
+      
+      setTempTabCreated: (tempTabCreated) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { tempTabCreated });
+        }
+      },
+      
+      setFocusedTileIds: (focusedTileIds) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { focusedTileIds });
+        }
+      },
 
-  }), [
+      // Tile management
+      initTile: (tileId, initialState) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          // Just pass the initialState directly - type should be included in it
+          storeInitTile(activeProjectId, activeInterfaceId, tabId, tileId, initialState);
+
+          // Initialize specific tile data based on type
+          if (initialState?.type === 'Table') {
+            storeInitTableTile(activeProjectId, activeInterfaceId, tabId, tileId);
+          } else if (initialState?.type === 'Plot') {
+            storeInitPlotTile(activeProjectId, activeInterfaceId, tabId, tileId);
+          } else if (initialState?.type === 'View') {
+            storeInitViewTile(activeProjectId, activeInterfaceId, tabId, tileId);
+          }
+        }
+      },
+      
+      removeTile: (tileId) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeRemoveTile(activeProjectId, activeInterfaceId, tabId, tileId);
+        }
+      },
+      
+      // A specialized method for renaming tiles and updating references in one operation
+      renameTile: (tileId: string, newName: string) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          // We'll need to update all tiles that reference this one
+          Object.entries(tiles).forEach(([id, tile]) => {
+            if (id === tileId) {
+              // If this is the tile being renamed, update its name
+              storeUpdateTile(activeProjectId, activeInterfaceId, tabId, id, {
+                id: newName,
+                name: newName 
+              });
+            }
+            else if (tile.type === 'Table' && tile.tableData?.table === tileId) {
+              // If this is a tile that references the renamed tile, update the reference
+              storeUpdateTile(activeProjectId, activeInterfaceId, tabId, id, {
+                tableData: { 
+                  ...tile.tableData,
+                  table: newName 
+                }
+              });
+            }
+          });
+        }
+      },
+      
+      updateTile: (tileId, updates) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTile(activeProjectId, activeInterfaceId, tabId, tileId, updates);
+        }
+      },
+      
+      // Table tile specific actions
+      initTableTile: (tileId, initialState) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeInitTableTile(activeProjectId, activeInterfaceId, tabId, tileId, initialState);
+        }
+      },
+      
+      updateTableTile: (tileId, updates) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTableTile(activeProjectId, activeInterfaceId, tabId, tileId, updates);
+        }
+      },
+      
+      // Plot tile specific actions
+      initPlotTile: (tileId, initialState) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeInitPlotTile(activeProjectId, activeInterfaceId, tabId, tileId, initialState);
+        }
+      },
+      
+      updatePlotTile: (tileId, updates) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdatePlotTile(activeProjectId, activeInterfaceId, tabId, tileId, updates);
+        }
+      },
+
+      // View tile specific actions
+      initViewTile: (tileId, initialState) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeInitViewTile(activeProjectId, activeInterfaceId, tabId, tileId, initialState);
+        }
+      },
+
+      updateViewTile: (tileId, updates) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateViewTile(activeProjectId, activeInterfaceId, tabId, tileId, updates);
+        }
+      },
+      
+      // Helper methods
+      getTiles: () => {
+        if (!hasTab || !tiles) return [];
+        return Object.values(tiles);
+      },
+      
+      getTileIds: () => {
+        if (!hasTab || !tiles) return [];
+        return Object.keys(tiles);
+      },
+      
+      getTile: (tileId) => {
+        if (!hasTab || !tiles) return null;
+        return tiles[tileId] || null;
+      },
+      
+      // Use the getTileActions hook directly
+      getTileActions: (tileId: string) => {
+        return tileActionsGetter(tileId, tabId, activeInterfaceId, activeProjectId);
+      },
+      
+      // Modified to use the tileActionsGetter
+      getItems: () => {
+        if (!hasTab || !tiles) return [];
+        
+        return Object.keys(tiles).map(tileId => {
+          const tileActions = tileActionsGetter(tileId, tabId, activeInterfaceId, activeProjectId);
+          return tileActions?.asTileItem?.() || {
+            i: tileId,
+            x: 0,
+            y: 0,
+            w: 1,
+            h: 1
+          } as TileProps;
+        });
+      },
+    };
+  }, [
     activeProjectId,
     activeInterfaceId,
     tabId,
-    pending,
-    dataPending,
-    refreshing,
-    deleting,
-    saveSuccess,
-    resetting,
-    edit,
-    interactive,
-    copied,
+    hasTab,
     tiles,
-    tempTabCreated,
-    focusedTileIds,
     storeInitTab,
     storeUpdateTab,
     storeRemoveTab,
@@ -500,11 +468,10 @@ export function useTab(
     storeUpdatePlotTile,
     storeInitViewTile,
     storeUpdateViewTile,
-    tileActionsMap,
-    hasTab
+    tileActionsGetter
   ]);
   
-  // Build the tab object from our hook results
+  // Construct a final "tab" object from the narrower fields
   const finalTab = hasTab
     ? {
         id: tabId,
@@ -526,8 +493,15 @@ export function useTab(
         deleting,
         dataPending,
         pending,
-        refreshing
-    } as Tab : null;
+        refreshing,
+        createdAt,
+        updatedAt
+      } as Tab: null;
+  
+  // Because hooks should be called unconditionally, we'll return values based on tabId
+  if (tabId === null) {
+    return { data: null, actions: null, exists: false };
+  }
   
   return {
     tab: finalTab,
