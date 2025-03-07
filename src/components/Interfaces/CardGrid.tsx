@@ -13,7 +13,7 @@ import { Badge } from "../UI/badge";
 import { Dialog, DialogContent } from "../UI/dialog";
 import { Tabs, TabsContent } from "../UI/tabs";
 import { useQueryState } from "nuqs";
-import Cookies from "js-cookie";
+// import Cookies from "js-cookie";
 import FocusDialog from "./FocusDialog";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import DefaultProject from "./DefaultProject";
@@ -170,15 +170,15 @@ const CardGrid = ({
     // set the items and new counter whenever project or interface changes
     useEffect(() => {
         if (project && interface_) {
-            const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-            Cookies.set("project", project, { expires: expirationDate });
-            Cookies.set("tab", interface_, { expires: expirationDate });
+            // const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+            // Cookies.set("project", project, { expires: expirationDate });
+            // Cookies.set("tab", interface_, { expires: expirationDate });
             getLatestInterface();
         }
-        else if (!project)
-            Cookies.remove("project");
-        else if (!interface_)
-            Cookies.remove("tab");
+        // else if (!project)
+        //     Cookies.remove("project");
+        // else if (!interface_)
+        //     Cookies.remove("tab");
     }, [project, interface_]);
 
     // Only call updateInterface when items have truly changed.

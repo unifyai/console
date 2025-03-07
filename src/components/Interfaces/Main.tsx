@@ -19,9 +19,9 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
     contextActions: ContextActions,
     interfaceActions: InterfaceActions
 }) => {
-    const cookies_ = cookies();
-    const cookiesProject = cookies_.get("project")?.value;
-    const cookiesInterface = cookies_.get("tab")?.value;
+    // const cookies_ = cookies();
+    const cookiesProject = undefined; //cookies_.get("project")?.value;
+    const cookiesInterface = undefined; //cookies_.get("tab")?.value;
 
     // Get projects
     const projects: string[] = await projectsActions.get();
