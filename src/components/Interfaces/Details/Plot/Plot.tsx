@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useMemo, useState } from "react";
+import { useEffect, useRef, useId, useState } from "react";
 import * as d3 from "d3";
 
 import PlotType from "./Buttons/PlotType";
@@ -41,6 +41,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
     // Initialize refs and container dimensions
     let svgRef = useRef(null);
     let containerRef = useRef(null);
+    const clipId = useId();
     const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
     const margins = { top: 35, right: 100, bottom: 65, left: 60 } // Margin on the sides
     const axisPadding = 20; // Extra padding between axes borders and plot borders
@@ -347,11 +348,11 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
             {/* Chart */}
             <svg ref={svgRef} className="flex w-full h-full absolute z-0">
                 <defs>
-                    <clipPath id="clip">
+                    <clipPath id={clipId}>
                         <rect id={"clip-rect"}/>
                     </clipPath>
                 </defs>
-                <g className="plotData" clipPath="url(#clip)"/>
+                <g className="plotData" clipPath={`url(#${clipId})`}/>
                 <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="placeholderText"/>
                 <line className="bottomLine" stroke="var(--foreground)" stroke-width="0.5"/>
                 <line className="leftLine" stroke="var(--foreground)" stroke-width="0.5"/>
