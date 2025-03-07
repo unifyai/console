@@ -103,8 +103,8 @@ const PageController = ({ interactive, totalPages, pageNumber, setPageNumber, pa
         );
     };
     const pageButtonTooltip = pageNum + 1 === totalPages && totalPages !== 1
-    ?   `Showing logs ${pageNum * limit + 1} to ${totalLogs} of ${totalLogs} logs`
-    :   `Showing logs ${pageNum * limit + 1} to ${pageNum * limit + pageLogs} of ${totalLogs} logs`
+    ?   `${pageNum * limit + 1} to ${totalLogs} of ${totalLogs} logs`
+    :   `${pageNum * limit + 1} to ${pageNum * limit + pageLogs} of ${totalLogs} logs`
     const pageButton = (page: number) => pageNum === page 
         ?   <Tooltip key={page} content={pageButtonTooltip}>
                 {PageItem(page)}
