@@ -402,7 +402,6 @@ export const drawBarChart = (
     drawAxes("Bar Chart", svg, dimensions, margins, xScale, yScale, xTicks, yTicks);
 
     // Draw bars
-    const t = svg.transition().duration(500);
     g
         .selectAll<SVGRectElement, DataLabel>("rect.bar-item")
         .data(data as DataLabel[], d => d[0])
@@ -415,17 +414,20 @@ export const drawBarChart = (
                 .attr("height", 0)
                 .attr("fill", primary)
                 .call(
-                    enter => enter.transition(t as any)
+                    enter => enter.transition("enter")
+                        .duration(500)
                         .attr("y", d => yScale(Math.max(0, d[1])))
                         .attr("height", d => Math.abs(yScale(d[1]) - yScale(0)))
                 ),
             update => update
-                .call(update => update.transition(t as any)
+                .call(update => update.transition("update")
+                    .duration(500)
                     .attr("x", d => xScale(d[0])!)
                     .attr("width", xScale.bandwidth())
                     .attr("y", d => yScale(Math.max(0, d[1])))
                     .attr("height", d => Math.abs(yScale(d[1]) - yScale(0)))),
-            exit => exit.transition(t as any)
+            exit => exit.transition("exit")
+                .duration(500)
                 .attr("height", 0)
                 .attr("y", yScale(0))
                 .remove()
@@ -444,17 +446,17 @@ export const drawBarChart = (
                 name: `${yAxisProperty}(${metric})`,
                 value: d[1] 
             }
-        })).transition().style("opacity", 1);
+        })).transition("opacity").style("opacity", 1);
 
         // Dim all bars except hovered one
         g.selectAll("rect.bar-item")
-            .transition()
+            .transition("opacity")
             .style("opacity", bar => (bar as DataLabel)[0] === currentKey ? 1 : 0.3);
 
     };
     const handleMouseOut = () => {
-        tooltip.transition().style("opacity", 0);
-        g.selectAll("rect.bar-item").transition().style("opacity", 1);
+        tooltip.transition("opacity").style("opacity", 0);
+        g.selectAll("rect.bar-item").transition("opacity").style("opacity", 1);
     };
     g.selectAll("rect.bar-item")
         .on("mouseover", (event, d) => handleMouseOver(event, d as DataLabel))
@@ -608,7 +610,7 @@ export const drawLineChart = (
             
         key
             .html(keyTemplate(colors))
-            .transition()
+            .transition("opacity")
             .style("opacity", 1)
     } else {
         g.selectAll("path.line-item")
@@ -628,7 +630,7 @@ export const drawLineChart = (
     // When hovering on a line, lower opacity of other line groups and their corresponding key
     function hoverOnLine (groupValue: string) {
         g.selectAll("path.line-item")
-            .transition()
+            .transition("opacity")
             .duration(200)
             .style("opacity", d => (d as GroupedDataPoint)[0] === groupValue ? 1 : 0.5);
         key.selectAll(".key")
@@ -636,7 +638,7 @@ export const drawLineChart = (
                 const id = d3.select(this).attr("id")
                 const opacity = id.toString() === groupValue ? 1 : 0.5
                 d3.select(this)
-                .transition()
+                .transition("opacity")
                 .duration(200)
                 .style("opacity", opacity)
             })
@@ -644,8 +646,8 @@ export const drawLineChart = (
 
     // When leaving a line, restore opacity of all line groups and their corresponding key
     function leaveLine () {
-        g.selectAll("path.line-item").transition().duration(200).style("opacity", 1)
-        key.selectAll(".key").transition().duration(200).style("opacity", 1)
+        g.selectAll("path.line-item").transition("opacity").duration(200).style("opacity", 1)
+        key.selectAll(".key").transition("opacity").duration(200).style("opacity", 1)
     }
 };
 
@@ -743,7 +745,7 @@ export const drawScatterPlot = (
         const colors = domain.map((key) => ({ key: key, color: color(key) as string }));
         key
             .html(keyTemplate(colors))
-            .transition()
+            .transition("opacity")
             .style("opacity", 1);
     }    
     const points = g
@@ -762,7 +764,7 @@ export const drawScatterPlot = (
         .on("mouseout", (event, data) => leavePoint(event, data));    
     enteringPoints
         .merge(points as any)
-        .transition()
+        .transition("enter")
         .duration(500)
         .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable)) : getValue(fields, xAxisProperty as string, d, xTable)))
         .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable)) : getValue(fields, yAxisProperty as string, d, yTable)))
@@ -770,7 +772,7 @@ export const drawScatterPlot = (
         .attr("fill", d => groupBy ? color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
         .attr("stroke", d => groupBy ? color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary);
     points.exit()
-        .transition()
+        .transition("exit")
         .duration(500)
         .attr("r", 0)
         .remove();
@@ -811,22 +813,22 @@ export const drawScatterPlot = (
             value: getValue(fields, groupBy as string, data, xTable)
         }
 
-        tooltip.html(tooltipTemplate(hoverData)).transition().style("opacity", 1)
+        tooltip.html(tooltipTemplate(hoverData)).transition("opacity").style("opacity", 1)
         positionTooltip(event, event.target, tooltip);
 
         if (groupBy) {
             g.selectAll("circle.data-point")
-                .transition()
+                .transition("opacity")
                 .duration(200)
                 .attr("r", d => getValue(fields, groupBy, d as LogProps, xTable) === getValue(fields, groupBy, data, xTable) ? 4 : 2)
                 .style("opacity", d => getValue(fields, groupBy, d as LogProps, xTable) === getValue(fields, groupBy, data, xTable) ? 1 : 0.5);
             g.selectAll("path.best-fit")
-                .transition()
+                .transition("opacity")
                 .duration(200)
                 .style("opacity", (d: any) => d.groupKey === groupBy ? 1 : 0.5
             );
             g.selectAll("text.correlation-group")
-                .transition()
+                .transition("opacity")
                 .duration(200)
                 .style("opacity", (d: any) => d.groupKey === groupBy ? 1 : 0.5);
             key.selectAll(".key")
@@ -834,14 +836,14 @@ export const drawScatterPlot = (
                     const id = d3.select(this).attr("id")
                     const opacity = id.toString() === getValue(fields, groupBy, data, xTable).toString() ? 1 : 0.5
                     d3.select(this)
-                      .transition()
+                      .transition("opacity")
                       .duration(200)
                       .style("opacity", opacity)
                 })
         } else {
             g.selectAll("circle.data-point")
                 .filter((d: unknown) => (d as LogProps).id !== data.id)
-                .transition()
+                .transition("opacity")
                 .duration(200)
                 .style("opacity", 0.5);
         }
@@ -854,28 +856,28 @@ export const drawScatterPlot = (
 
     // When leaving a point. Reset info card data and reset point opacity if grouped
     function leavePoint (event: any, data: LogProps) {
-        tooltip.transition().style("opacity", 0)
+        tooltip.transition("opacity").style("opacity", 0)
         if (groupBy) {
             g.selectAll("circle.data-point")
-                .transition()
+                .transition("opacity")
                 .duration(200)
                 .attr("r", 3)
                 .style("opacity", 1)
             g.selectAll(".key")
-               .transition()
+               .transition("opacity")
                .duration(200)
                .style("opacity", 1)
             key.selectAll(".key")
-                .transition()
+                .transition("opacity")
                 .duration(200)
                 .style("opacity", 1)
             g.selectAll("path.best-fit, text.correlation-group")
-                .transition()
+                .transition("opacity")
                 .duration(200)
                 .style("opacity", 1);
         } else {
             g.selectAll("circle.data-point")
-            .transition()
+            .transition("opacity")
             .duration(200)
             .style("opacity", 1);
         }  
@@ -1134,14 +1136,14 @@ export const drawHistogram = (
         .on("mouseout", (event, d) => leaveHist(event, d));
     enteringBars
         .merge(bars as any)
-        .transition()
+        .transition("enter")
         .duration(500)
         .attr("x", d => x(d.x0 as number))
         .attr("width", d => Math.max(0, x(d.x1 as number) - x(d.x0 as number) - 1))
         .attr("y", d => y(d.length))
         .attr("height", d => y(0) - y(d.length));
     bars.exit()
-        .transition()
+        .transition("exit")
         .duration(500)
         .attr("y", y(0))
         .attr("height", 0)
@@ -1172,12 +1174,12 @@ export const drawHistogram = (
           }
         };
   
-        tooltip.html(tooltipTemplate(hoverData)).transition().style("opacity", 1);
+        tooltip.html(tooltipTemplate(hoverData)).transition("opacity").style("opacity", 1);
         positionTooltip(event, event.target, tooltip);
 
         g.selectAll("rect.hist-item")
          .filter((d: any) => d.x0 !== bin.x0 || d.x1 !== bin.x1)
-         .transition()
+         .transition("opacity")
          .duration(200)
          .style("opacity", 0.5);
       }
@@ -1188,10 +1190,10 @@ export const drawHistogram = (
       
       function leaveHist(event: any, bin: d3.Bin<number, number>) {
         tooltip
-          .transition()
+          .transition("opacity")
           .style("opacity", 0);
         g.selectAll("rect.hist-item")
-          .transition()
+          .transition("opacity")
           .duration(200)
           .style("opacity", 1);
     }
