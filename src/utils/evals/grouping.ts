@@ -383,26 +383,17 @@ export async function onGroupExpand(
         key => !["count", "group_count"].includes(key) && Boolean(key)
       );
       const groupingColumnId = remainingGroupingExpression.split(",")[0];
-      const metrics = (await Promise.all(groupingValues.map(groupingValue => {
-        const metric_ = item.metric ?? "mean";
-        const { updatedFilterExpression } = getGroupingFilters(
-          filterExpression, groupingColumnId, groupingValue, "", dataTypes, fields
-        );
-        return getColumnMetrics(
-          project,
-          context,
-          item.column_context ?? null,
-          numericColumns,
-          updatedFilterExpression,
-          metric_,
-          logsActions
-        )
-      })));
-      groupedMetrics = {
-        [groupingColumnId]: metrics.map(
-          (metric, idx) => ({ [groupingValues[idx]]: metric })).reduce((acc, curr) => ({ ...acc, ...curr }), {}
-        )
-      }
+      const metrics = await getColumnMetrics(
+        project,
+        context,
+        columnContext,
+        numericColumns,
+        filterExpression,
+        groupingExpression,
+        item.metric,
+        logsActions
+      ) as { [key: string]: { [key: string]: number | string }};
+      groupedMetrics[groupingColumnId] = metrics;
     }
 
     // Convert and update logs

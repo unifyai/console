@@ -141,6 +141,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 				  project!,
 				  context ?? null,
 				  expression,
+				  null,
 				  metric ? metric : "mean",
 				  [key]
 				);

@@ -123,7 +123,8 @@ export const getColumnMetrics = async (
   context: string | null,
   column_context: string | null,
   columns: string[],
-  expression: string | null,
+  filterExpression: string | null,
+  groupingExpression: string | null,
   metric: string | undefined,
   logsActions: LogsActions
 ) => {
@@ -131,11 +132,7 @@ export const getColumnMetrics = async (
   if (column_context)
     fullColumns = fullColumns.map(column => processContext("merge", column_context, column))
   return await logsActions.getMetrics(
-    project!,
-    context!,
-    expression,
-    metric ? metric : "mean",
-    fullColumns
+    project!, context!, filterExpression, groupingExpression, metric ? metric : "mean", fullColumns
   );
 }
 
@@ -163,40 +160,27 @@ export const getLogsDetails = async (
   let groupedMetrics: {[key: string]: {[key: string]: {[key: string]: number | string}}} = {};
   if (groupingExpression) {
     const numericColumns = columns.filter(col => ["int", "float", "timestamp", "bool"].includes(fields?.[col]?.data_type));
-    const dataTypes = fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type])) : {}
-    const groupingValues = Object.keys((logsData.logs as GroupedLogPropsRaw)[(groupingExpression as string).split(",")[0]] || {}).filter(
-      key => !["count", "group_count"].includes(key) && Boolean(key)
-    );
     const groupingColumnId = (groupingExpression as string).split(",")[0];
-    const metrics = (await Promise.all(groupingValues.map(groupingValue => {
-      const metric_ = metric ?? "mean";
-      const { updatedFilterExpression } = getGroupingFilters(
-        filterExpression, groupingColumnId, groupingValue, "", dataTypes, fields
-      );
-      return getColumnMetrics(
-        project,
-        context,
-        column_context,
-        numericColumns,
-        updatedFilterExpression,
-        metric_,
-        logsActions
-      )
-    })));
-    groupedMetrics = {
-      [groupingColumnId]: metrics.map(
-        (metric, idx) => ({ [groupingValues[idx]]: metric })
-      ).reduce((acc, curr) => ({ ...acc, ...curr }), {})
-    }
+    const metric_ = metric ?? "mean";
+    const metrics = await getColumnMetrics(
+      project, context, column_context, numericColumns, filterExpression, groupingColumnId, metric_, logsActions
+    ) as { [key: string]: { [key: string]: number | string }};
+    groupedMetrics[groupingColumnId] = metrics;
   }
 
   /* Handle column metrics */
   // Getting metrics for filtered logs, and min / max values for full logs.
   // Min / max bounds are used to set the filtering range for numeric columns
   const [metrics, minimums, maximums] = await Promise.all([
-    getColumnMetrics(project, context, column_context, columns, filterExpression, item.metric, logsActions),
-    getColumnMetrics(project, context, column_context, columns, null, "min", logsActions),
-    getColumnMetrics(project, context, column_context, columns, null, "max", logsActions)
+    getColumnMetrics(
+      project, context, column_context, columns, filterExpression, null, item.metric, logsActions
+    ) as Promise<{ [key: string]: number }>,
+    getColumnMetrics(
+      project, context, column_context, columns, null, null, "min", logsActions
+    ) as Promise<{ [key: string]: number }>,
+    getColumnMetrics(
+      project, context, column_context, columns, null, null, "max", logsActions
+    ) as Promise<{ [key: string]: number }>
   ]);
 
   // Min-max boundaries for numeric and time-like column filters

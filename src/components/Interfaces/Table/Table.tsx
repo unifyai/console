@@ -591,8 +591,8 @@ const LogsTable = ({
                         const groupingColumnId = row.groupingColumnId;
                         const value = (
                           groupedMetrics[groupingColumnId]
-                          && groupedMetrics[groupingColumnId][groupingValue]
-                        ) ? groupedMetrics[groupingColumnId][groupingValue][newKey] : undefined;
+                          && groupedMetrics[groupingColumnId][newKey]
+                        ) ? groupedMetrics[groupingColumnId][newKey][groupingValue] : undefined;
                         return typeof value === "number" ? value.toFixed(2) : value?.toString() ?? "";
                       }}
                     />
