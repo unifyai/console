@@ -101,6 +101,8 @@ const drawAxes = (
     yAxis.selectAll("text").attr("stroke", "black") .attr("stroke-width", 0.1).attr("text-anchor", "end").attr("font-size", `10px`);
     xAxis.select("path").style("opacity", 0);
     yAxis.select("path").style("opacity", 0);
+    
+    if (plotType === "Bar Chart") xAxis.style("opacity", 0)         // (Temporary: Hide x axis for bar charts)
 
     /* Add x = 0 and / or y = 0 line, if applicable */
     const zeroXLine = svg.selectAll(".x-zero")
