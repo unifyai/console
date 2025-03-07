@@ -375,6 +375,7 @@ export async function onGroupExpand(
     let groupedMetrics: {[key: string]: {[key: string]: {[key: string]: number | string}}} = {};
     const remainingGroupingExpression = remainingGrouping.length > 0 ? remainingGrouping.join(",") : null;
     if (remainingGroupingExpression) {
+      const numericColumns = columns.filter(col => ["int", "float", "timestamp", "bool"].includes(fields?.[col]?.data_type));
       const dataTypes = fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type])) : {}
       const groupingValues = Object.keys((freshLogsData.logs as GroupedLogPropsRaw)[
         remainingGroupingExpression.split(",")[0]
@@ -391,7 +392,7 @@ export async function onGroupExpand(
           project,
           context,
           item.column_context ?? null,
-          columns,
+          numericColumns,
           updatedFilterExpression,
           metric_,
           logsActions

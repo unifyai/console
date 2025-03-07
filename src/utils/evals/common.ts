@@ -162,6 +162,7 @@ export const getLogsDetails = async (
 
   let groupedMetrics: {[key: string]: {[key: string]: {[key: string]: number | string}}} = {};
   if (groupingExpression) {
+    const numericColumns = columns.filter(col => ["int", "float", "timestamp", "bool"].includes(fields?.[col]?.data_type));
     const dataTypes = fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type])) : {}
     const groupingValues = Object.keys((logsData.logs as GroupedLogPropsRaw)[(groupingExpression as string).split(",")[0]] || {}).filter(
       key => !["count", "group_count"].includes(key) && Boolean(key)
@@ -176,7 +177,7 @@ export const getLogsDetails = async (
         project,
         context,
         column_context,
-        columns,
+        numericColumns,
         updatedFilterExpression,
         metric_,
         logsActions
@@ -184,8 +185,8 @@ export const getLogsDetails = async (
     })));
     groupedMetrics = {
       [groupingColumnId]: metrics.map(
-        (metric, idx) => ({ [groupingValues[idx]]: metric })).reduce((acc, curr) => ({ ...acc, ...curr }), {}
-      )
+        (metric, idx) => ({ [groupingValues[idx]]: metric })
+      ).reduce((acc, curr) => ({ ...acc, ...curr }), {})
     }
   }
 
