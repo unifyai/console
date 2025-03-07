@@ -173,7 +173,7 @@ const ColumnGroupSort = (({
         renderMode === "menuItem" ? (
             <DropdownMenuItem onClick={() => {onClick(); setSpinnerColor("white")}} className="flex items-center cursor-pointer">
                 <div className="scale-[0.6] -translate-x-1"><GArrowUpDown className="translate(-2,0)"/></div>
-                <span>Sort group descending</span>
+                <span>Sort groups descending</span>
             </DropdownMenuItem>
         ) : (
             <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={!interactive || groupSortLoading}/>
