@@ -128,11 +128,11 @@ const DataTableCell = ({
       ? isCellSelected(cell) ? "var(--primary-foreground)" : ""
       : isSelectableCell(cell) && isAllRowSelected(cell) ? "var(--primary-foreground)" : "",
     backgroundColor: cell.column.id != "RowNumbering"
-      ? cell.getValue() === undefined ? "var(--muted)" : isCellSelected(cell) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
+      ? isCellSelected(cell) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
       : isSelectableCell(cell) && isAllRowSelected(cell) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : "",
-    backgroundImage: cell.column.id != "RowNumbering" && cell.getValue() === undefined 
-      ? 'repeating-linear-gradient(-45deg, rgba(0,0,0,0.1) 0 2px, transparent 1px 6px)' 
-      : undefined,
+    backgroundImage: cell.column.id !== "RowNumbering" && cell.getValue() === undefined 
+      ? `repeating-linear-gradient(-45deg, color-mix(in srgb, var(--foreground) 20%, transparent) 0 1px, transparent 1px 6px)` 
+      : undefined
   };
 
   const [isLoading, setIsLoading] = useState(false);
