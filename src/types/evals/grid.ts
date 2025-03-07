@@ -59,7 +59,8 @@ export interface TableDataItem {
     params: LogItemProps,
     metrics: { [key: string]: number },
     groupedMetrics: { [key: string]: { [key: string]: { [key: string]: string |number } } },
-    boundaries: { minimums: { [key: string]: number }, maximums: { [key: string]: number } }
+    boundaries: { minimums: { [key: string]: number }, maximums: { [key: string]: number } },
+    metric: string
 }
 
 export interface PlotDataItem {

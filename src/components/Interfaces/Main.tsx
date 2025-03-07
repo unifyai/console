@@ -376,6 +376,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                     metrics,
                     groupedMetrics,
                     boundaries,
+                    metric: item.metric ?? "mean"
                 }
             }
         })

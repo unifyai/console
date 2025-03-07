@@ -583,7 +583,7 @@ const LogsTable = ({
                   AggregatedCell={(cell, row) => (
                     <AggregatedCell
                       cell={cell}
-                      metric={metric}
+                      metric={tableDataItem_.metric}
                       getMetric={(key: string) => {
                         const groupedMetrics = tableDataItem_.groupedMetrics;
                         const newKey = key.replace("Entries/", "").replace("Parameters/", "");
