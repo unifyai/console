@@ -119,6 +119,7 @@ const LogsPlot = ({ logs, fields}: {
                     selectedXAxisProperty, 
                     selectedYAxisProperty, 
                     metric as string,
+                    "unsorted",
                     xTable,
                     yTable,
                     logs, 

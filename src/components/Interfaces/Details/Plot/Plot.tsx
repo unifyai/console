@@ -10,6 +10,7 @@ import PlotGroupBy from "./Buttons/PlotGroupBy";
 import PlotReset from "./Buttons/PlotReset";
 import PlotBins from "./Buttons/PlotBins";
 import PlotRefresh from "./Buttons/PlotRefresh";
+import PlotSort from "./Buttons/PlotSort";
 
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { LogFieldsResponseProps, LogProps, PlotArguments } from "@/types/evals/logs";
@@ -65,6 +66,9 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
     const selectedXAxisProperty = item.x_axis;
     const selectedYAxisProperty = item.y_axis;
     const groupByProperty = item.plot_group_by;
+
+    // Sort bars for bar chart
+    const [sortBars, setSortBars] = useState("asc")
 
     // Draw plot
     useEffect(() => {
@@ -137,6 +141,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     selectedXAxisProperty,
                     selectedYAxisProperty,
                     metric,
+                    sortBars,
                     xTable,
                     yTable,
                     logs,
@@ -229,6 +234,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
         selectedYAxisProperty,
         plotType,
         groupByProperty,
+        sortBars,
         metric,
         binCount,
         binCounts,
@@ -324,6 +330,9 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                                 selectedXAxisProperty={selectedXAxisProperty} 
                                 fields={fields}
                             />
+                        }
+                        {plotType === "Bar Chart" && 
+                            <PlotSort sortBars={sortBars} setSortBars={setSortBars}/>
                         }
                         {plotType === "Scatter Plot" && 
                             <PlotRegression 

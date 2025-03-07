@@ -316,6 +316,7 @@ export const drawBarChart = (
     selectedXAxisProperty: string | undefined,
     selectedYAxisProperty: string | undefined,
     metric: string,
+    sortBars: string | undefined,
     xTable: string,
     yTable: string,
     logs: LogProps[],
@@ -351,23 +352,19 @@ export const drawBarChart = (
             d => JSON.stringify(getValue(fields, xAxisProperty, d, xTable))
         );
         data = Array.from(groups, ([group, value]) => [group, value]) as DataLabel[];
-        data.sort((a, b) => {
-            const aStr = a[0];
-            const bStr = b[0];
-            const isANumeric = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test(aStr);
-            const isBNumeric = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test(bStr);
-            if (isANumeric && isBNumeric) {
-              const aNum = Number(aStr);
-              const bNum = Number(bStr);
-              return aNum - bNum;
-            } else if (isANumeric) {
-              return -1;
-            } else if (isBNumeric) {
-              return 1;
-            } else {
-              return aStr.localeCompare(bStr);
-            }
-        });
+        if (sortBars != "unsorted")
+            data.sort((a, b) => {
+                const yA = a[1];
+                const yB = b[1];
+                switch (sortBars) {
+                    case "asc":
+                        return yA - yB
+                    case "desc":
+                        return yB - yA
+                    default:
+                        return yA - yB;
+                }
+            });
     }
 
     // Define scales
