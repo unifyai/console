@@ -174,16 +174,16 @@ const tooltipTemplate = (data: InfoCardData) => {
 }
 
 const keyTemplate = (keys: GroupingColors) => {
-    const value = (entry: { key: string, color: string }) => entry.key.toString().slice(0, 8).replace(/^"|"$/g, '');
+    const value = (entry: { key: string, color: string }) => entry.key.toString().replace(/^"|"$/g, '');
     return (`
-    <p class="font-bold text-sm">Grouping values</p>
     ${keys.map((entry, index) => `
-    <div id=${entry.key} class="key flex flex-row gap-2 items-center">
-        <div class="rounded-full h-2 w-2" style="background-color: ${entry.color}; color: ${entry.color}"></div>
+    <div id=${entry.key} class="key flex flex-row gap-2 mt-1 items-center">
+        <div class="rounded-full h-2 w-2 shrink-0" style="background-color: ${entry.color}; color: ${entry.color}"></div>
         <p class="text-xs text-foreground">${value(entry)}</p>
     </div>
     `).join("\n")}`)
 }
+
 
 const positionTooltip = (event: any, target: any, tooltip: any) => {
     const [x, y] = d3.pointer(event, target);  
