@@ -1,6 +1,14 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useStoreContext } from '../providers/StoreProvider';
 import { Project } from '../slices/selectors/project';
+import { useShallow } from 'zustand/react/shallow';
+
+// Define the default return value for the useProject hook
+const DEFAULT_USE_PROJECT_RETURN = {
+  project: null,
+  actions: null,
+  exists: false
+};
 
 /**
  * Interface for project-related actions
@@ -32,11 +40,6 @@ export interface ProjectActions {
  */
 export function useProject(projectId: string | null) {
   // Always call hooks at the top level, unconditionally
-  
-  // Get project state from the store using useStoreContext
-  const project = useStoreContext(state => 
-    projectId && state.projectsById ? state.projectsById[projectId] || null : null
-  );
 
   // Instead of subscribing to the entire project object,
   // we will subscribe to individual fields. This approach ensures
@@ -60,10 +63,11 @@ export function useProject(projectId: string | null) {
     if (!hasProject || !projectId) return null;
     return state.projectsById[projectId].activeInterfaceId;
   });
-  const interfaces = useStoreContext((state) => {
+  const interfaces = useStoreContext((
+    useShallow((state) => {
     if (!hasProject || !projectId) return null;
     return state.projectsById[projectId].interfaces || null;
-  });
+  })));
   
   // Get store actions
   const storeInitProject = useStoreContext(state => state.initProject);
@@ -164,7 +168,7 @@ export function useProject(projectId: string | null) {
 
   // Use projectId to conditionally return values, but only after all hooks are called
   if (projectId === null) {
-    return { project: null, actions: null, exists: false };
+    return DEFAULT_USE_PROJECT_RETURN;
   }
 
   return {

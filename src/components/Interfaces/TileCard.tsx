@@ -98,7 +98,7 @@ const TileCard = ({
       }
       return acc;
     }, {});
-  }, [tabData, tabActions]);
+  }, [tiles]);
 
   return (
     <div className="relative flex w-full h-full border">

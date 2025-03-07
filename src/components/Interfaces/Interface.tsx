@@ -42,14 +42,12 @@ const Interface = ({
 }: InterfaceComponentProps) => {
   const router = useRouter();
 
-  const { actions: interfaceActions } = useInterface(interfaceId);
-
   // Query params
   const [tabQueryParam, setTabQueryParam] = useQueryState("tab", { shallow: false });
   const [projectQueryParam, setProjectQueryParam] = useQueryState("project", { shallow: false });
 
   // Get interface and project data from hooks
-  const { interface: interfaceData } = useInterface(interfaceId);
+  const { actions: interfaceActions } = useInterface(interfaceId);
   const { project: projectData } = useProject(projectQueryParam || null);
   const { tab: tabData, actions: tabActions } = useTab(tabQueryParam || "", interfaceId);
 
@@ -68,11 +66,8 @@ const Interface = ({
   // Get tile props using the getItems function from the tabActions
   const tileProps = !tabActions || !tabData ? [] : tabActions.getItems();
 
-  // Get tabs and tiles data
-  const tabs = Object.keys(interfaceData?.tabs || {});
-
-  // Get list of tiles for the active tab
-  const tiles = tabData?.tiles ? Object.values(tabData.tiles) : [];
+  // Get tab Ids for the current interface
+  const tabIds = interfaceActions?.getTabIds() || [];
 
   // update interface – preserves context functionality
   const updateTab = (
@@ -81,7 +76,7 @@ const Interface = ({
       const context_1 = savedTab != null ? savedTab?.context : tabData?.context;
       const items_1 = savedTab?.items! || tileProps;
       const newCounter_1 = savedTab?.new_counter || newCounter;
-      if (tabQueryParam && projectQueryParam && tabQueryParam == tabData?.name && projectQueryParam == projectQueryParam && !tabData?.pending) {
+      if (tabQueryParam && projectQueryParam && tabQueryParam == tabData?.id && projectQueryParam == projectData?.name && !tabData?.pending) {
           if (tabData?.tempTabCreated)
               return serverTabActions.update(interfaceId, projectQueryParam as string, context_1, items_1, newCounter_1, undefined, true);
           else
@@ -145,7 +140,7 @@ const Interface = ({
       top: gridRef.current?.scrollHeight,
       behavior: "smooth",
     });
-  }, [tiles.length]);
+  }, [tabData?.tiles?.length]);
   
   return (
     <div className="w-full h-full overflow-auto relative" ref={gridRef}>
@@ -191,7 +186,7 @@ const Interface = ({
           />
         </div>
 
-        {tabs.length === 0 ? (
+        {tabIds.length === 0 ? (
           projectQueryParam && tabData?.pending ? (
             <div className="flex justify-center">
               <Loader2 className="animate-spin my-36" />
@@ -206,7 +201,7 @@ const Interface = ({
             />
           ) : null
         ) : (
-          tabs.map((tabId: string, idx: number) => (
+          tabIds.map((tabId: string, idx: number) => (
             <TabsContent
               key={idx}
               value={tabId}

@@ -96,7 +96,7 @@ const LogsTable = ({
   const { actions: tileActions } = useTile(tileId, tabId, interfaceId, projectId);
   
   // Get access to the table tile specific data and actions
-  const { data: tableData, actions: tableTileActions } = useTableTile(tileId, tabId, interfaceId, projectId);
+  const { tableTile: tableData, actions: tableTileActions } = useTableTile(tileId, tabId, interfaceId, projectId);
 
   // Get the item representation for the current tile
   const item = tileActions?.asTileItem();
@@ -114,22 +114,8 @@ const LogsTable = ({
 
   // Create a generic updateItem function that checks property existence
   const updateItem = (item: TileProps, propName: string) => (value: any) => {
-    if (!tileActions || !tableTileActions) return;
-
-    // Create a dummy Tile and TableTileData object to check property existence
-    const tileKeys = Object.keys({} as Tile);
-    const tableTileKeys = Object.keys({} as TableTileData);
-
-    // Check if the property belongs to Tile or TableTileData
-    if (tileKeys.includes(propName)) {
-      // Property exists on Tile, use tileActions.updateTile
+    if (tileActions) {
       tileActions.updateTile({ [propName]: value });
-    } else if (tableTileKeys.includes(propName)) {
-      // Property exists on TableTileData, use tableTileActions.updateTableData
-      tableTileActions.updateTableData({ [propName]: value });
-    } else {
-      // log error
-      console.error(`Property ${propName} not found in either Tile or TableTileData`);
     }
   };
 

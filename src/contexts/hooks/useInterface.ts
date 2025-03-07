@@ -2,6 +2,14 @@ import { useMemo } from 'react';
 import { useStoreContext } from '../providers/StoreProvider';
 import { Interface } from '../slices/selectors/interface';
 import { Tab } from '../slices/selectors/tab';
+import { useShallow } from 'zustand/react/shallow';
+
+// Define the default return value for the useInterface hook
+const DEFAULT_USE_INTERFACE_RETURN = {
+  interface: null,
+  actions: null,
+  exists: false
+};
 
 /**
  * Interface for interface-related actions
@@ -62,10 +70,11 @@ export function useInterface(interfaceId: string | null, projectId?: string | nu
     if (!hasInterface || !activeProjectId || !interfaceId) return null;
     return state.projectsById[activeProjectId].interfaces[interfaceId].activeTabId || null;
   });
-  const tabs = useStoreContext(state => {
+  const tabs = useStoreContext((
+    useShallow((state) => {
     if (!hasInterface || !activeProjectId || !interfaceId) return null;
     return state.projectsById[activeProjectId].interfaces[interfaceId].tabs || null;
-  });
+  })));
 
   // Get store actions
   const storeInitInterface = useStoreContext(state => state.initInterface);
@@ -212,9 +221,6 @@ export function useInterface(interfaceId: string | null, projectId?: string | nu
   }), [
     interfaceId,
     activeProjectId,
-    hasInterface,
-    name,
-    tabs,
     activeTabId,
     storeInitInterface, 
     storeUpdateInterface, 
@@ -227,16 +233,14 @@ export function useInterface(interfaceId: string | null, projectId?: string | nu
   
   // We build a final 'interface' object from the narrower fields
   // so the calling component has a shape similar to before, if needed.
-  const finalInterface = hasInterface
-    ? {
-        name,
-        tabs,
-        activeTabId
-    } as Interface : null;
+  const finalInterface = useMemo(() => {
+    if (!hasInterface) return null;
+    return { name, tabs, activeTabId } as Interface;
+  }, [hasInterface, name, tabs, activeTabId]);
 
   // Use interfaceId to conditionally return values, but only after all hooks are called
   if (interfaceId === null) {
-    return { interface: null, actions: null, exists: false };
+    return DEFAULT_USE_INTERFACE_RETURN;
   }
 
   return {

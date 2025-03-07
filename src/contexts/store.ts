@@ -54,27 +54,7 @@ export function createStore(initialState?: Partial<IStoreState>) {
           
           // Global reset action
           resetState: (newState: Partial<IStoreState>) => set((state) => {
-            // Reset specific slices based on the newState
-            if (newState.projectsById) {
-              state.projectsById = newState.projectsById;
-            }
-
-            if (newState.activeProjectId !== undefined) {
-              state.activeProjectId = newState.activeProjectId;
-            }
-
-            if (newState.activeInterfaceId !== undefined) {
-              state.activeInterfaceId = newState.activeInterfaceId;
-            }
-
-            if (newState.activeTabId !== undefined) {
-              state.activeTabId = newState.activeTabId;
-            }
-
-            // Reset the legacy projects array if provided
-            if (newState.projects) {
-              state.projects = newState.projects;
-            }
+            return { ...newState };
           }),
         };
       }),

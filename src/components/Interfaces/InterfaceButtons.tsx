@@ -1,6 +1,6 @@
 "use client";
 
-import { TabProps, TileProps } from "@/types/evals/grid";
+import { TabProps } from "@/types/evals/grid";
 import { Eye, Hammer, SquareMousePointer } from "lucide-react";
 import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
@@ -14,11 +14,8 @@ import Tooltip from "../Common/Misc/Tooltip";
 import AddTile from "./AddTile";
 import ContextSelector from "./Table/Content/ContextSelector";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
-import { useInterface } from "@/contexts/hooks/useInterface";
 import { useTab } from "@/contexts/hooks/useTab";
-import { useState, SetStateAction } from "react";
-import { useTile } from "@/contexts/hooks/useTile";
-import { updateTab } from "@/contexts/slices/selectors/tab";
+import { SetStateAction } from "react";
 
 const InterfaceButtons = ({
     interfaceId,
@@ -50,7 +47,7 @@ const InterfaceButtons = ({
     const { tab: tabData, actions: tabActions } = useTab(tabQueryParam || "", interfaceId);
 
     // Get contexts from the interface data
-    const contexts = useStoreContext(state => {
+    const contexts = useStoreContext((state) => {
         const projectData = state.projectsById[project || ""];
         return projectData?.contexts || [];
     });

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { ResponseProps } from "@/types/common";
@@ -10,8 +10,7 @@ import Tooltip from "../Common/Misc/Tooltip";
 import ActionButton from "../Common/Buttons/Action";
 import Cookies from "js-cookie";
 import { useTab } from '@/contexts/hooks/useTab';
-import { FieldsActions, LogsActions, DerivedEntryActions, TabActions, TileProps, TabProps } from "@/types/evals/grid";
-import { useInterface } from '@/contexts/hooks/useInterface';
+import { FieldsActions, LogsActions, DerivedEntryActions, TileProps } from "@/types/evals/grid";
 import ContextSelector from "./Table/Content/ContextSelector";
 import TileCard from "./TileCard";
 
@@ -52,12 +51,6 @@ const Tab = ({
     projectId ? state.projectsById[projectId] : null
   );
   const contexts = projectData?.contexts || [];
-  
-  // Reference for grid layout
-  const gridRef = useRef<HTMLDivElement>(null);
-
-  // Derive tiles from tab data
-  const tiles = tabData ? Object.values(tabData.tiles || {}) : [];
 
   // Get tile props using the getItems function from the tabActions
   const tileProps = !tabActions || !tabData ? [] : tabActions.getItems();
@@ -80,14 +73,6 @@ const Tab = ({
       Cookies.remove("tab");
     }
   }, [projectId, tabId, getLatestTab]);
-
-  // Scroll to the bottom whenever new tiles are added
-  useEffect(() => {
-    gridRef.current?.scrollTo({
-      top: gridRef.current?.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [tiles.length]);
 
   // End success green after 3 seconds
   useEffect(() => { 

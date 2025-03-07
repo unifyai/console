@@ -39,8 +39,8 @@ const Tile = ({
 }: TileComponentProps) => {
     // Get tile data and actions from hooks
     const { tab: tabData } = useTab(tabId, interfaceId);
-    const { data: tileData, actions: tileActions } = useTile(tileId, tabId, interfaceId);
-    const { data: tableData } = useTableTile(tileId, tabId, interfaceId);
+    const { tile: tileData, actions: tileActions } = useTile(tileId, tabId, interfaceId);
+    const { tableTile: tableData } = useTableTile(tileId, tabId, interfaceId);
     
     // Get the active project to access contexts
     const activeProjectId = useStoreContext((s) => s.activeProjectId);
@@ -92,7 +92,9 @@ const Tile = ({
                     <LogsPlot 
                         interactive={tabData?.interactive || false}
                         item={tileItem}
-                        updateItem={(item: TileProps, attrName: ItemType) => () => {}}
+                        updateItem={(item: TileProps, attrName: ItemType) => (value: string | undefined) => {
+                            tileActions?.updateTile({ [attrName]: value });
+                        }}
                         projectId={projectId}
                         pending={tileData.pending}
                         tableNames={[]}

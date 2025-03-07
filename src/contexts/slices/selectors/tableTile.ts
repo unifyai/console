@@ -1,5 +1,5 @@
 import { TableDataItem } from "@/types/evals/grid";
-import { LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps, GroupedLogProps, TableArguments } from "@/types/evals/logs";
+import { TableArguments } from "@/types/evals/logs";
 
 // Table tile related types
 export interface TableTileData {
@@ -15,6 +15,8 @@ export interface TableTileData {
   updatedAt: string;
 
   // Table-specific fields from TileProps
+  // Note: When adding new fields here from TileProps in grid.ts,
+  // make sure to update the TABLE_TILE_KEYS array in the useTile hook
   table?: string;          // Table identifier
   table_type?: string;     // Type of table
   column_context?: string; // Context for columns display

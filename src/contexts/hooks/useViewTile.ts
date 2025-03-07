@@ -2,6 +2,13 @@ import { useMemo } from "react";
 import { useStoreContext } from "../providers/StoreProvider";
 import { TileActions, useTile } from "./useTile";
 
+// Define the default return value for the useViewTile hook
+const DEFAULT_USE_VIEW_TILE_RETURN = {
+  viewTile: null,
+  actions: null,
+  exists: false,
+};
+
 /**
  * Interface for view tile-related actions
  */
@@ -29,15 +36,14 @@ export function useViewTile(
 ) {
   // Narrow approach with useTile plus narrower subscription
   const {
-    data: baseTile,
+    tile: baseTile,
     actions: baseTileActions,
     exists,
-    tabId: foundTabId
   } = useTile(tileId, tabId, interfaceId, projectId);
 
   // Check if we actually have a view tile
   const hasViewTile = useStoreContext((state) => {
-    if (!baseTile || baseTile.type !== 'view') return false;
+    if (!baseTile || baseTile.type !== 'View') return false;
     return true;
   });
 
@@ -79,11 +85,13 @@ export function useViewTile(
     };
   }, [baseTileActions, hasViewTile]);
 
+  if (tileId === null) {
+    return DEFAULT_USE_VIEW_TILE_RETURN;
+  }
+
   return {
-    data: hasViewTile ? viewData : null,
+    viewTile: viewData,
     actions: viewActions,
     exists: exists && hasViewTile,
-    tabId: foundTabId,
-    tile: baseTile
   };
 }

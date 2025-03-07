@@ -66,10 +66,7 @@ const DefaultProject = ({
     const defaultProject = "Maths Assistant";
 
     // Access projects getter and setter from the store
-    const { projects, setProjects } = useStoreContext(state => ({
-        projects: state.projects,
-        setProjects: state.setProjects
-    }));
+    const projects = useStoreContext(state => state.projects);
 
     const disabled = projects == undefined
     const [pending, setPending] = useState(false);

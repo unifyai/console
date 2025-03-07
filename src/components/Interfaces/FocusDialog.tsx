@@ -36,6 +36,7 @@ const FocusDialog = ({
     setFocusDialog: Dispatch<SetStateAction<boolean>>,
 }) => {
     const { tab: tabData, actions: tabActions } = useTab(tabId, interfaceId);
+
     // Get tile props using the getItems function from the tabActions
     const tileProps = !tabActions || !tabData ? [] : tabActions.getItems();
 

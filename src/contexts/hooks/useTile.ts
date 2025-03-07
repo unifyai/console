@@ -1,12 +1,17 @@
 import { useMemo, useCallback, useRef } from 'react';
-import { useStoreContext } from '../providers/StoreProvider';
+import { useStoreApiContext, useStoreContext } from '../providers/StoreProvider';
 import { Tile, TilePosition } from '../slices/selectors/tile';
 import { TileProps } from '@/types/evals/grid';
 import { IStoreState } from '../store';
+import { useShallow } from 'zustand/react/shallow';
 
 // Define the valid tile types
 const tileTypes = ['Table', 'Plot', 'View'] as const;
 type TileType = (typeof tileTypes)[number];
+
+// Define the default tile position
+const DEFAULT_TILE_POSITION = { x: 0, y: 0, width: 2, height: 2 };
+const DEFAULT_TILE_RETURN = { tile: null, actions: null, exists: false };
 
 /**
  * Interface for tile-related actions
@@ -153,6 +158,7 @@ export function createTileActions(
         moved: tile.moved,
         static: tile.static,
         context: tile.context,
+        table: tile.table,
         auto_update: tile.auto_update,
         freeze: tile.freeze,
         filters: tile.filters,
@@ -162,7 +168,6 @@ export function createTileActions(
       // Add type-specific properties based on the tile type
       if (tile.type === 'Table' && tile.tableData) {
         // Add table-specific properties from TableTileData
-        tileProps.table = tile.tableData.table;
         tileProps.table_type = tile.tableData.table_type || 'Data Table';
         tileProps.column_context = tile.tableData.column_context;
         tileProps.page_number = tile.tableData.page_number;
@@ -198,9 +203,6 @@ export function createTileActions(
           tileProps.context = tabContext;
         }
       } else if (tile.type === 'View' && tile.viewData) {
-        // Add table-specific properties from TableTileData
-        tileProps.table = tile.viewData.table;
-        
         // If context not already set, use the tab context
         if (!tileProps.context) {
           tileProps.context = tabContext;
@@ -288,7 +290,7 @@ export function useTile(
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].type;
   });
   const position = useStoreContext((state) => {
-    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return { x: 0, y: 0, width: 2, height: 2 };
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return DEFAULT_TILE_POSITION;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].position;
   });
   const minW = useStoreContext((state) => {
@@ -313,21 +315,24 @@ export function useTile(
   });
 
   // For tableData, plotData, viewData (we can subscribe or do a single subscription if we prefer)
-  const tableData = useStoreContext((state) => {
+  const tableData = useStoreContext(
+    useShallow((state) => {
     if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return null;
     const tileRef = state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId];
     return tileRef.tableData || null;
-  });
-  const plotData = useStoreContext((state) => {
+  }));
+  const plotData = useStoreContext(
+    useShallow((state) => {
     if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return null;
     const tileRef = state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId];
     return tileRef.plotData || null;
-  });
-  const viewData = useStoreContext((state) => {
+  }));
+  const viewData = useStoreContext(
+    useShallow((state) => {
     if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return null;
     const tileRef = state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId];
     return tileRef.viewData || null;
-  });
+  }));
   const context = useStoreContext((state) => {
     if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].context;
@@ -356,20 +361,9 @@ export function useTile(
     if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].static;
   });
-  const createdAt = useStoreContext((state) => {
-    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return new Date().toISOString();
-    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].createdAt || new Date().toISOString();
-  });
-  const updatedAt = useStoreContext((state) => {
-    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return new Date().toISOString();
-    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].updatedAt || new Date().toISOString();
-  });
-  
-  // Get store for action factory
-  const store = useStoreContext(state => state);
-  
+
   // We'll build a complete tile object from the individual fields
-  const finalTile = useMemo<Tile | null>(() => {
+  const finalTile = useMemo(() => {
     if (!hasTile || !tileId) return null;
     
     return {
@@ -383,8 +377,6 @@ export function useTile(
       visible,
       locked,
       pending,
-      createdAt,
-      updatedAt,
       
       // Grid-specific optional fields
       moved,
@@ -413,8 +405,6 @@ export function useTile(
     visible,
     locked,
     pending,
-    createdAt,
-    updatedAt,
     moved,
     static_,
     context,
@@ -426,21 +416,27 @@ export function useTile(
     plotData,
     viewData
   ]);
+
+  // Access the global store api
+  const storeApi = useStoreApiContext();
   
   // Use our factory to create actions
   const actions = useMemo(() => {
     if (!tileId || !foundTabId || !activeInterfaceId || !activeProjectId || !finalTile) {
       return null;
     }
-    
+
+    // Get the store state
+    const storeState = storeApi.getState();
+
     return createTileActions(
       tileId, 
       foundTabId, 
       activeInterfaceId,
       activeProjectId,
-      finalTile,
+      finalTile as Tile,
       tabContext,
-      store
+      storeState
     );
   }, [
     tileId, 
@@ -449,16 +445,16 @@ export function useTile(
     activeProjectId,
     finalTile, 
     tabContext,
-    store
+    storeApi,
   ]);
 
   // Use tileId to conditionally return values, but only after all hooks are called
   if (tileId === null) {
-    return { data: null, actions: null, exists: false, tabId: null };
+    return DEFAULT_TILE_RETURN;
   }
 
   return {
-    data: finalTile,
+    tile: finalTile,
     actions,
     exists: hasTile,
   };
@@ -468,9 +464,9 @@ export function useTile(
  * Hook to access tile actions for any tile without violating React hook rules
  */
 export function useTileActions() {
-  // Access the global store
-  const store = useStoreContext(state => state);
-  
+  // Access the global store api
+  const storeApi = useStoreApiContext();
+
   // Use a ref to cache tile actions
   const tileActionsCache = useRef<Record<string, TileActions>>({});
   
@@ -490,16 +486,19 @@ export function useTileActions() {
     if (tileActionsCache.current[cacheKey]) {
       return tileActionsCache.current[cacheKey];
     }
+
+    // We can read the store state once, do not cause subscription
+    const storeState = storeApi.getState();
     
     // Check if tile exists in store
-    const tile = store.projectsById?.[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.tiles?.[tileId];
+    const tile = storeState.projectsById?.[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.tiles?.[tileId];
     if (!tile) return null;
     
     // Get tab context
-    const tabContext = store.projectsById?.[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.context || '';
+    const tabContext = storeState.projectsById?.[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.context || '';
     
     // Create actions using the factory
-    const actions = createTileActions(tileId, tabId, interfaceId, projectId, tile, tabContext, store);
+    const actions = createTileActions(tileId, tabId, interfaceId, projectId, tile, tabContext, storeState);
     
     // Cache the actions
     if (actions) {
@@ -507,7 +506,7 @@ export function useTileActions() {
     }
     
     return actions;
-  }, [store]);
+  }, [storeApi]);
   
   return { getTileActions };
 }

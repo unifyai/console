@@ -51,3 +51,12 @@ export function useStoreContext<T>(selector: (state: IStoreState) => T): T {
   
   return useStore(store, selector);
 }
+
+// A new hook just for grabbing the store API
+export function useStoreApiContext(): StoreApi<IStoreState> {
+  const storeApi = useContext(StoreContext);
+  if (!storeApi) {
+    throw new Error('useStoreApiContext must be used within StoreProvider.');
+  }
+  return storeApi;
+}

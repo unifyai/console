@@ -2,7 +2,6 @@ import { TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
 import { Plus } from "lucide-react";
 import { useTab } from "@/contexts/hooks/useTab";
-import { useMemo } from "react";
 
 const AddTile = ({
     project,

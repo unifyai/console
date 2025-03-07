@@ -30,7 +30,7 @@ const ContextSelector = ({
 }) => {
 
     const { actions: tileActions } = useTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
-    const { data: tableData, actions: tableTileActions } = useTableTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
+    const { tableTile: tableData, actions: tableTileActions } = useTableTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
     
     const item = tileActions?.asTileItem();
     

@@ -13,6 +13,8 @@ export interface TilePosition {
 
 // Base tile interface with common fields shared across all tile types
 export interface Tile {
+  // Note: When adding new fields here from TileProps in grid.ts,
+  // make sure to update the TILE_KEYS array in the useTile hook
   // Core tile properties
   id: string;
   name: string;
@@ -32,6 +34,7 @@ export interface Tile {
   
   // Common fields shared across tile types
   context?: string;
+  table?: string;
   auto_update?: string;
   freeze?: string;
   filters?: string;
@@ -66,6 +69,7 @@ export function initTile(tileId: string, initialState: Partial<Tile> = {}): Tile
     
     // Common fields shared across tile types
     context: initialState.context || "",
+    table: initialState.table || "",
     auto_update: initialState.auto_update,
     freeze: initialState.freeze,
     filters: initialState.filters,

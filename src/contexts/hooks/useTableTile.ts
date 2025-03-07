@@ -2,6 +2,13 @@ import { useMemo } from "react";
 import { useStoreContext } from "../providers/StoreProvider";
 import { TileActions, useTile } from "./useTile";
 
+// Define the default return value for the useTableTile hook
+const DEFAULT_USE_TABLE_TILE_RETURN = {
+  tableTile: null,
+  actions: null,
+  exists: false,
+};
+
 /**
  * Interface for table tile-related actions
  */
@@ -29,10 +36,9 @@ export function useTableTile(
   // First, we use our narrower hook to get the base tile object
   // (which we previously updated to subscribe to each tile field individually)
   const {
-    data: baseTile,
+    tile: baseTile,
     actions: baseTileActions,
     exists,
-    tabId: foundTabId
   } = useTile(tileId, tabId, interfaceId, projectId);
 
   // Now we do further narrower subscription for table-specific data,
@@ -77,13 +83,15 @@ export function useTableTile(
       },
     };
   }, [baseTileActions, hasTableTile]);
+
+  if (tileId === null) {
+    return DEFAULT_USE_TABLE_TILE_RETURN;
+  }
   
   return {
     // We only return tableData if it is indeed a table tile
-    data: hasTableTile ? tableData : null,
+    tableTile: tableData,
     actions: tableActions,
     exists: exists && hasTableTile,
-    tabId: foundTabId,
-    tile: baseTile
   };
 }

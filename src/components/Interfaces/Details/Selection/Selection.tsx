@@ -289,11 +289,11 @@ export default function Selection({
   /******************************************************************************
    * Prepare sorted logs & selection data
    ******************************************************************************/
-  const { actions: tileActionsWithId } = useTile(tileId, tabId, interfaceId, projectId);
+  const { tile: tileDataWithId, actions: tileActionsWithId } = useTile(tileId, tabId, interfaceId, projectId);
   const item = tileActionsWithId?.asTileItem();
 
   // Get the table tile this selection references
-  const { data: tileDataWithTable, actions: tileActionsWithTable } = useTile(
+  const { tile: tileDataWithTable, actions: tileActionsWithTable } = useTile(
     item?.table || "", 
     tabId, 
     interfaceId, 
@@ -306,24 +306,13 @@ export default function Selection({
   const relevantItem = tileActionsWithTable?.asTileItem() || undefined;
   const tableDataItem = tileDataWithTable?.tableData?.tableDataItem || {} as TableDataItem;
 
-  // Create an updateItem function that uses the new actions
+  // Create a generic updateItem function that checks property existence
   const updateItem = (item: TileProps, propName: string) => (value: any) => {
-    if (!tileActionsWithId || !tileActionsWithTable) return;
-
-    // Create a dummy Tile and TableTileData object to check property existence
-    const tileKeys = Object.keys({} as Tile);
-    const tableTileKeys = Object.keys({} as TableTileData);
-
-    // Check if the property belongs to Tile or TableTileData
-    if (tileKeys.includes(propName)) {
-      // Property exists on Tile, use tileActions.updateTile
+    if (tileActionsWithId && item.i == tileDataWithId?.id) {
       tileActionsWithId.updateTile({ [propName]: value });
-    } else if (tableTileKeys.includes(propName)) {
-      // Property exists on TableTileData, use tableTileActions.updateTableData
-      tileActionsWithTable.updateTableData({ [propName]: value });
-    } else {
-      // log error
-      console.error(`Property ${propName} not found in either Tile or TableTileData`);
+    }
+    else if (tileActionsWithTable && item.table == tileDataWithTable?.id) {
+      tileActionsWithTable.updateTile({ [propName]: value });
     }
   };
 

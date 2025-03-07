@@ -35,6 +35,8 @@ export function buildTabState(
     visible: true,
     active: isActive,
     order: order,
+    edit: true,
+    interactive: true,
     context: tabData.context || "",
     tabCreated: tabData.tabCreated || false,
     tempTabCreated: tabData.tempTabCreated || false,

@@ -2,6 +2,13 @@ import { useMemo } from "react";
 import { useStoreContext } from "../providers/StoreProvider";
 import { TileActions, useTile } from "./useTile";
 
+// Define the default return value for the usePlotTile hook
+const DEFAULT_USE_PLOT_TILE_RETURN = {
+  plotTile: null,
+  actions: null,
+  exists: false,
+};
+
 /**
  * Interface for plot tile-related actions
  */
@@ -28,13 +35,12 @@ export function usePlotTile(
 ) {
   // Narrow approach with useTile plus narrower subscription
   const {
-    data: baseTile,
+    tile: baseTile,
     actions: baseTileActions,
     exists,
-    tabId: foundTabId
   } = useTile(tileId, tabId, interfaceId, projectId);
   const hasPlotTile = useStoreContext((state) => {
-    if (!baseTile || baseTile.type !== 'plot') return false;
+    if (!baseTile || baseTile.type !== 'Plot') return false;
     return true;
   });
 
@@ -67,11 +73,14 @@ export function usePlotTile(
     };
   }, [baseTileActions, hasPlotTile]);
 
+  if (tileId === null) {
+    return DEFAULT_USE_PLOT_TILE_RETURN;
+  }
+
   return {
-    data: hasPlotTile ? plotData : null,
+    plotTile: plotData,
     actions: plotActions,
     exists: exists && hasPlotTile,
-    tabId: foundTabId,
-    tile: baseTile
   };
+
 }

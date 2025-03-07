@@ -3,6 +3,7 @@ export type ViewType = 'html' | 'markdown' | 'code' | 'iframe' | 'image' | 'pdf'
 
 // View tile data
 export interface ViewTileData {
+  // Note: When adding new properties, make sure to update the VIEW_TILE_KEYS array in the useTile hook
   id: string;
   title: string;
   loading: boolean;
@@ -10,9 +11,6 @@ export interface ViewTileData {
   lastUpdated: string | null;
   createdAt: string;
   updatedAt: string;
-
-  // Table-specific fields from TileProps
-  table?: string;          // Table identifier
 }
 
 /**
@@ -31,9 +29,6 @@ export function initViewTile(
     lastUpdated: initialState.lastUpdated || null,
     createdAt: initialState.createdAt || new Date().toISOString(),
     updatedAt: initialState.updatedAt || new Date().toISOString(),
-
-    // Table-specific fields from TileProps
-    table: initialState.table,
   } as ViewTileData;
 }
 

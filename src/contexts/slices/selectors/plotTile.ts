@@ -12,6 +12,8 @@ export interface PlotTileData {
   updatedAt: string;
   
   // Plot-specific fields from TileProps
+  // Note: When adding new fields here from TileProps in grid.ts,
+  // make sure to update the PLOT_TILE_KEYS array in the useTile hook
   plot_type?: string;          // Used in addition to plotType for compatibility
   plot_scale_x?: string;       // X-axis scale type (linear, log, etc.)
   plot_scale_y?: string;       // Y-axis scale type

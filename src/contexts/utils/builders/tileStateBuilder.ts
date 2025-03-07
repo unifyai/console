@@ -29,7 +29,16 @@ export function buildTileState(
     locked: tileData.locked || false,
     pending: false,
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+    
+    moved: tileData.moved || false,
+    static: tileData.static || false,
+    context: tileData.context || "",
+    table: tileData.table || "",
+    auto_update: tileData.auto_update || "",
+    freeze: tileData.freeze || "",
+    filters: tileData.filters || "",
+    common_filter: tileData.common_filter || "",
   } as Tile;
 }
 
@@ -64,7 +73,6 @@ export function buildTableTileState(
       updatedAt: new Date().toISOString(),
 
       // Table-specific fields from TileProps
-      table: tileData.table || "",
       table_type: tileData.table_type || "",
       column_context: tileData.column_context || "",
       page_number: tileData.page_number || "",
@@ -141,9 +149,6 @@ export function buildViewTileState(
       lastUpdated: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-
-      // Table-specific fields from TileProps
-      table: tileData.table || "",
     } as ViewTileData,
   } as Tile;
 }

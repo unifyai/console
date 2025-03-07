@@ -8,6 +8,10 @@ import * as tileLogic from "./selectors/tile";
 import * as tableTileLogic from "./selectors/tableTile";
 import * as plotTileLogic from "./selectors/plotTile";
 import * as viewTileLogic from "./selectors/viewTile";
+import { TableTileData } from "./selectors/tableTile";
+import { PlotTileData } from "./selectors/plotTile";
+import { ViewTileData } from "./selectors/viewTile";
+import { Tile } from "./selectors/tile";
 
 // Re-export the types from the domain logic
 export type { Project } from "./selectors/project";
@@ -16,18 +20,60 @@ export type { Tab } from "./selectors/tab";
 export type { Tile } from "./selectors/tile";
 export type { TableTileData } from "./selectors/tableTile";
 export type { PlotTileData } from "./selectors/plotTile";
-export type { ViewTileData, ViewType } from "./selectors/viewTile";
+export type { ViewTileData } from "./selectors/viewTile";
 
-// Tile position information
-export interface TilePosition {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+// tileKeys: all fields for Tile from TileProps in grid.ts
+const TILE_KEYS: (keyof Tile)[] = [
+  "id","name","type","position","minW","minH","visible","locked","pending",
+  "createdAt","updatedAt","moved","static","context","table","auto_update","freeze",
+  "filters","common_filter",
+];
+
+// tableTileKeys: all fields for TableTileData from TileProps in grid.ts
+const TABLE_TILE_KEYS: (keyof TableTileData)[] = [
+  "table","table_type","column_context","page_number","metric",
+  "column_order","hidden_columns","sorting","grouping","group_sorting",
+  "columns_pin_left","columns_pin_right","selected","base_index",
+];
+
+// plotTileKeys: all fields for PlotTileData from TileProps in grid.ts
+const PLOT_TILE_KEYS: (keyof PlotTileData)[] = [
+  "plot_type","plot_scale_x","plot_scale_y","is_aggregated",
+  "x_axis","y_axis","plot_group_by","bin_count","regression_line"
+];
+
+// viewTileKeys: all fields for ViewTileData from TileProps in grid.ts
+const VIEW_TILE_KEYS: (keyof ViewTileData)[] = [];
+
+function splitTileUpdates(
+  updates: Record<string, any>
+): {
+  tileUpdates: Partial<Tile>;
+  tableTileUpdates: Partial<TableTileData>;
+  plotTileUpdates: Partial<PlotTileData>;
+  viewTileUpdates: Partial<ViewTileData>;
+} {
+  const tileUpdates: Partial<Tile> = {};
+  const tableTileUpdates: Partial<TableTileData> = {};
+  const plotTileUpdates: Partial<PlotTileData> = {};
+  const viewTileUpdates: Partial<ViewTileData> = {};
+  
+  for (const key in updates) {
+    if (TILE_KEYS.includes(key as keyof Tile)) {
+      tileUpdates[key as keyof Tile] = updates[key];
+    } else if (TABLE_TILE_KEYS.includes(key as keyof TableTileData)) {
+      tableTileUpdates[key as keyof TableTileData] = updates[key];
+    } else if (PLOT_TILE_KEYS.includes(key as keyof PlotTileData)) {
+      plotTileUpdates[key as keyof PlotTileData] = updates[key];
+    } else if (VIEW_TILE_KEYS.includes(key as keyof ViewTileData)) {
+      viewTileUpdates[key as keyof ViewTileData] = updates[key];
+    } else {
+      console.warn(`Unknown property '${key}' not in Tile or TableTileData.`);
+    }
+  }
+
+  return { tileUpdates, tableTileUpdates, plotTileUpdates, viewTileUpdates };
 }
-
-// Tile type
-export type TileType = 'table' | 'plot' | 'view';
 
 // Top-level projects state
 export interface StoreState {
@@ -327,8 +373,25 @@ export const createStoreSlice: StateCreator<
     const tile = state.projectsById[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.tiles?.[tileId];
     
     if (tile) {
-      const updatedTile = tileLogic.updateTile(tile, updates);
+      const { tileUpdates, tableTileUpdates, plotTileUpdates, viewTileUpdates } = splitTileUpdates(updates);
       
+      let updatedTile = tile;
+      if (tileUpdates) {
+        updatedTile = tileLogic.updateTile(tile, tileUpdates);
+      }
+      
+      if (tableTileUpdates) {
+        updatedTile.tableData = tableTileLogic.updateTableTile(updatedTile.tableData || tableTileLogic.initTableTile(tileId), tableTileUpdates);
+      }
+
+      if (plotTileUpdates) {
+        updatedTile.plotData = plotTileLogic.updatePlotTile(updatedTile.plotData || plotTileLogic.initPlotTile(tileId), plotTileUpdates);
+      }
+
+      if (viewTileUpdates) {
+        updatedTile.viewData = viewTileLogic.updateViewTile(updatedTile.viewData || viewTileLogic.initViewTile(tileId), viewTileUpdates);
+      }
+
       state.projectsById[projectId].interfaces[interfaceId].tabs[tabId].tiles[tileId] = updatedTile;
     }
   }),
