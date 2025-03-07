@@ -203,20 +203,16 @@ function buildLogWithChosenColumns(
   globalParams: Record<string, unknown>,
   indexToColumns: Record<number, Set<string>>,
   columnOrdering: string[],
-  hiddenColumns: string[]
 ): LogProps {
   const chosen = indexToColumns[rowIndex] ?? new Set<string>();
   const safeEntries = originalLog.entries ?? {};
-  const afterHiddenEntries = Array.from(chosen).filter(
-    (c) => !hiddenColumns.includes(c)
-  );
 
   const finalColsEntries =
     columnOrdering.length > 0
       ? columnOrdering
-          .filter((c) => afterHiddenEntries.includes(c))
+          .filter((c) => chosen.has(c))
           .map(sanitizeId)
-      : afterHiddenEntries.map(sanitizeId);
+      : Array.from(chosen).map(sanitizeId);
   
   const newEntries: Record<string, unknown> = {};
   for (const c of finalColsEntries) {
@@ -226,16 +222,13 @@ function buildLogWithChosenColumns(
   }
 
   const safeParams = originalLog.params ?? {};  
-  const afterHiddenParams = Array.from(chosen).filter(
-    (c) => !hiddenColumns.includes(c)
-  );
   
   const finalColsParams =
     columnOrdering.length > 0
       ? columnOrdering
-          .filter((c) => afterHiddenParams.includes(c))
+          .filter((c) => chosen.has(c))
           .map(sanitizeId)
-      : afterHiddenParams.map(sanitizeId);
+      : Array.from(chosen).map(sanitizeId);
   
 
   const newParams: Record<string, unknown> = {};
@@ -277,7 +270,6 @@ export default function Selection({
   selection_,
   baseIndex_,
   columnOrdering_,
-  hiddenColumns_,
   tableItem,
   item,
   updateItem,
@@ -287,7 +279,6 @@ export default function Selection({
   selection_: string | undefined;
   baseIndex_: string | undefined;
   columnOrdering_: string | undefined;
-  hiddenColumns_: string | undefined;
   tableItem: TileProps | undefined;
   item: TileProps;
   updateItem: (item: TileProps, attrName: ItemType) => (
@@ -329,13 +320,11 @@ export default function Selection({
     return buildRowIndicesInSelectionOrder(selectedCells, sortedLogs);
   }, [selectedCells, sortedLogs]);
 
-  const columnOrdering = useMemo(() => {
-    return columnOrdering_ ? columnOrdering_.split(",").map(sanitizeId) : [];
-  }, [columnOrdering_]);
+  const [columnOrdering, setColumnOrdering] = useState<string[]>([]);
 
-  const hiddenColumns = useMemo(() => {
-    return hiddenColumns_ ? hiddenColumns_.split(",").map(sanitizeId) : [];
-  }, [hiddenColumns_]);
+  useEffect(() => {
+    setColumnOrdering(columnOrdering_ ? columnOrdering_.split(",").map(sanitizeId) : []);
+  }, [columnOrdering_]);
 
   /*******************************************************************************
    * Panel & Display States
@@ -969,7 +958,6 @@ export default function Selection({
             params={params}
             selectedRowIndices={selectedRowIndices}
             columnOrdering={columnOrdering}
-            hiddenColumns={hiddenColumns}
             indexToColumns={indexToColumns}
             entriesFilter={entriesFilter}
             paramsFilter={paramsFilter}
@@ -1010,7 +998,6 @@ function SelectionPanel({
   params,
   selectedRowIndices,
   columnOrdering,
-  hiddenColumns,
   indexToColumns,
   entriesFilter,
   paramsFilter,
@@ -1039,7 +1026,6 @@ function SelectionPanel({
   params: Record<string, unknown>;
   selectedRowIndices: number[];
   columnOrdering: string[];
-  hiddenColumns: string[];
   indexToColumns: Record<number, Set<string>>;
   entriesFilter: Record<string, boolean>;
   paramsFilter: Record<string, boolean>;
@@ -1113,12 +1099,11 @@ function SelectionPanel({
         params,
         indexToColumns,
         columnOrdering,
-        hiddenColumns
       );
       
       return result;
     },
-    [logs, params, indexToColumns, columnOrdering, hiddenColumns]
+    [logs, params, indexToColumns, columnOrdering]
   );
 
   const baseLog = useMemo(() => buildLogIfValid(baseRowIndex), [

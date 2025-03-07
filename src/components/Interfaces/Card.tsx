@@ -173,7 +173,6 @@ const Card = ({
                     selection_={relevantItem?.selected}
                     baseIndex_={relevantItem?.base_index}
                     columnOrdering_={relevantItem?.column_order}
-                    hiddenColumns_={relevantItem?.hidden_columns}
                     tableItem={items.find(it => it.i == item.table) || {i: item.table, x: -1, y: -1, w: -1, h: -1} as TileProps}
                     item={item}
                     updateItem={updateItem}
