@@ -320,10 +320,8 @@ export default function Selection({
     return buildRowIndicesInSelectionOrder(selectedCells, sortedLogs);
   }, [selectedCells, sortedLogs]);
 
-  const [columnOrdering, setColumnOrdering] = useState<string[]>([]);
-
-  useEffect(() => {
-    setColumnOrdering(columnOrdering_ ? columnOrdering_.split(",").map(sanitizeId) : []);
+  const columnOrdering = useMemo(() => {
+    return columnOrdering_ ? columnOrdering_.split(",").map(sanitizeId) : [];
   }, [columnOrdering_]);
 
   /*******************************************************************************
@@ -1204,7 +1202,7 @@ function SelectionPanel({
     
     if (reorder && !shallowArrayEquals(reorder, paramOrder)) {
       setParamOrder(reorder);
-    } else if (!reorder && fallback.length !== paramOrder.length) {
+    } else if (!reorder && JSON.stringify(fallback) !== JSON.stringify(paramOrder)) {
       setParamOrder(fallback);
     }
     
@@ -1224,7 +1222,7 @@ function SelectionPanel({
     
     if (reorder && !shallowArrayEquals(reorder, entryOrder)) {
       setEntryOrder(reorder);
-    } else if (!reorder && fallback.length !== entryOrder.length) {
+    } else if (!reorder && JSON.stringify(fallback) !== JSON.stringify(entryOrder)) {
       setEntryOrder(fallback);
     }
     
