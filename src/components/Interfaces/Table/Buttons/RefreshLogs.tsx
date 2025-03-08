@@ -2,7 +2,7 @@
 
 import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ItemType, LogsActions, FieldsActions, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
 import { getLogsParameters, GroupedLogProps, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
@@ -50,7 +50,7 @@ async function updateLogs (
     project: string, 
     logsActions: LogsActions, 
     fieldsActions: FieldsActions,
-    setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void,
+    updateTable: (updateFn: (prev: TableDataProps) => TableDataProps) => void
 ) {
     fieldsActions
     .get(project, item.context ?? null)
@@ -94,7 +94,7 @@ async function updateLogs (
                 item, logsData, fields, context, column_context, project, filterExpression, groupingExpression, item.metric, sorting, undefined, logsActions
             )
             await new Promise<void>(resolve => {
-                setTableData(prev => {
+                updateTable(prev => {
                     const newCells = getNewCells(prev[item.i], logs)
                     const newState = {
                         ...prev,
@@ -140,27 +140,62 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
 
     /* Auto refresh */
     // We use timestamp to tag fetch api calls to trigger revalidation every 5 seconds.
-    // We pause the auto refresh whenever a server action is triggered.
-    const [pauseRefresh, setPauseRefresh] = useState(false);
+    const autoUpdateRef = useRef(item.auto_update === "true");
+    const pendingRef = useRef(pending);
+    const isMounted = useRef(false);
+    const isRunning = useRef(false)
+
+    // Sync pending and auto update refs 
+    useEffect(() => {pendingRef.current = pending}, [pending]);
+    useEffect(() => {autoUpdateRef.current = item.auto_update === "true"}, [item.auto_update]);
+    
+    // Pause auto-update on server action
     useEffect(() => {
-      if (item.auto_update === "true") setPauseRefresh(true)
-    }, [item.filters, item.common_filter, item.grouping, item.context, item.page_number, item.sorting, item.freeze])
+        if (item.auto_update === "true") autoUpdateRef.current = false;
+    }, [pendingRef.current])
+
+    // Restart streaming after server action ends
     useEffect(() => {
-      if (pauseRefresh) setTimeout(() => setPauseRefresh(false), 20000) // Pausing for 20 sec, leaving ample time for reload-refetch-rerender cycle
-    }, [pauseRefresh])
-    let running = false
+        if (item.auto_update === "true" && !autoUpdateRef.current && !pendingRef.current) autoUpdateRef.current = true;
+    }, [autoUpdateRef.current])
+
+    // Track component mount state
     useEffect(() => {
-        if (!item.auto_update || item.auto_update == "false" || pauseRefresh) return;
-        const interval = setInterval(() => {
-            if (!running && !pending) {
-                running = true;
-                updateLogs(item, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, project, logsActions, fieldsActions, setTableData).then(() => {
-                    running = false;
-                });
+        isMounted.current = true;
+        return () => {
+            isMounted.current = false;
+        };
+    }, []);
+
+    // Periodically fetch new logs
+    useEffect(() => {
+        if (!autoUpdateRef.current) return;
+        const interval = setInterval(async () => {
+            if (!isRunning.current && !pendingRef.current && isMounted.current) {
+              isRunning.current = true;
+              try {
+                await updateLogs(
+                  item,
+                  filterExpression,
+                  sortingExpression,
+                  groupingExpression,
+                  groupSortingExpression,
+                  project,
+                  logsActions,
+                  fieldsActions,
+                  (updateFn) => {
+                    if (autoUpdateRef.current && isMounted.current) {
+                      setTableData(updateFn);
+                    }
+                  }
+                );
+              } finally {
+                isRunning.current = false;
+              }
             }
         }, 5000);
         return () => clearInterval(interval)
-    }, [item.auto_update, pauseRefresh, item.context, item.column_context, filterExpression, sortingExpression, groupingExpression, groupSortingExpression]);
+    }, [item.auto_update, item.context, item.column_context, filterExpression, sortingExpression, groupingExpression, groupSortingExpression]);
 
     const onAutoClick = () => updateItem(item, "auto_update")(item.auto_update === "true" ? "false" : "true")
     const autoRefresh =

@@ -2,7 +2,7 @@
 
 import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useState, useRef } from "react";
 import { ItemType, LogsActions, FieldsActions, PlotDataItem, TileProps } from "@/types/evals/grid";
 import { PlotArguments, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { processContext } from "@/utils/evals/columnOperations";
@@ -87,10 +87,17 @@ const fetchAndMergeLogs = async (tables: string[], args: PlotArguments, project:
     return logs
 };
 
-async function updatePlotLogs (tables: string[], args: PlotArguments, project: string, logsActions: LogsActions, fieldsActions: FieldsActions, setPlotDataItem: Dispatch<SetStateAction<PlotDataItem>>) {
+async function updatePlotLogs (
+    tables: string[], 
+    args: PlotArguments, 
+    project: string, 
+    logsActions: LogsActions, 
+    fieldsActions: FieldsActions, 
+    updatePlot: (updateFn: (prev: PlotDataItem) => PlotDataItem) => void
+) {
     fetchAndMergeFields(tables, args, project, fieldsActions).then(async (plotFields: LogFieldsResponseProps) => 
         fetchAndMergeLogs(tables, args, project, logsActions).then(async (logs) => {
-            setPlotDataItem((plotDataItem: PlotDataItem) => ({...plotDataItem, plotLogs: logs as LogProps[], plotFields}));
+            updatePlot((plotDataItem: PlotDataItem) => ({...plotDataItem, plotLogs: logs as LogProps[], plotFields}));
         })
     )
 } 
@@ -109,16 +116,56 @@ const PlotRefresh = ({ tables, item, project, pending, args, updateItem, setPlot
 }) => {
 
     /* Auto refresh */
-    // We use timestamp to tag fetch api calls to trigger revalidation every eight seconds
-    let running = false
+    // We use timestamp to tag fetch api calls to trigger revalidation every 5 seconds
+    const autoUpdateRef = useRef(item.auto_update === "true");
+    const pendingRef = useRef(pending);
+    const isMounted = useRef(false);
+    const isRunning = useRef(false)
+
+    // Sync pending and auto update refs 
+    useEffect(() => {pendingRef.current = pending}, [pending]);
+    useEffect(() => {autoUpdateRef.current = item.auto_update === "true"}, [item.auto_update]);
+
+    // Pause auto-update on server action
     useEffect(() => {
-        if (!item.auto_update || item.auto_update == "false") return;
-        const interval = setInterval(() => {
-            if (!running && !pending) {
-                running = true;
-                updatePlotLogs(tables, args, project, logsActions, fieldsActions, setPlotDataItem).then(() => {
-                    running = false;
-                });
+        if (item.auto_update === "true") autoUpdateRef.current = false;
+    }, [pendingRef.current])
+
+    // Restart streaming after server action ends
+    useEffect(() => {
+        if (item.auto_update === "true" && !autoUpdateRef.current && !pendingRef.current) autoUpdateRef.current = true;
+    }, [autoUpdateRef.current])
+
+    // Track component mount state
+    useEffect(() => {
+        isMounted.current = true;
+        return () => {
+            isMounted.current = false;
+        };
+    }, [])
+
+    // Periodically fetch new logs
+    useEffect(() => {
+        if (!autoUpdateRef.current) return;
+        const interval = setInterval(async () => {
+            if (!isRunning.current && !pendingRef.current && isMounted.current) {
+                isRunning.current = true;
+                try {
+                    await updatePlotLogs(
+                      tables,
+                      args,
+                      project,
+                      logsActions,
+                      fieldsActions,
+                      (updateFn) => {
+                        if (autoUpdateRef.current && isMounted.current) {
+                          setPlotDataItem(updateFn);
+                        }
+                      }
+                    );
+                  } finally {
+                    isRunning.current = false;
+                }
             }
         }, 5000);
         return () => clearInterval(interval)
