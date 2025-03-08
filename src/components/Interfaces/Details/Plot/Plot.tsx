@@ -35,9 +35,9 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
     const [plotDataItem, setPlotDataItem] = useState<PlotDataItem>(plotDataItem_);
     const {plotLogs: logs, plotArguments: args, plotFields: fields} = plotDataItem
     useEffect(() => {
-        if (JSON.stringify(plotDataItem_) != JSON.stringify(plotDataItem) && item.auto_update != "true") setPlotDataItem(plotDataItem_);
+        if (JSON.stringify(plotDataItem_) != JSON.stringify(plotDataItem)) setPlotDataItem(plotDataItem_);
     }, [plotDataItem_]);
-    
+
     // Initialize refs and container dimensions
     let svgRef = useRef(null);
     let containerRef = useRef(null);
