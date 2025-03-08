@@ -85,19 +85,16 @@ const PageController = ({ interactive, totalPages, pageNumber, setPageNumber, pa
             setLoading(true)
         }
     }
-    const paginationContent = (page: number, isHovered: boolean) => loading && pageNum == page ? <LoaderCircle className={`animate-spin ${isHovered ? "text-white" : "text-primary"}`} /> : page + 1;
+    const paginationContent = (page: number) => loading && pageNum == page ? <LoaderCircle className={`animate-spin peer-hover:text-white text-primary`} /> : page + 1;
     const PageItem = (page: number) => {
-        const [isHovered, setIsHovered] = useState(false);
         return (
             <PaginationItem key={page}>
                 <PaginationLink
-                    className={"cursor-pointer " + (interactive ? "" : "opacity-50")}
+                    className={"cursor-pointer peer" + (interactive ? "" : "opacity-50")}
                     onClick={() => onPaginationClick(page)}
                     isActive={pageNum == page}
-                    onMouseEnter={() => setIsHovered(true)}
-                    onMouseLeave={() => setIsHovered(false)}
                 >
-                    {paginationContent(page, isHovered)}
+                    {paginationContent(page)}
                 </PaginationLink>
             </PaginationItem>
         );
