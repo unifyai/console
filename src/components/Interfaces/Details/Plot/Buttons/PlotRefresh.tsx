@@ -52,13 +52,14 @@ const fetchAndMergeFields = async (tables: string[], args: PlotArguments, projec
     const plotFieldsArray : LogFieldsResponseProps[] = await Promise.all(tables.flatMap(async (table) => {
         const tableArgs = args[table];
         const tableContext = tableArgs ? tableArgs["context"] : null;
+        const tableColumnContext = tableArgs ? tableArgs["column_context"] : null;
         const fields : LogFieldsResponseProps = await fieldsActions.get(project, tableContext);
         const newFields = Object.fromEntries(
             Object
                 .entries(fields)
-                .filter(([name, { data_type, field_type, artifacts }]) => tableContext ? name.startsWith(tableContext) : name)
+                .filter(([name, { data_type, field_type, artifacts }]) => tableColumnContext ? name.startsWith(tableColumnContext) : name)
                 .map(([name, { data_type, field_type, artifacts }]) => {
-                    const newName = tableContext ? processContext("split", tableContext, name) : name
+                    const newName = tableColumnContext ? processContext("split", tableColumnContext, name) : name
                     const newFields = [`${table}.${newName}`, { data_type, field_type, artifacts }]
                     return newFields;
                 })
