@@ -159,7 +159,7 @@ export const getLogsDetails = async (
 
   let groupedMetrics: {[key: string]: {[key: string]: {[key: string]: number | string}}} = {};
   if (groupingExpression) {
-    const numericColumns = columns.filter(col => ["int", "float", "timestamp", "bool"].includes(fields?.[col]?.data_type));
+    const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
     const groupingColumnId = (groupingExpression as string).split(",")[0];
     const metric_ = metric ?? "mean";
     const metrics = await getColumnMetrics(
