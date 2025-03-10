@@ -47,7 +47,6 @@ const ProjectButtons = ({
     setProject: (value: string | null) => void,
 }) => {
     const router = useRouter();
-    const disabled = !project && !defaultProject;
 
     return (
         <div className="w-fit gap-2 flex flex-row items-center px-4">
@@ -64,7 +63,6 @@ const ProjectButtons = ({
                 }}
                 type="Projects"
                 defaultValue={project || undefined}
-                disabled={disabled}
                 isAutocompleteOpen={defaultProject ? true : undefined}
                 onOpen={() => projectActions.get().then(projects => setProjects(projects))}
             />
@@ -103,12 +101,12 @@ const ProjectButtons = ({
                     />
                 </div>
             )}
-            {projects && <CreateProject creationFunction={projectActions.create} paths={projects} disabled={disabled} />}
+            {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
             <ActionButton
                 variant="outline"
                 icon={refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
                 tooltip={"Refresh Interface"}
-                disabled={disabled || pending || dataPending}
+                disabled={!project || pending || dataPending}
                 onClick={() => {
                     setRefreshing(true);
                     router.refresh();

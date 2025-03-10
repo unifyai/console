@@ -299,20 +299,9 @@ const CardGrid = ({
             {interfaces.length == 0 ? (project && pending) ? <div className="flex justify-center">
                 <Loader2 className="animate-spin my-36" />
             </div> : !project ? <DefaultProject
-                project={project}
                 projects={projects}
-                interfaces={interfaces}
-                data={data}
-                refreshing={refreshing}
-                pending={pending}
-                dataPending={dataPending}
                 projectActions={projectActions}
                 interfaceActions={interfaceActions}
-                setRefreshing={setRefreshing}
-                setPending={setPending}
-                setDataPending={setDataPending}
-                setInterfaces={setInterfaces}
-                setProjects={setProjects}
                 setInterface={setInterface}
                 setProject={setProject}
                 logsActions={logsActions}
