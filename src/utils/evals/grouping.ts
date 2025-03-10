@@ -376,20 +376,14 @@ export async function onGroupExpand(
     const remainingGroupingExpression = remainingGrouping.length > 0 ? remainingGrouping.join(",") : null;
     if (remainingGroupingExpression) {
       const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
-      const dataTypes = fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type])) : {}
-      const groupingValues = Object.keys((freshLogsData.logs as GroupedLogPropsRaw)[
-        remainingGroupingExpression.split(",")[0]
-      ] || {}).filter(
-        key => !["count", "group_count"].includes(key) && Boolean(key)
-      );
       const groupingColumnId = remainingGroupingExpression.split(",")[0];
       const metrics = await getColumnMetrics(
         project,
         context,
         columnContext,
         numericColumns,
-        filterExpression,
-        groupingExpression,
+        updatedFilterExpression,
+        groupingColumnId,
         item.metric,
         logsActions
       ) as { [key: string]: { [key: string]: number | string }};
