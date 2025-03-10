@@ -207,20 +207,16 @@ function buildLogWithChosenColumns(
   globalParams: Record<string, unknown>,
   indexToColumns: Record<number, Set<string>>,
   columnOrdering: string[],
-  hiddenColumns: string[]
 ): LogProps {
   const chosen = indexToColumns[rowIndex] ?? new Set<string>();
   const safeEntries = originalLog.entries ?? {};
-  const afterHiddenEntries = Array.from(chosen).filter(
-    (c) => !hiddenColumns.includes(c)
-  );
 
   const finalColsEntries =
     columnOrdering.length > 0
       ? columnOrdering
-          .filter((c) => afterHiddenEntries.includes(c))
+          .filter((c) => chosen.has(c))
           .map(sanitizeId)
-      : afterHiddenEntries.map(sanitizeId);
+      : Array.from(chosen).map(sanitizeId);
   
   const newEntries: Record<string, unknown> = {};
   for (const c of finalColsEntries) {
@@ -230,16 +226,13 @@ function buildLogWithChosenColumns(
   }
 
   const safeParams = originalLog.params ?? {};  
-  const afterHiddenParams = Array.from(chosen).filter(
-    (c) => !hiddenColumns.includes(c)
-  );
   
   const finalColsParams =
     columnOrdering.length > 0
       ? columnOrdering
-          .filter((c) => afterHiddenParams.includes(c))
+          .filter((c) => chosen.has(c))
           .map(sanitizeId)
-      : afterHiddenParams.map(sanitizeId);
+      : Array.from(chosen).map(sanitizeId);
   
 
   const newParams: Record<string, unknown> = {};
@@ -320,7 +313,6 @@ export default function Selection({
   const logs = useMemo(() => maybeFlattenGroupedLogs(tableDataItem?.logs || []), [tableDataItem, item?.table]);
   const selection_ = useMemo(() => relevantItem?.selected || undefined, [relevantItem?.selected]);
   const columnOrdering_ = useMemo(() => relevantItem?.column_order || undefined, [relevantItem?.column_order]);
-  const hiddenColumns_ = useMemo(() => relevantItem?.hidden_columns || undefined, [relevantItem?.hidden_columns]);
   const baseIndex_ = useMemo(() => relevantItem?.base_index || undefined, [relevantItem?.base_index]);
   
   const sortedLogs = useMemo(() => [...logs], [logs]);
@@ -358,10 +350,6 @@ export default function Selection({
   const columnOrdering = useMemo(() => {
     return columnOrdering_ ? columnOrdering_.split(",").map(sanitizeId) : [];
   }, [columnOrdering_]);
-
-  const hiddenColumns = useMemo(() => {
-    return hiddenColumns_ ? hiddenColumns_.split(",").map(sanitizeId) : [];
-  }, [hiddenColumns_]);
 
   /*******************************************************************************
    * Panel & Display States
@@ -995,7 +983,6 @@ export default function Selection({
             params={params}
             selectedRowIndices={selectedRowIndices}
             columnOrdering={columnOrdering}
-            hiddenColumns={hiddenColumns}
             indexToColumns={indexToColumns}
             entriesFilter={entriesFilter}
             paramsFilter={paramsFilter}
@@ -1036,7 +1023,6 @@ function SelectionPanel({
   params,
   selectedRowIndices,
   columnOrdering,
-  hiddenColumns,
   indexToColumns,
   entriesFilter,
   paramsFilter,
@@ -1065,7 +1051,6 @@ function SelectionPanel({
   params: Record<string, unknown>;
   selectedRowIndices: number[];
   columnOrdering: string[];
-  hiddenColumns: string[];
   indexToColumns: Record<number, Set<string>>;
   entriesFilter: Record<string, boolean>;
   paramsFilter: Record<string, boolean>;
@@ -1139,12 +1124,11 @@ function SelectionPanel({
         params,
         indexToColumns,
         columnOrdering,
-        hiddenColumns
       );
       
       return result;
     },
-    [logs, params, indexToColumns, columnOrdering, hiddenColumns]
+    [logs, params, indexToColumns, columnOrdering]
   );
 
   const baseLog = useMemo(() => buildLogIfValid(baseRowIndex), [
@@ -1243,15 +1227,22 @@ function SelectionPanel({
     const reorder = globalParamOrderings[vKey];
     const fallback = visibleParams();
     
+    let finalP: string[] = [];
     if (reorder && !shallowArrayEquals(reorder, paramOrder)) {
+      finalP = reorder;
       setParamOrder(reorder);
-    } else if (!reorder && fallback.length !== paramOrder.length) {
+    } else if (!reorder && JSON.stringify(fallback) !== JSON.stringify(paramOrder)) {
+      finalP = fallback;
       setParamOrder(fallback);
+    }
+
+    if (finalP.length === 0) {
+      return;
     }
     
     // FIXED: Only consider visible keys (not filtered out) when checking for missing keys
     const visible = visibleParams();
-    const missing = visible.filter((c) => !paramOrder.includes(c));
+    const missing = visible.filter((c) => !finalP.includes(c));
     
     if (missing.length > 0) {
       setParamOrder((prev) => [...prev, ...missing]);
@@ -1262,16 +1253,23 @@ function SelectionPanel({
     const vKey = visibleEntriesKey();
     const reorder = globalEntryOrderings[vKey];
     const fallback = visibleEntries();
-    
+
+    let finalE: string[] = [];
     if (reorder && !shallowArrayEquals(reorder, entryOrder)) {
+      finalE = reorder;
       setEntryOrder(reorder);
-    } else if (!reorder && fallback.length !== entryOrder.length) {
+    } else if (!reorder && JSON.stringify(fallback) !== JSON.stringify(entryOrder)) {
+      finalE = fallback;
       setEntryOrder(fallback);
     }
-    
+
+    if (finalE.length === 0) {
+      return;
+    }
+
     // FIXED: Only consider visible keys (not filtered out) when checking for missing keys
     const visible = visibleEntries();
-    const missingE = visible.filter((c) => !entryOrder.includes(c));
+    const missingE = visible.filter((c) => !finalE.includes(c));
     
     if (missingE.length > 0) {
       setEntryOrder((prev) => [...prev, ...missingE]);
