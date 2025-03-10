@@ -123,7 +123,14 @@ const DataTableHeader = ({
   const isNotUtilColumn = header.column.columnDef.meta?.columnType != "util";
   const isDerivedColumn = header.column.columnDef.meta?.fieldType === "derived_entry";
   const isImageColumn = header.column.columnDef.meta?.dataType === "image";
-  const isGroupSortableColumn = header.column.columnDef.meta?.dataType === "float" || header.column.columnDef.meta?.dataType === "int" || header.column.columnDef.meta?.dataType === "bool" || header.column.columnDef.meta?.dataType === "timestamp"
+  const isGroupSortableColumn = 
+    header.column.columnDef.meta?.dataType === "float" || 
+    header.column.columnDef.meta?.dataType === "int" || 
+    header.column.columnDef.meta?.dataType === "bool" || 
+    header.column.columnDef.meta?.dataType === "timestamp" || 
+    header.column.columnDef.meta?.dataType === "time" ||
+    header.column.columnDef.meta?.dataType === "datetime" ||
+    header.column.columnDef.meta?.dataType === "timedelta"
 
   // Handle pinning animation
   const isPinning = pinningState.isPinning && (
