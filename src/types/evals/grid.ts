@@ -143,7 +143,7 @@ export interface LogsActions {
 }
 
 export interface DerivedEntryActions {
-    create: (project: string, key: string, equation: string, referenced_logs: { [table_name: string]: getLogsParameters }) => Promise<ResponseProps>,
+    create: (project: string, context: string | undefined, key: string, equation: string, referenced_logs: { [table_name: string]: getLogsParameters }) => Promise<ResponseProps>,
     update: (project: string, key: string | null, equation: string | null, target_derived_logs: { [table_name: string]: getLogsParameters }, referenced_logs: { [table_name: string]: getLogsParameters } | null) => Promise<ResponseProps>
 }
 

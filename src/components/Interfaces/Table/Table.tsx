@@ -557,6 +557,7 @@ const LogsTable = ({
                   ColumnCreate={(previousColumn: string, setOpen: (open: boolean) => void) => (
                     <ColumnCreate
                       project={project}
+                      context={item.context}
                       currentTable={item.i}
                       tableArguments={tableArguments}
                       logs={logs}

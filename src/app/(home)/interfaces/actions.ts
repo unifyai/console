@@ -222,7 +222,7 @@ export const deleteLogs = async (apiKey: string) => {
 
 // create derived entry
 export const createDerivedEntry = async (apiKey: string) => {
-    return async (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}): Promise<ResponseProps> => {
+    return async (project: string, context: string | undefined, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}): Promise<ResponseProps> => {
         "use server";
 
         try {
@@ -231,7 +231,7 @@ export const createDerivedEntry = async (apiKey: string) => {
                 {
                     method: "POST",
                     headers: { apiKey: apiKey },
-                    body: JSON.stringify({ project, key, equation, referenced_logs })
+                    body: JSON.stringify({ project, context: context || null, key, equation, referenced_logs })
                 }
             );
             return await response.json();

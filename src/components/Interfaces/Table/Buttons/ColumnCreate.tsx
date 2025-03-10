@@ -12,12 +12,13 @@ import FormulaInput from "@/components/Common/Input/Formula";
 import { expressionToDerivedFunction } from "@/utils/evals/derivedColumns";
 import { buildFilterExpressionArgument } from "@/utils/evals/filters";
 
-const ColumnCreate = ({ project, currentTable, tableArguments, logs, create, setPending, refresh, columnOrder, setColumnOrder, previousColumn, setOpen }: {
+const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, create, setPending, refresh, columnOrder, setColumnOrder, previousColumn, setOpen }: {
     project: string,
+    context: string | undefined,
     currentTable: string,
     tableArguments: TableArguments,
     logs: LogProps[] | GroupedLogProps[],
-    create: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
+    create: (project: string, context: string | undefined, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
     setPending: (pending: boolean) => void,
     refresh: () => Promise<ResponseProps>,
     columnOrder: string[],
@@ -76,7 +77,7 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, create, set
                   .map(([key, args]) => [key, buildFilterExpressionArgument(args).getLogs_parameters])
         );
         setLoading(true);
-        create(project, name, equation, referencedArguments).then(async (response: ResponseProps) => {
+        create(project, context, name, equation, referencedArguments).then(async (response: ResponseProps) => {
             if ("info" in response) {
                 
                 // Update states
