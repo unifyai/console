@@ -127,10 +127,14 @@ const PlotRefresh = ({ tables, item, project, pending, args, updateItem, setPlot
     const isMounted = useRef(false);
     const isRunning = useRef(false);
     const abortControllerRef = useRef<AbortController | null>(null);
+    const argsRef = useRef(args);
+    const tablesRef = useRef(tables);
 
-    // Sync pending and auto update refs 
+    // Sync pending, auto updaten, args and tables refs 
     useEffect(() => {pendingRef.current = pending}, [pending]);
     useEffect(() => {autoUpdateRef.current = item.auto_update === "true"}, [item.auto_update]);
+    useEffect(() => {argsRef.current = args}, [args]);
+    useEffect(() => {tablesRef.current = tables}, [tables]);
 
     // Pause auto-update on server action
     useEffect(() => {
@@ -163,8 +167,8 @@ const PlotRefresh = ({ tables, item, project, pending, args, updateItem, setPlot
 
         try {
             await updatePlotLogs(
-                tables,
-                args,
+                tablesRef.current,
+                argsRef.current,
                 project,
                 logsActions,
                 fieldsActions,
@@ -183,7 +187,7 @@ const PlotRefresh = ({ tables, item, project, pending, args, updateItem, setPlot
             isRunning.current = false;
             abortControllerRef.current = null;
         }
-    }, [item.auto_update, tables, args]);
+    }, [item.auto_update]);
 
     // Auto-refresh with recursive timeout
     const fetchWithBackoff = useCallback(async () => {
