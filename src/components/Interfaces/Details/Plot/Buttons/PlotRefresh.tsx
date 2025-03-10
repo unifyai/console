@@ -2,11 +2,12 @@
 
 import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
-import { Dispatch, SetStateAction, useEffect, useState, useRef } from "react";
+import { Dispatch, SetStateAction, useEffect, useState, useRef, useCallback } from "react";
 import { ItemType, LogsActions, FieldsActions, PlotDataItem, TileProps } from "@/types/evals/grid";
 import { PlotArguments, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { processContext } from "@/utils/evals/columnOperations";
 import { LogProps } from "@/types/evals/logs";
+import { buildFilterExpression } from "@/utils/evals/filters";
 
 const fetchLatestTimestamps = async (tables: string[], args: PlotArguments, project: string, logsActions: LogsActions) => {
     const latestDates = await Promise.all(
@@ -14,7 +15,7 @@ const fetchLatestTimestamps = async (tables: string[], args: PlotArguments, proj
             const tableArgs = args[table];
             const tableContext = tableArgs ? tableArgs["context"] : null;
             const tableColumnContext = tableArgs ? tableArgs["column_context"] : null;
-            const tableFilters = tableArgs ? tableArgs["filter_expr"] : null;
+            const tableFilters = tableArgs ? tableArgs["filters"] : null;
             const tableSubset = tableArgs ? tableArgs["subset"] : null;
             return logsActions.getLatest(project, tableContext, tableColumnContext, tableFilters, null, null, null, tableSubset, null, null, null, null, null);
         })
@@ -70,14 +71,15 @@ const fetchAndMergeFields = async (tables: string[], args: PlotArguments, projec
     return plotFields
 }
 
-const fetchAndMergeLogs = async (tables: string[], args: PlotArguments, project: string, logsActions: LogsActions) => {
+const fetchAndMergeLogs = async (tables: string[], args: PlotArguments, project: string, logsActions: LogsActions, plotFields: LogFieldsResponseProps) => {
     const data : {[table: string]: {plotLogs: LogProps[]}}= {};
     await Promise.all(
         tables.map(async (table) => {
             const tableArgs = args[table];
             const tableContext = tableArgs ? tableArgs["context"] : null;
             const tableColumnContext = tableArgs ? tableArgs["column_context"] : null;
-            const tableFilters = tableArgs ? tableArgs["filter_expr"] : null;
+            const tableFields = Object.fromEntries(Object.entries(plotFields).filter(([field, _]) => field.startsWith(table)).map(([field, attributes]) => [field.split(".").slice(1).join("."), attributes]))
+            const tableFilters = tableArgs ? buildFilterExpression(tableArgs["column_filters"], tableArgs["common_filter"], tableArgs["column_context"], tableArgs["freeze"], tableFields) : null;
             const tableSubset = tableArgs ? tableArgs["subset"] : null;
             const tableData = await logsActions.get(project, tableContext, tableColumnContext, tableFilters, null, null, null, tableSubset, null, 0, null, null, null, Date.now().toString())
             const tableLogs = tableData.logs as LogProps[]
@@ -94,10 +96,12 @@ async function updatePlotLogs (
     project: string, 
     logsActions: LogsActions, 
     fieldsActions: FieldsActions, 
-    updatePlot: (updateFn: (prev: PlotDataItem) => PlotDataItem) => void
+    updatePlot: (updateFn: (prev: PlotDataItem) => PlotDataItem) => void,
+    signal?:  AbortSignal
 ) {
+    if (signal?.aborted) return;
     fetchAndMergeFields(tables, args, project, fieldsActions).then(async (plotFields: LogFieldsResponseProps) => 
-        fetchAndMergeLogs(tables, args, project, logsActions).then(async (logs) => {
+        fetchAndMergeLogs(tables, args, project, logsActions, plotFields).then(async (logs) => {
             updatePlot((plotDataItem: PlotDataItem) => ({...plotDataItem, plotLogs: logs as LogProps[], plotFields}));
         })
     )
@@ -121,7 +125,8 @@ const PlotRefresh = ({ tables, item, project, pending, args, updateItem, setPlot
     const autoUpdateRef = useRef(item.auto_update === "true");
     const pendingRef = useRef(pending);
     const isMounted = useRef(false);
-    const isRunning = useRef(false)
+    const isRunning = useRef(false);
+    const abortControllerRef = useRef<AbortController | null>(null);
 
     // Sync pending and auto update refs 
     useEffect(() => {pendingRef.current = pending}, [pending]);
@@ -142,35 +147,63 @@ const PlotRefresh = ({ tables, item, project, pending, args, updateItem, setPlot
         isMounted.current = true;
         return () => {
             isMounted.current = false;
+            // Abort any ongoing request on unmount
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
         };
     }, [])
 
-    // Periodically fetch new logs
-    useEffect(() => {
-        if (!autoUpdateRef.current) return;
-        const interval = setInterval(async () => {
-            if (!isRunning.current && !pendingRef.current && isMounted.current) {
-                isRunning.current = true;
-                try {
-                    await updatePlotLogs(
-                      tables,
-                      args,
-                      project,
-                      logsActions,
-                      fieldsActions,
-                      (updateFn) => {
-                        if (autoUpdateRef.current && isMounted.current) {
-                          setPlotDataItem(updateFn);
-                        }
-                      }
-                    );
-                  } finally {
-                    isRunning.current = false;
-                }
+    // Memoize updatePlotLogs to prevent unnecessary recreations
+    const updateLogsCallback = useCallback(async () => {
+        if (!isMounted.current || !autoUpdateRef.current || pendingRef.current || isRunning.current) return;
+        
+        isRunning.current = true;
+        abortControllerRef.current = new AbortController();
+
+        try {
+            await updatePlotLogs(
+                tables,
+                args,
+                project,
+                logsActions,
+                fieldsActions,
+                (updateFn) => {
+                    if (isMounted.current && autoUpdateRef.current) {
+                        setPlotDataItem(updateFn);
+                    }
+                },
+                abortControllerRef.current.signal,
+            );
+        } catch (error: any) {
+            if (error.name !== 'AbortError') {
+                console.error('Failed to fetch logs:', error);
             }
-        }, 5000);
-        return () => clearInterval(interval)
+        } finally {
+            isRunning.current = false;
+            abortControllerRef.current = null;
+        }
     }, [item.auto_update, tables, args]);
+
+    // Auto-refresh with recursive timeout
+    const fetchWithBackoff = useCallback(async () => {
+        if (!isMounted.current || !autoUpdateRef.current) return;
+        
+        try {
+          await updateLogsCallback();
+        } finally {
+          // Schedule next request only after current completes
+          const timeoutId = setTimeout(fetchWithBackoff, 5000);
+          return () => clearTimeout(timeoutId);
+        }
+      }, [updateLogsCallback]);
+      
+      useEffect(() => {
+        if (autoUpdateRef.current) {
+          fetchWithBackoff();
+        }
+    }, [fetchWithBackoff]);
+
     const onAutoClick = () => updateItem(item, "auto_update")(item.auto_update === "true" ? "false" : "true")
     const autoRefresh =
         <ActionButton

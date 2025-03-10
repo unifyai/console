@@ -10,6 +10,7 @@ import { LoaderCircle } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import FormulaInput from "@/components/Common/Input/Formula";
 import { expressionToDerivedFunction } from "@/utils/evals/derivedColumns";
+import { buildFilterExpressionArgument } from "@/utils/evals/filters";
 
 const ColumnCreate = ({ project, currentTable, tableArguments, logs, create, setPending, refresh, columnOrder, setColumnOrder, previousColumn, setOpen }: {
     project: string,
@@ -72,7 +73,7 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, create, set
         const referencedArguments = Object.fromEntries(
             Object.entries(tableArguments)
                   .filter(([key, _]) => referencedTables.includes(key))
-                  .map(([key, args]) => [key, args.getLogs_parameters])
+                  .map(([key, args]) => [key, buildFilterExpressionArgument(args).getLogs_parameters])
         );
         setLoading(true);
         create(project, name, equation, referencedArguments).then(async (response: ResponseProps) => {

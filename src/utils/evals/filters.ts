@@ -1,8 +1,9 @@
 import { Filters, FiltersByColumn } from "@/types/evals/columns";
 import { processContext } from "./columnOperations";
-import { LogFieldsResponseProps } from "@/types/evals/logs";
+import { LogFieldsResponseProps, getLogsParameters } from "@/types/evals/logs";
 import { AbsoluteDateString, RelativeDateString } from "@/types/evals/filters";
 import { differenceInYears, differenceInMonths, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, differenceInMilliseconds, subMonths, subDays, subHours, subMinutes, subSeconds, subMilliseconds, subYears } from 'date-fns';
+import { TileProps } from "@/types/evals/grid";
 
 /* Initialization constants and utils*/
 export const now = new Date(Date.now())
@@ -261,3 +262,66 @@ export function combineFilters (
 	Potentially wrap a filter value in quotes
 */
 export const maybeWrapFilterInQuotes = (value: string) => (value.startsWith('"') && value.endsWith('"')) ? value : `"${value}"`
+
+/** 
+	Construct full filter expression from column filters, common filters and freezing by:
+	* Converting filters search param value to a nested dictionary representation of column, function and values
+    * Joining column filters with the corresponding filter functions and values using "and"
+    * Joining common filters with the "in" filter function and common filter value using "or", or pass the expression if filtering by expression
+    * Joining common and column filters into a single filter expression
+*/
+export const buildFilterExpression = (filters: string | undefined, common_filter: string | undefined, column_context: string | undefined, freeze: string | undefined, fields: LogFieldsResponseProps ) => {
+
+    const filter: { [column: string]: { [fn: string]: string } } = searchParamToFilters(filters, column_context);
+    
+	const columnFiltersExpression = filtersToExpression(filter, fields);
+    
+	let commonFiltersExpression = "" 
+	if (common_filter && fields) {
+		const commonFilterMode = common_filter.split("§")[0]
+		const commonFilterValue = common_filter.split("§")[1]
+		if (!commonFilterValue) return ""
+		if (commonFilterMode === "expression") {
+			let filter = commonFilterValue;
+			const processFilter = (value: string, column: string, column_context: string | undefined) => value.replace(new RegExp(column, "g"), column_context ? processContext("merge", column_context, column) : column) 
+			Object.keys(fields).forEach(column => processFilter(filter, column, column_context)) 
+			return filter
+		}
+		else {
+			const validFields = Object.fromEntries(Object.entries(fields).filter(([_, attributes]) => attributes.data_type != "image")) // Exclude images
+			const filterValue = maybeWrapFilterInQuotes(commonFilterValue)
+			const processFilter = (value: string, column: string, column_context: string | undefined) => `${value} in to_str(${column_context ? processContext("merge", column_context, column) : column})`
+			const filter = Object.keys(validFields).map(column => processFilter(filterValue, column, column_context)).join(" or ")
+			return filter
+		}
+	}
+
+    let filterExpression: (string | null) = null
+	if (columnFiltersExpression) filterExpression = columnFiltersExpression;
+	if (commonFiltersExpression) filterExpression = filterExpression ? `${commonFiltersExpression} and ${filterExpression}` : commonFiltersExpression;
+	if (freeze) filterExpression = filterExpression ? filterExpression + `created_at < "${freeze}"` : `created_at < "${freeze}"`;
+
+	return filterExpression
+}
+
+/* 
+	Construct filter expression from table argument's filters, common filters and freeze.
+	Filter expression neededs to be dynamically evaluated to process relative timestamp filters
+*/
+export function buildFilterExpressionArgument (args: {available_fields: LogFieldsResponseProps; getLogs_parameters: getLogsParameters }) {
+	const fields = args.available_fields
+	const params = args.getLogs_parameters
+	if ("filters" in params) {
+		params["filter_expr"] = buildFilterExpression(
+			params["column_filters"],
+			params["common_filter"],
+			params["column_context"],
+			params["freeze"],
+			fields
+		) ?? ""
+		delete params["filters"]
+		delete params["common_filter"]
+		delete params["freeze"]
+	}
+    return {available_fields: fields, getLogs_parameters: params};
+}

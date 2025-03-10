@@ -2,7 +2,7 @@ import CardGrid from "@/components/Interfaces/CardGrid";
 import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, LogItemProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { Context, ContextActions, DerivedEntryActions, FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
-import { searchParamToFilters, filtersToExpression, maybeWrapFilterInQuotes } from "@/utils/evals/filters";
+import { buildFilterExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -93,44 +93,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
     ));
 
     /* Handle filters */
-    // 1- Convert filters search param value to a nested dictionary representation of column, function and values
-    // 2- Join column filters with the corresponding filter functions and values using "and"
-    // 3- Join common filters with the "in" filter function and common filter value using "or", or pass the expression if filtering by expression
-    // 4- Join common and column filters into a single filter expression
-    const logsFilters: { [column: string]: { [fn: string]: string } }[] = tableItems.map(
-        item => searchParamToFilters(item.filters, item.column_context)
-    );
-    const columnFiltersExpressions = logsFilters.map((filter, idx) => filtersToExpression(filter, fields[idx]));
-    const commonFiltersExpressions = tableItems.map((item, idx) => {
-        if (item.common_filter && fields[idx]) {
-            const commonFilterMode = item.common_filter.split("§")[0]
-            const commonFilterValue = item.common_filter.split("§")[1]
-            if (!commonFilterValue) return ""
-            if (commonFilterMode === "expression") {
-                let filter = commonFilterValue;
-                const processFilter = (value: string, column: string, column_context: string | undefined) => value.replace(new RegExp(column, "g"), column_context ? processContext("merge", column_context, column) : column) 
-                Object.keys(fields).forEach(column => processFilter(filter, column, item.column_context)) 
-                return filter
-            }
-            else {
-                const validFields = Object.fromEntries(Object.entries(fields[idx]).filter(([_, attributes]) => attributes.data_type != "image")) // Exclude images
-                const filterValue = maybeWrapFilterInQuotes(commonFilterValue)
-                const processFilter = (value: string, column: string, column_context: string | undefined) => `${value} in to_str(${column_context ? processContext("merge", column_context, column) : column})`
-                const filter = Object.keys(validFields).map(column => processFilter(filterValue, column, item.column_context)).join(" or ")
-                return filter
-            }
-        }
-        return ""
-    });
-    let filterExpressions: (string | null)[] = tableItems.map((item, idx) => {
-        const columnFiltersExpression = columnFiltersExpressions[idx];
-        const commonFiltersExpression = commonFiltersExpressions[idx];
-        let filterExpression = null;
-        if (columnFiltersExpression) filterExpression = columnFiltersExpression;
-        if (commonFiltersExpression) filterExpression = filterExpression ? `${commonFiltersExpression} and ${filterExpression}` : commonFiltersExpression;
-        if (item.freeze) filterExpression = filterExpression ? filterExpression + `created_at < "${item.freeze}"` : `created_at < "${item.freeze}"`;
-        return filterExpression;
-    });
+    const filterExpressions = tableItems.map((item, idx) => buildFilterExpression(item.filters, item.common_filter, item.column_context, item.freeze, fields[idx]))
 
     // Handle sorting
     const sortingObjects = tableItems.map(item => item.sorting ? Object.fromEntries(
@@ -164,11 +127,12 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
     // Aggregate table arguments and init plot arguments
     let tableArguments: TableArguments = tableItems.map((item, idx) => {
         let tableArguments_: TableArguments = { [item.i]: {getLogs_parameters: { filter_expr: "" }, available_fields: {}} };
-        const filterExpression = filterExpressions[idx];
         const sortingExpression = sortingExpressions[idx];
         const groupingExpression = groupingExpressions[idx];
         const groupSortingExpression = groupSortingExpressions[idx];
-        if (filterExpression) tableArguments_[item.i].getLogs_parameters["filter_expr"] = filterExpression;
+        if (item.filters) tableArguments_[item.i].getLogs_parameters["column_filters"] = item.filters;
+        if (item.common_filter) tableArguments_[item.i].getLogs_parameters["common_filter"] = item.common_filter;
+        if (item.freeze) tableArguments_[item.i].getLogs_parameters["freeze"] = item.freeze;
         if (sortingExpression) tableArguments_[item.i].getLogs_parameters["sorting"] = sortingExpression;
         if (groupingExpression) tableArguments_[item.i].getLogs_parameters["grouping"] = groupingExpression;
         if (groupSortingExpression) tableArguments_[item.i].getLogs_parameters["group_sorting"] = groupSortingExpression;
@@ -240,11 +204,17 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                 // aggregate plot arguments
                 const context = table?.context;
                 const columnContext = table?.column_context;
-                const filterExpression = filterExpressions[tableIdx];
-                if (filterExpression) plotArguments[table.i]["filter_expr"] = filterExpression
+                const freeze = table?.freeze
+                const commonFilter = table?.common_filter
+                const filters = table?.filters
+                if (filters) plotArguments[table.i]["column_filters"] = filters
+                if (commonFilter) plotArguments[table.i]["common_filter"] = commonFilter
+                if (freeze) plotArguments[table.i]["freeze"] = freeze
                 if (context) plotArguments[table.i]["context"] = context
                 if (columnContext) plotArguments[table.i]["column_context"] = columnContext;
                 
+                const filterExpression = filterExpressions[tableIdx];
+
                 // get plot data
                 let data: LogsResponseProps = { params: {}, logs: [], count: 0, groups: [] };
                 let [xAxis, yAxis, group] = [item.x_axis, item.y_axis, item.plot_group_by];

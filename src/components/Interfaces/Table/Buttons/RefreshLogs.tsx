@@ -2,13 +2,13 @@
 
 import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { ItemType, LogsActions, FieldsActions, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
 import { getLogsParameters, GroupedLogProps, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { ResponseProps } from "@/types/common";
 import { LogProps } from "@/types/evals/logs";
-
+import { buildFilterExpression } from "@/utils/evals/filters";
 
 const isGroupedLog = (log: LogProps | GroupedLogProps): log is GroupedLogProps => log.type === "grouped";
 const flattenLogs = (logs: (LogProps | GroupedLogProps)[]): LogProps[] => {
@@ -43,15 +43,16 @@ const getNewCells = (tableDataItem: TableDataItem, logs: (LogProps | GroupedLogP
 
 async function updateLogs (
     item: TileProps,
-    filterExpression: string | null,
     sortingExpression: string | null,
     groupingExpression: string | null,
     groupSortingExpression: string | null,
     project: string, 
     logsActions: LogsActions, 
     fieldsActions: FieldsActions,
-    updateTable: (updateFn: (prev: TableDataProps) => TableDataProps) => void
+    updateTable: (updateFn: (prev: TableDataProps) => TableDataProps) => void,
+    signal?:  AbortSignal
 ) {
+    if (signal?.aborted) return;
     fieldsActions
     .get(project, item.context ?? null)
     .then(async (fields: LogFieldsResponseProps) => {
@@ -68,6 +69,7 @@ async function updateLogs (
                 });
             }).flat().sort())
         );
+        const filterExpression = buildFilterExpression(item.filters, item.common_filter, item.column_context, item.freeze, fields)
         logsActions
         .get(
             project, 
@@ -144,6 +146,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
     const pendingRef = useRef(pending);
     const isMounted = useRef(false);
     const isRunning = useRef(false)
+    const abortControllerRef = useRef<AbortController | null>(null);
 
     // Sync pending and auto update refs 
     useEffect(() => {pendingRef.current = pending}, [pending]);
@@ -164,38 +167,66 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
         isMounted.current = true;
         return () => {
             isMounted.current = false;
+            // Abort any ongoing request on unmount
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
         };
     }, []);
 
     // Periodically fetch new logs
-    useEffect(() => {
-        if (!autoUpdateRef.current) return;
-        const interval = setInterval(async () => {
-            if (!isRunning.current && !pendingRef.current && isMounted.current) {
-              isRunning.current = true;
-              try {
-                await updateLogs(
-                  item,
-                  filterExpression,
-                  sortingExpression,
-                  groupingExpression,
-                  groupSortingExpression,
-                  project,
-                  logsActions,
-                  fieldsActions,
-                  (updateFn) => {
-                    if (autoUpdateRef.current && isMounted.current) {
-                      setTableData(updateFn);
+    
+    // Memoize updateLogs to prevent unnecessary recreations
+    const updateLogsCallback = useCallback(async () => {
+        if (!isMounted.current || !autoUpdateRef.current || pendingRef.current || isRunning.current) return;
+
+        isRunning.current = true;
+        abortControllerRef.current = new AbortController();
+
+        try {
+            await updateLogs(
+                item,
+                sortingExpression,
+                groupingExpression,
+                groupSortingExpression,
+                project,
+                logsActions,
+                fieldsActions,
+                (updateFn) => {
+                    if (isMounted.current && autoUpdateRef.current) {
+                        setTableData(updateFn);
                     }
-                  }
-                );
-              } finally {
-                isRunning.current = false;
-              }
+                },
+                abortControllerRef.current.signal,
+            );
+        } catch (error: any) {
+            if (error.name !== 'AbortError') {
+                console.error('Failed to fetch logs:', error);
             }
-        }, 5000);
-        return () => clearInterval(interval)
-    }, [item.auto_update, item.context, item.column_context, filterExpression, sortingExpression, groupingExpression, groupSortingExpression]);
+        } finally {
+            isRunning.current = false;
+            abortControllerRef.current = null;
+        }
+    }, [item, project, logsActions, fieldsActions, setTableData, sortingExpression, groupingExpression, groupSortingExpression]);
+
+    // Auto-refresh with recursive timeout
+    const fetchWithBackoff = useCallback(async () => {
+        if (!isMounted.current || !autoUpdateRef.current) return;
+        
+        try {
+          await updateLogsCallback();
+        } finally {
+          // Schedule next request only after current completes
+          const timeoutId = setTimeout(fetchWithBackoff, 5000);
+          return () => clearTimeout(timeoutId);
+        }
+      }, [updateLogsCallback]);
+      
+      useEffect(() => {
+        if (autoUpdateRef.current) {
+          fetchWithBackoff();
+        }
+    }, [fetchWithBackoff]);
 
     const onAutoClick = () => updateItem(item, "auto_update")(item.auto_update === "true" ? "false" : "true")
     const autoRefresh =
@@ -243,7 +274,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime();
             if (latestTs > lastCheckTs) {
-                updateLogs(item, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, project, logsActions, fieldsActions, setTableData).then(() => {
+                updateLogs(item, sortingExpression, groupingExpression, groupSortingExpression, project, logsActions, fieldsActions, setTableData).then(() => {
                     setLastUpdated(latest)
                 });
             } else {
