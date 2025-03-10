@@ -1,0 +1,196 @@
+{
+    "project": "grouping-demo",
+    "name": "tab1",
+    "items": [
+        {
+            "i": "Table",
+            "x": 0.0,
+            "y": 0.0,
+            "w": 7.0,
+            "h": 8.0,
+            "tab": "Table",
+            "table_type": "Data Table",
+            "grouping": "Parameters/experiment",
+            "sorting": "score@true"
+        },
+        {
+            "i": "View",
+            "x": 7.0,
+            "y": 0.0,
+            "w": 5.0,
+            "h": 8.0,
+            "tab": "View",
+            "table": "Table"
+        }
+    ],
+    "new_counter": 2,
+    "logs": {
+        "params": [
+            {
+                "experiment": 5,
+                "with_tool": true,
+                "sys_msg": "You are a helpful assistant"
+            },
+            {
+                "experiment": 5,
+                "with_tool": true,
+                "sys_msg": "You are a helpful assistant"
+            },
+            {
+                "experiment": 5,
+                "with_tool": true,
+                "sys_msg": "You are a helpful assistant"
+            },
+            {
+                "experiment": 5,
+                "with_tool": true,
+                "sys_msg": "You are a helpful weather assistant"
+            },
+            {
+                "experiment": 5,
+                "with_tool": true,
+                "sys_msg": "You are a helpful weather assistant"
+            },
+            {
+                "experiment": 5,
+                "with_tool": true,
+                "sys_msg": "You are a helpful weather assistant"
+            },
+            {
+                "experiment": 5,
+                "with_tool": true,
+                "sys_msg": "You are a helpful assistant that can use tools"
+            },
+            {
+                "experiment": 5,
+                "with_tool": true,
+                "sys_msg": "You are a helpful assistant that can use tools"
+            },
+            {
+                "experiment": 5,
+                "with_tool": true,
+                "sys_msg": "You are a helpful assistant that can use tools"
+            },
+            {
+                "experiment": 5,
+                "with_tool": false,
+                "sys_msg": "You are a helpful assistant"
+            },
+            {
+                "experiment": 5,
+                "with_tool": false,
+                "sys_msg": "You are a helpful assistant"
+            },
+            {
+                "experiment": 5,
+                "with_tool": false,
+                "sys_msg": "You are a helpful assistant"
+            },
+            {
+                "experiment": 5,
+                "with_tool": false,
+                "sys_msg": "You are a helpful weather assistant"
+            },
+            {
+                "experiment": 5,
+                "with_tool": false,
+                "sys_msg": "You are a helpful weather assistant"
+            },
+            {
+                "experiment": 5,
+                "with_tool": false,
+                "sys_msg": "You are a helpful weather assistant"
+            },
+            {
+                "experiment": 5,
+                "with_tool": false,
+                "sys_msg": "You are a helpful assistant that can use tools"
+            },
+            {
+                "experiment": 5,
+                "with_tool": false,
+                "sys_msg": "You are a helpful assistant that can use tools"
+            },
+            {
+                "experiment": 5,
+                "with_tool": false,
+                "sys_msg": "You are a helpful assistant that can use tools"
+            }
+        ],
+        "entries": [
+            {
+                "question": "What is the weather in Paris?",
+                "score": 0.22073492439991543
+            },
+            {
+                "question": "What is the weather in Tokyo?",
+                "score": 0.25625697083179716
+            },
+            {
+                "question": "What is the weather in London?",
+                "score": 0.5911928690046151
+            },
+            {
+                "question": "What is the weather in Paris?",
+                "score": 0.015093870140987564
+            },
+            {
+                "question": "What is the weather in Tokyo?",
+                "score": 0.5434276481349786
+            },
+            {
+                "question": "What is the weather in London?",
+                "score": 0.5917016000114315
+            },
+            {
+                "question": "What is the weather in Paris?",
+                "score": 0.35529156273309104
+            },
+            {
+                "question": "What is the weather in Tokyo?",
+                "score": 0.6995922542352881
+            },
+            {
+                "question": "What is the weather in London?",
+                "score": 0.9463515860307172
+            },
+            {
+                "question": "What is the weather in Paris?",
+                "score": 0.478627668254135
+            },
+            {
+                "question": "What is the weather in Tokyo?",
+                "score": 0.3424336669436768
+            },
+            {
+                "question": "What is the weather in London?",
+                "score": 0.5786547331794893
+            },
+            {
+                "question": "What is the weather in Paris?",
+                "score": 0.4375986404867373
+            },
+            {
+                "question": "What is the weather in Tokyo?",
+                "score": 0.26286734570997905
+            },
+            {
+                "question": "What is the weather in London?",
+                "score": 0.8023034150804478
+            },
+            {
+                "question": "What is the weather in Paris?",
+                "score": 0.282558498254691
+            },
+            {
+                "question": "What is the weather in Tokyo?",
+                "score": 0.45558292643513254
+            },
+            {
+                "question": "What is the weather in London?",
+                "score": 0.8338740711041694
+            }
+        ]
+    },
+    "code": "\nimport unify\nimport random\n\nquestions = [\n    \"What is the weather in Paris?\",\n    \"What is the weather in Tokyo?\",\n    \"What is the weather in London?\",\n]\n\nsys_msgs = [\n    \"You are a helpful assistant\",\n    \"You are a helpful weather assistant\",\n    \"You are a helpful assistant that can use tools\",\n]\n\n\nfor with_tool in [True, False]:\n    for sys_msg in sys_msgs:\n        with unify.Experiment(), unify.Params(\n            with_tool=with_tool,\n            sys_msg=sys_msg,\n        ):\n            for i, question in enumerate(questions):\n                unify.log(\n                    question=question,\n                    score=i*0.25 +random.random()/2\n                )\n"
+}

@@ -1,4 +1,21 @@
 import { ChartLine, Eye, Table } from "lucide-react";
+import barDemo from "@/constants/examples/bar-demo.json";
+import contextDemo from "@/constants/examples/context-demo.json";
+import derivedColumnsDemo from "@/constants/examples/derived-columns-demo.json";
+import diffsDemo from "@/constants/examples/diffs-demo.json";
+import filteringDemo from "@/constants/examples/filtering-demo.json";
+import groupingDemo from "@/constants/examples/grouping-demo.json";
+import hiddenColumnsDemo from "@/constants/examples/hidden-columns-demo.json";
+import histogramDemo from "@/constants/examples/histogram-demo.json";
+import lineDemo from "@/constants/examples/line-demo.json";
+import lineDemo2 from "@/constants/examples/line-demo2.json";
+import lineDemo3 from "@/constants/examples/line-demo3.json";
+import markingAssistantDemo from "@/constants/examples/MarkingAssistant.json";
+import scatterDemo from "@/constants/examples/scatter-demo.json";
+import scatterDemo2 from "@/constants/examples/scatter-demo2.json";
+import scatterDemo3 from "@/constants/examples/scatter-demo3.json";
+import viewPaneDemo from "@/constants/examples/view-pane-demo.json";
+import { TileProps } from "@/types/evals/grid";
 
 export const metrics = ["mean", "count", "sum", "var", "std", "min", "max", "median", "mode"];
 
@@ -1208,3 +1225,36 @@ export const icons = {
 };
 
 export const tabTypes = ["Table", "Plot", "View"];
+
+export const examples: {[key: string]: {
+    project: string,
+    name: string,
+    items: TileProps[],
+    new_counter: number,
+    logs: any,
+    code: string,
+}} = {
+    "Bar Plot": barDemo,
+    "Context": contextDemo,
+    "Derived Columns": derivedColumnsDemo,
+    "Diffs": diffsDemo,
+    "Filtering": filteringDemo,
+    "Grouping": groupingDemo,
+    "Hidden Columns": hiddenColumnsDemo,
+    "Histogram": histogramDemo,
+    "Line Plot": lineDemo,
+    "Line Plot 2": lineDemo2,
+    "Line Plot 3": lineDemo3,
+    "Marking Assistant": markingAssistantDemo as {
+        project: string,
+        name: string,
+        items: TileProps[],
+        new_counter: number,
+        logs: any,
+        code: string,
+    },
+    "Scatter Plot": scatterDemo,
+    "Scatter Plot 2": scatterDemo2,
+    "Scatter Plot 3": scatterDemo3,
+    "View Pane": viewPaneDemo
+}

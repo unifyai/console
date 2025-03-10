@@ -1,0 +1,72 @@
+{
+    "project": "context-demo",
+    "name": "tab1",
+    "items": [
+        {
+            "i": "Tile_0",
+            "x": 0,
+            "y": 0,
+            "w": 4,
+            "h": 8,
+            "moved": false,
+            "static": false,
+            "visible": true,
+            "tab": "Table",
+            "table_type": "Data Table",
+            "context": "Sciences/Maths",
+            "column_context": ""
+        },
+        {
+            "i": "Tile_1",
+            "x": 4,
+            "y": 0,
+            "w": 4,
+            "h": 8,
+            "moved": false,
+            "static": false,
+            "visible": true,
+            "tab": "Table",
+            "table_type": "Data Table",
+            "context": "Sciences/Physics",
+            "column_context": ""
+        },
+        {
+            "i": "Tile_2",
+            "x": 8,
+            "y": 0,
+            "w": 4,
+            "h": 8,
+            "moved": false,
+            "static": false,
+            "visible": true,
+            "tab": "Table",
+            "table_type": "Data Table",
+            "context": "Arts/Literature",
+            "column_context": ""
+        }
+    ],
+    "new_counter": 3,
+    "logs": {
+        "entries": [
+            {
+                "name": "Zoe",
+                "question": "what is 1 + 1?",
+                "region": "US",
+                "context": "Sciences/Maths"
+            },
+            {
+                "name": "John",
+                "question": "what is the speed of light?",
+                "region": "EU",
+                "context": "Sciences/Physics"
+            },
+            {
+                "name": "Jane",
+                "question": "What does this sentence convey?",
+                "region": "UK",
+                "context": "Arts/Literature"
+            }
+        ]
+    },
+    "code": "\nimport unify\n\nwith unify.Context(\"Sciences\"):\n    with unify.Context(\"Maths\"):\n        unify.log(\n            name=\"Zoe\",\n            question=\"what is 1 + 1?\",\n            region=\"US\"\n        )\n        with unify.Context(\"Physics\"):\n            unify.log(\n                name=\"John\",\n                question=\"what is the speed of light?\",\n                region=\"EU\"\n            )\nwith unify.Context(\"Arts\"):\n    with unify.Context(\"Literature\"):\n        unify.log(\n            name=\"Jane\",\n            question=\"What does this sentence convey?\",\n            region=\"UK\"\n        )\n"
+}
