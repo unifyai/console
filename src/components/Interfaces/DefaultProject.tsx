@@ -4,7 +4,7 @@ import { Loader2, Play } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import MarkdownRender from "../Common/Code/MarkdownRender";
 import { InterfaceActions, LogsActions, ProjectsActions } from "@/types/evals/grid";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../UI/tabs";
 import { examples } from "@/constants/logs";
 import { useQueryState } from "nuqs";
@@ -27,9 +27,41 @@ const DefaultProject = ({
     const disabled = projects == undefined
     const [pendingLocal, setPendingLocal] = useState(false);
     const [example, setExample] = useQueryState("example");
-    if (example == null) {
-        setExample(Object.keys(examples)[0]);
-    }
+    const [create, setCreate] = useQueryState("create");
+
+    useEffect(() => {
+        if (example == null)
+            setExample(Object.keys(examples)[0]);
+        if (create && example) {
+            const {
+                project: exampleProject,
+                name: exampleName,
+                items: exampleItems,
+                new_counter: exampleNewCounter,
+                logs: exampleLogs,
+            } = examples[example];
+            if (projects?.includes(exampleProject)) {
+                setProject(exampleProject);
+            } else {
+                setPendingLocal(true);
+                projectActions.create(exampleProject).then(() => {
+                    interfaceActions.create(
+                        exampleName, exampleProject, undefined, exampleItems, exampleNewCounter, true
+                    ).then(() => {
+                        logsActions.create(
+                            exampleProject, exampleLogs.params, exampleLogs.entries
+                        ).then(() => {
+                            setPendingLocal(false);
+                            setProject(exampleProject);
+                            setInterface(exampleName);
+                            setCreate(null);
+                            setExample(null);
+                        });
+                    });
+                });
+            }
+        }
+    });
 
     return <div className="flex flex-col gap-4 justify-center items-center">
         <div className="mt-4 flex justify-center font-semibold">
