@@ -12,7 +12,7 @@ import {
   GroupingState,
 } from "@tanstack/react-table";
 import { DerivedEntryActions, LogsActions, FieldsActions, Context, ContextActions } from "@/types/evals/grid";
-import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
+import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Ungroup, ListX, FilterX } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import { buildTree, nestedColumns, encodeRenderedDepth } from "@/utils/evals/table";
@@ -122,55 +122,83 @@ const LogsTable = ({
   );
 
   // Column definitions
-  const entriesTree = buildTree(entriesProperties);
-  const paramsTree = buildTree(paramsProperties);
-  const dataTypes = fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type])) : {}
-  const fieldTypes = fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].field_type])) : {}
+  const entriesTree = useMemo(() => buildTree(entriesProperties), [entriesProperties]);
+  const paramsTree = useMemo(() => buildTree(paramsProperties), [paramsProperties]);
+  const dataTypes = useMemo(() => fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type])) : {}, [fields]);
+  const fieldTypes = useMemo(() => fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].field_type])) : {}, [fields]);
+
   const indicesTitle = "RowNumbering";
   const entriesTitle = "Entries";
   const paramsTitle = "Parameters";
 
-  const columns: ColumnDef<LogProps | GroupedLogProps>[] = [
-    {
-      id: indicesTitle,
-      cell: ({ row }) => <Badge>{row.index + 1}</Badge>,
-      meta: {
-        dataType: null,
-        columnType: "util",
-        enableRowSpan: false,
-        isParent: false,
-        renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
+  const columns = useMemo(() => {
+    // Construct the columns array
+    return [
+      {
+        id: indicesTitle,
+        cell: ({ row }) => <Badge>{row.index + 1}</Badge>,
+        meta: {
+          dataType: null,
+          columnType: "util",
+          enableRowSpan: false,
+          isParent: false,
+          renderedDepth: -1,
+        },
       },
-    },
-    ...(paramsProperties.length
-      ? [
-        {
-          id: paramsTitle,
-          header: paramsTitle,
-          columns: nestedColumns(paramsTree, "params", paramsTitle, logsData, true, dataTypes, fieldTypes),
-          meta: {
-            columnType: "paramsHeader",
-            isParent: true,
-            renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
-          },
-        },
-      ]
-      : []),
-    ...(paramsProperties.length
-      ? [
-        {
-          id: entriesTitle,
-          header: entriesTitle,
-          columns: nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, dataTypes, fieldTypes),
-          meta: {
-            columnType: "entriesHeader",
-            isParent: true,
-            renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
-          },
-        },
-      ]
-      : nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, dataTypes, fieldTypes)),
-  ];
+      ...(paramsProperties.length
+        ? [
+            {
+              id: paramsTitle,
+              header: paramsTitle,
+              columns: nestedColumns(
+                paramsTree,
+                "params",
+                paramsTitle,
+                logsData,
+                true,
+                dataTypes,
+                fieldTypes
+              ),
+              meta: {
+                columnType: "paramsHeader",
+                isParent: true,
+                renderedDepth: -1,
+              },
+            },
+          ]
+        : []),
+      ...(paramsProperties.length
+        ? [
+            {
+              id: entriesTitle,
+              header: entriesTitle,
+              columns: nestedColumns(
+                entriesTree,
+                "entries",
+                entriesTitle,
+                logsData,
+                false,
+                dataTypes,
+                fieldTypes
+              ),
+              meta: {
+                columnType: "entriesHeader",
+                isParent: true,
+                renderedDepth: -1,
+              },
+            },
+          ]
+        : nestedColumns(
+            entriesTree,
+            "entries",
+            entriesTitle,
+            logsData,
+            false,
+            dataTypes,
+            fieldTypes
+          )),
+    ];
+  }, [entriesTree, paramsTree, dataTypes, fieldTypes, logsData.params]);
 
   // Apply rendered depth encoding to account for depth mismatch for all headers
   // This is needed for accurate column hiding/showing/grouping to work on all nest levels
@@ -193,8 +221,21 @@ const LogsTable = ({
   const context = item.context;
 
   // Convert those strings → arrays/objects
-  const columnIDs = flattenColumnIDs(columns);
+  const columnIDs = useMemo(() => flattenColumnIDs(columns), [columns]);
   const columnOrder = columnOrderStr ? columnOrderStr.split(",") : columnIDs;
+  const setColumnOrder = (order: string[]) => updateItem(item, "column_order")(order.join(","));
+
+  // On initial mount or when the context changes, set the column order
+  // on "item" so that the view pane can take this state and render
+  // the accordions in the correct order
+  useEffect(() => {
+    setColumnOrder(columnOrder);
+  }, []);
+
+  useEffect(() => {
+    setColumnOrder(columnIDs);
+  }, [entriesProperties, paramsProperties]);
+
   const allColumnsVisible = Object.fromEntries(columnIDs.map((x) => [x, true]));
   const columnVisibility = hiddenColumns
     ? {
@@ -202,7 +243,6 @@ const LogsTable = ({
       ...Object.fromEntries(hiddenColumns.split(",").map((x) => [x, false])),
     }
     : allColumnsVisible;
-
   const setColumnVisibility = (v: { [key: string]: boolean }) => {
     const hidden = Object.keys(v).filter((k) => !v[k]);
     updateItem(item, "hidden_columns")(hidden.length ? hidden.join(",") : undefined);
@@ -305,7 +345,7 @@ const LogsTable = ({
     setSorting,
     setGroupSorting,
     setColumnVisibility,
-    setColumnOrder: (order: string[]) => updateItem(item, "column_order")(order.join(",")),
+    setColumnOrder,
     setColumnFilters,
     setGrouping,
     setColumnPinning,

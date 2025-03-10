@@ -1200,15 +1200,22 @@ function SelectionPanel({
     const reorder = globalParamOrderings[vKey];
     const fallback = visibleParams();
     
+    let finalP: string[] = [];
     if (reorder && !shallowArrayEquals(reorder, paramOrder)) {
+      finalP = reorder;
       setParamOrder(reorder);
     } else if (!reorder && JSON.stringify(fallback) !== JSON.stringify(paramOrder)) {
+      finalP = fallback;
       setParamOrder(fallback);
+    }
+
+    if (finalP.length === 0) {
+      return;
     }
     
     // FIXED: Only consider visible keys (not filtered out) when checking for missing keys
     const visible = visibleParams();
-    const missing = visible.filter((c) => !paramOrder.includes(c));
+    const missing = visible.filter((c) => !finalP.includes(c));
     
     if (missing.length > 0) {
       setParamOrder((prev) => [...prev, ...missing]);
@@ -1219,16 +1226,23 @@ function SelectionPanel({
     const vKey = visibleEntriesKey();
     const reorder = globalEntryOrderings[vKey];
     const fallback = visibleEntries();
-    
+
+    let finalE: string[] = [];
     if (reorder && !shallowArrayEquals(reorder, entryOrder)) {
+      finalE = reorder;
       setEntryOrder(reorder);
     } else if (!reorder && JSON.stringify(fallback) !== JSON.stringify(entryOrder)) {
+      finalE = fallback;
       setEntryOrder(fallback);
     }
-    
+
+    if (finalE.length === 0) {
+      return;
+    }
+
     // FIXED: Only consider visible keys (not filtered out) when checking for missing keys
     const visible = visibleEntries();
-    const missingE = visible.filter((c) => !entryOrder.includes(c));
+    const missingE = visible.filter((c) => !finalE.includes(c));
     
     if (missingE.length > 0) {
       setEntryOrder((prev) => [...prev, ...missingE]);
