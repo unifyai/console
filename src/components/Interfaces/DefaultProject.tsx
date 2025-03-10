@@ -1,3 +1,5 @@
+"use client";
+
 import { Loader2, Play } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import MarkdownRender from "../Common/Code/MarkdownRender";
@@ -5,6 +7,7 @@ import { InterfaceActions, LogsActions, ProjectsActions } from "@/types/evals/gr
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../UI/tabs";
 import { examples } from "@/constants/logs";
+import { useQueryState } from "nuqs";
 
 const DefaultProject = ({
     projects,
@@ -23,14 +26,17 @@ const DefaultProject = ({
 }) => {
     const disabled = projects == undefined
     const [pendingLocal, setPendingLocal] = useState(false);
-    const [example, setExample] = useState<string>(Object.keys(examples)[0]);
+    const [example, setExample] = useQueryState("example");
+    if (example == null) {
+        setExample(Object.keys(examples)[0]);
+    }
 
     return <div className="flex flex-col gap-4 justify-center items-center">
         <div className="mt-4 flex justify-center font-semibold">
             Please select a project, create a project or get started some of the examples below
         </div>
         <Tabs
-            value={example}
+            value={example || undefined}
             onValueChange={(value: string) => setExample(value)}
             className="tutorial-details-panel w-full flex gap-2 px-4"
         >
