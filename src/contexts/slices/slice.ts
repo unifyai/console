@@ -12,6 +12,7 @@ import { TableTileData } from "./selectors/tableTile";
 import { PlotTileData } from "./selectors/plotTile";
 import { ViewTileData } from "./selectors/viewTile";
 import { Tile } from "./selectors/tile";
+import { filterUnchangedProps } from "../utils/sliceUtils";
 
 // Re-export the types from the domain logic
 export type { Project } from "./selectors/project";
@@ -251,9 +252,13 @@ export const createStoreSlice: StateCreator<
   
   updateInterface: (projectId, interfaceId, updates) => set(state => {
     if (state.projectsById[projectId]?.interfaces?.[interfaceId]) {
+      // Filter out unchanged fields with the extended partially shallow logic
+      const filteredUpdates = filterUnchangedProps(state.projectsById[projectId].interfaces[interfaceId], updates);
+      if (Object.keys(filteredUpdates).length === 0) return;
+      
       const updatedInterface = interfaceLogic.updateInterface(
         state.projectsById[projectId].interfaces[interfaceId],
-        updates
+        filteredUpdates
       );
       
       state.projectsById[projectId].interfaces[interfaceId] = updatedInterface;
@@ -307,11 +312,16 @@ export const createStoreSlice: StateCreator<
   
   updateTab: (projectId, interfaceId, tabId, updates) => set(state => {
     if (state.projectsById[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]) {
+
+      // Filter out unchanged fields with the extended partially shallow logic
+      const filteredUpdates = filterUnchangedProps(state.projectsById[projectId].interfaces[interfaceId].tabs[tabId], updates);
+      if (Object.keys(filteredUpdates).length === 0) return;
+
       const updatedTab = tabLogic.updateTab(
         state.projectsById[projectId].interfaces[interfaceId].tabs[tabId],
-        updates
+        filteredUpdates
       );
-      
+
       state.projectsById[projectId].interfaces[interfaceId].tabs[tabId] = updatedTab;
     }
   }),
@@ -371,25 +381,46 @@ export const createStoreSlice: StateCreator<
   
   updateTile: (projectId, interfaceId, tabId, tileId, updates) => set(state => {
     const tile = state.projectsById[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.tiles?.[tileId];
-    
+
     if (tile) {
       const { tileUpdates, tableTileUpdates, plotTileUpdates, viewTileUpdates } = splitTileUpdates(updates);
-      
+
       let updatedTile = tile;
-      if (tileUpdates) {
-        updatedTile = tileLogic.updateTile(tile, tileUpdates);
-      }
-      
-      if (tableTileUpdates) {
-        updatedTile.tableData = tableTileLogic.updateTableTile(updatedTile.tableData || tableTileLogic.initTableTile(tileId), tableTileUpdates);
-      }
-
-      if (plotTileUpdates) {
-        updatedTile.plotData = plotTileLogic.updatePlotTile(updatedTile.plotData || plotTileLogic.initPlotTile(tileId), plotTileUpdates);
+      if (Object.keys(tileUpdates).length > 0) {
+        // Filter out unchanged fields with the extended partially shallow logic
+        const filteredTileUpdates = filterUnchangedProps(tile, tileUpdates);
+        if (Object.keys(filteredTileUpdates).length === 0) return;
+        updatedTile = tileLogic.updateTile(tile, filteredTileUpdates);
       }
 
-      if (viewTileUpdates) {
-        updatedTile.viewData = viewTileLogic.updateViewTile(updatedTile.viewData || viewTileLogic.initViewTile(tileId), viewTileUpdates);
+      if (Object.keys(tableTileUpdates).length > 0) {
+        if (!updatedTile.tableData) {
+          updatedTile.tableData = tableTileLogic.initTableTile(tileId);
+        }
+        // Filter out unchanged fields with the extended partially shallow logic
+        const filteredTableTileUpdates = filterUnchangedProps(updatedTile.tableData, tableTileUpdates);
+        if (Object.keys(filteredTableTileUpdates).length === 0) return;
+        updatedTile.tableData = tableTileLogic.updateTableTile(updatedTile.tableData, filteredTableTileUpdates);
+      }
+
+      if (Object.keys(plotTileUpdates).length > 0) {
+        if (!updatedTile.plotData) {
+          updatedTile.plotData = plotTileLogic.initPlotTile(tileId);
+        }
+        // Filter out unchanged fields with the extended partially shallow logic
+        const filteredPlotTileUpdates = filterUnchangedProps(updatedTile.plotData, plotTileUpdates);
+        if (Object.keys(filteredPlotTileUpdates).length === 0) return;
+        updatedTile.plotData = plotTileLogic.updatePlotTile(updatedTile.plotData, filteredPlotTileUpdates);
+      }
+
+      if (Object.keys(viewTileUpdates).length > 0) {
+        if (!updatedTile.viewData) {
+          updatedTile.viewData = viewTileLogic.initViewTile(tileId);
+        }
+        // Filter out unchanged fields with the extended partially shallow logic
+        const filteredViewTileUpdates = filterUnchangedProps(updatedTile.viewData, viewTileUpdates);
+        if (Object.keys(filteredViewTileUpdates).length === 0) return;
+        updatedTile.viewData = viewTileLogic.updateViewTile(updatedTile.viewData, filteredViewTileUpdates);
       }
 
       state.projectsById[projectId].interfaces[interfaceId].tabs[tabId].tiles[tileId] = updatedTile;
