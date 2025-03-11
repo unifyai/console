@@ -38,9 +38,13 @@ const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, cr
         )
     const tables = options.filter(option => option.type === "Table Name").map(option => option.name)
     const columns = options.filter(option => option.type === "Column Name").map(option => option.name);
+    
+    // Implicitly append column context to the name
+    let columnContextPrefix = previousColumn.split("/").slice(1, -1).join("/")
+    if (columnContextPrefix.length) columnContextPrefix += "/"
 
     // State tracking
-    const [name, setName] = useState<string>("");
+    const [name, setName] = useState<string>(columnContextPrefix);
     const [nameError, setNameError] = useState<string>("");
     const [expression, setExpression] = useState<string>("");
     const [equation, setEquation] = useState<string>("");
@@ -171,6 +175,8 @@ const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, cr
                 onPointerDown={(e) => e.stopPropagation()}
                 onPointerUp={(e) => e.stopPropagation()}
                 onPointerOver={(e) => e.stopPropagation()}
+                // Prevent auto-focus on the first input element
+                onOpenAutoFocus={(e) => e.preventDefault()}
                 className="sm:max-w-lg"
             >
                 {body}
