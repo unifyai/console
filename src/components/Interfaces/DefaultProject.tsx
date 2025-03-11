@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Loader2, Play } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import MarkdownRender from "../Common/Code/MarkdownRender";
@@ -29,14 +30,19 @@ const DefaultProject = ({
     const [pendingLocal, setPendingLocal] = useState(false);
     const [example, setExample] = useQueryState("example");
     const [create, setCreate] = useQueryState("create");
-    const reorganizedExamples: { [key: string]: { [key: string]: {
-        project: string,
-        name: string,
-        items: TileProps[],
-        new_counter: number,
-        logs: any,
-        code: string,
-    } } } = {};
+    const reorganizedExamples: {
+        [key: string]: {
+            [key: string]: {
+                project: string,
+                name: string,
+                items: TileProps[],
+                new_counter: number,
+                logs: any,
+                code: string,
+                gif: string,
+            }
+        }
+    } = {};
     Object.keys(examples).forEach((ex) => {
         const [group, name] = ex.split("/");
         if (!reorganizedExamples[group]) {
@@ -51,12 +57,12 @@ const DefaultProject = ({
         new_counter: exampleNewCounter,
         logs: exampleLogs,
         code: exampleCode,
+        gif: exampleGif
     } = examples[
         Object.keys(examples).includes(example || "")
             ? example || ""
             : Object.keys(examples)[0]
         ];
-
     useEffect(() => {
         if (example == null)
             setExample(Object.keys(examples)[0]);
@@ -114,35 +120,47 @@ const DefaultProject = ({
                 </div>
             })}
         </BaseDropdown>
-        <div className="relative w-[500px] h-[700px] overflow-y-auto rounded-md border border-1 p-2">
-            <div className="absolute z-10 top-3 right-12">
-                <ActionButton
-                    icon={pendingLocal ? <Loader2 className="animate-spin" /> : <Play />}
-                    tooltip={"Run Example"}
-                    onClick={() => {
-                        if (projects?.includes(exampleProject)) {
-                            setProject(exampleProject);
-                        } else {
-                            setPendingLocal(true);
-                            projectActions.create(exampleProject).then(() => {
-                                interfaceActions.create(
-                                    exampleName, exampleProject, undefined, exampleItems, exampleNewCounter, true
-                                ).then(() => {
-                                    logsActions.create(
-                                        exampleProject, exampleLogs.params, exampleLogs.entries
+        <div className="flex gap-4">
+            <div className="relative w-[500px] h-[700px] overflow-y-auto rounded-md border border-1 p-2">
+                <div className="absolute z-10 top-3 right-12">
+                    <ActionButton
+                        icon={pendingLocal ? <Loader2 className="animate-spin" /> : <Play />}
+                        tooltip={"Run Example"}
+                        onClick={() => {
+                            if (projects?.includes(exampleProject)) {
+                                setProject(exampleProject);
+                            } else {
+                                setPendingLocal(true);
+                                projectActions.create(exampleProject).then(() => {
+                                    interfaceActions.create(
+                                        exampleName, exampleProject, undefined, exampleItems, exampleNewCounter, true
                                     ).then(() => {
-                                        setPendingLocal(false);
-                                        setProject(exampleProject);
-                                        setInterface(exampleName);
+                                        logsActions.create(
+                                            exampleProject, exampleLogs.params, exampleLogs.entries
+                                        ).then(() => {
+                                            setPendingLocal(false);
+                                            setProject(exampleProject);
+                                            setInterface(exampleName);
+                                        });
                                     });
                                 });
-                            });
-                        }
-                    }}
-                    disabled={disabled}
-                />
+                            }
+                        }}
+                        disabled={disabled}
+                    />
+                </div>
+                <MarkdownRender content={`\`\`\`python${exampleCode}\`\`\``} noBackground />
             </div>
-            <MarkdownRender content={`\`\`\`python${exampleCode}\`\`\``} noBackground />
+            {exampleGif != undefined && <div className="mb-auto">
+                <Image
+                    key={exampleGif}
+                    src={`https://raw.githubusercontent.com/unifyai/unifyai.github.io/main/img/externally_linked/docs/${exampleGif}.gif`}
+                    alt="GIF"
+                    width={600}
+                    height={600}
+                    unoptimized
+                />
+            </div>}
         </div>
     </div>
 }
