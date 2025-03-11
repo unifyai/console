@@ -16,6 +16,7 @@ import scatterDemo2 from "@/constants/examples/scatter-demo2.json";
 import scatterDemo3 from "@/constants/examples/scatter-demo3.json";
 import viewPaneDemo from "@/constants/examples/view-pane-demo.json";
 import { TileProps } from "@/types/evals/grid";
+import { getLogsParameters } from "@/types/evals/logs";
 
 export const metrics = ["mean", "count", "sum", "var", "std", "min", "max", "median", "mode"];
 
@@ -1236,6 +1237,13 @@ export const examples: {
         code: string,
         gif: string,
         link: string,
+        derived_columns?: {
+            project: string,
+            context?: string | undefined,
+            key: string,
+            equation: string,
+            referenced_logs: { [table_name: string]: getLogsParameters },
+        },
     }
 } = {
     "Basics/Context": { ...contextDemo, gif: "table_nested_contexts_dark", link: "interfaces/basics#contexts" },

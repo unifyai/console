@@ -305,6 +305,7 @@ const CardGrid = ({
                 setInterface={setInterface}
                 setProject={setProject}
                 logsActions={logsActions}
+                derivedEntryActions={derivedEntryActions}
             /> : <></> : interfaces.map((int_, idx) => <TabsContent
                 key={idx}
                 value={int_}

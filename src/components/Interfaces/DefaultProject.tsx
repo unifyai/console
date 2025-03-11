@@ -4,7 +4,7 @@ import Image from "next/image";
 import { ExternalLink, Loader2, Play } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import MarkdownRender from "../Common/Code/MarkdownRender";
-import { InterfaceActions, LogsActions, ProjectsActions, TileProps } from "@/types/evals/grid";
+import { DerivedEntryActions, InterfaceActions, LogsActions, ProjectsActions, TileProps } from "@/types/evals/grid";
 import { useEffect, useState } from "react";
 import { examples } from "@/constants/logs";
 import { useQueryState } from "nuqs";
@@ -17,6 +17,7 @@ const DefaultProject = ({
     projectActions,
     interfaceActions,
     logsActions,
+    derivedEntryActions,
     setInterface,
     setProject
 }: {
@@ -24,6 +25,7 @@ const DefaultProject = ({
     projectActions: ProjectsActions,
     interfaceActions: InterfaceActions,
     logsActions: LogsActions,
+    derivedEntryActions: DerivedEntryActions,
     setInterface: (value: string | null) => void,
     setProject: (value: string | null) => void,
 }) => {
@@ -60,7 +62,8 @@ const DefaultProject = ({
         logs: exampleLogs,
         code: exampleCode,
         gif: exampleGif,
-        link: exampleLink
+        link: exampleLink,
+        derived_columns: exampleDerivedColumns
     } = examples[
         Object.keys(examples).includes(example || "")
             ? example || ""
@@ -143,9 +146,24 @@ const DefaultProject = ({
                                     logsActions.create(
                                         exampleProject, exampleLogs.params, exampleLogs.entries
                                     ).then(() => {
-                                        setPendingLocal(false);
-                                        setProject(exampleProject);
-                                        setInterface(exampleName);
+                                        if (exampleDerivedColumns != undefined) {
+                                            derivedEntryActions.create(
+                                                exampleDerivedColumns.project,
+                                                exampleDerivedColumns.context,
+                                                exampleDerivedColumns.key,
+                                                exampleDerivedColumns.equation,
+                                                exampleDerivedColumns.referenced_logs
+                                            ).then(() => {
+                                                setPendingLocal(false);
+                                                setProject(exampleProject);
+                                                setInterface(exampleName);
+                                            });
+                                        }
+                                        else {
+                                            setPendingLocal(false);
+                                            setProject(exampleProject);
+                                            setInterface(exampleName);
+                                        }
                                     });
                                 });
                             });
