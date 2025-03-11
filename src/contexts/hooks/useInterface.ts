@@ -24,17 +24,10 @@ export interface InterfaceActions {
   setName: (name: string) => void;
   
   // Tab management
-  initTab: (tabId: string, initialState?: any) => void;
-  removeTab: (tabId: string) => void;
-  updateTab: (tabId: string, updates: any) => void;
-  setActiveTab: (tabId: string | null) => void;
-  setTabs: (tabs: string[] | Tab[] | {}) => void;
+  setTabIds: (tabs: string[]) => void;
   
   // Helper methods
-  getTabs: () => any[];
   getTabIds: () => string[];
-  getTab: (tabId: string) => any;
-  getActiveTabId: () => string | null;
 }
 
 /**
@@ -70,10 +63,19 @@ export function useInterface(interfaceId: string | null, projectId?: string | nu
     if (!hasInterface || !activeProjectId || !interfaceId) return null;
     return state.projectsById[activeProjectId].interfaces[interfaceId].activeTabId || null;
   });
+  const tabIds = useStoreContext(state => {
+    if (!hasInterface || !activeProjectId || !interfaceId) return [];
+    return state.projectsById[activeProjectId].interfaces[interfaceId].tabIds;
+  });
   const tabs = useStoreContext((
     useShallow((state) => {
     if (!hasInterface || !activeProjectId || !interfaceId) return null;
     return state.projectsById[activeProjectId].interfaces[interfaceId].tabs || null;
+  })));
+  const tableArguments = useStoreContext((
+    useShallow((state) => {
+    if (!hasInterface || !activeProjectId || !interfaceId) return null;
+    return state.projectsById[activeProjectId].interfaces[interfaceId].tableArguments || null;
   })));
 
   // Get store actions
@@ -112,116 +114,23 @@ export function useInterface(interfaceId: string | null, projectId?: string | nu
         storeUpdateInterface(activeProjectId, interfaceId, { name });
       }
     },
-    
-    // Tab management
-    initTab: (tabId, initialState) => {
-      if (activeProjectId && interfaceId) {
-        storeInitTab(activeProjectId, interfaceId, tabId, initialState);
-      }
-    },
-    
-    removeTab: (tabId) => {
-      if (activeProjectId && interfaceId) {
-        storeRemoveTab(activeProjectId, interfaceId, tabId);
-      }
-    },
-    
-    updateTab: (tabId, updates) => {
-      if (activeProjectId && interfaceId) {
-        storeUpdateTab(activeProjectId, interfaceId, tabId, updates);
-      }
-    },
-
-    setActiveTab: (tabId) => {
-      if (activeProjectId && interfaceId) {
-        storeSetActiveTab(activeProjectId, interfaceId, tabId);
-      }
-    },
 
     // New method to set tabs
-    setTabs: (tabsInput) => {
+    setTabIds: (tabIds: string[]) => {
       if (activeProjectId && interfaceId) {
-        // Case 1: Empty object - clear all tabs
-        if (Array.isArray(tabsInput) && tabsInput.length === 0) {
-          storeUpdateInterface(activeProjectId, interfaceId, { tabs: {} });
-          return;
-        }
-
-        // Case 2: Array of strings (tab IDs) - clone current active tab with new IDs
-        if (Array.isArray(tabsInput) && typeof tabsInput[0] === 'string') {
-          const tabIds = tabsInput as string[];
-          const newTabs: Record<string, Tab> = {};
-
-          // If there's an active tab, use it as a template
-          if (activeTabId && tabs && tabs[activeTabId]) {
-            const activeTab = tabs[activeTabId];
-            
-            // Create a new tab for each ID based on the active tab
-            tabIds.forEach(tabId => {
-              // Clone the active tab but with a new ID
-              const newTab = {
-                ...activeTab,
-                id: tabId,
-                name: `Tab ${tabId}`, // Optionally give it a different name
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-              };
-              newTabs[tabId] = newTab;
-            });
-          }
-          
-          storeUpdateInterface(activeProjectId, interfaceId, { tabs: newTabs });
-          return;
-        }
-        
-        // Case 3: Array of Tab objects - directly use them
-        if (Array.isArray(tabsInput) && typeof tabsInput[0] === 'object') {
-          const tabObjects = tabsInput as Tab[];
-          const newTabs: Record<string, Tab> = {};
-          
-          // Map each tab object by its ID
-          tabObjects.forEach(tab => {
-            if (tab.id) {
-              newTabs[tab.id] = tab;
-            }
-          });
-          
-          storeUpdateInterface(activeProjectId, interfaceId, { tabs: newTabs });
-          return;
-        }
-        
-        // Case 4: Record of tab IDs to Tab objects - directly use it
-        if (typeof tabsInput === 'object' && !Array.isArray(tabsInput)) {
-          storeUpdateInterface(activeProjectId, interfaceId, { tabs: tabsInput as Record<string, Tab> });
-          return;
-        }
+        storeUpdateInterface(activeProjectId, interfaceId, { tabIds });
       }
     },
 
     // Helper methods
-    getTabs: () => {
-      if (!tabs) return [];
-      return Object.values(tabs);
-    },
-    
-    getTabIds: () => {
-      if (!tabs) return [];
-      return Object.keys(tabs);
-    },
+    getTabIds: () => tabIds,
 
-    getTab: (tabId) => {
-      if (!tabs) return null;
-      return tabs[tabId] || null;
-    },
-
-    getActiveTabId: () => {
-      if (!activeTabId) return null;
-      return activeTabId;
-    },
   }), [
     interfaceId,
     activeProjectId,
     activeTabId,
+    tabIds,
+    tableArguments,
     storeInitInterface, 
     storeUpdateInterface, 
     storeRemoveInterface,
@@ -235,8 +144,8 @@ export function useInterface(interfaceId: string | null, projectId?: string | nu
   // so the calling component has a shape similar to before, if needed.
   const finalInterface = useMemo(() => {
     if (!hasInterface) return null;
-    return { name, tabs, activeTabId } as Interface;
-  }, [hasInterface, name, tabs, activeTabId]);
+    return { name, tabs, activeTabId, tabIds, tableArguments } as Interface;
+  }, [hasInterface, name, tabs, activeTabId, tabIds, tableArguments]);
 
   // Use interfaceId to conditionally return values, but only after all hooks are called
   if (interfaceId === null) {

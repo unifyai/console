@@ -13,7 +13,8 @@ export interface TilePosition {
 
 // Base tile interface with common fields shared across all tile types
 export interface Tile {
-  // Note: When adding new fields here from TileProps in grid.ts,
+  // ( IMPORTANT )
+  // NOTE: When adding new fields here from TileProps in grid.ts,
   // make sure to update the TILE_KEYS array in the useTile hook
   // Core tile properties
   id: string;

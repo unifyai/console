@@ -1,12 +1,15 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useStoreContext } from '../providers/StoreProvider';
 import { Tab } from '../slices/selectors/tab';
 import { Tile } from '../slices/selectors/tile';
 import { TileProps } from '@/types/evals/grid';
 import { useTileActions, TileActions } from './useTile';
 import { useShallow } from 'zustand/react/shallow';
+import { shallow } from 'zustand/vanilla/shallow';
 
-// Define the default return value for the useTab hook
+// Define stable fallback references
+const EMPTY_TILES: Record<string, Tile> = {};
+const EMPTY_TILE_IDS = [undefined, undefined] as [string|undefined, string|undefined];
 const DEFAULT_USE_TAB_RETURN = {
   tab: null,
   actions: null,
@@ -66,6 +69,7 @@ export interface TabActions {
   getTile: (tileId: string) => Tile | null;
   getTileActions: (tileId: string) => TileActions | null;
   getItems: () => TileProps[];
+  setItems: (items: TileProps[]) => void;
 }
 
 /**
@@ -135,12 +139,12 @@ export function useTab(
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].savedTab;
   }));
   const focusedTileIds = useStoreContext((state) => {
-    if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return [undefined, undefined] as [string | undefined, string | undefined];
+    if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return EMPTY_TILE_IDS;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].focusedTileIds;
   });
   const tiles = useStoreContext(
     useShallow((state) => {
-    if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return {};
+    if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return EMPTY_TILES;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].tiles;
   }));
   const saveSuccess = useStoreContext((state) => {
@@ -181,12 +185,13 @@ export function useTab(
   });
 
   // Create the items array once with useMemo
+  const itemsRef = useRef<TileProps[]>([]);
   const items = useMemo<TileProps[]>(() => {
     // If no tiles, return an empty array
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return [];
 
     // Build the array from each tile
-    return Object.values(tiles || {}).map((tile) => {
+    const newItems = Object.values(tiles || {}).map((tile) => {
       // get actions once
       const tileActions = tileActionsGetter(tile.id, tabId, activeInterfaceId, activeProjectId);
       // call `asTileItem()` or fallback
@@ -198,6 +203,13 @@ export function useTab(
         h: 1
       } as TileProps;
     });
+
+    // If the items are the same, return the old reference
+    if (shallow(itemsRef.current, newItems)) {
+      return itemsRef.current;
+    }
+    itemsRef.current = newItems;
+    return newItems;
   }, [tiles, tabId, activeInterfaceId, activeProjectId, hasTab, tileActionsGetter]);
 
   // Get all the tab store actions
@@ -458,6 +470,19 @@ export function useTab(
 
       // Modified to use the tileActionsGetter
       getItems: () => items,
+
+      // Modified to use the tileActionsGetter
+      setItems: (newItems: TileProps[]) => {
+        // For each item, figure out the tile ID (item.i)
+        newItems.forEach((item) => {
+          const tileId = item.i;
+          // Grab the tile actions for that tile
+          const tileActions = tileActionsGetter(tileId, tabId, activeInterfaceId, activeProjectId);
+          if (tileActions?.fromTileItem) {
+            tileActions.fromTileItem(item);
+          }
+        });
+      }
     };
   }, [
     activeProjectId,

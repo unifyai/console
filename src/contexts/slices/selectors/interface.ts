@@ -1,3 +1,4 @@
+import { TableArguments } from "@/types/evals/logs";
 import { Tab } from "./tab";
 
 // Interface state definition
@@ -7,7 +8,10 @@ export interface Interface {
   createdAt: string;
   updatedAt: string;
   activeTabId: string | null;
-  tabs: Record<string, Tab>; // Child tabs indexed by ID - this is now the single source of truth
+  tabIds: string[];  // This is now the single source of truth for displaying the tab names on the UI
+  tabs: Record<string, Tab>; // This is now the single source of truth for the actual tab data indexed by ID
+
+  tableArguments: TableArguments;
 }
 
 /**
@@ -20,8 +24,9 @@ export function initInterface(interfaceId: string, initialState: Partial<Interfa
     createdAt: initialState.createdAt || new Date().toISOString(),
     updatedAt: initialState.updatedAt || new Date().toISOString(),
     activeTabId: initialState.activeTabId || null,
+    tabIds: initialState.tabIds || [],
     tabs: initialState.tabs || {},
-    ...initialState,
+    tableArguments: initialState.tableArguments || {},
   };
 }
 

@@ -3,7 +3,8 @@ export type ViewType = 'html' | 'markdown' | 'code' | 'iframe' | 'image' | 'pdf'
 
 // View tile data
 export interface ViewTileData {
-  // Note: When adding new properties, make sure to update the VIEW_TILE_KEYS array in the useTile hook
+  // ( IMPORTANT )
+  // NOTE: When adding new properties, make sure to update the VIEW_TILE_KEYS array in the useTile hook
   id: string;
   title: string;
   loading: boolean;

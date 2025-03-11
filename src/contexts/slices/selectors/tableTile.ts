@@ -1,5 +1,4 @@
 import { TableDataItem } from "@/types/evals/grid";
-import { TableArguments } from "@/types/evals/logs";
 
 // Table tile related types
 export interface TableTileData {
@@ -15,7 +14,8 @@ export interface TableTileData {
   updatedAt: string;
 
   // Table-specific fields from TileProps
-  // Note: When adding new fields here from TileProps in grid.ts,
+  // ( IMPORTANT )
+  // NOTE: When adding new fields here from TileProps in grid.ts,
   // make sure to update the TABLE_TILE_KEYS array in the useTile hook
   table?: string;          // Table identifier
   table_type?: string;     // Type of table
@@ -34,9 +34,6 @@ export interface TableTileData {
 
   // Table data item
   tableDataItem?: TableDataItem;
-
-  // Table arguments
-  tableArguments?: TableArguments[number];
 }
 
 /**
@@ -90,7 +87,6 @@ export function initTableTile(tileId: string, initialState: Partial<TableTileDat
       boundaries: initialState.tableDataItem?.boundaries || { minimums: {}, maximums: {} },
     } as TableDataItem,
 
-    tableArguments: initialState.tableArguments || {},
   } as TableTileData;
 }
 

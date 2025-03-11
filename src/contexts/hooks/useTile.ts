@@ -4,6 +4,9 @@ import { Tile, TilePosition } from '../slices/selectors/tile';
 import { TileProps } from '@/types/evals/grid';
 import { IStoreState } from '../store';
 import { useShallow } from 'zustand/react/shallow';
+import { PlotTileData } from '../slices/selectors/plotTile';
+import { ViewTileData } from '../slices/selectors/viewTile';
+import { TableTileData } from '../slices/selectors/tableTile';
 
 // Define the valid tile types
 const tileTypes = ['Table', 'Plot', 'View'] as const;
@@ -41,6 +44,7 @@ export interface TileActions {
   
   // Conversion utilities
   asTileItem: () => TileProps;
+  fromTileItem: (tileItem: TileProps) => boolean;
 }
 
 /**
@@ -58,6 +62,10 @@ export function createTileActions(
 ): TileActions | null {
   // If essential parameters are missing, return null
   if (!tileId || !tabId || !projectId || !interfaceId || !tile) return null;
+
+  // // Optional: store last computed tileProps in a local closure ref
+  // let lastTileObj: Tile | null = null;
+  // let lastTileProps: TileProps | null = null;
   
   return {
     // Basic tile management
@@ -142,6 +150,12 @@ export function createTileActions(
 
     // Conversion to TileProps for legacy components
     asTileItem: () => {
+      // // 1) If tile is identical to lastTileObj by reference, we can reuse lastTileProps
+      // //    or do a shallow compare if you wish. For brevity, we do reference check only:
+      // if (tile === lastTileObj && lastTileProps) {
+      //   return lastTileProps;
+      // }
+
       // Create base TileProps from Tile's core properties
       const tileProps: TileProps = {
         i: tile.id,
@@ -209,7 +223,95 @@ export function createTileActions(
         }
       }
 
+      // // 2) Cache this result
+      // lastTileObj = tile;
+      // lastTileProps = tileProps;
       return tileProps;
+    },
+
+    // Conversion to Tile from TileProps
+    fromTileItem: (tileItem: TileProps) => {
+      // Create core Tile properties from base TileProps
+      const tileUpdates: Partial<Tile> = {
+        id: tileItem.i,
+        name: tileItem.i,
+        position: {
+          ...(tile.position || {}),
+          x: tileItem.x,
+          y: tileItem.y,
+          width: tileItem.w,
+          height: tileItem.h,
+        },
+        minW: tileItem.minW,
+        minH: tileItem.minH,
+        visible: tileItem.visible,
+        type: tileItem.tab,  // 'Table' / 'Plot' / 'View'
+
+        // Common fields shared across tile types
+        moved: tileItem.moved,
+        static: tileItem.static,
+        context: tileItem.context,
+        table: tileItem.table,
+        auto_update: tileItem.auto_update,
+        freeze: tileItem.freeze,
+        filters: tileItem.filters,
+        common_filter: tileItem.common_filter,
+      }
+
+      // If tileItem belongs to 'Table', update its tableData fields:
+      // parse table_type, column_context, etc.
+      let finalUpdates: Partial<Tile> = {};
+      if (tileItem.tab === "Table") {
+        const tableDataUpdates: Partial<TableTileData> = {
+          table_type: tileItem.table_type,
+          column_context: tileItem.column_context,
+          page_number: tileItem.page_number,
+          metric: tileItem.metric,
+          column_order: tileItem.column_order,
+          hidden_columns: tileItem.hidden_columns,
+          sorting: tileItem.sorting,
+          grouping: tileItem.grouping,
+          group_sorting: tileItem.group_sorting,
+          columns_pin_left: tileItem.columns_pin_left,
+          columns_pin_right: tileItem.columns_pin_right,
+          selected: tileItem.selected,
+          base_index: tileItem.base_index
+        }
+        finalUpdates = {
+          ...tileUpdates,
+          ...tableDataUpdates,
+        } as Partial<Tile>;
+
+      } else if (tileItem.tab === "Plot") {
+        const plotDataUpdates: Partial<PlotTileData> = {
+          plot_type: tileItem.plot_type,
+          plot_scale_x: tileItem.plot_scale_x,
+          plot_scale_y: tileItem.plot_scale_y,
+          is_aggregated: tileItem.is_aggregated,
+          x_axis: tileItem.x_axis,
+          y_axis: tileItem.y_axis,
+          plot_group_by: tileItem.plot_group_by,
+          bin_count: tileItem.bin_count,
+          regression_line: tileItem.regression_line,
+        };
+        finalUpdates = {  
+          ...tileUpdates,
+          ...plotDataUpdates,
+        } as Partial<Tile>;
+
+      } else if (tileItem.tab === "View") {
+        const viewDataUpdates: Partial<ViewTileData> = {
+          // Add view-specific fields here if needed
+        };
+        finalUpdates = {
+          ...tileUpdates,
+          ...viewDataUpdates,
+        } as Partial<Tile>;
+      }
+
+      // Apply all updates to the tile
+      store.updateTile(projectId, interfaceId, tabId, tileId, finalUpdates);
+      return true;
     }
   };
 } 
@@ -313,6 +415,38 @@ export function useTile(
     if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return false;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].pending;
   });
+  const moved = useStoreContext((state) => {
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].moved;
+  });
+  const static_ = useStoreContext((state) => {
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].static;
+  });
+  const context = useStoreContext((state) => {
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].context;
+  });
+  const table = useStoreContext((state) => {
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].table;
+  });
+  const auto_update = useStoreContext((state) => {
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].auto_update;
+  });
+  const freeze = useStoreContext((state) => {
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].freeze;
+  });
+  const filters = useStoreContext((state) => {
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].filters;
+  });
+  const common_filter = useStoreContext((state) => {
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].common_filter;
+  });
 
   // For tableData, plotData, viewData (we can subscribe or do a single subscription if we prefer)
   const tableData = useStoreContext(
@@ -333,34 +467,6 @@ export function useTile(
     const tileRef = state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId];
     return tileRef.viewData || null;
   }));
-  const context = useStoreContext((state) => {
-    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
-    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].context;
-  });
-  const auto_update = useStoreContext((state) => {
-    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
-    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].auto_update;
-  });
-  const freeze = useStoreContext((state) => {
-    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
-    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].freeze;
-  });
-  const filters = useStoreContext((state) => {
-    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
-    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].filters;
-  });
-  const common_filter = useStoreContext((state) => {
-    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
-    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].common_filter;
-  });
-  const moved = useStoreContext((state) => {
-    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
-    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].moved;
-  });
-  const static_ = useStoreContext((state) => {
-    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
-    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].static;
-  });
 
   // We'll build a complete tile object from the individual fields
   const finalTile = useMemo(() => {
@@ -384,6 +490,7 @@ export function useTile(
       
       // Common fields shared across tile types
       context,
+      table,
       auto_update,
       freeze,
       filters,
@@ -408,6 +515,7 @@ export function useTile(
     moved,
     static_,
     context,
+    table,
     auto_update,
     freeze,
     filters,
@@ -467,8 +575,8 @@ export function useTileActions() {
   // Access the global store api
   const storeApi = useStoreApiContext();
 
-  // Use a ref to cache tile actions
-  const tileActionsCache = useRef<Record<string, TileActions>>({});
+  // // Use a ref to cache tile actions
+  // const tileActionsCache = useRef<Record<string, TileActions>>({});
   
   // Create a memoized function to get tile actions
   const getTileActions = useCallback((
@@ -478,14 +586,6 @@ export function useTileActions() {
     projectId?: string | null
   ): TileActions | null => {
     if (!tileId || !tabId || !projectId || !interfaceId) return null;
-    
-    // Generate a cache key
-    const cacheKey = `${projectId}:${interfaceId}:${tabId}:${tileId}`;
-    
-    // Return cached actions if available
-    if (tileActionsCache.current[cacheKey]) {
-      return tileActionsCache.current[cacheKey];
-    }
 
     // We can read the store state once, do not cause subscription
     const storeState = storeApi.getState();
@@ -496,15 +596,24 @@ export function useTileActions() {
     
     // Get tab context
     const tabContext = storeState.projectsById?.[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.context || '';
+
+    // // Include a version property (e.g., tile.updatedAt) in the cache key so that
+    // // any update to the tile invalidates the cache.
+    // const cacheKey = `${projectId}:${interfaceId}:${tabId}:${tileId}:${tile.updatedAt}`;
     
+    // // Return cached actions if available
+    // if (tileActionsCache.current[cacheKey]) {
+    //   return tileActionsCache.current[cacheKey];
+    // }
+
     // Create actions using the factory
     const actions = createTileActions(tileId, tabId, interfaceId, projectId, tile, tabContext, storeState);
     
-    // Cache the actions
-    if (actions) {
-      tileActionsCache.current[cacheKey] = actions;
-    }
-    
+    // // Cache the actions
+    // if (actions) {
+    //   tileActionsCache.current[cacheKey] = actions;
+    // }
+
     return actions;
   }, [storeApi]);
   
