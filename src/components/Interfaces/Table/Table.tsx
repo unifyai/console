@@ -222,19 +222,21 @@ const LogsTable = ({
 
   // Convert those strings → arrays/objects
   const columnIDs = useMemo(() => flattenColumnIDs(columns), [columns]);
+
+  // Flag to track if the column order was manually changed
+  // by calling the setColumnOrder function
+  // e.g. post drag and drop or create/delete columns on the UI etc.
+  const [manualColumnOrderOverride, setManualColumnOrderOverride] = useState(false);
   const columnOrder = columnOrderStr ? columnOrderStr.split(",") : columnIDs;
-  const setColumnOrder = (order: string[]) => updateItem(item, "column_order")(order.join(","));
-
-  // On initial mount or when the context changes, set the column order
-  // on "item" so that the view pane can take this state and render
-  // the accordions in the correct order
-  useEffect(() => {
-    setColumnOrder(columnOrder);
-  }, []);
-
-  useEffect(() => {
-    setColumnOrder(columnIDs);
-  }, [entriesProperties, paramsProperties]);
+  const setColumnOrder = (order: string[], manual = true) => {
+    // Whenever the user does a "manual" column reorder or adds a column
+    // we set the manualColumnOrderOverride flag to true. In all other cases,
+    // we call `setColumnOrder` with the default `manual = false`
+    if (manual) {
+      setManualColumnOrderOverride(true);
+    }
+    updateItem(item, "column_order")(order.join(","))
+  };
 
   const allColumnsVisible = Object.fromEntries(columnIDs.map((x) => [x, true]));
   const columnVisibility = hiddenColumns
@@ -362,6 +364,7 @@ const LogsTable = ({
   const prevSortingRef = useRef(sortingStr);
   const prevGroupingRef = useRef(groupingStr);
   const prevGroupSortingRef = useRef(groupSortingStr);
+  const prevContextRef = useRef(context);
 
   // Prune base/comparison IDs if user REALLY changes page or filters
   useEffect(() => {
@@ -410,6 +413,34 @@ const LogsTable = ({
     groupSortingStr,
     selectedCells
   ]);
+
+  // On initial mount or when the context changes, we need to set the column_order
+  // on item correctly so that the view pane can take this state and render
+  // the accordions in the correct order
+  useEffect(() => {
+    setColumnOrder(columnOrder, false);
+  }, []);
+
+  // Then when the context changes, we reset the manual override
+  // so that the column order is not locked in and can be automatically
+  // updated when updated data comes in
+  useEffect(() => {
+    if (context !== prevContextRef.current) {
+      setManualColumnOrderOverride(false);
+    }
+    prevContextRef.current = context;
+  }, [context]);
+
+  // Finally, when either of entriesProperties or paramsProperties changes
+  // and if the user hasn't manually updated the column order for this context,
+  // re-apply the default
+  useEffect(() => {
+    if (!manualColumnOrderOverride) {
+      // Because user hasn't manually adjusted anything for this "fresh" context
+      // we revert to the updated columnIDs if we see new columns added or removed
+      setColumnOrder(columnIDs, false);
+    }
+  }, [columnIDs, manualColumnOrderOverride]);
 
   // Top area: filters, page, etc.
   const tableTop = (
@@ -565,7 +596,7 @@ const LogsTable = ({
                       setPending={setPending}
                       refresh={() => updateInterface()}
                       columnOrder={columnOrder}
-                      setColumnOrder={(order: string[]) => updateItem(item, "column_order")(order.join(","))}
+                      setColumnOrder={setColumnOrder}
                       previousColumn={previousColumn}
                       setOpen={setOpen}
                     />
