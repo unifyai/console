@@ -302,10 +302,11 @@ const CardGrid = ({
                 projects={projects}
                 projectActions={projectActions}
                 interfaceActions={interfaceActions}
-                setInterface={setInterface}
-                setProject={setProject}
+                contextActions={contextActions}
                 logsActions={logsActions}
                 derivedEntryActions={derivedEntryActions}
+                setInterface={setInterface}
+                setProject={setProject}
             /> : <></> : interfaces.map((int_, idx) => <TabsContent
                 key={idx}
                 value={int_}
@@ -401,7 +402,7 @@ const CardGrid = ({
                                                 updateItem={updateItem}
                                                 contextActions={contextActions}
                                                 logsActions={logsActions}
-                                                fields={[...tableData[el.i || ""].paramsProperties, ...tableData[el.i || ""].entriesProperties]}
+                                                fields={[...tableData[el.i || ""]?.paramsProperties || [], ...tableData[el.i || ""]?.entriesProperties || []]}
                                                 button={
                                                     <Tooltip content="Context">
                                                         <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
@@ -420,7 +421,7 @@ const CardGrid = ({
                                                 updateItem={updateItem}
                                                 contextActions={contextActions}
                                                 logsActions={logsActions}
-                                                fields={[...tableData[el.i || ""].paramsProperties, ...tableData[el.i || ""].entriesProperties]}
+                                                fields={[...tableData[el.i || ""]?.paramsProperties || [], ...tableData[el.i || ""]?.entriesProperties || []]}
                                                 button={<Tooltip content="Column Context">
                                                     <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
                                                         <Grid2x2 size={18} />

@@ -70,6 +70,7 @@ export const deleteProject = async (apiKey: string) => {
 export const createLogs = async (apiKey: string) => {
     return async (
         project: string,
+        context: string | null,
         params: { system_message: string }[],
         entries: { question: string, response: string, score: number }[]
     ) => {
@@ -80,7 +81,7 @@ export const createLogs = async (apiKey: string) => {
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ project, params, entries })
+                body: JSON.stringify({ project, context: { name: context }, params, entries })
             }
         );
         return await response.json();

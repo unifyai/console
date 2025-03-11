@@ -4,7 +4,7 @@ import Image from "next/image";
 import { ExternalLink, Loader2, Play } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import MarkdownRender from "../Common/Code/MarkdownRender";
-import { DerivedEntryActions, InterfaceActions, LogsActions, ProjectsActions, TileProps } from "@/types/evals/grid";
+import { ContextActions, DerivedEntryActions, InterfaceActions, LogsActions, ProjectsActions, TileProps } from "@/types/evals/grid";
 import { useEffect, useState } from "react";
 import { examples } from "@/constants/logs";
 import { useQueryState } from "nuqs";
@@ -16,6 +16,7 @@ const DefaultProject = ({
     projects,
     projectActions,
     interfaceActions,
+    contextActions,
     logsActions,
     derivedEntryActions,
     setInterface,
@@ -24,6 +25,7 @@ const DefaultProject = ({
     projects: string[] | undefined,
     projectActions: ProjectsActions,
     interfaceActions: InterfaceActions,
+    contextActions: ContextActions,
     logsActions: LogsActions,
     derivedEntryActions: DerivedEntryActions,
     setInterface: (value: string | null) => void,
@@ -89,7 +91,7 @@ const DefaultProject = ({
                         exampleName, exampleProject, undefined, exampleItems, exampleNewCounter, true
                     ).then(() => {
                         logsActions.create(
-                            exampleProject, exampleLogs.params, exampleLogs.entries
+                            exampleProject, null, exampleLogs.params, exampleLogs.entries
                         ).then(() => {
                             setPendingLocal(false);
                             setProject(exampleProject);
@@ -143,28 +145,51 @@ const DefaultProject = ({
                                 interfaceActions.create(
                                     exampleName, exampleProject, undefined, exampleItems, exampleNewCounter, true
                                 ).then(() => {
-                                    logsActions.create(
-                                        exampleProject, exampleLogs.params, exampleLogs.entries
-                                    ).then(() => {
-                                        if (exampleDerivedColumns != undefined) {
-                                            derivedEntryActions.create(
-                                                exampleDerivedColumns.project,
-                                                exampleDerivedColumns.context,
-                                                exampleDerivedColumns.key,
-                                                exampleDerivedColumns.equation,
-                                                exampleDerivedColumns.referenced_logs
-                                            ).then(() => {
+                                    if (exampleProject == "context-demo") {
+                                        Promise.all(Object.keys(exampleLogs).map(context => logsActions.create(
+                                            exampleProject, context, exampleLogs[context].params, exampleLogs[context].entries
+                                        ))).then(() => {
+                                            setTimeout(() => {
                                                 setPendingLocal(false);
                                                 setProject(exampleProject);
                                                 setInterface(exampleName);
-                                            });
-                                        }
-                                        else {
-                                            setPendingLocal(false);
-                                            setProject(exampleProject);
-                                            setInterface(exampleName);
-                                        }
-                                    });
+                                                setExample(null);
+                                                setCreate(null);
+                                            }, 1000);
+                                        });
+                                    }
+                                    else {
+                                        logsActions.create(
+                                            exampleProject, null, exampleLogs.params, exampleLogs.entries
+                                        ).then(() => {
+                                            if (exampleDerivedColumns != undefined) {
+                                                derivedEntryActions.create(
+                                                    exampleDerivedColumns.project,
+                                                    exampleDerivedColumns.context,
+                                                    exampleDerivedColumns.key,
+                                                    exampleDerivedColumns.equation,
+                                                    exampleDerivedColumns.referenced_logs
+                                                ).then(() => {
+                                                    setTimeout(() => {
+                                                        setPendingLocal(false);
+                                                        setProject(exampleProject);
+                                                        setInterface(exampleName);
+                                                        setExample(null);
+                                                        setCreate(null);
+                                                    }, 1000);
+                                                });
+                                            }
+                                            else {
+                                                setTimeout(() => {
+                                                    setPendingLocal(false);
+                                                    setProject(exampleProject);
+                                                    setInterface(exampleName);
+                                                    setExample(null);
+                                                    setCreate(null);
+                                                }, 1000);
+                                            }
+                                        });
+                                    }
                                 });
                             });
                         }
@@ -174,7 +199,7 @@ const DefaultProject = ({
             </div>
             <MarkdownRender content={`\`\`\`python${exampleCode}\`\`\``} noBackground />
         </div>
-        {exampleGif != undefined && <div className="mb-auto">
+        {exampleGif != undefined && <div className="mb-2">
             <Image
                 key={exampleGif}
                 src={`https://raw.githubusercontent.com/unifyai/unifyai.github.io/main/img/externally_linked/docs/${exampleGif}.gif`}
