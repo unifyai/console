@@ -49,7 +49,6 @@ export function buildTableTileState(
   tileId: string,
   tileData: any = {},
   tableData: TableDataProps = {},
-  tableArguments: TableArguments = {},
   limit: number = 10,
   offsets: number[],
   tileIndex: number = 0
@@ -90,8 +89,6 @@ export function buildTableTileState(
       // Table-specific fields from TableDataItem
       tableDataItem: tableData[tileId] || {},
 
-      // Table arguments
-      tableArguments: tableArguments[tileIndex] || {},
     } as TableTileData,
   } as Tile;
 }

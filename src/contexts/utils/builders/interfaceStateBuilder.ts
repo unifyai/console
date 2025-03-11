@@ -31,9 +31,10 @@ export function buildInterfaceState(
     updatedAt: new Date().toISOString(),
     activeTabId: currentTabId,
     tabIds: [],
-    tabs: {} as Record<string, any>
+    tabs: {} as Record<string, any>,
+    tableArguments: tableArguments,
   } as Interface;
-  
+
   // Add current active tab if it exists in tabsData
   if (tabsData[currentTabId]) {
     iface.tabs[currentTabId] = buildTabState(
@@ -44,7 +45,6 @@ export function buildInterfaceState(
       1, // First order
       tableData,
       plotData,
-      tableArguments,
       limit,
       offsets,
     );
@@ -58,7 +58,6 @@ export function buildInterfaceState(
       1, // First order
       tableData,
       plotData,
-      tableArguments,
       limit,
       offsets,
     );
@@ -76,12 +75,14 @@ export function buildInterfaceState(
         order,
         tableData,
         plotData,
-        tableArguments,
         limit,
         offsets,
       );
     }
   });
+
+  // Add tabIds to the interface state
+  iface.tabIds = Object.keys(iface.tabs).sort();
 
   return iface;
 }

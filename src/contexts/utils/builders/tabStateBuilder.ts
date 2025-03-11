@@ -15,7 +15,6 @@ export function buildTabState(
   order: number = 1,
   tableData: TableDataProps = {},
   plotData: PlotDataProps = {},
-  tableArguments: TableArguments = {},
   limit: number,
   offsets: number[],
 ) {
@@ -54,7 +53,6 @@ export function buildTabState(
         tile.i,
         tile,
         tableData,
-        tableArguments,
         limit,
         offsets,
         index
