@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import { Plus } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
@@ -45,7 +45,9 @@ const TileCard = ({
   const tiles = tabData ? Object.values(tabData.tiles || {}) : [];
 
   // Get tile props using the getItems function from the tabActions
-  const tileProps = !tabActions || !tabData ? [] : tabActions.getItems();
+  const tileProps = useMemo(() => {
+    return (!tabActions || !tabData) ? [] : tabActions.getItems();
+  }, [tabActions, tabData]);
 
   const tableNames = useMemo(() => {
     return tileProps.map(item => item.i);
@@ -57,38 +59,6 @@ const TileCard = ({
   
   // Call useTile once at the top level of the component for the current item
   const { actions: tileActions } = useTile(item?.i, tabId, interfaceId, projectId);
-
-  // Trigger update when table data changes (server reloaded)
-  useEffect(() => {
-    if (!tabData || !tabActions) return;
-
-    // Use setTimeout to delay execution
-    setTimeout(() => {
-      // Reset loading states
-      tabActions.setDataPending(false);
-      tabActions.setRefreshing(false);
-
-      // Reset pending state for all tiles
-      tiles.forEach(tile => {
-        if (typeof tile === 'object' && tile !== null && 'id' in tile) {
-          tabActions.updateTile(tile.id, { pending: false });
-        }
-      });
-
-      // If tab is pending or resetting, get latest data
-      if ((tabData.pending || tabData.resetting) && projectId && tabId) {
-        getLatestTab();
-      }
-
-      // Reset resetting state
-      tabActions.setResetting(false);
-    }, 1500);
-  }, [tabData?.tiles]); // Watch for changes in tiles instead of tableData
-
-  // Only call updateTab when tileProps have truly changed.
-  useEffect(() => {
-    updateTab();
-  }, [tileProps, tabData?.context]);
 
   // Define tableData as a computed property based on the tiles
   const logsLengths = useMemo(() => {

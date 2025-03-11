@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useRef, Suspense, useMemo, useEffect } from 'react';
+import React, { useState, useRef, Suspense, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from "next/navigation";
-import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { Loader2 } from "lucide-react";
 import { Tabs, TabsContent } from "../UI/tabs";
 import { Dialog, DialogContent } from "../UI/dialog";
@@ -18,7 +17,7 @@ import EditTileName from "./EditTileName";
 import { useInterface } from '@/contexts/hooks/useInterface';
 import { useProject } from '@/contexts/hooks/useProject';
 import { useTab } from '@/contexts/hooks/useTab';
-import { TabProps, TileProps } from "@/types/evals/grid";
+import { TabProps } from "@/types/evals/grid";
 import { useQueryState } from "nuqs";
 import { ProjectsActions, TabActions, LogsActions, FieldsActions, DerivedEntryActions } from '@/types/evals/grid';
 import { ResponseProps } from '@/types/common';
@@ -64,29 +63,52 @@ const Interface = ({
   const contexts = (projectData?.contexts || []);
 
   // Get tile props using the getItems function from the tabActions
-  const tileProps = !tabActions || !tabData ? [] : tabActions.getItems();
+  const tileProps = useMemo(() => {
+    return (!tabActions || !tabData) ? [] : tabActions.getItems();
+  }, [tabActions, tabData]);
 
   // Get tab Ids for the current interface
-  const tabIds = interfaceActions?.getTabIds() || [];
+  const tabIds = useMemo(() => interfaceActions?.getTabIds() || [], [interfaceActions]);
 
   // update interface – preserves context functionality
-  const updateTab = (
-    savedTab: TabProps | null = null,
-  ) => {
-      const context_1 = savedTab != null ? savedTab?.context : tabData?.context;
-      const items_1 = savedTab?.items! || tileProps;
-      const newCounter_1 = savedTab?.new_counter || newCounter;
-      if (tabQueryParam && projectQueryParam && tabQueryParam == tabData?.id && projectQueryParam == projectData?.name && !tabData?.pending) {
-          if (tabData?.tempTabCreated)
-              return serverTabActions.update(interfaceId, projectQueryParam as string, context_1, items_1, newCounter_1, undefined, true);
-          else
-              return serverTabActions.create(interfaceId, projectQueryParam as string, context_1, items_1, newCounter_1, true)
-      }
-      return Promise.reject();
+  const updateTab = async (savedTab: TabProps | null = null) => {
+    const context_1 = savedTab != null ? savedTab.context : tabData?.context;
+    const items_1 = savedTab?.items ?? tileProps;
+    const newCounter_1 = savedTab?.new_counter ?? newCounter;
+
+    if (
+        tabQueryParam &&
+        projectQueryParam &&
+        tabQueryParam === tabData?.id &&
+        projectQueryParam === projectData?.name &&
+        !tabData?.pending
+    ) {
+        if (tabData?.tempTabCreated) {
+            return await serverTabActions.update(
+                tabQueryParam,
+                projectQueryParam as string,
+                context_1,
+                items_1,
+                newCounter_1,
+                undefined,
+                true
+            );
+        } else {
+            return await serverTabActions.create(
+                tabQueryParam,
+                projectQueryParam as string,
+                context_1,
+                items_1,
+                newCounter_1,
+                true
+            );
+        }
+    }
+    return Promise.reject(Error("updateTab conditions not met"));
   };
 
   // Function to get the latest tab from the server and sync state
-  const getLatestTab = () => {
+  const getLatestTab = useCallback(() => {
     if (!projectQueryParam || !tabQueryParam) return;
 
     serverTabActions?.get(projectQueryParam, true).then((tabProps: TabProps[]) => {
@@ -96,15 +118,13 @@ const Interface = ({
         // Update items (tiles) with correct context
         const updatedItems = currentTab.items.map(item => ({
           ...item,
-          context: contexts.find(ctx => ctx.name == currentTab.context)?.name ?? item.context
+          context: contexts.find(
+            ctx => ctx.name == currentTab.context
+          )?.name ?? item.context
         }));
 
-        // For each tile in the current tab, update its context in the store
-        updatedItems.forEach(item => {
-          tabActions.updateTile(item.i, {
-            context: item.context
-          });
-        });
+        // For each item in the current tab, update the tile in the store
+        tabActions.setItems(updatedItems);
 
         // Update tab metadata
         if (currentTab.new_counter) {
@@ -117,10 +137,10 @@ const Interface = ({
         setNewCounter(currentTab.new_counter || 0);
         tabActions.setTempTabCreated(Boolean(currentTab));
         tabActions.setPending(false);
-        interfaceActions?.setTabs(tabProps.map(tab => tab.name).sort());
+        interfaceActions?.setTabIds(tabProps.map(tab => tab.name).sort());
       }
     });
-  };
+  }, [projectQueryParam, tabQueryParam, tabActions, interfaceActions, contexts]);
 
   // Set active tab handler
   const handleTabChange = (value: string | undefined) => {
@@ -140,8 +160,8 @@ const Interface = ({
       top: gridRef.current?.scrollHeight,
       behavior: "smooth",
     });
-  }, [tabData?.tiles?.length]);
-  
+  }, [newCounter]);
+
   return (
     <div className="w-full h-full overflow-auto relative" ref={gridRef}>
       <Tabs
@@ -178,7 +198,7 @@ const Interface = ({
             tabQueryParam={tabQueryParam}
             newCounter={newCounter}
             setNewCounter={setNewCounter}
-            updateInterface={updateTab}
+            updateTab={updateTab}
             focusDialog={focusDialog}
             setFocusDialog={setFocusDialog}
             saveDialog={saveDialog}

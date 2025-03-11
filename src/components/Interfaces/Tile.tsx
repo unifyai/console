@@ -14,6 +14,9 @@ import { useTableTile } from '@/contexts/hooks/useTableTile';
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { ExpandProvider } from "@/contexts/ExpandContext";
 import { useTab } from "@/contexts/hooks/useTab";
+import { useEffect, useMemo, useState } from "react";
+import { useInterface } from "@/contexts/hooks/useInterface";
+import { useRouter } from "next/navigation";
 
 // Define component props 
 interface TileComponentProps {
@@ -37,8 +40,13 @@ const Tile = ({
     fieldsActions,
     derivedEntryActions
 }: TileComponentProps) => {
+
+    const router = useRouter();
+    const [initial, setInitial] = useState(true);
+    
     // Get tile data and actions from hooks
-    const { tab: tabData } = useTab(tabId, interfaceId);
+    const { interface: interfaceData } = useInterface(interfaceId);
+    const { tab: tabData, actions: tabActions } = useTab(tabId, interfaceId);
     const { tile: tileData, actions: tileActions } = useTile(tileId, tabId, interfaceId);
     const { tableTile: tableData } = useTableTile(tileId, tabId, interfaceId);
     
@@ -54,13 +62,51 @@ const Tile = ({
     }
 
     // Get the item props for grid layout (position, etc)
-    const tileItem: TileProps = tileActions?.asTileItem() || {
+    const tileItem: TileProps = useMemo(() => tileActions?.asTileItem() || {
         i: tileId,
         x: tileData.position?.x || 0,
         y: tileData.position?.y || 0,
         w: tileData.position?.width || 4,
         h: tileData.position?.height || 4,
-    };
+    }, [tileActions, tileData]);
+
+    // Use a ref to compare the needed properties so we only update if something truly changed.
+    useEffect(() => {
+        if (tileItem.tab != "View" && !initial) {
+            updateTab().then(() => {
+                router.refresh();
+            }).catch(error => {
+                console.error('Error updating interface:', error);
+            });
+        }
+    }, [
+        tileItem.tab,
+        tileItem.table_type,
+        tileItem.filters,
+        tileItem.context,
+        tileItem.column_context,
+        tileItem.common_filter,
+        tileItem.sorting,
+        tileItem.grouping,
+        tileItem.group_sorting,
+        tileItem.page_number,
+        tileItem.metric,
+        tileItem.plot_type,
+        tileItem.x_axis,
+        tileItem.y_axis,
+        tileItem.plot_group_by,
+        tileItem.auto_update,
+        tileItem.freeze
+    ]);
+
+    useEffect(() => {
+        if (tileItem.tab != "View" && !initial)
+            tabActions?.setPending(true);
+    }, [tileItem.tab, tileItem.table_type, tileItem.context, tileItem.column_context]);
+
+    useEffect(() => {
+        setInitial(false);
+    }, []);
 
     // Render based on tile type
     const renderContent = () => {
@@ -74,14 +120,14 @@ const Tile = ({
                         projectId={projectId}
                         contexts={projectData?.contexts || []}
                         context_={tabData?.context || ""}
-                        tableArguments={tableData?.tableArguments as unknown as TableArguments}
+                        tableArguments={interfaceData?.tableArguments as unknown as TableArguments}
                         logsActions={logsActions}
                         fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}
-                        filterExpression={tableData?.tableArguments?.getLogs_parameters?.filter_expr || null}
-                        sortingExpression={tableData?.tableArguments?.getLogs_parameters?.sorting || null}
-                        groupingExpression={tableData?.tableArguments?.getLogs_parameters?.grouping || null}
-                        groupSortingExpression={tableData?.tableArguments?.getLogs_parameters?.group_sorting || null}
+                        filterExpression={interfaceData?.tableArguments[tileId]?.getLogs_parameters?.filter_expr || null}
+                        sortingExpression={interfaceData?.tableArguments[tileId]?.getLogs_parameters?.sorting || null}
+                        groupingExpression={interfaceData?.tableArguments[tileId]?.getLogs_parameters?.grouping || null}
+                        groupSortingExpression={interfaceData?.tableArguments[tileId]?.getLogs_parameters?.group_sorting || null}
                         limit={tableData?.limit || 20}
                         offset={tableData?.offset || 0}
                         updateInterface={updateTab}

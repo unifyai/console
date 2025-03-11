@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { ResponseProps } from "@/types/common";
@@ -52,8 +52,13 @@ const Tab = ({
   );
   const contexts = projectData?.contexts || [];
 
+  // Derive tiles from tab data
+  const tiles = tabData ? Object.values(tabData.tiles || {}) : [];
+
   // Get tile props using the getItems function from the tabActions
-  const tileProps = !tabActions || !tabData ? [] : tabActions.getItems();
+  const tileProps = useMemo(() => {
+    return (!tabActions || !tabData) ? [] : tabActions.getItems();
+  }, [tabActions, tabData]);
   
   // Set up effect to fetch the latest tab when project or tab changes
   useEffect(() => {
@@ -74,29 +79,69 @@ const Tab = ({
     }
   }, [projectId, tabId, getLatestTab]);
 
+  // Only call updateInterface when items have truly changed.
+  useEffect(() => {
+    (async () => {
+      try {
+        await updateTab();
+      } catch (err) {
+        console.error("updateTab failed:", err);
+      }
+    })();
+  }, [tileProps, tabData?.context]);
+
+  const tileTableDataItems = useMemo(() => 
+    tiles.map(tile => tile.tableData?.tableDataItem),
+    [tiles]
+  );
+
+  // Trigger update when table data changes (server reloaded)
+  useEffect(() => {
+    if (!tabData || !tabActions) return;
+
+    // Use setTimeout to delay execution
+    setTimeout(() => {
+      // Reset loading states
+      if (tabData.dataPending === true) {
+        tabActions.setDataPending(false);
+      }
+      if (tabData.refreshing === true) {
+        tabActions.setRefreshing(false);
+      }
+
+      // Reset pending state for all tiles
+      tiles.forEach(tile => {
+        if (typeof tile === 'object' && tile !== null && 'id' in tile) {
+          tabActions.updateTile(tile.id, { pending: false });
+        }
+      });
+
+      // If tab is pending or resetting, get latest data
+      if ((tabData.pending || tabData.resetting) && projectId && tabId) {
+        getLatestTab();
+      }
+
+      // Reset resetting state
+      tabActions.setResetting(false);
+    }, 1500);
+  }, [tileTableDataItems]);
+
   // End success green after 3 seconds
   useEffect(() => { 
-    if (tabData?.saveSuccess !== undefined) {
-      const timer = setTimeout(() => tabActions?.setSaveSuccess(undefined), 3000);
-      return () => clearTimeout(timer);
-    }
+    const timer = setTimeout(() => tabActions?.setSaveSuccess(undefined), 3000);
+    return () => clearTimeout(timer);
   }, [tabData?.saveSuccess, tabActions]);
-  
+
   // Handle layout changes
-  const onLayoutChange = (layout: any) => {
+  const onLayoutChange = (newLayout: any) => {
     if (!tabData?.pending && tabActions) {
-      // Update tile positions based on new layout
-      layout.forEach((item: any) => {
-        const tileId = item.i;
-        tabActions.updateTile(tileId, {
-          position: {
-            x: item.x,
-            y: item.y,
-            width: item.w,
-            height: item.h
-          }
-        });
+      const updatedItems = newLayout.map((item: any) => {
+        const originalItem = tileProps.find(i => i.i === item.i);
+        return { ...originalItem, ...item };
       });
+      tabActions.setItems([...updatedItems]);
+    } else {
+      tabActions?.setPending(false);
     }
   };
 
