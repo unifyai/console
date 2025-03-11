@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Loader2, Play } from "lucide-react";
+import { ExternalLink, Loader2, Play } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import MarkdownRender from "../Common/Code/MarkdownRender";
 import { InterfaceActions, LogsActions, ProjectsActions, TileProps } from "@/types/evals/grid";
@@ -10,6 +10,7 @@ import { examples } from "@/constants/logs";
 import { useQueryState } from "nuqs";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
+import Link from "next/link";
 
 const DefaultProject = ({
     projects,
@@ -40,6 +41,7 @@ const DefaultProject = ({
                 logs: any,
                 code: string,
                 gif: string,
+                link: string,
             }
         }
     } = {};
@@ -57,7 +59,8 @@ const DefaultProject = ({
         new_counter: exampleNewCounter,
         logs: exampleLogs,
         code: exampleCode,
-        gif: exampleGif
+        gif: exampleGif,
+        link: exampleLink
     } = examples[
         Object.keys(examples).includes(example || "")
             ? example || ""
@@ -120,48 +123,49 @@ const DefaultProject = ({
                 </div>
             })}
         </BaseDropdown>
-        <div className="flex gap-4">
-            <div className="relative w-[500px] h-[700px] overflow-y-auto rounded-md border border-1 p-2">
-                <div className="absolute z-10 top-3 right-12">
-                    <ActionButton
-                        icon={pendingLocal ? <Loader2 className="animate-spin" /> : <Play />}
-                        tooltip={"Run Example"}
-                        onClick={() => {
-                            if (projects?.includes(exampleProject)) {
-                                setProject(exampleProject);
-                            } else {
-                                setPendingLocal(true);
-                                projectActions.create(exampleProject).then(() => {
-                                    interfaceActions.create(
-                                        exampleName, exampleProject, undefined, exampleItems, exampleNewCounter, true
+        <div className="relative max-w-[700px] max-h-[700px] overflow-y-auto rounded-md border border-1 p-2">
+            <div className="absolute z-10 top-3 right-12 flex gap-1">
+                <Link href={`https://docs.unify.ai/${exampleLink}`} target="_blank">
+                    <ActionButton icon={<ExternalLink />} tooltip={"Learn more"} />
+                </Link>
+                <ActionButton
+                    icon={pendingLocal ? <Loader2 className="animate-spin" /> : <Play />}
+                    tooltip={"Run Example"}
+                    onClick={() => {
+                        if (projects?.includes(exampleProject)) {
+                            setProject(exampleProject);
+                        } else {
+                            setPendingLocal(true);
+                            projectActions.create(exampleProject).then(() => {
+                                interfaceActions.create(
+                                    exampleName, exampleProject, undefined, exampleItems, exampleNewCounter, true
+                                ).then(() => {
+                                    logsActions.create(
+                                        exampleProject, exampleLogs.params, exampleLogs.entries
                                     ).then(() => {
-                                        logsActions.create(
-                                            exampleProject, exampleLogs.params, exampleLogs.entries
-                                        ).then(() => {
-                                            setPendingLocal(false);
-                                            setProject(exampleProject);
-                                            setInterface(exampleName);
-                                        });
+                                        setPendingLocal(false);
+                                        setProject(exampleProject);
+                                        setInterface(exampleName);
                                     });
                                 });
-                            }
-                        }}
-                        disabled={disabled}
-                    />
-                </div>
-                <MarkdownRender content={`\`\`\`python${exampleCode}\`\`\``} noBackground />
-            </div>
-            {exampleGif != undefined && <div className="mb-auto">
-                <Image
-                    key={exampleGif}
-                    src={`https://raw.githubusercontent.com/unifyai/unifyai.github.io/main/img/externally_linked/docs/${exampleGif}.gif`}
-                    alt="GIF"
-                    width={600}
-                    height={600}
-                    unoptimized
+                            });
+                        }
+                    }}
+                    disabled={disabled}
                 />
-            </div>}
+            </div>
+            <MarkdownRender content={`\`\`\`python${exampleCode}\`\`\``} noBackground />
         </div>
+        {exampleGif != undefined && <div className="mb-auto">
+            <Image
+                key={exampleGif}
+                src={`https://raw.githubusercontent.com/unifyai/unifyai.github.io/main/img/externally_linked/docs/${exampleGif}.gif`}
+                alt="GIF"
+                width={600}
+                height={600}
+                unoptimized
+            />
+        </div>}
     </div>
 }
 
