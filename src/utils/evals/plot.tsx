@@ -361,7 +361,8 @@ export const drawBarChart = (
     xTable: string,
     yTable: string,
     logs: LogProps[],
-    fields: LogFieldsResponseProps
+    fields: LogFieldsResponseProps,
+    zoomRef: any
 ) => {
 
     // Clear previous elements
@@ -500,6 +501,70 @@ export const drawBarChart = (
         .on("mouseover", (event, d) => handleMouseOver(event, d as DataLabel))
         .on("mousemove", (event) => positionTooltip(event, event.target, tooltip))
         .on("mouseout", handleMouseOut);
+
+    // Handle panning and zooming
+    const initialX = xScale.copy();
+    const zoomContainer = svg.select(".zoom-layer").attr("x", 0).attr("y", 0).attr("width", dimensions.width).attr("height", dimensions.height).style("fill", "none").style("pointer-events", "all").lower();
+    zoomContainer.on("wheel", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+    });
+    zoomContainer.on('dblclick', () => {
+        zoomRef.current = d3.zoomIdentity;
+        zoomContainer.transition("zoom").duration(500).call(zoom.transform as any, d3.zoomIdentity);
+    });
+    const zoom = d3
+        .zoom()
+        .on('start', () => {
+            d3.select('body').style('overflow', 'hidden')
+            // Temporarily disable interaction during zoom   
+            g.selectAll("rect.bar-item").style("pointer-events", "none");
+        })
+        .on('end', () => {
+            d3.select('body').style('overflow', 'auto')
+            // Re-enable hover effects after zoom
+            g.selectAll("rect.bar-item").style("pointer-events", "all");
+        })
+        .on('zoom', (event) => {
+
+            event.sourceEvent?.preventDefault();
+            event.sourceEvent?.stopPropagation();
+        
+            zoomRef.current = event.transform
+
+            // Get transform parameters
+            const transform = event.transform;
+            const k = transform.k;
+            const tx = transform.x;
+        
+            // Calculate visible range boundaries
+            const visibleStart = (-tx) / k;
+            const visibleEnd = (dimensions.width - tx) / k;
+        
+            // Create a new band scale with transformed range
+            const newX = initialX.copy()
+                .range([visibleStart, visibleEnd])
+                .padding(0.2 * (1/k)); // Adjust padding based on zoom level
+        
+            // Recalculate ticks based on new domain
+            const [xTicks, yTicks] = [
+                generateTicks(0, 0, 10, scaleX === "log"),
+                generateTicks(minY, maxY, 10, scaleY === "log")
+            ]
+
+            // Redraw axes with new scales
+            drawAxes("Bar Chart", svg, dimensions, margins, newX, yScale, xTicks, yTicks);
+
+            // Update bars
+            g.selectAll(".bar-item")
+                .transition("zoom")
+                .attr("x", d => newX((d as DataLabel)[0])!)
+                .attr("width", newX.bandwidth());        
+            
+    });
+    // Attach zoom transform to container and reapply previous zoom if exists
+    zoomContainer.call(zoom as any);
+    zoomContainer.call(zoom.transform as any, zoomRef.current);
 };
 
 export const drawLineChart = (
@@ -516,7 +581,8 @@ export const drawLineChart = (
   xTable: string,
   yTable: string,
   logs: LogProps[],
-  fields: LogFieldsResponseProps
+  fields: LogFieldsResponseProps,
+  zoomRef: any
 ) => {
 
     // Remove drawings from previous plots
@@ -687,6 +753,69 @@ export const drawLineChart = (
         g.selectAll("path.line-item").transition("opacity").duration(200).style("opacity", 1)
         key.selectAll(".key").transition("opacity").duration(200).style("opacity", 1)
     }
+
+    // Handle panning and zooming
+    const initialX = x.copy();
+    const zoomContainer = svg.select(".zoom-layer").attr("x", 0).attr("y", 0).attr("width", dimensions.width).attr("height", dimensions.height).style("fill", "none").style("pointer-events", "all").lower();
+    zoomContainer.on("wheel", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+    });
+    zoomContainer.on('dblclick', () => {
+        zoomRef.current = d3.zoomIdentity;        
+        zoomContainer.transition("zoom").duration(500).call(zoom.transform as any, d3.zoomIdentity);
+    });
+    const zoom = d3
+        .zoom()
+        .on('start', () => {
+            d3.select('body').style('overflow', 'hidden')
+            // Temporarily disable interaction during zoom   
+            g.selectAll("path.line-item").style("pointer-events", "none");
+        })
+        .on('end', () => {
+            d3.select('body').style('overflow', 'auto')
+            // Re-enable hover effects after zoom
+            g.selectAll("path.line-item").style("pointer-events", "all");
+        })
+        .on('zoom', (event) => {
+            
+            event.sourceEvent?.preventDefault();
+            event.sourceEvent?.stopPropagation();
+
+            zoomRef.current = event.transform
+
+            const newX = event.transform.rescaleX(initialX);
+
+            // Update line generator with new scales
+            lineGenerator.x(d => reverseX ? newX(Math.abs(d[0])) : newX(d[0]))
+
+            // Recalculate ticks based on new domain
+            const [minX, maxX] = newX.domain();
+            const [xTicks, yTicks] = [
+                generateTicks(minX, maxX, 10, scaleX === "log"),
+                generateTicks(minY, maxY, 10, scaleY === "log")
+            ]
+
+            // Redraw axes with new scales
+            drawAxes("Line Chart", svg, dimensions, margins, newX, y, xTicks, yTicks, reverseX, reverseY, xType);
+
+            // Update line paths
+            if (groupBy) {
+            g
+                .selectAll("path.line-item")
+                .transition("zoom")
+                .attr("d", (d) => lineGenerator((d as GroupedDataPoint)[1]));
+            } else {
+            g
+                .selectAll("path.line-item")
+                .transition("zoom")
+                .attr("d", lineGenerator(data as DataPoint[]));
+            }
+        }
+    );
+    // Attach zoom transform to container and reapply previous zoom if exists
+    zoomContainer.call(zoom as any);
+    zoomContainer.call(zoom.transform as any, zoomRef.current);
 };
 
 export const drawScatterPlot = (
@@ -704,7 +833,8 @@ export const drawScatterPlot = (
   xTable: string,
   yTable: string,
   logs: LogProps[],
-  fields: LogFieldsResponseProps
+  fields: LogFieldsResponseProps,
+  zoomRef: any
 ) => {
   
     // Remove drawings from previous plots
@@ -1014,8 +1144,9 @@ export const drawScatterPlot = (
                     const angleRad = Math.atan2(dy, dx);
                     const angleDeg = angleRad * 180 / Math.PI;
                     const textOffset = -60;
-                    const textX = xEndPx + (dx / Math.hypot(dx, dy)) * textOffset;
-                    const textY = yEndPx + (dy / Math.hypot(dx, dy)) * textOffset - 20;
+                    const hypothenuse = Math.hypot(dx, dy) != 0 ? Math.hypot(dx, dy) : 1
+                    const textX = xEndPx + (dx / hypothenuse) * textOffset;
+                    const textY = yEndPx + (dy / hypothenuse) * textOffset - 20;
     
                     d3.select(this)
                         .attr("x", textX)
@@ -1062,11 +1193,12 @@ export const drawScatterPlot = (
 
             // Position at line tip
             const textOffset = -60;
-            const textX = xEndPx + (dx / Math.hypot(dx, dy)) * textOffset;
-            const textY = yEndPx + (dy / Math.hypot(dx, dy)) * textOffset - 20;
+            const hypothenuse = Math.hypot(dx, dy) != 0 ? Math.hypot(dx, dy) : 1
+            const textX = xEndPx + (dx / hypothenuse) * textOffset;
+            const textY = yEndPx + (dy / hypothenuse) * textOffset - 20;
             g
                 .selectAll("text.correlation")
-                .data([0])
+                .data([regression])
                 .join("text")
                 .attr("x", textX)
                 .attr("y", textY)
@@ -1078,6 +1210,139 @@ export const drawScatterPlot = (
                 .attr("class", "correlation");
         }
     }
+
+    // Handle panning and zooming
+    const initialX = x.copy();
+    const initialY = y.copy();
+    const zoomContainer = svg.select(".zoom-layer").attr("x", 0).attr("y", 0).attr("width", dimensions.width).attr("height", dimensions.height).style("fill", "none").style("pointer-events", "all").lower();
+    zoomContainer.on("wheel", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+    });
+    zoomContainer.on('dblclick', () => {
+        zoomRef.current = d3.zoomIdentity;        
+        zoomContainer.transition("zoom").duration(500).call(zoom.transform as any, d3.zoomIdentity);
+    });
+    const zoom = d3
+        .zoom()
+        .on('start', () => {
+            d3.select('body').style('overflow', 'hidden')
+            // Temporarily disable interaction during zoom   
+            g.selectAll("circle.data-point").style("pointer-events", "none");
+            g.selectAll("circle.hover-area").style("pointer-events", "none");
+            g.selectAll("text.correlation").style("pointer-events", "none");
+            g.selectAll("text.correlation-group").style("pointer-events", "none");
+            g.selectAll("path.best-fit").style("pointer-events", "none");
+        })
+        .on('end', () => {
+            d3.select('body').style('overflow', 'auto')
+            // Re-enable hover effects after zoom
+            g.selectAll("circle.data-point").style("pointer-events", "all");
+            g.selectAll("circle.hover-area").style("pointer-events", "all");
+            g.selectAll("text.correlation").style("pointer-events", "all");
+            g.selectAll("text.correlation-group").style("pointer-events", "all");
+            g.selectAll("path.best-fit").style("pointer-events", "all");
+        })
+        .on('zoom', (event) => {
+
+            event.sourceEvent?.preventDefault();
+            event.sourceEvent?.stopPropagation();
+
+            zoomRef.current = event.transform
+
+            const newX = event.transform.rescaleX(initialX);
+            const newY = event.transform.rescaleY(initialY);
+
+            // Update axes
+            const [newXTicks, newYTicks] = [
+                generateTicks(newX.domain()[0], newX.domain()[1], 10, scaleX === "log"),
+                generateTicks(newY.domain()[0], newY.domain()[1], 10, scaleY === "log")
+            ]
+
+            drawAxes("Scatter Plot", svg, dimensions, margins, newX, newY, newXTicks, newYTicks, reverseX, reverseY, xType, yType);
+
+            // Update points
+            g
+                .selectAll("circle.data-point")
+                .transition("zoom")
+                .attr("cx", d => {
+                    const value = getValue(fields, xAxisProperty as string, d as LogProps, xTable) as number;
+                    return reverseX ? newX(Math.abs(value)) : newX(value);
+                })
+                .attr("cy", d => {
+                    const value = getValue(fields, yAxisProperty as string, d as LogProps, yTable) as number;
+                    return reverseY ? newY(Math.abs(value)) : newY(value);
+                });
+
+            // Update hover areas
+            g   
+                .selectAll("circle.hover-area")
+                .transition("zoom")
+                .attr("cx", d => {
+                    const value = getValue(fields, xAxisProperty as string, d as LogProps, xTable) as number;
+                    return reverseX ? newX(Math.abs(value)) : newX(value);
+                })
+                .attr("cy", d => {
+                    const value = getValue(fields, yAxisProperty as string, d as LogProps, yTable) as number;
+                    return reverseY ? newY(Math.abs(value)) : newY(value);
+                });
+
+            // Update regression lines
+            if (showRegression === "true") {
+
+                const line = d3.line<[number, number]>()
+                    .x(d => newX(d[0]))
+                    .y(d => newY(d[1]));
+            
+                // Find new minimum x and maximum x to use as the line ends and correlation text position
+                const xMin = d3.min(data, d => getValue(fields, xAxisProperty as string, d, xTable));
+                const xMax = d3.max(data, d => getValue(fields, xAxisProperty as string, d, xTable));                
+                const [xStart, xEnd] = newX.domain();
+                const constrainedXStart = Math.max(xStart, xMin);
+                const constrainedXEnd = Math.min(xEnd, xMax);
+
+                // Update regression lines
+                g.selectAll("path.best-fit")
+                    .transition("zoom")
+                    .attr("d", (d: any) => {
+                        return line([
+                            [constrainedXStart, d.m * constrainedXStart + d.b],
+                            [constrainedXEnd, d.m * constrainedXEnd + d.b]
+                        ]);
+                    });
+            
+                // Update correlation text
+                g
+                    .selectAll("text.correlation, text.correlation-group")
+                    .transition("zoom")
+                    .each(function(d: any) {
+
+                        const lineStart = [xMin, d.m * xMin + d.b];
+                        const lineEnd = [xMax, d.m * xMax + d.b];
+
+                        const [xStartPx, yStartPx] = [newX(lineStart[0]), newY(lineStart[1])];
+                        const [xEndPx, yEndPx] = [newX(lineEnd[0]), newY(lineEnd[1])];
+                        const dx = xEndPx - xStartPx;
+                        const dy = yEndPx - yStartPx;
+
+                        const angleRad = Math.atan2(dy, dx);
+                        const angleDeg = angleRad * 180 / Math.PI;
+                        const textOffset = -60;
+                        const hypothenuse = Math.hypot(dx, dy) != 0 ? Math.hypot(dx, dy) : 1
+                        const textX = xEndPx + (dx / hypothenuse) * textOffset;
+                        const textY = yEndPx + (dy / hypothenuse) * textOffset - 20;
+
+                        d3.select(this)
+                            .attr("x", textX)
+                            .attr("y", textY)
+                            .attr("transform", `rotate(${angleDeg},${textX},${textY})`)
+                            .attr("text-anchor", dx < 0 ? "end" : "start");
+                    });
+            }
+        });
+    // Attach zoom transform to container and reapply previous zoom if exists
+    zoomContainer.call(zoom as any);
+    zoomContainer.call(zoom.transform as any, zoomRef.current);
 };
 
 export const drawHistogram = (

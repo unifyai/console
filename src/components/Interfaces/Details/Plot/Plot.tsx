@@ -71,6 +71,12 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
     // Sort bars for bar chart
     const [sortBars, setSortBars] = useState("asc")
 
+    // Track zoom level and reset when changing plot type or axes
+    let zoomRef = useRef(d3.zoomIdentity);
+    useEffect(() => {
+        zoomRef.current = d3.zoomIdentity
+    }, [selectedXAxisProperty, selectedYAxisProperty, plotType])
+
     // Draw plot
     useEffect(() => {
         // Initialize SVG, container and placholder text
@@ -114,7 +120,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     xTable,
                     yTable,
                     logs,
-                    fields
+                    fields,
+                    zoomRef
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
@@ -146,7 +153,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     xTable,
                     yTable,
                     logs,
-                    fields
+                    fields,
+                    zoomRef
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
@@ -212,7 +220,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     xTable,
                     yTable,
                     logs,
-                    fields
+                    fields,
+                    zoomRef
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
@@ -352,6 +361,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                         <rect id={"clip-rect"}/>
                     </clipPath>
                 </defs>
+                <rect className="zoom-layer"/>
                 <g className="plotData" clipPath={`url(#${clipId})`}/>
                 <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="placeholderText"/>
                 <line className="bottomLine" stroke="var(--foreground)" stroke-width="0.5"/>
