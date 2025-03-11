@@ -8,6 +8,7 @@ import { Context } from "@/types/evals/grid";
 import { Braces, Check, Folder, FolderTree, Grid2x2, X } from "lucide-react";
 import { useTile } from "@/contexts/hooks/useTile";
 import { useTableTile } from "@/contexts/hooks/useTableTile";
+import { useMemo } from "react";
 
 const ContextSelector = ({
     tileId,
@@ -32,7 +33,7 @@ const ContextSelector = ({
     const { actions: tileActions } = useTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
     const { tableTile: tableData, actions: tableTileActions } = useTableTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
     
-    const item = tileActions?.asTileItem();
+    const item = useMemo(() => tileActions?.asTileItem(), [tileActions]);
     
     const finalSetContext = (tileActions && tableTileActions && item) ? (ctx: string) => {
         if (ctx !== item.context) {

@@ -11,7 +11,7 @@ import { IStoreState } from "@/contexts/store";
 import { StoreProvider } from "@/contexts/providers/StoreProvider";
 import StoreUpdater from "@/contexts/providers/StoreUpdater";
 import Interface from "./Interface";
-import { buildInitialState } from "@/contexts/utils/initialStateBuilder";
+import { buildInitialState } from "@/contexts/utils/stateBuilderUtils";
 
 const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, tabActions }: {
     tab: string | undefined,

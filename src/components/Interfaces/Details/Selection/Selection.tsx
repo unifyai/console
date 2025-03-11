@@ -283,7 +283,8 @@ export default function Selection({
    * Prepare sorted logs & selection data
    ******************************************************************************/
   const { tile: tileDataWithId, actions: tileActionsWithId } = useTile(tileId, tabId, interfaceId, projectId);
-  const item = tileActionsWithId?.asTileItem();
+
+  const item = useMemo(() => tileActionsWithId?.asTileItem(), [tileActionsWithId]);
 
   // Get the table tile this selection references
   const { tile: tileDataWithTable, actions: tileActionsWithTable } = useTile(
@@ -294,20 +295,20 @@ export default function Selection({
   );
 
   // Create equivalent references to match the old pattern
-  const tableItem = tileActionsWithTable?.asTileItem() || 
-    { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps;
-  const relevantItem = tileActionsWithTable?.asTileItem() || undefined;
-  const tableDataItem = tileDataWithTable?.tableData?.tableDataItem || {} as TableDataItem;
+  const tableItem = useMemo(() => tileActionsWithTable?.asTileItem() || 
+    { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileActionsWithTable, item?.table]);
+  const relevantItem = useMemo(() => tileActionsWithTable?.asTileItem() || undefined, [tileActionsWithTable]);
+  const tableDataItem = useMemo(() => tileDataWithTable?.tableData?.tableDataItem || {} as TableDataItem, [tileDataWithTable]);
 
   // Create a generic updateItem function that checks property existence
-  const updateItem = (item: TileProps, propName: string) => (value: any) => {
+  const updateItem = useCallback((item: TileProps, propName: string) => (value: any) => {
     if (tileActionsWithId && item.i == tileDataWithId?.id) {
       tileActionsWithId.updateTile({ [propName]: value });
     }
     else if (tileActionsWithTable && item.table == tileDataWithTable?.id) {
       tileActionsWithTable.updateTile({ [propName]: value });
     }
-  };
+  }, [tileActionsWithId, tileActionsWithTable, tileDataWithId, tileDataWithTable]);
 
   const params = useMemo(() => tableDataItem?.params || {}, [tableDataItem, item?.table]);
   const logs = useMemo(() => maybeFlattenGroupedLogs(tableDataItem?.logs || []), [tableDataItem, item?.table]);

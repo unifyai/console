@@ -6,7 +6,6 @@ import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { Badge } from "../UI/badge";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
-import { TableArguments } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
 import { DerivedEntryActions, TabProps, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps, Context } from "@/types/evals/grid";
 import { Plus, X } from "lucide-react";
@@ -38,7 +37,9 @@ const FocusDialog = ({
     const { tab: tabData, actions: tabActions } = useTab(tabId, interfaceId);
 
     // Get tile props using the getItems function from the tabActions
-    const tileProps = !tabActions || !tabData ? [] : tabActions.getItems();
+    const tileProps = useMemo(() => {
+        return (!tabActions || !tabData) ? [] : tabActions.getItems();
+    }, [tabActions, tabData]);
 
     const focusedTileIds = tabData?.focusedTileIds;
 

@@ -30,10 +30,9 @@ const InterfaceTabs = ({
     const project = useStoreContext((s) => s.activeProjectId);
 
     // Interface states and actions
-    const { interface: interfaceData, actions: interfaceActions } = useInterface(interfaceId);
+    const { actions: interfaceActions } = useInterface(interfaceId);
 
-    const tabIds = Object.keys(interfaceData?.tabs || {});
-    const setTabs = interfaceActions?.setTabs!;
+    const tabIds = interfaceActions?.getTabIds() || [];
 
     // Tab states and actions
     const { tab: tabData, actions: tabActions } = useTab(tabQueryParam || "");
@@ -41,7 +40,9 @@ const InterfaceTabs = ({
     const tiles = tabData?.tiles!;
 
     // Convert the tiles to TileProps format for backward compatibility
-    const items = !tiles ? defaultItems : tabActions?.getItems().filter(Boolean) as TileProps[];
+    const items = useMemo(() => {
+        return !tiles ? defaultItems : tabActions?.getItems().filter(Boolean) as TileProps[];
+    }, [tiles, tabActions]);
 
     useEffect(() => {
         setTabQueryParamState(tabQueryParam || "");
@@ -89,7 +90,7 @@ const InterfaceTabs = ({
                                     if (tabQueryParam == tab_)
                                         tabActions?.setPending(true);
                                     serverTabActions.delete(tab_, project as string, true).then(() => {
-                                        setTabs(tabIds.filter(i => i != tab_));
+                                        interfaceActions?.setTabIds(tabIds.filter(i => i != tab_));
                                     });
                                 });
                             }}
@@ -116,7 +117,7 @@ const InterfaceTabs = ({
                             serverTabActions.create(
                                 newTabName, project as string, context, defaultItems, defaultNewCounter, false
                             ).then(() => {
-                                setTabs([...tabIds, newTabName]);
+                                interfaceActions?.setTabIds([...tabIds, newTabName]);
                                 tabActions?.setPending(true);
                                 setTabQueryParam(newTabName);
                                 setTabQueryParamState(newTabName);

@@ -2,6 +2,7 @@ import { TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
 import { Plus } from "lucide-react";
 import { useTab } from "@/contexts/hooks/useTab";
+import { useMemo } from "react";
 
 const AddTile = ({
     project,
@@ -18,7 +19,9 @@ const AddTile = ({
     const { tab, actions, exists } = useTab(tabId);
     
     // Use the getItems function from the useTab hook to get TileProps array
-    const items = !exists || !actions ? [] : actions.getItems().filter(item => item.visible !== false);
+    const items = useMemo(() => {
+        return !exists || !actions ? [] : actions.getItems().filter(item => item.visible !== false);
+    }, [exists, actions]);
 
     return (
         <ActionButton

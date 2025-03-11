@@ -38,10 +38,9 @@ const ProjectButtons = ({
     const setProject = setProjectQueryParam;
 
     // Interface states and actions
-    const { interface: data, actions } = useInterface(interfaceId);
+    const { actions: interfaceActions } = useInterface(interfaceId);
 
-    const tabs = data?.tabs ? Object.keys(data.tabs) : [];
-    const setTabs = actions?.setTabs!;
+    const tabIds = interfaceActions?.getTabIds() || [];
 
     // Tab states and actions
     const { tab: tabData, actions: tabActions } = useTab(tabQueryParam || "");
@@ -55,7 +54,7 @@ const ProjectButtons = ({
                     const newProj = proj ? proj.path : null;
                     tabActions?.setPending(true);
                     tabActions?.setDataPending(true);
-                    setTabs([]);
+                    interfaceActions?.setTabIds([]);
                     setTabQueryParam(null);
                     setProject(newProj);
                 }}
@@ -70,7 +69,7 @@ const ProjectButtons = ({
                             tabActions?.setPending(true);
                             tabActions?.setDataPending(true);
                             setTabQueryParam(null);
-                            setTabs([]);
+                            interfaceActions?.setTabIds([]);
                             setProject(null);
                         }}
                     />
@@ -78,10 +77,10 @@ const ProjectButtons = ({
                         type="project"
                         args={[project]}
                         deletingFunction={async (name: string) => {
-                            await Promise.all(tabs.map(tabId => serverTabActions.delete(
+                            await Promise.all(tabIds.map(tabId => serverTabActions.delete(
                                 tabId, project, true
                             )))
-                            await Promise.all(tabs.map(tabId => serverTabActions.delete(
+                            await Promise.all(tabIds.map(tabId => serverTabActions.delete(
                                 tabId, project, false
                             )))
                             return await serverProjectActions.delete(name);
@@ -91,7 +90,7 @@ const ProjectButtons = ({
                             tabActions?.setPending(true);
                             tabActions?.setDataPending(true);
                             setTabQueryParam(null);
-                            setTabs([]);
+                            interfaceActions?.setTabIds([]);
                             setProject(null);
                             serverProjectActions.get().then(projects => setProjects(projects));
                         }}

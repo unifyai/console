@@ -15,14 +15,14 @@ import AddTile from "./AddTile";
 import ContextSelector from "./Table/Content/ContextSelector";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useTab } from "@/contexts/hooks/useTab";
-import { SetStateAction } from "react";
+import { SetStateAction, useMemo } from "react";
 
 const InterfaceButtons = ({
     interfaceId,
     tabQueryParam,
     newCounter,
     setNewCounter,
-    updateInterface,
+    updateTab,
     focusDialog,
     setFocusDialog,
     saveDialog,
@@ -32,7 +32,7 @@ const InterfaceButtons = ({
     tabQueryParam: string | null,
     newCounter: number,
     setNewCounter: (newCounter: number) => void,
-    updateInterface: (savedInterface?: TabProps | null) => Promise<ResponseProps>,
+    updateTab: (savedTab?: TabProps | null) => Promise<ResponseProps>,
     focusDialog: boolean,
     setFocusDialog: (value: SetStateAction<boolean>) => void,
     saveDialog: boolean,
@@ -53,7 +53,9 @@ const InterfaceButtons = ({
     });
 
     // Calculate derived state
-    const items = !tabActions || !tabData ? [] : tabActions.getItems();
+    const items = useMemo(() => {
+        return !tabActions || !tabData ? [] : tabActions.getItems();
+    }, [tabActions, tabData]);
 
     // Get hidden items
     const hiddenItems = items.filter(item => !item.visible);
@@ -181,7 +183,7 @@ const InterfaceButtons = ({
                 variant="outline"
                 disabled={!project || tabData?.pending}
                 onClick={async () => {
-                    await updateInterface(tabData?.savedTab);
+                    await updateTab(tabData?.savedTab);
                     tabActions?.setResetting(true);
                     tabActions?.setEdit(true);
                     router.refresh();

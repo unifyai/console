@@ -12,7 +12,7 @@ import {
   GroupingState,
 } from "@tanstack/react-table";
 import { DerivedEntryActions, LogsActions, FieldsActions, Context } from "@/types/evals/grid";
-import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
+import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import { buildTree, nestedColumns, encodeRenderedDepth } from "@/utils/evals/table";
@@ -87,7 +87,7 @@ const LogsTable = ({
   groupSortingExpression: string | null,
   limit: number,
   offset: number,
-  updateInterface: () => Promise<ResponseProps>,
+  updateInterface: (savedTab?: any) => Promise<ResponseProps>,
 }) => {
   // Get access to the tab context and actions
   const { tab: tabData, actions: tabActions } = useTab(tabId, interfaceId, projectId);
@@ -99,7 +99,7 @@ const LogsTable = ({
   const { tableTile: tableData, actions: tableTileActions } = useTableTile(tileId, tabId, interfaceId, projectId);
 
   // Get the item representation for the current tile
-  const item = tileActions?.asTileItem();
+  const item = useMemo(() => tileActions?.asTileItem(), [tileActions]);
 
   // UI state from the tab
   const interactive = tabData?.interactive || false;
@@ -540,7 +540,13 @@ const LogsTable = ({
                       logs={logs}
                       create={derivedEntryActions.create}
                       setPending={() => tabActions?.setPending(true)}
-                      refresh={() => updateInterface()}
+                      refresh={async () => {
+                        try {
+                          await updateInterface();
+                        } catch (err) {
+                          console.error("Error updating interface:", err);;
+                        }
+                      }}
                       columnOrder={columnOrder}
                       setColumnOrder={(order: string[]) => updateItem(item as TileProps, "column_order")(order.join(","))}
                       previousColumn={previousColumn}
@@ -559,7 +565,13 @@ const LogsTable = ({
                       logs={logs}
                       update={derivedEntryActions.update}
                       setPending={() => tabActions?.setPending(true)}
-                      refresh={() => updateInterface()}
+                      refresh={async () => {
+                        try {
+                          await updateInterface();
+                        } catch (err) {
+                          console.error("Error updating interface:", err);
+                        }
+                      }}
                       updateLoading={updateLoading}
                       setUpdateLoading={setUpdateLoading}
                       renderMode={renderMode as "button" | "menuItem"}

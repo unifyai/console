@@ -38,7 +38,7 @@ const ColumnUpdate = ({
     logs: LogProps[] | GroupedLogProps[]
     update: (project: string, key: string | null, equation: string | null, target_derived_logs: {[table_name: string]: getLogsParameters}, referenced_logs: {[table_name: string]: getLogsParameters} | null) => Promise<ResponseProps>,
     setPending: (pending: boolean) => void,
-    refresh: () => Promise<ResponseProps>,
+    refresh: () => Promise<ResponseProps | void>,
     open: boolean,
     setOpen: Dispatch<SetStateAction<boolean>>,
     updateLoading: boolean,
