@@ -25,7 +25,7 @@ const AggregatedCell = ({cell, metric, getMetric}: {
       <div className="h-[25px] overflow-hidden text-center truncate ...">
         {!cell.getIsPlaceholder() && isNotUtilColumn && statistic &&
           <Tooltip content={metricTooltip}>
-            <Badge variant="primary">{`${metric[0].toUpperCase() + metric.slice(1)}:  ${statistic}`}</Badge>
+            <Badge variant="primary">{statistic}</Badge>
           </Tooltip>
         }
       </div>
