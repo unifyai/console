@@ -199,7 +199,7 @@ const DefaultProject = ({
             </div>
             <MarkdownRender content={`\`\`\`python${exampleCode}\`\`\``} noBackground />
         </div>
-        {exampleGif != undefined && <div className="mb-2">
+        {exampleGif != undefined && <div className="mb-1">
             <Image
                 key={exampleGif}
                 src={`https://raw.githubusercontent.com/unifyai/unifyai.github.io/main/img/externally_linked/docs/${exampleGif}.gif`}
