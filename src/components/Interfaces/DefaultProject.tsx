@@ -3,12 +3,12 @@
 import { Loader2, Play } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import MarkdownRender from "../Common/Code/MarkdownRender";
-import { InterfaceActions, LogsActions, ProjectsActions } from "@/types/evals/grid";
+import { InterfaceActions, LogsActions, ProjectsActions, TileProps } from "@/types/evals/grid";
 import { useEffect, useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../UI/tabs";
 import { examples } from "@/constants/logs";
 import { useQueryState } from "nuqs";
-import AutoComplete from "../Common/Misc/AutoComplete";
+import BaseDropdown from "../Common/Dropdowns/Base";
+import { DropdownMenuItem } from "../UI/dropdown-menu";
 
 const DefaultProject = ({
     projects,
@@ -29,6 +29,21 @@ const DefaultProject = ({
     const [pendingLocal, setPendingLocal] = useState(false);
     const [example, setExample] = useQueryState("example");
     const [create, setCreate] = useQueryState("create");
+    const reorganizedExamples: { [key: string]: { [key: string]: {
+        project: string,
+        name: string,
+        items: TileProps[],
+        new_counter: number,
+        logs: any,
+        code: string,
+    } } } = {};
+    Object.keys(examples).forEach((ex) => {
+        const [group, name] = ex.split("/");
+        if (!reorganizedExamples[group]) {
+            reorganizedExamples[group] = {};
+        }
+        reorganizedExamples[group][name] = examples[ex];
+    });
     const {
         project: exampleProject,
         name: exampleName,
@@ -36,7 +51,11 @@ const DefaultProject = ({
         new_counter: exampleNewCounter,
         logs: exampleLogs,
         code: exampleCode,
-    } = examples[example || Object.keys(examples)[0]];
+    } = examples[
+        Object.keys(examples).includes(example || "")
+            ? example || ""
+            : Object.keys(examples)[0]
+        ];
 
     useEffect(() => {
         if (example == null)
@@ -76,42 +95,55 @@ const DefaultProject = ({
         <div className="mt-4 flex justify-center font-semibold">
             Please select a project, create a project or get started some of the examples below
         </div>
-            <AutoComplete
-                type={"Examples"}
-                items={Object.keys(examples).map((ex) => ({ label: ex, value: ex }))}
-                defaultValue={example || undefined}
-                onSelect={(value: string) => setExample(value.length ? value : Object.keys(examples)[0])}
-            />
-            <div className="relative w-[500px] h-[700px] overflow-y-auto rounded-md border border-1 p-2">
-                <div className="absolute z-10 top-3 right-12">
-                    <ActionButton
-                        icon={pendingLocal ? <Loader2 className="animate-spin" /> : <Play />}
-                        tooltip={"Run Example"}
-                        onClick={() => {
-                            if (projects?.includes(exampleProject)) {
-                                setProject(exampleProject);
-                            } else {
-                                setPendingLocal(true);
-                                projectActions.create(exampleProject).then(() => {
-                                    interfaceActions.create(
-                                        exampleName, exampleProject, undefined, exampleItems, exampleNewCounter, true
+        <BaseDropdown
+            button={<ActionButton
+                tooltip={"Select Example"}
+                text={example ? example.split("/")[1] : "Select Example"}
+                variant={"outline"}
+                size="default"
+            />}
+        >
+            {Object.keys(reorganizedExamples).map((group) => {
+                return <div key={group} className="w-[300px] mt-2 pb-1 px-3 border-b">
+                    <div className="font-semibold text-sm mb-1">{group}</div>
+                    {Object.keys(reorganizedExamples[group]).map(ex =>
+                        <DropdownMenuItem key={ex} onClick={() => setExample(`${group}/${ex}`)}>
+                            {ex}
+                        </DropdownMenuItem>
+                    )}
+                </div>
+            })}
+        </BaseDropdown>
+        <div className="relative w-[500px] h-[700px] overflow-y-auto rounded-md border border-1 p-2">
+            <div className="absolute z-10 top-3 right-12">
+                <ActionButton
+                    icon={pendingLocal ? <Loader2 className="animate-spin" /> : <Play />}
+                    tooltip={"Run Example"}
+                    onClick={() => {
+                        if (projects?.includes(exampleProject)) {
+                            setProject(exampleProject);
+                        } else {
+                            setPendingLocal(true);
+                            projectActions.create(exampleProject).then(() => {
+                                interfaceActions.create(
+                                    exampleName, exampleProject, undefined, exampleItems, exampleNewCounter, true
+                                ).then(() => {
+                                    logsActions.create(
+                                        exampleProject, exampleLogs.params, exampleLogs.entries
                                     ).then(() => {
-                                        logsActions.create(
-                                            exampleProject, exampleLogs.params, exampleLogs.entries
-                                        ).then(() => {
-                                            setPendingLocal(false);
-                                            setProject(exampleProject);
-                                            setInterface(exampleName);
-                                        });
+                                        setPendingLocal(false);
+                                        setProject(exampleProject);
+                                        setInterface(exampleName);
                                     });
                                 });
-                            }
-                        }}
-                        disabled={disabled}
-                    />
-                </div>
-                <MarkdownRender content={`\`\`\`python${exampleCode}\`\`\``} noBackground />
+                            });
+                        }
+                    }}
+                    disabled={disabled}
+                />
             </div>
+            <MarkdownRender content={`\`\`\`python${exampleCode}\`\`\``} noBackground />
+        </div>
     </div>
 }
 

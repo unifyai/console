@@ -1226,26 +1226,32 @@ export const icons = {
 
 export const tabTypes = ["Table", "Plot", "View"];
 
-export const examples: {[key: string]: {
-    project: string,
-    name: string,
-    items: TileProps[],
-    new_counter: number,
-    logs: any,
-    code: string,
-}} = {
-    "Bar Plot": barDemo,
-    "Context": contextDemo,
-    "Derived Columns": derivedColumnsDemo,
-    "Diffs": diffsDemo,
-    "Filtering": filteringDemo,
-    "Grouping": groupingDemo,
-    "Hidden Columns": hiddenColumnsDemo,
-    "Histogram": histogramDemo,
-    "Line Plot": lineDemo,
-    "Line Plot 2": lineDemo2,
-    "Line Plot 3": lineDemo3,
-    "Marking Assistant": markingAssistantDemo as {
+export const examples: {
+    [key: string]: {
+        project: string,
+        name: string,
+        items: TileProps[],
+        new_counter: number,
+        logs: any,
+        code: string,
+    }
+} = {
+    "Basics/Context": contextDemo,
+    "Tables/Derived Columns": derivedColumnsDemo,
+    "Tables/Filtering": filteringDemo,
+    "Tables/Grouping": groupingDemo,
+    "Views/Diffs": diffsDemo,
+    "Views/Hidden Columns": hiddenColumnsDemo,
+    "Views/View Pane": viewPaneDemo,
+    "Plots/Bar Plot": barDemo,
+    "Plots/Histogram": histogramDemo,
+    "Plots/Line Plot": lineDemo,
+    "Plots/Line Plot 2": lineDemo2,
+    "Plots/Line Plot 3": lineDemo3,
+    "Plots/Scatter Plot": scatterDemo,
+    "Plots/Scatter Plot 2": scatterDemo2,
+    "Plots/Scatter Plot 3": scatterDemo3,
+    "Demos/Marking Assistant": markingAssistantDemo as {
         project: string,
         name: string,
         items: TileProps[],
@@ -1253,8 +1259,4 @@ export const examples: {[key: string]: {
         logs: any,
         code: string,
     },
-    "Scatter Plot": scatterDemo,
-    "Scatter Plot 2": scatterDemo2,
-    "Scatter Plot 3": scatterDemo3,
-    "View Pane": viewPaneDemo
 }
