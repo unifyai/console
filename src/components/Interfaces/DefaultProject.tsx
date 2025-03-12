@@ -227,28 +227,30 @@ const DefaultProject = ({
                     </div>
                     <MarkdownRender content={`\`\`\`python${exampleCode}\`\`\``} noBackground />
                 </div>
-                {exampleGif != undefined && <div className="mb-1 flex flex-col gap-4">
-                    <BaseDropdown
-                        button={<ActionButton
-                            tooltip={"Select Example"}
-                            text={example ? example.split("/")[1] : "Select Example"}
-                            variant={"outline"}
-                            size="default"
-                        />}
-                    >
-                        <div className="max-h-[80vh] overflow-y-auto">
-                            {Object.keys(reorganizedExamples).map((group) => {
-                                return <div key={group} className="w-[300px] mt-2 pb-1 px-3 border-b">
-                                    <div className="font-semibold text-sm mb-1">{group}</div>
-                                    {Object.keys(reorganizedExamples[group]).map(ex =>
-                                        <DropdownMenuItem key={ex} onClick={() => setExample(`${group}/${ex}`)}>
-                                            {ex}
-                                        </DropdownMenuItem>
-                                    )}
-                                </div>
-                            })}
-                        </div>
-                    </BaseDropdown>
+                {exampleGif != undefined && <div className="mb-1 flex flex-col items-center gap-4">
+                    <div className="w-fit">
+                        <BaseDropdown
+                            button={<ActionButton
+                                tooltip={"Select Example"}
+                                text={example ? example.split("/")[1] : "Select Example"}
+                                variant={"outline"}
+                                size="default"
+                            />}
+                        >
+                            <div className="max-h-[80vh] overflow-y-auto">
+                                {Object.keys(reorganizedExamples).map((group) => {
+                                    return <div key={group} className="w-[300px] mt-2 pb-1 px-3 border-b">
+                                        <div className="font-semibold text-sm mb-1">{group}</div>
+                                        {Object.keys(reorganizedExamples[group]).map(ex =>
+                                            <DropdownMenuItem key={ex} onClick={() => setExample(`${group}/${ex}`)}>
+                                                {ex}
+                                            </DropdownMenuItem>
+                                        )}
+                                    </div>
+                                })}
+                            </div>
+                        </BaseDropdown>
+                    </div>
                     <div className="text-sm font-semibold w-[600px]">
                         {exampleDescription}
                     </div>
