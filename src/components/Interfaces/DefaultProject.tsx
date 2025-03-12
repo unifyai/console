@@ -88,17 +88,63 @@ const DefaultProject = ({
                     interfaceActions.create(
                         exampleName, exampleProject, undefined, exampleItems, exampleNewCounter, true
                     ).then(() => {
-                        logsActions.create(
-                            exampleProject, null, exampleLogs.params, exampleLogs.entries
-                        ).then(() => {
-                            setTimeout(() => {
-                                setPendingLocal(false);
-                                setProject(exampleProject);
-                                setInterface(exampleName);
-                                setCreate(null);
-                                setExample(null);
-                            }, 3000);
-                        });
+                        if (exampleProject == "context-demo") {
+                            Promise.all(Object.keys(exampleLogs).map(context => logsActions.create(
+                                exampleProject, context, exampleLogs[context].params, exampleLogs[context].entries
+                            ))).then(() => {
+                                setTimeout(() => {
+                                    setPendingLocal(false);
+                                    setProject(exampleProject);
+                                    setInterface(exampleName);
+                                    setExample(null);
+                                    setCreate(null);
+                                }, 3000);
+                            });
+                        }
+                        else if (exampleProject == "MarkingAssistant") {
+                            const length = exampleLogs.entries.length;
+                            const context = Object.keys(exampleLogs)[0];
+                            for (let i = 0; i < length; i += 100) {
+                                logsActions.create(
+                                    exampleProject,
+                                    context,
+                                    exampleLogs[context].params,
+                                    exampleLogs[context].entries.slice(i, Math.min(i + 100, length))
+                                );
+                            }
+                        }
+                        else {
+                            logsActions.create(
+                                exampleProject, null, exampleLogs.params, exampleLogs.entries
+                            ).then(() => {
+                                if (exampleDerivedColumns != undefined) {
+                                    derivedEntryActions.create(
+                                        exampleDerivedColumns.project,
+                                        exampleDerivedColumns.context,
+                                        exampleDerivedColumns.key,
+                                        exampleDerivedColumns.equation,
+                                        exampleDerivedColumns.referenced_logs
+                                    ).then(() => {
+                                        setTimeout(() => {
+                                            setPendingLocal(false);
+                                            setProject(exampleProject);
+                                            setInterface(exampleName);
+                                            setExample(null);
+                                            setCreate(null);
+                                        }, 3000);
+                                    });
+                                }
+                                else {
+                                    setTimeout(() => {
+                                        setPendingLocal(false);
+                                        setProject(exampleProject);
+                                        setInterface(exampleName);
+                                        setExample(null);
+                                        setCreate(null);
+                                    }, 3000);
+                                }
+                            });
+                        }
                     });
                 });
             }
@@ -149,6 +195,29 @@ const DefaultProject = ({
                                         Promise.all(Object.keys(exampleLogs).map(context => logsActions.create(
                                             exampleProject, context, exampleLogs[context].params, exampleLogs[context].entries
                                         ))).then(() => {
+                                            setTimeout(() => {
+                                                setPendingLocal(false);
+                                                setProject(exampleProject);
+                                                setInterface(exampleName);
+                                                setExample(null);
+                                                setCreate(null);
+                                            }, 3000);
+                                        });
+                                    }
+                                    else if (exampleProject == "MarkingAssistant") {
+                                        const context = Object.keys(exampleLogs)[0];
+                                        const length = exampleLogs[context].entries.length;
+                                        Promise.all(
+                                            Array.from(
+                                                { length: Math.ceil(length / 100) },
+                                                (_, i) => ({ i: i * 100, j: Math.min((i + 1) * 100, length) })
+                                            ).map(({ i, j }) => logsActions.create(
+                                                exampleProject,
+                                                context,
+                                                exampleLogs[context].params,
+                                                exampleLogs[context].entries.slice(i, j)
+                                            ))
+                                        ).then(() => {
                                             setTimeout(() => {
                                                 setPendingLocal(false);
                                                 setProject(exampleProject);
