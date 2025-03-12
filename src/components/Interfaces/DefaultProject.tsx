@@ -21,16 +21,12 @@ const DefaultProject = ({
     interfaceActions,
     logsActions,
     derivedEntryActions,
-    setInterface,
-    setProject
 }: {
     projects: string[] | undefined,
     projectActions: ProjectsActions,
     interfaceActions: InterfaceActions,
     logsActions: LogsActions,
     derivedEntryActions: DerivedEntryActions,
-    setInterface: (value: string | null) => void,
-    setProject: (value: string | null) => void,
 }) => {
     const disabled = projects == undefined
     const [pendingLocal, setPendingLocal] = useState(false);
@@ -48,6 +44,7 @@ const DefaultProject = ({
                 code: string,
                 gif: string,
                 link: string,
+                description: string,
             }
         }
     } = {};
@@ -67,13 +64,14 @@ const DefaultProject = ({
         code: exampleCode,
         gif: exampleGif,
         link: exampleLink,
+        description: exampleDescription,
         derived_columns: exampleDerivedColumns
     } = examples[
         Object.keys(examples).includes(example || "")
             ? example || ""
             : Object.keys(examples)[0]
         ];
-    
+
     const storeExample = (
         exampleProject: string,
         exampleName: string,
@@ -205,61 +203,66 @@ const DefaultProject = ({
     return <>
         <div className="flex flex-col gap-4 justify-center items-center">
             <div className="mt-4 flex justify-center font-semibold">
-                Please select a project, create a project or get started some of the examples below
+                Please select a project, create a project or select an example below
             </div>
-            <BaseDropdown
-                button={<ActionButton
-                    tooltip={"Select Example"}
-                    text={example ? example.split("/")[1] : "Select Example"}
-                    variant={"outline"}
-                    size="default"
-                />}
-            >
-                <div className="max-h-[80vh] overflow-y-auto">
-                    {Object.keys(reorganizedExamples).map((group) => {
-                        return <div key={group} className="w-[300px] mt-2 pb-1 px-3 border-b">
-                            <div className="font-semibold text-sm mb-1">{group}</div>
-                        {Object.keys(reorganizedExamples[group]).map(ex =>
-                            <DropdownMenuItem key={ex} onClick={() => setExample(`${group}/${ex}`)}>
-                                {ex}
-                            </DropdownMenuItem>
-                        )}
+            <div className="flex gap-4">
+                <div className="relative max-w-[700px] max-h-[700px] overflow-y-auto rounded-md border border-1 p-2">
+                    <div className="absolute z-10 top-3 right-12 flex gap-1">
+                        <Link href={`https://docs.unify.ai/${exampleLink}`} target="_blank">
+                            <ActionButton icon={<ExternalLink />} tooltip={"Learn more"} />
+                        </Link>
+                        <ActionButton
+                            icon={pendingLocal ? <Loader2 className="animate-spin" /> : <Play />}
+                            tooltip={"Run Example"}
+                            onClick={() => storeExample(
+                                exampleProject,
+                                exampleName,
+                                exampleItems,
+                                exampleNewCounter,
+                                exampleLogs,
+                                exampleDerivedColumns
+                            )}
+                            disabled={disabled}
+                        />
+                    </div>
+                    <MarkdownRender content={`\`\`\`python${exampleCode}\`\`\``} noBackground />
+                </div>
+                {exampleGif != undefined && <div className="mb-1 flex flex-col gap-4">
+                    <BaseDropdown
+                        button={<ActionButton
+                            tooltip={"Select Example"}
+                            text={example ? example.split("/")[1] : "Select Example"}
+                            variant={"outline"}
+                            size="default"
+                        />}
+                    >
+                        <div className="max-h-[80vh] overflow-y-auto">
+                            {Object.keys(reorganizedExamples).map((group) => {
+                                return <div key={group} className="w-[300px] mt-2 pb-1 px-3 border-b">
+                                    <div className="font-semibold text-sm mb-1">{group}</div>
+                                    {Object.keys(reorganizedExamples[group]).map(ex =>
+                                        <DropdownMenuItem key={ex} onClick={() => setExample(`${group}/${ex}`)}>
+                                            {ex}
+                                        </DropdownMenuItem>
+                                    )}
+                                </div>
+                            })}
                         </div>
-                    })}
-                </div>
-            </BaseDropdown>
-            <div className="relative max-w-[700px] max-h-[700px] overflow-y-auto rounded-md border border-1 p-2">
-                <div className="absolute z-10 top-3 right-12 flex gap-1">
-                    <Link href={`https://docs.unify.ai/${exampleLink}`} target="_blank">
-                        <ActionButton icon={<ExternalLink />} tooltip={"Learn more"} />
-                    </Link>
-                    <ActionButton
-                        icon={pendingLocal ? <Loader2 className="animate-spin" /> : <Play />}
-                        tooltip={"Run Example"}
-                        onClick={() => storeExample(
-                            exampleProject,
-                            exampleName,
-                            exampleItems,
-                            exampleNewCounter,
-                            exampleLogs,
-                            exampleDerivedColumns
-                        )}
-                        disabled={disabled}
+                    </BaseDropdown>
+                    <div className="text-sm font-semibold w-[600px]">
+                        {exampleDescription}
+                    </div>
+                    <Image
+                        key={exampleGif}
+                        src={`https://raw.githubusercontent.com/unifyai/unifyai.github.io/main/img/externally_linked/docs/${exampleGif}.gif`}
+                        alt="GIF"
+                        width={600}
+                        height={600}
+                        unoptimized
+                        onClick={() => setImageDialog(true)}
                     />
-                </div>
-                <MarkdownRender content={`\`\`\`python${exampleCode}\`\`\``} noBackground />
+                </div>}
             </div>
-            {exampleGif != undefined && <div className="mb-1">
-                <Image
-                    key={exampleGif}
-                    src={`https://raw.githubusercontent.com/unifyai/unifyai.github.io/main/img/externally_linked/docs/${exampleGif}.gif`}
-                    alt="GIF"
-                    width={600}
-                    height={600}
-                    unoptimized
-                    onClick={() => setImageDialog(true)}
-                />
-            </div>}
         </div>
         <Dialog open={imageDialog} onOpenChange={setImageDialog}>
             <DialogContent className="max-w-[1400px] max-h-[800px]">
