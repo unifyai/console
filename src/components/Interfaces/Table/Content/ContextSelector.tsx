@@ -9,6 +9,8 @@ import { TileProps } from "@/types/evals/grid";
 import { Braces, Check, Folder, FolderTree, Grid2x2, X, Trash } from "lucide-react";
 import { useState } from "react";
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
+import { ResponseProps } from "@/types/common";
+import { useRouter } from "next/navigation";
 
 const ContextSelector = ({
     project,
@@ -21,7 +23,9 @@ const ContextSelector = ({
     button,
     contextActions,
     logsActions,
-    fields
+    fields,
+    refresh,
+    setPending
 }: {
     project: string | undefined,
     contexts_: Context[],
@@ -33,8 +37,19 @@ const ContextSelector = ({
     button?: React.ReactNode,
     contextActions: ContextActions,
     logsActions: LogsActions,
-    fields?: string[]
+    fields?: string[],
+    refresh: () => Promise<ResponseProps>,
+    setPending: (pending: boolean) => void
 }) => {
+
+    const router = useRouter();
+    const onDelete = () => {
+        refresh().then(() => {
+            router.refresh();
+            setPending(true);
+        });
+    }
+
     const [contexts, setContexts] = useState<Context[]>(contexts_);
     const finalSetContext = (updateItem != undefined && item != undefined) ? (ctx: string) => {
         if (ctx != item.context) {
@@ -112,14 +127,14 @@ const ContextSelector = ({
                     {/* Delete column context */}
                     {project && isColumnContext && fields &&  
                         <div onClick={(e) => e.stopPropagation()}>
-                            <DeleteDialog variant="warning" type={"column context"} args={[project, context, fields.filter(field => field.startsWith(nodePath)).map(field => ([null, field])), "all"]} deletingFunction={logsActions.delete}/>
+                            <DeleteDialog variant="warning" type={"column context"} args={[project, context, fields.filter(field => field.startsWith(nodePath)).map(field => ([null, field])), "all"]} deletingFunction={logsActions.delete} onDelete={onDelete}/>
                         </div>
                     }
 
                     {/* Delete context */}
                     {project && !isColumnContext &&  
                         <div onClick={(e) => e.stopPropagation()}>
-                            <DeleteDialog variant="warning" type={"context"} args={[project, context]} deletingFunction={contextActions.delete}/>
+                            <DeleteDialog variant="warning" type={"context"} args={[project, context]} deletingFunction={contextActions.delete} onDelete={onDelete}/>
                         </div>
                     }
                     

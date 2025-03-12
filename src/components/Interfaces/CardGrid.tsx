@@ -410,6 +410,8 @@ const CardGrid = ({
                                                         </Badge>
                                                     </Tooltip>
                                                 }
+                                                refresh={() => updateInterface()}
+                                                setPending={setPending}
                                             />}
                                             {el.column_context && el.tab == "Table" && <ContextSelector
                                                 project={project || undefined}
@@ -427,6 +429,8 @@ const CardGrid = ({
                                                         {el.column_context}
                                                     </Badge>
                                                 </Tooltip>}
+                                                refresh={() => updateInterface()}
+                                                setPending={setPending}
                                             />}
                                         </div>
                                         <div className="flex-1 flex justify-end gap-2 mb-auto opacity-0 hover:opacity-100">

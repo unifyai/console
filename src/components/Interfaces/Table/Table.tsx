@@ -457,6 +457,8 @@ const LogsTable = ({
             contextActions={contextActions}
             logsActions={logsActions}
             fields={[...paramsProperties, ...entriesProperties]}
+            refresh={() => updateInterface()}
+            setPending={setPending}
           />
           <GlobalFilter
             interactive={interactive}
@@ -583,6 +585,8 @@ const LogsTable = ({
                       columnContext={item.column_context}
                       getLogFieldsIds={logsActions.get}
                       deleteLogFields={logsActions.delete}
+                      refresh={() => updateInterface()}
+                      setPending={setPending}
                     />
                   )}
                   ColumnCreate={(previousColumn: string, setOpen: (open: boolean) => void) => (
@@ -685,7 +689,7 @@ const LogsTable = ({
                     </FooterCell>
                   }
                   ExtraComponents={(table) => {
-                    return <DeleteCells project={project} selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} columnContext={item.column_context} context={item.context} />
+                    return <DeleteCells project={project} selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} columnContext={item.column_context} context={item.context} refresh={() => updateInterface()} setPending={setPending}/>
                   }}
                   ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
                     <CellPopover flatLogs={flatLogs} paramsValues={paramsValues} cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />
