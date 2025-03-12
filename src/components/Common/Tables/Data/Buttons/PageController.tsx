@@ -112,9 +112,11 @@ const PageController = ({ interactive, totalPages, pageNumber, setPageNumber, pa
         <Pagination>
             <PaginationContent>
                 {prevButton}
+                {!pageWindow.includes(0) && pageButton(0)}
                 {startEllipses && <PaginationItem><PaginationEllipsis /></PaginationItem>}
                 {pageWindow.map((page) => pageButton(page))}
                 {endEllipses && <PaginationItem><PaginationEllipsis className={interactive ? "" : "opacity-50"} /></PaginationItem>}
+                {!pageWindow.includes(totalPages - 1) && pageButton(totalPages - 1)}
                 {nextButton}
             </PaginationContent>
         </Pagination>

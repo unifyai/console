@@ -164,6 +164,12 @@ export default function NavMenu() {
         <div className="mt-auto mb-2">
           <SidebarMenu>
             {renderMenuItem(profileItem, isActive(profileItem))}
+            {/* Show signout and theme when sidebar is collapsed */}
+            {state === "collapsed" && 
+            <div className="flex flex-col pl-[8.5px] justify-center">
+              <DarkModeToggle/> 
+              <SignOutButton />
+            </div>}
           </SidebarMenu>
         </div>
       </SidebarContent>
@@ -178,7 +184,7 @@ export default function NavMenu() {
         >
           <Menu className="h-4 w-4" />
         </SidebarTrigger>
-        
+
         {/* Only show these when expanded */}
         {state === "expanded" && (
           <div className="flex items-center gap-2 ml-auto">

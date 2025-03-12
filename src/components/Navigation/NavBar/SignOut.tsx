@@ -40,7 +40,7 @@ const SignOutButton = () => {
               <Button 
                 variant="ghost" 
                 size="sm"
-                className="hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                className="hover:bg-destructive hover:text-destructive-foreground transition-colors w-8 h-8"
               >
                 <LogOut className="h-[1.2rem] w-[1.2rem]" />
                 <span className="sr-only">Sign out</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { ContextActions, Interface, TileProps } from "@/types/evals/grid";
-import { Eye, Hammer, SquareMousePointer } from "lucide-react";
+import { Eye, Hammer, SquareMousePointer, CircleHelp } from "lucide-react";
 import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
@@ -20,6 +20,7 @@ import { LogsActions } from "@/types/evals/grid";
 const InterfaceButtons = ({
     edit,
     interactive,
+    help,
     interface_,
     project,
     context,
@@ -39,16 +40,19 @@ const InterfaceButtons = ({
     setResetting,
     setEdit,
     setInteractive,
+    setHelp,
     setFocusDialog,
     setDataPending,
     setContext,
     setSaveDialog,
     updateInterface,
     contextActions,
-    logsActions
+    logsActions,
+    setPending
 }: {
     edit: boolean,
     interactive: boolean,
+    help: boolean,
     project_: string | null,
     interface_: string | null,
     project: string | null,
@@ -69,13 +73,15 @@ const InterfaceButtons = ({
     setResetting: (value: SetStateAction<boolean>) => void,
     setEdit: (value: SetStateAction<boolean>) => void,
     setInteractive: (value: SetStateAction<boolean>) => void,
+    setHelp: (value: SetStateAction<boolean>) => void,
     setFocusDialog: (value: SetStateAction<boolean>) => void,
     setDataPending: (value: SetStateAction<boolean>) => void,
     setContext: (value: SetStateAction<string | undefined>) => void,
     setSaveDialog: (value: SetStateAction<boolean>) => void,
     updateInterface: (savedInterface?: Interface | null) => Promise<ResponseProps>,
     contextActions: ContextActions
-    logsActions: LogsActions
+    logsActions: LogsActions,
+    setPending: (pending: boolean) => void
 }) => {
     const router = useRouter();
 
@@ -84,7 +90,7 @@ const InterfaceButtons = ({
     const variant = saveSuccess == false ? "destructive" : "outline";
 
     return (
-        <div className="flex gap-2 items-center pl-4 pr-10">
+        <div className="flex gap-2 items-center px-4">
             <ActionButton
                 className="transition-all"
                 tooltip="Open Focus Pane"
@@ -120,6 +126,8 @@ const InterfaceButtons = ({
                 }}
                 contextActions={contextActions}
                 logsActions={logsActions}
+                refresh={() => updateInterface()}
+                setPending={setPending}
             />
             <ActionButton
                 className="transition-all"
@@ -209,6 +217,14 @@ const InterfaceButtons = ({
                 <Label htmlFor="interactive">
                     <Tooltip content="Interactive">
                         <SquareMousePointer name="interactive" size={18} color={interactive ? "var(--primary)" : undefined} />
+                    </Tooltip>
+                </Label>
+            </div>
+            <div className="flex items-center gap-2 border rounded-md p-1">
+                <Switch id="interactive" checked={help} onCheckedChange={() => setHelp(!help)} disabled={!project} />
+                <Label htmlFor="interactive">
+                    <Tooltip content="Help">
+                        <CircleHelp name="interactive" size={18} color={interactive ? "var(--primary)" : undefined} />
                     </Tooltip>
                 </Label>
             </div>
