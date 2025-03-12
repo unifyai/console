@@ -302,7 +302,6 @@ const CardGrid = ({
                 projects={projects}
                 projectActions={projectActions}
                 interfaceActions={interfaceActions}
-                contextActions={contextActions}
                 logsActions={logsActions}
                 derivedEntryActions={derivedEntryActions}
                 setInterface={setInterface}

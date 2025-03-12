@@ -76,12 +76,13 @@ export const createLogs = async (apiKey: string) => {
     ) => {
         "use server";
 
+        const contextBody = context ? { context: { name: context } } : {};
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/logs`,
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ project, context: { name: context }, params, entries })
+                body: JSON.stringify({ project, ...contextBody, params, entries })
             }
         );
         return await response.json();
