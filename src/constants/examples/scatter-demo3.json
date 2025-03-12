@@ -6,7 +6,7 @@
             "i": "Table",
             "x": 0.0,
             "y": 0.0,
-            "w": 7.0,
+            "w": 6.0,
             "h": 8.0,
             "tab": "Table",
             "table_type": "Data Table"
@@ -15,7 +15,7 @@
             "i": "Plot",
             "x": 7.0,
             "y": 0.0,
-            "w": 5.0,
+            "w": 6.0,
             "h": 8.0,
             "tab": "Plot",
             "x_axis": "Table.age",
