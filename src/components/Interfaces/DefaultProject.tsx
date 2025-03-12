@@ -91,7 +91,11 @@ const DefaultProject = ({
         } | undefined
     ) => {
         if (projects?.includes(exampleProject)) {
-            setProject(exampleProject);
+            window.open(
+                `/interfaces?project=${exampleProject}`,
+                "_blank",
+                "noopener,noreferrer"
+            );
         } else {
             setPendingLocal(true);
             projectActions.create(exampleProject).then(() => {
@@ -103,11 +107,12 @@ const DefaultProject = ({
                             exampleProject, context, exampleLogs[context].params, exampleLogs[context].entries
                         ))).then(() => {
                             setTimeout(() => {
+                                window.open(
+                                    `/interfaces?project=${exampleProject}&tab=${exampleName}`,
+                                    "_blank",
+                                    "noopener,noreferrer"
+                                );
                                 setPendingLocal(false);
-                                setProject(exampleProject);
-                                setInterface(exampleName);
-                                setExample(null);
-                                setCreate(null);
                             }, 3000);
                         });
                     }
@@ -126,11 +131,12 @@ const DefaultProject = ({
                             ))
                         ).then(() => {
                             setTimeout(() => {
+                                window.open(
+                                    `/interfaces?project=${exampleProject}&tab=${exampleName}`,
+                                    "_blank",
+                                    "noopener,noreferrer"
+                                );
                                 setPendingLocal(false);
-                                setProject(exampleProject);
-                                setInterface(exampleName);
-                                setExample(null);
-                                setCreate(null);
                             }, 3000);
                         });
                     }
@@ -147,21 +153,23 @@ const DefaultProject = ({
                                     exampleDerivedColumns.referenced_logs
                                 ).then(() => {
                                     setTimeout(() => {
+                                        window.open(
+                                            `/interfaces?project=${exampleProject}&tab=${exampleName}`,
+                                            "_blank",
+                                            "noopener,noreferrer"
+                                        );
                                         setPendingLocal(false);
-                                        setProject(exampleProject);
-                                        setInterface(exampleName);
-                                        setExample(null);
-                                        setCreate(null);
                                     }, 3000);
                                 });
                             }
                             else {
                                 setTimeout(() => {
+                                    window.open(
+                                        `${process.env.NEXTAUTH_URL}/interfaces?project=${exampleProject}&tab=${exampleName}`,
+                                        "_blank",
+                                        "noopener,noreferrer"
+                                    );
                                     setPendingLocal(false);
-                                    setProject(exampleProject);
-                                    setInterface(exampleName);
-                                    setExample(null);
-                                    setCreate(null);
                                 }, 3000);
                             }
                         });
