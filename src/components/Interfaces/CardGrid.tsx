@@ -292,6 +292,7 @@ const CardGrid = ({
                     setContext={setContext}
                     setSaveDialog={setSaveDialog}
                     updateInterface={updateInterface}
+                    setPending={setPending}
                     contextActions={contextActions}
                     logsActions={logsActions}
                 />
