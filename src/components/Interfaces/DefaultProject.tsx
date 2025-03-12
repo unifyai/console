@@ -13,6 +13,7 @@ import { DropdownMenuItem } from "../UI/dropdown-menu";
 import Link from "next/link";
 import { DialogContent } from "../UI/dialog";
 import { Dialog } from "../UI/dialog";
+import { getLogsParameters } from "@/types/evals/logs";
 
 const DefaultProject = ({
     projects,
@@ -72,6 +73,104 @@ const DefaultProject = ({
             ? example || ""
             : Object.keys(examples)[0]
         ];
+    
+    const storeExample = (
+        exampleProject: string,
+        exampleName: string,
+        exampleItems: TileProps[],
+        exampleNewCounter: number,
+        exampleLogs: any,
+        exampleDerivedColumns: {
+            project: string;
+            context?: string | undefined;
+            key: string;
+            equation: string;
+            referenced_logs: {
+                [table_name: string]: getLogsParameters;
+            };
+        } | undefined
+    ) => {
+        if (projects?.includes(exampleProject)) {
+            setProject(exampleProject);
+        } else {
+            setPendingLocal(true);
+            projectActions.create(exampleProject).then(() => {
+                interfaceActions.create(
+                    exampleName, exampleProject, undefined, exampleItems, exampleNewCounter, true
+                ).then(() => {
+                    if (exampleProject == "context-demo") {
+                        Promise.all(Object.keys(exampleLogs).map(context => logsActions.create(
+                            exampleProject, context, exampleLogs[context].params, exampleLogs[context].entries
+                        ))).then(() => {
+                            setTimeout(() => {
+                                setPendingLocal(false);
+                                setProject(exampleProject);
+                                setInterface(exampleName);
+                                setExample(null);
+                                setCreate(null);
+                            }, 3000);
+                        });
+                    }
+                    else if (exampleProject == "MarkingAssistant") {
+                        const context = Object.keys(exampleLogs)[0];
+                        const length = exampleLogs[context].entries.length;
+                        Promise.all(
+                            Array.from(
+                                { length: Math.ceil(length / 100) },
+                                (_, i) => ({ i: i * 100, j: Math.min((i + 1) * 100, length) })
+                            ).map(({ i, j }) => logsActions.create(
+                                exampleProject,
+                                context,
+                                exampleLogs[context].params,
+                                exampleLogs[context].entries.slice(i, j)
+                            ))
+                        ).then(() => {
+                            setTimeout(() => {
+                                setPendingLocal(false);
+                                setProject(exampleProject);
+                                setInterface(exampleName);
+                                setExample(null);
+                                setCreate(null);
+                            }, 3000);
+                        });
+                    }
+                    else {
+                        logsActions.create(
+                            exampleProject, null, exampleLogs.params, exampleLogs.entries
+                        ).then(() => {
+                            if (exampleDerivedColumns != undefined) {
+                                derivedEntryActions.create(
+                                    exampleDerivedColumns.project,
+                                    exampleDerivedColumns.context,
+                                    exampleDerivedColumns.key,
+                                    exampleDerivedColumns.equation,
+                                    exampleDerivedColumns.referenced_logs
+                                ).then(() => {
+                                    setTimeout(() => {
+                                        setPendingLocal(false);
+                                        setProject(exampleProject);
+                                        setInterface(exampleName);
+                                        setExample(null);
+                                        setCreate(null);
+                                    }, 3000);
+                                });
+                            }
+                            else {
+                                setTimeout(() => {
+                                    setPendingLocal(false);
+                                    setProject(exampleProject);
+                                    setInterface(exampleName);
+                                    setExample(null);
+                                    setCreate(null);
+                                }, 3000);
+                            }
+                        });
+                    }
+                });
+            });
+        }
+    };
+
     useEffect(() => {
         if (example == null)
             setExample(Object.keys(examples)[0]);
@@ -82,75 +181,16 @@ const DefaultProject = ({
                 items: exampleItems,
                 new_counter: exampleNewCounter,
                 logs: exampleLogs,
+                derived_columns: exampleDerivedColumns
             } = examples[example];
-            if (projects?.includes(exampleProject)) {
-                setProject(exampleProject);
-            } else {
-                setPendingLocal(true);
-                projectActions.create(exampleProject).then(() => {
-                    interfaceActions.create(
-                        exampleName, exampleProject, undefined, exampleItems, exampleNewCounter, true
-                    ).then(() => {
-                        if (exampleProject == "context-demo") {
-                            Promise.all(Object.keys(exampleLogs).map(context => logsActions.create(
-                                exampleProject, context, exampleLogs[context].params, exampleLogs[context].entries
-                            ))).then(() => {
-                                setTimeout(() => {
-                                    setPendingLocal(false);
-                                    setProject(exampleProject);
-                                    setInterface(exampleName);
-                                    setExample(null);
-                                    setCreate(null);
-                                }, 3000);
-                            });
-                        }
-                        else if (exampleProject == "MarkingAssistant") {
-                            const length = exampleLogs.entries.length;
-                            const context = Object.keys(exampleLogs)[0];
-                            for (let i = 0; i < length; i += 100) {
-                                logsActions.create(
-                                    exampleProject,
-                                    context,
-                                    exampleLogs[context].params,
-                                    exampleLogs[context].entries.slice(i, Math.min(i + 100, length))
-                                );
-                            }
-                        }
-                        else {
-                            logsActions.create(
-                                exampleProject, null, exampleLogs.params, exampleLogs.entries
-                            ).then(() => {
-                                if (exampleDerivedColumns != undefined) {
-                                    derivedEntryActions.create(
-                                        exampleDerivedColumns.project,
-                                        exampleDerivedColumns.context,
-                                        exampleDerivedColumns.key,
-                                        exampleDerivedColumns.equation,
-                                        exampleDerivedColumns.referenced_logs
-                                    ).then(() => {
-                                        setTimeout(() => {
-                                            setPendingLocal(false);
-                                            setProject(exampleProject);
-                                            setInterface(exampleName);
-                                            setExample(null);
-                                            setCreate(null);
-                                        }, 3000);
-                                    });
-                                }
-                                else {
-                                    setTimeout(() => {
-                                        setPendingLocal(false);
-                                        setProject(exampleProject);
-                                        setInterface(exampleName);
-                                        setExample(null);
-                                        setCreate(null);
-                                    }, 3000);
-                                }
-                            });
-                        }
-                    });
-                });
-            }
+            storeExample(
+                exampleProject,
+                exampleName,
+                exampleItems,
+                exampleNewCounter,
+                exampleLogs,
+                exampleDerivedColumns
+            );
         }
     });
 
@@ -188,87 +228,14 @@ const DefaultProject = ({
                     <ActionButton
                         icon={pendingLocal ? <Loader2 className="animate-spin" /> : <Play />}
                         tooltip={"Run Example"}
-                        onClick={() => {
-                            if (projects?.includes(exampleProject)) {
-                                setProject(exampleProject);
-                            } else {
-                                setPendingLocal(true);
-                                projectActions.create(exampleProject).then(() => {
-                                    interfaceActions.create(
-                                        exampleName, exampleProject, undefined, exampleItems, exampleNewCounter, true
-                                    ).then(() => {
-                                        if (exampleProject == "context-demo") {
-                                            Promise.all(Object.keys(exampleLogs).map(context => logsActions.create(
-                                                exampleProject, context, exampleLogs[context].params, exampleLogs[context].entries
-                                            ))).then(() => {
-                                                setTimeout(() => {
-                                                    setPendingLocal(false);
-                                                    setProject(exampleProject);
-                                                    setInterface(exampleName);
-                                                    setExample(null);
-                                                    setCreate(null);
-                                                }, 3000);
-                                            });
-                                        }
-                                        else if (exampleProject == "MarkingAssistant") {
-                                            const context = Object.keys(exampleLogs)[0];
-                                            const length = exampleLogs[context].entries.length;
-                                            Promise.all(
-                                                Array.from(
-                                                    { length: Math.ceil(length / 100) },
-                                                    (_, i) => ({ i: i * 100, j: Math.min((i + 1) * 100, length) })
-                                                ).map(({ i, j }) => logsActions.create(
-                                                    exampleProject,
-                                                    context,
-                                                    exampleLogs[context].params,
-                                                    exampleLogs[context].entries.slice(i, j)
-                                                ))
-                                            ).then(() => {
-                                                setTimeout(() => {
-                                                    setPendingLocal(false);
-                                                    setProject(exampleProject);
-                                                    setInterface(exampleName);
-                                                    setExample(null);
-                                                    setCreate(null);
-                                                }, 3000);
-                                            });
-                                        }
-                                        else {
-                                            logsActions.create(
-                                                exampleProject, null, exampleLogs.params, exampleLogs.entries
-                                            ).then(() => {
-                                                if (exampleDerivedColumns != undefined) {
-                                                    derivedEntryActions.create(
-                                                        exampleDerivedColumns.project,
-                                                        exampleDerivedColumns.context,
-                                                        exampleDerivedColumns.key,
-                                                        exampleDerivedColumns.equation,
-                                                        exampleDerivedColumns.referenced_logs
-                                                    ).then(() => {
-                                                        setTimeout(() => {
-                                                            setPendingLocal(false);
-                                                            setProject(exampleProject);
-                                                            setInterface(exampleName);
-                                                            setExample(null);
-                                                            setCreate(null);
-                                                        }, 3000);
-                                                    });
-                                                }
-                                                else {
-                                                    setTimeout(() => {
-                                                        setPendingLocal(false);
-                                                        setProject(exampleProject);
-                                                        setInterface(exampleName);
-                                                        setExample(null);
-                                                        setCreate(null);
-                                                    }, 3000);
-                                                }
-                                            });
-                                        }
-                                    });
-                                });
-                            }
-                        }}
+                        onClick={() => storeExample(
+                            exampleProject,
+                            exampleName,
+                            exampleItems,
+                            exampleNewCounter,
+                            exampleLogs,
+                            exampleDerivedColumns
+                        )}
                         disabled={disabled}
                     />
                 </div>
