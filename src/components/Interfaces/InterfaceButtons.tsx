@@ -45,7 +45,8 @@ const InterfaceButtons = ({
     setSaveDialog,
     updateInterface,
     contextActions,
-    logsActions
+    logsActions,
+    setPending
 }: {
     edit: boolean,
     interactive: boolean,
@@ -75,7 +76,8 @@ const InterfaceButtons = ({
     setSaveDialog: (value: SetStateAction<boolean>) => void,
     updateInterface: (savedInterface?: Interface | null) => Promise<ResponseProps>,
     contextActions: ContextActions
-    logsActions: LogsActions
+    logsActions: LogsActions,
+    setPending: (pending: boolean) => void
 }) => {
     const router = useRouter();
 
@@ -120,6 +122,8 @@ const InterfaceButtons = ({
                 }}
                 contextActions={contextActions}
                 logsActions={logsActions}
+                refresh={() => updateInterface()}
+                setPending={setPending}
             />
             <ActionButton
                 className="transition-all"
