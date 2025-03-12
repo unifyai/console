@@ -10,7 +10,7 @@
             "h": 8.0,
             "tab": "Table",
             "table_type": "Data Table",
-            "filters": "catchphrase@in@ && \"ask\"\u00a7catchphrase@not in@ && \"intern\"\u00a7will_to_live@is@ && True\u00a7open_task_progress@in@ && \"SQL migration\""
+            "filters": "catchphrase~in~ && \"ask\"§catchphrase~not in~ && \"intern\""
         },
         {
             "i": "View",
