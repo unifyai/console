@@ -100,6 +100,7 @@ const CardGrid = ({
     // modes, hover and copy button
     const [edit, setEdit] = useState(true)
     const [interactive, setInteractive] = useState(true);
+    const [help, setHelp] = useState(false);
     const [copied, setCopied] = useState<string>();
     const [deleting, setDeleting] = useState(false);
     // data fields
@@ -267,6 +268,7 @@ const CardGrid = ({
                 <InterfaceButtons
                     edit={edit}
                     interactive={interactive}
+                    help={help}
                     project_={project_}
                     interface_={interface_}
                     project={project}
@@ -287,6 +289,7 @@ const CardGrid = ({
                     setResetting={setResetting}
                     setEdit={setEdit}
                     setInteractive={setInteractive}
+                    setHelp={setHelp}
                     setFocusDialog={setFocusDialog}
                     setDataPending={setDataPending}
                     setContext={setContext}
@@ -377,13 +380,13 @@ const CardGrid = ({
                                     />
                                     <div className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (edit ? "h-16" : "h-10")}>
                                         <div className="mb-auto flex gap-2 ml-1 items-center">
-                                            <TutorialButton 
+                                            {help && <TutorialButton 
                                                 url={
                                                     el.tab === "Plot" ? "https://docs.unify.ai/interfaces/plots" :
                                                     el.tab === "View" ? "https://docs.unify.ai/interfaces/views" :
                                                     "https://docs.unify.ai/interfaces/tables"
                                                 }
-                                            />
+                                            />}
                                             <Tooltip content="Rename Tile">
                                                 <Badge
                                                     className="cursor-pointer text-sm font-normal mb-1"
