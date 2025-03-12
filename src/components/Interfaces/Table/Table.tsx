@@ -516,13 +516,12 @@ const LogsTable = ({
     </div>
   );
 
-  const tableRef = useRef<HTMLDivElement>(null);
-
   // Handle clicking outside of the table
   const onContainerClick = (event: React.MouseEvent<HTMLElement, MouseEvent>) => {
-    if (tableRef.current && !tableRef.current.contains(event.target as Node)) {
-      updateItem(item, "selected")("");
-    }
+    const target = event.target as HTMLElement;
+    if (["BUTTON", "INPUT", "TD", "TH"].includes(target.nodeName)) return;
+    if (target.firstChild && ["svg", "#text"].includes(target.firstChild?.nodeName)) return;
+    updateItem(item, "selected")("");
   }
 
   return (
@@ -535,7 +534,7 @@ const LogsTable = ({
       ) : (
         <div className="w-full h-full flex flex-col">
           {tableTop && tableTop}
-          <div ref={tableRef} className="w-full h-fit overflow-y-auto tutorial-logs-table">
+          <div className="w-full h-fit overflow-y-auto tutorial-logs-table">
             {project ? (
               <div className="relative flex-col gap-2">
                 {/* "summaryPending" can optionally show a small loader over the table if you like */}
