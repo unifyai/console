@@ -21,7 +21,7 @@ const DeleteDialog = ({ args, type, deletingFunction, showDialog, variant, setSh
 }) => {
     // Define messages
     const messages = {
-        "success": `Successfully deleted ${type}! Reloading the page...`,
+        "success": `Successfully deleted ${type}! Reloading...`,
         "warning": `You are about to delete the selected ${type}. This is an irreversible action.`,
         "error": `We encountered some issue when deleting your ${type}. Please try again or contact us if the issue persists.`,
         "tooltip": `Delete ${type}`
