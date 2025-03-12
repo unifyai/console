@@ -163,16 +163,18 @@ const DefaultProject = ({
                 size="default"
             />}
         >
-            {Object.keys(reorganizedExamples).map((group) => {
-                return <div key={group} className="w-[300px] mt-2 pb-1 px-3 border-b">
-                    <div className="font-semibold text-sm mb-1">{group}</div>
+            <div className="max-h-[80vh] overflow-y-auto">
+                {Object.keys(reorganizedExamples).map((group) => {
+                    return <div key={group} className="w-[300px] mt-2 pb-1 px-3 border-b">
+                        <div className="font-semibold text-sm mb-1">{group}</div>
                     {Object.keys(reorganizedExamples[group]).map(ex =>
                         <DropdownMenuItem key={ex} onClick={() => setExample(`${group}/${ex}`)}>
                             {ex}
                         </DropdownMenuItem>
                     )}
-                </div>
-            })}
+                    </div>
+                })}
+            </div>
         </BaseDropdown>
         <div className="relative max-w-[700px] max-h-[700px] overflow-y-auto rounded-md border border-1 p-2">
             <div className="absolute z-10 top-3 right-12 flex gap-1">
