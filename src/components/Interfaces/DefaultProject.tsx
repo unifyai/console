@@ -91,11 +91,13 @@ const DefaultProject = ({
                         logsActions.create(
                             exampleProject, null, exampleLogs.params, exampleLogs.entries
                         ).then(() => {
-                            setPendingLocal(false);
-                            setProject(exampleProject);
-                            setInterface(exampleName);
-                            setCreate(null);
-                            setExample(null);
+                            setTimeout(() => {
+                                setPendingLocal(false);
+                                setProject(exampleProject);
+                                setInterface(exampleName);
+                                setCreate(null);
+                                setExample(null);
+                            }, 3000);
                         });
                     });
                 });
@@ -153,7 +155,7 @@ const DefaultProject = ({
                                                 setInterface(exampleName);
                                                 setExample(null);
                                                 setCreate(null);
-                                            }, 1000);
+                                            }, 3000);
                                         });
                                     }
                                     else {
@@ -174,7 +176,7 @@ const DefaultProject = ({
                                                         setInterface(exampleName);
                                                         setExample(null);
                                                         setCreate(null);
-                                                    }, 1000);
+                                                    }, 3000);
                                                 });
                                             }
                                             else {
@@ -184,7 +186,7 @@ const DefaultProject = ({
                                                     setInterface(exampleName);
                                                     setExample(null);
                                                     setCreate(null);
-                                                }, 1000);
+                                                }, 3000);
                                             }
                                         });
                                     }
