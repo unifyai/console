@@ -7,6 +7,7 @@ export interface LogComparisonProps {
   comparisonLogsIndex: number[];      // The table row indices for each item in comparables.
   propertyName?: string;              // Optional: for labeling UI (like accordion trigger).
   nestingLevel?: number;              // How "deep" we are in recursion (for indenting).
+  prefix?: string;                    // Optional: for path prefixing (e.g. "entries" or "params")
   diffMode?: "none" | "lines" | "words" | "characters";
   splitView?: boolean;
   displayMode?: "text" | "markdown"

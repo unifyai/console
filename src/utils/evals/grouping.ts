@@ -3,6 +3,7 @@ import { TileProps, TableDataProps, LogsActions } from "@/types/evals/grid";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import { FiltersByColumn } from "@/types/evals/columns";
 import { combineFilters, filtersToExpression } from "./filters";
+import { getColumnMetrics } from "./common";
 
 /*
   Utility functions to check grouping types
@@ -325,6 +326,7 @@ export async function onGroupExpand(
   filterExpression: string | null,
   sortingExpression: string | null,
   groupingExpression: string | null,
+  groupSortingExpression: string | null,
   limit: number,
   offset: number,
   logsActions: LogsActions,
@@ -334,6 +336,7 @@ export async function onGroupExpand(
   dataTypes: { [key: string]: string },
   fields: LogFieldsResponseProps,
   logs: LogProps[] | GroupedLogProps[],
+  columns: string[]
 ): Promise<void> {
   try {
     const { currentId, updatedFilterExpression, columnFilters } = getGroupingFilters(
@@ -359,13 +362,33 @@ export async function onGroupExpand(
       updatedFilterExpression,
       sortingExpression,
       remainingGrouping.length > 0 ? remainingGrouping.join(",") : null,
+      groupSortingExpression,
       null,
       null,
       limit,
       offset,
       0,
+      null,
       Date.now().toString()
     );
+
+    let groupedMetrics: {[key: string]: {[key: string]: {[key: string]: number | string}}} = {};
+    const remainingGroupingExpression = remainingGrouping.length > 0 ? remainingGrouping.join(",") : null;
+    if (remainingGroupingExpression) {
+      const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
+      const groupingColumnId = remainingGroupingExpression.split(",")[0];
+      const metrics = await getColumnMetrics(
+        project,
+        context,
+        columnContext,
+        numericColumns,
+        updatedFilterExpression,
+        groupingColumnId,
+        item.metric,
+        logsActions
+      ) as { [key: string]: { [key: string]: number | string }};
+      groupedMetrics[groupingColumnId] = metrics;
+    }
 
     // Convert and update logs
     const convertedFreshLogs = maybeConvertRawToGroupedLogs(
@@ -412,7 +435,11 @@ export async function onGroupExpand(
           ...prev,
           [item.i]: {
             ...prev[item.i],
-            logs: updatedLogs
+            logs: updatedLogs,
+            groupedMetrics: {
+              ...prev[item.i].groupedMetrics,
+              ...groupedMetrics,
+            }
           }
         };
         resolve();

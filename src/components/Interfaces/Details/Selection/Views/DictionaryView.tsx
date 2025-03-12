@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useEffect } from "react";
 import {
   Accordion,
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
 } from "@/components/UI/accordion";
+import { FoldVertical, UnfoldVertical } from "lucide-react";
+import ActionButton from "@/components/Common/Buttons/Action";
 
 import {
   isDict,
@@ -17,53 +19,54 @@ import {
   isNumber,
   isTimestamp,
   isChat,
+  isPdf,
 } from "@/utils/evals/selection";
+import {
+  gatherAllSubPaths,
+  gatherAllSubPathsMulti,
+  makePrefixedDictPath,
+  sanitizePropertyKey,
+} from "@/utils/evals/pathUtils";
+import { useExpandContextSelector } from "@/contexts/ExpandContext";
 
 import { LogComparisonProps } from "./types";
 import { getValueType, getTypeIcon } from "./ViewTypes";
+import RowBadge from "./RowBadge";
 
+// Subcomponents
+import TraceView from "./TraceView";
+import ChatView from "./ChatView";
 import ListView from "./ListView";
 import ImageView from "./ImageView";
 import MatrixView from "./MatrixView";
 import StringView from "./StringView";
-import TraceView from "./TraceView";
 import NumberView from "./NumberView";
 import TimestampView from "./TimestampView";
-import ChatView from "./ChatView";
-
-import { Button } from "@/components/UI/button";
-import { FoldVertical, UnfoldVertical } from "lucide-react";
-
-// RowBadge is used to show “insert/delete” row sets
-import RowBadge from "./RowBadge";
+import PdfView from "./PdfView";
 
 /*────────────────────────────────────────────────────────────────────────────
-  1) unifyType: merges baseVal + comparables to produce a single type.
-     If multiple distinct types appear, fallback to "string."
+  unifyType => merges base + comps => single type. If multiple distinct => "string."
 ────────────────────────────────────────────────────────────────────────────*/
 function unifyType(baseVal: any, comps: any[]): string {
   const filtered = [baseVal, ...comps].filter((v) => {
-    if (v === undefined || v === null) return false;
+    if (v == null) return false;
     if (typeof v === "string" && v.trim() === "") return false;
     return true;
   });
-  if (filtered.length === 0) return "string";
+  if (!filtered.length) return "string";
 
   const typeSet = new Set<string>();
   for (const val of filtered) {
-    const t = getValueType(val);
-    typeSet.add(t);
+    typeSet.add(getValueType(val));
   }
   return typeSet.size === 1 ? Array.from(typeSet)[0] : "string";
 }
 
 /*────────────────────────────────────────────────────────────────────────────
-  2) pickView => specialized or fallback, with optional forceExpandAll
+  pickView => specialized child rendering
 ────────────────────────────────────────────────────────────────────────────*/
-function pickView(
-  props: LogComparisonProps & { forceExpandAll?: boolean }
-): JSX.Element {
-  const { value } = props;
+function pickView(props: LogComparisonProps & { prefix?: string; parentPath?: string }) {
+  const { value, parentPath = "", prefix = "", nestingLevel = 0 } = props;
 
   if (isTrace(value)) {
     const arr = Array.isArray(value) ? value : [value];
@@ -90,291 +93,654 @@ function pickView(
   if (isTimestamp(value)) {
     return <TimestampView {...props} />;
   }
+  if (isPdf(value)) {
+    return <PdfView {...props} />;
+  }
   return <StringView {...props} />;
 }
 
 /*────────────────────────────────────────────────────────────────────────────
-  3) toggleOnePropertyExpand => toggles child expansions for a single key
+  presenceDiff => highlight inserted/deleted dictionary keys (multi-mode)
 ────────────────────────────────────────────────────────────────────────────*/
-function toggleOnePropertyExpand(
-  propertyKey: string,
-  openItems: string[],
-  setOpenItems: React.Dispatch<React.SetStateAction<string[]>>,
-  childForceExpand: string[],
-  setChildForceExpand: React.Dispatch<React.SetStateAction<string[]>>
+function presenceDiff(
+  baseVal: any,
+  compVals: any[],
+  baseRow: number,
+  compRows: number[]
 ) {
-  if (!childForceExpand.includes(propertyKey)) {
-    setChildForceExpand((prev) => [...prev, propertyKey]);
-  } else {
-    setChildForceExpand((prev) => prev.filter((k) => k !== propertyKey));
-  }
+  const baseHas = baseVal !== undefined;
+  const redSet = new Set<number>();
+  const greenSet = new Set<number>();
+
+  compVals.forEach((cVal, i) => {
+    const row = compRows[i];
+    const cHas = cVal !== undefined;
+    if (baseHas && !cHas) {
+      redSet.add(row);
+    } else if (!baseHas && cHas) {
+      greenSet.add(row);
+    }
+  });
+
+  return {
+    redRows: Array.from(redSet).sort((a, b) => a - b),
+    greenRows: Array.from(greenSet).sort((a, b) => a - b),
+  };
 }
 
 /*────────────────────────────────────────────────────────────────────────────
-  DictionaryView component
-  - Preserves expansions, icons, triggers, and now includes presence-diff for keys
+  handleRecursiveToggle => expand/collapse everything under the given path
 ────────────────────────────────────────────────────────────────────────────*/
-type DictionaryViewProps = LogComparisonProps & {
-  forceExpandAll?: boolean;
-};
+function handleRecursiveToggle(
+  baseValue: unknown,
+  comparables: unknown[],
+  path: string,
+  prefix: string,
+  nestingLevel: number,
+  openKeys: Set<string>,
+  setOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>
+) {
+  // gather any subpaths under "path"
+  let subPaths: string[];
+  if (comparables && comparables.length > 0) {
+    // In multi-mode, use gatherAllSubPathsMulti to include all keys
+    subPaths = gatherAllSubPathsMulti(baseValue, comparables, path, prefix, nestingLevel);
+  } else {
+    // In single-mode, use the original method
+    subPaths = gatherAllSubPaths(baseValue, path, prefix, nestingLevel);
+  }
+  
+  // check if all are open
+  const allOpen = subPaths.every((sp) => openKeys.has(sp));
 
-const DictionaryView: React.FC<DictionaryViewProps> = (props) => {
-  const {
-    value,
-    comparables,
-    baseLogIndex,
-    comparisonLogsIndex,
-    version = "",
-    comparableVersions = [],
-    nestingLevel = 0,
-    diffMode = "none",
-    splitView = false,
-    displayMode = "markdown",
-    forceExpandAll = false,
-  } = props;
-
-  // Collect keys + data from base + comps
-  const allKeysAndData = useMemo(() => {
-    let keys: string[] = [];
-    let dicts: any[] = [];
-    let indexes: number[] = [];
-
-    if (!comparables || comparables.length === 0) {
-      // single-mode
-      keys = Object.keys(value || {}).sort();
-      dicts = [value];
-      indexes = [baseLogIndex];
-    } else {
-      // multi-mode
-      const joined = [value, ...comparables];
-      dicts = joined;
-      indexes = [baseLogIndex, ...comparisonLogsIndex];
-
-      const union = new Set<string>();
-      joined.forEach((obj) => {
-        if (obj && isDict(obj)) {
-          Object.keys(obj).forEach((k) => union.add(k));
-        }
+  setOpenKeys((prev) => {
+    const next = new Set(prev);
+    if (allOpen) {
+      // collapse - remove them
+      subPaths.forEach((sp) => {
+        next.delete(sp);
       });
-      keys = Array.from(union).sort();
-    }
-
-    return { allKeys: keys, allDicts: dicts, allIndexes: indexes };
-  }, [value, comparables, baseLogIndex, comparisonLogsIndex]);
-
-  // For dictionary expansions
-  const [openItems, setOpenItems] = useState<string[]>([]);
-  const [childForceExpand, setChildForceExpand] = useState<string[]>([]);
-
-  // If forceExpandAll changes, open or close everything
-  useEffect(() => {
-    if (forceExpandAll) {
-      setOpenItems(allKeysAndData.allKeys);
-      setChildForceExpand(allKeysAndData.allKeys);
     } else {
-      // revert to default
-      // We'll auto-open simple types like string/number/image by default:
-      const defaults = allKeysAndData.allKeys.filter((k) => {
-        const sample = allKeysAndData.allDicts[0]?.[k];
-        const t = getValueType(sample);
-        return ["string", "number", "matrix", "image"].includes(t);
+      // expand - add them
+      subPaths.forEach((sp) => {
+        next.add(sp);
       });
-      setOpenItems(defaults);
-      setChildForceExpand(defaults);
     }
-  }, [forceExpandAll, allKeysAndData.allKeys, allKeysAndData.allDicts]);
+    return next;
+  });
+}
 
-  if (!isDict(value)) {
-    return (
-      <p className="text-red-500">
-        DictionaryView: Base Value is not a dictionary.
-      </p>
-    );
-  }
-
-  // Single property rendering => used in single-mode
-  function renderSingleProperty(propKey: string, val: any) {
-    // unify => baseVal=val, no comps => unifyType(val, [])
-    const valType = unifyType(val, []);
-    const icon = getTypeIcon(valType);
-    const isOpen = openItems.includes(propKey);
-    const isChildForceExpand = childForceExpand.includes(propKey);
-
-    const childProps: LogComparisonProps & { forceExpandAll?: boolean } = {
-      value: val,
-      comparables: [],
-      baseLogIndex,
-      comparisonLogsIndex: [],
-      nestingLevel: nestingLevel + 1,
-      diffMode,
-      splitView,
-      version,
-      comparableVersions,
-      displayMode,
-      forceExpandAll: isChildForceExpand,
-    };
-
-    return (
-      <AccordionItem key={propKey} value={propKey}>
-        <AccordionTrigger className="relative group flex items-center justify-between">
-          <span className="inline-flex items-center gap-2">
-            {icon} {propKey}
-          </span>
-          {isOpen && (valType === "dict" || valType === "list") && (
-            <div className="absolute right-5 flex gap-1 items-center">
-              <Button
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleOnePropertyExpand(
-                    propKey,
-                    openItems,
-                    setOpenItems,
-                    childForceExpand,
-                    setChildForceExpand
-                  );
-                }}
-              >
-                {isChildForceExpand ? (
-                  <FoldVertical size={16} />
-                ) : (
-                  <UnfoldVertical size={16} />
-                )}
-              </Button>
-            </div>
-          )}
-        </AccordionTrigger>
-        <AccordionContent>
-          <div className="border-l ml-4 pl-1">{pickView(childProps)}</div>
-        </AccordionContent>
-      </AccordionItem>
-    );
-  }
-
-  // Multi property => used in multi-mode
-  function renderMultiProperty(propKey: string) {
-    const dicts = allKeysAndData.allDicts;
-    const subValues = dicts.map((d) => (d && isDict(d) ? d[propKey] : undefined));
-    const baseVal = subValues[0];
-    const compVals = subValues.slice(1);
-
-    // Presence-diff logic:
-    const baseHasIt = baseVal !== undefined;
-    const redSet = new Set<number>();
-    const greenSet = new Set<number>();
-    compVals.forEach((cVal, i) => {
-      const row = allKeysAndData.allIndexes[i + 1];
-      const compHasIt = cVal !== undefined;
-      if (baseHasIt && !compHasIt) {
-        redSet.add(row);
-      } else if (!baseHasIt && compHasIt) {
-        greenSet.add(row);
+/*────────────────────────────────────────────────────────────────────────────
+  groupRowsByValue => groups values by their JSON representation for no-diff mode
+────────────────────────────────────────────────────────────────────────────*/
+function groupRowsByValue(rowValuePairs: { rowIndex: number; val: any }[]) {
+  const map = new Map<string, { value: any; rows: number[] }>();
+  
+  rowValuePairs.forEach(({ rowIndex, val }) => {
+    // Use a stable JSON representation as the key for grouping
+    // Handle undefined/null values specially since they stringify differently
+    let key;
+    if (val === undefined) {
+      key = "::undefined::";
+    } else if (val === null) {
+      key = "::null::";
+    } else {
+      try {
+        key = JSON.stringify(val);
+      } catch (e) {
+        // If value can't be stringified (e.g., circular reference)
+        // use a fallback representation
+        key = `::object::${typeof val}::${Object.keys(val).sort().join(",")}`;
       }
-    });
-    const redRows = Array.from(redSet).sort((a, b) => a - b);
-    const greenRows = Array.from(greenSet).sort((a, b) => a - b);
-    let labelColor = "";
-    if (redRows.length > 0 && baseHasIt) {
-      labelColor = "text-red-600";
-    } else if (greenRows.length > 0 && !baseHasIt) {
-      labelColor = "text-green-600";
     }
 
-    // unify type for the property
-    const propType = unifyType(baseVal, compVals);
-    const icon = getTypeIcon(propType);
+    if (!map.has(key)) {
+      map.set(key, { value: val, rows: [] });
+    }
+    map.get(key)!.rows.push(rowIndex);
+  });
 
-    const isOpen = openItems.includes(propKey);
-    const isChildForceExpand = childForceExpand.includes(propKey);
+  // Return an array of groups with sorted row indices
+  return Array.from(map.values()).map((group) => ({
+    value: group.value,
+    rows: group.rows.sort((a, b) => a - b),
+  }));
+}
 
-    const childProps: LogComparisonProps & { forceExpandAll?: boolean } = {
-      value: baseVal,
-      comparables: compVals,
-      baseLogIndex: allKeysAndData.allIndexes[0],
-      comparisonLogsIndex: allKeysAndData.allIndexes.slice(1),
-      nestingLevel: nestingLevel + 1,
-      diffMode,
-      splitView,
-      version,
-      comparableVersions,
-      displayMode,
-      forceExpandAll: isChildForceExpand,
-    };
+/*────────────────────────────────────────────────────────────────────────────
+  DictionaryView => dictionary-level expansions, presence diffs, icons,
+  "forceExpandAll / forceCollapseAll" logic in one pass
+────────────────────────────────────────────────────────────────────────────*/
+interface DictionaryViewProps extends LogComparisonProps {
+  prefix?: string;
+  parentPath?: string;        // The parent's fully qualified path (e.g. "entries.dict.0.a")
+  nestingLevel?: number;
+}
 
-    return (
-      <AccordionItem key={propKey} value={propKey}>
-        <AccordionTrigger
-          className={`relative group flex items-center justify-between ${labelColor}`}
-        >
-          <span className="inline-flex items-center gap-2">
-            {icon} {propKey}
-            {(redRows.length > 0 || greenRows.length > 0) && (
-              <div className="flex gap-1 ml-2">
-                {redRows.length > 0 && (
-                  <RowBadge rowNumbers={redRows} mode="delete" />
-                )}
-                {greenRows.length > 0 && (
-                  <RowBadge rowNumbers={greenRows} mode="insert" />
-                )}
-              </div>
-            )}
-          </span>
-          {isOpen && (propType === "dict" || propType === "list") && (
-            <div className="absolute right-5 flex gap-1 items-center">
-              <Button
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleOnePropertyExpand(
-                    propKey,
-                    openItems,
-                    setOpenItems,
-                    childForceExpand,
-                    setChildForceExpand
-                  );
-                }}
-              >
-                {isChildForceExpand ? (
-                  <FoldVertical size={16} />
-                ) : (
-                  <UnfoldVertical size={16} />
-                )}
-              </Button>
-            </div>
-          )}
-        </AccordionTrigger>
-        <AccordionContent>
-          <div className="border-l ml-4 pl-1">{pickView(childProps)}</div>
-        </AccordionContent>
-      </AccordionItem>
-    );
+/*─────────────────────────────────────────────────────────────────────────
+  renderNoDiffMode => render in no-diff mode with superset keys and grouped values
+──────────────────────────────────────────────────────────────────────────*/
+function renderNoDiffMode(
+  allKeys: string[], 
+  value: any, 
+  comparables: any[], 
+  rowIndices: number[],
+  openKeys: Set<string>,
+  setOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>,
+  options: {
+    baseLogIndex: number,
+    comparisonLogsIndex: number[],
+    version: string,
+    comparableVersions: string[],
+    diffMode: "none" | "lines" | "words" | "characters",
+    splitView: boolean,
+    displayMode: "text" | "markdown",
+    nestingLevel: number,
+    prefix: string,
+    parentPath: string,
   }
+) {
+  const { 
+    baseLogIndex, comparisonLogsIndex, version, comparableVersions, 
+    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath 
+  } = options;
+  
+  // Build the open values array for the accordion
+  const openValues = allKeys
+    .map((k) => {
+      const builtPath = parentPath
+        ? parentPath + "." + sanitizePropertyKey(k)
+        : makePrefixedDictPath(prefix, nestingLevel, k);
+      return openKeys.has(builtPath) ? builtPath : null;
+    })
+    .filter(Boolean) as string[];
 
-  function renderProperties() {
-    return allKeysAndData.allKeys.map((propKey) => {
-      if (!comparables || comparables.length === 0) {
-        // single-mode
-        const val = value[propKey];
-        return renderSingleProperty(propKey, val);
-      } else {
-        // multi-mode
-        return renderMultiProperty(propKey);
-      }
+  // Function to handle accordion value change
+  function handleAccordionValueChange(newVals: string[]) {
+    const oldSet = new Set(openValues);
+    const nextSet = new Set(newVals);
+    const changedAdded = Array.from(nextSet).filter((v) => !oldSet.has(v));
+    const changedRemoved = Array.from(oldSet).filter((v) => !nextSet.has(v));
+    
+    setOpenKeys((prev) => {
+      const updated = new Set(prev);
+      changedAdded.forEach((v) => updated.add(v));
+      changedRemoved.forEach((v) => updated.delete(v));
+      return updated;
     });
   }
 
   return (
+    <Accordion
+      type="multiple"
+      value={openValues}
+      onValueChange={handleAccordionValueChange}
+    >
+      {allKeys.map((k) => {
+        // 1. Gather values for this key from all rows
+        const rowValuePairs: { rowIndex: number, val: any }[] = [];
+        
+        // Add base value if it exists
+        if (value && isDict(value) && Object.prototype.hasOwnProperty.call(value, k)) {
+          rowValuePairs.push({ rowIndex: rowIndices[0], val: value[k] });
+        }
+        
+        // Add comparable values if they exist
+        comparables.forEach((compDict, i) => {
+          if (compDict && isDict(compDict) && Object.prototype.hasOwnProperty.call(compDict, k)) {
+            rowValuePairs.push({ rowIndex: rowIndices[i + 1], val: compDict[k] });
+          }
+        });
+        
+        // 2. Group identical values
+        const groups = groupRowsByValue(rowValuePairs);
+        
+        // Collect all row indices for this key to show in the accordion trigger
+        const allRowsForKey = rowValuePairs.map(pair => pair.rowIndex).sort((a, b) => a - b);
+        
+        // 3. Create the path for this key
+        const path = parentPath
+          ? parentPath + "." + sanitizePropertyKey(k)
+          : makePrefixedDictPath(prefix, nestingLevel, k);
+        
+        // 4. Determine type and icon for the key (using the first non-undefined value)
+        const firstVal = rowValuePairs.find(p => p.val !== undefined)?.val;
+        const keyType = getValueType(firstVal);
+        const icon = getTypeIcon(keyType);
+        
+        // 5. Setup recursive toggle handler
+        const isPathOpen = openKeys.has(path);
+        function handleExpandToggle(e: React.MouseEvent) {
+          e.stopPropagation();
+          // Find the first value that's a complex type
+          const complexVal = rowValuePairs.find(p => {
+            const v = p.val;
+            return isDict(v) || isList(v);
+          })?.val;
+          
+          if (complexVal) {
+            // We'll use just this one value for gathering sub-paths
+            // since we only need the structure, not the actual values
+            handleRecursiveToggle(
+              complexVal,
+              [], // No comparables in this context
+              path,
+              prefix,
+              nestingLevel,
+              openKeys,
+              setOpenKeys
+            );
+          }
+        }
+        
+        return (
+          <AccordionItem key={k} value={path}>
+            <AccordionTrigger className="relative group flex items-center justify-between">
+              <span className="inline-flex items-center gap-2">
+                {icon} {k}
+                {allRowsForKey.length > 0 && (
+                  <div className="ml-2 flex gap-1">
+                    <RowBadge rowNumbers={allRowsForKey} mode="none" />
+                  </div>
+                )}
+              </span>
+              {(keyType === "dict" || keyType === "list") && (
+                <div className="absolute right-5 flex gap-1 items-center">
+                  <ActionButton
+                    variant="ghost"
+                    size="icon"
+                    tooltip={isPathOpen ? "Collapse All Children" : "Expand All Children"}
+                    onClick={handleExpandToggle}
+                    icon={isPathOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+                  />
+                </div>
+              )}
+            </AccordionTrigger>
+            
+            <AccordionContent>
+              <div className="border-l ml-4 pl-1">
+                {groups.map((group, idx) => (
+                  <div key={idx} className="mb-2">
+                    <RowBadge rowNumbers={group.rows} mode="none" />
+                    <div className="mt-1">
+                      {pickView({
+                        value: group.value,
+                        comparables: [], // No comparables since we're showing a single unified value
+                        baseLogIndex: group.rows[0], // Use the first row as the base
+                        comparisonLogsIndex: [], // No comparison indices
+                        version,
+                        comparableVersions,
+                        diffMode,
+                        splitView,
+                        displayMode,
+                        nestingLevel: nestingLevel + 1,
+                        prefix,
+                        parentPath: path,
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        );
+      })}
+    </Accordion>
+  );
+}
+
+export default function DictionaryView({
+  value,
+  comparables,
+  baseLogIndex,
+  comparisonLogsIndex,
+  version = "",
+  comparableVersions = [],
+  diffMode = "none",
+  splitView = false,
+  displayMode = "markdown",
+  nestingLevel = 0,
+  prefix = "entries",
+  parentPath = "", // new param to track parent's path
+}: DictionaryViewProps) {
+  // Use context selectors to only subscribe to the parts of the context we need
+  const openKeys = useExpandContextSelector(ctx => ctx.openKeys);
+  const setOpenKeys = useExpandContextSelector(ctx => ctx.setOpenKeys);
+  const forceExpandAll = useExpandContextSelector(ctx => ctx.forceExpandAll);
+  const forceCollapseAll = useExpandContextSelector(ctx => ctx.forceCollapseAll);
+
+  const singleMode = !comparables || comparables.length === 0;
+  
+  // Check if base is a valid dict
+  const isValidDict = isDict(value);
+  
+  // For multi-mode, check if any comparable is a valid dict
+  const hasValidComparables = !singleMode && comparables.some(comp => isDict(comp));
+  
+  // In multi-mode, we can proceed if either the base or any comparable is a valid dict
+  const canProceed = isValidDict || (!singleMode && hasValidComparables);
+
+  // gather union of all dictionary keys - handle invalid dict case inside
+  const { allKeys, rowIndices } = useMemo(() => {
+    if (singleMode && !isValidDict) {
+      return { allKeys: [], rowIndices: [] };
+    }
+    
+    if (singleMode) {
+      const baseObjKeys = Object.keys(value).sort();
+      return {
+        allKeys: baseObjKeys,
+        rowIndices: [baseLogIndex],
+      };
+    } else {
+      const arr = [value, ...comparables];
+      const union = new Set<string>();
+      arr.forEach((dict) => {
+        if (dict && typeof dict === "object" && !Array.isArray(dict)) {
+          Object.keys(dict).forEach((k) => union.add(k));
+        }
+      });
+      const sortedKeys = Array.from(union).sort();
+      return {
+        allKeys: sortedKeys,
+        rowIndices: [baseLogIndex, ...comparisonLogsIndex],
+      };
+    }
+  }, [value, comparables, singleMode, baseLogIndex, comparisonLogsIndex, isValidDict]);
+
+  // On mount or if forceExpandAll/forceCollapseAll changes => one pass
+  // Always call useEffect, but conditionally execute its body
+  useEffect(() => {
+    if (!canProceed) return;
+    
+    if (forceExpandAll || forceCollapseAll) {
+      // Use parentPath directly as the root path for gathering subpaths
+      // This ensures consistency with the top-level property path
+      if (parentPath) {
+        const newSet = new Set(openKeys);
+        
+        // Choose the appropriate path gathering function based on mode
+        let subPaths: string[];
+        if (!singleMode) {
+          // In multi-mode, use gatherAllSubPathsMulti to include keys from comparables
+          subPaths = gatherAllSubPathsMulti(value, comparables, parentPath, prefix, nestingLevel);
+        } else {
+          // In single-mode, use the original gatherAllSubPaths
+          subPaths = gatherAllSubPaths(value, parentPath, prefix, nestingLevel);
+        }
+
+        if (forceExpandAll) {
+          // expand all subpaths
+          subPaths.forEach((sp) => newSet.add(sp));
+        } else {
+          // collapse all subpaths
+          subPaths.forEach((sp) => newSet.delete(sp));
+        }
+
+        setOpenKeys(newSet);
+      }
+    }
+  }, [forceExpandAll, forceCollapseAll, openKeys, parentPath, prefix, nestingLevel, value, comparables, singleMode, canProceed, setOpenKeys]);
+
+  /*─────────────────────────────────────────────────────────────────────────
+    renderSingleKey => only base has data
+  ──────────────────────────────────────────────────────────────────────────*/
+  function renderSingleKey(k: string) {
+    const baseVal = (value as Record<string, unknown>)[k];
+    const type = unifyType(baseVal, []);
+    const icon = getTypeIcon(type);
+
+    // Build a fully qualified path that includes the parent's path if present
+    const path = parentPath
+      ? parentPath + "." + sanitizePropertyKey(k) // e.g. "entries.dict.0.a.sub_question"
+      : makePrefixedDictPath(prefix, nestingLevel, k);
+
+    const isOpen = openKeys.has(path);
+
+    function handleExpandToggle(e: React.MouseEvent) {
+      e.stopPropagation();
+      handleRecursiveToggle(
+        baseVal,
+        [],
+        path,
+        prefix,
+        nestingLevel,
+        openKeys,
+        setOpenKeys
+      );
+    }
+
+    // Build tooltip text
+    const isPathOpen = openKeys.has(path);
+
+    return (
+      <AccordionItem key={k} value={path}>
+        <AccordionTrigger className="relative group flex items-center justify-between">
+          <span className="inline-flex items-center gap-2">
+            {icon} {k}
+          </span>
+          {(type === "dict" || type === "list") && (
+            <div className="absolute right-5 flex gap-1 items-center">
+              <ActionButton
+                variant="ghost"
+                size="icon"
+                tooltip={isPathOpen ? "Collapse All Children" : "Expand All Children"}
+                onClick={handleExpandToggle}
+                icon={isPathOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+              />
+            </div>
+          )}
+        </AccordionTrigger>
+
+        <AccordionContent>
+          <div className="border-l ml-4 pl-1">
+            {pickView({
+              value: baseVal,
+              comparables: [],
+              baseLogIndex,
+              comparisonLogsIndex: [],
+              version,
+              comparableVersions,
+              diffMode,
+              splitView,
+              displayMode,
+              nestingLevel: nestingLevel + 1,
+              prefix,
+              parentPath: path, // pass the newly built path on
+            })}
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    );
+  }
+
+  /*─────────────────────────────────────────────────────────────────────────
+    renderMultiKey => presence diff
+  ──────────────────────────────────────────────────────────────────────────*/
+  function renderMultiKey(k: string) {
+    const dictVals = [value, ...comparables];
+    const fieldVals = dictVals.map((d) => (d && isDict(d) ? d[k] : undefined));
+    const baseVal = fieldVals[0];
+    const compVals = fieldVals.slice(1);
+
+    const { redRows, greenRows } = presenceDiff(
+      baseVal,
+      compVals,
+      rowIndices[0],
+      rowIndices.slice(1)
+    );
+
+    // Determine if the key is present in all rows or absent in all rows
+    const allRows = [rowIndices[0], ...rowIndices.slice(1)];
+    const isAllPresent = redRows.length === 0 && greenRows.length === 0 && baseVal !== undefined;
+    const isAllAbsent = redRows.length === 0 && greenRows.length === 0 && baseVal === undefined;
+
+    let labelColor = "";
+    const baseHas = baseVal !== undefined;
+    if (baseHas && redRows.length > 0) {
+      labelColor = "text-red-600";
+    } else if (!baseHas && greenRows.length > 0) {
+      labelColor = "text-green-600";
+    }
+
+    const propType = unifyType(baseVal, compVals);
+    const icon = getTypeIcon(propType);
+
+    // Build path that includes parent.
+    const path = parentPath
+      ? parentPath + "." + sanitizePropertyKey(k)
+      : makePrefixedDictPath(prefix, nestingLevel, k);
+
+    const isOpen = openKeys.has(path);
+
+    function handleExpandToggle(e: React.MouseEvent) {
+      e.stopPropagation();
+      handleRecursiveToggle(
+        baseVal,
+        compVals,
+        path,
+        prefix,
+        nestingLevel,
+        openKeys,
+        setOpenKeys
+      );
+    }
+
+    // Build tooltip text
+    const isPathOpen = openKeys.has(path);
+
+    return (
+      <AccordionItem key={k} value={path}>
+        <AccordionTrigger
+          className={`relative group flex items-center justify-between ${labelColor}`}
+        >
+          <span className="inline-flex items-center gap-2">
+            {icon} {k}
+            {(redRows.length > 0 || greenRows.length > 0) ? (
+              <div className="ml-2 flex gap-1">
+                {redRows.length > 0 && <RowBadge rowNumbers={redRows} mode="delete" />}
+                {greenRows.length > 0 && <RowBadge rowNumbers={greenRows} mode="insert" />}
+              </div>
+            ) : isAllPresent && (
+              <div className="ml-2 flex gap-1">
+                <RowBadge rowNumbers={allRows} mode="none" />
+              </div>
+            )}
+          </span>
+          {(propType === "dict" || propType === "list") && (
+            <div className="absolute right-5 flex gap-1 items-center">
+              <ActionButton
+                variant="ghost"
+                size="icon"
+                tooltip={isPathOpen ? "Collapse All Children" : "Expand All Children"}
+                onClick={handleExpandToggle}
+                icon={isPathOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+              />
+            </div>
+          )}
+        </AccordionTrigger>
+
+        <AccordionContent>
+          <div className="border-l ml-4 pl-1">
+            {pickView({
+              value: baseVal,
+              comparables: compVals,
+              baseLogIndex: rowIndices[0],
+              comparisonLogsIndex: rowIndices.slice(1),
+              version,
+              comparableVersions,
+              diffMode,
+              splitView,
+              displayMode,
+              nestingLevel: nestingLevel + 1,
+              prefix,
+              parentPath: path, // pass forward
+            })}
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    );
+  }
+
+  /*─────────────────────────────────────────────────────────────────────────
+    Build final
+  ──────────────────────────────────────────────────────────────────────────*/
+  const openValues = useMemo(() => {
+    // If not a valid dictionary, return empty array
+    if (!canProceed) return [];
+    
+    // Gather all keys => build path => check if open
+    // But we rely on the <Accordion value> = path approach:
+    // So we only keep the ones that are in openKeys
+    const paths = allKeys
+      .map((k) => {
+        // same logic as in renderSingleKey / renderMultiKey
+        const builtPath = parentPath
+          ? parentPath + "." + sanitizePropertyKey(k)
+          : makePrefixedDictPath(prefix, nestingLevel, k);
+        return builtPath;
+      })
+      .filter((p) => openKeys.has(p));
+    return paths;
+  }, [allKeys, openKeys, parentPath, prefix, nestingLevel, canProceed]);
+
+  // Return with conditional rendering based on canProceed
+  return (
     <div className="flex flex-col gap-2">
-      <Accordion
-        key={`dict-${forceExpandAll ? "open" : "closed"}`}
-        type="multiple"
-        value={openItems}
-        onValueChange={setOpenItems}
-      >
-        {renderProperties()}
-      </Accordion>
+      {!canProceed ? (
+        <p className="text-red-500">
+          {singleMode 
+            ? "DictionaryView: base value is not a dictionary." 
+            : "DictionaryView: neither base nor comparables are valid dictionaries."}
+        </p>
+      ) : diffMode === "none" && !singleMode ? (
+        // No-diff mode with multiple values
+        renderNoDiffMode(
+          allKeys,
+          value,
+          comparables,
+          rowIndices,
+          openKeys,
+          setOpenKeys,
+          {
+            baseLogIndex,
+            comparisonLogsIndex,
+            version,
+            comparableVersions,
+            diffMode: diffMode as "none",
+            splitView,
+            displayMode: displayMode as "text" | "markdown",
+            nestingLevel,
+            prefix,
+            parentPath,
+          }
+        )
+      ) : (
+        <Accordion
+          type="multiple"
+          value={openValues}
+          onValueChange={(newVals) => {
+            const oldSet = new Set(openValues);
+            const nextSet = new Set(newVals);
+            const changedAdded = Array.from(nextSet).filter((v) => !oldSet.has(v));
+            const changedRemoved = Array.from(oldSet).filter((v) => !nextSet.has(v));
+            setOpenKeys((prev) => {
+              const updated = new Set(prev);
+              changedAdded.forEach((v) => {
+                updated.add(v);
+              });
+              changedRemoved.forEach((v) => {
+                updated.delete(v);
+              });
+              return updated;
+            });
+          }}
+        >
+          {allKeys.map((k) => (
+            singleMode ? renderSingleKey(k) : renderMultiKey(k)
+          ))}
+        </Accordion>
+      )}
     </div>
   );
-};
-
-export default DictionaryView;
+}

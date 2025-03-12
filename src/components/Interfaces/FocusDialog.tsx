@@ -9,7 +9,7 @@ import { Badge } from "../UI/badge";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
 import { TableArguments } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
-import { DerivedEntryActions, Interface, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps, Context } from "@/types/evals/grid";
+import { DerivedEntryActions, Interface, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps, Context, ContextActions } from "@/types/evals/grid";
 import { Plus, X } from "lucide-react";
 import { icons } from "@/constants/logs";
 
@@ -20,6 +20,7 @@ const FocusDialog = ({
     interactive,
     project,
     contexts,
+    context,
     pending,
     dataPending,
     tilePending,
@@ -31,10 +32,12 @@ const FocusDialog = ({
     logsActions,
     fieldsActions,
     derivedEntryActions,
+    contextActions,
     items,
     filterExpressions,
     sortingExpressions,
     groupingExpressions,
+    groupSortingExpressions,
     limit,
     offsets,
     updateItem,
@@ -49,6 +52,7 @@ const FocusDialog = ({
     interactive: boolean,
     project: string | undefined,
     contexts: Context[],
+    context: string | undefined,
     pending: boolean,
     dataPending: boolean,
     tilePending: { [key: string]: boolean },
@@ -60,10 +64,12 @@ const FocusDialog = ({
     logsActions: LogsActions,
     fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
+    contextActions: ContextActions,
     items: TileProps[],
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
     groupingExpressions: (string | null)[],
+    groupSortingExpressions: (string | null)[],
     limit: number,
     offsets: number[],
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: any | undefined) => void,
@@ -82,6 +88,7 @@ const FocusDialog = ({
                         project={project}
                         pending={pending || dataPending || (item.tab == "Table" ? tilePending[item.i] : false)}
                         contexts={contexts}
+                        context={context}
                         tableNames={tableNames}
                         tableData={tableData}
                         tableArguments={tableArguments}
@@ -89,12 +96,14 @@ const FocusDialog = ({
                         logsActions={logsActions}
                         fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}
+                        contextActions={contextActions}
                         index={item.i}
                         item={item}
                         items={items}
                         filterExpressions={filterExpressions}
                         sortingExpressions={sortingExpressions}
                         groupingExpressions={groupingExpressions}
+                        groupSortingExpressions={groupSortingExpressions}
                         limit={limit}
                         offsets={offsets}
                         setPending={(p: boolean) => setTilePending({ ...tilePending, [item.i]: p })}

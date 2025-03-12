@@ -12,7 +12,6 @@ type ImageColumnFilterProps = {
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
-    logs: LogProps[] | GroupedLogProps[],
     filterLoading: boolean,
     setFilterLoading: (filterLoading: boolean) => void,
     setIsFiltered: (isFiltered: boolean) => void,
@@ -24,7 +23,6 @@ const ImageColumnFilter = ({
     column,
     columnFilters,
     setColumnFilterQuery,
-    logs,
     filterLoading,
     setFilterLoading,
     setIsFiltered,
@@ -33,9 +31,6 @@ const ImageColumnFilter = ({
 
     /* Display loader when data updates */
     const [spinnerColor, setSpinnerColor] = useState("white");
-    useEffect(() => {
-        setFilterLoading(false);
-    },[logs])
 
     /* Init filter */
     const initialValue = columnFilters[column] && columnFilters[column]["isNone"] ? columnFilters[column]["isNone"] : "None"
@@ -58,9 +53,9 @@ const ImageColumnFilter = ({
             newColumnFilters = {...columnFilters, [column]: {"isNone": newFilter}}
             setSpinnerColor("white")
         }
+        setFilterLoading(true)
         setFilter(newFilter)
         setColumnFilterQuery(newColumnFilters);
-        setFilterLoading(true)
     }
 
     /* Filter button */
@@ -108,7 +103,7 @@ const ImageColumnFilter = ({
                 "
             >
                 <Filter className="h-4 w-4"/>
-                <span>Filter by this column</span>
+                <span>Filter column</span>
             </DropdownMenuItem>
         ) : (
             <ActionButton icon={icon} tooltip={tooltip} variant={variant} disabled={disabled} onClick={onClick}/>

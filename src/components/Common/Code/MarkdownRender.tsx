@@ -33,12 +33,12 @@ const MarkdownRender = ({ content, noBackground }: { content: string, noBackgrou
         </div>
         <SyntaxHighlighter
           language={language?.[1] ?? undefined}
-          style={theme === "dark" ? dracula : docco}
+          style={theme && ["dark", "system"].includes(theme) ? dracula : docco}
           PreTag="div"
           lineProps={{ style: { wordBreak: "break-all", whiteSpace: "pre-wrap" } }}
           wrapLines={true}
           wrapLongLines={true}
-          customStyle={noBackground ? { backgroundColor: "transparent" } : undefined}
+          customStyle={(noBackground && theme != "system") ? { backgroundColor: "transparent" } : undefined}
         >
           {codeContent}
         </SyntaxHighlighter>

@@ -14,10 +14,10 @@ const NewsletterPreferences = ({subscriptions, handleSubscriptionChange}: {
         handleSubscriptionChange(newSubscriptions)
     }
     const newsletters = [
-        {id: "5557d764ba", label: "Launch Updates", description: `Stay updated with our biggest releases. Don't miss the latest in LLM evaluation with Unify.`},
-        {id: "19d7b96a24", label: "Paper Reading Group", description: `Get a bi-weekly plan for the next paper reading sessions, featuring cutting-edge LLM research.`},
-        {id: "c13433a863", label: "Weekly Webinar Series", description: `Get notified with our upcoming webinars and online events with the community.`},
-        {id: "aeb897777c", label: "Weekly Changelog", description: `Get notified with our upcoming webinars and online events with the community.`}
+        {id: "5557d764ba", label: "Product Launches", description: `Get updated on our quarterly launches.`},
+        {id: "19d7b96a24", label: "Paper Reading Group", description: `Get updated on our weekly reading groups.`},
+        {id: "c13433a863", label: "Weekly Webinars", description: `Get updated on our weekly webinars.`},
+        {id: "aeb897777c", label: "New Features", description: `Get updated on our weekly feature releases.`}
     ];
     const subscription = (index:number, newsletter: {id: string, label: string, description: string}) => 
         <LabeledCheckbox 
@@ -27,14 +27,19 @@ const NewsletterPreferences = ({subscriptions, handleSubscriptionChange}: {
             onCheckedChange={(checked) => updateCheckedItems(subscriptions, newsletter.id, checked)}
             label={newsletter.label}
             description={newsletter.description}
+            descriptionOnHover={true}
         />;
     
     return (
         <div className="tutorial-newsletter-preferences mt-4">
-          <p className="font-bold mt-4">Edit your newsletter subscriptions</p>
-          <div className="flex flex-col gap-4 mt-4">
-            {newsletters.map((newsletter, index) =>  subscription(index, newsletter))}
-          </div>
+            <p className="font-bold mt-4">Edit your newsletter subscriptions</p>
+            <div className="flex flex-col gap-4 mt-4">
+            {newsletters.map((newsletter, index) => (
+                <div key={index} className="transition-all duration-300">
+                    {subscription(index, newsletter)}
+                </div>
+            ))}
+            </div>
         </div>
     )
 }

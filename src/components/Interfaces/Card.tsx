@@ -10,11 +10,12 @@ import { TableArguments } from "@/types/evals/logs";
 import LogsPlot from "@/components/Interfaces/Details/Plot/Plot";
 import { ResponseProps } from "@/types/common";
 import LogsTable from "@/components/Interfaces/Table/Table";
-import { DerivedEntryActions, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
+import { DerivedEntryActions, ItemType, LogsActions, FieldsActions, PlotDataProps, TableDataProps, TileProps, ContextActions } from "@/types/evals/grid";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import { icons, tabTypes } from "@/constants/logs";
 import { Context } from "@/types/evals/grid";
 import { Plus } from "lucide-react";
+import { ExpandProvider } from "@/contexts/ExpandContext";
 
 const Card = ({
     edit,
@@ -22,6 +23,7 @@ const Card = ({
     project,
     pending,
     contexts,
+    context,
     tableNames,
     tableData,
     plotData,
@@ -29,12 +31,14 @@ const Card = ({
     logsActions,
     fieldsActions,
     derivedEntryActions,
+    contextActions,
     index,
     item,
     items,
     filterExpressions,
     sortingExpressions,
     groupingExpressions,
+    groupSortingExpressions,
     limit,
     offsets,
     setPending,
@@ -47,6 +51,7 @@ const Card = ({
     project: string | undefined,
     pending: boolean,
     contexts: Context[],
+    context: string | undefined,
     tableNames: string[],
     tableData: TableDataProps,
     plotData: PlotDataProps,
@@ -54,12 +59,14 @@ const Card = ({
     logsActions: LogsActions,
     fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
+    contextActions: ContextActions,
     index: string,
     item: TileProps,
     items: TileProps[],
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
     groupingExpressions: (string | null)[],
+    groupSortingExpressions: (string | null)[],
     limit: number,
     offsets: number[],
     setPending: (pending: boolean) => void,
@@ -91,12 +98,15 @@ const Card = ({
         item.common_filter,
         item.sorting,
         item.grouping,
+        item.group_sorting,
         item.page_number,
         item.metric,
         item.plot_type,
         item.x_axis,
         item.y_axis,
-        item.plot_group_by
+        item.plot_group_by,
+        item.auto_update,
+        item.freeze
     ]);
 
     useEffect(() => {
@@ -109,7 +119,7 @@ const Card = ({
     }, []);
 
     return (<div className="relative flex w-full h-full border">
-        <div className={"w-full flex-1 flex flex-col items-center " + (tab ? "mt-2" : "justify-center")}>
+        <div className={"w-full flex-1 flex flex-col items-center " + ((!edit && tab) ? "mt-4" : tab ? "mt-2" : "justify-center")}>
             <div className="flex gap-4 z-20">
                 {edit && <div className="w-fit">
                     <BaseDropdown
@@ -155,17 +165,20 @@ const Card = ({
                     </BaseDropdown>
                 </div>}
             </div>
-            {tab?.includes("View") && <div className="w-full overflow-auto"><Selection
-                params={item.table ? tableData[item.table]?.params : {}}
-                logs={item.table ? maybeFlattenGroupedLogs(tableData[item.table]?.logs || []) : []}
-                selection_={relevantItem?.selected}
-                baseIndex_={relevantItem?.base_index}
-                columnOrdering_={relevantItem?.column_order}
-                hiddenColumns_={relevantItem?.hidden_columns}
-                tableItem={items.find(it => it.i == item.table) || {i: item.table, x: -1, y: -1, w: -1, h: -1} as TileProps}
-                item={item}
-                updateItem={updateItem}
-            /></div>}
+            {tab?.includes("View") && <div className="w-full overflow-auto">
+                <ExpandProvider>
+                    <Selection
+                    params={item.table ? tableData[item.table]?.params : {}}
+                    logs={item.table ? maybeFlattenGroupedLogs(tableData[item.table]?.logs || []) : []}
+                    selection_={relevantItem?.selected}
+                    baseIndex_={relevantItem?.base_index}
+                    columnOrdering_={relevantItem?.column_order}
+                    tableItem={items.find(it => it.i == item.table) || {i: item.table, x: -1, y: -1, w: -1, h: -1} as TileProps}
+                    item={item}
+                    updateItem={updateItem}
+                    />
+                </ExpandProvider>
+            </div>}
             {tab?.includes("Plot") && <LogsPlot
                 interactive={interactive}
                 pending={pending}
@@ -181,6 +194,7 @@ const Card = ({
                 interactive={interactive}
                 project={project}
                 contexts={contexts}
+                context_={context}
                 pending={pending}
                 tab={tab}
                 item={item}
@@ -188,6 +202,7 @@ const Card = ({
                 tableDataItem_={{
                     ...(tableData[item.i] || {}),
                     logs: tableData[item.i]?.logs || [],
+                    params: tableData[item.i]?.params || [],
                     entriesProperties: tableData[item.i]?.entriesProperties || [],
                     paramsProperties: tableData[item.i]?.paramsProperties || [],
                     metrics: tableData[item.i]?.metrics || {},
@@ -200,9 +215,11 @@ const Card = ({
                 fieldsActions={fieldsActions}
                 logsActions={logsActions}
                 derivedEntryActions={derivedEntryActions}
+                contextActions={contextActions}
                 filterExpression={filterExpressions ? filterExpressions[items.findIndex(it => it.i === item.i)] : null}
                 sortingExpression={sortingExpressions ? sortingExpressions[items.findIndex(it => it.i === item.i)] : null}
                 groupingExpression={groupingExpressions ? groupingExpressions[items.findIndex(it => it.i === item.i)] : null}
+                groupSortingExpression={groupSortingExpressions ? groupSortingExpressions[items.findIndex(it => it.i === item.i)] : null}
                 limit={limit}
                 offset={offsets ? offsets[items.findIndex(it => it.i === item.i)] : 0}
                 updateInterface={updateInterface}

@@ -47,6 +47,12 @@ const LogsPlot = ({ logs, fields}: {
     const [selectedYAxisProperty, setSelectedYAxisProperty] = useQueryState("y_axis", { shallow: false });
     const [groupByProperty, setGroupByProperty] = useQueryState("plot_group_by", { shallow: false });
 
+    // Track zoom level and reset when changing plot type or axes
+    let zoomRef = useRef(d3.zoomIdentity);
+    useEffect(() => {
+        zoomRef.current = d3.zoomIdentity
+    }, [selectedXAxisProperty, selectedYAxisProperty, plotType])
+    
     // Draw plot
     useEffect (() => {
         // Initialize SVG, container and placholder text
@@ -90,7 +96,8 @@ const LogsPlot = ({ logs, fields}: {
                     xTable,
                     yTable,
                     logs, 
-                    fields
+                    fields,
+                    zoomRef
                 );
             } else {
                 placeholder
@@ -119,10 +126,12 @@ const LogsPlot = ({ logs, fields}: {
                     selectedXAxisProperty, 
                     selectedYAxisProperty, 
                     metric as string,
+                    "unsorted",
                     xTable,
                     yTable,
                     logs, 
-                    fields
+                    fields,
+                    zoomRef
                 );
             } else {
                 placeholder
@@ -186,7 +195,8 @@ const LogsPlot = ({ logs, fields}: {
                     xTable,
                     yTable,
                     logs, 
-                    fields
+                    fields,
+                    zoomRef
                 );
             } else {
                 placeholder
@@ -278,6 +288,7 @@ const LogsPlot = ({ logs, fields}: {
                     <rect id={"clip-rect"} x={margins.left} y={margins.top} width={dimensions.width - margins.left - margins.right} height={dimensions.height - margins.top - margins.bottom}/>
                 </clipPath>
             </defs>
+            <rect className="zoom-layer"/>
             <g className="plotData" clipPath="url(#clip)"/>
             <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="placeholderText"/>
             <line className="bottomLine" stroke="var(--foreground)" stroke-width="0.5"/>

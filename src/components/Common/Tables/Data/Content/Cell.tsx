@@ -100,11 +100,13 @@ const DataTableCell = ({
   // - Applied background color on any index cell if all non aggregated, non placeholder, non grouped cells in the same row are selected
   const [hovered, setHovered] = useState(false);
   const isSelectableCell = (cell: Cell<any, unknown>) =>
-    !cell.getIsGrouped() && !cell.getIsAggregated() && !cell.getIsPlaceholder() && cell.column.getIsVisible()
-  const isAllRowSelected = (cell: Cell<any, unknown>) => 
-    cell.getContext().row.getAllCells()
-        .filter(c => isSelectableCell(c) && c.column.id != "RowNumbering")
-        .every(c => isCellSelected(c))
+    !cell.getIsGrouped() && !cell.getIsAggregated() && !cell.getIsPlaceholder() && cell.column.getIsVisible() && (cell.column.id === "RowNumbering" || cell.getValue() !== undefined)
+  const isAllRowSelected = (cell: Cell<any, unknown>) => {
+    const dataCells = cell.getContext().row.getAllCells().filter(c => isSelectableCell(c) && c.column.id != "RowNumbering")
+    const allSelected = dataCells.every(c => isCellSelected(c))
+    const allHidden = Object.entries(state.columnVisibility).filter(([, v]) => v).length === 1 // Only RowNumbering column visible
+    return allSelected && !allHidden
+  }
 
   const style: CSSProperties = {
     boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
@@ -118,7 +120,9 @@ const DataTableCell = ({
     minWidth: columnID === "RowNumbering" ? "120px" : undefined,
     maxWidth: `${Math.round(cell.column.getSize())}px`,
     zIndex: isColumnDragging || isPinned ? 1 : 0,
+    borderLeft: columnID === "RowNumbering" ? "1px solid var(--muted)" : undefined,
     borderRight: "1px solid var(--muted)",
+    borderTop: "1px solid var(--muted)",
     outline: "none",
     color: cell.column.id != "RowNumbering"
       ? isCellSelected(cell) ? "var(--primary-foreground)" : ""
@@ -126,6 +130,9 @@ const DataTableCell = ({
     backgroundColor: cell.column.id != "RowNumbering"
       ? isCellSelected(cell) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
       : isSelectableCell(cell) && isAllRowSelected(cell) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : "",
+    backgroundImage: cell.column.id !== "RowNumbering" && cell.getValue() === undefined 
+      ? `repeating-linear-gradient(-45deg, color-mix(in srgb, var(--foreground) 20%, transparent) 0 1px, transparent 1px 6px)` 
+      : undefined
   };
 
   const [isLoading, setIsLoading] = useState(false);
@@ -157,7 +164,7 @@ const DataTableCell = ({
       ref={setNodeRef}
       className={`group/cell relative select-none ${isNewCell ? 'animate-fade-accent' : ''}`}
     >
-      <div className="overflow-hidden text-nowrap text-ellipsis ...">
+      <div className="overflow-hidden text-nowrap text-ellipsis truncate ...">
         {shouldShowGrouping 
           ? (properties.includes(columnID) &&
             <div className="flex flex-row gap-2 items-center text-left truncate ... overflow-hidden">

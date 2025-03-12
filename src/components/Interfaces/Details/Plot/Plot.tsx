@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useMemo, useState } from "react";
+import { useEffect, useRef, useId, useState } from "react";
 import * as d3 from "d3";
 
 import PlotType from "./Buttons/PlotType";
@@ -10,6 +10,7 @@ import PlotGroupBy from "./Buttons/PlotGroupBy";
 import PlotReset from "./Buttons/PlotReset";
 import PlotBins from "./Buttons/PlotBins";
 import PlotRefresh from "./Buttons/PlotRefresh";
+import PlotSort from "./Buttons/PlotSort";
 
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { LogFieldsResponseProps, LogProps, PlotArguments } from "@/types/evals/logs";
@@ -36,10 +37,11 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
     useEffect(() => {
         if (JSON.stringify(plotDataItem_) != JSON.stringify(plotDataItem)) setPlotDataItem(plotDataItem_);
     }, [plotDataItem_]);
-    
+
     // Initialize refs and container dimensions
     let svgRef = useRef(null);
     let containerRef = useRef(null);
+    const clipId = useId();
     const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
     const margins = { top: 35, right: 100, bottom: 65, left: 60 } // Margin on the sides
     const axisPadding = 20; // Extra padding between axes borders and plot borders
@@ -65,6 +67,15 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
     const selectedXAxisProperty = item.x_axis;
     const selectedYAxisProperty = item.y_axis;
     const groupByProperty = item.plot_group_by;
+
+    // Sort bars for bar chart
+    const [sortBars, setSortBars] = useState("asc")
+
+    // Track zoom level and reset when changing plot type or axes
+    let zoomRef = useRef(d3.zoomIdentity);
+    useEffect(() => {
+        zoomRef.current = d3.zoomIdentity
+    }, [selectedXAxisProperty, selectedYAxisProperty, plotType])
 
     // Draw plot
     useEffect(() => {
@@ -109,7 +120,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     xTable,
                     yTable,
                     logs,
-                    fields
+                    fields,
+                    zoomRef
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
@@ -137,10 +149,12 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     selectedXAxisProperty,
                     selectedYAxisProperty,
                     metric,
+                    sortBars,
                     xTable,
                     yTable,
                     logs,
-                    fields
+                    fields,
+                    zoomRef
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
@@ -206,7 +220,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     xTable,
                     yTable,
                     logs,
-                    fields
+                    fields,
+                    zoomRef
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
@@ -229,6 +244,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
         selectedYAxisProperty,
         plotType,
         groupByProperty,
+        sortBars,
         metric,
         binCount,
         binCounts,
@@ -325,6 +341,9 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                                 fields={fields}
                             />
                         }
+                        {plotType === "Bar Chart" && 
+                            <PlotSort sortBars={sortBars} setSortBars={setSortBars}/>
+                        }
                         {plotType === "Scatter Plot" && 
                             <PlotRegression 
                                 showRegression={showRegression} 
@@ -338,11 +357,12 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
             {/* Chart */}
             <svg ref={svgRef} className="flex w-full h-full absolute z-0">
                 <defs>
-                    <clipPath id="clip">
+                    <clipPath id={clipId}>
                         <rect id={"clip-rect"}/>
                     </clipPath>
                 </defs>
-                <g className="plotData" clipPath="url(#clip)"/>
+                <rect className="zoom-layer"/>
+                <g className="plotData" clipPath={`url(#${clipId})`}/>
                 <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="placeholderText"/>
                 <line className="bottomLine" stroke="var(--foreground)" stroke-width="0.5"/>
                 <line className="leftLine" stroke="var(--foreground)" stroke-width="0.5"/>

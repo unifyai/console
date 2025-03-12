@@ -2,7 +2,7 @@
 
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
-import { TableArguments, LogProps, GroupedLogProps } from "@/types/evals/logs";
+import { TableArguments, LogProps, GroupedLogProps, LogItemProps } from "@/types/evals/logs";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -11,9 +11,9 @@ import {
   ColumnSizingState,
   GroupingState,
 } from "@tanstack/react-table";
-import { DerivedEntryActions, LogsActions, FieldsActions, Context } from "@/types/evals/grid";
-import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { DerivedEntryActions, LogsActions, FieldsActions, Context, ContextActions } from "@/types/evals/grid";
+import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
+import { Loader2, Ungroup, ListX, FilterX } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import { buildTree, nestedColumns, encodeRenderedDepth } from "@/utils/evals/table";
 import { Badge } from "@/components/UI/badge";
@@ -21,6 +21,7 @@ import ColumnFilter from "./Buttons/Filters/Main";
 import AggregatedCell from "./Content/AggregatedCell";
 import VisibilityFilter from "./Buttons/VisibilityFilter";
 import DeleteCells from "./Buttons/DeleteCells";
+import ColumnDelete from "./Buttons/DeleteColumn";
 import ColumnMetrics from "./Buttons/ColumnMetrics";
 import SummaryCell from "./Content/SummaryCell";
 import FooterCell from "./Content/FooterCell";
@@ -30,20 +31,24 @@ import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
 import FreezeLogs from "./Buttons/FreezeLogs";
 import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
+import { FiltersByColumn } from "@/types/evals/columns";
 import CellPopover from "./Content/CellPopover";
 import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
 import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
+import ColumnGroupSort from "@/components/Interfaces/Table/Buttons/ColumnGroupSort";
 import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data/Buttons/RowExpanding";
 import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import ContextSelector from "./Content/ContextSelector";
+import ResetServerAction from "./Buttons/ResetServerAction";
 
 const LogsTable = ({
   interactive,
   project,
   contexts,
+  context_,
   pending,
   item,
   tableArguments,
@@ -52,10 +57,12 @@ const LogsTable = ({
   updateItem,
   logsActions,
   fieldsActions,
+  contextActions,
   derivedEntryActions,
   filterExpression,
   sortingExpression,
   groupingExpression,
+  groupSortingExpression,
   limit,
   offset,
   updateInterface,
@@ -64,6 +71,7 @@ const LogsTable = ({
   interactive: boolean;
   project: string | undefined;
   contexts: Context[];
+  context_: string | undefined;
   pending: boolean;
   tab: string;
   item: TileProps;
@@ -74,9 +82,11 @@ const LogsTable = ({
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions,
+  contextActions: ContextActions,
   filterExpression: string | null,
   sortingExpression: string | null,
   groupingExpression: string | null,
+  groupSortingExpression: string | null,
   limit: number,
   offset: number,
   updateInterface: () => Promise<ResponseProps>,
@@ -85,11 +95,17 @@ const LogsTable = ({
 
   // extract necessary fields
   const [tableDataItem, setTableDataItem] = useState(tableDataItem_);
-  const { fields, logs, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
+  const { fields, logs, params, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
   useEffect(() => {
     setTableDataItem(tableDataItem_);
   }, [tableDataItem_]);
 
+  // Extract params values from logs
+  const paramsValues: LogItemProps = {};
+  const flatLogs = maybeFlattenGroupedLogs(logs)
+  if (Object.entries(params).length && Object.entries(logs).length)
+    flatLogs.map(log => Object.entries(log.params).map(([key, value]) => paramsValues[key] = params[key][value]))
+  
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false); // if metric changed
 
@@ -106,55 +122,83 @@ const LogsTable = ({
   );
 
   // Column definitions
-  const entriesTree = buildTree(entriesProperties);
-  const paramsTree = buildTree(paramsProperties);
-  const dataTypes = fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type])) : {}
-  const fieldTypes = fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].field_type])) : {}
+  const entriesTree = useMemo(() => buildTree(entriesProperties), [entriesProperties]);
+  const paramsTree = useMemo(() => buildTree(paramsProperties), [paramsProperties]);
+  const dataTypes = useMemo(() => fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type])) : {}, [fields]);
+  const fieldTypes = useMemo(() => fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].field_type])) : {}, [fields]);
+
   const indicesTitle = "RowNumbering";
   const entriesTitle = "Entries";
   const paramsTitle = "Parameters";
 
-  const columns: ColumnDef<LogProps | GroupedLogProps>[] = [
-    {
-      id: indicesTitle,
-      cell: ({ row }) => <Badge>{row.index + 1}</Badge>,
-      meta: {
-        dataType: null,
-        columnType: "util",
-        enableRowSpan: false,
-        isParent: false,
-        renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
+  const columns = useMemo(() => {
+    // Construct the columns array
+    return [
+      {
+        id: indicesTitle,
+        cell: ({ row }) => <Badge>{row.index + 1}</Badge>,
+        meta: {
+          dataType: null,
+          columnType: "util",
+          enableRowSpan: false,
+          isParent: false,
+          renderedDepth: -1,
+        },
       },
-    },
-    ...(paramsProperties.length
-      ? [
-        {
-          id: paramsTitle,
-          header: paramsTitle,
-          columns: nestedColumns(paramsTree, "params", paramsTitle, logsData, true, dataTypes, fieldTypes),
-          meta: {
-            columnType: "paramsHeader",
-            isParent: true,
-            renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
-          },
-        },
-      ]
-      : []),
-    ...(paramsProperties.length
-      ? [
-        {
-          id: entriesTitle,
-          header: entriesTitle,
-          columns: nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, dataTypes, fieldTypes),
-          meta: {
-            columnType: "entriesHeader",
-            isParent: true,
-            renderedDepth: -1,  // Needed for grouping, showing, hiding multiple column nests
-          },
-        },
-      ]
-      : nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, dataTypes, fieldTypes)),
-  ];
+      ...(paramsProperties.length
+        ? [
+            {
+              id: paramsTitle,
+              header: paramsTitle,
+              columns: nestedColumns(
+                paramsTree,
+                "params",
+                paramsTitle,
+                logsData,
+                true,
+                dataTypes,
+                fieldTypes
+              ),
+              meta: {
+                columnType: "paramsHeader",
+                isParent: true,
+                renderedDepth: -1,
+              },
+            },
+          ]
+        : []),
+      ...(paramsProperties.length
+        ? [
+            {
+              id: entriesTitle,
+              header: entriesTitle,
+              columns: nestedColumns(
+                entriesTree,
+                "entries",
+                entriesTitle,
+                logsData,
+                false,
+                dataTypes,
+                fieldTypes
+              ),
+              meta: {
+                columnType: "entriesHeader",
+                isParent: true,
+                renderedDepth: -1,
+              },
+            },
+          ]
+        : nestedColumns(
+            entriesTree,
+            "entries",
+            entriesTitle,
+            logsData,
+            false,
+            dataTypes,
+            fieldTypes
+          )),
+    ];
+  }, [entriesTree, paramsTree, dataTypes, fieldTypes, logsData.params]);
 
   // Apply rendered depth encoding to account for depth mismatch for all headers
   // This is needed for accurate column hiding/showing/grouping to work on all nest levels
@@ -165,18 +209,35 @@ const LogsTable = ({
   const metric = item.metric || "mean";
   const logsFilters = item.filters;
   const commonFilter = item.common_filter;
+
   const pageNumber = item.page_number;
   const sortingStr = item.sorting;
   const columnOrderStr = item.column_order;
   const hiddenColumns = item.hidden_columns;
   const groupingStr = item.grouping;
+  const groupSortingStr = item.group_sorting;
   const columnsPinLeft = item.columns_pin_left;
   const columnsPinRight = item.columns_pin_right;
   const context = item.context;
 
   // Convert those strings → arrays/objects
-  const columnIDs = flattenColumnIDs(columns);
+  const columnIDs = useMemo(() => flattenColumnIDs(columns), [columns]);
+
+  // Flag to track if the column order was manually changed
+  // by calling the setColumnOrder function
+  // e.g. post drag and drop or create/delete columns on the UI etc.
+  const [manualColumnOrderOverride, setManualColumnOrderOverride] = useState(false);
   const columnOrder = columnOrderStr ? columnOrderStr.split(",") : columnIDs;
+  const setColumnOrder = (order: string[], manual = true) => {
+    // Whenever the user does a "manual" column reorder or adds a column
+    // we set the manualColumnOrderOverride flag to true. In all other cases,
+    // we call `setColumnOrder` with the default `manual = false`
+    if (manual) {
+      setManualColumnOrderOverride(true);
+    }
+    updateItem(item, "column_order")(order.join(","))
+  };
+
   const allColumnsVisible = Object.fromEntries(columnIDs.map((x) => [x, true]));
   const columnVisibility = hiddenColumns
     ? {
@@ -184,13 +245,25 @@ const LogsTable = ({
       ...Object.fromEntries(hiddenColumns.split(",").map((x) => [x, false])),
     }
     : allColumnsVisible;
-
   const setColumnVisibility = (v: { [key: string]: boolean }) => {
     const hidden = Object.keys(v).filter((k) => !v[k]);
     updateItem(item, "hidden_columns")(hidden.length ? hidden.join(",") : undefined);
   };
 
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const setLogsFilters = (filtersObj: FiltersByColumn) => {
+    const keys = Object.keys(filtersObj);
+    updateItem(item, "filters")(
+      keys.length
+        ? Object.entries(filtersObj)
+          .map(([cKey, val]) =>
+            Object.entries(val).map(([fn, val2]) => `${cKey}~${fn}~${val2}`)
+          )
+          .flat()
+          .join("§")
+        : undefined
+    );
+  }
 
   const sorting: ColumnSort[] = sortingStr
     ? sortingStr.split(",").map((c) => {
@@ -206,6 +279,17 @@ const LogsTable = ({
   const grouping: GroupingState = groupingStr ? groupingStr.split(",") : [];
   const setGrouping = (g: GroupingState) =>
     updateItem(item, "grouping")(g.length ? g.join(",") : undefined);
+
+  const groupSorting: ColumnSort[] = groupSortingStr
+    ? groupSortingStr.split(",").map((c) => {
+      const [key, order] = c.split("@");
+      const id = entriesProperties.includes(key) ? `Entries/${key}` : `Parameters/${key}`;
+      const desc = order === "true";
+      return { id, desc };
+    })
+    : [];
+  const setGroupSorting = (s: ColumnSort[]) =>
+    updateItem(item, "group_sorting")(s.map((item) => `${sanitizeId(item.id)}@${item.desc}`).join(","));
 
   const columnPinning: ColumnPinningState = {
     left: columnsPinLeft ? columnsPinLeft.split(",") : [indicesTitle],
@@ -245,6 +329,7 @@ const LogsTable = ({
     selectedCells,
     metric,
     sorting,
+    groupSorting,
     columnVisibility,
     columnOrder,
     columnFilters,
@@ -260,8 +345,9 @@ const LogsTable = ({
     setSelectedCells: (cells: string[]) => updateItem(item, "selected")(cells.join(",")),
     setMetric: updateItem(item, "metric"),
     setSorting,
+    setGroupSorting,
     setColumnVisibility,
-    setColumnOrder: (order: string[]) => updateItem(item, "column_order")(order.join(",")),
+    setColumnOrder,
     setColumnFilters,
     setGrouping,
     setColumnPinning,
@@ -277,6 +363,8 @@ const LogsTable = ({
   const prevCommonFilterRef = useRef(commonFilter);
   const prevSortingRef = useRef(sortingStr);
   const prevGroupingRef = useRef(groupingStr);
+  const prevGroupSortingRef = useRef(groupSortingStr);
+  const prevContextRef = useRef(context);
 
   // Prune base/comparison IDs if user REALLY changes page or filters
   useEffect(() => {
@@ -285,8 +373,9 @@ const LogsTable = ({
     const commonChanged = prevCommonFilterRef.current !== commonFilter;
     const sortingChanged = prevSortingRef.current !== sortingStr;
     const groupingChanged = prevGroupingRef.current !== groupingStr;
+    const groupSortingChanged = prevGroupSortingRef.current !== groupSortingStr;
 
-    if (pageChanged || filtersChanged || commonChanged || sortingChanged || groupingChanged) {
+    if (pageChanged || filtersChanged || commonChanged || sortingChanged || groupingChanged || groupSortingChanged) {
       // If base no longer valid, remove it
       const flattenedLogs = maybeFlattenGroupedLogs(logs);
       if (baseLog && !(flattenedLogs).some((l) => l.id === baseLog.id)) {
@@ -313,6 +402,7 @@ const LogsTable = ({
     prevCommonFilterRef.current = commonFilter;
     prevSortingRef.current = sortingStr;
     prevGroupingRef.current = groupingStr;
+    prevGroupSortingRef.current = groupSortingStr;
   }, [
     logs,
     pageNumber,
@@ -320,40 +410,62 @@ const LogsTable = ({
     commonFilter,
     sortingStr,
     groupingStr,
+    groupSortingStr,
     selectedCells
   ]);
 
+  // On initial mount or when the context changes, we need to set the column_order
+  // on item correctly so that the view pane can take this state and render
+  // the accordions in the correct order
+  useEffect(() => {
+    setColumnOrder(columnOrder, false);
+  }, []);
+
+  // Then when the context changes, we reset the manual override
+  // so that the column order is not locked in and can be automatically
+  // updated when updated data comes in
+  useEffect(() => {
+    if (context !== prevContextRef.current) {
+      setManualColumnOrderOverride(false);
+    }
+    prevContextRef.current = context;
+  }, [context]);
+
+  // Finally, when either of entriesProperties or paramsProperties changes
+  // and if the user hasn't manually updated the column order for this context,
+  // re-apply the default
+  useEffect(() => {
+    if (!manualColumnOrderOverride) {
+      // Because user hasn't manually adjusted anything for this "fresh" context
+      // we revert to the updated columnIDs if we see new columns added or removed
+      setColumnOrder(columnIDs, false);
+    }
+  }, [columnIDs, manualColumnOrderOverride]);
+
   // Top area: filters, page, etc.
   const tableTop = (
-    <div className="mb-2 mx-1 flex flex-row justify-between gap-3 LogsTablePreferences">
+    <div className="mb-2 mx-1 flex flex-wrap justify-between gap-3 LogsTablePreferences">
       {project && columns.length > 0 && (
-        <div className="flex flex-row gap-2 items-center">
+        <div className="flex flex-wrap gap-2 items-center">
           <ContextSelector
-            contexts={contexts}
+            project={project}
+            contexts_={contexts}
+            context={context_}
             tableDataItem={tableDataItem}
             item={item}
             updateItem={updateItem}
-            context={context}
+            contextActions={contextActions}
+            logsActions={logsActions}
+            fields={[...paramsProperties, ...entriesProperties]}
           />
           <GlobalFilter
             interactive={interactive}
             logsFilters={logsFilters}
-            commonFilter_={commonFilter}
-            setCommonFilter_={updateItem(item, "common_filter")}
-            setLogsFilters={(obj) => {
-              const keys = Object.keys(obj);
-              updateItem(item, "filters")(
-                keys.length
-                  ? Object.entries(obj)
-                    .map(([colKey, val]) =>
-                      Object.entries(val).map(([fn, val2]) => `${colKey}@${fn}@${val2}`)
-                    )
-                    .flat()
-                    .join(",")
-                  : undefined
-              );
-            }}
+            commonFilter={commonFilter}
+            setCommonFilter={updateItem(item, "common_filter")}
             logs={logs}
+            currentTable={item.i}
+            tableArguments={tableArguments}
           />
           <VisibilityFilter
             fields={fields}
@@ -361,16 +473,25 @@ const LogsTable = ({
             setColumnVisibility={setColumnVisibility}
             context={item.context ?? null}
           />
+          <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => setGrouping([])}  icon={<Ungroup/>}/>
+          <ResetServerAction condition={(sorting.length > 0 || groupSorting.length > 0)} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => {setSorting([]); setGroupSorting([])}}  icon={<ListX/>}/>
+          <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); updateItem(item, "common_filter")(undefined)}}  icon={<FilterX/>}/>
         </div>
       )}
       {project && (
-        <div className="w-fit scale-90 flex gap-2">
-          <PageController
-            interactive={interactive}
-            totalPages={totalPages}
-            pageNumber={pageNumber}
-            setPageNumber={updateItem(item, "page_number")}
-          />
+        <div className="w-fit flex gap-2">
+          <div className="scale-90">
+            <PageController
+              interactive={interactive}
+              totalPages={totalPages}
+              pageNumber={pageNumber}
+              setPageNumber={updateItem(item, "page_number")}
+              pageLogs={logs.length}
+              totalLogs={logsData.count}
+              limit={limit}
+              logs={logs}
+            />
+          </div>
           <FreezeLogs item={item} updateItem={updateItem} />
           <RefreshLogs
             item={item}
@@ -381,6 +502,7 @@ const LogsTable = ({
             sortingExpression={sortingExpression}
             hiddenColumns={item.hidden_columns}
             groupingExpression={groupingExpression}
+            groupSortingExpression={groupSortingExpression}
             updateItem={updateItem}
             setTableData={setTableData}
             logsActions={logsActions}
@@ -423,27 +545,27 @@ const LogsTable = ({
                   columns={columns}
                   state={state}
                   setState={setState}
+                  ColumnGroupSort={(column, groupSortLoading, setGroupSortLoading, setIsGroupSorted, renderMode = "button") => (
+                    <ColumnGroupSort
+                      interactive={interactive}
+                      column={column}
+                      groupSorting={groupSorting}
+                      setGroupSorting={setGroupSorting}
+                      logs={logs}
+                      groupSortLoading={groupSortLoading}
+                      setGroupSortLoading={setGroupSortLoading}
+                      setIsGroupSorted={setIsGroupSorted}
+                      renderMode={renderMode}
+                    />
+                  )}
                   ColumnFilters={(column, filterLoading, setIsFiltered, setFilterLoading, open, setOpen, renderMode = "button") => (
                     <ColumnFilter
                       interactive={interactive}
-                      setColumnFilterQuery={(filtersObj) => {
-                        const keys = Object.keys(filtersObj);
-                        updateItem(item, "filters")(
-                          keys.length
-                            ? Object.entries(filtersObj)
-                              .map(([cKey, val]) =>
-                                Object.entries(val).map(([fn, val2]) => `${cKey}@${fn}@${val2}`)
-                              )
-                              .flat()
-                              .join(",")
-                            : undefined
-                        );
-                      }}
+                      setColumnFilterQuery={setLogsFilters}
                       boundaries={boundaries}
                       columnFilters={searchParamToFilters(logsFilters, item.column_context)}
                       column={column.id}
                       dataTypes={dataTypes}
-                      logs={logs}
                       open={open}
                       setOpen={setOpen}
                       filterLoading={filterLoading}
@@ -452,9 +574,21 @@ const LogsTable = ({
                       renderMode={renderMode as "button" | "menuItem"}
                     />
                   )}
+                  ColumnDelete={(column) => (
+                    <ColumnDelete
+                      interactive={interactive}
+                      project={project}
+                      column={column.id}
+                      context={context}
+                      columnContext={item.column_context}
+                      getLogFieldsIds={logsActions.get}
+                      deleteLogFields={logsActions.delete}
+                    />
+                  )}
                   ColumnCreate={(previousColumn: string, setOpen: (open: boolean) => void) => (
                     <ColumnCreate
                       project={project}
+                      context={item.context}
                       currentTable={item.i}
                       tableArguments={tableArguments}
                       logs={logs}
@@ -462,7 +596,7 @@ const LogsTable = ({
                       setPending={setPending}
                       refresh={() => updateInterface()}
                       columnOrder={columnOrder}
-                      setColumnOrder={(order: string[]) => updateItem(item, "column_order")(order.join(","))}
+                      setColumnOrder={setColumnOrder}
                       previousColumn={previousColumn}
                       setOpen={setOpen}
                     />
@@ -503,6 +637,7 @@ const LogsTable = ({
                           filterExpression,
                           sortingExpression,
                           groupingExpression,
+                          groupSortingExpression,
                           limit,
                           offset,
                           logsActions,
@@ -512,6 +647,7 @@ const LogsTable = ({
                           dataTypes,
                           fields,
                           logs,
+                          logs.length ? [...entriesProperties, ...paramsProperties] : []
                         );
                       }}
                     />
@@ -519,12 +655,16 @@ const LogsTable = ({
                   AggregatedCell={(cell, row) => (
                     <AggregatedCell
                       cell={cell}
-                      metric={metric}
+                      metric={tableDataItem_.metric}
                       getMetric={(key: string) => {
                         const groupedMetrics = tableDataItem_.groupedMetrics;
                         const newKey = key.replace("Entries/", "").replace("Parameters/", "");
                         const groupingValue = row.getValue(key) as string;
-                        const value = groupedMetrics[groupingValue] ? groupedMetrics[groupingValue][newKey] : undefined;
+                        const groupingColumnId = row.groupingColumnId;
+                        const value = (
+                          groupedMetrics[groupingColumnId]
+                          && groupedMetrics[groupingColumnId][newKey]
+                        ) ? groupedMetrics[groupingColumnId][newKey][groupingValue] : undefined;
                         return typeof value === "number" ? value.toFixed(2) : value?.toString() ?? "";
                       }}
                     />
@@ -537,7 +677,7 @@ const LogsTable = ({
                     >
                       {
                         column.columnDef.id === indicesTitle
-                          ? <ColumnMetrics interactive={interactive} metric={state.metric} setMetric={setState.setMetric} logs={logs} />
+                          ? logs?.length ? <ColumnMetrics interactive={interactive} metric={state.metric} setMetric={setState.setMetric} logs={logs} /> : null
                           : !column.getIsGrouped()
                             ? <SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} draggingColumns={state.draggingColumns} />
                             : null
@@ -548,7 +688,7 @@ const LogsTable = ({
                     return <DeleteCells project={project} selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} columnContext={item.column_context} context={item.context} />
                   }}
                   ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
-                    <CellPopover cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />
+                    <CellPopover flatLogs={flatLogs} paramsValues={paramsValues} cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />
                   }
                 />
               </div>

@@ -7,9 +7,10 @@ import { z } from "zod";
 import FormEntry from "@/components/Common/Forms/Entry";
 import { ResponseProps } from "@/types/common";
 
-const CreateProject = ({paths, creationFunction}: {
+const CreateProject = ({paths, creationFunction, disabled}: {
     paths: string[],
-    creationFunction: (name: string, value: string) => Promise<ResponseProps>
+    creationFunction: (name: string, value: string) => Promise<ResponseProps>,
+    disabled?: boolean
 }) => {
 
     // Input validation
@@ -53,6 +54,7 @@ const CreateProject = ({paths, creationFunction}: {
             Fields={Fields} 
             form={form}
             extraFormActions={(data) => updateProject(data.name)}
+            disabled={disabled}
         />
     )
 }

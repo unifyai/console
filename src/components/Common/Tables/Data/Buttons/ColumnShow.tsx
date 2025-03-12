@@ -51,7 +51,7 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
         if (currentColumnIndex !== -1) {
             // Look at columns to the right of the current column in the columnOrder array
             const allColumns = table.getAllFlatColumns();
-            for (let i = currentColumnIndex + 1; i < columnOrder.length; i++) {
+            for (let i = currentColumnIndex; i < columnOrder.length; i++) {
                 const colId = columnOrder[i];
                 const col = allColumns.find(c => c.id === colId);
 
@@ -60,6 +60,16 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
 
                 // If we find a column at the same depth
                 const depth = isUtilColumn ? header.depth - 1 : currentDepth;  // Adjust depth for util columns
+
+                // If no parent, check for hidden columns at the root level
+                if (!col.parent?.id) {
+                    const hiddenColumns = allColumns
+                        .filter(c => c.columnDef.meta?.renderedDepth === depth && !columnVisibility[c.id])
+                        .map(c => c.id)
+                    hidden.push(...hiddenColumns)
+                    break;
+                }
+
                 if (col.columnDef.meta.renderedDepth === depth) {
                     // Only consider as immediate right neighbor if it has a different parent
                     if (col.parent?.id !== header.column.parent?.id) {
@@ -162,7 +172,7 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
     if (!shouldShowButton) return null;
 
     // Sub components
-    const columnButtonLabel = hiddenColumns.length > 0 ? "Show Column" : "New Column";
+    const columnButtonLabel = "Add Column";
     const columnButton = <ActionButton tooltip={columnButtonLabel} icon={<CirclePlus />} />
     const hidden =  <DropdownMenuGroup>
                         {hiddenColumns.map((column, index) =>
@@ -174,7 +184,9 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
                         )}
                     </DropdownMenuGroup>
 
-    const derived = ColumnCreate ? ColumnCreate(header.column.id, setOpen) : null;
+    const derived = ColumnCreate 
+        ? <DropdownMenuItem>{ColumnCreate(header.column.id, setOpen)}</DropdownMenuItem> 
+        : null;
     
     return (
         <div className="absolute -right-2 z-10 hover:opacity-100 opacity-0 transition-all">

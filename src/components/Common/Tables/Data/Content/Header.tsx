@@ -48,7 +48,9 @@ const DataTableHeader = ({
   setColumnVisibility,
   grouping,
   setGrouping,
+  ColumnGroupSort,
   ColumnFilters,
+  ColumnDelete,
   ColumnCreate,
   ColumnUpdate,
   context,
@@ -80,7 +82,9 @@ const DataTableHeader = ({
   setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void,
   grouping: string[],
   setGrouping: (grouping: string[]) => void,
+  ColumnGroupSort?: (column: Column<any | unknown>, groupSortLoading: boolean, setGroupSortLoading: (groupSortLoading: boolean) => void, setIsGroupSorted: (isGroupSorted: boolean) => void, renderMode: "button" | "menuItem") => ReactNode,
   ColumnFilters?: (column: Column<any | unknown>, filterLoading: boolean, setIsFiltered: (isFiltered: boolean) => void, setFilterLoading: (filterLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode,
+  ColumnDelete?: (column: Column<any | unknown>) => ReactNode,
   ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode,
   ColumnUpdate?: (key: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem" ) => ReactNode,
   context: string | null,
@@ -119,6 +123,14 @@ const DataTableHeader = ({
   const isNotUtilColumn = header.column.columnDef.meta?.columnType != "util";
   const isDerivedColumn = header.column.columnDef.meta?.fieldType === "derived_entry";
   const isImageColumn = header.column.columnDef.meta?.dataType === "image";
+  const isGroupSortableColumn = 
+    header.column.columnDef.meta?.dataType === "float" || 
+    header.column.columnDef.meta?.dataType === "int" || 
+    header.column.columnDef.meta?.dataType === "bool" || 
+    header.column.columnDef.meta?.dataType === "timestamp" || 
+    header.column.columnDef.meta?.dataType === "time" ||
+    header.column.columnDef.meta?.dataType === "datetime" ||
+    header.column.columnDef.meta?.dataType === "timedelta"
 
   // Handle pinning animation
   const isPinning = pinningState.isPinning && (
@@ -159,12 +171,14 @@ const DataTableHeader = ({
   // Track loading states for column actions
   const [groupLoading, setGroupLoading] = useState(false);
   const [sortLoading, setSortLoading] = useState(false);
+  const [groupSortLoading, setGroupSortLoading] = useState(false);
   const [filterLoading, setFilterLoading] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
 
   // Determine which actions should be shown in dropdown vs as buttons
   const [isGrouped, setIsGrouped] = useState(false);
   const [isSorted, setIsSorted] = useState(false);
+  const [isGroupSorted, setIsGroupSorted] = useState(false);
   const [isFiltered, setIsFiltered] = useState(false);
 
   // Open states for dialogs
@@ -172,21 +186,28 @@ const DataTableHeader = ({
   const [updateOpen, setUpdateOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  // Event listeners to update open / loading states
   useEffect(() => {
-    if (groupLoading || sortLoading || filterLoading || updateLoading) {
+    if (groupSortLoading || groupLoading || sortLoading || filterLoading || updateLoading) {
       setDropdownOpen(false);
     }
     else {
       setDropdownOpen(false);
     }
-  }, [data, groupLoading, sortLoading, filterLoading, updateLoading])
+  }, [data, groupSortLoading, groupLoading, sortLoading, filterLoading, updateLoading])
+  useEffect(() => setFilterLoading(false),[data])
 
+  // Functions to control which buttons should be shown
   const showGroupButton = () => {
     return (!isImageColumn && (groupLoading || isGrouped));
   }
 
   const showSortButton = () => {
     return (!isParentColumn && (sortLoading || isSorted));
+  }
+
+  const showGroupSortButton = () => {
+    return (!isParentColumn && grouping.length && (groupSortLoading || isGroupSorted))
   }
 
   const showFilterButton = () => {
@@ -197,7 +218,7 @@ const DataTableHeader = ({
     return (!isParentColumn && isDerivedColumn && updateLoading);
   }
 
-  const hasActiveActions = showGroupButton() || showSortButton() || showFilterButton() || showUpdateButton();
+  const hasActiveActions = showGroupSortButton() || showGroupButton() || showSortButton() || showFilterButton() || showUpdateButton();
 
   useEffect(() => {
     setColumnActionsApplied((prev) => {
@@ -212,16 +233,20 @@ const DataTableHeader = ({
         },
       };
     });
-  }, [hasActiveActions, groupLoading, isGrouped, sortLoading, isSorted, filterLoading, isFiltered, updateLoading, data]);  
+  }, [hasActiveActions, isGroupSorted, groupSortLoading, groupLoading, isGrouped, sortLoading, isSorted, filterLoading, isFiltered, updateLoading, data]);  
 
   // Handle header coloring.
   // - Applies selection (hover) background color on any column header for which all (some) cells are selected
   // - Applied selection (hover) background color index column header if all (some) table cells are selected
   const [hovered, setHovered] = useState(false);
-  const isAllColumnSelected = (header: Header<any, unknown>) =>
-    table.getRowModel().rows.length && getCellsFromHeader(header).every(cell => isCellSelected(cell))
+  const isAllColumnSelected = (header: Header<any, unknown>) => {
+    const validCells = getCellsFromHeader(header).filter(cell => cell.getValue() !== undefined || cell.column.id === "RowNumbering")
+    return validCells.length && validCells.every(cell => isCellSelected(cell))
+  }
   const isAllTableSelected = () => 
-    table.getRowModel().rows.length && getSelectableTableCells(table).every(cell => isCellSelected(cell))
+    table.getRowModel().rows.length && 
+    getSelectableTableCells(table).every(cell => isCellSelected(cell)) && 
+    Object.entries(columnVisibility).filter(([, v]) => v).length != 1
 
   const style: CSSProperties = {
     boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
@@ -235,9 +260,10 @@ const DataTableHeader = ({
     width: `${Math.round(header.getSize())}px`,
     minWidth: isDerivedColumn ? '150px' : undefined,
     zIndex: isColumnDragging || isPinned ? 1 : 0,
+    borderLeft: header.column.id === "RowNumbering" ? "1px solid var(--muted)" : undefined,
     borderRight: "1px solid var(--muted)",
-    borderBottom: "1px solid var(--muted)",
     borderTop: "1px solid var(--muted)",
+    borderBottom: header.depth >= 1 && !header.subHeaders.length ? "1px solid var(--muted)" : undefined,
     color: isAllColumnSelected(header) ? "var(--primary-foreground)" : "",
     backgroundColor: isNotUtilColumn
       ? isAllColumnSelected(header) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
@@ -278,6 +304,17 @@ const DataTableHeader = ({
           setIsSorted={setIsSorted}
           renderMode="button"             
         />
+        )}
+      </div>
+      <div
+          className={`${showGroupSortButton() ? "" : "hidden"}`}
+      >
+        {ColumnGroupSort && ColumnGroupSort(
+          header.column,
+          groupSortLoading,
+          setGroupSortLoading,
+          setIsGroupSorted,
+          "button"
         )}
       </div>
       {showFilterButton() && (
@@ -478,6 +515,20 @@ const DataTableHeader = ({
                                   />
                                 </DropdownMenuItem>
                               )}
+                              {!isGroupSorted && !isGrouped && grouping.length && isGroupSortableColumn && ColumnGroupSort 
+                                  ? (
+                                      <DropdownMenuItem>
+                                        {ColumnGroupSort(
+                                          header.column,
+                                          groupSortLoading,
+                                          setGroupSortLoading,
+                                          setIsGroupSorted,
+                                          "menuItem"
+                                        )}
+                                      </DropdownMenuItem>
+                                    )
+                                  : null
+                              }
                               {ColumnFilters && (
                                 ColumnFilters(
                                   header.column,
@@ -506,7 +557,8 @@ const DataTableHeader = ({
                                     setUpdateOpen,
                                     "menuItem",
                                   )
-                                )}
+                              )}
+                              {ColumnDelete && !isGrouped && ColumnDelete(header.column)}
                             </DropdownMenuGroup>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -609,9 +661,9 @@ const DataTableHeader = ({
                 </div>
             )}
 
-            {/* Column show - middle third */}
+            {/* Column show - half */}
             {!header.isPlaceholder && (
-                <div className="absolute top-1/3 right-0" style={{ height: '33.33%' }}>
+                <div className="absolute top-1.5 right-0" style={{ height: '33.33%' }}>
                     <ColumnShow
                         table={table}
                         header={header}
@@ -624,10 +676,6 @@ const DataTableHeader = ({
                 </div>
             )}
 
-            {/* Column resizer - bottom third */}
-            <div className="absolute bottom-0 right-0" style={{ height: '33.33%' }}>
-                <ColumnResizer column={header.column} resizeHandler={resizeMap[header.column.id]}/>
-            </div>
         </div>
       </div>
       {children}

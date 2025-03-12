@@ -6,7 +6,7 @@ import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import BaseButton from "@/components/Common/Buttons/Base";
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import { Filter, Plus, Trash, CircleX, LoaderCircle, ChevronRightIcon } from "lucide-react";
+import { Filter, Plus, Minus, Trash, CircleX, LoaderCircle, ChevronRightIcon } from "lucide-react";
 import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { combineFilters, initFilters } from "@/utils/evals/filters";
@@ -27,12 +27,11 @@ const toLowerBoolean = (value: string): string => {
     return value.trim().toLowerCase();
 }
 
-const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, logs, open, setOpen, filterLoading, setFilterLoading, setIsFiltered, renderMode }: {
+const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, open, setOpen, filterLoading, setFilterLoading, setIsFiltered, renderMode }: {
     interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
-    logs: LogProps[] | GroupedLogProps[],
     open: boolean,
     setOpen: Dispatch<SetStateAction<boolean>>,
     filterLoading: boolean,
@@ -43,15 +42,12 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
 
     /* Display loader when data updates */
     const [spinnerColor, setSpinnerColor] = useState("white");
-    useEffect(() => {
-        setFilterLoading(false);
-    },[logs])
 
     /* Init filters */
     const options = [
-        {name: "is", label: "Is", description: "Filter for values equal to.."},
-        {name: "exists", label: "Exists" , description: "Filter for existing values.."},
-        {name: "isNone", label: "Is None" , description: "Filter for none values.."}
+        {name: "is", label: "Is", description: `Filter for ${column} values equal to..`},
+        {name: "exists", label: "Exists" , description: `Filter for ${column} existing values..`},
+        {name: "isNone", label: "Is None" , description: `Filter for ${column} none values..`}
     ]
     const modes = options.map(option => option.name)
     let defaultFilter : BooleanFilter = {key: 0, mode: "is", join: "&&", value: "true"}
@@ -91,19 +87,19 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
             )
             setFilters([defaultFilter])
         }
-        setColumnFilterQuery(newColumnFilters);
         setSpinnerColor("white")
         setFilterLoading(true)
+        setColumnFilterQuery(newColumnFilters);
         setOpen(false);
     }
     const onReset = () => {
         const newColumnFilters = Object.fromEntries(
             Object.entries(columnFilters).filter(([key, _]) => key != column)
         )
-        setFilters([defaultFilter])
-        setColumnFilterQuery(newColumnFilters)
         setSpinnerColor("primary")
         setFilterLoading(true)
+        setFilters([defaultFilter])
+        setColumnFilterQuery(newColumnFilters)
         setOpen(false)
     }
     const onEnter : KeyboardEventHandler = (event) => {
@@ -187,7 +183,7 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
         <BaseButton 
             text={filter.value === "True" ? "true" : filter.value === "False" ? "false" : filter.value} 
             variant="outline" 
-            className="rounded-none rounded-tr-lg rounded-br-lg"
+            className="rounded-none rounded-tr-lg rounded-br-lg w-full"
             onKeyDown={onEnter}
             onClick={() => {
                 const newFilters = [...filters]
@@ -221,7 +217,7 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
     const remove = (filter: BooleanFilter) =>
         <ActionButton
             tooltip="Remove filter"
-            icon={<Trash/>}
+            icon={<Minus/>}
             onClick={() => {
                 let newFilters = filters.filter(f => f.key != filter.key)
                 newFilters = newFilters.map((f, i) => ({key: i, mode: f.mode, join: i === 0 ? "&&" : f.join, value: f.value}))
@@ -233,9 +229,9 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
     const filterContent = (
         <div className="flex flex-col gap-3 px-2 pt-4 pb-2">
             {filters.map((filter, index) => 
-                <div key={index} className="grid grid-cols-8 items-center">
+                <div key={index} className="grid grid-cols-10 items-center">
                     {filters.length > 0 && filter.key != 0 && <div className="col-span-1">{join(filter)}</div>}
-                    <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-6" : "col-span-7"}`}>{filterInput(filter)}</div>
+                    <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-8" : "col-span-9"}`}>{filterInput(filter)}</div>
                     <div className="col-span-1 text-center">{remove(filter)}</div>
                 </div>
             )}
@@ -284,7 +280,7 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
                 "
               >
                 {button}
-                <span>Filter by this column</span>
+                <span>Filter column</span>
               </DropdownMenuItem>
             ) : (
               button
@@ -297,12 +293,6 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
             onPointerOver={(e) => e.stopPropagation()}
             className="sm:max-w-lg"
           >
-            <DialogHeader>
-              <DialogTitle>Boolean Filters</DialogTitle>
-              <DialogDescription>
-                Apply boolean filters to <strong>{sanitizeId(column)}</strong>.
-              </DialogDescription>
-            </DialogHeader>
 
             {/* The main filter UI */}
             {filterContent}

@@ -1,4 +1,22 @@
 import { ChartLine, Eye, Table } from "lucide-react";
+import barDemo from "@/constants/examples/bar-demo.json";
+import contextDemo from "@/constants/examples/context-demo.json";
+import derivedColumnsDemo from "@/constants/examples/derived-columns-demo.json";
+import diffsDemo from "@/constants/examples/diffs-demo.json";
+import filteringDemo from "@/constants/examples/filtering-demo.json";
+import groupingDemo from "@/constants/examples/grouping-demo.json";
+import hiddenColumnsDemo from "@/constants/examples/hidden-columns-demo.json";
+import histogramDemo from "@/constants/examples/histogram-demo.json";
+import lineDemo from "@/constants/examples/line-demo.json";
+import lineDemo2 from "@/constants/examples/line-demo2.json";
+import lineDemo3 from "@/constants/examples/line-demo3.json";
+import markingAssistantDemo from "@/constants/examples/MarkingAssistant.json";
+import scatterDemo from "@/constants/examples/scatter-demo.json";
+import scatterDemo2 from "@/constants/examples/scatter-demo2.json";
+import scatterDemo3 from "@/constants/examples/scatter-demo3.json";
+import viewPaneDemo from "@/constants/examples/view-pane-demo.json";
+import { TileProps } from "@/types/evals/grid";
+import { getLogsParameters } from "@/types/evals/logs";
 
 export const metrics = ["mean", "count", "sum", "var", "std", "min", "max", "median", "mode"];
 
@@ -1208,3 +1226,49 @@ export const icons = {
 };
 
 export const tabTypes = ["Table", "Plot", "View"];
+
+export const examples: {
+    [key: string]: {
+        project: string,
+        name: string,
+        items: TileProps[],
+        new_counter: number,
+        logs: any,
+        code: string,
+        gif: string,
+        link: string,
+        derived_columns?: {
+            project: string,
+            context?: string | undefined,
+            key: string,
+            equation: string,
+            referenced_logs: { [table_name: string]: getLogsParameters },
+        },
+    }
+} = {
+    "Basics/Context": { ...contextDemo, gif: "table_nested_contexts_dark", link: "interfaces/basics#contexts" },
+    "Tables/Derived Columns": { ...derivedColumnsDemo, gif: "table_derived_column_dark", link: "interfaces/tables#derived-columns" },
+    "Tables/Filtering": { ...filteringDemo, gif: "table_filter_str_dark", link: "interfaces/tables#filtering" },
+    "Tables/Grouping": { ...groupingDemo, gif: "table_grouping_dark", link: "interfaces/tables#grouping" },
+    "Views/Diffs": { ...diffsDemo, gif: "string_diffs_dark", link: "interfaces/views#diffs" },
+    "Views/Hidden Columns": { ...hiddenColumnsDemo, gif: "view_show_hide_dark", link: "interfaces/views#hidden-columns" },
+    "Views/View Pane": { ...viewPaneDemo, gif: "view_pair_table_dark", link: "interfaces/views" },
+    "Plots/Bar Plot": { ...barDemo, gif: "plots_bar_chart_grouping_dark", link: "interfaces/plots#bar-charts" },
+    "Plots/Histogram": { ...histogramDemo, gif: "histogram_dark", link: "interfaces/plots#histograms" },
+    "Plots/Line Plot": { ...lineDemo, gif: "line_dark", link: "interfaces/plots#line-graphs" },
+    "Plots/Line Plot 2": { ...lineDemo2, gif: "line_group_dark", link: "interfaces/plots#line-graphs" },
+    "Plots/Line Plot 3": { ...lineDemo3, gif: "line_six_groups_dark", link: "interfaces/plots#line-graphs" },
+    "Plots/Scatter Plot": { ...scatterDemo, gif: "scatter_dark", link: "interfaces/plots#scatter-graphs" },
+    "Plots/Scatter Plot 2": { ...scatterDemo2, gif: "scatter_grouped_dark", link: "interfaces/plots#scatter-graphs" },
+    "Plots/Scatter Plot 3": { ...scatterDemo3, gif: "scatter_two_groups_dark", link: "interfaces/plots#scatter-graphs" },
+    "Demos/Marking Assistant": { ...markingAssistantDemo, gif: "demo_set_context_to_usage", link: "demo/usage_dashboard" } as {
+        project: string,
+        name: string,
+        items: TileProps[],
+        new_counter: number,
+        logs: any,
+        code: string,
+        gif: string,
+        link: string,
+    },
+}

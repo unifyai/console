@@ -6,17 +6,24 @@ import UserInfo from "@/components/Profile/Info";
 import NewsletterPreferences from "./Newsletter";
 import SecondaryButton from "../Common/Buttons/Secondary";
 import PrimaryButton from "../Common/Buttons/Primary";
+import DeleteDialog from "../Common/Dialogs/Delete";
 import { AlertCircle, CheckCircle } from "lucide-react";
 import {
   Alert,
   AlertDescription,
   AlertTitle,
 } from "@/components/UI/alert";
+import { useRouter } from "next/navigation";
+import { deleteUser } from "@/lib/user/user";
+import { signOut } from "next-auth/react";
 
 const ProfileForm = ({user, onPrem}: {
     user: User,
     onPrem: string | undefined
 }) => {
+  
+  const router = useRouter();
+
   // Form state
   const [formState, setFormState] = useState({
     name: user.name || "",
@@ -167,17 +174,25 @@ const handleSaveClick = async (e: React.FormEvent) => {
           subscriptions={subscriptions}
           handleSubscriptionChange={handleSubscriptionChange}
         />
-        <div className="mt-5 w-fit flex gap-2">
-          <SecondaryButton
-            onClick={handleCancel}
-            disabled={!changeMade && !preferencesChanged}
-            label="Cancel"
-          />
-          <PrimaryButton
-            type="submit"
-            disabled={!changeMade && !preferencesChanged}
-            label="Save"
-          />
+        <div className="flex justify-between items-center gap-5 mt-5">
+        {changeMade ? 
+            <div className="w-fit flex gap-2">
+              <SecondaryButton
+                onClick={handleCancel}
+                disabled={!changeMade && !preferencesChanged}
+                label="Cancel"
+              />
+              <PrimaryButton
+                type="submit"
+                disabled={!changeMade && !preferencesChanged}
+                label="Save"
+              />
+            </div> : <div></div>
+          }
+          <div className="w-fit flex gap-2">
+            <SecondaryButton label="Sign Out" onClick={() => {signOut(); router.push('/login')}} />
+            <DeleteDialog args={[user.id]} deletingFunction={deleteUser} onDelete={() => {router.push('/login')}} type="account" text="Delete Account" icon={null} variant="destructive" expectedResponseType={"string"} />
+          </div>
         </div>
       </form>
       {alert.type && (

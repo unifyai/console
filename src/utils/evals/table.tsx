@@ -518,10 +518,13 @@ export const nestedColumns = (
 							if (value.startsWith('"') && value.endsWith('"')) {
 								value = value.slice(1, -1);
 							}
+							if (value.length > 20) value = value.slice(0, 20) + "..."
 							return value;
 						}
 						// If not a string, at least convert to string
-						return String(cellValue);
+						let value = String(cellValue)
+						if (value.length > 20) value = value.slice(0, 20) + "..."
+						return value;
 					}
 
 					default: {
@@ -529,13 +532,19 @@ export const nestedColumns = (
 						// If it's an object, try JSON stringify or just display as string
 					if (typeof cellValue === "object") {
 							try {
-								return JSON.stringify(cellValue);
+								let value = JSON.stringify(cellValue)
+								if (value.length > 20) value = value.slice(0, 20) + "..."
+								return value;
 							} catch {
-							return String(cellValue);
+							let value = String(cellValue)
+							if (value.length > 20) value = value.slice(0, 20) + "..."
+							return value;
 							}
 						}
 						// If it's anything else, just convert to string
-						return String(cellValue);
+						let value = String(cellValue)
+						if (value.length > 20) value = value.slice(0, 20) + "..."
+						return value;
 					}
 				}
 			},

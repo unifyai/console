@@ -52,7 +52,7 @@ const FooterCell = ({
         : undefined;
 
     const style: CSSProperties = {
-        boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset' : undefined,
+        borderTop: "1px solid var(--muted)",
         opacity: isColumnDragging ? 0.8 : 1,
         position: isPinned ? "sticky" : "relative",
         left: isPinned === "left" ? `${column.getStart("left")}px` : undefined,

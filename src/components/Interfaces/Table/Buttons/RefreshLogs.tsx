@@ -2,13 +2,13 @@
 
 import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { ItemType, LogsActions, FieldsActions, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
 import { getLogsParameters, GroupedLogProps, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { ResponseProps } from "@/types/common";
 import { LogProps } from "@/types/evals/logs";
-
+import { buildFilterExpression } from "@/utils/evals/filters";
 
 const isGroupedLog = (log: LogProps | GroupedLogProps): log is GroupedLogProps => log.type === "grouped";
 const flattenLogs = (logs: (LogProps | GroupedLogProps)[]): LogProps[] => {
@@ -43,41 +43,60 @@ const getNewCells = (tableDataItem: TableDataItem, logs: (LogProps | GroupedLogP
 
 async function updateLogs (
     item: TileProps,
-    filterExpression: string | null,
     sortingExpression: string | null,
     groupingExpression: string | null,
+    groupSortingExpression: string | null,
     project: string, 
     logsActions: LogsActions, 
     fieldsActions: FieldsActions,
-    setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void,
+    updateTable: (updateFn: (prev: TableDataProps) => TableDataProps) => void,
+    signal?:  AbortSignal
 ) {
+    if (signal?.aborted) return;
     fieldsActions
     .get(project, item.context ?? null)
     .then(async (fields: LogFieldsResponseProps) => {
+        const allPrefixes = Object.keys(fields).map(
+            key => key.includes("/") ? key.split("/").slice(0, -1).join("/") : null
+        ).filter(key => key != null);
+        const columnContexts = Array.from(
+            new Set(allPrefixes.map(prefix => {
+                const parts = prefix.split("/");
+                let context = "";
+                return parts.map(part => {
+                    context += part + "/";
+                    return context;
+                });
+            }).flat().sort())
+        );
+        const filterExpression = buildFilterExpression(item.filters, item.common_filter, item.column_context, item.freeze, fields)
         logsActions
         .get(
             project, 
             item.context ?? null, 
             item.column_context ?? null, 
             filterExpression, 
-            sortingExpression, 
-            groupingExpression, 
+            sortingExpression,
+            groupingExpression,
+            groupSortingExpression,
             null, 
             null, 
             20, // Hardcoded limit value (20) will need to be passed down from Main
             (item.page_number ? parseInt(item.page_number) : 0) * 20, // Hardcoded limit value (20) will need to be passed down from Main
             groupingExpression ? 0 : null,
+            null,
             Date.now().toString()
         )
         .then(async (logsData: LogsResponseProps) => {
             const totalPages = Math.ceil(logsData.count / 16);
             const context = item.context ?? null;
+            const column_context = item.column_context ?? null;
             const sorting = item.sorting ?? null;
             const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
-                item, logsData, fields, context, project, filterExpression, groupingExpression, item.metric, sorting, undefined, logsActions
+                item, logsData, fields, context, column_context, project, filterExpression, groupingExpression, item.metric, sorting, undefined, logsActions
             )
             await new Promise<void>(resolve => {
-                setTableData(prev => {
+                updateTable(prev => {
                     const newCells = getNewCells(prev[item.i], logs)
                     const newState = {
                         ...prev,
@@ -92,7 +111,8 @@ async function updateLogs (
                             params,
                             metrics,
                             boundaries,
-                            newCells
+                            newCells,
+                            columnContexts
                         }
                     };
                     resolve();
@@ -103,7 +123,7 @@ async function updateLogs (
     });
 }
 
-const RefreshLogs = ({ item, project, pending, fields, filterExpression, sortingExpression, groupingExpression, hiddenColumns, updateItem, setTableData, logs, logsActions, fieldsActions }: {
+const RefreshLogs = ({ item, project, pending, fields, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, hiddenColumns, updateItem, setTableData, logs, logsActions, fieldsActions }: {
     item: TileProps,
     project: string,
     pending: boolean,
@@ -111,6 +131,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
     filterExpression: string | null,
     sortingExpression: string | null,
     groupingExpression: string | null,
+    groupSortingExpression: string | null,
     hiddenColumns: string | undefined,
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
     setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void,
@@ -121,27 +142,91 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
 
     /* Auto refresh */
     // We use timestamp to tag fetch api calls to trigger revalidation every 5 seconds.
-    // We pause the auto refresh whenever a server action is triggered.
-    const [pauseRefresh, setPauseRefresh] = useState(false);
+    const autoUpdateRef = useRef(item.auto_update === "true");
+    const pendingRef = useRef(pending);
+    const isMounted = useRef(false);
+    const isRunning = useRef(false)
+    const abortControllerRef = useRef<AbortController | null>(null);
+
+    // Sync pending and auto update refs 
+    useEffect(() => {pendingRef.current = pending}, [pending]);
+    useEffect(() => {autoUpdateRef.current = item.auto_update === "true"}, [item.auto_update]);
+    
+    // Pause auto-update on server action
     useEffect(() => {
-      if (item.auto_update === "true") setPauseRefresh(true)
-    }, [item.filters, item.common_filter, item.grouping, item.context, item.page_number, item.sorting, item.freeze])
+        if (item.auto_update === "true") autoUpdateRef.current = false;
+    }, [pendingRef.current])
+
+    // Restart streaming after server action ends
     useEffect(() => {
-      if (pauseRefresh) setTimeout(() => setPauseRefresh(false), 20000) // Pausing for 20 sec, leaving ample time for reload-refetch-rerender cycle
-    }, [pauseRefresh])
-    let running = false
+        if (item.auto_update === "true" && !autoUpdateRef.current && !pendingRef.current) autoUpdateRef.current = true;
+    }, [autoUpdateRef.current])
+
+    // Track component mount state
     useEffect(() => {
-        if (!item.auto_update || item.auto_update == "false" || pauseRefresh) return;
-        const interval = setInterval(() => {
-            if (!running && !pending) {
-                running = true;
-                updateLogs(item, filterExpression, sortingExpression, groupingExpression, project, logsActions, fieldsActions, setTableData).then(() => {
-                    running = false;
-                });
+        isMounted.current = true;
+        return () => {
+            isMounted.current = false;
+            // Abort any ongoing request on unmount
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
             }
-        }, 5000);
-        return () => clearInterval(interval)
-    }, [item.auto_update, pauseRefresh, item.context, filterExpression, sortingExpression, groupingExpression]);
+        };
+    }, []);
+
+    // Periodically fetch new logs
+    
+    // Memoize updateLogs to prevent unnecessary recreations
+    const updateLogsCallback = useCallback(async () => {
+        if (!isMounted.current || !autoUpdateRef.current || pendingRef.current || isRunning.current) return;
+
+        isRunning.current = true;
+        abortControllerRef.current = new AbortController();
+
+        try {
+            await updateLogs(
+                item,
+                sortingExpression,
+                groupingExpression,
+                groupSortingExpression,
+                project,
+                logsActions,
+                fieldsActions,
+                (updateFn) => {
+                    if (isMounted.current && autoUpdateRef.current) {
+                        setTableData(updateFn);
+                    }
+                },
+                abortControllerRef.current.signal,
+            );
+        } catch (error: any) {
+            if (error.name !== 'AbortError') {
+                console.error('Failed to fetch logs:', error);
+            }
+        } finally {
+            isRunning.current = false;
+            abortControllerRef.current = null;
+        }
+    }, [item, project, logsActions, fieldsActions, setTableData, sortingExpression, groupingExpression, groupSortingExpression]);
+
+    // Auto-refresh with recursive timeout
+    const fetchWithBackoff = useCallback(async () => {
+        if (!isMounted.current || !autoUpdateRef.current) return;
+        
+        try {
+          await updateLogsCallback();
+        } finally {
+          // Schedule next request only after current completes
+          const timeoutId = setTimeout(fetchWithBackoff, 5000);
+          return () => clearTimeout(timeoutId);
+        }
+      }, [updateLogsCallback]);
+      
+      useEffect(() => {
+        if (autoUpdateRef.current) {
+          fetchWithBackoff();
+        }
+    }, [fetchWithBackoff]);
 
     const onAutoClick = () => updateItem(item, "auto_update")(item.auto_update === "true" ? "false" : "true")
     const autoRefresh =
@@ -180,16 +265,16 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
     // time where we compare with the timestamp set on loading the component
     const [lastUpdated, setLastUpdated] = useState<string>("")
 
-    useEffect(() => { logsActions.getLatest(project, item.context ?? null, item.column_context ?? null, filterExpression, sortingExpression, null, null, null, 0).then(latest => setLastUpdated(latest)) }, [])
+    useEffect(() => { logsActions.getLatest(project, item.context ?? null, item.column_context ?? null, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, null, null, null, null, null, null).then(latest => setLastUpdated(latest)) }, [])
 
     const onManualClick = () => {
         setLoading(true);
         setRefreshClick(true);
-        logsActions.getLatest(project, item.context ?? null, item.column_context ?? null, filterExpression, sortingExpression, null, null, null, 0).then(latest => {
+        logsActions.getLatest(project, item.context ?? null, item.column_context ?? null, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, null, null, null, null, null, null).then(latest => {
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime();
             if (latestTs > lastCheckTs) {
-                updateLogs(item, filterExpression, sortingExpression, groupingExpression, project, logsActions, fieldsActions, setTableData).then(() => {
+                updateLogs(item, sortingExpression, groupingExpression, groupSortingExpression, project, logsActions, fieldsActions, setTableData).then(() => {
                     setLastUpdated(latest)
                 });
             } else {

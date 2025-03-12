@@ -13,7 +13,7 @@ import { Badge } from "../UI/badge";
 import { Dialog, DialogContent } from "../UI/dialog";
 import { Tabs, TabsContent } from "../UI/tabs";
 import { useQueryState } from "nuqs";
-import Cookies from "js-cookie";
+// import Cookies from "js-cookie";
 import FocusDialog from "./FocusDialog";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import DefaultProject from "./DefaultProject";
@@ -22,6 +22,8 @@ import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./ProjectButtons";
 import EditTileName from "./EditTileName";
 import Tooltip from "../Common/Misc/Tooltip";
+import ContextSelector from "./Table/Content/ContextSelector";
+import TutorialButton from "./TutorialButton";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -41,6 +43,7 @@ const CardGrid = ({
     filterExpressions,
     sortingExpressions,
     groupingExpressions,
+    groupSortingExpressions,
     limit,
     offsets,
     projectActions,
@@ -65,6 +68,7 @@ const CardGrid = ({
     filterExpressions: (string | null)[],
     sortingExpressions: (string | null)[],
     groupingExpressions: (string | null)[],
+    groupSortingExpressions: (string | null)[],
     limit: number,
     offsets: number[],
     projectActions: ProjectsActions,
@@ -79,7 +83,6 @@ const CardGrid = ({
     // layout structure
     const [tableData, setTableData] = useState<TableDataProps>(initialTableData);
     const [context, setContext] = useState<string>();
-    const [columnContext, setColumnContext] = useState<string>();
     const [items, setItems] = useState<TileProps[]>([]);
     const [newCounter, setNewCounter] = useState(0);
     const [tempInterfaceCreated, setTempInterfaceCreated] = useState(tempInterfaceCreated_);
@@ -102,7 +105,7 @@ const CardGrid = ({
     // data fields
     const [interfaces, setInterfaces] = useState(interfaces_);
     const [projects, setProjects] = useState<string[]>(projects_ || []);
-    const [interface_, setInterface] = useQueryState("interface", { shallow: false });
+    const [interface_, setInterface] = useQueryState("tab", { shallow: false });
     const [project, setProject] = useQueryState("project", { shallow: false });
 
     // pending fields
@@ -135,14 +138,13 @@ const CardGrid = ({
         savedInterface: Interface | null = null,
     ) => {
         const context_1 = savedInterface != null ? savedInterface?.context : context;
-        const columnContext_1 = savedInterface != null ? savedInterface?.column_context : columnContext;
         const items_1 = savedInterface?.items || items;
         const newCounter_1 = savedInterface?.new_counter || newCounter;
         if (interface_ && project && interface_ == interface_1 && project == project_ && !pending) {
             if (tempInterfaceCreated)
-                return interfaceActions.update(interface_, project, context_1, columnContext_1, items_1, newCounter_1, undefined, true);
+                return interfaceActions.update(interface_, project, context_1, items_1, newCounter_1, undefined, true);
             else
-                return interfaceActions.create(interface_, project, context_1, columnContext_1, items_1, newCounter_1, true)
+                return interfaceActions.create(interface_, project, context_1, items_1, newCounter_1, true)
         }
         return Promise.reject();
     };
@@ -152,8 +154,12 @@ const CardGrid = ({
         interfaceActions.get(project as string, true).then((ints: Interface[]) => {
             const currentInterface = ints.find(i => i.name == interface_);
             setContext(currentInterface?.context);
-            setColumnContext(currentInterface?.column_context);
-            setItems(currentInterface?.items || []);
+            setItems(currentInterface?.items.map(item => ({
+                ...item,
+                context: contexts.find(
+                    ctx => ctx.name == currentInterface?.context
+                )?.name ?? item.context
+            })) || []);
             setNewCounter(currentInterface?.new_counter || 0);
             setTempInterfaceCreated(Boolean(currentInterface));
             setPending(false);
@@ -164,21 +170,21 @@ const CardGrid = ({
     // set the items and new counter whenever project or interface changes
     useEffect(() => {
         if (project && interface_) {
-            const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-            Cookies.set("project", project, { expires: expirationDate });
-            Cookies.set("interface", interface_, { expires: expirationDate });
+            // const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+            // Cookies.set("project", project, { expires: expirationDate });
+            // Cookies.set("tab", interface_, { expires: expirationDate });
             getLatestInterface();
         }
-        else if (!project)
-            Cookies.remove("project");
-        else if (!interface_)
-            Cookies.remove("interface");
+        // else if (!project)
+        //     Cookies.remove("project");
+        // else if (!interface_)
+        //     Cookies.remove("tab");
     }, [project, interface_]);
 
     // Only call updateInterface when items have truly changed.
     useEffect(() => {
         updateInterface();
-    }, [items, context, columnContext]);
+    }, [items, context]);
 
     // trigger update when table data changes (server reloaded)
     useEffect(() => {
@@ -219,6 +225,7 @@ const CardGrid = ({
             <div className="sticky top-0 z-10 bg-background p-2 flex justify-between w-full md:overflow-none overflow-x-auto">
                 {/* Project dropdown and add/delete buttons */}
                 <ProjectButtons
+                    defaultProject={false}
                     project={project}
                     projects={projects}
                     interfaces={interfaces}
@@ -243,7 +250,6 @@ const CardGrid = ({
                     interfaces={interfaces}
                     project={project}
                     context={context}
-                    columnContext={columnContext}
                     items={items}
                     newCounter={newCounter}
                     tableData={tableData}
@@ -286,17 +292,21 @@ const CardGrid = ({
                     setContext={setContext}
                     setSaveDialog={setSaveDialog}
                     updateInterface={updateInterface}
+                    contextActions={contextActions}
+                    logsActions={logsActions}
                 />
             </div>
             {interfaces.length == 0 ? (project && pending) ? <div className="flex justify-center">
                 <Loader2 className="animate-spin my-36" />
             </div> : !project ? <DefaultProject
                 projects={projects}
-                logsActions={logsActions}
                 projectActions={projectActions}
                 interfaceActions={interfaceActions}
-                setProject={setProject}
+                contextActions={contextActions}
+                logsActions={logsActions}
+                derivedEntryActions={derivedEntryActions}
                 setInterface={setInterface}
+                setProject={setProject}
             /> : <></> : interfaces.map((int_, idx) => <TabsContent
                 key={idx}
                 value={int_}
@@ -318,8 +328,8 @@ const CardGrid = ({
                                 setPending(false);
                         }}
                         className="layout interactive-grid flex-1"
-                        cols={{ lg: 12, md: 12, sm: 12, xs: 10, xxs: 8 }}
-                        rowHeight={100}
+                        cols={{ lg: 12, md: 12, sm: 12, xs: 12, xxs: 12 }}
+                        rowHeight={110}
                         margin={[0, 0]}
                         containerPadding={[0, 0]}
                         isDraggable={edit}
@@ -341,6 +351,7 @@ const CardGrid = ({
                                         interactive={interactive}
                                         project={project || undefined}
                                         contexts={contexts}
+                                        context={context}
                                         pending={pending || dataPending || tilePending[el.i]}
                                         tableNames={tableNames}
                                         tableData={tableData}
@@ -349,12 +360,14 @@ const CardGrid = ({
                                         logsActions={logsActions}
                                         fieldsActions={fieldsActions}
                                         derivedEntryActions={derivedEntryActions}
+                                        contextActions={contextActions}
                                         index={el.i}
                                         item={el}
                                         items={items}
                                         filterExpressions={filterExpressions}
                                         sortingExpressions={sortingExpressions}
                                         groupingExpressions={groupingExpressions}
+                                        groupSortingExpressions={groupSortingExpressions}
                                         limit={limit}
                                         offsets={offsets}
                                         setPending={(p: boolean) => setTilePending({ ...tilePending, [el.i]: p })}
@@ -363,28 +376,59 @@ const CardGrid = ({
                                         setTableData={setTableData}
                                     />
                                     <div className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (edit ? "h-16" : "h-10")}>
-                                        <div className="mb-auto flex gap-2">
-                                            <Tooltip content="Tile Type">
+                                        <div className="mb-auto flex gap-2 ml-1 items-center">
+                                            <TutorialButton 
+                                                url={
+                                                    el.tab === "Plot" ? "https://docs.unify.ai/interfaces/plots" :
+                                                    el.tab === "View" ? "https://docs.unify.ai/interfaces/views" :
+                                                    "https://docs.unify.ai/interfaces/tables"
+                                                }
+                                            />
+                                            <Tooltip content="Rename Tile">
                                                 <Badge
-                                                    className="cursor-pointer"
+                                                    className="cursor-pointer text-sm font-normal mb-1"
                                                     variant="primary"
                                                     onClick={() => edit ? setEditTile(el.i) : undefined}
                                                 >
                                                     {el.i}
                                                 </Badge>
                                             </Tooltip>
-                                            {(![undefined, "default"].includes(el.context || context)) && el.tab == "Table" && <Tooltip content="Context">
-                                                <Badge variant="primary" className="flex gap-1">
-                                                    <Braces size={14} />
-                                                    {el.context || context}
-                                                </Badge>
-                                            </Tooltip>}
-                                            {(el.column_context || columnContext) && el.tab == "Table" && <Tooltip content="Column Context">
-                                                <Badge variant="primary" className="flex gap-1">
-                                                    <Grid2x2 size={14} />
-                                                    {el.column_context || columnContext}
-                                                </Badge>
-                                            </Tooltip>}
+                                            {el.context && el.tab == "Table" && <ContextSelector
+                                                project={project || undefined}
+                                                contexts_={contexts}
+                                                context={context}
+                                                tableDataItem={tableData[el.i || ""]}
+                                                item={el}
+                                                updateItem={updateItem}
+                                                contextActions={contextActions}
+                                                logsActions={logsActions}
+                                                fields={[...tableData[el.i || ""]?.paramsProperties || [], ...tableData[el.i || ""]?.entriesProperties || []]}
+                                                button={
+                                                    <Tooltip content="Context">
+                                                        <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
+                                                            <Braces size={18} />
+                                                            {el.context}
+                                                        </Badge>
+                                                    </Tooltip>
+                                                }
+                                            />}
+                                            {el.column_context && el.tab == "Table" && <ContextSelector
+                                                project={project || undefined}
+                                                contexts_={contexts}
+                                                context={context}
+                                                tableDataItem={tableData[el.i || ""]}
+                                                item={el}
+                                                updateItem={updateItem}
+                                                contextActions={contextActions}
+                                                logsActions={logsActions}
+                                                fields={[...tableData[el.i || ""]?.paramsProperties || [], ...tableData[el.i || ""]?.entriesProperties || []]}
+                                                button={<Tooltip content="Column Context">
+                                                    <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
+                                                        <Grid2x2 size={18} />
+                                                        {el.column_context}
+                                                    </Badge>
+                                                </Tooltip>}
+                                            />}
                                         </div>
                                         <div className="flex-1 flex justify-end gap-2 mb-auto opacity-0 hover:opacity-100">
                                             <ActionButton
@@ -454,6 +498,7 @@ const CardGrid = ({
                         interactive={interactive}
                         project={project || undefined}
                         contexts={contexts}
+                        context={context}
                         pending={pending}
                         dataPending={dataPending}
                         tilePending={tilePending}
@@ -465,10 +510,12 @@ const CardGrid = ({
                         logsActions={logsActions}
                         fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}
+                        contextActions={contextActions}
                         items={items}
                         filterExpressions={filterExpressions}
                         sortingExpressions={sortingExpressions}
                         groupingExpressions={groupingExpressions}
+                        groupSortingExpressions={groupSortingExpressions}
                         limit={limit}
                         offsets={offsets}
                         updateItem={updateItem}
@@ -480,6 +527,7 @@ const CardGrid = ({
                 </Suspense>
             </DialogContent>
         </Dialog>}
+        {/*  */}
         {edit && editTile && <EditTileName
             items={items}
             editTile={editTile}
@@ -499,9 +547,9 @@ const CardGrid = ({
                                 if (saveSuccess == undefined) {
                                     let response: ResponseProps | undefined = undefined;
                                     if (interfaceCreated)
-                                        response = await interfaceActions.update(interface_ as string, project as string, context, columnContext, items, newCounter, undefined, false);
+                                        response = await interfaceActions.update(interface_ as string, project as string, context, items, newCounter, undefined, false);
                                     else
-                                        response = await interfaceActions.create(interface_ as string, project as string, context, columnContext, items, newCounter, false);
+                                        response = await interfaceActions.create(interface_ as string, project as string, context, items, newCounter, false);
                                     if (response && "info" in response)
                                         setSaveSuccess(true);
                                     else

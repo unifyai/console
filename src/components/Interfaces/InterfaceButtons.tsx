@@ -1,6 +1,6 @@
 "use client";
 
-import { Interface, TileProps } from "@/types/evals/grid";
+import { ContextActions, Interface, TileProps } from "@/types/evals/grid";
 import { Eye, Hammer, SquareMousePointer } from "lucide-react";
 import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
@@ -15,6 +15,7 @@ import { Label } from "../UI/label";
 import Tooltip from "../Common/Misc/Tooltip";
 import AddTile from "./AddTile";
 import ContextSelector from "./Table/Content/ContextSelector";
+import { LogsActions } from "@/types/evals/grid";
 
 const InterfaceButtons = ({
     edit,
@@ -43,6 +44,8 @@ const InterfaceButtons = ({
     setContext,
     setSaveDialog,
     updateInterface,
+    contextActions,
+    logsActions
 }: {
     edit: boolean,
     interactive: boolean,
@@ -70,7 +73,9 @@ const InterfaceButtons = ({
     setDataPending: (value: SetStateAction<boolean>) => void,
     setContext: (value: SetStateAction<string | undefined>) => void,
     setSaveDialog: (value: SetStateAction<boolean>) => void,
-    updateInterface: (savedInterface?: Interface | null) => Promise<ResponseProps>
+    updateInterface: (savedInterface?: Interface | null) => Promise<ResponseProps>,
+    contextActions: ContextActions
+    logsActions: LogsActions
 }) => {
     const router = useRouter();
 
@@ -85,24 +90,43 @@ const InterfaceButtons = ({
                 tooltip="Open Focus Pane"
                 icon={<FocusIcon />}
                 variant={"outline"}
-                disabled={anyTilePending || !project || !interface_ || pending}
+                disabled={!project || !interface_ || pending}
                 onClick={() => setFocusDialog(true)}
             />
             <ContextSelector
-                contexts={contexts}
+                project={project || undefined}
+                contexts_={contexts}
                 context={context}
-                setContext={(context: string) => {
-                    setContext(context);
+                setContext={(ctx: string) => {
+                    setContext(ctx);
+                    setItems(items.map(item => {
+                        const validContext = contexts.some(c => c.name == ctx);
+                        const validItemContext = item.context?.startsWith(ctx);
+                        const prefixContexts = contexts.filter(c => c.name.startsWith(ctx));
+                        return {
+                            ...item,
+                            context: validContext
+                                ? ctx
+                                : validItemContext
+                                    ? item.context
+                                    : prefixContexts.length == 1
+                                        ? prefixContexts[0].name
+                                        : undefined,
+                            column_context: validItemContext ? item.column_context : undefined
+                        };
+                    }));
                     setDataPending(true);
                     router.refresh();
                 }}
+                contextActions={contextActions}
+                logsActions={logsActions}
             />
             <ActionButton
                 className="transition-all"
                 tooltip={!project ? "Select a project first" : "Save Interface"}
                 icon={saveIcon}
                 variant={variant}
-                disabled={anyTilePending || !project || !interface_ || pending}
+                disabled={!project || !interface_ || pending}
                 onClick={async () => setSaveDialog(true)}
             />
             <ActionButton
@@ -110,7 +134,7 @@ const InterfaceButtons = ({
                 tooltip={!project ? "Select a project first" : "Return to last saved interface"}
                 icon={resetIcon}
                 variant="outline"
-                disabled={anyTilePending || !project || pending}
+                disabled={!project || pending}
                 onClick={async () => updateInterface(savedInterface).then(() => {
                     setResetting(true);
                     setEdit(true);
@@ -173,7 +197,7 @@ const InterfaceButtons = ({
                 }}
             />
             <div className="flex items-center gap-2 border rounded-md p-1">
-                <Switch id="edit" checked={edit} onCheckedChange={() => setEdit(!edit)} />
+                <Switch id="edit" checked={edit} onCheckedChange={() => setEdit(!edit)} disabled={!project} />
                 <Label htmlFor="edit">
                     <Tooltip content="Edit">
                         <Hammer name="edit" size={18} color={edit ? "var(--primary)" : undefined} />
@@ -181,7 +205,7 @@ const InterfaceButtons = ({
                 </Label>
             </div>
             <div className="flex items-center gap-2 border rounded-md p-1">
-                <Switch id="interactive" checked={interactive} onCheckedChange={() => setInteractive(!interactive)} />
+                <Switch id="interactive" checked={interactive} onCheckedChange={() => setInteractive(!interactive)} disabled={!project} />
                 <Label htmlFor="interactive">
                     <Tooltip content="Interactive">
                         <SquareMousePointer name="interactive" size={18} color={interactive ? "var(--primary)" : undefined} />

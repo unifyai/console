@@ -6,6 +6,7 @@ import NumericColumnFilter from "./Numbers";
 import TimeColumnFilter from "./Time";
 import ImageColumnFilter from "./Images";
 import BooleanColumnFilter from "./Bools";
+import ListColumnFilter from "./Lists";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 import { Dispatch, SetStateAction } from "react";
@@ -23,7 +24,6 @@ type ColumnFilterProps = {
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
     dataTypes: {[key: string]: string},
     boundaries: {minimums: {[key: string]: any}, maximums: {[key: string]: any}},
-    logs: LogProps[] | GroupedLogProps[],
     open: boolean,
     setOpen: Dispatch<SetStateAction<boolean>>,
     filterLoading: boolean,
@@ -39,7 +39,6 @@ const ColumnFilter = ({
     setColumnFilterQuery,
     dataTypes,
     boundaries,
-    logs,
     open,
     setOpen,
     filterLoading,
@@ -58,7 +57,6 @@ const ColumnFilter = ({
         columnFilters={columnFilters}
         setColumnFilterQuery={setColumnFilterQuery}
         boundaries={boundaries}
-        logs={logs}
         dataTypes={dataTypes}
         open={open}
         setOpen={setOpen}
@@ -67,13 +65,12 @@ const ColumnFilter = ({
         setIsFiltered={setIsFiltered}
         renderMode={renderMode}/>
     }
-    else if (dataTypes[column] === "timestamp") {
+    else if (dataTypes[column] === "timestamp" || dataTypes[column] === "time" || dataTypes[column] === "datetime" || dataTypes[column] === "deltatime") {
         filter = <TimeColumnFilter
         interactive={interactive}
         column={column}
         columnFilters={columnFilters}
         setColumnFilterQuery={setColumnFilterQuery}
-        logs={logs}
         open={open}
         setOpen={setOpen}
         filterLoading={filterLoading}
@@ -87,7 +84,6 @@ const ColumnFilter = ({
         column={column}
         columnFilters={columnFilters}
         setColumnFilterQuery={setColumnFilterQuery}
-        logs={logs}
         filterLoading={filterLoading}
         setFilterLoading={setFilterLoading}
         setIsFiltered={setIsFiltered}
@@ -99,7 +95,19 @@ const ColumnFilter = ({
         column={column}
         columnFilters={columnFilters}
         setColumnFilterQuery={setColumnFilterQuery}
-        logs={logs}
+        open={open}
+        setOpen={setOpen}
+        filterLoading={filterLoading}
+        setFilterLoading={setFilterLoading}
+        setIsFiltered={setIsFiltered}
+        renderMode={renderMode}/>
+    }
+    else if (dataTypes[column] === "list"){
+        filter = <ListColumnFilter
+        interactive={interactive}
+        column={column}
+        columnFilters={columnFilters}
+        setColumnFilterQuery={setColumnFilterQuery}
         open={open}
         setOpen={setOpen}
         filterLoading={filterLoading}
@@ -113,7 +121,6 @@ const ColumnFilter = ({
         column={column}
         columnFilters={columnFilters}
         setColumnFilterQuery={setColumnFilterQuery}
-        logs={logs}
         open={open}
         setOpen={setOpen}
         filterLoading={filterLoading}

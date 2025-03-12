@@ -46,7 +46,8 @@ const drawAxes = (
     yTicks: number[],
     reverseX: boolean = false,
     reverseY: boolean = false,
-    xType?: string
+    xType?: string,
+    yType?: string
 ) => {
 
     /* Initialize variables */
@@ -67,9 +68,9 @@ const drawAxes = (
             if (typeof d === "number") return reverseX ? formatNumber(-d) : formatNumber(d) 
             return d.toString().slice(0, 10)
         }) as any;
-    } else if (plotType === "Histogram" || plotType === "Line Chart") {
-        xTickFormatter = d3.axisBottom(x as d3.ScaleLinear<number, number, never>).tickSizeOuter(0).tickFormat(d => {
-            if (xType === "timestamp") return new Date(d as number).toISOString().replace("Z", "").replace("T", " ")
+    } else if (plotType === "Histogram" || plotType === "Line Chart" || plotType === "Scatter Plot") {
+        xTickFormatter = d3.axisBottom(x as d3.ScaleLinear<number, number, never>).tickValues(xTicks).tickFormat(d => {
+            if (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "datetime") return formatTimeTypeValue(d as number, xType)
             return reverseX ? formatNumber(-d as number) : formatNumber(d as number)
         }) as any
     }
@@ -87,6 +88,7 @@ const drawAxes = (
             : yTicks as number[]
         )
         .tickFormat((d) => {
+            if (yType === "timestamp" || yType === "timedelta" || yType === "time" || yType === "datetime") return formatTimeTypeValue(d as number, yType)
             let value = parseFloat(d as any)
             value = reverseY ? -value : value
             return formatNumber(value)
@@ -101,6 +103,8 @@ const drawAxes = (
     yAxis.selectAll("text").attr("stroke", "black") .attr("stroke-width", 0.1).attr("text-anchor", "end").attr("font-size", `10px`);
     xAxis.select("path").style("opacity", 0);
     yAxis.select("path").style("opacity", 0);
+    
+    if (plotType === "Bar Chart") xAxis.style("opacity", 0)         // (Temporary: Hide x axis for bar charts)
 
     /* Add x = 0 and / or y = 0 line, if applicable */
     const zeroXLine = svg.selectAll(".x-zero")
@@ -174,16 +178,16 @@ const tooltipTemplate = (data: InfoCardData) => {
 }
 
 const keyTemplate = (keys: GroupingColors) => {
-    const value = (entry: { key: string, color: string }) => entry.key.toString().slice(0, 8).replace(/^"|"$/g, '');
+    const value = (entry: { key: string, color: string }) => entry.key.toString().replace(/^"|"$/g, '');
     return (`
-    <p class="font-bold text-sm">Grouping values</p>
     ${keys.map((entry, index) => `
-    <div id=${entry.key} class="key flex flex-row gap-2 items-center">
-        <div class="rounded-full h-2 w-2" style="background-color: ${entry.color}; color: ${entry.color}"></div>
+    <div id=${entry.key} class="key flex flex-row gap-2 mt-1 items-center">
+        <div class="rounded-full h-2 w-2 shrink-0" style="background-color: ${entry.color}; color: ${entry.color}"></div>
         <p class="text-xs text-foreground">${value(entry)}</p>
     </div>
     `).join("\n")}`)
 }
+
 
 const positionTooltip = (event: any, target: any, tooltip: any) => {
     const [x, y] = d3.pointer(event, target);  
@@ -196,6 +200,7 @@ const positionTooltip = (event: any, target: any, tooltip: any) => {
  * Reversing the axis domain to compute log scaled values if all numbers in the range are strictly negative
  * Checking if a table's logs has values for a given axis property, and getting those values, if applicable
  * Combine plot logs data across tables
+ * Formatting time values depending on the time type
 */
 function niceIncrement(min: number, max: number, count = 10) {
     const rawStep = (max - min) / count;
@@ -295,15 +300,51 @@ const getValue = (fields: LogFieldsResponseProps, axisProperty: string, log: Log
             ? (log[`${table}.params`] as LogItemProps)[axisProperty]
             : (log[`${table}.entries`] as LogItemProps)[axisProperty]
     const dataType = fields[axisProperty] ? fields[axisProperty].data_type : "float"
-    if (dataType === "timestamp") value = new Date(value).getTime()
+    if (dataType === "timestamp" || dataType === "timedelta" || dataType === "datetime") value = new Date(value).getTime()
+    if (dataType === "time") value = timeValueToTime(value).getTime()
     return value
+}
+
+function durationToTimeDelta(durationInMilliseconds: number) {
+    const seconds = Math.floor(durationInMilliseconds / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    const displayDays = days;
+    const displayHours = hours % 24;
+    const displayMinutes = minutes % 60;
+    const displaySeconds = seconds % 60;
+
+    return `${displayDays} days, ${displayHours}:${displayMinutes}:${displaySeconds} seconds`;
+}
+
+function timeValueToTime (value: string) {
+    const now = new Date();
+    const [hours, minutes, seconds] = value.split(":")
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), parseInt(hours), parseInt(minutes), parseInt(seconds));
+}
+
+function formatTimeTypeValue(value: number, data_type: string) {
+    switch (data_type) {
+        case "timestamp":
+            return new Date(value).toISOString().replace("Z", "").replace("T", " ")
+        case "time":
+            return new Date(value).toISOString().split("T")[1].split(".")[0]
+        case "datetime":
+            return new Date(value).toISOString().split("T")[0]
+        case "timedelta":
+            return durationToTimeDelta(value)
+        default:
+            return new Date(value).toISOString().replace("Z", "").replace("T", " ")
+    }
 }
 
 /** Main plot functions including:
  * Bar chart: Group data by x-axis key and compute a reduction metric value for the y-axis property per x-axis value. Accepts any data type.
- * Line chart: Plot single y-axis versus x-axis line, or one line per group. Accepts floats, ints or timestamps.
+ * Line chart: Plot single y-axis versus x-axis line, or one line per group. Accepts floats, ints or times.
  * Scatter plot: Plot y-axis versus x-axis dots with a single color or one color per grouped value. Accepts floats or ints.
- * Histogram: Plot frequency per x-axis value for given bin size. Accepts floats, ints or timestamps. 
+ * Histogram: Plot frequency per x-axis value for given bin size. Accepts floats, ints or times.
 */
 export const drawBarChart = (
     container: d3.Selection<null, unknown, null, undefined>,
@@ -316,10 +357,12 @@ export const drawBarChart = (
     selectedXAxisProperty: string | undefined,
     selectedYAxisProperty: string | undefined,
     metric: string,
+    sortBars: string | undefined,
     xTable: string,
     yTable: string,
     logs: LogProps[],
-    fields: LogFieldsResponseProps
+    fields: LogFieldsResponseProps,
+    zoomRef: any
 ) => {
 
     // Clear previous elements
@@ -351,23 +394,19 @@ export const drawBarChart = (
             d => JSON.stringify(getValue(fields, xAxisProperty, d, xTable))
         );
         data = Array.from(groups, ([group, value]) => [group, value]) as DataLabel[];
-        data.sort((a, b) => {
-            const aStr = a[0];
-            const bStr = b[0];
-            const isANumeric = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test(aStr);
-            const isBNumeric = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test(bStr);
-            if (isANumeric && isBNumeric) {
-              const aNum = Number(aStr);
-              const bNum = Number(bStr);
-              return aNum - bNum;
-            } else if (isANumeric) {
-              return -1;
-            } else if (isBNumeric) {
-              return 1;
-            } else {
-              return aStr.localeCompare(bStr);
-            }
-        });
+        if (sortBars != "unsorted")
+            data.sort((a, b) => {
+                const yA = a[1];
+                const yB = b[1];
+                switch (sortBars) {
+                    case "asc":
+                        return yA - yB
+                    case "desc":
+                        return yB - yA
+                    default:
+                        return yA - yB;
+                }
+            });
     }
 
     // Define scales
@@ -402,7 +441,6 @@ export const drawBarChart = (
     drawAxes("Bar Chart", svg, dimensions, margins, xScale, yScale, xTicks, yTicks);
 
     // Draw bars
-    const t = svg.transition().duration(500);
     g
         .selectAll<SVGRectElement, DataLabel>("rect.bar-item")
         .data(data as DataLabel[], d => d[0])
@@ -415,17 +453,20 @@ export const drawBarChart = (
                 .attr("height", 0)
                 .attr("fill", primary)
                 .call(
-                    enter => enter.transition(t as any)
+                    enter => enter.transition("enter")
+                        .duration(500)
                         .attr("y", d => yScale(Math.max(0, d[1])))
                         .attr("height", d => Math.abs(yScale(d[1]) - yScale(0)))
                 ),
             update => update
-                .call(update => update.transition(t as any)
+                .call(update => update.transition("update")
+                    .duration(500)
                     .attr("x", d => xScale(d[0])!)
                     .attr("width", xScale.bandwidth())
                     .attr("y", d => yScale(Math.max(0, d[1])))
                     .attr("height", d => Math.abs(yScale(d[1]) - yScale(0)))),
-            exit => exit.transition(t as any)
+            exit => exit.transition("exit")
+                .duration(500)
                 .attr("height", 0)
                 .attr("y", yScale(0))
                 .remove()
@@ -444,22 +485,86 @@ export const drawBarChart = (
                 name: `${yAxisProperty}(${metric})`,
                 value: d[1] 
             }
-        })).transition().style("opacity", 1);
+        })).transition("opacity").style("opacity", 1);
 
         // Dim all bars except hovered one
         g.selectAll("rect.bar-item")
-            .transition()
+            .transition("opacity")
             .style("opacity", bar => (bar as DataLabel)[0] === currentKey ? 1 : 0.3);
 
     };
     const handleMouseOut = () => {
-        tooltip.transition().style("opacity", 0);
-        g.selectAll("rect.bar-item").transition().style("opacity", 1);
+        tooltip.transition("opacity").style("opacity", 0);
+        g.selectAll("rect.bar-item").transition("opacity").style("opacity", 1);
     };
     g.selectAll("rect.bar-item")
         .on("mouseover", (event, d) => handleMouseOver(event, d as DataLabel))
         .on("mousemove", (event) => positionTooltip(event, event.target, tooltip))
         .on("mouseout", handleMouseOut);
+
+    // Handle panning and zooming
+    const initialX = xScale.copy();
+    const zoomContainer = svg.select(".zoom-layer").attr("x", 0).attr("y", 0).attr("width", dimensions.width).attr("height", dimensions.height).style("fill", "none").style("pointer-events", "all").lower();
+    zoomContainer.on("wheel", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+    });
+    zoomContainer.on('dblclick', () => {
+        zoomRef.current = d3.zoomIdentity;
+        zoomContainer.transition("zoom").duration(500).call(zoom.transform as any, d3.zoomIdentity);
+    });
+    const zoom = d3
+        .zoom()
+        .on('start', () => {
+            d3.select('body').style('overflow', 'hidden')
+            // Temporarily disable interaction during zoom   
+            g.selectAll("rect.bar-item").style("pointer-events", "none");
+        })
+        .on('end', () => {
+            d3.select('body').style('overflow', 'auto')
+            // Re-enable hover effects after zoom
+            g.selectAll("rect.bar-item").style("pointer-events", "all");
+        })
+        .on('zoom', (event) => {
+
+            event.sourceEvent?.preventDefault();
+            event.sourceEvent?.stopPropagation();
+        
+            zoomRef.current = event.transform
+
+            // Get transform parameters
+            const transform = event.transform;
+            const k = transform.k;
+            const tx = transform.x;
+        
+            // Calculate visible range boundaries
+            const visibleStart = (-tx) / k;
+            const visibleEnd = (dimensions.width - tx) / k;
+        
+            // Create a new band scale with transformed range
+            const newX = initialX.copy()
+                .range([visibleStart, visibleEnd])
+                .padding(0.2 * (1/k)); // Adjust padding based on zoom level
+        
+            // Recalculate ticks based on new domain
+            const [xTicks, yTicks] = [
+                generateTicks(0, 0, 10, scaleX === "log"),
+                generateTicks(minY, maxY, 10, scaleY === "log")
+            ]
+
+            // Redraw axes with new scales
+            drawAxes("Bar Chart", svg, dimensions, margins, newX, yScale, xTicks, yTicks);
+
+            // Update bars
+            g.selectAll(".bar-item")
+                .transition("zoom")
+                .attr("x", d => newX((d as DataLabel)[0])!)
+                .attr("width", newX.bandwidth());        
+            
+    });
+    // Attach zoom transform to container and reapply previous zoom if exists
+    zoomContainer.call(zoom as any);
+    zoomContainer.call(zoom.transform as any, zoomRef.current);
 };
 
 export const drawLineChart = (
@@ -476,7 +581,8 @@ export const drawLineChart = (
   xTable: string,
   yTable: string,
   logs: LogProps[],
-  fields: LogFieldsResponseProps
+  fields: LogFieldsResponseProps,
+  zoomRef: any
 ) => {
 
     // Remove drawings from previous plots
@@ -498,7 +604,7 @@ export const drawLineChart = (
     let data : DataPoint[] | GroupedDataPoint[] = [];
     const properties = Object
             .entries(fields)
-            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp"))
+            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp" || data_type === "time" || data_type === "timedelta" || data_type === "datetime"))
             .map(([name]) => name);
     const xAxisProperty = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties.at(0);
     const yAxisProperty = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : properties.at(0);
@@ -608,7 +714,7 @@ export const drawLineChart = (
             
         key
             .html(keyTemplate(colors))
-            .transition()
+            .transition("opacity")
             .style("opacity", 1)
     } else {
         g.selectAll("path.line-item")
@@ -628,7 +734,7 @@ export const drawLineChart = (
     // When hovering on a line, lower opacity of other line groups and their corresponding key
     function hoverOnLine (groupValue: string) {
         g.selectAll("path.line-item")
-            .transition()
+            .transition("opacity")
             .duration(200)
             .style("opacity", d => (d as GroupedDataPoint)[0] === groupValue ? 1 : 0.5);
         key.selectAll(".key")
@@ -636,7 +742,7 @@ export const drawLineChart = (
                 const id = d3.select(this).attr("id")
                 const opacity = id.toString() === groupValue ? 1 : 0.5
                 d3.select(this)
-                .transition()
+                .transition("opacity")
                 .duration(200)
                 .style("opacity", opacity)
             })
@@ -644,9 +750,72 @@ export const drawLineChart = (
 
     // When leaving a line, restore opacity of all line groups and their corresponding key
     function leaveLine () {
-        g.selectAll("path.line-item").transition().duration(200).style("opacity", 1)
-        key.selectAll(".key").transition().duration(200).style("opacity", 1)
+        g.selectAll("path.line-item").transition("opacity").duration(200).style("opacity", 1)
+        key.selectAll(".key").transition("opacity").duration(200).style("opacity", 1)
     }
+
+    // Handle panning and zooming
+    const initialX = x.copy();
+    const zoomContainer = svg.select(".zoom-layer").attr("x", 0).attr("y", 0).attr("width", dimensions.width).attr("height", dimensions.height).style("fill", "none").style("pointer-events", "all").lower();
+    zoomContainer.on("wheel", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+    });
+    zoomContainer.on('dblclick', () => {
+        zoomRef.current = d3.zoomIdentity;        
+        zoomContainer.transition("zoom").duration(500).call(zoom.transform as any, d3.zoomIdentity);
+    });
+    const zoom = d3
+        .zoom()
+        .on('start', () => {
+            d3.select('body').style('overflow', 'hidden')
+            // Temporarily disable interaction during zoom   
+            g.selectAll("path.line-item").style("pointer-events", "none");
+        })
+        .on('end', () => {
+            d3.select('body').style('overflow', 'auto')
+            // Re-enable hover effects after zoom
+            g.selectAll("path.line-item").style("pointer-events", "all");
+        })
+        .on('zoom', (event) => {
+            
+            event.sourceEvent?.preventDefault();
+            event.sourceEvent?.stopPropagation();
+
+            zoomRef.current = event.transform
+
+            const newX = event.transform.rescaleX(initialX);
+
+            // Update line generator with new scales
+            lineGenerator.x(d => reverseX ? newX(Math.abs(d[0])) : newX(d[0]))
+
+            // Recalculate ticks based on new domain
+            const [minX, maxX] = newX.domain();
+            const [xTicks, yTicks] = [
+                generateTicks(minX, maxX, 10, scaleX === "log"),
+                generateTicks(minY, maxY, 10, scaleY === "log")
+            ]
+
+            // Redraw axes with new scales
+            drawAxes("Line Chart", svg, dimensions, margins, newX, y, xTicks, yTicks, reverseX, reverseY, xType);
+
+            // Update line paths
+            if (groupBy) {
+            g
+                .selectAll("path.line-item")
+                .transition("zoom")
+                .attr("d", (d) => lineGenerator((d as GroupedDataPoint)[1]));
+            } else {
+            g
+                .selectAll("path.line-item")
+                .transition("zoom")
+                .attr("d", lineGenerator(data as DataPoint[]));
+            }
+        }
+    );
+    // Attach zoom transform to container and reapply previous zoom if exists
+    zoomContainer.call(zoom as any);
+    zoomContainer.call(zoom.transform as any, zoomRef.current);
 };
 
 export const drawScatterPlot = (
@@ -664,7 +833,8 @@ export const drawScatterPlot = (
   xTable: string,
   yTable: string,
   logs: LogProps[],
-  fields: LogFieldsResponseProps
+  fields: LogFieldsResponseProps,
+  zoomRef: any
 ) => {
   
     // Remove drawings from previous plots
@@ -680,11 +850,13 @@ export const drawScatterPlot = (
     let data : LogProps[] = [];
     const properties = Object
             .entries(fields)
-            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int"))
+            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp" || data_type === "time" || data_type === "timedelta" || data_type === "datetime"))
             .map(([name]) => name);
     const xAxisProperty = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties.at(0);
     const yAxisProperty = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : properties.at(0);
+    let [xType, yType]: [string | undefined, string | undefined] = [undefined, undefined]
     if (xAxisProperty && yAxisProperty) {
+        [xType, yType] = [fields[xAxisProperty].data_type, fields[yAxisProperty].data_type]
         data = logs.filter((log) => {
             const hasGroup = groupBy ? hasProperty(fields, groupBy, log, xTable) : true
             const hasX = hasProperty(fields, xAxisProperty, log, xTable)
@@ -724,7 +896,7 @@ export const drawScatterPlot = (
         generateTicks(minX, maxX, 10, scaleX === "log"),
         generateTicks(minY, maxY, 10, scaleY === "log")
     ]
-    drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY);
+    drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY, xType, yType);
 
     // Add tooltip and grouping key
     const tooltip = container.select(".plotTooltip").style("opacity", 0)
@@ -743,7 +915,7 @@ export const drawScatterPlot = (
         const colors = domain.map((key) => ({ key: key, color: color(key) as string }));
         key
             .html(keyTemplate(colors))
-            .transition()
+            .transition("opacity")
             .style("opacity", 1);
     }    
     const points = g
@@ -762,7 +934,7 @@ export const drawScatterPlot = (
         .on("mouseout", (event, data) => leavePoint(event, data));    
     enteringPoints
         .merge(points as any)
-        .transition()
+        .transition("enter")
         .duration(500)
         .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable)) : getValue(fields, xAxisProperty as string, d, xTable)))
         .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable)) : getValue(fields, yAxisProperty as string, d, yTable)))
@@ -770,7 +942,7 @@ export const drawScatterPlot = (
         .attr("fill", d => groupBy ? color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
         .attr("stroke", d => groupBy ? color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary);
     points.exit()
-        .transition()
+        .transition("exit")
         .duration(500)
         .attr("r", 0)
         .remove();
@@ -799,11 +971,15 @@ export const drawScatterPlot = (
         const hoverData : InfoCardData = {
             "x" : {
                 "name":  selectedXAxisProperty as string,
-                "value": getValue(fields, selectedXAxisProperty as string, data, xTable)
+                "value": (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "datetime")
+                    ? formatTimeTypeValue(getValue(fields, selectedXAxisProperty as string, data, xTable), xType)
+                    : getValue(fields, selectedXAxisProperty as string, data, xTable)
             },
             "y" : {
                 "name":  selectedYAxisProperty as string, 
-                "value": getValue(fields, selectedYAxisProperty as string, data, yTable)
+                "value": (yType === "timestamp" || yType === "timedelta" || yType === "time" || yType === "datetime")
+                    ? formatTimeTypeValue(getValue(fields, selectedYAxisProperty as string, data, yTable), yType)
+                    : getValue(fields, selectedYAxisProperty as string, data, yTable)
             }
         }
         if (groupBy) hoverData["group"] = {
@@ -811,22 +987,22 @@ export const drawScatterPlot = (
             value: getValue(fields, groupBy as string, data, xTable)
         }
 
-        tooltip.html(tooltipTemplate(hoverData)).transition().style("opacity", 1)
+        tooltip.html(tooltipTemplate(hoverData)).transition("opacity").style("opacity", 1)
         positionTooltip(event, event.target, tooltip);
 
         if (groupBy) {
             g.selectAll("circle.data-point")
-                .transition()
+                .transition("opacity")
                 .duration(200)
                 .attr("r", d => getValue(fields, groupBy, d as LogProps, xTable) === getValue(fields, groupBy, data, xTable) ? 4 : 2)
                 .style("opacity", d => getValue(fields, groupBy, d as LogProps, xTable) === getValue(fields, groupBy, data, xTable) ? 1 : 0.5);
             g.selectAll("path.best-fit")
-                .transition()
+                .transition("opacity")
                 .duration(200)
                 .style("opacity", (d: any) => d.groupKey === groupBy ? 1 : 0.5
             );
             g.selectAll("text.correlation-group")
-                .transition()
+                .transition("opacity")
                 .duration(200)
                 .style("opacity", (d: any) => d.groupKey === groupBy ? 1 : 0.5);
             key.selectAll(".key")
@@ -834,14 +1010,14 @@ export const drawScatterPlot = (
                     const id = d3.select(this).attr("id")
                     const opacity = id.toString() === getValue(fields, groupBy, data, xTable).toString() ? 1 : 0.5
                     d3.select(this)
-                      .transition()
+                      .transition("opacity")
                       .duration(200)
                       .style("opacity", opacity)
                 })
         } else {
             g.selectAll("circle.data-point")
                 .filter((d: unknown) => (d as LogProps).id !== data.id)
-                .transition()
+                .transition("opacity")
                 .duration(200)
                 .style("opacity", 0.5);
         }
@@ -854,28 +1030,28 @@ export const drawScatterPlot = (
 
     // When leaving a point. Reset info card data and reset point opacity if grouped
     function leavePoint (event: any, data: LogProps) {
-        tooltip.transition().style("opacity", 0)
+        tooltip.transition("opacity").style("opacity", 0)
         if (groupBy) {
             g.selectAll("circle.data-point")
-                .transition()
+                .transition("opacity")
                 .duration(200)
                 .attr("r", 3)
                 .style("opacity", 1)
             g.selectAll(".key")
-               .transition()
+               .transition("opacity")
                .duration(200)
                .style("opacity", 1)
             key.selectAll(".key")
-                .transition()
+                .transition("opacity")
                 .duration(200)
                 .style("opacity", 1)
             g.selectAll("path.best-fit, text.correlation-group")
-                .transition()
+                .transition("opacity")
                 .duration(200)
                 .style("opacity", 1);
         } else {
             g.selectAll("circle.data-point")
-            .transition()
+            .transition("opacity")
             .duration(200)
             .style("opacity", 1);
         }  
@@ -968,8 +1144,9 @@ export const drawScatterPlot = (
                     const angleRad = Math.atan2(dy, dx);
                     const angleDeg = angleRad * 180 / Math.PI;
                     const textOffset = -60;
-                    const textX = xEndPx + (dx / Math.hypot(dx, dy)) * textOffset;
-                    const textY = yEndPx + (dy / Math.hypot(dx, dy)) * textOffset - 20;
+                    const hypothenuse = Math.hypot(dx, dy) != 0 ? Math.hypot(dx, dy) : 1
+                    const textX = xEndPx + (dx / hypothenuse) * textOffset;
+                    const textY = yEndPx + (dy / hypothenuse) * textOffset - 20;
     
                     d3.select(this)
                         .attr("x", textX)
@@ -1016,11 +1193,12 @@ export const drawScatterPlot = (
 
             // Position at line tip
             const textOffset = -60;
-            const textX = xEndPx + (dx / Math.hypot(dx, dy)) * textOffset;
-            const textY = yEndPx + (dy / Math.hypot(dx, dy)) * textOffset - 20;
+            const hypothenuse = Math.hypot(dx, dy) != 0 ? Math.hypot(dx, dy) : 1
+            const textX = xEndPx + (dx / hypothenuse) * textOffset;
+            const textY = yEndPx + (dy / hypothenuse) * textOffset - 20;
             g
                 .selectAll("text.correlation")
-                .data([0])
+                .data([regression])
                 .join("text")
                 .attr("x", textX)
                 .attr("y", textY)
@@ -1032,6 +1210,139 @@ export const drawScatterPlot = (
                 .attr("class", "correlation");
         }
     }
+
+    // Handle panning and zooming
+    const initialX = x.copy();
+    const initialY = y.copy();
+    const zoomContainer = svg.select(".zoom-layer").attr("x", 0).attr("y", 0).attr("width", dimensions.width).attr("height", dimensions.height).style("fill", "none").style("pointer-events", "all").lower();
+    zoomContainer.on("wheel", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+    });
+    zoomContainer.on('dblclick', () => {
+        zoomRef.current = d3.zoomIdentity;        
+        zoomContainer.transition("zoom").duration(500).call(zoom.transform as any, d3.zoomIdentity);
+    });
+    const zoom = d3
+        .zoom()
+        .on('start', () => {
+            d3.select('body').style('overflow', 'hidden')
+            // Temporarily disable interaction during zoom   
+            g.selectAll("circle.data-point").style("pointer-events", "none");
+            g.selectAll("circle.hover-area").style("pointer-events", "none");
+            g.selectAll("text.correlation").style("pointer-events", "none");
+            g.selectAll("text.correlation-group").style("pointer-events", "none");
+            g.selectAll("path.best-fit").style("pointer-events", "none");
+        })
+        .on('end', () => {
+            d3.select('body').style('overflow', 'auto')
+            // Re-enable hover effects after zoom
+            g.selectAll("circle.data-point").style("pointer-events", "all");
+            g.selectAll("circle.hover-area").style("pointer-events", "all");
+            g.selectAll("text.correlation").style("pointer-events", "all");
+            g.selectAll("text.correlation-group").style("pointer-events", "all");
+            g.selectAll("path.best-fit").style("pointer-events", "all");
+        })
+        .on('zoom', (event) => {
+
+            event.sourceEvent?.preventDefault();
+            event.sourceEvent?.stopPropagation();
+
+            zoomRef.current = event.transform
+
+            const newX = event.transform.rescaleX(initialX);
+            const newY = event.transform.rescaleY(initialY);
+
+            // Update axes
+            const [newXTicks, newYTicks] = [
+                generateTicks(newX.domain()[0], newX.domain()[1], 10, scaleX === "log"),
+                generateTicks(newY.domain()[0], newY.domain()[1], 10, scaleY === "log")
+            ]
+
+            drawAxes("Scatter Plot", svg, dimensions, margins, newX, newY, newXTicks, newYTicks, reverseX, reverseY, xType, yType);
+
+            // Update points
+            g
+                .selectAll("circle.data-point")
+                .transition("zoom")
+                .attr("cx", d => {
+                    const value = getValue(fields, xAxisProperty as string, d as LogProps, xTable) as number;
+                    return reverseX ? newX(Math.abs(value)) : newX(value);
+                })
+                .attr("cy", d => {
+                    const value = getValue(fields, yAxisProperty as string, d as LogProps, yTable) as number;
+                    return reverseY ? newY(Math.abs(value)) : newY(value);
+                });
+
+            // Update hover areas
+            g   
+                .selectAll("circle.hover-area")
+                .transition("zoom")
+                .attr("cx", d => {
+                    const value = getValue(fields, xAxisProperty as string, d as LogProps, xTable) as number;
+                    return reverseX ? newX(Math.abs(value)) : newX(value);
+                })
+                .attr("cy", d => {
+                    const value = getValue(fields, yAxisProperty as string, d as LogProps, yTable) as number;
+                    return reverseY ? newY(Math.abs(value)) : newY(value);
+                });
+
+            // Update regression lines
+            if (showRegression === "true") {
+
+                const line = d3.line<[number, number]>()
+                    .x(d => newX(d[0]))
+                    .y(d => newY(d[1]));
+            
+                // Find new minimum x and maximum x to use as the line ends and correlation text position
+                const xMin = d3.min(data, d => getValue(fields, xAxisProperty as string, d, xTable));
+                const xMax = d3.max(data, d => getValue(fields, xAxisProperty as string, d, xTable));                
+                const [xStart, xEnd] = newX.domain();
+                const constrainedXStart = Math.max(xStart, xMin);
+                const constrainedXEnd = Math.min(xEnd, xMax);
+
+                // Update regression lines
+                g.selectAll("path.best-fit")
+                    .transition("zoom")
+                    .attr("d", (d: any) => {
+                        return line([
+                            [constrainedXStart, d.m * constrainedXStart + d.b],
+                            [constrainedXEnd, d.m * constrainedXEnd + d.b]
+                        ]);
+                    });
+            
+                // Update correlation text
+                g
+                    .selectAll("text.correlation, text.correlation-group")
+                    .transition("zoom")
+                    .each(function(d: any) {
+
+                        const lineStart = [xMin, d.m * xMin + d.b];
+                        const lineEnd = [xMax, d.m * xMax + d.b];
+
+                        const [xStartPx, yStartPx] = [newX(lineStart[0]), newY(lineStart[1])];
+                        const [xEndPx, yEndPx] = [newX(lineEnd[0]), newY(lineEnd[1])];
+                        const dx = xEndPx - xStartPx;
+                        const dy = yEndPx - yStartPx;
+
+                        const angleRad = Math.atan2(dy, dx);
+                        const angleDeg = angleRad * 180 / Math.PI;
+                        const textOffset = -60;
+                        const hypothenuse = Math.hypot(dx, dy) != 0 ? Math.hypot(dx, dy) : 1
+                        const textX = xEndPx + (dx / hypothenuse) * textOffset;
+                        const textY = yEndPx + (dy / hypothenuse) * textOffset - 20;
+
+                        d3.select(this)
+                            .attr("x", textX)
+                            .attr("y", textY)
+                            .attr("transform", `rotate(${angleDeg},${textX},${textY})`)
+                            .attr("text-anchor", dx < 0 ? "end" : "start");
+                    });
+            }
+        });
+    // Attach zoom transform to container and reapply previous zoom if exists
+    zoomContainer.call(zoom as any);
+    zoomContainer.call(zoom.transform as any, zoomRef.current);
 };
 
 export const drawHistogram = (
@@ -1067,7 +1378,7 @@ export const drawHistogram = (
     let data : number[] = [];
     const properties = Object
         .entries(fields)
-        .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp"))
+        .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp" || data_type === "time" || data_type === "timedelta" || data_type === "datetime"))
         .map(([name]) => name);
     const xAxisProperty = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties.at(0);
     let xType : string | undefined;
@@ -1134,14 +1445,14 @@ export const drawHistogram = (
         .on("mouseout", (event, d) => leaveHist(event, d));
     enteringBars
         .merge(bars as any)
-        .transition()
+        .transition("enter")
         .duration(500)
         .attr("x", d => x(d.x0 as number))
         .attr("width", d => Math.max(0, x(d.x1 as number) - x(d.x0 as number) - 1))
         .attr("y", d => y(d.length))
         .attr("height", d => y(0) - y(d.length));
     bars.exit()
-        .transition()
+        .transition("exit")
         .duration(500)
         .attr("y", y(0))
         .attr("height", 0)
@@ -1156,14 +1467,14 @@ export const drawHistogram = (
         const hoverData = {
           group: {
             name: "Data Range",
-            value: xType === "timestamp"
-              ? `Min: ${new Date(minX).toLocaleString()}, Max: ${new Date(maxX).toLocaleString()}`
+            value: (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "datetime")
+              ? `Min: ${formatTimeTypeValue(minX, xType)}, Max: ${formatTimeTypeValue(maxX, xType)}`
               : `Min: ${formatNumber(minX)}, Max: ${formatNumber(maxX)}`
           },
           x: {
             name: "Bar Range",
-            value: xType === "timestamp" 
-              ? `${new Date(bin.x0!).toLocaleString()} - ${new Date(bin.x1!).toLocaleString()}`
+            value: (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "datetime")
+              ? `${formatTimeTypeValue(bin.x0!, xType)} - ${formatTimeTypeValue(bin.x1!, xType)}`
               : `${formatNumber(bin.x0!)} - ${formatNumber(bin.x1!)}`
           },
           y: {
@@ -1172,12 +1483,12 @@ export const drawHistogram = (
           }
         };
   
-        tooltip.html(tooltipTemplate(hoverData)).transition().style("opacity", 1);
+        tooltip.html(tooltipTemplate(hoverData)).transition("opacity").style("opacity", 1);
         positionTooltip(event, event.target, tooltip);
 
         g.selectAll("rect.hist-item")
          .filter((d: any) => d.x0 !== bin.x0 || d.x1 !== bin.x1)
-         .transition()
+         .transition("opacity")
          .duration(200)
          .style("opacity", 0.5);
       }
@@ -1188,10 +1499,10 @@ export const drawHistogram = (
       
       function leaveHist(event: any, bin: d3.Bin<number, number>) {
         tooltip
-          .transition()
+          .transition("opacity")
           .style("opacity", 0);
         g.selectAll("rect.hist-item")
-          .transition()
+          .transition("opacity")
           .duration(200)
           .style("opacity", 1);
     }

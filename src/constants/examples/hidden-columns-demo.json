@@ -1,0 +1,62 @@
+{
+    "project": "hidden-columns-demo",
+    "name": "tab1",
+    "items": [
+        {
+            "i": "Table",
+            "x": 0.0,
+            "y": 0.0,
+            "w": 7.0,
+            "h": 8.0,
+            "tab": "Table",
+            "table_type": "Data Table",
+            "hidden_columns": "Entries/question,Entries/student_answer,Entries/rationale",
+            "selected": "320966_Entries/question,320966_Entries/student_answer,320966_Entries/available_marks,320966_Entries/awarded_marks,320966_Entries/rationale,320966_Entries/correct_marks_to_award,320966_Entries/diff,320966_Entries/error"
+        },
+        {
+            "i": "View",
+            "x": 7.0,
+            "y": 0.0,
+            "w": 5.0,
+            "h": 8.0,
+            "tab": "View",
+            "table": "Table"
+        }
+    ],
+    "new_counter": 2,
+    "logs": {
+        "entries": [
+            {
+                "question": "what is 1 + 1?",
+                "student_answer": "the answer is 4",
+                "available_marks": 1,
+                "awarded_marks": 1,
+                "rationale": "the student answered the answer is 4 ",
+                "correct_marks_to_award": 0,
+                "diff": -1,
+                "error": 1
+            },
+            {
+                "question": "what is 2 + 2?",
+                "student_answer": "the answer is 4",
+                "available_marks": 1,
+                "awarded_marks": 0,
+                "rationale": "the student answered the answer is 4 ",
+                "correct_marks_to_award": 0,
+                "diff": 0,
+                "error": 0
+            },
+            {
+                "question": "what is 3 + 3?",
+                "student_answer": "the answer is 2",
+                "available_marks": 1,
+                "awarded_marks": 1,
+                "rationale": "the student answered the answer is 2 ",
+                "correct_marks_to_award": 0,
+                "diff": -1,
+                "error": 1
+            }
+        ]
+    },
+    "code": "\nimport unify\nimport random\n\nfor question in [\"what is 1 + 1?\", \"what is 2 + 2?\", \"what is 3 + 3?\"]:\n    student_answer = f\"the answer is {random.randint(0, 6)}\"\n    correct_marks_to_award = int(int(student_answer[-1]) == int(eval(question[-4:-1])))\n    awarded_marks = random.randint(0, 1)\n    rationale = f\"the student answered {student_answer} \"\n    \"and I gave them {awarded_marks} marks because I'm not \"\n    \"good at maths, and {awarded_marks} is my favourite number\"\n    diff = correct_marks_to_award - awarded_marks\n    error = abs(diff)\n    unify.log(\n        question,\n        student_answer=student_answer,\n        available_marks=1,\n        awarded_marks=awarded_marks,\n        rationale=rationale,\n        correct_marks_to_award=correct_marks_to_award,\n        diff=diff,\n        error=error,\n    )\n"
+}

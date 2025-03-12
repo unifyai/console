@@ -2,10 +2,10 @@ import CardGrid from "@/components/Interfaces/CardGrid";
 import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, LogItemProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { Context, ContextActions, DerivedEntryActions, FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
-import { searchParamToFilters, filtersToExpression } from "@/utils/evals/filters";
+import { buildFilterExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+// import { cookies } from "next/headers";
 import { defaultNewCounter } from "@/constants/logs";
 import { defaultItems } from "@/constants/logs";
 
@@ -19,9 +19,9 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
     contextActions: ContextActions,
     interfaceActions: InterfaceActions
 }) => {
-    const cookies_ = cookies();
-    const cookiesProject = cookies_.get("project")?.value;
-    const cookiesInterface = cookies_.get("interface")?.value;
+    // const cookies_ = cookies();
+    const cookiesProject = undefined; //cookies_.get("project")?.value;
+    const cookiesInterface = undefined; //cookies_.get("tab")?.value;
 
     // Get projects
     const projects: string[] = await projectsActions.get();
@@ -54,8 +54,8 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                 ...item,
                 minW: undefined,
                 minH: undefined,
-                context: currentInterface?.context || item.context,
-                column_context: currentInterface?.column_context || item.column_context
+                context: contexts.find(ctx => ctx.name == currentInterface?.context)?.name ?? item.context,
+                column_context: item.column_context
             }))
         }
     }
@@ -63,12 +63,11 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         name: interface_1 as string,
         project: project,
         context: undefined,
-        column_context: undefined,
         items: defaultItems,
         new_counter: defaultNewCounter
     } as Interface;
     if (!interface_ && project && interface_1)
-        redirect(`/interfaces?project=${project}&interface=${interface_1}`);
+        redirect(`/interfaces?project=${project}&tab=${interface_1}`);
 
     // get table and plot items
     let tableItems = (currentInterface?.items || []).filter(item => item.tab == "Table");
@@ -94,33 +93,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
     ));
 
     /* Handle filters */
-    // 1- Convert filters search param value to a nested dictionary representation of column, function and values
-    // 2- Join column filters with the corresponding filter functions and values using "and"
-    // 3- Join common filters with the "in" filter function and common filter value using "or"
-    // 4- Join common and column filters into a single filter expression
-    const logsFilters: { [column: string]: { [fn: string]: string } }[] = tableItems.map(
-        item => searchParamToFilters(item.filters, item.column_context)
-    );
-    const columnFiltersExpressions = logsFilters.map((filter, idx) => filtersToExpression(filter, fields[idx]));
-    const commonFiltersExpressions = tableItems.map(
-        (item, idx) => item.common_filter && fields[idx]
-            ? Object
-                .keys(
-                    Object.fromEntries(Object.entries(fields[idx]).filter(([_, attributes]) => attributes.data_type != "image")) // Exclude images
-                )
-                .map(column => `${item.common_filter} in to_str(${item.column_context ? processContext("merge", item.column_context, column) : column})`)
-                .join(" or ")
-            : ""
-    );
-    let filterExpressions: (string | null)[] = tableItems.map((item, idx) => {
-        const columnFiltersExpression = columnFiltersExpressions[idx];
-        const commonFiltersExpression = commonFiltersExpressions[idx];
-        let filterExpression = null;
-        if (columnFiltersExpression) filterExpression = columnFiltersExpression;
-        if (commonFiltersExpression) filterExpression = filterExpression ? `${commonFiltersExpression} and ${filterExpression}` : commonFiltersExpression;
-        if (item.freeze) filterExpression = filterExpression ? filterExpression + `created_at < "${item.freeze}"` : `created_at < "${item.freeze}"`;
-        return filterExpression;
-    });
+    const filterExpressions = tableItems.map((item, idx) => buildFilterExpression(item.filters, item.common_filter, item.column_context, item.freeze, fields[idx]))
 
     // Handle sorting
     const sortingObjects = tableItems.map(item => item.sorting ? Object.fromEntries(
@@ -136,13 +109,33 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
     /* Handle grouping */
 	const groupingExpressions = tableItems.map(item => item.grouping ? item.grouping : null);
 
+    // Handle group sorting
+    const groupSortingObjects = tableItems.map(item => item.group_sorting && item.grouping ? Object.fromEntries(
+        item.group_sorting.split(",").map(value => {
+            const group = item.column_context ? processContext("merge", item.column_context, item.grouping!.split(",")[0]) : item.grouping!.split(",")[0] 
+            const field = item.column_context ? processContext("merge", item.column_context, value.split("@")[0]) : value.split("@")[0]
+            const direction = value.split("@")[1].replace("true", "descending").replace("false", "ascending")
+            const metric = item.metric ?? "mean"
+            return [group, {field, direction, metric}]
+        }))
+    : "");
+
+    const groupSortingExpressions = groupSortingObjects.map(
+        sortingObject => sortingObject ? JSON.stringify(sortingObject) : null
+    )
+
     // Aggregate table arguments and init plot arguments
     let tableArguments: TableArguments = tableItems.map((item, idx) => {
         let tableArguments_: TableArguments = { [item.i]: {getLogs_parameters: { filter_expr: "" }, available_fields: {}} };
-        const filterExpression = filterExpressions[idx];
         const sortingExpression = sortingExpressions[idx];
-        if (filterExpression) tableArguments_[item.i].getLogs_parameters["filter_expr"] = filterExpression;
+        const groupingExpression = groupingExpressions[idx];
+        const groupSortingExpression = groupSortingExpressions[idx];
+        if (item.filters) tableArguments_[item.i].getLogs_parameters["column_filters"] = item.filters;
+        if (item.common_filter) tableArguments_[item.i].getLogs_parameters["common_filter"] = item.common_filter;
+        if (item.freeze) tableArguments_[item.i].getLogs_parameters["freeze"] = item.freeze;
         if (sortingExpression) tableArguments_[item.i].getLogs_parameters["sorting"] = sortingExpression;
+        if (groupingExpression) tableArguments_[item.i].getLogs_parameters["grouping"] = groupingExpression;
+        if (groupSortingExpression) tableArguments_[item.i].getLogs_parameters["group_sorting"] = groupSortingExpression;
         if (item.context) tableArguments_[item.i].getLogs_parameters["context"] = item.context;
         if (item.column_context) tableArguments_[item.i].getLogs_parameters["column_context"] = item.column_context;
         return tableArguments_;
@@ -162,7 +155,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                 .entries(fields[idx])
                 .filter(([name, { data_type, field_type, artifacts }]) => columnContext ? name.startsWith(columnContext) : name)
                 .map(([name, { data_type, field_type, artifacts }]) => {
-                    const newName = columnContext ? name.replace(columnContext, "") : name;
+                    const newName = columnContext ? processContext("split", columnContext, name) : name
                     return [`${item.i}.${newName}`, { data_type, field_type, artifacts }];
                 })
         )
@@ -177,11 +170,13 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                 filterExpressions[idx],
                 sortingExpressions[idx],
                 groupingExpressions[idx],
+                groupSortingExpressions[idx],
                 null,
                 null,
                 limit,
                 offsets[idx],
                 groupingExpressions[idx] ? 0 : null,
+                null,
                 Date.now().toString(),
             );
 
@@ -209,24 +204,38 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                 // aggregate plot arguments
                 const context = table?.context;
                 const columnContext = table?.column_context;
-                const xAxis = context ? processContext("merge", context, item.x_axis) : item.x_axis;
-                const yAxis = context ? processContext("merge", context, item.y_axis) : item.y_axis;
-                const group = context ? processContext("merge", context, item.plot_group_by) : item.plot_group_by;
-                const filterExpression = filterExpressions[tableIdx];
-                if (filterExpression) plotArguments[table.i]["filter_expr"] = filterExpression
+                const freeze = table?.freeze
+                const commonFilter = table?.common_filter
+                const filters = table?.filters
+                if (filters) plotArguments[table.i]["column_filters"] = filters
+                if (commonFilter) plotArguments[table.i]["common_filter"] = commonFilter
+                if (freeze) plotArguments[table.i]["freeze"] = freeze
                 if (context) plotArguments[table.i]["context"] = context
                 if (columnContext) plotArguments[table.i]["column_context"] = columnContext;
+                
+                const filterExpression = filterExpressions[tableIdx];
+
                 // get plot data
                 let data: LogsResponseProps = { params: {}, logs: [], count: 0, groups: [] };
-                if (xAxis) {
-                    let subset = xAxis.split(".").length > 1 ? xAxis.split(".")[1] : null;
-                    if (yAxis && yAxis.split(".").length > 1)
-                        subset += `&${yAxis.split(".")[1]}`
-                    if (group && group.split(".").length > 1)
-                        subset += `&${group.split(".")[1]}`
+                let [xAxis, yAxis, group] = [item.x_axis, item.y_axis, item.plot_group_by];
+                let subset = null;
+                if (xAxis && xAxis.split(".").length > 1) {
+                    xAxis = xAxis.split(".")[1]
+                    xAxis = columnContext ? processContext("merge", columnContext, xAxis) : xAxis;
+                    subset = xAxis
+                    if (yAxis && yAxis.split(".").length > 1) {
+                        yAxis = yAxis.split(".")[1]
+                        yAxis = columnContext ? processContext("merge", columnContext, yAxis) : yAxis;
+                        subset += `&${yAxis}`
+                    }
+                    if (group && group.split(".").length > 1) {
+                        group = group.split(".")[1]
+                        group = columnContext ? processContext("merge", columnContext, group) : group;
+                        subset += `&${group}`
+                    }
                     if (subset) plotArguments[table.i]["subset"] = subset
-    
-                    data = await logsActions.get(project, context ?? null, columnContext ?? null, filterExpression, null, null, subset, null, 0, null, null, Date.now().toString());
+
+                    data = await logsActions.get(project, context ?? null, columnContext ?? null, filterExpression, null, null, null, subset, null, null, null, null, null, Date.now().toString());
 
                     /* Replace param indices with actual param values */
                     if (Object.entries(data.logs).length && Object.entries(data.params).length) {
@@ -287,13 +296,25 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         tableItems.map(async (item, idx) => {
             const logsData = allLogsData[idx];
             const totalPages = allTotalPages[idx];
+            const context = item.context ?? null;
             const columnContext = item.column_context ?? null
             const sorting = item.sorting ?? null
             const hiddenColumns = item.hidden_columns;
 
             const { entriesProperties, paramsProperties, logs, params, metrics, groupedMetrics, boundaries } = await getLogsDetails(
-                item, logsData, fields[idx], columnContext, project, filterExpressions[idx], groupingExpressions[idx], item.metric, sorting, undefined, logsActions
-            )
+                item,
+                logsData,
+                fields[idx],
+                context,
+                columnContext,
+                project,
+                filterExpressions[idx],
+                groupingExpressions[idx],
+                item.metric,
+                sorting,
+                undefined,
+                logsActions
+            );
 
             // Append available fields to the table attributes
             tableArguments[item.i].available_fields = 
@@ -325,6 +346,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                     metrics,
                     groupedMetrics,
                     boundaries,
+                    metric: item.metric ?? "mean"
                 }
             }
         })
@@ -346,6 +368,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         filterExpressions={filterExpressions}
         sortingExpressions={sortingExpressions}
         groupingExpressions={groupingExpressions}
+        groupSortingExpressions={groupSortingExpressions}
         limit={limit}
         offsets={offsets}
         projectActions={projectsActions}

@@ -1,20 +1,23 @@
 "use client";
 
-import { useState, Dispatch, SetStateAction } from "react";
+import { useState, Dispatch, SetStateAction, ReactNode } from "react";
 import { Trash } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import BaseDialog from "./Base";
 import ActionButton from "../Buttons/Action"
 import DeleteButton from "../Buttons/Delete";
 
-const DeleteDialog = ({ args, type, deletingFunction, showDialog, variant, setShowDialog, onDelete }: {
+const DeleteDialog = ({ args, type, deletingFunction, showDialog, variant, setShowDialog, onDelete, icon = <Trash/>, text, expectedResponseType }: {
     args: any[],
     type: string
-    deletingFunction: (...args: any[]) => Promise<ResponseProps>,
-    variant?: "secondary" | "destructive" | "outline" | "ghost" | "link",
+    deletingFunction: (...args: any[]) => Promise<ResponseProps | string>,
+    variant?: "secondary" | "destructive" | "outline" | "ghost" | "link" | "warning",
     showDialog?: boolean,
     setShowDialog?: Dispatch<SetStateAction<boolean>>
-    onDelete?: () => void
+    onDelete?: () => void,
+    icon?: ReactNode,
+    text?: string,
+    expectedResponseType?: ResponseProps | "string"
 }) => {
     // Define messages
     const messages = {
@@ -32,7 +35,7 @@ const DeleteDialog = ({ args, type, deletingFunction, showDialog, variant, setSh
         setError(false);
         setLoading(true);
         deletingFunction(...args).then(data => {
-            if ("info" in data) {
+            if (expectedResponseType === "string" || "info" in (data as ResponseProps)) {
                 setSuccess(true);
                 if (onDelete) {onDelete()}
                 else {window.location.reload()};
@@ -48,11 +51,15 @@ const DeleteDialog = ({ args, type, deletingFunction, showDialog, variant, setSh
     // Dialog state and content
     const [open, setOpen] = useState(false)
     const onOpen = () => showDialog && setShowDialog ? setShowDialog(!showDialog) : setOpen(!open);
-    
     const tooltip = `Delete ${type}`
-    const button =   setShowDialog ? null : <ActionButton tooltip={tooltip} icon={<Trash/>} variant={variant} onClick={onOpen}/>
+    const onClick = (e:any) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onOpen()
+    }
+    const button =   setShowDialog ? null : <ActionButton tooltip={tooltip} icon={icon} text={text} variant={variant} onClick={onClick}/>
 
-    const title =   tooltip + "?"
+    const title =   tooltip + " ?"
     const body =    success ? messages["success"] : error ? messages["error"] : messages["warning"];
     const footer =  success ? null : <DeleteButton disabled={loading} onClick={onSubmit} loading={loading}/>
 

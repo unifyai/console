@@ -415,6 +415,10 @@ const LogsTable = ({
             totalPages={totalPages}
             pageNumber={pageNumber || undefined}
             setPageNumber={setPageNumber}
+            logs={logs}
+            totalLogs={logs.length}
+            pageLogs={logs.length}
+            limit={20}
           />
         </div>
       )}
@@ -520,7 +524,7 @@ const LogsTable = ({
                   />
                 )}
                 ColumnCreate={(previousColumn: string, setOpen: (open:boolean) => void) => (
-                  <ColumnCreate project={project} currentTable="table" tableArguments={tableArguments} logs={logs} derive={derivedEntryActions.create} _setTimestamp={_setTimestamp}/>
+                  <ColumnCreate project={project} context={context ?? undefined} currentTable="table" tableArguments={tableArguments} logs={logs} derive={derivedEntryActions.create} _setTimestamp={_setTimestamp}/>
                 )}
                 AggregatedCell={(cell, row) => (
                   <AggregatedCell cell={cell} row={row} params={logsData.params} metric={metric} />

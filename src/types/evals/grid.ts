@@ -28,6 +28,7 @@ export interface TileProps {
     hidden_columns?: string;
     sorting?: string;
     grouping?: string;
+    group_sorting?: string;
     columns_pin_left?: string;
     columns_pin_right?: string;
     selected?: string;
@@ -57,8 +58,9 @@ export interface TableDataItem {
     logs: LogProps[] | GroupedLogProps[],
     params: LogItemProps,
     metrics: { [key: string]: number },
-    groupedMetrics: { [key: string]: { [key: string]: string |number } },
-    boundaries: { minimums: { [key: string]: number }, maximums: { [key: string]: number } }
+    groupedMetrics: { [key: string]: { [key: string]: { [key: string]: string |number } } },
+    boundaries: { minimums: { [key: string]: number }, maximums: { [key: string]: number } },
+    metric: string
 }
 
 export interface PlotDataItem {
@@ -100,6 +102,7 @@ export type ItemType =
     | "hidden_columns"
     | "sorting"
     | "grouping"
+    | "group_sorting"
     | "columns_pin_left"
     | "columns_pin_right"
     | "table"
@@ -120,7 +123,6 @@ export interface Interface {
     name: string,
     project: string,
     context: string | undefined,
-    column_context: string | undefined,
     items: TileProps[],
     new_counter: number,
 }
@@ -133,15 +135,15 @@ export interface ProjectsActions {
 }
 
 export interface LogsActions {
-    create: (project: string, params: { system_message: string }[], entries: { question: string, response: string, score: number }[]) => Promise<ResponseProps>,
-    get: (project: string, context: string | null, column_context: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, _timestamp: string | null) => Promise<LogsResponseProps>,
-    getLatest: (project: string, context: string | null, column_context: string | null, filterExpression: string | null, sortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number) => Promise<string>,
-    getMetrics: (project: string, filterExpression: string | null, metricName: string, keyName: string) => Promise<number>,
-    delete: (project: string, context: string | null, column_context: string | null, ids_and_fields: LogFieldsProps, source_type: string | null) => Promise<ResponseProps>,
+    create: (project: string, context: string | null, params: { system_message: string }[], entries: { question: string, response: string, score: number }[]) => Promise<ResponseProps>,
+    get: (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, return_ids_only: string | null, _timestamp: string | null) => Promise<LogsResponseProps>,
+    getLatest: (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, return_ids_only: string | null) => Promise<string>,
+    getMetrics: (project: string, context: string | null, filterExpression: string | null, groupingExpression: string | null, metricName: string, keyNames: string[]) => Promise<{ [key: string]: number } | { [key: string]: { [key: string]: number } }>,
+    delete: (project: string, context: string | null, ids_and_fields: LogFieldsProps, source_type: string | null) => Promise<ResponseProps>,
 }
 
 export interface DerivedEntryActions {
-    create: (project: string, key: string, equation: string, referenced_logs: { [table_name: string]: getLogsParameters }) => Promise<ResponseProps>,
+    create: (project: string, context: string | undefined, key: string, equation: string, referenced_logs: { [table_name: string]: getLogsParameters }) => Promise<ResponseProps>,
     update: (project: string, key: string | null, equation: string | null, target_derived_logs: { [table_name: string]: getLogsParameters }, referenced_logs: { [table_name: string]: getLogsParameters } | null) => Promise<ResponseProps>
 }
 
@@ -152,11 +154,12 @@ export interface FieldsActions {
 export interface ContextActions {
     get: (project: string) => Promise<Context[]>,
     create: (name: string, project: string) => Promise<ResponseProps>,
+    delete: (project: string, context: string) => Promise<ResponseProps>
 }
 
 export interface InterfaceActions {
     get: (project: string, temporary: boolean) => Promise<Interface[]>,
-    create: (name: string, project: string, context: string | undefined, column_context: string | undefined, items: TileProps[], new_counter: number, temporary: boolean) => Promise<ResponseProps>,
-    update: (name: string, project: string, context: string | undefined, column_context: string | undefined, items: TileProps[], new_counter: number, new_name: string | undefined, temporary: boolean) => Promise<ResponseProps>,
+    create: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, temporary: boolean) => Promise<ResponseProps>,
+    update: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, new_name: string | undefined, temporary: boolean) => Promise<ResponseProps>,
     delete: (name: string, project: string, temporary: boolean) => Promise<ResponseProps>
 }

@@ -10,6 +10,7 @@ import ActionButton from "../Common/Buttons/Action";
 import { SetStateAction } from "react";
 
 const ProjectButtons = ({
+    defaultProject,
     project,
     projects,
     interfaces,
@@ -27,6 +28,7 @@ const ProjectButtons = ({
     setInterface,
     setProject,
 }: {
+    defaultProject: boolean,
     project: string | null,
     projects: string[] | undefined,
     interfaces: string[],
@@ -61,6 +63,7 @@ const ProjectButtons = ({
                 }}
                 type="Projects"
                 defaultValue={project || undefined}
+                isAutocompleteOpen={defaultProject ? true : undefined}
                 onOpen={() => projectActions.get().then(projects => setProjects(projects))}
             />
             {project && (
@@ -103,7 +106,7 @@ const ProjectButtons = ({
                 variant="outline"
                 icon={refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
                 tooltip={"Refresh Interface"}
-                disabled={pending || dataPending}
+                disabled={!project || pending || dataPending}
                 onClick={() => {
                     setRefreshing(true);
                     router.refresh();

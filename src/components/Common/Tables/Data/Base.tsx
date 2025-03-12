@@ -32,7 +32,9 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     state: StateProps;
     setState: SetStateProps;
     FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>) => ReactNode;
+    ColumnGroupSort?: (column: TanstackColumn<any | unknown>, groupSortLoading: boolean, setGroupSortLoading: (groupSortLoading: boolean) => void, setIsGroupSorted: (isGroupSorted: boolean) => void, renderMode: "button" | "menuItem") => ReactNode;
     ColumnFilters?: (column: TanstackColumn<any | unknown>, filterLoading: boolean, setIsFiltered: (isFiltered: boolean) => void, setFilterLoading: (filterLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode;
+    ColumnDelete?: (column: TanstackColumn<any | unknown>) => ReactNode;
     ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode;
     ColumnUpdate?: (key: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode;
     AggregatedCell?: (cell: TanstackCell<any, unknown>, row: TanstackRow<any | unknown>) => ReactNode;
@@ -50,6 +52,8 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     state,
     setState,
     FooterCell,
+    ColumnGroupSort,
+    ColumnDelete,
     ColumnFilters,
     ColumnCreate,
     ColumnUpdate,
@@ -179,7 +183,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                     onDragCancel={(event) => handleDragCancel(setState.setDraggingColumns)}
                 >
                     <Table className={`relative w-full ${className}`} style={{ width: table.getTotalSize() }}>
-                        <TableHeader className="sticky top-0 z-20 bg-background" style={{ boxShadow: '0 -4px 4px -4px gray inset' }}>
+                        <TableHeader className="sticky top-0 z-20 bg-background">
                             {table.getHeaderGroups().map((headerGroup) => (
                                 <TableRow key={headerGroup.id}>
                                     <SortableContext items={state.columnOrder} strategy={horizontalListSortingStrategy}>
@@ -198,6 +202,8 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                 setColumnVisibility={setState.setColumnVisibility}
                                                 grouping={state.grouping}
                                                 setGrouping={setState.setGrouping}
+                                                ColumnGroupSort={ColumnGroupSort}
+                                                ColumnDelete={ColumnDelete}
                                                 ColumnFilters={ColumnFilters}
                                                 ColumnCreate={ColumnCreate}
                                                 ColumnUpdate={ColumnUpdate}
@@ -256,14 +262,14 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={finalColumns.length} className="text-center">
+                                    <TableCell colSpan={finalColumns.length} className="text-center min-w-[150px]" style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)", borderTop: "1px solid var(--muted)"}}>
                                         No entry found
                                     </TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
 
-                        <TableFooter className="sticky bottom-0 z-20 bg-background border-t-2 border-foreground" style={{ boxShadow: '0 4px 4px -4px gray inset' }}>
+                        <TableFooter className="sticky bottom-0 z-20 bg-background border-t-2 border-foreground">
                             <TableRow>
                                 {isUpdatingLogs ? (
                                     finalColumns.map((_, idx) => (
