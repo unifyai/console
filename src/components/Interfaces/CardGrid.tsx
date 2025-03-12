@@ -100,7 +100,7 @@ const CardGrid = ({
     // modes, hover and copy button
     const [edit, setEdit] = useState(true)
     const [interactive, setInteractive] = useState(true);
-    const [help, setHelp] = useState(false);
+    const [help, setHelp] = useState(true);
     const [copied, setCopied] = useState<string>();
     const [deleting, setDeleting] = useState(false);
     // data fields
