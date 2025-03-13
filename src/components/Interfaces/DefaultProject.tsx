@@ -9,12 +9,13 @@ import { useEffect, useState } from "react";
 import { demos } from "@/constants/logs";
 import { useQueryState } from "nuqs";
 import BaseDropdown from "../Common/Dropdowns/Base";
-import { DropdownMenuGroup, DropdownMenuItem, DropdownMenuPortal, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from "../UI/dropdown-menu";
 import Link from "next/link";
 import { DialogContent } from "../UI/dialog";
 import { Dialog } from "../UI/dialog";
 import { getLogsParameters } from "@/types/evals/logs";
 import { Badge } from "../UI/badge";
+import { buildNestedDropdownTree } from "@/utils/evals/common";
+import RenderMenuItems from "../Common/Dropdowns/RenderMenuItems";
 
 const DefaultProject = ({
     projects,
@@ -33,29 +34,8 @@ const DefaultProject = ({
     const [pendingLocal, setPendingLocal] = useState(false);
     const [imageDialog, setImageDialog] = useState(false);
     const [demo, setDemo] = useQueryState("demo");
-    const [create, setCreate] = useQueryState("create");
-    const reorganizedDemos: {
-        [key: string]: {
-            [key: string]: {
-                project: string,
-                name: string,
-                items: TileProps[],
-                new_counter: number,
-                logs: any,
-                code: string,
-                gif: string,
-                link: string,
-                description: string,
-            }
-        }
-    } = {};
-    Object.keys(demos).forEach((ex) => {
-        const [group, name] = ex.split("/");
-        if (!reorganizedDemos[group]) {
-            reorganizedDemos[group] = {};
-        }
-        reorganizedDemos[group][name] = demos[ex];
-    });
+    const [create, _] = useQueryState("create");
+    const demosTree = buildNestedDropdownTree(Object.keys(demos));
     const {
         project: demoProject,
         name: demoName,
@@ -219,34 +199,28 @@ const DefaultProject = ({
                                 />}
                             >
                                 <div className="max-h-[80vh] overflow-y-auto">
-                                    {Object.keys(reorganizedDemos).map((group) => (
-                                        <DropdownMenuGroup key={group} className="w-48">
-                                            <DropdownMenuSub>
-                                                <DropdownMenuSubTrigger className="hover:text-white data-[state=open]:text-white">
-                                                    {group}
-                                                </DropdownMenuSubTrigger>
-                                                <DropdownMenuPortal>
-                                                    <DropdownMenuSubContent>
-                                                        {Object.keys(reorganizedDemos[group]).map(ex =>
-                                                            <DropdownMenuItem
-                                                                key={ex}
-                                                                onClick={() => setDemo(`${group}/${ex}`)}
-                                                                className="w-48 justify-between"
-                                                            >
-                                                                <span>{ex}</span>
-                                                                {`${group}/${ex}` == demo && <Check className="w-4 h-4" />}
-                                                            </DropdownMenuItem>
-                                                        )}
-                                                    </DropdownMenuSubContent>
-                                                </DropdownMenuPortal>
-                                            </DropdownMenuSub>
-                                        </DropdownMenuGroup>
+                                    {Object.entries(demosTree.children).sort((a, b) => {
+                                        if (a[0] === "<root>") return -1;
+                                        if (b[0] === "<root>") return 1;
+                                        return a[0].localeCompare(b[0]);
+                                    }).map(([name, node], idx) => (
+                                        <RenderMenuItems
+                                            key={idx}
+                                            node={node}
+                                            nodeName={name}
+                                            isTopLevel={true}
+                                            showRoot={false}
+                                            prefix={undefined}
+                                            attr={demo || undefined}
+                                            setter={(d: string) => setDemo(d)}
+                                            isColumnContext={false}
+                                        />
                                     ))}
                                 </div>
                             </BaseDropdown>
                         </div>
                         {demo && <div className="flex my-auto">
-                            <Badge variant="primary">{demo.replace("/", " / ")}</Badge>
+                            <Badge variant="primary">{demo.replaceAll("/", " / ")}</Badge>
                         </div>}
                     </div>
                     <div className="text-sm font-semibold w-[600px]">

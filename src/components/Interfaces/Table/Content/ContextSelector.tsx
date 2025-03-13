@@ -3,14 +3,15 @@
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ActionButton from "../../../Common/Buttons/Action";
 import BaseDropdown from "../../../Common/Dropdowns/Base";
-import { DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuSub, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSubTrigger } from "../../../UI/dropdown-menu";
 import { Context, ContextActions, ItemType, TableDataItem, LogsActions } from "@/types/evals/grid";
 import { TileProps } from "@/types/evals/grid";
-import { Braces, Check, Folder, FolderTree, Grid2x2, X, Trash } from "lucide-react";
+import { Braces, FolderTree, Grid2x2, X } from "lucide-react";
 import { useState } from "react";
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { ResponseProps } from "@/types/common";
 import { useRouter } from "next/navigation";
+import RenderMenuItems from "../../../Common/Dropdowns/RenderMenuItems";
+import { buildNestedDropdownTree } from "@/utils/evals/common";
 
 const ContextSelector = ({
     project,
@@ -59,140 +60,6 @@ const ContextSelector = ({
     } : setContext;
     const empty = contexts.length == 0 && tableDataItem?.columnContexts?.length == 0;
 
-    interface TreeNode {
-        path: string;
-        children: { [key: string]: TreeNode };
-        isComplete: boolean;
-    }
-    
-    const buildTree = (paths: string[]) => {
-        const root: TreeNode = { path: '', children: {}, isComplete: false };
-
-        paths.forEach(path => {
-            let current = root;
-            const parts = path.split('/').filter(Boolean);
-
-            let currentPath = '';
-            parts.forEach((part, index) => {
-                currentPath += part + '/';
-                if (!current.children[part]) {
-                    current.children[part] = {
-                        path: currentPath,
-                        children: {},
-                        isComplete: index === parts.length - 1
-                    };
-                }
-                current = current.children[part];
-            });
-        });
-
-        return root;
-    };
-
-    const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, setter, isColumnContext, project }: {
-        node: TreeNode,
-        nodeName: string,
-        isTopLevel: boolean,
-        showRoot: boolean,
-        attr: string | undefined,
-        prefix?: string,
-        isColumnContext?: boolean,
-        project: string | undefined,
-        setter: (context: string) => void
-    }) => {
-        const hasChildren = Object.keys(node.children).length > 0;
-        const nodePath = prefix ? `${prefix}/${node.path}` : node.path;
-        const nonRootNodePath = nodePath.slice(0, -1).replace("/<root>", "");
-
-        // If this is a leaf node (no children)
-        if (!hasChildren) {
-            return (
-                <DropdownMenuItem
-                    key={nodeName}
-                    onSelect={() => (
-                        (nonRootNodePath != attr) ? setter(nonRootNodePath) : setter("")
-                    )}
-                    className="w-48 justify-between items-center"
-                >
-                    <div className="flex flex-row gap-2 items-center">
-                        {attr == nonRootNodePath ? <Check size={15}/> : <div className="w-4"/>}
-                        {nodeName == "<root>"
-                            ? <span className="flex items-center gap-1">
-                                <Folder size={16} />
-                            </span>
-                            : nodeName
-                        }
-                    </div>
-
-                    {/* Delete column context */}
-                    {project && isColumnContext && fields &&  
-                        <div onClick={(e) => e.stopPropagation()}>
-                            <DeleteDialog variant="warning" type={"column context"} args={[project, context, fields.filter(field => field.startsWith(nodePath)).map(field => ([null, field])), "all"]} deletingFunction={logsActions.delete} onDelete={onDelete}/>
-                        </div>
-                    }
-
-                    {/* Delete context */}
-                    {project && !isColumnContext &&  
-                        <div onClick={(e) => e.stopPropagation()}>
-                            <DeleteDialog variant="warning" type={"context"} args={[project, context]} deletingFunction={contextActions.delete} onDelete={onDelete}/>
-                        </div>
-                    }
-                    
-                </DropdownMenuItem>
-            );
-        }
-
-        // If this is a parent node with children
-        return (
-            <DropdownMenuGroup className="w-48">
-                <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="hover:text-white data-[state=open]:text-white">
-                        {nodeName}
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuPortal>
-                        <DropdownMenuSubContent>
-                            {/* Make the current path selectable */}
-                            {showRoot && (
-                                <DropdownMenuItem
-                                    key={`${nodeName}-root`}
-                                    onSelect={() => (
-                                        nonRootNodePath != attr ? setter(nonRootNodePath) : setter("")
-                                    )}
-                                    className="w-48 justify-between"
-                                >
-                                    <div className="flex flex-row gap-2 items-center">
-                                        {attr == nonRootNodePath ? <Check size={15}/> : <div className="w-4"/>}
-                                        {isTopLevel
-                                            ? <span className="flex items-center gap-1">
-                                                <Folder size={16} />
-                                            </span>
-                                            : nodeName
-                                        }
-                                    </div> 
-                                </DropdownMenuItem>
-                            )}
-                            {/* Render all child nodes */}
-                            {Object.entries(node.children).map(([childName, childNode], idx) => (
-                                <RenderMenuItems
-                                    key={idx}
-                                    node={childNode}
-                                    nodeName={childName}
-                                    isTopLevel={false}
-                                    showRoot={showRoot}
-                                    attr={attr}
-                                    prefix={prefix}
-                                    setter={setter}
-                                    project={project}
-                                    isColumnContext={isColumnContext}
-                                />
-                            ))}
-                        </DropdownMenuSubContent>
-                    </DropdownMenuPortal>
-                </DropdownMenuSub>
-            </DropdownMenuGroup>
-        );
-    };
-
     // Build and render the tree
     const contextNames = contexts.map(context => context.name).sort();
 
@@ -226,7 +93,7 @@ const ContextSelector = ({
     // filter contexts based on the prefixes and construct the tree
     const contextPrefix = context || largestCommonPrefix;
     const contextTree = item == undefined
-        ? largestCommonPrefix == "" ? buildTree(contextNames) : buildTree(
+        ? largestCommonPrefix == "" ? buildNestedDropdownTree(contextNames) : buildNestedDropdownTree(
             contextNames.map(name => {
                 const slicedName = name.slice(largestCommonPrefix.length)
                 return slicedName == "" ? "<root>" : slicedName
@@ -235,7 +102,7 @@ const ContextSelector = ({
                 if (b === "<root>") return 1;
                 return a.localeCompare(b);
             })
-        ) : buildTree(
+        ) : buildNestedDropdownTree(
             contextNames.filter(
                 name => name.startsWith(contextPrefix)
             ).map(name => {
@@ -247,7 +114,7 @@ const ContextSelector = ({
                 return a.localeCompare(b);
             })
         );
-    const columnContextTree = buildTree(tableDataItem?.columnContexts || []);
+    const columnContextTree = buildNestedDropdownTree(tableDataItem?.columnContexts || []);
     const contextHeader = item != undefined ? (
         contextPrefix == "" ? (context || "Context") : contextPrefix
     ) : (largestCommonPrefix == "" ? "Context" : largestCommonPrefix);
@@ -304,8 +171,18 @@ const ContextSelector = ({
                                 prefix={item == undefined ? largestCommonPrefix : contextPrefix}
                                 attr={item != undefined ? item.context : context}
                                 setter={(ctx: string) => finalSetContext && finalSetContext(ctx)}
-                                project={project}
                                 isColumnContext={false}
+                                deleteDialog={
+                                    project ? <div onClick={(e) => e.stopPropagation()}>
+                                        <DeleteDialog
+                                            variant="warning"
+                                            type={"context"}
+                                            args={[project, context]}
+                                            deletingFunction={contextActions.delete}
+                                            onDelete={onDelete}
+                                        />
+                                    </div> : <></>
+                                }
                             />
                         ))}
                     </div> : <></>}
@@ -336,7 +213,17 @@ const ContextSelector = ({
                                 attr={item.column_context}
                                 isColumnContext={true}
                                 setter={updateItem(item, "column_context")}
-                                project={project}
+                                deleteDialog={
+                                    project ? <div onClick={(e) => e.stopPropagation()}>
+                                        <DeleteDialog
+                                            variant="warning"
+                                            type={"context"}
+                                            args={[project, context]}
+                                            deletingFunction={contextActions.delete}
+                                            onDelete={onDelete}
+                                        />
+                                    </div> : <></>
+                                }
                             />
                         ))}
                     </div>}

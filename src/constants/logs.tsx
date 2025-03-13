@@ -1301,37 +1301,37 @@ export const demos: {
         link: "interfaces/plots#histograms",
         description: "Histograms take a single numeric column, and then bucket this data into n bins on the x-axis, and plot the count of data in each bin on the y-axis."
     },
-    "Plots/Line Plot": {
+    "Plots/Line Plot/Simple": {
         ...lineDemo,
         gif: "line_dark",
         link: "interfaces/plots#line-graphs",
         description: "Line graphs are similar to scatter graphs, but a line is drawn between each from left to right. This makes them especially suitable for plotting time-series data."
     },
-    "Plots/Line Plot 2": {
+    "Plots/Line Plot/Model Speed": {
         ...lineDemo2,
         gif: "line_group_dark",
         link: "interfaces/plots#line-graphs",
         description: "Plot the speed of different models across time, which are being continually streamed."
     },
-    "Plots/Line Plot 3": {
+    "Plots/Line Plot/Endpoint Speed": {
         ...lineDemo3,
         gif: "line_six_groups_dark",
         link: "interfaces/plots#line-graphs",
         description: "We can create a derived endpoint column to plot a unique line for each model + provider combination."
     },
-    "Plots/Scatter Plot": {
+    "Plots/Scatter Plot/Simple": {
         ...scatterDemo,
         gif: "scatter_dark",
         link: "interfaces/plots#scatter-graphs",
         description: "Scatter graphs can be used to plot two numerical columns against each other."
     },
-    "Plots/Scatter Plot 2": {
+    "Plots/Scatter Plot/Gender Grouping": {
         ...scatterDemo2,
         gif: "scatter_grouped_dark",
         link: "interfaces/plots#scatter-graphs",
         description: "We can also overlay several plots on the graph, by selecting another column to group by (based on value equality, the same as grouping in the table)."
     },
-    "Plots/Scatter Plot 3": {
+    "Plots/Scatter Plot/Derived Grouping": {
         ...scatterDemo3,
         gif: "scatter_two_groups_dark",
         link: "interfaces/plots#scatter-graphs",
