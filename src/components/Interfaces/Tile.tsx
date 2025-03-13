@@ -17,25 +17,7 @@ import { useTab } from "@/contexts/hooks/useTab";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useInterface } from "@/contexts/hooks/useInterface";
 import { useRouter } from "next/navigation";
-
-function useWhyDidYouUpdate(name: string, deps: any[]) {
-    const previousDeps = useRef<any[]>(deps);
-    useEffect(() => {
-      const changedDeps: Record<number, { from: any; to: any }> = {};
-      deps.forEach((dep, index) => {
-        if (previousDeps.current[index] !== dep) {
-          changedDeps[index] = {
-            from: previousDeps.current[index],
-            to: dep
-          };
-        }
-      });
-      if (Object.keys(changedDeps).length) {
-        console.log(`[why-did-you-update] ${name}`, changedDeps);
-      }
-      previousDeps.current = deps;
-    }, deps);
-  }
+import { useWhyDidYouUpdate } from "@/contexts/utils/sliceUtils";
 
 // Define component props 
 interface TileComponentProps {
@@ -158,7 +140,7 @@ const Tile = ({
                         interfaceId={interfaceId}
                         projectId={projectId}
                         contexts={projectData?.contexts || []}
-                        context_={tabData?.context || ""}
+                        context_={tabData?.globalContext}
                         tableArguments={interfaceData?.tableArguments as unknown as TableArguments}
                         logsActions={logsActions}
                         fieldsActions={fieldsActions}

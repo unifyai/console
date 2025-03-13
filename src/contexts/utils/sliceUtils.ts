@@ -5,6 +5,8 @@ import { PlotTileData } from "../slices/selectors/plotTile";
 import { ViewTileData } from "../slices/selectors/viewTile";
 import { TableTileData } from "../slices/selectors/tableTile";
 import { TILE_KEYS, TABLE_TILE_KEYS, PLOT_TILE_KEYS, VIEW_TILE_KEYS } from "../slices/slice";
+import { useRef } from "react";
+import { useEffect } from "react";
 
 /**
  * A helper to do partial shallow checks:
@@ -77,4 +79,28 @@ export function splitTileUpdates(
   }
 
   return { tileUpdates, tableTileUpdates, plotTileUpdates, viewTileUpdates };
+}
+
+/**
+ * A helper to log the changes to the dependencies of a component.
+ * @param name - The name of the component
+ * @param deps - The dependencies of the component
+ */
+export function useWhyDidYouUpdate(name: string, deps: any[]) {
+  const previousDeps = useRef<any[]>(deps);
+  useEffect(() => {
+    const changedDeps: Record<number, { from: any; to: any }> = {};
+    deps.forEach((dep, index) => {
+      if (previousDeps.current[index] !== dep) {
+        changedDeps[index] = {
+          from: previousDeps.current[index],
+          to: dep
+        };
+      }
+    });
+    if (Object.keys(changedDeps).length) {
+      console.log(`[why-did-you-update] ${name}`, changedDeps);
+    }
+    previousDeps.current = deps;
+  }, deps);
 }
