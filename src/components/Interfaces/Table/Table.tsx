@@ -694,6 +694,7 @@ const LogsTable = ({
                   ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
                     <CellPopover flatLogs={flatLogs} paramsValues={paramsValues} cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />
                   }
+                  error={"detail" in logsData ? logsData["detail"] : undefined}
                 />
               </div>
             ) : (
