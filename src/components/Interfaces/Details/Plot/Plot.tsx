@@ -129,6 +129,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
+                .attr("x", "50%")
+                .attr("y", "50%")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
                 .text("Select two numeric properties to plot");
@@ -162,6 +164,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
+                .attr("x", "50%")
+                .attr("y", "50%")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
                 .text("Select a property and a reduction metric to plot ");    
@@ -194,6 +198,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
+                .attr("x", "50%")
+                .attr("y", "50%")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
                 .text("Select a numeric or time property to plot");    
@@ -202,7 +208,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
         
         else {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                placeholder.text("");
+                if (logs.length > 1000) placeholder.text("Too many data points. Displaying a random subset.").attr("text-anchor", "start").attr("x", "5%").attr("y", "90%").attr("font-size", "12px"); else placeholder.text("");
                 const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, updateItem(item, "plot_scale_x"), setLogScaleXEnabled)
                 const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, updateItem(item, "plot_scale_y"), setLogScaleYEnabled)
                 drawScatterPlot(
@@ -229,6 +235,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
+                .attr("x", "50%")
+                .attr("y", "50%")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
                 .text("Select two numeric properties to plot");    
