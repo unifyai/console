@@ -1,20 +1,20 @@
 import { ChartLine, Eye, Table } from "lucide-react";
-import barDemo from "@/constants/examples/bar-demo.json";
-import contextDemo from "@/constants/examples/context-demo.json";
-import derivedColumnsDemo from "@/constants/examples/derived-columns-demo.json";
-import diffsDemo from "@/constants/examples/diffs-demo.json";
-import filteringDemo from "@/constants/examples/filtering-demo.json";
-import groupingDemo from "@/constants/examples/grouping-demo.json";
-import hiddenColumnsDemo from "@/constants/examples/hidden-columns-demo.json";
-import histogramDemo from "@/constants/examples/histogram-demo.json";
-import lineDemo from "@/constants/examples/line-demo.json";
-import lineDemo2 from "@/constants/examples/line-demo2.json";
-import lineDemo3 from "@/constants/examples/line-demo3.json";
-import markingAssistantDemo from "@/constants/examples/MarkingAssistant.json";
-import scatterDemo from "@/constants/examples/scatter-demo.json";
-import scatterDemo2 from "@/constants/examples/scatter-demo2.json";
-import scatterDemo3 from "@/constants/examples/scatter-demo3.json";
-import viewPaneDemo from "@/constants/examples/view-pane-demo.json";
+import barDemo from "@/constants/demos/bar-demo.json";
+import contextDemo from "@/constants/demos/context-demo.json";
+import derivedColumnsDemo from "@/constants/demos/derived-columns-demo.json";
+import diffsDemo from "@/constants/demos/diffs-demo.json";
+import filteringDemo from "@/constants/demos/filtering-demo.json";
+import groupingDemo from "@/constants/demos/grouping-demo.json";
+import hiddenColumnsDemo from "@/constants/demos/hidden-columns-demo.json";
+import histogramDemo from "@/constants/demos/histogram-demo.json";
+import lineDemo from "@/constants/demos/line-demo.json";
+import lineDemo2 from "@/constants/demos/line-demo2.json";
+import lineDemo3 from "@/constants/demos/line-demo3.json";
+import markingAssistantDemo from "@/constants/demos/MarkingAssistant.json";
+import scatterDemo from "@/constants/demos/scatter-demo.json";
+import scatterDemo2 from "@/constants/demos/scatter-demo2.json";
+import scatterDemo3 from "@/constants/demos/scatter-demo3.json";
+import viewPaneDemo from "@/constants/demos/view-pane-demo.json";
 import { TileProps } from "@/types/evals/grid";
 import { getLogsParameters } from "@/types/evals/logs";
 
@@ -1227,7 +1227,7 @@ export const icons = {
 
 export const tabTypes = ["Table", "Plot", "View"];
 
-export const examples: {
+export const demos: {
     [key: string]: {
         project: string,
         name: string,
