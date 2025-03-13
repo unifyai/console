@@ -35,9 +35,12 @@ const ContextSelector = ({
     
     const item = useMemo(() => tileActions?.asTileItem(), [tileActions]);
     
-    const finalSetContext = (tileActions && tableTileActions && item) ? (ctx: string) => {
+    const finalSetContext = (tileActions && tableTileActions && item != undefined) ? (ctx: string) => {
         if (ctx !== item.context) {
+            // Update the tile's column_context
             tableTileActions.updateTableData({ column_context: "" });
+
+            // Update the tile's context
             tileActions.updateTile({ context: ctx });
         }
     } : setContext;

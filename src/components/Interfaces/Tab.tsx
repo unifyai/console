@@ -87,17 +87,14 @@ const Tab = ({
 
   // Only call updateInterface when items have truly changed.
   useEffect(() => {
-    // Add a debounce to avoid rapid consecutive updates
-    const timer = setTimeout(async () => {
+    (async () => {
       try {
         await updateTab();
       } catch (err) {
         console.error("updateTab failed:", err);
       }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [tileProps, tabData?.context]);
+    })();
+  }, [tileProps, tabData?.globalContext]);
 
   const tileTableDataItems = useMemo(() => 
     tiles.map(tile => tile.tableData?.tableDataItem),
@@ -214,7 +211,7 @@ const Tab = ({
                             {item.context && item.tab == "Table" && <ContextSelector
                                 tileId={item.i}
                                 contexts={contexts}
-                                context={item.context}
+                                context={tabData?.globalContext}
                                 button={
                                     <Tooltip content="Context">
                                         <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
@@ -227,7 +224,7 @@ const Tab = ({
                             {(item.column_context) && item.tab == "Table" && <ContextSelector
                                 tileId={item.i}
                                 contexts={contexts}
-                                context={item.context}
+                                context={tabData?.globalContext}
                                 button={<Tooltip content="Column Context">
                                     <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
                                         <Grid2x2 size={18} />

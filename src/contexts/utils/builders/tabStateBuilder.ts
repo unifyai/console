@@ -26,7 +26,7 @@ export function buildTabState(
     visible: true,
     active: isActive,
     order: order,
-    context: tabData.context,
+    globalContext: tabData.globalContext,
     tabCreated: tabData.tabCreated || false,
     tempTabCreated: tabData.tempTabCreated || false,
     savedTab: savedTabValue,
@@ -54,7 +54,6 @@ export function buildTabState(
         limit,
         offsets,
         index,
-        tabData.context
       );
     });
   }
@@ -62,14 +61,14 @@ export function buildTabState(
   // If we have plot tiles, add them
   if (Array.isArray(tabData.plotTiles)) {
     tabData.plotTiles.forEach((tileProps: TileProps) => {
-      tab.tiles[tileProps.i] = buildPlotTileState(tileProps, plotData, tabData.context);
+      tab.tiles[tileProps.i] = buildPlotTileState(tileProps, plotData);
     });
   }
 
   // If we have view tiles, add them
   if (Array.isArray(tabData.viewTiles)) {
     tabData.viewTiles.forEach((tileProps: TileProps) => {
-      tab.tiles[tileProps.i] = buildViewTileState(tileProps, tabData.context);
+      tab.tiles[tileProps.i] = buildViewTileState(tileProps);
     });
   }
   
@@ -83,7 +82,6 @@ export function buildTabState(
         tab.tiles[tileProps.i] = buildTileState(
           tileProps, 
           tileType,
-          tabData.context
         );
       }
     });

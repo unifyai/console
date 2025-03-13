@@ -130,7 +130,7 @@ export interface TabsDataProps {
     [key: string]: {
         name: string,
         items: TileProps[],
-        context: string | undefined,
+        globalContext: string | undefined,
         tableTiles: TileProps[],
         plotTiles: TileProps[],
         viewTiles: TileProps[],

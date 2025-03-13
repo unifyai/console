@@ -408,7 +408,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
             [currentTabId]: {
                 name: currentTabId,
                 project: currentProject,
-                context: currentTab?.context,
+                globalContext: currentTab?.context,
                 items: currentTab?.items || [],
                 new_counter: currentTab?.new_counter || 0,
                 tableTiles: tableTiles,
@@ -423,7 +423,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                     acc[id] = {
                         name: id,
                         project: data.project,
-                        context: data.context,
+                        globalContext: data.context,
                         items: data.items,
                         new_counter: data.new_counter,
                         tableTiles: [],

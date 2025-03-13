@@ -65,10 +65,10 @@ const InterfaceButtons = ({
     const variant = tabData?.saveSuccess === false ? "destructive" : "outline";
 
     // Handle context change 
-    const handleContextChange = (contextId: string) => {
+    const handleContextChange = (ctx: string) => {
         if (tabActions && tabData) {
             // First update the tab's context
-            tabActions.setContext(contextId);
+            tabActions.setGlobalContext(ctx);
 
             // Then update each tile's context-related properties if needed
             if (tabData.tiles) {
@@ -76,44 +76,34 @@ const InterfaceButtons = ({
                     // Get the corresponding item to check current context
                     const item = items.find(i => i.i === tile.id);
                     if (item) {
-                        const validContext = contexts.some(c => c.name === contextId);
-                        const validItemContext = item.context?.startsWith(contextId);
-                        const prefixContexts = contexts.filter(c => c.name.startsWith(contextId));
+                        const validContext = contexts.some(c => c.name === ctx);
+                        const validItemContext = item.context?.startsWith(ctx);
+                        const prefixContexts = contexts.filter(c => c.name.startsWith(ctx));
                         
                         // Determine the new context value based on conditions
                         const newContext = validContext
-                            ? contextId
+                            ? ctx
                             : validItemContext
                                 ? item.context
                                 : prefixContexts.length === 1
                                     ? prefixContexts[0].name
                                     : undefined;
 
-                        // For table tiles, update context and column_context
-                        if (tile.type === 'Table' && tile.tableData) {
+                        // Update the tile's context
+                        tabActions.updateTile(tile.id, {
+                            context: newContext
+                        });
+
+                        // Update the tile's column_context
+                        if (tile.type === "Table" && tile.tableData) {
                             tabActions.updateTableTile(tile.id, {
-                                context: newContext,
-                                columnContexts: validItemContext ? tile.tableData.tableDataItem?.columnContexts : []
-                            });
-                        }
-
-                        // For plot tiles, update context
-                        if (tile.type === 'Plot' && tile.plotData) {
-                            tabActions.updatePlotTile(tile.id, {
-                                context: newContext
-                            });
-                        }
-
-                        // For view tiles, update context
-                        if (tile.type === 'View' && tile.viewData) {
-                            tabActions.updateViewTile(tile.id, {
-                                context: newContext
+                                column_context: validItemContext ? item.column_context : undefined
                             });
                         }
                     }
                 });
             }
-            
+
             // Set data pending and refresh
             tabActions.setDataPending(true);
             router.refresh();
@@ -161,7 +151,7 @@ const InterfaceButtons = ({
             />
             
             <ContextSelector
-                context={tabData?.context || ""}
+                context={tabData?.globalContext}
                 contexts={contexts}
                 setContext={handleContextChange}
             />

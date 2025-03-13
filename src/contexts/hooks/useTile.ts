@@ -57,7 +57,6 @@ export function createTileActions(
   interfaceId: string | null,
   projectId: string | null,
   tile: Tile | null,
-  tabContext: string | undefined,
   store: IStoreState
 ): TileActions | null {
   // If essential parameters are missing, return null
@@ -171,7 +170,7 @@ export function createTileActions(
         // Common fields shared across tile types
         moved: tile.moved,
         static: tile.static,
-        context: tabContext,
+        context: tile.context,
         table: tile.table,
         auto_update: tile.auto_update,
         freeze: tile.freeze,
@@ -239,6 +238,8 @@ export function createTileActions(
         // Common fields shared across tile types
         moved: tileItem.moved,
         static: tileItem.static,
+
+        context: tileItem.context,
         table: tileItem.table,
         auto_update: tileItem.auto_update,
         freeze: tileItem.freeze,
@@ -299,9 +300,6 @@ export function createTileActions(
 
       // Apply all updates to the tile
       store.updateTile(projectId, interfaceId, tabId, tileId, finalUpdates);
-
-      // Also update the tab context
-      store.updateTab(projectId, interfaceId, tabId, { context: tabContext });
       return true;
     }
   };
@@ -355,12 +353,6 @@ export function useTile(
     }
     
     return null;
-  });
-
-  // Get the tab context at the top level so we can use it in asTileItem without calling useStoreContext there
-  const tabContext = useStoreContext(state => {
-    if (!activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[foundTabId]?.context;
   });
 
   // Instead of subscribing to the entire interface object,
@@ -421,6 +413,10 @@ export function useTile(
   const static_ = useStoreContext((state) => {
     if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].static;
+  });
+  const context = useStoreContext((state) => {
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].context;
   });
   const table = useStoreContext((state) => {
     if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
@@ -486,7 +482,7 @@ export function useTile(
       static: static_,
 
       // Common fields shared across tile types
-      tabContext,
+      context,
       table,
       auto_update,
       freeze,
@@ -513,7 +509,7 @@ export function useTile(
     error,
     moved,
     static_,
-    tabContext,
+    context,
     table,
     auto_update,
     freeze,
@@ -542,7 +538,6 @@ export function useTile(
       activeInterfaceId,
       activeProjectId,
       finalTile as unknown as Tile,
-      tabContext,
       storeState
     );
   }, [
@@ -551,7 +546,7 @@ export function useTile(
     activeInterfaceId,
     activeProjectId,
     finalTile, 
-    tabContext,
+    context,
     storeApi,
   ]);
 
@@ -592,9 +587,6 @@ export function useTileActions() {
     // Check if tile exists in store
     const tile = storeState.projectsById?.[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.tiles?.[tileId];
     if (!tile) return null;
-    
-    // Get tab context
-    const tabContext = storeState.projectsById?.[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.context || undefined;
 
     // // Include a version property (e.g., tile.updatedAt) in the cache key so that
     // // any update to the tile invalidates the cache.
@@ -606,7 +598,7 @@ export function useTileActions() {
     // }
 
     // Create actions using the factory
-    const actions = createTileActions(tileId, tabId, interfaceId, projectId, tile, tabContext, storeState);
+    const actions = createTileActions(tileId, tabId, interfaceId, projectId, tile, storeState);
     
     // // Cache the actions
     // if (actions) {

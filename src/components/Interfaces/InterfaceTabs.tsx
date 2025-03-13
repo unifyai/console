@@ -36,7 +36,7 @@ const InterfaceTabs = ({
 
     // Tab states and actions
     const { tab: tabData, actions: tabActions } = useTab(tabQueryParam || "");
-    const context = tabData?.context!;
+    const context = tabData?.globalContext!;
     const tiles = tabData?.tiles!;
 
     // Convert the tiles to TileProps format for backward compatibility

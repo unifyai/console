@@ -8,7 +8,7 @@ export interface Tab {
   visible: boolean;
   active: boolean;
   order: number;
-  context?: string;
+  globalContext?: string;
   tabCreated: boolean; // From metadata
   tempTabCreated: boolean; // From metadata
   savedTab: TabProps | null; // This needs to match exactly the TabProps type from grid.ts
@@ -39,7 +39,7 @@ export function initTab(tabId: string, initialState: Partial<Tab> = {}): Tab {
     visible: initialState.visible !== undefined ? initialState.visible : true,
     active: initialState.active !== undefined ? initialState.active : false,
     order: initialState.order !== undefined ? initialState.order : 0,
-    context: initialState.context,
+    globalContext: initialState.globalContext,
     tabCreated: initialState.tabCreated !== undefined ? initialState.tabCreated : false,
     tempTabCreated: initialState.tempTabCreated !== undefined ? initialState.tempTabCreated : false,
     savedTab: initialState.savedTab || null,

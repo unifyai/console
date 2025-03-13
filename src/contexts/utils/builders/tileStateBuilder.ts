@@ -10,7 +10,6 @@ import { PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 export function buildTileState(
   tileProps: TileProps,
   type: "Table" | "Plot" | "View" = "Table",
-  context: string | undefined = undefined
 ) {
   return {
     id: tileProps.i,
@@ -35,7 +34,7 @@ export function buildTileState(
     moved: tileProps.moved,
     static: tileProps.static,
 
-    context: context,
+    context: tileProps.context,
     table: tileProps.table,
     auto_update: tileProps.auto_update,
     freeze: tileProps.freeze,
@@ -53,9 +52,8 @@ export function buildTableTileState(
   limit: number = 10,
   offsets: number[],
   tileIndex: number = 0,
-  context: string | undefined = undefined
 ) {
-  const baseTile = buildTileState(tileProps, 'Table', context);
+  const baseTile = buildTileState(tileProps, 'Table');
   
   // Add table-specific data
   return {
@@ -96,9 +94,8 @@ export function buildTableTileState(
 export function buildPlotTileState(
   tileProps: TileProps,
   plotData: PlotDataProps,
-  context: string | undefined = undefined
 ) {
-  const baseTile = buildTileState(tileProps, 'Plot', context);
+  const baseTile = buildTileState(tileProps, 'Plot');
   
   // Add plot-specific data
   return {
@@ -123,9 +120,8 @@ export function buildPlotTileState(
  */
 export function buildViewTileState(
   tileProps: TileProps,
-  context: string | undefined = undefined
 ) {
-  const baseTile = buildTileState(tileProps, 'View', context);
+  const baseTile = buildTileState(tileProps, 'View');
   
   // Add table-specific data
   return {

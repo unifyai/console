@@ -72,7 +72,7 @@ const Interface = ({
 
   // update interface – preserves context functionality
   const updateTab = async (savedTab: TabProps | null = null) => {
-    const context_1 = savedTab != null ? savedTab.context : tabData?.context;
+    const context_1 = savedTab != null ? savedTab.context : tabData?.globalContext;
     const items_1 = savedTab?.items ?? tileProps;
     const newCounter_1 = savedTab?.new_counter ?? newCounter;
 
@@ -115,6 +115,9 @@ const Interface = ({
       const currentTab = tabProps.find(t => t.name == tabQueryParam);
 
       if (currentTab && tabActions) {
+        // Update the tab's global context
+        tabActions.setGlobalContext(currentTab.context);
+
         // Update items (tiles) with correct context
         const updatedItems = currentTab.items.map(item => ({
           ...item,
@@ -125,14 +128,6 @@ const Interface = ({
 
         // For each item in the current tab, update the tile in the store
         tabActions.setItems(updatedItems);
-
-        // Update tab metadata
-        if (currentTab.new_counter) {
-          tabActions.updateTab({
-            tabCreated: true,
-            tempTabCreated: true
-          });
-        }
 
         setNewCounter(currentTab.new_counter || 0);
         tabActions.setTempTabCreated(Boolean(currentTab));
@@ -304,7 +299,7 @@ const Interface = ({
                             response = await serverTabActions.update(
                                 tabQueryParam as string,
                                 projectQueryParam as string,
-                                tabData?.context,
+                                tabData?.globalContext,
                                 tileProps,
                                 newCounter,
                                 undefined,
@@ -314,7 +309,7 @@ const Interface = ({
                             response = await serverTabActions.create(
                                 tabQueryParam as string,
                                 projectQueryParam as string,
-                                tabData?.context,
+                                tabData?.globalContext,
                                 tileProps,
                                 newCounter,
                                 false

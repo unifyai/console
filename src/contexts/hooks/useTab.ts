@@ -30,7 +30,7 @@ export interface TabActions {
   setVisible: (visible: boolean) => void;
   setActive: (active: boolean) => void;
   setOrder: (order: number) => void;
-  setContext: (context: string | undefined) => void;
+  setGlobalContext: (context: string | undefined) => void;
   
   // UI state property setters
   setSaveSuccess: (saveSuccess?: boolean) => void;
@@ -121,9 +121,9 @@ export function useTab(
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return 0;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].order;
   });
-  const context = useStoreContext((state) => {
+  const globalContext = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return undefined;
-    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].context;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].globalContext;
   });
   const tabCreated = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return false;
@@ -281,9 +281,9 @@ export function useTab(
         }
       },
       
-      setContext: (context) => {
+      setGlobalContext: (globalContext) => {
         if (activeProjectId && activeInterfaceId && tabId) {
-          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { context });
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { globalContext: globalContext });
         }
       },
       
@@ -512,7 +512,7 @@ export function useTab(
         visible,
         active,
         order,
-        context,
+        globalContext,
         tabCreated,
         tempTabCreated,
         savedTab,
@@ -529,7 +529,7 @@ export function useTab(
         refreshing,
       } as Tab;
   }, [
-      hasTab, tabId, name, visible, active, order, context, tabCreated,
+      hasTab, tabId, name, visible, active, order, globalContext, tabCreated,
       tempTabCreated, savedTab, focusedTileIds, tiles, saveSuccess,
       resetting, edit, interactive, copied, deleting, dataPending,
       pending, refreshing
