@@ -38,6 +38,7 @@ import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
 import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
+import ColumnGroupBy from "@/components/Interfaces/Table/Buttons/ColumnGroupBy";
 import ColumnGroupSort from "@/components/Interfaces/Table/Buttons/ColumnGroupSort";
 import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data/Buttons/RowExpanding";
 import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
@@ -475,7 +476,7 @@ const LogsTable = ({
             setColumnVisibility={setColumnVisibility}
             context={item.context ?? null}
           />
-          <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => setGrouping([])}/>
+          <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => {setGrouping([]); setGroupSorting([])}}/>
           <ResetServerAction condition={(sorting.length > 0 || groupSorting.length > 0)} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => {setSorting([]); setGroupSorting([])}}/>
           <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); updateItem(item, "common_filter")(undefined)}}/>
         </div>
@@ -547,6 +548,22 @@ const LogsTable = ({
                   columns={columns}
                   state={state}
                   setState={setState}
+                  ColumnGroupBy={(column, groupLoading, setGroupLoading, setGroupSortLoading, setIsGrouped, renderMode = "button") => (
+                    <ColumnGroupBy
+                      interactive={interactive}
+                      auto_update={item.auto_update === "true"}
+                      column={column}
+                      grouping={state.grouping}
+                      setGrouping={setState.setGrouping}
+                      setGroupSorting={setState.setGroupSorting}
+                      data={logs}
+                      groupLoading={groupLoading}
+                      setGroupLoading={setGroupLoading}
+                      setGroupSortLoading={setGroupSortLoading}
+                      setIsGrouped={setIsGrouped}
+                      renderMode={renderMode}
+                    />
+                  )}
                   ColumnGroupSort={(column, groupSortLoading, setGroupSortLoading, setIsGroupSorted, renderMode = "button") => (
                     <ColumnGroupSort
                       interactive={interactive}

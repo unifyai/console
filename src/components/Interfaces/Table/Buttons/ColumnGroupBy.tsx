@@ -1,6 +1,6 @@
 import { Filter, Group, LoaderCircle } from "lucide-react";
 import { Ungroup } from "lucide-react";
-import { Column } from "@tanstack/react-table";
+import { Column, ColumnSort } from "@tanstack/react-table";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { getAllChildColumns, isAllChildrenGrouped } from "@/utils/evals/columnOperations";
 import { useState, useEffect, forwardRef } from "react";
@@ -13,8 +13,10 @@ type ColumnGroupByProps = {
     data: any[],
     grouping: string[],
     setGrouping: (grouping: string[]) => void,
+    setGroupSorting?: (groupSorting: ColumnSort[]) => void,
     groupLoading: boolean,
     setGroupLoading: (groupLoading: boolean) => void,
+    setGroupSortLoading?: (groupSortLoading: boolean) => void,
     setIsGrouped: (isGrouped: boolean) => void,
     renderMode: "button" | "menuItem"
 }
@@ -26,8 +28,10 @@ const ColumnGroupBy = (({
     data,
     grouping,
     setGrouping,
+    setGroupSorting,
     groupLoading,
     setGroupLoading,
+    setGroupSortLoading,
     setIsGrouped,
     renderMode = "button",
 }: ColumnGroupByProps) => {
@@ -66,12 +70,13 @@ const ColumnGroupBy = (({
     const variant = isGrouped ? "primary" : undefined;
     const icon = groupLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon;
     const onClick = () => {
+        let newGrouping : string[] = [];
         if (isParentColumn) {
             const childColumns = getAllChildColumns(column);
 
             if (isGrouped) {
                 // Remove all child columns from grouping at once
-                const newGrouping = grouping.filter(
+                newGrouping = grouping.filter(
                     id => !childColumns.some(col => col.columnDef.id === id)
                 );
                 setSpinnerColor("primary");
@@ -79,22 +84,25 @@ const ColumnGroupBy = (({
                 setGrouping(newGrouping);
             } else {
                 // Add all child columns to grouping at once
-                const newGrouping = [
+                newGrouping = [
                     ...grouping,
-                    ...childColumns.map(col => col.columnDef.id).filter(id => !grouping.includes(id as string))
+                    ...childColumns.map(col => col.columnDef.id).filter(id => !grouping.includes(id as string)) as string[]
                 ];
                 setSpinnerColor("white");
                 setGroupLoading(true);
                 setGrouping(newGrouping as string[]);
             }
         } else {
-            const newGrouping = grouping.includes(column.columnDef.id as string)
-                ? grouping.filter(id => id !== column.columnDef.id)
-                : [...grouping, column.columnDef.id];
-
+            newGrouping = grouping.includes(column.columnDef.id as string)
+                ? grouping.filter(id => id !== column.columnDef.id) as string[]
+                : [...grouping, column.columnDef.id as string];
             setSpinnerColor("white");
             setGroupLoading(true);
             setGrouping(newGrouping as string[]);
+        }
+        if (!newGrouping.length && setGroupSortLoading && setGroupSorting) {
+            setGroupSortLoading(true)
+            setGroupSorting([])
         }
     };
 
