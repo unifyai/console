@@ -190,7 +190,7 @@ const DefaultProject = ({
         <div className="h-[94vh] flex flex-col gap-4 items-center">
             <div className="mt-4 flex justify-center font-semibold">
                 {create
-                    ? "Creating the new project, please wait..."
+                    ? "Creating the project, please wait..."
                     : "Please select a project, create a project or select a demo below"
                 }
             </div>
