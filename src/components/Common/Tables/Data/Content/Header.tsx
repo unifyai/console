@@ -663,7 +663,7 @@ const DataTableHeader = ({
 
             {/* Column show - half */}
             {!header.isPlaceholder && (
-                <div className="absolute top-1.5 right-0" style={{ height: '33.33%' }}>
+              <div className={`absolute ${hasActiveActions ? "top-1/2" : "top-1/3"} right-0 transform -translate-y-1/2`} style={{ height: '33.33%' }}>
                     <ColumnShow
                         table={table}
                         header={header}

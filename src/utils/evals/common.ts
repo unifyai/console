@@ -6,6 +6,7 @@ import { processContext } from "./columnOperations";
 import { LogsActions, TileProps } from "@/types/evals/grid";
 import { Row } from "@tanstack/react-table";
 import { getGroupingFilters, maybeConvertRawToGroupedLogs } from "./grouping";
+import { TreeNode } from "@/types/common";
 
 /* 
     Convert object / string inputs to their length value and return the value of numeric inputs. 
@@ -232,3 +233,27 @@ export function getLeafRows(row: Row<GroupedLogProps | LogProps>): Row<LogProps>
   traverse(row);
   return result;
 }
+
+export const buildNestedDropdownTree = (paths: string[]) => {
+  const root: TreeNode = { path: '', children: {}, isComplete: false };
+
+  paths.forEach(path => {
+      let current = root;
+      const parts = path.split('/').filter(Boolean);
+
+      let currentPath = '';
+      parts.forEach((part, index) => {
+          currentPath += part + '/';
+          if (!current.children[part]) {
+              current.children[part] = {
+                  path: currentPath,
+                  children: {},
+                  isComplete: index === parts.length - 1
+              };
+          }
+          current = current.children[part];
+      });
+  });
+
+  return root;
+};

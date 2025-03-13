@@ -1,0 +1,81 @@
+{
+    "project": "diffs-demo",
+    "name": "tab1",
+    "items": [
+        {
+            "i": "Table",
+            "x": 0.0,
+            "y": 0.0,
+            "w": 7.0,
+            "h": 8.0,
+            "tab": "Table",
+            "table_type": "Data Table",
+            "selected": "320993_Entries/msg,320992_Entries/msg,320991_Entries/msg"
+        },
+        {
+            "i": "View",
+            "x": 7.0,
+            "y": 0.0,
+            "w": 5.0,
+            "h": 8.0,
+            "tab": "View",
+            "table": "Table"
+        }
+    ],
+    "new_counter": 2,
+    "logs": {
+        "entries": [
+            {
+                "x": 1,
+                "y": 1.2,
+                "msg": "hello friend",
+                "flag": true,
+                "appointment": "2025-03-23T10:30:00",
+                "dct": {
+                    "a": 1,
+                    "b": 2
+                },
+                "lst": [
+                    1,
+                    2,
+                    3
+                ]
+            },
+            {
+                "x": 2,
+                "y": 1.2,
+                "msg": "hey buddy",
+                "flag": true,
+                "appointment": "2025-02-15T11:30:00",
+                "dct": {
+                    "b": 2,
+                    "c": 3
+                },
+                "lst": [
+                    4,
+                    5,
+                    6
+                ]
+            },
+            {
+                "x": 3,
+                "y": 1.3,
+                "msg": "hello partner",
+                "flag": false,
+                "appointment": "2025-04-11T12:30:00",
+                "dct": {
+                    "a": 1,
+                    "b": 3,
+                    "c": 4
+                },
+                "lst": [
+                    1,
+                    2,
+                    3,
+                    4
+                ]
+            }
+        ]
+    },
+    "code": "\nimport unify\nfrom datetime import datetime\n\nunify.log(\n    x=1,\n    y=1.2,\n    msg=\"hello friend\",\n    flag=True,\n    appointment=datetime(2025, 3, 23, 10, 30).isoformat(),\n    dct={\"a\": 1, \"b\": 2},\n    lst=[1, 2, 3],\n)\nunify.log(\n    x=2,\n    y=1.2,\n    msg=\"hey buddy\",\n    flag=True,\n    appointment=datetime(2025, 2, 15, 11, 30).isoformat(),\n    dct={\"b\": 2, \"c\": 3},\n    lst=[4, 5, 6],\n)\nunify.log(\n    x=3,\n    y=1.3,\n    msg=\"hello partner\",\n    flag=False,\n    appointment=datetime(2025, 4, 11, 12, 30).isoformat(),\n    dct={\"a\": 1, \"b\": 3, \"c\": 4},\n    lst=[1, 2, 3, 4],\n)\n"
+}

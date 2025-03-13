@@ -1,0 +1,383 @@
+{
+    "project": "scatter-demo2",
+    "name": "tab1",
+    "items": [
+        {
+            "i": "Table",
+            "x": 0.0,
+            "y": 0.0,
+            "w": 6.0,
+            "h": 8.0,
+            "tab": "Table",
+            "table_type": "Data Table"
+        },
+        {
+            "i": "Plot",
+            "x": 7.0,
+            "y": 0.0,
+            "w": 6.0,
+            "h": 8.0,
+            "tab": "Plot",
+            "x_axis": "Table.age",
+            "y_axis": "Table.salary",
+            "plot_group_by": "Table.gender",
+            "regression_line": "true"
+        }
+    ],
+    "new_counter": 2,
+    "logs": {
+        "entries": [
+            {
+                "gender": "male",
+                "age": 18,
+                "salary": 21398.82994474436
+            },
+            {
+                "gender": "male",
+                "age": 17,
+                "salary": 13297.458621278089
+            },
+            {
+                "gender": "male",
+                "age": 17,
+                "salary": 25835.07387726472
+            },
+            {
+                "gender": "male",
+                "age": 19,
+                "salary": 11468.163812183186
+            },
+            {
+                "gender": "male",
+                "age": 28,
+                "salary": 34388.957348483826
+            },
+            {
+                "gender": "male",
+                "age": 27,
+                "salary": 33759.96239926989
+            },
+            {
+                "gender": "male",
+                "age": 29,
+                "salary": 36724.14385598402
+            },
+            {
+                "gender": "male",
+                "age": 28,
+                "salary": 38614.37598718126
+            },
+            {
+                "gender": "male",
+                "age": 25,
+                "salary": 23355.122574396395
+            },
+            {
+                "gender": "male",
+                "age": 31,
+                "salary": 32109.44936813136
+            },
+            {
+                "gender": "male",
+                "age": 35,
+                "salary": 20134.56735038886
+            },
+            {
+                "gender": "male",
+                "age": 31,
+                "salary": 53323.03172243089
+            },
+            {
+                "gender": "male",
+                "age": 28,
+                "salary": 45027.10582125698
+            },
+            {
+                "gender": "male",
+                "age": 35,
+                "salary": 43357.8376018635
+            },
+            {
+                "gender": "male",
+                "age": 32,
+                "salary": 47034.132568314155
+            },
+            {
+                "gender": "male",
+                "age": 31,
+                "salary": 75465.43011246342
+            },
+            {
+                "gender": "male",
+                "age": 31,
+                "salary": 76116.48948994151
+            },
+            {
+                "gender": "male",
+                "age": 41,
+                "salary": 63555.65028548792
+            },
+            {
+                "gender": "male",
+                "age": 35,
+                "salary": 40928.765366803185
+            },
+            {
+                "gender": "male",
+                "age": 37,
+                "salary": 63889.71506119791
+            },
+            {
+                "gender": "male",
+                "age": 39,
+                "salary": 40840.57478907079
+            },
+            {
+                "gender": "male",
+                "age": 39,
+                "salary": 75913.18856168892
+            },
+            {
+                "gender": "male",
+                "age": 40,
+                "salary": 44896.89766064548
+            },
+            {
+                "gender": "male",
+                "age": 38,
+                "salary": 91594.29868307711
+            },
+            {
+                "gender": "male",
+                "age": 43,
+                "salary": 55022.039304758524
+            },
+            {
+                "gender": "male",
+                "age": 48,
+                "salary": 62253.98136111764
+            },
+            {
+                "gender": "male",
+                "age": 51,
+                "salary": 47816.158497538934
+            },
+            {
+                "gender": "male",
+                "age": 43,
+                "salary": 98064.26394275583
+            },
+            {
+                "gender": "male",
+                "age": 43,
+                "salary": 35126.30038994276
+            },
+            {
+                "gender": "male",
+                "age": 54,
+                "salary": 37972.187895510026
+            },
+            {
+                "gender": "male",
+                "age": 51,
+                "salary": 61897.7558884782
+            },
+            {
+                "gender": "male",
+                "age": 55,
+                "salary": 57168.94979156868
+            },
+            {
+                "gender": "male",
+                "age": 49,
+                "salary": 33008.87981463173
+            },
+            {
+                "gender": "male",
+                "age": 50,
+                "salary": 93883.3585390931
+            },
+            {
+                "gender": "male",
+                "age": 55,
+                "salary": 122274.04219129632
+            },
+            {
+                "gender": "female",
+                "age": 15,
+                "salary": 18407.638133106673
+            },
+            {
+                "gender": "female",
+                "age": 24,
+                "salary": 17144.829309496163
+            },
+            {
+                "gender": "female",
+                "age": 17,
+                "salary": 21759.883938502877
+            },
+            {
+                "gender": "female",
+                "age": 21,
+                "salary": 17622.50584836114
+            },
+            {
+                "gender": "female",
+                "age": 26,
+                "salary": 31798.78493678918
+            },
+            {
+                "gender": "female",
+                "age": 24,
+                "salary": 16204.917712047592
+            },
+            {
+                "gender": "female",
+                "age": 21,
+                "salary": 13555.798420788815
+            },
+            {
+                "gender": "female",
+                "age": 32,
+                "salary": 23633.27509052785
+            },
+            {
+                "gender": "female",
+                "age": 23,
+                "salary": 15020.410841195839
+            },
+            {
+                "gender": "female",
+                "age": 34,
+                "salary": 40145.093441746874
+            },
+            {
+                "gender": "female",
+                "age": 33,
+                "salary": 46346.56696443651
+            },
+            {
+                "gender": "female",
+                "age": 35,
+                "salary": 41097.92763503397
+            },
+            {
+                "gender": "female",
+                "age": 35,
+                "salary": 18244.85476934001
+            },
+            {
+                "gender": "female",
+                "age": 37,
+                "salary": 25449.63630826996
+            },
+            {
+                "gender": "female",
+                "age": 39,
+                "salary": 45953.762656631596
+            },
+            {
+                "gender": "female",
+                "age": 40,
+                "salary": 40643.92926388485
+            },
+            {
+                "gender": "female",
+                "age": 32,
+                "salary": 18813.80886006882
+            },
+            {
+                "gender": "female",
+                "age": 34,
+                "salary": 35358.95757255274
+            },
+            {
+                "gender": "female",
+                "age": 39,
+                "salary": 21235.31072776193
+            },
+            {
+                "gender": "female",
+                "age": 39,
+                "salary": 36370.04762363467
+            },
+            {
+                "gender": "female",
+                "age": 41,
+                "salary": 27704.06116625834
+            },
+            {
+                "gender": "female",
+                "age": 44,
+                "salary": 41613.59439844915
+            },
+            {
+                "gender": "female",
+                "age": 41,
+                "salary": 41878.708741449365
+            },
+            {
+                "gender": "female",
+                "age": 41,
+                "salary": 22942.58697492248
+            },
+            {
+                "gender": "female",
+                "age": 41,
+                "salary": 31825.950612714398
+            },
+            {
+                "gender": "female",
+                "age": 45,
+                "salary": 37138.556249579575
+            },
+            {
+                "gender": "female",
+                "age": 48,
+                "salary": 41027.08562772446
+            },
+            {
+                "gender": "female",
+                "age": 46,
+                "salary": 61342.77548716744
+            },
+            {
+                "gender": "female",
+                "age": 47,
+                "salary": 61256.550346224074
+            },
+            {
+                "gender": "female",
+                "age": 51,
+                "salary": 52133.742347444044
+            },
+            {
+                "gender": "female",
+                "age": 49,
+                "salary": 56547.91459964926
+            },
+            {
+                "gender": "female",
+                "age": 56,
+                "salary": 77107.837969147
+            },
+            {
+                "gender": "female",
+                "age": 55,
+                "salary": 51940.847414673066
+            },
+            {
+                "gender": "female",
+                "age": 48,
+                "salary": 59672.03982025737
+            },
+            {
+                "gender": "female",
+                "age": 56,
+                "salary": 74035.81020655764
+            }
+        ]
+    },
+    "code": "\nimport unify\nimport random\n\ngender_factors = {\"male\": 2000, \"female\": 1000}\nfor gender in [\"male\", \"female\"]:\n    for age in range(20, 55):\n        age += random.randint(-5, 5)\n        unify.log(\n            gender=gender,\n            age=age,\n            salary=(\n                age*500 +\n                age*gender_factors[gender]*random.random()\n            ),\n        )\n"
+}
