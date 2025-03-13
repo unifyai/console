@@ -57,7 +57,7 @@ export function createTileActions(
   interfaceId: string | null,
   projectId: string | null,
   tile: Tile | null,
-  tabContext: string,
+  tabContext: string | undefined,
   store: IStoreState
 ): TileActions | null {
   // If essential parameters are missing, return null
@@ -112,30 +112,30 @@ export function createTileActions(
       
       // Initialize type-specific data
       if (type === 'Table') {
-        store.updateTableTile(projectId, interfaceId, targetTabId, tileId, {});
+        store.updateTableTileData(projectId, interfaceId, targetTabId, tileId, {});
       } else if (type === 'Plot') {
-        store.updatePlotTile(projectId, interfaceId, targetTabId, tileId, {});
+        store.updatePlotTileData(projectId, interfaceId, targetTabId, tileId, {});
       } else if (type === 'View') {
-        store.updateViewTile(projectId, interfaceId, targetTabId, tileId, {});
+        store.updateViewTileData(projectId, interfaceId, targetTabId, tileId, {});
       }
     },
 
     // Content management based on type
     updateTableData: (updates) => {
       if (tile.type === 'Table') {
-        store.updateTableTile(projectId, interfaceId, tabId, tileId, updates);
+        store.updateTableTileData(projectId, interfaceId, tabId, tileId, updates);
       }
     },
 
     updatePlotData: (updates) => {
       if (tile.type === 'Plot') {
-        store.updatePlotTile(projectId, interfaceId, tabId, tileId, updates);
+        store.updatePlotTileData(projectId, interfaceId, tabId, tileId, updates);
       }
     },
 
     updateViewData: (updates) => {
       if (tile.type === 'View') {
-        store.updateViewTile(projectId, interfaceId, tabId, tileId, updates);
+        store.updateViewTileData(projectId, interfaceId, tabId, tileId, updates);
       }
     },
 
@@ -167,11 +167,11 @@ export function createTileActions(
         minH: tile.minH,
         visible: tile.visible,
         tab: tile.type,
-        
+
         // Common fields shared across tile types
         moved: tile.moved,
         static: tile.static,
-        context: tile.context,
+        context: tabContext,
         table: tile.table,
         auto_update: tile.auto_update,
         freeze: tile.freeze,
@@ -196,10 +196,6 @@ export function createTileActions(
         tileProps.selected = tile.tableData.selected;
         tileProps.base_index = tile.tableData.base_index;
 
-        // If context not already set, use the tab context
-        if (!tileProps.context) {
-          tileProps.context = tabContext;
-        }
       } else if (tile.type === 'Plot' && tile.plotData) {
         // Add plot-specific properties from PlotTileData
         tileProps.plot_type = tile.plotData.plot_type;
@@ -212,15 +208,8 @@ export function createTileActions(
         tileProps.bin_count = tile.plotData.bin_count;
         tileProps.regression_line = tile.plotData.regression_line;
 
-        // If context not already set, use the tab context
-        if (!tileProps.context) {
-          tileProps.context = tabContext;
-        }
       } else if (tile.type === 'View' && tile.viewData) {
-        // If context not already set, use the tab context
-        if (!tileProps.context) {
-          tileProps.context = tabContext;
-        }
+        // Add view-specific fields here if needed
       }
 
       // // 2) Cache this result
@@ -250,7 +239,6 @@ export function createTileActions(
         // Common fields shared across tile types
         moved: tileItem.moved,
         static: tileItem.static,
-        context: tileItem.context,
         table: tileItem.table,
         auto_update: tileItem.auto_update,
         freeze: tileItem.freeze,
@@ -311,6 +299,9 @@ export function createTileActions(
 
       // Apply all updates to the tile
       store.updateTile(projectId, interfaceId, tabId, tileId, finalUpdates);
+
+      // Also update the tab context
+      store.updateTab(projectId, interfaceId, tabId, { context: tabContext });
       return true;
     }
   };
@@ -368,8 +359,8 @@ export function useTile(
 
   // Get the tab context at the top level so we can use it in asTileItem without calling useStoreContext there
   const tabContext = useStoreContext(state => {
-    if (!activeProjectId || !activeInterfaceId || !foundTabId) return '';
-    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[foundTabId]?.context || '';
+    if (!activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
+    return state.projectsById[activeProjectId]?.interfaces?.[activeInterfaceId]?.tabs?.[foundTabId]?.context;
   });
 
   // Instead of subscribing to the entire interface object,
@@ -415,6 +406,14 @@ export function useTile(
     if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return false;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].pending;
   });
+  const loading = useStoreContext((state) => {
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return false;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].loading;
+  });
+  const error = useStoreContext((state) => {
+    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return null;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].error;
+  });
   const moved = useStoreContext((state) => {
     if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].moved;
@@ -422,10 +421,6 @@ export function useTile(
   const static_ = useStoreContext((state) => {
     if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].static;
-  });
-  const context = useStoreContext((state) => {
-    if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
-    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[foundTabId].tiles[tileId].context;
   });
   const table = useStoreContext((state) => {
     if (!hasTile || !tileId || !activeProjectId || !activeInterfaceId || !foundTabId) return undefined;
@@ -471,25 +466,27 @@ export function useTile(
   // We'll build a complete tile object from the individual fields
   const finalTile = useMemo(() => {
     if (!hasTile || !tileId) return null;
-    
+
     return {
       // Core tile properties
       id: tileId,
       name,
-      type: type as TileType, // Cast to our defined TileType
+      type,
       position,
       minW,
       minH,
       visible,
       locked,
       pending,
-      
+      loading,
+      error,
+
       // Grid-specific optional fields
       moved,
       static: static_,
-      
+
       // Common fields shared across tile types
-      context,
+      tabContext,
       table,
       auto_update,
       freeze,
@@ -512,9 +509,11 @@ export function useTile(
     visible,
     locked,
     pending,
+    loading,
+    error,
     moved,
     static_,
-    context,
+    tabContext,
     table,
     auto_update,
     freeze,
@@ -542,7 +541,7 @@ export function useTile(
       foundTabId, 
       activeInterfaceId,
       activeProjectId,
-      finalTile as Tile,
+      finalTile as unknown as Tile,
       tabContext,
       storeState
     );
@@ -595,7 +594,7 @@ export function useTileActions() {
     if (!tile) return null;
     
     // Get tab context
-    const tabContext = storeState.projectsById?.[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.context || '';
+    const tabContext = storeState.projectsById?.[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.context || undefined;
 
     // // Include a version property (e.g., tile.updatedAt) in the cache key so that
     // // any update to the tile invalidates the cache.

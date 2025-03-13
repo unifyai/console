@@ -126,6 +126,20 @@ export interface TabProps {
     new_counter: number,
 }
 
+export interface TabsDataProps {
+    [key: string]: {
+        name: string,
+        items: TileProps[],
+        context: string | undefined,
+        tableTiles: TileProps[],
+        plotTiles: TileProps[],
+        viewTiles: TileProps[],
+        tabCreated: boolean,
+        tempTabCreated: boolean,
+        savedTab: TabProps | null,
+    }
+}
+
 export interface ProjectsActions {
     get: () => Promise<string[]>,
     create: (name: string) => Promise<ResponseProps>,

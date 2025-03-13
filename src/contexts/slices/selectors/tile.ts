@@ -23,9 +23,11 @@ export interface Tile {
   position: TilePosition;
   minW?: number;
   minH?: number;
-  visible: boolean;
-  locked: boolean;
+  visible?: boolean;
+  locked?: boolean;
   pending: boolean;
+  loading?: boolean;
+  error?: string | null;
   createdAt: string;
   updatedAt: string;
   
@@ -58,9 +60,11 @@ export function initTile(tileId: string, initialState: Partial<Tile> = {}): Tile
     position: initialState.position || { x: 0, y: 0, width: 4, height: 4 },
     minW: initialState.minW,
     minH: initialState.minH,
-    visible: initialState.visible !== undefined ? initialState.visible : true,
-    locked: initialState.locked !== undefined ? initialState.locked : false,
+    visible: initialState.visible,
+    locked: initialState.locked,
     pending: initialState.pending !== undefined ? initialState.pending : false,
+    loading: initialState.loading,
+    error: initialState.error,
     createdAt: initialState.createdAt || new Date().toISOString(),
     updatedAt: initialState.updatedAt || new Date().toISOString(),
     
@@ -69,8 +73,8 @@ export function initTile(tileId: string, initialState: Partial<Tile> = {}): Tile
     static: initialState.static,
     
     // Common fields shared across tile types
-    context: initialState.context || "",
-    table: initialState.table || "",
+    context: initialState.context,
+    table: initialState.table,
     auto_update: initialState.auto_update,
     freeze: initialState.freeze,
     filters: initialState.filters,
@@ -80,8 +84,7 @@ export function initTile(tileId: string, initialState: Partial<Tile> = {}): Tile
     tableData: initialState.tableData || null,
     plotData: initialState.plotData || null,
     viewData: initialState.viewData || null,
-
-    ...initialState
+    ...initialState,
   };
 }
 

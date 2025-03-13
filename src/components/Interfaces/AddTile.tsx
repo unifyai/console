@@ -16,21 +16,21 @@ const AddTile = ({
     setNewCounter: (newCounter: number) => void,
 }) => {
     // Get tab data and actions using useTab hook
-    const { tab, actions, exists } = useTab(tabId);
+    const { tab: tabData, actions: tabActions, exists } = useTab(tabId);
     
     // Use the getItems function from the useTab hook to get TileProps array
     const items = useMemo(() => {
-        return !exists || !actions ? [] : actions.getItems().filter(item => item.visible !== false);
-    }, [exists, actions]);
+        return !exists || !tabActions ? [] : tabActions.getItems().filter(item => item.visible !== false);
+    }, [exists, tabActions]);
 
     return (
         <ActionButton
             className="transition-all"
-            tooltip={(!tab?.edit || !project) ? "Select a project first" : "Add new tile"}
+            tooltip={(!tabData?.edit || !project) ? "Select a project first" : "Add new tile"}
             icon={<Plus />}
             text="Add Tile"
             variant="outline"
-            disabled={!tab?.edit || !project || tab?.pending || !exists}
+            disabled={!tabData?.edit || !project || tabData?.pending || !exists}
             onClick={() => {
                 const newTileId = "Tile_" + newCounter;
                 
@@ -110,7 +110,7 @@ const AddTile = ({
                 };
 
                 // Initialize the new tile with the calculated position
-                actions?.initTile(newTileId, {
+                tabActions?.initTile(newTileId, {
                     name: newTileId,
                     position,
                     visible: true,

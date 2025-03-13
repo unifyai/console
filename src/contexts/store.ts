@@ -53,9 +53,7 @@ export function createStore(initialState?: Partial<IStoreState>) {
           }),
           
           // Global reset action
-          resetState: (newState: Partial<IStoreState>) => set((state) => {
-            return { ...newState };
-          }),
+          resetState: (newState: Partial<IStoreState>) => set(newState),
         };
       }),
       {

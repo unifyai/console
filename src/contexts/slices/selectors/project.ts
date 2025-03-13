@@ -26,7 +26,7 @@ export function initProject(projectId: string, initialState: Partial<Project> = 
     activeInterfaceId: initialState.activeInterfaceId || null,
     contexts: initialState.contexts || [],
     interfaces: initialState.interfaces || {},
-    ...initialState
+    ...initialState,
   };
 }
 

@@ -1,4 +1,4 @@
-import { Context, TabProps } from "@/types/evals/grid";
+import { Context, TabProps, TabsDataProps } from "@/types/evals/grid";
 import { PlotDataProps } from "@/types/evals/grid";
 import { TableDataProps } from "@/types/evals/grid";
 import { TableArguments } from "@/types/evals/logs";
@@ -9,26 +9,26 @@ import { buildProjectState } from "./builders/projectStateBuilder";
  * Build complete initial state for the store
  */
 export function buildInitialState(
-  defaultProjectId: string,
-  defaultInterfaceId: string,
+  currentProjectId: string,
+  currentProjectName: string,
+  currentInterfaceId: string,
   currentTabId: string,
-  tabsData: any = {},
-  currentProject: string | null = null,
-  tableData: TableDataProps = {},
-  plotData: PlotDataProps = {},
-  tableArguments: TableArguments = {},
+  tabsData: TabsDataProps,
+  tableData: TableDataProps,
+  plotData: PlotDataProps,
+  tableArguments: TableArguments,
   limit: number,
   offsets: number[],
-  contexts: Context[] = [],
-  tabs: Record<string, TabProps> = {}
+  contexts: Context[],
+  tabs: Record<string, TabProps>
 ) {
   return {
     // Main hierarchical structure
     projectsById: {
-      [defaultProjectId]: buildProjectState(
-        defaultProjectId,
-        currentProject || "Default Project",
-        defaultInterfaceId,
+      [currentProjectId]: buildProjectState(
+        currentProjectId,
+        currentProjectName,
+        currentInterfaceId,
         currentTabId,
         tabsData,
         tableData,
@@ -42,11 +42,11 @@ export function buildInitialState(
     },
 
     // Global active states for navigation
-    activeProjectId: defaultProjectId,
-    activeInterfaceId: defaultInterfaceId,
+    activeProjectId: currentProjectId,
+    activeInterfaceId: currentInterfaceId,
     activeTabId: currentTabId,
     
     // Initialize projects list (for backward compatibility with IStoreState)
-    projects: [defaultProjectId]
+    projects: [currentProjectId]
   } as Partial<IStoreState>;
 }

@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { useStoreContext } from "../providers/StoreProvider";
 import { TileActions, useTile } from "./useTile";
 
 // Define the default return value for the useViewTile hook
@@ -13,11 +12,7 @@ const DEFAULT_USE_VIEW_TILE_RETURN = {
  * Interface for view tile-related actions
  */
 export interface ViewTileActions extends TileActions {
-  setViewType: (viewType: string) => void;
-  setContent: (content: string) => void;
-  setSourceUrl: (sourceUrl: string) => void;
-  setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
+  // Add any view-specific actions here
 }
 
 /**
@@ -34,54 +29,34 @@ export function useViewTile(
   interfaceId?: string | null,
   projectId?: string | null
 ) {
-  // Narrow approach with useTile plus narrower subscription
+  // Always call hooks at the top level, unconditionally
   const {
     tile: baseTile,
     actions: baseTileActions,
     exists,
   } = useTile(tileId, tabId, interfaceId, projectId);
 
-  // Check if we actually have a view tile
-  const hasViewTile = useStoreContext((state) => {
+  // Instead of subscribing to the entire interface object,
+  // we subscribe to individual properties. This way, changes in
+  // unrelated fields won't cause a new reference for everything.
+
+  // We'll check if this tab actually exists:
+  const hasViewTile = useMemo(() => {
     if (!baseTile || baseTile.type !== 'View') return false;
     return true;
-  });
+  }, [baseTile]);
 
   // Now subscribe to the actual viewData portion
-  const viewData = useStoreContext((state) => {
+  const viewData = useMemo(() => {
     if (!hasViewTile || !baseTile) return null;
     return baseTile.viewData || null;
-  });
+  }, [hasViewTile, baseTile]);
 
   // Add view-specific actions
   const viewActions = useMemo<ViewTileActions>(() => {
     return {
       ...baseTileActions as ViewTileActions,
-      setViewType: (viewType: string) => {
-        if (hasViewTile && baseTileActions) {
-          baseTileActions.updateViewData({ viewType });
-        }
-      },
-      setContent: (content: string) => {
-        if (hasViewTile && baseTileActions) {
-          baseTileActions.updateViewData({ content });
-        }
-      },
-      setSourceUrl: (sourceUrl: string | null) => {
-        if (hasViewTile && baseTileActions) {
-          baseTileActions.updateViewData({ sourceUrl });
-        }
-      },
-      setLoading: (loading: boolean) => {
-        if (hasViewTile && baseTileActions) {
-          baseTileActions.updateViewData({ loading });
-        }
-      },
-      setError: (error: string | null) => {
-        if (hasViewTile && baseTileActions) {
-          baseTileActions.updateViewData({ error });
-        }
-      },
+      // Add any view-specific actions here
     };
   }, [baseTileActions, hasViewTile]);
 

@@ -144,8 +144,8 @@ export function useInterface(interfaceId: string | null, projectId?: string | nu
   // so the calling component has a shape similar to before, if needed.
   const finalInterface = useMemo(() => {
     if (!hasInterface) return null;
-    return { name, tabs, activeTabId, tabIds, tableArguments } as Interface;
-  }, [hasInterface, name, tabs, activeTabId, tabIds, tableArguments]);
+    return { name, activeTabId, tabIds, tabs, tableArguments } as Interface;
+  }, [hasInterface, name, activeTabId, tabIds,  tabs, tableArguments]);
 
   // Use interfaceId to conditionally return values, but only after all hooks are called
   if (interfaceId === null) {

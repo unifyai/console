@@ -12,7 +12,7 @@ import { TableTileData } from "./selectors/tableTile";
 import { PlotTileData } from "./selectors/plotTile";
 import { ViewTileData } from "./selectors/viewTile";
 import { Tile } from "./selectors/tile";
-import { filterUnchangedProps } from "../utils/sliceUtils";
+import { filterUnchangedProps, splitTileUpdates } from "../utils/sliceUtils";
 
 // Re-export the types from the domain logic
 export type { Project } from "./selectors/project";
@@ -24,57 +24,27 @@ export type { PlotTileData } from "./selectors/plotTile";
 export type { ViewTileData } from "./selectors/viewTile";
 
 // tileKeys: all fields for Tile from TileProps in grid.ts
-const TILE_KEYS: (keyof Tile)[] = [
+export const TILE_KEYS: (keyof Tile)[] = [
   "id","name","type","position","minW","minH","visible","locked","pending",
   "createdAt","updatedAt","moved","static","context","table","auto_update","freeze",
   "filters","common_filter",
 ];
 
 // tableTileKeys: all fields for TableTileData from TileProps in grid.ts
-const TABLE_TILE_KEYS: (keyof TableTileData)[] = [
-  "table","table_type","column_context","page_number","metric",
+export const TABLE_TILE_KEYS: (keyof TableTileData)[] = [
+  "table_type","column_context","page_number","metric",
   "column_order","hidden_columns","sorting","grouping","group_sorting",
   "columns_pin_left","columns_pin_right","selected","base_index",
 ];
 
 // plotTileKeys: all fields for PlotTileData from TileProps in grid.ts
-const PLOT_TILE_KEYS: (keyof PlotTileData)[] = [
+export const PLOT_TILE_KEYS: (keyof PlotTileData)[] = [
   "plot_type","plot_scale_x","plot_scale_y","is_aggregated",
   "x_axis","y_axis","plot_group_by","bin_count","regression_line"
 ];
 
 // viewTileKeys: all fields for ViewTileData from TileProps in grid.ts
-const VIEW_TILE_KEYS: (keyof ViewTileData)[] = [];
-
-function splitTileUpdates(
-  updates: Record<string, any>
-): {
-  tileUpdates: Partial<Tile>;
-  tableTileUpdates: Partial<TableTileData>;
-  plotTileUpdates: Partial<PlotTileData>;
-  viewTileUpdates: Partial<ViewTileData>;
-} {
-  const tileUpdates: Partial<Tile> = {};
-  const tableTileUpdates: Partial<TableTileData> = {};
-  const plotTileUpdates: Partial<PlotTileData> = {};
-  const viewTileUpdates: Partial<ViewTileData> = {};
-  
-  for (const key in updates) {
-    if (TILE_KEYS.includes(key as keyof Tile)) {
-      tileUpdates[key as keyof Tile] = updates[key];
-    } else if (TABLE_TILE_KEYS.includes(key as keyof TableTileData)) {
-      tableTileUpdates[key as keyof TableTileData] = updates[key];
-    } else if (PLOT_TILE_KEYS.includes(key as keyof PlotTileData)) {
-      plotTileUpdates[key as keyof PlotTileData] = updates[key];
-    } else if (VIEW_TILE_KEYS.includes(key as keyof ViewTileData)) {
-      viewTileUpdates[key as keyof ViewTileData] = updates[key];
-    } else {
-      console.warn(`Unknown property '${key}' not in Tile or TableTileData.`);
-    }
-  }
-
-  return { tileUpdates, tableTileUpdates, plotTileUpdates, viewTileUpdates };
-}
+export const VIEW_TILE_KEYS: (keyof ViewTileData)[] = [];
 
 // Top-level projects state
 export interface StoreState {
@@ -118,14 +88,14 @@ export interface StoreActions {
   updateTile: (projectId: string, interfaceId: string, tabId: string, tileId: string, updates: Partial<tileLogic.Tile>) => void;
   
   // Table tile specific actions
-  initTableTile: (
+  initTableTileData: (
     projectId: string, 
     interfaceId: string, 
     tabId: string, 
     tileId: string, 
     initialState?: Partial<tableTileLogic.TableTileData>
   ) => void;
-  updateTableTile: (
+  updateTableTileData: (
     projectId: string, 
     interfaceId: string, 
     tabId: string, 
@@ -134,14 +104,14 @@ export interface StoreActions {
   ) => void;
   
   // Plot tile specific actions
-  initPlotTile: (
+  initPlotTileData: (
     projectId: string, 
     interfaceId: string, 
     tabId: string, 
     tileId: string, 
     initialState?: Partial<plotTileLogic.PlotTileData>
   ) => void;
-  updatePlotTile: (
+  updatePlotTileData: (
     projectId: string, 
     interfaceId: string, 
     tabId: string, 
@@ -150,14 +120,14 @@ export interface StoreActions {
   ) => void;
   
   // View tile specific actions
-  initViewTile: (
+  initViewTileData: (
     projectId: string, 
     interfaceId: string, 
     tabId: string, 
     tileId: string, 
     initialState?: Partial<viewTileLogic.ViewTileData>
   ) => void;
-  updateViewTile: (
+  updateViewTileData: (
     projectId: string, 
     interfaceId: string, 
     tabId: string, 
@@ -208,9 +178,13 @@ export const createStoreSlice: StateCreator<
   
   updateProject: (projectId, updates) => set(state => {
     if (state.projectsById[projectId]) {
+      // Filter out unchanged fields with the extended partially shallow logic
+      const filteredUpdates = filterUnchangedProps(state.projectsById[projectId], updates);
+      if (Object.keys(filteredUpdates).length === 0) return;
+
       state.projectsById[projectId] = projectLogic.updateProject(
         state.projectsById[projectId],
-        updates
+        filteredUpdates
       );
     }
   }),
@@ -389,38 +363,42 @@ export const createStoreSlice: StateCreator<
       if (Object.keys(tileUpdates).length > 0) {
         // Filter out unchanged fields with the extended partially shallow logic
         const filteredTileUpdates = filterUnchangedProps(tile, tileUpdates);
-        if (Object.keys(filteredTileUpdates).length === 0) return;
-        updatedTile = tileLogic.updateTile(tile, filteredTileUpdates);
+        if (Object.keys(filteredTileUpdates).length > 0) {
+          updatedTile = tileLogic.updateTile(tile, filteredTileUpdates);
+        }
       }
 
       if (Object.keys(tableTileUpdates).length > 0) {
         if (!updatedTile.tableData) {
-          updatedTile.tableData = tableTileLogic.initTableTile(tileId);
+          updatedTile.tableData = tableTileLogic.initTableTileData();
         }
         // Filter out unchanged fields with the extended partially shallow logic
         const filteredTableTileUpdates = filterUnchangedProps(updatedTile.tableData, tableTileUpdates);
-        if (Object.keys(filteredTableTileUpdates).length === 0) return;
-        updatedTile.tableData = tableTileLogic.updateTableTile(updatedTile.tableData, filteredTableTileUpdates);
+        if (Object.keys(filteredTableTileUpdates).length > 0) {
+          updatedTile.tableData = tableTileLogic.updateTableTileData(updatedTile.tableData, filteredTableTileUpdates);
+        }
       }
 
       if (Object.keys(plotTileUpdates).length > 0) {
         if (!updatedTile.plotData) {
-          updatedTile.plotData = plotTileLogic.initPlotTile(tileId);
+          updatedTile.plotData = plotTileLogic.initPlotTileData();
         }
         // Filter out unchanged fields with the extended partially shallow logic
         const filteredPlotTileUpdates = filterUnchangedProps(updatedTile.plotData, plotTileUpdates);
-        if (Object.keys(filteredPlotTileUpdates).length === 0) return;
-        updatedTile.plotData = plotTileLogic.updatePlotTile(updatedTile.plotData, filteredPlotTileUpdates);
+        if (Object.keys(filteredPlotTileUpdates).length > 0) {
+          updatedTile.plotData = plotTileLogic.updatePlotTile(updatedTile.plotData, filteredPlotTileUpdates);
+        }
       }
 
       if (Object.keys(viewTileUpdates).length > 0) {
         if (!updatedTile.viewData) {
-          updatedTile.viewData = viewTileLogic.initViewTile(tileId);
+          updatedTile.viewData = viewTileLogic.initViewTileData();
         }
         // Filter out unchanged fields with the extended partially shallow logic
         const filteredViewTileUpdates = filterUnchangedProps(updatedTile.viewData, viewTileUpdates);
-        if (Object.keys(filteredViewTileUpdates).length === 0) return;
-        updatedTile.viewData = viewTileLogic.updateViewTile(updatedTile.viewData, filteredViewTileUpdates);
+        if (Object.keys(filteredViewTileUpdates).length > 0) {
+          updatedTile.viewData = viewTileLogic.updateViewTileData(updatedTile.viewData, filteredViewTileUpdates);
+        }
       }
 
       state.projectsById[projectId].interfaces[interfaceId].tabs[tabId].tiles[tileId] = updatedTile;
@@ -428,54 +406,63 @@ export const createStoreSlice: StateCreator<
   }),
   
   // Table tile specific actions
-  initTableTile: (projectId, interfaceId, tabId, tileId, initialState = {}) => set(state => {
+  initTableTileData: (projectId, interfaceId, tabId, tileId, initialState = {}) => set(state => {
     const tile = state.projectsById[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.tiles?.[tileId];
     
     if (tile && tile.type === 'Table') {
-      tile.tableData = tableTileLogic.initTableTile(tileId, initialState);
+      tile.tableData = tableTileLogic.initTableTileData(initialState);
     }
   }),
   
-  updateTableTile: (projectId, interfaceId, tabId, tileId, updates) => set(state => {
+  updateTableTileData: (projectId, interfaceId, tabId, tileId, updates) => set(state => {
     const tile = state.projectsById[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.tiles?.[tileId];
     
     if (tile && tile.type === 'Table' && tile.tableData) {
-      tile.tableData = tableTileLogic.updateTableTile(tile.tableData, updates);
+      const filteredTableTileUpdates = filterUnchangedProps(tile.tableData, updates);
+      if (Object.keys(filteredTableTileUpdates).length > 0) {
+        tile.tableData = tableTileLogic.updateTableTileData(tile.tableData, filteredTableTileUpdates);
+      }
     }
   }),
   
   // Plot tile specific actions
-  initPlotTile: (projectId, interfaceId, tabId, tileId, initialState = {}) => set(state => {
+  initPlotTileData: (projectId, interfaceId, tabId, tileId, initialState = {}) => set(state => {
     const tile = state.projectsById[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.tiles?.[tileId];
     
     if (tile && tile.type === 'Plot') {
-      tile.plotData = plotTileLogic.initPlotTile(tileId, initialState);
+      tile.plotData = plotTileLogic.initPlotTileData(initialState);
     }
   }),
   
-  updatePlotTile: (projectId, interfaceId, tabId, tileId, updates) => set(state => {
+  updatePlotTileData: (projectId, interfaceId, tabId, tileId, updates) => set(state => {
     const tile = state.projectsById[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.tiles?.[tileId];
     
     if (tile && tile.type === 'Plot' && tile.plotData) {
-      tile.plotData = plotTileLogic.updatePlotTile(tile.plotData, updates);
+      const filteredPlotTileUpdates = filterUnchangedProps(tile.plotData, updates);
+      if (Object.keys(filteredPlotTileUpdates).length > 0) {
+        tile.plotData = plotTileLogic.updatePlotTile(tile.plotData, filteredPlotTileUpdates);
+      }
     }
   }),
   
   // View tile specific actions
-  initViewTile: (projectId, interfaceId, tabId, tileId, initialState = {}) => set(state => {
+  initViewTileData: (projectId, interfaceId, tabId, tileId, initialState = {}) => set(state => {
     const tile = state.projectsById[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.tiles?.[tileId];
     
     if (tile && tile.type === 'View') {
       // Add a viewData property to the tile with the initialized view data
-      viewTileLogic.initViewTile(tileId, initialState);
+      viewTileLogic.initViewTileData(initialState);
     }
   }),
   
-  updateViewTile: (projectId, interfaceId, tabId, tileId, updates) => set(state => {
+  updateViewTileData: (projectId, interfaceId, tabId, tileId, updates) => set(state => {
     const tile = state.projectsById[projectId]?.interfaces?.[interfaceId]?.tabs?.[tabId]?.tiles?.[tileId];
     
     if (tile && tile.type === 'View' && tile.viewData) {
-      viewTileLogic.updateViewTile(tile.viewData, updates);
+      const filteredViewTileUpdates = filterUnchangedProps(tile.viewData, updates);
+      if (Object.keys(filteredViewTileUpdates).length > 0) {
+        tile.viewData = viewTileLogic.updateViewTileData(tile.viewData, filteredViewTileUpdates);
+      }
     }
   }),
   
@@ -568,18 +555,18 @@ export const createStoreSlice: StateCreator<
                             
                             // Update tile data based on type
                             if (tile.type === 'Table' && newTile.tableData) {
-                              tile.tableData = tableTileLogic.updateTableTile(
-                                tile.tableData || tableTileLogic.initTableTile(tileId),
+                              tile.tableData = tableTileLogic.updateTableTileData(
+                                tile.tableData || tableTileLogic.initTableTileData(),
                                 newTile.tableData
                               );
                             } else if (tile.type === 'Plot' && newTile.plotData) {
                               tile.plotData = plotTileLogic.updatePlotTile(
-                                tile.plotData || plotTileLogic.initPlotTile(tileId),
+                                tile.plotData || plotTileLogic.initPlotTileData(),
                                 newTile.plotData
                               );
                             } else if (tile.type === 'View' && newTile.viewData) {
-                              tile.viewData = viewTileLogic.updateViewTile(
-                                tile.viewData || viewTileLogic.initViewTile(tileId),
+                              tile.viewData = viewTileLogic.updateViewTileData(
+                                tile.viewData || viewTileLogic.initViewTileData(),
                                 newTile.viewData
                               );
                             }

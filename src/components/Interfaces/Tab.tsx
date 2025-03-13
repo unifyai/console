@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { ResponseProps } from "@/types/common";
@@ -20,9 +20,9 @@ interface TabComponentProps {
   interfaceId: string;
   tabId: string;
   projectId: string;
-  setNewCounter: React.Dispatch<React.SetStateAction<number>>;
-  setFocusDialog: React.Dispatch<React.SetStateAction<boolean>>;
-  setEditTile: React.Dispatch<React.SetStateAction<string | undefined>>;
+  setNewCounter: (newCounter: number) => void;
+  setFocusDialog: (focusDialog: boolean) => void;
+  setEditTile: (editTile: string | undefined) => void;
   updateTab: (savedTab?: any) => Promise<ResponseProps>;
   getLatestTab: () => void;
   logsActions: LogsActions;
@@ -60,6 +60,9 @@ const Tab = ({
     return (!tabActions || !tabData) ? [] : tabActions.getItems();
   }, [tabActions, tabData]);
   
+  // Add a ref to track initial mount
+  const isInitialMount = useRef(true);
+
   // Set up effect to fetch the latest tab when project or tab changes
   useEffect(() => {
     if (projectId && tabId) {
@@ -68,8 +71,11 @@ const Tab = ({
       Cookies.set("project", projectId, { expires: expirationDate });
       Cookies.set("tab", tabId, { expires: expirationDate });
       
-      // Get the latest tab data
+      // Only fetch data on initial mount or when project/tab actually changes
+    if (isInitialMount.current) {
       getLatestTab();
+      isInitialMount.current = false;
+    }
     }
     else if (!projectId) {
       Cookies.remove("project");
@@ -81,13 +87,16 @@ const Tab = ({
 
   // Only call updateInterface when items have truly changed.
   useEffect(() => {
-    (async () => {
+    // Add a debounce to avoid rapid consecutive updates
+    const timer = setTimeout(async () => {
       try {
         await updateTab();
       } catch (err) {
         console.error("updateTab failed:", err);
       }
-    })();
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, [tileProps, tabData?.context]);
 
   const tileTableDataItems = useMemo(() => 
@@ -170,7 +179,6 @@ const Tab = ({
     >
         {/* Render tiles */}
         {tileProps.map((item: TileProps, idx: number) => {
-            const tab = item.tab;
             return (
                 <div
                     key={item.i}

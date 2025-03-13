@@ -1,6 +1,6 @@
 import { Interface } from "@/contexts/slices/selectors/interface";
 import { buildTabState } from "./tabStateBuilder";
-import { PlotDataProps, TabProps } from "@/types/evals/grid";
+import { PlotDataProps, TabProps, TabsDataProps } from "@/types/evals/grid";
 import { TableDataProps } from "@/types/evals/grid";
 import { TableArguments } from "@/types/evals/logs";
 
@@ -8,25 +8,20 @@ import { TableArguments } from "@/types/evals/logs";
  * Build initial state for an interface with its tabs
  */
 export function buildInterfaceState(
-  interfaceId: string,
+  currentInterfaceId: string,
   currentTabId: string,
-  tabsData: any = {},
-  defaultProjectId: string,
-  tableData: TableDataProps = {},
-  plotData: PlotDataProps = {},
-  tableArguments: TableArguments = {},
+  tabsData: TabsDataProps,
+  tableData: TableDataProps,
+  plotData: PlotDataProps,
+  tableArguments: TableArguments,
   limit: number,
   offsets: number[],
-  tabs: Record<string, TabProps> = {}
+  tabs: Record<string, TabProps>
 ) {
   // Create interface structure
   const iface = {
-    id: interfaceId,
+    id: currentInterfaceId,
     name: "Default Interface",
-    pending: false,
-    refreshing: false,
-    deleting: false,
-    dataPending: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     activeTabId: currentTabId,
@@ -35,48 +30,31 @@ export function buildInterfaceState(
     tableArguments: tableArguments,
   } as Interface;
 
-  // Add current active tab if it exists in tabsData
-  if (tabsData[currentTabId]) {
-    iface.tabs[currentTabId] = buildTabState(
-      currentTabId,
-      tabsData[currentTabId],
-      defaultProjectId,
-      true, // Active
-      1, // First order
-      tableData,
-      plotData,
-      limit,
-      offsets,
-    );
-  } else {
-    // Create a default tab if it doesn't exist
-    iface.tabs[currentTabId] = buildTabState(
-      currentTabId,
-      { name: currentTabId },
-      defaultProjectId,
-      true, // Active
-      1, // First order
-      tableData,
-      plotData,
-      limit,
-      offsets,
-    );
-  }
-  
+  // Add current active tab
+  iface.tabs[currentTabId] = buildTabState(
+    currentTabId,
+    tabsData[currentTabId],
+    tableData,
+    plotData,
+    limit,
+    offsets,
+    true, // Active
+    1, // First order
+  );
+
   // Add other tabs from tabsData
   Object.entries(tabsData).forEach(([tabId, tabData]: [string, any]) => {
-    if (tabId !== currentTabId && !(tabs && tabId in tabs)) {
+    if (tabId !== currentTabId && (tabs && tabId in tabs)) {
       const order = Object.keys(iface.tabs).length + 1;
       iface.tabs[tabId] = buildTabState(
         tabId,
         tabData,
-        defaultProjectId,
-        false, // Not active
-        order,
         tableData,
         plotData,
         limit,
         offsets,
+        false, // Not active
+        order,
       );
     }
   });

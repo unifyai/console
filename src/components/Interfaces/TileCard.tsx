@@ -50,7 +50,9 @@ const TileCard = ({
   }, [tabActions, tabData]);
 
   const tableNames = useMemo(() => {
-    return tileProps.map(item => item.i);
+    // Only return table names for table tiles
+    // Return should be an array of strings only
+    return tileProps.map(item => item.tab == "Table" ? item.i : null).filter(Boolean) as string[];
   }, [tileProps]);
 
   // Get the current item based on the index prop
@@ -116,7 +118,7 @@ const TileCard = ({
                   <DropdownMenuItem
                     key={idx}
                     onSelect={() => {
-                      tileActions?.updateTableData({ table: tile });
+                      tileActions?.updateTile({ table: tile });
                     }}
                     disabled={!logsLengths[tile]}
                     className="w-64"

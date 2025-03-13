@@ -27,6 +27,7 @@ export function initInterface(interfaceId: string, initialState: Partial<Interfa
     tabIds: initialState.tabIds || [],
     tabs: initialState.tabs || {},
     tableArguments: initialState.tableArguments || {},
+    ...initialState,
   };
 }
 

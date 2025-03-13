@@ -1,95 +1,89 @@
-import { PlotDataProps } from "@/types/evals/grid";
+import { PlotDataProps, TabProps, TabsDataProps, TileProps } from "@/types/evals/grid";
 import { TableDataProps } from "@/types/evals/grid";
 import { buildPlotTileState, buildTableTileState, buildTileState, buildViewTileState } from "./tileStateBuilder";
 import { Tab } from "@/contexts/slices/selectors/tab";
-import { TableArguments } from "@/types/evals/logs";
 
 /**
  * Build initial state for a tab with its tiles
  */
 export function buildTabState(
-  tabId: string,
-  tabData: any,
-  defaultProjectId: string,
-  isActive: boolean = false,
-  order: number = 1,
+  currentTabId: string,
+  tabData: TabsDataProps[keyof TabsDataProps],
   tableData: TableDataProps = {},
   plotData: PlotDataProps = {},
   limit: number,
   offsets: number[],
+  isActive: boolean = false,
+  order: number = 1,
 ) {
   // Create a proper savedTab value that exactly matches TabProps from grid.ts
-  const savedTabValue = {
-    name: tabData.name || tabId,
-    project: defaultProjectId,
-    context: tabData.context || "",
-    items: tabData.items || [],
-    new_counter: tabData.new_counter || 0
-  };
+  const savedTabValue: TabProps | null = tabData.savedTab || null;
   
   // Create basic tab structure
   const tab = {
-    id: tabId,
-    name: tabData.name || tabId,
+    id: currentTabId,
+    name: tabData.name || currentTabId,
     visible: true,
     active: isActive,
     order: order,
-    edit: true,
-    interactive: true,
-    context: tabData.context || "",
+    context: tabData.context,
     tabCreated: tabData.tabCreated || false,
     tempTabCreated: tabData.tempTabCreated || false,
     savedTab: savedTabValue,
     focusedTileIds: [undefined, undefined],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    tiles: {} as Record<string, any>
+
+    // resetting: false,
+    edit: true,
+    interactive: true,
+    // deleting: false,
+    // dataPending: false,
+    // pending: true,
+    // refreshing: false,
+
+    tiles: {}
   } as Tab;
 
   // If we have table tiles, add them
   if (Array.isArray(tabData.tableTiles)) {
-    tabData.tableTiles.forEach((tile: any, index: number) => {
-      tab.tiles[tile.i] = buildTableTileState(
-        tile.i,
-        tile,
+    tabData.tableTiles.forEach((tileProps: TileProps, index: number) => {
+      tab.tiles[tileProps.i] = buildTableTileState(
+        tileProps,
         tableData,
         limit,
         offsets,
-        index
+        index,
+        tabData.context
       );
     });
   }
   
   // If we have plot tiles, add them
   if (Array.isArray(tabData.plotTiles)) {
-    tabData.plotTiles.forEach((tile: any) => {
-      tab.tiles[tile.i] = buildPlotTileState(tile.i, tile, plotData);
+    tabData.plotTiles.forEach((tileProps: TileProps) => {
+      tab.tiles[tileProps.i] = buildPlotTileState(tileProps, plotData, tabData.context);
     });
   }
 
   // If we have view tiles, add them
   if (Array.isArray(tabData.viewTiles)) {
-    tabData.viewTiles.forEach((tile: any) => {
-      tab.tiles[tile.i] = buildViewTileState(tile.i, tile);
+    tabData.viewTiles.forEach((tileProps: TileProps) => {
+      tab.tiles[tileProps.i] = buildViewTileState(tileProps, tabData.context);
     });
   }
   
   // Process tiles from items array if present
   if (tabData.items) {
-    // Handle both array and object formats
-    const itemsEntries = Array.isArray(tabData.items) 
-      ? tabData.items.map((item: any) => [item.i, item])
-      : Object.entries(tabData.items);
-    
-    itemsEntries.forEach(([tileId, tileData]: [string, any]) => {
+    tabData.items.forEach((tileProps: TileProps) => {
       // Only add if not already added as a table or plot tile
-      if (!tab.tiles[tileId]) {
+      if (!tab.tiles[tileProps.i]) {
         // Determine tile type from tab property or type property
-        const tileType = tileData.tab ? tileData.tab : tileData.type || 'Table';
-        tab.tiles[tileId] = buildTileState(
-          tileId, 
-          tileData, 
-          tileType
+        const tileType = tileProps.tab as "Table" | "Plot" | "View" | undefined;
+        tab.tiles[tileProps.i] = buildTileState(
+          tileProps, 
+          tileType,
+          tabData.context
         );
       }
     });

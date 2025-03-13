@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { useStoreContext } from "../providers/StoreProvider";
 import { TileActions, useTile } from "./useTile";
 
 // Define the default return value for the useTableTile hook
@@ -13,10 +12,7 @@ const DEFAULT_USE_TABLE_TILE_RETURN = {
  * Interface for table tile-related actions
  */
 export interface TableTileActions extends TileActions {
-  setFilters: (filters: any) => void;
-  setSorting: (sorting: any) => void;
-  setGrouping: (grouping: any) => void;
-  setPagination: (page: number, pageSize: number) => void;
+  // Add any table-specific actions here
 }
 
 /**
@@ -33,26 +29,29 @@ export function useTableTile(
   interfaceId?: string | null,
   projectId?: string | null
 ) {
-  // First, we use our narrower hook to get the base tile object
-  // (which we previously updated to subscribe to each tile field individually)
+  // Always call hooks at the top level, unconditionally
+
   const {
     tile: baseTile,
     actions: baseTileActions,
     exists,
   } = useTile(tileId, tabId, interfaceId, projectId);
 
-  // Now we do further narrower subscription for table-specific data,
-  // so changes in other tile fields (like plotData) won't cause a rerender here.
-  const hasTableTile = useStoreContext((state) => {
+ // Instead of subscribing to the entire interface object,
+  // we subscribe to individual properties. This way, changes in
+  // unrelated fields won't cause a new reference for everything.
+
+  // We'll check if this tab actually exists:
+  const hasTableTile = useMemo(() => {
     if (!baseTile || baseTile.type !== 'Table') return false;
     return true;
-  });
+  }, [baseTile]);
   
-  const tableData = useStoreContext((state) => {
+  const tableData = useMemo(() => {
     if (!hasTableTile || !baseTile) return null;
     // If we want the same path as the tile state, do:
     return baseTile.tableData || null;
-  });
+  }, [hasTableTile, baseTile]);
 
   const tableActions = useMemo<TableTileActions>(() => {
     // We'll just spread baseTileActions, then add table-specific methods
@@ -60,27 +59,7 @@ export function useTableTile(
       ...baseTileActions as TableTileActions,
 
       // Add any table-specific actions here
-      setFilters: (filters: any) => {
-        // only if we are indeed a table tile
-        if (hasTableTile && baseTileActions) {
-          baseTileActions.updateTableData({ filters });
-        }
-      },
-      setSorting: (sorting: any) => {
-        if (hasTableTile && baseTileActions) {
-          baseTileActions.updateTableData({ sorting });
-        }
-      },
-      setGrouping: (grouping: any) => {
-        if (hasTableTile && baseTileActions) {
-          baseTileActions.updateTableData({ grouping });
-        }
-      },
-      setPagination: (page: number, pageSize: number) => {
-        if (hasTableTile && baseTileActions) {
-          baseTileActions.updateTableData({ pagination: { page, pageSize } });
-        }
-      },
+
     };
   }, [baseTileActions, hasTableTile]);
 
@@ -89,7 +68,6 @@ export function useTableTile(
   }
   
   return {
-    // We only return tableData if it is indeed a table tile
     tableTile: tableData,
     actions: tableActions,
     exists: exists && hasTableTile,

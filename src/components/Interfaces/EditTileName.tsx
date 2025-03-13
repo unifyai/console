@@ -17,14 +17,14 @@ const EditTileName = ({
 }) => {
     const [newTileName, setNewTileName] = useState<string>();
 
-    const { actions } = useTab(tabId);
+    const { actions: tabActions } = useTab(tabId);
 
     // edit tile name
     const saveTileName = () => {
-        if (newTileName && editTile && actions) {
+        if (newTileName && editTile && tabActions) {
             // Use the new renameTile method which handles both
             // updating the tile name and updating references
-            actions.renameTile(editTile, newTileName);
+            tabActions.renameTile(editTile, newTileName);
         }
         setEditTile(undefined);
         setNewTileName(undefined);

@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { useStoreContext } from "../providers/StoreProvider";
 import { TileActions, useTile } from "./useTile";
 
 // Define the default return value for the usePlotTile hook
@@ -13,12 +12,9 @@ const DEFAULT_USE_PLOT_TILE_RETURN = {
  * Interface for plot tile-related actions
  */
 export interface PlotTileActions extends TileActions {
-  setPlotType: (plotType: string) => void;
-  setConfig: (config: any) => void;
-  setData: (data: any) => void;
+  // Add any plot-specific actions here
 }
 
-/**
 /**
  * Custom hook to access plot tile data and actions
  * @param tileId The ID of the plot tile to access
@@ -33,43 +29,37 @@ export function usePlotTile(
   interfaceId?: string | null,
   projectId?: string | null
 ) {
-  // Narrow approach with useTile plus narrower subscription
+  // Always call hooks at the top level, unconditionally
   const {
     tile: baseTile,
     actions: baseTileActions,
     exists,
   } = useTile(tileId, tabId, interfaceId, projectId);
-  const hasPlotTile = useStoreContext((state) => {
+
+  // Instead of subscribing to the entire interface object,
+  // we subscribe to individual properties. This way, changes in
+  // unrelated fields won't cause a new reference for everything.
+
+  // We'll check if this tab actually exists:
+  const hasPlotTile = useMemo(() => {
     if (!baseTile || baseTile.type !== 'Plot') return false;
     return true;
-  });
+  }, [baseTile]);
 
   // Now subscribe to the actual plotData portion
-  const plotData = useStoreContext((state) => {
+  const plotData = useMemo(() => {
     if (!hasPlotTile || !baseTile) return null;
     // baseTile already has plotData if the tile is 'plot'
     return baseTile.plotData || null;
-  });
+  }, [hasPlotTile, baseTile]);
 
   // Add plot-specific actions
   const plotActions = useMemo<PlotTileActions>(() => {
     return {
       ...baseTileActions as PlotTileActions,
-      setPlotType: (plotType: string) => {
-        if (hasPlotTile && baseTileActions) {
-          baseTileActions.updatePlotData({ plotType });
-        }
-      },
-      setConfig: (config: any) => {
-        if (hasPlotTile && baseTileActions) {
-          baseTileActions.updatePlotData({ config });
-        }
-      },
-      setData: (data: any) => {
-        if (hasPlotTile && baseTileActions) {
-          baseTileActions.updatePlotData({ data });
-        }
-      },
+
+      // Add any plot-specific actions here
+
     };
   }, [baseTileActions, hasPlotTile]);
 

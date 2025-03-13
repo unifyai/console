@@ -3,10 +3,6 @@ import { PlotDataItem } from "@/types/evals/grid";
 // Plot tile related types
 export interface PlotTileData {
   // Core plot data properties
-  id: string;
-  title: string;
-  loading: boolean;
-  error: string | null;
   lastUpdated: string | null;
   createdAt: string;
   updatedAt: string;
@@ -14,7 +10,8 @@ export interface PlotTileData {
   // Plot-specific fields from TileProps
   // ( IMPORTANT )
   // NOTE: When adding new fields here from TileProps in grid.ts,
-  // make sure to update the PLOT_TILE_KEYS array in the useTile hook
+  // make sure to update the PLOT_TILE_KEYS array in the useTile hook.
+  // Look at the tableTile and viewTile files for examples.
   plot_type?: string;          // Used in addition to plotType for compatibility
   plot_scale_x?: string;       // X-axis scale type (linear, log, etc.)
   plot_scale_y?: string;       // Y-axis scale type
@@ -32,13 +29,9 @@ export interface PlotTileData {
 /**
  * Initialize a new plot tile
  */
-export function initPlotTile(tileId: string, initialState: Partial<PlotTileData> = {}): PlotTileData {
+export function initPlotTileData(initialState: Partial<PlotTileData> = {}): PlotTileData {
   return {
     // Core plot data properties
-    id: tileId,
-    title: initialState.title || `Plot ${tileId}`,
-    loading: initialState.loading !== undefined ? initialState.loading : false,
-    error: initialState.error || null,
     lastUpdated: initialState.lastUpdated || null,
     createdAt: initialState.createdAt || new Date().toISOString(),
     updatedAt: initialState.updatedAt || new Date().toISOString(),
@@ -52,7 +45,8 @@ export function initPlotTile(tileId: string, initialState: Partial<PlotTileData>
     y_axis: initialState.y_axis,
     plot_group_by: initialState.plot_group_by,
     bin_count: initialState.bin_count,
-    regression_line: initialState.regression_line
+    regression_line: initialState.regression_line,
+    ...initialState,
   };
 }
 

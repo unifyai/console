@@ -3,12 +3,8 @@ import { TableDataItem } from "@/types/evals/grid";
 // Table tile related types
 export interface TableTileData {
   // Additional fields needed for internal state management
-  id: string;
-  title: string;
-  loading: boolean;
   limit: number;
   offset: number;
-  error: string | null;
   lastUpdated: string | null;
   createdAt: string;
   updatedAt: string;
@@ -16,8 +12,8 @@ export interface TableTileData {
   // Table-specific fields from TileProps
   // ( IMPORTANT )
   // NOTE: When adding new fields here from TileProps in grid.ts,
-  // make sure to update the TABLE_TILE_KEYS array in the useTile hook
-  table?: string;          // Table identifier
+  // make sure to update the TABLE_TILE_KEYS array in the useTile hook.
+  // Look at the plotTile and viewTile files for examples.
   table_type?: string;     // Type of table
   column_context?: string; // Context for columns display
   page_number?: string;    // Current page for pagination
@@ -39,21 +35,16 @@ export interface TableTileData {
 /**
  * Initialize a new table tile
  */
-export function initTableTile(tileId: string, initialState: Partial<TableTileData> = {}): TableTileData {
+export function initTableTileData(initialState: Partial<TableTileData> = {}): TableTileData {
   return {
     // Additional fields for internal state
-    id: tileId,
-    title: initialState.title || `Table ${tileId}`,
     limit: initialState.limit || 20,
     offset: initialState.offset || 0,
-    loading: initialState.loading !== undefined ? initialState.loading : false,
-    error: initialState.error || null,
     lastUpdated: initialState.lastUpdated || null,
     createdAt: initialState.createdAt || new Date().toISOString(),
     updatedAt: initialState.updatedAt || new Date().toISOString(),
 
     // Table-specific fields from TileProps
-    table: initialState.table,
     table_type: initialState.table_type,
     column_context: initialState.column_context,
     page_number: initialState.page_number,
@@ -85,15 +76,17 @@ export function initTableTile(tileId: string, initialState: Partial<TableTileDat
       metrics: initialState.tableDataItem?.metrics || {},
       groupedMetrics: initialState.tableDataItem?.groupedMetrics || {},
       boundaries: initialState.tableDataItem?.boundaries || { minimums: {}, maximums: {} },
+      ...initialState.tableDataItem,
     } as TableDataItem,
 
+    ...initialState,
   } as TableTileData;
 }
 
 /**
  * Update an existing table tile
  */
-export function updateTableTile(tableTile: TableTileData, updates: Partial<TableTileData>): TableTileData {
+export function updateTableTileData(tableTile: TableTileData, updates: Partial<TableTileData>): TableTileData {
   return {
     ...tableTile,
     ...updates,

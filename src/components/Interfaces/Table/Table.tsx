@@ -110,7 +110,23 @@ const LogsTable = ({
   const [showSpinner, setShowSpinner] = useState(pending || !tableData?.tableDataItem?.logs);
 
   // Use the tableDataItem from the tile's table data
-  const tableDataItem = tableData?.tableDataItem as TableDataItem;
+  const tableDataItem = tableData?.tableDataItem || {
+    columnContexts: [],
+    baseIndex: undefined,
+    hiddenColumns: undefined,
+    columnOrdering: undefined,
+    selection: undefined,
+    fields: {},
+    logsData: { params: {}, logs: [], count: 0, groups: {} },
+    totalPages: 0,
+    entriesProperties: [],
+    paramsProperties: [],
+    logs: [],
+    params: [],
+    metrics: {},
+    groupedMetrics: {},
+    boundaries: { minimums: {}, maximums: {} }
+  } as TableDataItem;
 
   // Create a generic updateItem function that checks property existence
   const updateItem = (item: TileProps, propName: string) => (value: any) => {

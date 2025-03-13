@@ -3,40 +3,34 @@ export type ViewType = 'html' | 'markdown' | 'code' | 'iframe' | 'image' | 'pdf'
 
 // View tile data
 export interface ViewTileData {
-  // ( IMPORTANT )
-  // NOTE: When adding new properties, make sure to update the VIEW_TILE_KEYS array in the useTile hook
-  id: string;
-  title: string;
-  loading: boolean;
-  error: string | null;
   lastUpdated: string | null;
   createdAt: string;
   updatedAt: string;
+
+  // ( IMPORTANT )
+  // NOTE: When adding new properties, make sure to update the VIEW_TILE_KEYS array in the useTile hook.
+  // Look at the tableTile and plotTile files for examples.
 }
 
 /**
  * Initialize a new view tile in the nested state
  */
-export function initViewTile(
-  tileId: string,
+export function initViewTileData(
   initialState: Partial<ViewTileData> = {}
 ): ViewTileData {
   // Create default state for the view tile
   return {
-    id: tileId,
-    title: initialState.title || `View ${tileId}`,
-    loading: initialState.loading || false,
-    error: initialState.error || null,
     lastUpdated: initialState.lastUpdated || null,
     createdAt: initialState.createdAt || new Date().toISOString(),
     updatedAt: initialState.updatedAt || new Date().toISOString(),
+    ...initialState,
   } as ViewTileData;
 }
 
 /**
  * Update a view tile in the nested state
  */
-export function updateViewTile(
+export function updateViewTileData(
   viewTile: ViewTileData,
   updates: Partial<ViewTileData>
 ): ViewTileData {

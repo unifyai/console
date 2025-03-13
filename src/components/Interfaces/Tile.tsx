@@ -14,9 +14,28 @@ import { useTableTile } from '@/contexts/hooks/useTableTile';
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { ExpandProvider } from "@/contexts/ExpandContext";
 import { useTab } from "@/contexts/hooks/useTab";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useInterface } from "@/contexts/hooks/useInterface";
 import { useRouter } from "next/navigation";
+
+function useWhyDidYouUpdate(name: string, deps: any[]) {
+    const previousDeps = useRef<any[]>(deps);
+    useEffect(() => {
+      const changedDeps: Record<number, { from: any; to: any }> = {};
+      deps.forEach((dep, index) => {
+        if (previousDeps.current[index] !== dep) {
+          changedDeps[index] = {
+            from: previousDeps.current[index],
+            to: dep
+          };
+        }
+      });
+      if (Object.keys(changedDeps).length) {
+        console.log(`[why-did-you-update] ${name}`, changedDeps);
+      }
+      previousDeps.current = deps;
+    }, deps);
+  }
 
 // Define component props 
 interface TileComponentProps {
@@ -69,6 +88,26 @@ const Tile = ({
         w: tileData.position?.width || 4,
         h: tileData.position?.height || 4,
     }, [tileActions, tileData]);
+
+    useWhyDidYouUpdate('TileItemEffect', [
+        tileItem.tab,
+        tileItem.table_type,
+        tileItem.filters,
+        tileItem.context,
+        tileItem.column_context,
+        tileItem.common_filter,
+        tileItem.sorting,
+        tileItem.grouping,
+        tileItem.group_sorting,
+        tileItem.page_number,
+        tileItem.metric,
+        tileItem.plot_type,
+        tileItem.x_axis,
+        tileItem.y_axis,
+        tileItem.plot_group_by,
+        tileItem.auto_update,
+        tileItem.freeze
+      ]);
 
     // Use a ref to compare the needed properties so we only update if something truly changed.
     useEffect(() => {
@@ -167,7 +206,7 @@ const Tile = ({
                     </div>
                 );
             default:
-                return <div>Unknown tile type: {tileData.type}</div>;
+                return null;
         }
     };
 

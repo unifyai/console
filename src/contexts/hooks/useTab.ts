@@ -30,7 +30,7 @@ export interface TabActions {
   setVisible: (visible: boolean) => void;
   setActive: (active: boolean) => void;
   setOrder: (order: number) => void;
-  setContext: (context: string) => void;
+  setContext: (context: string | undefined) => void;
   
   // UI state property setters
   setSaveSuccess: (saveSuccess?: boolean) => void;
@@ -122,7 +122,7 @@ export function useTab(
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].order;
   });
   const context = useStoreContext((state) => {
-    if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return '';
+    if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return undefined;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].context;
   });
   const tabCreated = useStoreContext((state) => {
@@ -135,7 +135,7 @@ export function useTab(
   });
   const savedTab = useStoreContext(
     useShallow((state) => {
-    if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return undefined;
+    if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return null;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].savedTab;
   }));
   const focusedTileIds = useStoreContext((state) => {
@@ -223,16 +223,16 @@ export function useTab(
   const storeUpdateTile = useStoreContext(state => state.updateTile);
   
   // Get action functions for table tile management
-  const storeInitTableTile = useStoreContext(state => state.initTableTile);
-  const storeUpdateTableTile = useStoreContext(state => state.updateTableTile);
+  const storeInitTableTile = useStoreContext(state => state.initTableTileData);
+  const storeUpdateTableTile = useStoreContext(state => state.updateTableTileData);
   
   // Get action functions for plot tile management
-  const storeInitPlotTile = useStoreContext(state => state.initPlotTile);
-  const storeUpdatePlotTile = useStoreContext(state => state.updatePlotTile);
+  const storeInitPlotTile = useStoreContext(state => state.initPlotTileData);
+  const storeUpdatePlotTile = useStoreContext(state => state.updatePlotTileData);
   
   // Get action functions for view tile management
-  const storeInitViewTile = useStoreContext(state => state.initViewTile);
-  const storeUpdateViewTile = useStoreContext(state => state.updateViewTile);
+  const storeInitViewTile = useStoreContext(state => state.initViewTileData);
+  const storeUpdateViewTile = useStoreContext(state => state.updateViewTileData);
 
   // Define actions using useMemo and returning the appropriate actions object
   const actions = useMemo<TabActions>(() => {
@@ -389,13 +389,10 @@ export function useTab(
                 name: newName 
               });
             }
-            else if (tile.type === 'Table' && tile.tableData?.table === tileId) {
+            else if (tile.table === tileId) {
               // If this is a tile that references the renamed tile, update the reference
               storeUpdateTile(activeProjectId, activeInterfaceId, tabId, id, {
-                tableData: { 
-                  ...tile.tableData,
-                  table: newName 
-                }
+                table: newName 
               });
             }
           });

@@ -1,6 +1,6 @@
 import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, LogItemProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
-import { Context, ContextActions, DerivedEntryActions, FieldsActions, TabProps, TabActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
+import { Context, ContextActions, DerivedEntryActions, FieldsActions, TabProps, TabActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TabsDataProps } from "@/types/evals/grid";
 import { searchParamToFilters, filtersToExpression, maybeWrapFilterInQuotes } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { redirect } from "next/navigation";
@@ -12,6 +12,7 @@ import { StoreProvider } from "@/contexts/providers/StoreProvider";
 import StoreUpdater from "@/contexts/providers/StoreUpdater";
 import Interface from "./Interface";
 import { buildInitialState } from "@/contexts/utils/stateBuilderUtils";
+import { DataArray } from "@mui/icons-material";
 
 const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, tabActions }: {
     tab: string | undefined,
@@ -394,37 +395,48 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     // TODO: In future versions, we'll support multiple interfaces per project
     // For now, hardcode a default interface ID
     const currentProjectId = currentProject || "default-project";
+    const currentProjectName = currentProject || "Default Project";
     const currentInterfaceId = "default-interface";
     const currentTabId = tab_1 || "default-tab";
     
     const initialState: Partial<IStoreState> = buildInitialState(
         currentProjectId,
+        currentProjectName,
         currentInterfaceId,
         currentTabId,
         { 
             [currentTabId]: {
                 name: currentTabId,
-                tableTiles,
-                plotTiles,
-                viewTiles,
+                project: currentProject,
+                context: currentTab?.context,
                 items: currentTab?.items || [],
-                tabCreated,
-                tempTabCreated,
-                savedTab,
-                context: currentTab?.context
-            },
-            ...Object.entries(tabsTemp || {}).reduce((acc, [id, data]) => {
+                new_counter: currentTab?.new_counter || 0,
+                tableTiles: tableTiles,
+                plotTiles: plotTiles,
+                viewTiles: viewTiles,
+                tabCreated: tabCreated,
+                tempTabCreated: tempTabCreated,
+                savedTab: savedTab,
+            } as TabsDataProps[keyof TabsDataProps],
+            ...Object.entries(tabsTemp).reduce((acc: TabsDataProps, [id, data]) => {
                 if (id !== currentTabId) {
                     acc[id] = {
                         name: id,
-                        items: data.items || [],
-                        context: data.context
-                    };
+                        project: data.project,
+                        context: data.context,
+                        items: data.items,
+                        new_counter: data.new_counter,
+                        tableTiles: [],
+                        plotTiles: [],
+                        viewTiles: [],
+                        tabCreated: true,
+                        tempTabCreated: true,
+                        savedTab: tabs[id],
+                    } as TabsDataProps[keyof TabsDataProps];
                 }
                 return acc;
-            }, {} as Record<string, any>)
-        },
-        currentProject,
+            }, {})
+        } as TabsDataProps,
         tableData,
         plotData,
         tableArguments,
