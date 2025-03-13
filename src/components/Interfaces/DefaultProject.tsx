@@ -70,12 +70,14 @@ const DefaultProject = ({
         } | undefined
     ) => {
         if (projects?.includes(demoProject)) {
-            window.open(
-                `/interfaces?project=${demoProject}`,
-                "_blank",
-                "noopener,noreferrer"
-            );
-            setCreate(null);
+            setTimeout(() => {
+                window.open(
+                    `/interfaces?project=${demoProject}`,
+                    "_blank",
+                    "noopener,noreferrer"
+                );
+                setCreate(null);
+            }, 3000);
         } else {
             setPendingLocal(true);
             projectActions.create(demoProject).then(() => {
