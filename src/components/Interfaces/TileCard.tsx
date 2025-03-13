@@ -91,10 +91,10 @@ const TileCard = ({
                   <DropdownMenuItem
                     key={idx}
                     onSelect={() => {
-                      if (item?.tab == undefined && tab == "Table") {
-                        tileActions?.updateTableData({ table_type: "Data Table" });
-                      }
                       tabActions?.updateTile(item?.i, { type: tab });
+                      if (item?.tab == undefined && tab == "Table") {
+                        tabActions?.updateTile(item?.i, { table_type: "Data Table" });
+                      }
                     }}
                     className="w-64 flex justify-between items-center"
                   >

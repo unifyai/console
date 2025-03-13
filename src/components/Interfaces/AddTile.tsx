@@ -113,6 +113,9 @@ const AddTile = ({
                 tabActions?.initTile(newTileId, {
                     name: newTileId,
                     position,
+                    minW: undefined,
+                    minH: undefined,
+                    tab: undefined,
                     visible: true,
                 });
 

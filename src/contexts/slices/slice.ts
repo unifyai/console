@@ -360,11 +360,13 @@ export const createStoreSlice: StateCreator<
       const { tileUpdates, tableTileUpdates, plotTileUpdates, viewTileUpdates } = splitTileUpdates(updates);
 
       let updatedTile = tile;
+      let tileUpdated = false;
       if (Object.keys(tileUpdates).length > 0) {
         // Filter out unchanged fields with the extended partially shallow logic
         const filteredTileUpdates = filterUnchangedProps(tile, tileUpdates);
         if (Object.keys(filteredTileUpdates).length > 0) {
           updatedTile = tileLogic.updateTile(tile, filteredTileUpdates);
+          tileUpdated = true;
         }
       }
 
@@ -376,6 +378,7 @@ export const createStoreSlice: StateCreator<
         const filteredTableTileUpdates = filterUnchangedProps(updatedTile.tableData, tableTileUpdates);
         if (Object.keys(filteredTableTileUpdates).length > 0) {
           updatedTile.tableData = tableTileLogic.updateTableTileData(updatedTile.tableData, filteredTableTileUpdates);
+          tileUpdated = true;
         }
       }
 
@@ -387,6 +390,7 @@ export const createStoreSlice: StateCreator<
         const filteredPlotTileUpdates = filterUnchangedProps(updatedTile.plotData, plotTileUpdates);
         if (Object.keys(filteredPlotTileUpdates).length > 0) {
           updatedTile.plotData = plotTileLogic.updatePlotTile(updatedTile.plotData, filteredPlotTileUpdates);
+          tileUpdated = true;
         }
       }
 
@@ -398,10 +402,13 @@ export const createStoreSlice: StateCreator<
         const filteredViewTileUpdates = filterUnchangedProps(updatedTile.viewData, viewTileUpdates);
         if (Object.keys(filteredViewTileUpdates).length > 0) {
           updatedTile.viewData = viewTileLogic.updateViewTileData(updatedTile.viewData, filteredViewTileUpdates);
+          tileUpdated = true;
         }
       }
 
-      state.projectsById[projectId].interfaces[interfaceId].tabs[tabId].tiles[tileId] = updatedTile;
+      if (tileUpdated) {
+        state.projectsById[projectId].interfaces[interfaceId].tabs[tabId].tiles[tileId] = updatedTile;
+      }
     }
   }),
   

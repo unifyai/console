@@ -172,8 +172,8 @@ const InterfaceButtons = ({
                 icon={resetIcon}
                 variant="outline"
                 disabled={!project || tabData?.pending}
-                onClick={async () => {
-                    await updateTab(tabData?.savedTab);
+                onClick={() => {
+                    updateTab(tabData?.savedTab);
                     tabActions?.setResetting(true);
                     tabActions?.setEdit(true);
                     router.refresh();

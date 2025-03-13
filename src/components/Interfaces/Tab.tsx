@@ -87,9 +87,9 @@ const Tab = ({
 
   // Only call updateInterface when items have truly changed.
   useEffect(() => {
-    (async () => {
+    (() => {
       try {
-        await updateTab();
+        updateTab();
       } catch (err) {
         console.error("updateTab failed:", err);
       }

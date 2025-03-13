@@ -71,7 +71,7 @@ const Interface = ({
   const tabIds = useMemo(() => interfaceActions?.getTabIds() || [], [interfaceActions]);
 
   // update interface – preserves context functionality
-  const updateTab = async (savedTab: TabProps | null = null) => {
+  const updateTab = (savedTab: TabProps | null = null) => {
     const context_1 = savedTab != null ? savedTab.context : tabData?.globalContext;
     const items_1 = savedTab?.items ?? tileProps;
     const newCounter_1 = savedTab?.new_counter ?? newCounter;
@@ -84,7 +84,7 @@ const Interface = ({
         !tabData?.pending
     ) {
         if (tabData?.tempTabCreated) {
-            return await serverTabActions.update(
+            return serverTabActions.update(
                 tabQueryParam,
                 projectQueryParam as string,
                 context_1,
@@ -94,7 +94,7 @@ const Interface = ({
                 true
             );
         } else {
-            return await serverTabActions.create(
+            return serverTabActions.create(
                 tabQueryParam,
                 projectQueryParam as string,
                 context_1,

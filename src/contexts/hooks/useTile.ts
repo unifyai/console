@@ -249,7 +249,7 @@ export function createTileActions(
 
       // If tileItem belongs to 'Table', update its tableData fields:
       // parse table_type, column_context, etc.
-      let finalUpdates: Partial<Tile> = {};
+      let finalUpdates: Partial<Tile> = {...tileUpdates};
       if (tileItem.tab === "Table") {
         const tableDataUpdates: Partial<TableTileData> = {
           table_type: tileItem.table_type,
@@ -266,10 +266,7 @@ export function createTileActions(
           selected: tileItem.selected,
           base_index: tileItem.base_index
         }
-        finalUpdates = {
-          ...tileUpdates,
-          ...tableDataUpdates,
-        } as Partial<Tile>;
+        finalUpdates = {...finalUpdates, ...tableDataUpdates} as Partial<Tile>;
 
       } else if (tileItem.tab === "Plot") {
         const plotDataUpdates: Partial<PlotTileData> = {
@@ -283,19 +280,13 @@ export function createTileActions(
           bin_count: tileItem.bin_count,
           regression_line: tileItem.regression_line,
         };
-        finalUpdates = {  
-          ...tileUpdates,
-          ...plotDataUpdates,
-        } as Partial<Tile>;
+        finalUpdates = {...finalUpdates, ...plotDataUpdates} as Partial<Tile>;
 
       } else if (tileItem.tab === "View") {
         const viewDataUpdates: Partial<ViewTileData> = {
           // Add view-specific fields here if needed
         };
-        finalUpdates = {
-          ...tileUpdates,
-          ...viewDataUpdates,
-        } as Partial<Tile>;
+        finalUpdates = {...finalUpdates, ...viewDataUpdates} as Partial<Tile>;
       }
 
       // Apply all updates to the tile

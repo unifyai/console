@@ -42,18 +42,18 @@ const FocusDialog = ({
     }, [tabActions, tabData]);
 
     const focusedTileIds = tabData?.focusedTileIds;
+    const safeFocusedTileIds = focusedTileIds ? Array.from(focusedTileIds) : [undefined, undefined];
 
-    const focusedTileItems: [{ item: TileProps | undefined, index: number } | undefined, { item: TileProps | undefined, index: number } | undefined] = focusedTileIds?.map(
+    const focusedTileItems: [TileProps | undefined, TileProps | undefined] = safeFocusedTileIds.map(
         tile => {
             const index = tileProps.findIndex(item => item.i == tile);
             const item = index !== -1 ? tileProps[index] : undefined;
-            return index !== -1 ? { item, index } : undefined;
+            return index !== -1 ? item : undefined;
         }
-    ) as [{ item: TileProps | undefined, index: number } | undefined, { item: TileProps | undefined, index: number } | undefined];
+    ) as [TileProps | undefined, TileProps | undefined];
 
-    const tiles = focusedTileItems.map((tileData: { item: TileProps | undefined, index: number } | undefined, idx: number) => {
-        const item = tileData?.item as TileProps;
-        const index = tileData?.index as number;
+    const tiles = focusedTileItems.map((item: TileProps | undefined, idx: number) => {
+        const index = tileProps.findIndex(it => it.i == item?.i);
         return (
             item
                 ? <div className="h-full relative pt-2">
@@ -77,9 +77,10 @@ const FocusDialog = ({
                             <ActionButton
                                 className="remove cursor-pointer hover:z-10"
                                 onClick={() => {
-                                    focusedTileIds![idx] = undefined;
-                                    tabActions?.setFocusedTileIds([...focusedTileIds!]);
-                                    if (focusedTileIds![0] == undefined && focusedTileIds![1] == undefined)
+                                    const newFocusedTileIds = [...safeFocusedTileIds];
+                                    newFocusedTileIds[idx] = undefined;
+                                    tabActions?.setFocusedTileIds(newFocusedTileIds as [string | undefined, string | undefined]);
+                                    if (newFocusedTileIds[0] == undefined && newFocusedTileIds[1] == undefined)
                                         setFocusDialog(false);
                                 }}
                                 icon={<X />}
@@ -102,8 +103,9 @@ const FocusDialog = ({
                             {tileProps.filter(item => !focusedTileIds!.includes(item.i)).map((item, idx_) => <DropdownMenuItem
                                 key={idx_}
                                 onSelect={() => {
-                                    focusedTileIds![idx] = item.i;
-                                    tabActions?.setFocusedTileIds([...focusedTileIds!]);
+                                    const newFocusedTileIds = [...safeFocusedTileIds];
+                                    newFocusedTileIds[idx] = item.i;
+                                    tabActions?.setFocusedTileIds(newFocusedTileIds as [string | undefined, string | undefined]);
                                 }}
                                 className="w-64 flex justify-between items-center"
                             >

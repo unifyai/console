@@ -18,7 +18,7 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, create, set
     logs: LogProps[] | GroupedLogProps[],
     create: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
     setPending: (pending: boolean) => void,
-    refresh: () => Promise<ResponseProps | void>,
+    refresh: () => Promise<ResponseProps>,
     columnOrder: string[],
     setColumnOrder: (order: string[]) => void,
     previousColumn: string,

@@ -57,18 +57,13 @@ const Tile = ({
         state => activeProjectId ? state.projectsById[activeProjectId] : null
     );
 
-    // If tile doesn't exist, show placeholder
-    if (!tileData) {
-        return <div className="w-full h-full flex items-center justify-center p-4">Tile not found</div>;
-    }
-
     // Get the item props for grid layout (position, etc)
     const tileItem: TileProps = useMemo(() => tileActions?.asTileItem() || {
         i: tileId,
-        x: tileData.position?.x || 0,
-        y: tileData.position?.y || 0,
-        w: tileData.position?.width || 4,
-        h: tileData.position?.height || 4,
+        x: tileData?.position?.x || 0,
+        y: tileData?.position?.y || 0,
+        w: tileData?.position?.width || 4,
+        h: tileData?.position?.height || 4,
     }, [tileActions, tileData]);
 
     useWhyDidYouUpdate('TileItemEffect', [
@@ -122,7 +117,7 @@ const Tile = ({
 
     useEffect(() => {
         if (tileItem.tab != "View" && !initial)
-            tabActions?.setPending(true);
+            tileActions?.setPending(true);
     }, [tileItem.tab, tileItem.table_type, tileItem.context, tileItem.column_context]);
 
     useEffect(() => {
@@ -131,7 +126,7 @@ const Tile = ({
 
     // Render based on tile type
     const renderContent = () => {
-        switch (tileData.type) {
+        switch (tileData?.type) {
             case 'Table':
                 return (
                     <LogsTable 
@@ -157,7 +152,7 @@ const Tile = ({
             case 'Plot':
                 return (
                     <LogsPlot 
-                        interactive={tabData?.interactive || false}
+                        interactive={tabData?.interactive || true}
                         item={tileItem}
                         updateItem={(item: TileProps, attrName: ItemType) => (value: string | undefined) => {
                             tileActions?.updateTile({ [attrName]: value });

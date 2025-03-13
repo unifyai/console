@@ -90,10 +90,10 @@ const LogsTable = ({
   updateInterface: (savedTab?: any) => Promise<ResponseProps>,
 }) => {
   // Get access to the tab context and actions
-  const { tab: tabData, actions: tabActions } = useTab(tabId, interfaceId, projectId);
+  const { tab: tabData } = useTab(tabId, interfaceId, projectId);
   
   // Get access to the tile and its actions
-  const { actions: tileActions } = useTile(tileId, tabId, interfaceId, projectId);
+  const { tile: tileData, actions: tileActions } = useTile(tileId, tabId, interfaceId, projectId);
   
   // Get access to the table tile specific data and actions
   const { tableTile: tableData, actions: tableTileActions } = useTableTile(tileId, tabId, interfaceId, projectId);
@@ -103,7 +103,7 @@ const LogsTable = ({
 
   // UI state from the tab
   const interactive = tabData?.interactive || false;
-  const pending = tabData?.pending || tabData?.dataPending || false;
+  const pending = tabData?.pending || tabData?.dataPending || tileData?.pending;
 
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false);
@@ -555,14 +555,8 @@ const LogsTable = ({
                       tableArguments={tableArguments}
                       logs={logs}
                       create={derivedEntryActions.create}
-                      setPending={() => tabActions?.setPending(true)}
-                      refresh={async () => {
-                        try {
-                          await updateInterface();
-                        } catch (err) {
-                          console.error("Error updating interface:", err);;
-                        }
-                      }}
+                      setPending={(pending: boolean) => tileActions?.setPending(pending)}
+                      refresh={() => updateInterface()}
                       columnOrder={columnOrder}
                       setColumnOrder={(order: string[]) => updateItem(item as TileProps, "column_order")(order.join(","))}
                       previousColumn={previousColumn}
@@ -580,14 +574,8 @@ const LogsTable = ({
                       tableArguments={tableArguments}
                       logs={logs}
                       update={derivedEntryActions.update}
-                      setPending={() => tabActions?.setPending(true)}
-                      refresh={async () => {
-                        try {
-                          await updateInterface();
-                        } catch (err) {
-                          console.error("Error updating interface:", err);
-                        }
-                      }}
+                      setPending={(pending: boolean) => tileActions?.setPending(pending)}
+                      refresh={() => updateInterface()}
                       updateLoading={updateLoading}
                       setUpdateLoading={setUpdateLoading}
                       renderMode={renderMode as "button" | "menuItem"}
