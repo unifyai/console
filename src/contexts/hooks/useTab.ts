@@ -43,6 +43,7 @@ export interface TabActions {
   setPending: (pending: boolean) => void;
   setRefreshing: (refreshing: boolean) => void;
   setTempTabCreated: (tempTabCreated: boolean) => void;
+  setTilesPending: (pending: boolean) => void;
   setFocusedTileIds: (focusedTileIds: [string | undefined, string | undefined]) => void;
   
   // Tile management
@@ -345,6 +346,15 @@ export function useTab(
       setTempTabCreated: (tempTabCreated) => {
         if (activeProjectId && activeInterfaceId && tabId) {
           storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { tempTabCreated });
+        }
+      },
+
+      setTilesPending: (pending: boolean) => {
+        // Set pending field for all tiles
+        if (activeProjectId && activeInterfaceId && tabId) {
+          Object.values(tiles).forEach((tile) => {
+            storeUpdateTile(activeProjectId, activeInterfaceId, tabId, tile.id, { pending });
+          });
         }
       },
       

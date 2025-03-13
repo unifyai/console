@@ -118,7 +118,7 @@ const InterfaceTabs = ({
                                 newTabName, project as string, context, defaultItems, defaultNewCounter, false
                             ).then(() => {
                                 interfaceActions?.setTabIds([...tabIds, newTabName]);
-                                tabActions?.setPending(true);
+                                tabActions?.setTilesPending(true);
                                 setTabQueryParam(newTabName);
                                 setTabQueryParamState(newTabName);
                             });
