@@ -34,7 +34,7 @@ const DefaultProject = ({
     const [pendingLocal, setPendingLocal] = useState(false);
     const [imageDialog, setImageDialog] = useState(false);
     const [demo, setDemo] = useQueryState("demo");
-    const [create, _] = useQueryState("create");
+    const [create, setCreate] = useQueryState("create");
     const demosTree = buildNestedDropdownTree(Object.keys(demos));
     const {
         project: demoProject,
@@ -75,6 +75,7 @@ const DefaultProject = ({
                 "_blank",
                 "noopener,noreferrer"
             );
+            setCreate(null);
         } else {
             setPendingLocal(true);
             projectActions.create(demoProject).then(() => {
@@ -92,6 +93,7 @@ const DefaultProject = ({
                                     "noopener,noreferrer"
                                 );
                                 setPendingLocal(false);
+                                setCreate(null);
                             }, 3000);
                         });
                     }
@@ -116,6 +118,7 @@ const DefaultProject = ({
                                     "noopener,noreferrer"
                                 );
                                 setPendingLocal(false);
+                                setCreate(null);
                             }, 3000);
                         });
                     }
@@ -138,6 +141,7 @@ const DefaultProject = ({
                                             "noopener,noreferrer"
                                         );
                                         setPendingLocal(false);
+                                        setCreate(null);
                                     }, 3000);
                                 });
                             }
@@ -149,6 +153,7 @@ const DefaultProject = ({
                                         "noopener,noreferrer"
                                     );
                                     setPendingLocal(false);
+                                    setCreate(null);
                                 }, 3000);
                             }
                         });
@@ -184,7 +189,10 @@ const DefaultProject = ({
     return <>
         <div className="h-[94vh] flex flex-col gap-4 items-center">
             <div className="mt-4 flex justify-center font-semibold">
-                Please select a project, create a project or select a demo below
+                {create
+                    ? "Creating the new project, please wait..."
+                    : "Please select a project, create a project or select a demo below"
+                }
             </div>
             <div className="my-auto flex gap-8">
                 {demoGif != undefined && <div className="mb-1 flex flex-col items-center gap-4">
@@ -248,7 +256,10 @@ const DefaultProject = ({
                             <ActionButton icon={<ExternalLink />} tooltip={"Learn more"} />
                         </Link>
                         <ActionButton
-                            icon={pendingLocal ? <Loader2 className="animate-spin" /> : <Play />}
+                            icon={(pendingLocal || create != null)
+                                ? <Loader2 className="animate-spin" />
+                                : <Play />
+                            }
                             tooltip={"Run Demo"}
                             onClick={() => storeDemo(
                                 demoProject,
