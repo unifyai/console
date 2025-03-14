@@ -6,6 +6,7 @@ import { processContext } from "./columnOperations";
 import { LogsActions, TileProps } from "@/types/evals/grid";
 import { Row } from "@tanstack/react-table";
 import { getGroupingFilters, maybeConvertRawToGroupedLogs } from "./grouping";
+import { TreeNode } from "@/types/common";
 
 /* 
     Convert object / string inputs to their length value and return the value of numeric inputs. 
@@ -118,45 +119,29 @@ export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFiel
   return { entriesProperties, paramsProperties, logs, params };
 }
 
-const getColumnMetrics = async (
+export const getColumnMetrics = async (
   project: string | null,
+  context: string | null,
   column_context: string | null,
   columns: string[],
-  expression: string | null,
+  filterExpression: string | null,
+  groupingExpression: string | null,
   metric: string | undefined,
   logsActions: LogsActions
 ) => {
   let fullColumns = columns
   if (column_context)
     fullColumns = fullColumns.map(column => processContext("merge", column_context, column))
-  const metricValues = await Promise.all(
-    fullColumns.map(async (key) => {
-      try {
-        const result = await logsActions.getMetrics(
-          project!,
-          expression,
-          metric ? metric : "mean",
-          key
-        );
-        return result;
-      } catch (error) {
-        console.error(`Error fetching metric for key ${key}`);
-        return "";
-      }
-    })
+  return await logsActions.getMetrics(
+    project!, context!, filterExpression, groupingExpression, metric ? metric : "mean", fullColumns
   );
-  const metrics_: { [key: string]: any } = columns.length
-    ? columns
-      .map((key, index) => ({ [key]: metricValues[index] }))
-      .reduce((acc, curr) => ({ ...acc, ...curr }))
-    : {};
-  return metrics_
 }
 
 export const getLogsDetails = async (
   item: TileProps,
   logsData: LogsResponseProps,
   fields: LogFieldsResponseProps,
+  context: string | null,
   column_context: string | null,
   project: string | null,
   filterExpression: string | null,
@@ -171,39 +156,34 @@ export const getLogsDetails = async (
     logsData, fields, column_context, sorting, hiddenColumns
   );
 
-  let groupedMetrics: {[key: string]: {[key: string]: number | string}} = {};
+  const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
+
+  let groupedMetrics: {[key: string]: {[key: string]: {[key: string]: number | string}}} = {};
   if (groupingExpression) {
-    const dataTypes = fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type])) : {}
-    const allColumns = [...paramsProperties, ...entriesProperties];
-    Object.keys((logsData.logs as GroupedLogPropsRaw)[groupingExpression] || {}).filter(
-      key => !["count", "group_count"].includes(key) && Boolean(key)
-    ).forEach(async (groupingValue) => {
-      const groupingColumnId = (groupingExpression as string).split(",")[0];
-      const metric_ = metric ?? "mean";
-      const { updatedFilterExpression } = getGroupingFilters(
-        filterExpression, groupingColumnId, groupingValue, "", dataTypes, fields
-      );
-      const metrics = await Promise.all(allColumns.map(async (key) => await logsActions.getMetrics(
-          project!,
-          updatedFilterExpression,
-          metric_,
-          key.replace("Entries/", "").replace("Parameters/", "")
-      )));
-      groupedMetrics[groupingValue] = metrics.map(
-        (metric, idx) => ({ [allColumns[idx]]: metric })).reduce((acc, curr) => ({ ...acc, ...curr }), {}
-      );
-    });
+    // const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
+    // const groupingColumnId = (groupingExpression as string).split(",")[0];
+    // const metric_ = metric ?? "mean";
+    // const metrics = await getColumnMetrics(
+    //   project, context, column_context, numericColumns, filterExpression, groupingColumnId, metric_, logsActions
+    // ) as { [key: string]: { [key: string]: number | string }};
+    // groupedMetrics[groupingColumnId] = metrics;
   }
 
   /* Handle column metrics */
   // Getting metrics for filtered logs, and min / max values for full logs.
   // Min / max bounds are used to set the filtering range for numeric columns
-  const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
-  const [metrics, minimums, maximums] = await Promise.all([
-    getColumnMetrics(project, column_context, columns, filterExpression, item.metric, logsActions),
-    getColumnMetrics(project, column_context, columns, null, "min", logsActions),
-    getColumnMetrics(project, column_context, columns, null, "max", logsActions)
-  ]);
+  // const [metrics, minimums, maximums] = await Promise.all([
+  //   getColumnMetrics(
+  //     project, context, column_context, columns, filterExpression, null, item.metric, logsActions
+  //   ) as Promise<{ [key: string]: number }>,
+  //   getColumnMetrics(
+  //     project, context, column_context, columns, null, null, "min", logsActions
+  //   ) as Promise<{ [key: string]: number }>,
+  //   getColumnMetrics(
+  //     project, context, column_context, columns, null, null, "max", logsActions
+  //   ) as Promise<{ [key: string]: number }>
+  // ]);
+  const [metrics, minimums, maximums] = [{}, {}, {}];
 
   // Min-max boundaries for numeric and time-like column filters
   const boundaries = { minimums, maximums }
@@ -254,3 +234,27 @@ export function getLeafRows(row: Row<GroupedLogProps | LogProps>): Row<LogProps>
   traverse(row);
   return result;
 }
+
+export const buildNestedDropdownTree = (paths: string[]) => {
+  const root: TreeNode = { path: '', children: {}, isComplete: false };
+
+  paths.forEach(path => {
+      let current = root;
+      const parts = path.split('/').filter(Boolean);
+
+      let currentPath = '';
+      parts.forEach((part, index) => {
+          currentPath += part + '/';
+          if (!current.children[part]) {
+              current.children[part] = {
+                  path: currentPath,
+                  children: {},
+                  isComplete: index === parts.length - 1
+              };
+          }
+          current = current.children[part];
+      });
+  });
+
+  return root;
+};

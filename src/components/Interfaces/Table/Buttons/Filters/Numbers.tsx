@@ -17,6 +17,7 @@ import {  DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/UI/dialog";
 import { sanitizeId } from "@/utils/evals/columnOperations";
+import { formatNumber } from "@/utils/formatNumber";
 
 interface NumericFilter {
     key: number,
@@ -70,8 +71,8 @@ const NumericColumnFilter = ({
     const modes = options.map(option => option.name)
 
     const [minValue, maxValue] = [boundaries.minimums[column], boundaries.maximums[column]]
-    const sliderMin = Math.floor(minValue);
-    const sliderMax = Math.ceil(maxValue);
+    const sliderMin = minValue;
+    const sliderMax = maxValue;
 
     // Choose step size based on data type
     let stepSize = 1; // default step for non-float
@@ -228,8 +229,8 @@ const NumericColumnFilter = ({
                             className="mb-2 flex w-full items-center justify-between gap-2 text-xs font-medium text-muted-foreground"
                             aria-hidden="true"
                         >
-                            <span>{sliderMin}</span>
-                            <span>{sliderMax}</span>
+                            <span>{formatNumber(sliderMin)}</span>
+                            <span>{formatNumber(sliderMax)}</span>
                         </span>
                         <Slider
                             className="w-full"
@@ -317,7 +318,7 @@ const NumericColumnFilter = ({
                         "
                     >
                         {button}
-                        <span>Filter by this column</span>
+                        <span>Filter column</span>
                     </DropdownMenuItem>
                 ) : (
                     button

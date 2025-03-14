@@ -184,7 +184,9 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
                         )}
                     </DropdownMenuGroup>
 
-    const derived = ColumnCreate ? ColumnCreate(header.column.id, setOpen) : null;
+    const derived = ColumnCreate 
+        ? <DropdownMenuItem>{ColumnCreate(header.column.id, setOpen)}</DropdownMenuItem> 
+        : null;
     
     return (
         <div className="absolute -right-2 z-10 hover:opacity-100 opacity-0 transition-all">

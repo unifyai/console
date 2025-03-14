@@ -14,7 +14,6 @@ import { getColumnGroupIDs } from "@/utils/evals/table";
 
 // Column action components
 import ColumnSort from "../Buttons/ColumnSort";
-import ColumnGroupBy from "../Buttons/ColumnGroupBy";
 import ColumnHide from "../Buttons/ColumnHide";
 import ColumnShow from "../Buttons/ColumnShow";
 import ColumnContext from "../Buttons/ColumnContext";
@@ -48,8 +47,10 @@ const DataTableHeader = ({
   setColumnVisibility,
   grouping,
   setGrouping,
+  ColumnGroupBy,
   ColumnGroupSort,
   ColumnFilters,
+  ColumnDelete,
   ColumnCreate,
   ColumnUpdate,
   context,
@@ -81,8 +82,10 @@ const DataTableHeader = ({
   setColumnVisibility: (columnVisibility: { [key: string]: boolean }) => void,
   grouping: string[],
   setGrouping: (grouping: string[]) => void,
+  ColumnGroupBy?: (column: Column<any | unknown>, groupLoading: boolean, setGroupLoading: (groupLoading: boolean) => void, setIsGrouped: (isGrouped: boolean) => void, setGroupSortLoading: (groupSortLoading: boolean) => void, renderMode: "button" | "menuItem") => ReactNode,
   ColumnGroupSort?: (column: Column<any | unknown>, groupSortLoading: boolean, setGroupSortLoading: (groupSortLoading: boolean) => void, setIsGroupSorted: (isGroupSorted: boolean) => void, renderMode: "button" | "menuItem") => ReactNode,
   ColumnFilters?: (column: Column<any | unknown>, filterLoading: boolean, setIsFiltered: (isFiltered: boolean) => void, setFilterLoading: (filterLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode,
+  ColumnDelete?: (column: Column<any | unknown>) => ReactNode,
   ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode,
   ColumnUpdate?: (key: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem" ) => ReactNode,
   context: string | null,
@@ -121,6 +124,14 @@ const DataTableHeader = ({
   const isNotUtilColumn = header.column.columnDef.meta?.columnType != "util";
   const isDerivedColumn = header.column.columnDef.meta?.fieldType === "derived_entry";
   const isImageColumn = header.column.columnDef.meta?.dataType === "image";
+  const isGroupSortableColumn = 
+    header.column.columnDef.meta?.dataType === "float" || 
+    header.column.columnDef.meta?.dataType === "int" || 
+    header.column.columnDef.meta?.dataType === "bool" || 
+    header.column.columnDef.meta?.dataType === "timestamp" || 
+    header.column.columnDef.meta?.dataType === "time" ||
+    header.column.columnDef.meta?.dataType === "datetime" ||
+    header.column.columnDef.meta?.dataType === "timedelta"
 
   // Handle pinning animation
   const isPinning = pinningState.isPinning && (
@@ -229,10 +240,14 @@ const DataTableHeader = ({
   // - Applies selection (hover) background color on any column header for which all (some) cells are selected
   // - Applied selection (hover) background color index column header if all (some) table cells are selected
   const [hovered, setHovered] = useState(false);
-  const isAllColumnSelected = (header: Header<any, unknown>) =>
-    table.getRowModel().rows.length && getCellsFromHeader(header).every(cell => isCellSelected(cell))
+  const isAllColumnSelected = (header: Header<any, unknown>) => {
+    const validCells = getCellsFromHeader(header).filter(cell => cell.getValue() !== undefined || cell.column.id === "RowNumbering")
+    return validCells.length && validCells.every(cell => isCellSelected(cell))
+  }
   const isAllTableSelected = () => 
-    table.getRowModel().rows.length && getSelectableTableCells(table).every(cell => isCellSelected(cell))
+    table.getRowModel().rows.length && 
+    getSelectableTableCells(table).every(cell => isCellSelected(cell)) && 
+    Object.entries(columnVisibility).filter(([, v]) => v).length != 1
 
   const style: CSSProperties = {
     boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
@@ -246,8 +261,10 @@ const DataTableHeader = ({
     width: `${Math.round(header.getSize())}px`,
     minWidth: isDerivedColumn ? '150px' : undefined,
     zIndex: isColumnDragging || isPinned ? 1 : 0,
+    borderLeft: header.column.id === "RowNumbering" ? "1px solid var(--muted)" : undefined,
     borderRight: "1px solid var(--muted)",
-    borderBottom: "1px solid var(--muted)",   
+    borderTop: "1px solid var(--muted)",
+    borderBottom: header.depth >= 1 && !header.subHeaders.length ? "1px solid var(--muted)" : undefined,
     color: isAllColumnSelected(header) ? "var(--primary-foreground)" : "",
     backgroundColor: isNotUtilColumn
       ? isAllColumnSelected(header) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
@@ -257,24 +274,20 @@ const DataTableHeader = ({
   // Visible action buttons for active states
   const renderVisibleActions = () => (
     <>
-      <div
-          className={`${showGroupButton() ? "" : "hidden"}`}
-      >
-        {(
-          <ColumnGroupBy
-          interactive={interactive}
-          auto_update={auto_update}
-          column={header.column}
-          grouping={grouping}
-          setGrouping={setGrouping}
-          data={data}
-          groupLoading={groupLoading}
-          setGroupLoading={setGroupLoading}
-          setIsGrouped={setIsGrouped}
-          renderMode="button"
-        />
-        )}
-      </div>
+      {ColumnGroupBy && 
+        <div
+            className={`${showGroupButton() ? "" : "hidden"}`}
+        >
+          {ColumnGroupBy(
+            header.column,
+            groupLoading,
+            setGroupLoading,
+            setGroupSortLoading,
+            setIsGrouped,
+            "button"
+          )}
+        </div>
+      }
       <div
           className={`${showSortButton() ? "" : "hidden"}`}
       >
@@ -387,20 +400,16 @@ const DataTableHeader = ({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="min-w-[8rem]">
                         <DropdownMenuGroup>
-                          {!isGrouped && (
+                          {!isGrouped && ColumnGroupBy && (
                             <DropdownMenuItem>
-                              <ColumnGroupBy
-                                interactive={interactive}
-                                auto_update={auto_update}
-                                column={header.column}
-                                grouping={grouping}
-                                setGrouping={setGrouping}
-                                data={data}
-                                groupLoading={groupLoading}
-                                setGroupLoading={setGroupLoading}
-                                setIsGrouped={setIsGrouped}
-                                renderMode="menuItem"
-                              />
+                              {ColumnGroupBy(
+                                header.column,
+                                groupLoading,
+                                setGroupLoading,
+                                setGroupSortLoading,
+                                setIsGrouped,
+                                "menuItem"
+                              )}
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem>
@@ -470,20 +479,16 @@ const DataTableHeader = ({
                             onPointerOver={(e) => e.stopPropagation()}
                           >
                             <DropdownMenuGroup>
-                            {!isImageColumn && !isGrouped && (
+                            {!isImageColumn && !isGrouped && ColumnGroupBy && (
                               <DropdownMenuItem>
-                                  <ColumnGroupBy
-                                    interactive={interactive}
-                                    auto_update={auto_update}
-                                    column={header.column}
-                                    grouping={grouping}
-                                    setGrouping={setGrouping}
-                                    data={data}
-                                    groupLoading={groupLoading}
-                                    setGroupLoading={setGroupLoading}
-                                    setIsGrouped={setIsGrouped}
-                                    renderMode="menuItem"
-                                  />
+                                {ColumnGroupBy(
+                                  header.column,
+                                  groupLoading,
+                                  setGroupLoading,
+                                  setGroupSortLoading,
+                                  setIsGrouped,
+                                  "menuItem"
+                                )}
                                 </DropdownMenuItem>
                               )}
                               {!isSorted && (
@@ -499,7 +504,7 @@ const DataTableHeader = ({
                                   />
                                 </DropdownMenuItem>
                               )}
-                              {!isGroupSorted && !isGrouped && grouping.length && ColumnGroupSort 
+                              {!isGroupSorted && !isGrouped && grouping.length && isGroupSortableColumn && ColumnGroupSort 
                                   ? (
                                       <DropdownMenuItem>
                                         {ColumnGroupSort(
@@ -541,7 +546,8 @@ const DataTableHeader = ({
                                     setUpdateOpen,
                                     "menuItem",
                                   )
-                                )}
+                              )}
+                              {ColumnDelete && !isGrouped && ColumnDelete(header.column)}
                             </DropdownMenuGroup>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -575,19 +581,15 @@ const DataTableHeader = ({
             ? "invisible"
             : "hidden"
           }`}>
-            {!isImageColumn && (
-              <ColumnGroupBy
-                interactive={interactive}
-                auto_update={auto_update}
-                column={header.column}
-                grouping={grouping}
-                setGrouping={setGrouping}
-                data={data}
-                groupLoading={groupLoading}
-                setGroupLoading={setGroupLoading}
-                setIsGrouped={setIsGrouped}
-                renderMode="button"
-              />
+            {!isImageColumn && ColumnGroupBy && (
+              ColumnGroupBy(
+                header.column,
+                groupLoading,
+                setGroupLoading,
+                setGroupSortLoading,
+                setIsGrouped,
+                "button"
+              )
             )}
             {!isParentColumn && (
               <ColumnSort
@@ -646,7 +648,7 @@ const DataTableHeader = ({
 
             {/* Column show - half */}
             {!header.isPlaceholder && (
-                <div className="absolute top-1.5 right-0" style={{ height: '33.33%' }}>
+              <div className={`absolute ${hasActiveActions ? "top-1/2" : "top-1/3"} right-0 transform -translate-y-1/2`} style={{ height: '33.33%' }}>
                     <ColumnShow
                         table={table}
                         header={header}

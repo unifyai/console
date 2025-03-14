@@ -35,7 +35,7 @@ const ColumnHide = (({
         renderMode === "menuItem" ? (
             <DropdownMenuItem onClick={hideColumns} className="flex items-center gap-2 cursor-pointer">
                 <EyeOff className="h-4 w-4"/>
-                <span>{isParentColumn ? "Hide all child columns" : "Hide this column"}</span>
+                <span>{isParentColumn ? "Hide children columns" : "Hide column"}</span>
             </DropdownMenuItem>
         ) : (
             <ActionButton tooltip={isParentColumn ? "Hide All" : "Hide"} icon={<CircleMinus/>} onClick={hideColumns}/>

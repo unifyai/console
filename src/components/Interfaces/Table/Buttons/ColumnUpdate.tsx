@@ -13,6 +13,7 @@ import { expressionToDerivedFunction, derivedFunctionToExpression } from "@/util
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/UI/dialog";
 import { sanitizeId } from "@/utils/evals/columnOperations";
+import { buildFilterExpressionArgument } from "@/utils/evals/filters";
 
 const ColumnUpdate = ({
     project,
@@ -83,7 +84,7 @@ const ColumnUpdate = ({
         const target_derived_logs = Object.fromEntries(
             Object.entries(tableArguments)
                   .filter(([key, _]) => previousReferencedTables.includes(key))
-                  .map(([key, args]) => [key, args.getLogs_parameters])
+                  .map(([key, args]) => [key, buildFilterExpressionArgument(args).getLogs_parameters])
         );
         
         let newReferencedTables : (keyof TableArguments)[] = tables.filter(table => equation.includes(table))
@@ -91,7 +92,7 @@ const ColumnUpdate = ({
         const referenced_logs = Object.fromEntries(
             Object.entries(tableArguments)
                   .filter(([key, _]) => newReferencedTables.includes(key))
-                  .map(([key, args]) => [key, args.getLogs_parameters])
+                  .map(([key, args]) => [key, buildFilterExpressionArgument(args).getLogs_parameters])
         );
 
         setUpdateLoading(true);
@@ -139,8 +140,8 @@ const ColumnUpdate = ({
     ) : (
         <TbMathFunction className="h-4 w-4"/>
     )
-    const body =    <div className="p-2 flex flex-col gap-1 h-full w-[400px]" onClick={(e) => e.stopPropagation()}>
-                        <FormulaInput options={options} value={expression} setValue={handleExpression} onEnter={onEnter}/>
+    const body =    <div className="flex flex-col gap-1 h-full" onClick={(e) => e.stopPropagation()}>
+                        <FormulaInput options={options} value={expression} setValue={handleExpression} onEnter={onEnter} className="left-8"/>
                     </div>
     const footer =  <div className="p-2 flex flex-row gap-1 justify-between">
                         {warning(errorMessage)}

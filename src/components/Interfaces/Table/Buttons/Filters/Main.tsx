@@ -65,7 +65,7 @@ const ColumnFilter = ({
         setIsFiltered={setIsFiltered}
         renderMode={renderMode}/>
     }
-    else if (dataTypes[column] === "timestamp") {
+    else if (dataTypes[column] === "timestamp" || dataTypes[column] === "time" || dataTypes[column] === "datetime" || dataTypes[column] === "deltatime") {
         filter = <TimeColumnFilter
         interactive={interactive}
         column={column}

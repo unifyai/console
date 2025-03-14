@@ -10,13 +10,16 @@ import { LoaderCircle } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import FormulaInput from "@/components/Common/Input/Formula";
 import { expressionToDerivedFunction } from "@/utils/evals/derivedColumns";
+import { buildFilterExpressionArgument } from "@/utils/evals/filters";
+import { Dialog, DialogTrigger, DialogContent } from "@/components/UI/dialog";
 
-const ColumnCreate = ({ project, currentTable, tableArguments, logs, create, setPending, refresh, columnOrder, setColumnOrder, previousColumn, setOpen }: {
+const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, create, setPending, refresh, columnOrder, setColumnOrder, previousColumn, setOpen }: {
     project: string,
+    context: string | undefined,
     currentTable: string,
     tableArguments: TableArguments,
     logs: LogProps[] | GroupedLogProps[],
-    create: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
+    create: (project: string, context: string | undefined, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
     setPending: (pending: boolean) => void,
     refresh: () => Promise<ResponseProps>,
     columnOrder: string[],
@@ -35,9 +38,13 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, create, set
         )
     const tables = options.filter(option => option.type === "Table Name").map(option => option.name)
     const columns = options.filter(option => option.type === "Column Name").map(option => option.name);
+    
+    // Implicitly append column context to the name
+    let columnContextPrefix = previousColumn.split("/").slice(1, -1).join("/")
+    if (columnContextPrefix.length) columnContextPrefix += "/"
 
     // State tracking
-    const [name, setName] = useState<string>("");
+    const [name, setName] = useState<string>(columnContextPrefix);
     const [nameError, setNameError] = useState<string>("");
     const [expression, setExpression] = useState<string>("");
     const [equation, setEquation] = useState<string>("");
@@ -72,10 +79,10 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, create, set
         const referencedArguments = Object.fromEntries(
             Object.entries(tableArguments)
                   .filter(([key, _]) => referencedTables.includes(key))
-                  .map(([key, args]) => [key, args.getLogs_parameters])
+                  .map(([key, args]) => [key, buildFilterExpressionArgument(args).getLogs_parameters])
         );
         setLoading(true);
-        create(project, name, equation, referencedArguments).then(async (response: ResponseProps) => {
+        create(project, context, name, equation, referencedArguments).then(async (response: ResponseProps) => {
             if ("info" in response) {
                 
                 // Update states
@@ -134,45 +141,49 @@ const ColumnCreate = ({ project, currentTable, tableArguments, logs, create, set
     const warning = (error: string) => 
                     <p style={{"scrollbar-width": "thin"} as React.CSSProperties} className="flex justify-start text-sm text-destructive overflow-x-auto max-w-[300px]">{error}</p>
     const submit =  <div className="flex justify-end">
-                        <SubmitButton text="Apply" onClick={() => onSubmit()}/>
+                        <SubmitButton text={loading ? "Creating column" : "Create"} onClick={() => onSubmit()} icon={loading && <LoaderCircle className="animate-spin text-white"/>} />
                     </div>
+    const body =    <div className="px-2 pb-2 flex flex-col gap-1 h-full w-[400px]" onClick={(e) => e.stopPropagation()}>
 
-    const trigger = loading ? <LoaderCircle className="animate-spin text-white">Creating column..</LoaderCircle> : "New Column"
-    const body =    <div className="p-2 flex flex-col gap-1 h-full w-[400px]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex flex-col h-full">
+            <DropdownMenuLabel className="text-sm font-semibold">Column name</DropdownMenuLabel>
+            {column}
+            {nameError && warning(nameError)}
+        </div>
 
-                        <div className="flex flex-col h-full">
-                            <DropdownMenuLabel className="text-sm font-semibold">Column name</DropdownMenuLabel>
-                            {column}
-                            {nameError && warning(nameError)}
-                        </div>
+        <div className="flex flex-col h-full">
+            <DropdownMenuLabel className="text-sm font-semibold">Derived expression</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-sm font-normal">
+                <p>Enter a mathematical expression to evaluate. You can use any entry column name as variable.</p>
+            </DropdownMenuLabel>
+            {entry}
+        </div>
 
-                        <div className="flex flex-col h-full">
-                            <DropdownMenuLabel className="text-sm font-semibold">Derived expression</DropdownMenuLabel>
-                            <DropdownMenuLabel className="text-sm font-normal">
-                                <p>Enter a mathematical expression to evaluate. You can use any entry column name as variable.</p>
-                            </DropdownMenuLabel>
-                            {entry}
-                        </div>
-
-                    </div>
+    </div>
     const footer =  <div className="p-2 flex flex-row gap-5 justify-between w-full">
-                        {warning(errorMessage)}
-                        {name && expression && !nameError && submit}
-                    </div>
+        {warning(errorMessage)}
+        {name && expression && !nameError && submit}
+    </div>
 
     return (
-    <DropdownMenuGroup> 
-        <DropdownMenuSub>
-            <DropdownMenuSubTrigger disabled={loading} className="hover:text-white data-[state=open]:text-white">{trigger}</DropdownMenuSubTrigger>
-            <DropdownMenuPortal>
-                <DropdownMenuSubContent>
-                    {body}
-                    {footer}
-                </DropdownMenuSubContent>
-            </DropdownMenuPortal>
-        </DropdownMenuSub>
-    </DropdownMenuGroup>
-    );
+        <Dialog open={loading ? true : undefined}>
+            <DialogTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <span>New column</span>
+            </DialogTrigger>    
+            <DialogContent 
+                // Stop clicks from closing the parent if it’s still around
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={(e) => e.stopPropagation()}
+                onPointerOver={(e) => e.stopPropagation()}
+                // Prevent auto-focus on the first input element
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                className="sm:max-w-lg"
+            >
+                {body}
+                {footer}
+            </DialogContent>
+        </Dialog>
+    )
 }
 
 export default ColumnCreate;

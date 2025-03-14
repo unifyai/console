@@ -31,9 +31,12 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     columns: ColumnDef<TData, unknown>[];
     state: StateProps;
     setState: SetStateProps;
-    FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>) => ReactNode;
+    error?: string;
+    FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>) => ReactNode; 
+    ColumnGroupBy?: (column: TanstackColumn<any | unknown>, groupLoading: boolean, setGroupLoading: (groupLoading: boolean) => void, setIsGrouped: (isGrouped: boolean) => void, setGroupSortLoading: (groupSortLoading: boolean) => void, renderMode: "button" | "menuItem") => ReactNode;
     ColumnGroupSort?: (column: TanstackColumn<any | unknown>, groupSortLoading: boolean, setGroupSortLoading: (groupSortLoading: boolean) => void, setIsGroupSorted: (isGroupSorted: boolean) => void, renderMode: "button" | "menuItem") => ReactNode;
     ColumnFilters?: (column: TanstackColumn<any | unknown>, filterLoading: boolean, setIsFiltered: (isFiltered: boolean) => void, setFilterLoading: (filterLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode;
+    ColumnDelete?: (column: TanstackColumn<any | unknown>) => ReactNode;
     ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode;
     ColumnUpdate?: (key: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode;
     AggregatedCell?: (cell: TanstackCell<any, unknown>, row: TanstackRow<any | unknown>) => ReactNode;
@@ -50,8 +53,11 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     columns,
     state,
     setState,
+    error,
     FooterCell,
+    ColumnGroupBy,
     ColumnGroupSort,
+    ColumnDelete,
     ColumnFilters,
     ColumnCreate,
     ColumnUpdate,
@@ -181,7 +187,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                     onDragCancel={(event) => handleDragCancel(setState.setDraggingColumns)}
                 >
                     <Table className={`relative w-full ${className}`} style={{ width: table.getTotalSize() }}>
-                        <TableHeader className="sticky top-0 z-20 bg-background" style={{ boxShadow: '0 -4px 4px -4px gray inset' }}>
+                        <TableHeader className="sticky top-0 z-20 bg-background">
                             {table.getHeaderGroups().map((headerGroup) => (
                                 <TableRow key={headerGroup.id}>
                                     <SortableContext items={state.columnOrder} strategy={horizontalListSortingStrategy}>
@@ -200,7 +206,9 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                 setColumnVisibility={setState.setColumnVisibility}
                                                 grouping={state.grouping}
                                                 setGrouping={setState.setGrouping}
+                                                ColumnGroupBy={ColumnGroupBy}
                                                 ColumnGroupSort={ColumnGroupSort}
+                                                ColumnDelete={ColumnDelete}
                                                 ColumnFilters={ColumnFilters}
                                                 ColumnCreate={ColumnCreate}
                                                 ColumnUpdate={ColumnUpdate}
@@ -222,51 +230,66 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                         </TableHeader>
 
                         <TableBody className="contents overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
-                            {isUpdatingLogs ? (
-                                // Show skeletons for the entire table when updating logs globally
-                                renderSkeletonRows(2)
-                            ) : table.getRowModel().rows?.length ? (
-                                table.getRowModel().rows.map((row) => (
-                                    <>
-                                        <DataTableRow
-                                            key={row.id}
-                                            row={row}
-                                            table={table}
-                                            state={state}
-                                            setExpandingRowId={setExpandingRowId}
-                                            expandingRowId={expandingRowId}
-                                            RowExpanding={RowExpanding}
-                                            ExtraCellContent={ExtraCellContent}
-                                            AggregatedCell={AggregatedCell}
-                                            renderSkeletonRows={renderSkeletonRows}
-                                            cellSelection={cellSelection}
-                                            isCellSelected={isCellSelected}
-                                            isCellExpanded={isCellExpanded}
-                                            setExpandedCells={setExpandedCells}
-                                            selectedCells={state.selectedCells}
-                                            resizeMap={resizeMap}
-                                            draggingColumns={state.draggingColumns}
-                                            isAnimating={isAnimating}
-                                        />
-                                        {/* Show skeletons under the expanding row */}
-                                        {expandingRowId === row.id && 
-                                         'groupCount' in row.original && 
-                                         typeof row.original.groupCount === 'number' &&
-                                         row.original.groupCount > 0 &&
-                                         !row.original.isPopulated &&
-                                         renderSkeletonRows(2)}
-                                    </>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={finalColumns.length} className="text-center">
-                                        No entry found
-                                    </TableCell>
-                                </TableRow>
-                            )}
+                            {isUpdatingLogs 
+                                ?   (
+                                        // Show skeletons for the entire table when updating logs globally
+                                        renderSkeletonRows(2)
+                                    ) 
+                                : error 
+                                    ?   (
+                                            // Display potential error message in table as a single cell
+                                            <TableRow>
+                                                <TableCell colSpan={finalColumns.length} className="text-start text-warning min-w-[150px]" style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)", borderTop: "1px solid var(--muted)"}}>
+                                                    {error}
+                                                </TableCell>
+                                            </TableRow>
+                                        )
+                                    :   table.getRowModel().rows?.length 
+                                        ?   (
+                                                table.getRowModel().rows.map((row) => (
+                                                    <>
+                                                        <DataTableRow
+                                                            key={row.id}
+                                                            row={row}
+                                                            table={table}
+                                                            state={state}
+                                                            setExpandingRowId={setExpandingRowId}
+                                                            expandingRowId={expandingRowId}
+                                                            RowExpanding={RowExpanding}
+                                                            ExtraCellContent={ExtraCellContent}
+                                                            AggregatedCell={AggregatedCell}
+                                                            renderSkeletonRows={renderSkeletonRows}
+                                                            cellSelection={cellSelection}
+                                                            isCellSelected={isCellSelected}
+                                                            isCellExpanded={isCellExpanded}
+                                                            setExpandedCells={setExpandedCells}
+                                                            selectedCells={state.selectedCells}
+                                                            resizeMap={resizeMap}
+                                                            draggingColumns={state.draggingColumns}
+                                                            isAnimating={isAnimating}
+                                                        />
+                                                        {/* Show skeletons under the expanding row */}
+                                                        {expandingRowId === row.id && 
+                                                        'groupCount' in row.original && 
+                                                        typeof row.original.groupCount === 'number' &&
+                                                        row.original.groupCount > 0 &&
+                                                        !row.original.isPopulated &&
+                                                        renderSkeletonRows(2)}
+                                                    </>
+                                                ))
+                                            ) 
+                                            :   (
+                                                    // Display placeholder cell if no entry found
+                                                    <TableRow>
+                                                        <TableCell colSpan={finalColumns.length} className="text-center min-w-[150px]" style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)", borderTop: "1px solid var(--muted)"}}>
+                                                            No entry found
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )
+                            }
                         </TableBody>
 
-                        <TableFooter className="sticky bottom-0 z-20 bg-background border-t-2 border-foreground" style={{ boxShadow: '0 4px 4px -4px gray inset' }}>
+                        <TableFooter className="sticky bottom-0 z-20 bg-background border-t-2 border-foreground">
                             <TableRow>
                                 {isUpdatingLogs ? (
                                     finalColumns.map((_, idx) => (

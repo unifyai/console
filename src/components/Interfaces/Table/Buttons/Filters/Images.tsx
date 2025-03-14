@@ -103,7 +103,7 @@ const ImageColumnFilter = ({
                 "
             >
                 <Filter className="h-4 w-4"/>
-                <span>Filter by this column</span>
+                <span>Filter column</span>
             </DropdownMenuItem>
         ) : (
             <ActionButton icon={icon} tooltip={tooltip} variant={variant} disabled={disabled} onClick={onClick}/>

@@ -8,17 +8,29 @@ import { GroupedLogProps, LogFieldsProps, LogProps } from "@/types/evals/logs";
 import { getPartAfterFirstUnderscore } from "@/utils/evals/selection";
 import { processContext, sanitizeId } from "@/utils/evals/columnOperations";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
+import { useRouter } from "next/navigation";
 
-const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context, columnContext }: {
+const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context, columnContext, refresh, setPending }: {
 	project: string,
 	selectedCells: string[],
 	logs: LogProps[] | GroupedLogProps[],
-	deleteLogFields: (project: string, context: string | null, columnContext: string | null, ids_and_fields: LogFieldsProps, source_type: string | null) => Promise<ResponseProps>,
+	deleteLogFields: (project: string, context: string | null, ids_and_fields: LogFieldsProps, source_type: string | null) => Promise<ResponseProps>,
 	context: string | undefined,
-	columnContext: string | undefined
+	columnContext: string | undefined,
+    refresh: () => Promise<ResponseProps>,
+    setPending: (pending: boolean) => void
 }) => {
-	const [showDialog, setShowDialog] = useState(false);
 
+	const router = useRouter();
+    const onDelete = () => {
+        refresh().then(() => {
+            router.refresh();
+            setPending(true);
+        });
+    }
+
+	const [showDialog, setShowDialog] = useState(false);
+	
 	const flattenedLogs = maybeFlattenGroupedLogs(logs);
 	const deletableCells = selectedCells.filter(cell => {
 		const id = cell.split("_").at(0) as string
@@ -45,7 +57,7 @@ const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context, c
 		columnContext ? processContext("merge", columnContext, sanitizeId(getPartAfterFirstUnderscore(cell))) : sanitizeId(getPartAfterFirstUnderscore(cell))
 	])
 
-	const args = [project, context, columnContext, fieldsToDelete]
+	const args = [project, context, fieldsToDelete]
 
 	return (showDialog &&
 		<DeleteDialog
@@ -54,6 +66,7 @@ const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context, c
 			type="log entries"
 			showDialog={showDialog}
 			setShowDialog={setShowDialog}
+			onDelete={onDelete}
 		/>
 	);
 }
