@@ -123,14 +123,21 @@ const DefaultProject = ({
                     else {
                         logsActions.create(
                             demoProject, null, demoLogs.params, demoLogs.entries
-                        ).then(() => {
-                            if (demoDerivedColumns != undefined) {
-                                derivedEntryActions.create(
-                                    demoDerivedColumns.project,
-                                    demoDerivedColumns.context,
-                                    demoDerivedColumns.key,
-                                    demoDerivedColumns.equation,
-                                    demoDerivedColumns.referenced_logs
+                        ).then((logIds) => {
+                            if (demoItems.find(item => item.i == "View")) {
+                                const columns = Object.keys(demoLogs.entries[0]);
+                                const selected = columns.map(
+                                    column => `${logIds[0]}_Entries/${column}`
+                                ).join(",");
+                                demoItems[0].selected = selected;
+                                interfaceActions.update(
+                                    demoName,
+                                    demoProject,
+                                    undefined,
+                                    demoItems,
+                                    demoNewCounter,
+                                    undefined,
+                                    true
                                 ).then(() => {
                                     setTimeout(() => {
                                         setPendingLocal(false);
@@ -140,15 +147,32 @@ const DefaultProject = ({
                                         setCreate(null);
                                     }, 3000);
                                 });
-                            }
-                            else {
-                                setTimeout(() => {
-                                    setPendingLocal(false);
-                                    setProject(demoProject);
-                                    setInterface(demoName);
-                                    setDemo(null);
-                                    setCreate(null);
-                                }, 3000);
+                            } else {
+                                if (demoDerivedColumns != undefined) {
+                                    derivedEntryActions.create(
+                                        demoDerivedColumns.project,
+                                        demoDerivedColumns.context,
+                                        demoDerivedColumns.key,
+                                        demoDerivedColumns.equation,
+                                        demoDerivedColumns.referenced_logs
+                                    ).then(() => {
+                                        setTimeout(() => {
+                                            setPendingLocal(false);
+                                            setProject(demoProject);
+                                            setInterface(demoName);
+                                            setDemo(null);
+                                            setCreate(null);
+                                        }, 3000);
+                                    });
+                                } else {
+                                    setTimeout(() => {
+                                        setPendingLocal(false);
+                                        setProject(demoProject);
+                                        setInterface(demoName);
+                                        setDemo(null);
+                                        setCreate(null);
+                                    }, 3000);
+                                }
                             }
                         });
                     }
