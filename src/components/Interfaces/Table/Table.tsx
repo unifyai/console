@@ -435,13 +435,13 @@ const LogsTable = ({
   // Finally, when either of entriesProperties or paramsProperties changes
   // and if the user hasn't manually updated the column order for this context,
   // re-apply the default
-  // useEffect(() => {
-  //   if (!manualColumnOrderOverride) {
-  //     // Because user hasn't manually adjusted anything for this "fresh" context
-  //     // we revert to the updated columnIDs if we see new columns added or removed
-  //     setColumnOrder(columnIDs, false);
-  //   }
-  // }, [columnIDs, manualColumnOrderOverride]);
+  useEffect(() => {
+    if (!manualColumnOrderOverride) {
+      // Because user hasn't manually adjusted anything for this "fresh" context
+      // we revert to the updated columnIDs if we see new columns added or removed
+      setColumnOrder(columnIDs, false);
+    }
+  }, [columnIDs, manualColumnOrderOverride]);
 
   // Top area: filters, page, etc.
   const tableTop = (
