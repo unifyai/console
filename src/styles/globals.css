@@ -33,6 +33,9 @@
     --muted: var(--light-neutral-grey);
     --muted-foreground: var(--dark-slate-gray);
 
+    --warning: var(--soft-amber);
+    --warning-foreground: var(--soft-amber);
+
     --destructive: var(--alert-red);
     --destructive-foreground: var(--white-smoke);
 

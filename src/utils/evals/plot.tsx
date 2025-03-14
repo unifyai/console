@@ -201,6 +201,7 @@ const positionTooltip = (event: any, target: any, tooltip: any) => {
  * Checking if a table's logs has values for a given axis property, and getting those values, if applicable
  * Combine plot logs data across tables
  * Formatting time values depending on the time type
+ * Extracting a subset of the data if it's too large
 */
 function niceIncrement(min: number, max: number, count = 10) {
     const rawStep = (max - min) / count;
@@ -338,6 +339,15 @@ function formatTimeTypeValue(value: number, data_type: string) {
         default:
             return new Date(value).toISOString().replace("Z", "").replace("T", " ")
     }
+}
+
+function getRandomSubset(arr: any[], size: number) {
+    let shuffled = arr.slice();
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled.slice(0, size);
 }
 
 /** Main plot functions including:
@@ -863,6 +873,7 @@ export const drawScatterPlot = (
             const hasY = hasProperty(fields, yAxisProperty, log, yTable)
             return hasGroup && hasX && hasY
         })
+        data = data?.length > 1000 ? getRandomSubset(data, 1000) : data
     }
 
     // Define scales

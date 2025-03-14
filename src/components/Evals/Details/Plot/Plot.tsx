@@ -104,6 +104,8 @@ const LogsPlot = ({ logs, fields}: {
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
+                .attr("x", "50%")
+                .attr("y", "50%")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
                 .text("Select two numeric properties to plot");
@@ -138,6 +140,8 @@ const LogsPlot = ({ logs, fields}: {
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
+                .attr("x", "50%")
+                .attr("y", "50%")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
                 .text("Select a property to plot and a reduction metric");
@@ -169,6 +173,8 @@ const LogsPlot = ({ logs, fields}: {
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
+                .attr("x", "50%")
+                .attr("y", "50%")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
                 .text("Select a numeric or time property to plot");
@@ -177,7 +183,7 @@ const LogsPlot = ({ logs, fields}: {
 
         else {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                placeholder.text("");
+                if (logs.length > 1000) placeholder.text("Too many data points. Displaying a random subset.").attr("text-anchor", "start").attr("x", "5%").attr("y", "90%").attr("font-size", "12px"); else placeholder.text("");
                 const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
                 const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawScatterPlot(
@@ -203,6 +209,8 @@ const LogsPlot = ({ logs, fields}: {
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
+                .attr("x", "50%")
+                .attr("y", "50%")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
                 .text("Select two numeric properties to plot");
