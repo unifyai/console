@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Check, ExternalLink, Loader2, Play } from "lucide-react";
+import { ExternalLink, Loader2, Play } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import MarkdownRender from "../Common/Code/MarkdownRender";
 import { DerivedEntryActions, TabActions, LogsActions, ProjectsActions, TileProps } from "@/types/evals/grid";
@@ -125,14 +125,21 @@ const DefaultProject = ({
                     else {
                         logsActions.create(
                             demoProject, null, demoLogs.params, demoLogs.entries
-                        ).then(() => {
-                            if (demoDerivedColumns != undefined) {
-                                derivedEntryActions.create(
-                                    demoDerivedColumns.project,
-                                    demoDerivedColumns.context,
-                                    demoDerivedColumns.key,
-                                    demoDerivedColumns.equation,
-                                    demoDerivedColumns.referenced_logs
+                        ).then((logIds) => {
+                            if (demoItems.find(item => item.i == "View")) {
+                                const columns = Object.keys(demoLogs.entries[0]);
+                                const selected = columns.map(
+                                    column => `${logIds[0]}_Entries/${column}`
+                                ).join(",");
+                                demoItems[0].selected = selected;
+                                tabActions.update(
+                                    demoName,
+                                    demoProject,
+                                    undefined,
+                                    demoItems,
+                                    demoNewCounter,
+                                    undefined,
+                                    true
                                 ).then(() => {
                                     setTimeout(() => {
                                         setPendingLocal(false);
@@ -142,15 +149,32 @@ const DefaultProject = ({
                                         setCreate(null);
                                     }, 3000);
                                 });
-                            }
-                            else {
-                                setTimeout(() => {
-                                    setPendingLocal(false);
-                                    setProjectQueryParam(demoProject);
-                                    setTabQueryParam(demoName);
-                                    setDemo(null);
-                                    setCreate(null);
-                                }, 3000);
+                            } else {
+                                if (demoDerivedColumns != undefined) {
+                                    derivedEntryActions.create(
+                                        demoDerivedColumns.project,
+                                        demoDerivedColumns.context,
+                                        demoDerivedColumns.key,
+                                        demoDerivedColumns.equation,
+                                        demoDerivedColumns.referenced_logs
+                                    ).then(() => {
+                                        setTimeout(() => {
+                                            setPendingLocal(false);
+                                            setProjectQueryParam(demoProject);
+                                            setTabQueryParam(demoName);
+                                            setDemo(null);
+                                            setCreate(null);
+                                        }, 3000);
+                                    });
+                                } else {
+                                    setTimeout(() => {
+                                        setPendingLocal(false);
+                                        setProjectQueryParam(demoProject);
+                                        setTabQueryParam(demoName);
+                                        setDemo(null);
+                                        setCreate(null);
+                                    }, 3000);
+                                }
                             }
                         });
                     }
@@ -265,7 +289,7 @@ const DefaultProject = ({
                             disabled={disabled}
                         />
                     </div>
-                    <MarkdownRender content={`\`\`\`python${demoCode}\`\`\``} noBackground />
+                    <MarkdownRender content={`\`\`\`python${demoCode}\`\`\``} darkOnly />
                 </div>
             </div>
         </div>
