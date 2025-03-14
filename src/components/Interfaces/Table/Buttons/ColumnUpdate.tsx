@@ -59,7 +59,7 @@ const ColumnUpdate = ({
     const columns = options.filter(option => option.type === "Column Name").map(option => option.name);
 
     // State tracking
-    const previousExpression = derivedFunctionToExpression(previousEquation)
+    const previousExpression = derivedFunctionToExpression(previousEquation, tables, columns)
     const [expression, setExpression] = useState<string>(previousExpression);
     const [equation, setEquation] = useState<string>("");
     const [errorMessage, setErrorMessage] = useState<string>("");
