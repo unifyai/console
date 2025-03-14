@@ -19,7 +19,7 @@ import { useProject } from '@/contexts/hooks/useProject';
 import { useTab } from '@/contexts/hooks/useTab';
 import { TabProps } from "@/types/evals/grid";
 import { useQueryState } from "nuqs";
-import { ProjectsActions, TabActions, LogsActions, FieldsActions, DerivedEntryActions } from '@/types/evals/grid';
+import { ProjectsActions, TabActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions } from '@/types/evals/grid';
 import { ResponseProps } from '@/types/common';
 
 interface InterfaceComponentProps {
@@ -29,6 +29,7 @@ interface InterfaceComponentProps {
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
+  contextActions: ContextActions;
 }
 
 const Interface = ({ 
@@ -37,7 +38,8 @@ const Interface = ({
   tabActions: serverTabActions,
   logsActions,
   fieldsActions,
-  derivedEntryActions 
+  derivedEntryActions,
+  contextActions
 }: InterfaceComponentProps) => {
   const router = useRouter();
 
@@ -170,6 +172,7 @@ const Interface = ({
             interfaceId={interfaceId}
             tabQueryParam={tabQueryParam}
             projectQueryParam={projectQueryParam}
+            defaultProject={false}
             setTabQueryParam={setTabQueryParam}
             setProjectQueryParam={setProjectQueryParam}
             projectActions={projectsActions}
@@ -198,6 +201,7 @@ const Interface = ({
             setFocusDialog={setFocusDialog}
             saveDialog={saveDialog}
             setSaveDialog={setSaveDialog}
+            contextActions={contextActions}
           />
         </div>
 
@@ -243,6 +247,7 @@ const Interface = ({
                   logsActions={logsActions}
                   fieldsActions={fieldsActions}
                   derivedEntryActions={derivedEntryActions}
+                  contextActions={contextActions}
                 />
               )}
             </TabsContent>
@@ -265,6 +270,7 @@ const Interface = ({
                 logsActions={logsActions}
                 fieldsActions={fieldsActions}
                 derivedEntryActions={derivedEntryActions}
+                contextActions={contextActions}
               />
             </Suspense>
           </DialogContent>

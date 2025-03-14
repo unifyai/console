@@ -9,7 +9,7 @@ import { useTile } from "@/contexts/hooks/useTile";
 import { icons, tabTypes } from "@/constants/logs";
 import { useTab } from "@/contexts/hooks/useTab";
 import { ResponseProps } from "@/types/common";
-import { DerivedEntryActions, FieldsActions } from "@/types/evals/grid";
+import { DerivedEntryActions, FieldsActions, ContextActions } from "@/types/evals/grid";
 import { LogsActions } from "@/types/evals/grid";
 import Tile from "./Tile";
 
@@ -24,6 +24,7 @@ interface TileCardProps {
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
+  contextActions: ContextActions;
 }
 
 const TileCard = ({
@@ -36,7 +37,8 @@ const TileCard = ({
   getLatestTab,
   logsActions,
   fieldsActions,
-  derivedEntryActions
+  derivedEntryActions,
+  contextActions,
 }: TileCardProps) => {
 
   const { tab: tabData, actions: tabActions } = useTab(tabId, interfaceId);
@@ -142,6 +144,7 @@ const TileCard = ({
             logsActions={logsActions}
             fieldsActions={fieldsActions}
             derivedEntryActions={derivedEntryActions}
+            contextActions={contextActions}
         />
 
       </div>

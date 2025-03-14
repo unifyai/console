@@ -1,6 +1,6 @@
 "use client";
 
-import { TabProps } from "@/types/evals/grid";
+import { TabProps, ContextActions } from "@/types/evals/grid";
 import { Eye, Hammer, SquareMousePointer } from "lucide-react";
 import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
@@ -16,6 +16,7 @@ import ContextSelector from "./Table/Content/ContextSelector";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useTab } from "@/contexts/hooks/useTab";
 import { SetStateAction, useMemo } from "react";
+import { useProject } from "@/contexts/hooks/useProject";
 
 const InterfaceButtons = ({
     interfaceId,
@@ -27,6 +28,7 @@ const InterfaceButtons = ({
     setFocusDialog,
     saveDialog,
     setSaveDialog,
+    contextActions,
 }: {
     interfaceId: string,
     tabQueryParam: string | null,
@@ -37,20 +39,19 @@ const InterfaceButtons = ({
     setFocusDialog: (value: SetStateAction<boolean>) => void,
     saveDialog: boolean,
     setSaveDialog: (value: SetStateAction<boolean>) => void,
+    contextActions: ContextActions,
 }) => {
     const router = useRouter();
 
     // Global states from the store
     const project = useStoreContext(s => s.activeProjectId);
+
+    // Get the project data and the contexts
+    const { project: projectData } = useProject(project);
+    const contexts = projectData?.contexts || [];
     
     // Tab states and actions - get all UI states from here
     const { tab: tabData, actions: tabActions } = useTab(tabQueryParam || "", interfaceId);
-
-    // Get contexts from the interface data
-    const contexts = useStoreContext((state) => {
-        const projectData = state.projectsById[project || ""];
-        return projectData?.contexts || [];
-    });
 
     // Calculate derived state
     const items = useMemo(() => {
@@ -154,6 +155,7 @@ const InterfaceButtons = ({
                 context={tabData?.globalContext}
                 contexts={contexts}
                 setContext={handleContextChange}
+                contextActions={contextActions}
             />
             
             {/* Middle - Save, Reset, AddTile */}
@@ -237,13 +239,13 @@ const InterfaceButtons = ({
             {/* Right side - Edit and Interactive mode switches */}
             <div className="flex items-center gap-2 border rounded-md p-1">
                 <Switch
-                    id="edit-mode"
+                    id="edit"
                     checked={tabData?.edit || false}
                     onCheckedChange={() => tabActions?.setEdit(!tabData?.edit)}
                     disabled={!project}
                 />
-                <Label htmlFor="edit-mode" className="cursor-pointer">
-                    <Tooltip content="Edit mode">
+                <Label htmlFor="edit" className="cursor-pointer">
+                    <Tooltip content="Edit">
                         <Hammer name="edit" size={18} color={tabData?.edit ? "var(--primary)" : undefined} />
                     </Tooltip>
                 </Label>
@@ -251,13 +253,13 @@ const InterfaceButtons = ({
 
             <div className="flex items-center gap-2 border rounded-md p-1">
                 <Switch
-                    id="interactive-mode"
+                    id="interactive"
                     checked={tabData?.interactive || false}
                     onCheckedChange={() => tabActions?.setInteractive(!tabData?.interactive)}
                     disabled={!project}
                 />
-                <Label htmlFor="interactive-mode" className="cursor-pointer">
-                    <Tooltip content="Interactive mode">
+                <Label htmlFor="interactive" className="cursor-pointer">
+                    <Tooltip content="Interactive">
                         <SquareMousePointer name="interactive" size={18} color={tabData?.interactive ? "var(--primary)" : undefined} />
                     </Tooltip>
                 </Label>

@@ -4,11 +4,12 @@ import Tooltip from "@/components/Common/Misc/Tooltip";
 import ActionButton from "../../../Common/Buttons/Action";
 import BaseDropdown from "../../../Common/Dropdowns/Base";
 import { DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuSub, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSubTrigger } from "../../../UI/dropdown-menu";
-import { Context } from "@/types/evals/grid";
+import { Context, ContextActions } from "@/types/evals/grid";
 import { Braces, Check, Folder, FolderTree, Grid2x2, X } from "lucide-react";
 import { useTile } from "@/contexts/hooks/useTile";
 import { useTableTile } from "@/contexts/hooks/useTableTile";
 import { useMemo } from "react";
+import { useProject } from "@/contexts/hooks/useProject";
 
 const ContextSelector = ({
     tileId,
@@ -19,6 +20,7 @@ const ContextSelector = ({
     context,
     setContext,
     button,
+    contextActions,
 }: {
     tileId?: string,
     tabId?: string,
@@ -28,8 +30,9 @@ const ContextSelector = ({
     context?: string,
     setContext?: (context: string) => void,
     button?: React.ReactNode,
+    contextActions: ContextActions,
 }) => {
-
+    const { actions: projectActions } = useProject(projectId || null);
     const { actions: tileActions } = useTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
     const { tableTile: tableData, actions: tableTileActions } = useTableTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
     
@@ -218,6 +221,11 @@ const ContextSelector = ({
                     disabled={disabled}
                 />}
                 open={disabled ? false : undefined}
+                setOpen={(isOpen) => {
+                    if (isOpen && projectId && contextActions) {
+                        contextActions.get(projectId).then(ctxs => projectActions?.setContexts(ctxs));
+                    }
+                }}
             >
                 <div className="flex flex-col gap-4">
                     {contexts.length > 0 ? <div className="pt-2">

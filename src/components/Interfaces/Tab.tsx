@@ -10,7 +10,7 @@ import Tooltip from "../Common/Misc/Tooltip";
 import ActionButton from "../Common/Buttons/Action";
 import Cookies from "js-cookie";
 import { useTab } from '@/contexts/hooks/useTab';
-import { FieldsActions, LogsActions, DerivedEntryActions, TileProps } from "@/types/evals/grid";
+import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions } from "@/types/evals/grid";
 import ContextSelector from "./Table/Content/ContextSelector";
 import TileCard from "./TileCard";
 
@@ -28,6 +28,7 @@ interface TabComponentProps {
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
+  contextActions: ContextActions;
 }
 
 const Tab = ({
@@ -42,6 +43,7 @@ const Tab = ({
   logsActions,
   fieldsActions,
   derivedEntryActions,
+  contextActions,
 }: TabComponentProps) => {
   // Use hooks to get tab and interface data and actions
   const { tab: tabData, actions: tabActions } = useTab(tabId, interfaceId);
@@ -195,6 +197,7 @@ const Tab = ({
                         logsActions={logsActions}
                         fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}
+                        contextActions={contextActions}
                     />
 
                     <div className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (tabData?.edit ? "h-16" : "h-10")}>
@@ -212,6 +215,7 @@ const Tab = ({
                                 tileId={item.i}
                                 contexts={contexts}
                                 context={tabData?.globalContext}
+                                contextActions={contextActions}
                                 button={
                                     <Tooltip content="Context">
                                         <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
@@ -225,6 +229,7 @@ const Tab = ({
                                 tileId={item.i}
                                 contexts={contexts}
                                 context={tabData?.globalContext}
+                                contextActions={contextActions}
                                 button={<Tooltip content="Column Context">
                                     <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
                                         <Grid2x2 size={18} />

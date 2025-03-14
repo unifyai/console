@@ -13,13 +13,14 @@ import { Form } from "@/components/UI/form"
 import SettingButton from "../Buttons/Setting";
 import { useKey } from "react-use";
 
-export default function CreateDialog ({ type, creationFunction, CreateSchema, form, Fields, extraFormActions }: {
+export default function CreateDialog ({ type, creationFunction, CreateSchema, form, Fields, extraFormActions, disabled }: {
     type: string;
     creationFunction: (...args: any[]) => Promise<ResponseProps>
     CreateSchema: z.ZodObject<any>,
     form: UseFormReturn<any, any, undefined>
     Fields: ReactNode,
-    extraFormActions?: (data: z.infer<typeof CreateSchema>) => void
+    extraFormActions?: (data: z.infer<typeof CreateSchema>) => void,
+    disabled?: boolean,
 }) {
     // Define messages
     const messages = {
@@ -54,7 +55,7 @@ export default function CreateDialog ({ type, creationFunction, CreateSchema, fo
     }
     
     const tooltip = `Create ${type}`
-    const button =  <SettingButton icon={<Plus/>} onClick={onOpen} tooltip={tooltip}/>
+    const button =  <SettingButton icon={<Plus/>} onClick={onOpen} tooltip={tooltip} disabled={disabled} />
     
     const title = tooltip
     const body =    success ? messages["success"] : error ? messages["error"] : Fields;
@@ -72,7 +73,7 @@ export default function CreateDialog ({ type, creationFunction, CreateSchema, fo
     return (
     <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
-            <BaseDialog button={button} title={title} body={body} footer={footer} open={open} setOpen={setOpen}/>
+            <BaseDialog button={button} title={title} body={body} footer={footer} open={open} setOpen={setOpen} disabled={disabled} />
         </form>
     </Form>
     );

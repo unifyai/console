@@ -5,7 +5,7 @@ import LogsTable from "@/components/Interfaces/Table/Table";
 import LogsPlot from "@/components/Interfaces/Details/Plot/Plot";
 import Selection from "@/components/Interfaces/Details/Selection/Selection";
 import { ResponseProps } from "@/types/common";
-import { LogsActions, FieldsActions, DerivedEntryActions, TileProps, ItemType } from "@/types/evals/grid";
+import { LogsActions, FieldsActions, DerivedEntryActions, TileProps, ItemType, ContextActions } from "@/types/evals/grid";
 import { LogFieldsResponseProps, PlotArguments, TableArguments } from "@/types/evals/logs";
 
 // Import the new hooks
@@ -29,6 +29,7 @@ interface TileComponentProps {
     logsActions: LogsActions;
     fieldsActions: FieldsActions;
     derivedEntryActions: DerivedEntryActions;
+    contextActions: ContextActions;
 }
 
 const Tile = ({
@@ -39,7 +40,8 @@ const Tile = ({
     updateTab,
     logsActions,
     fieldsActions,
-    derivedEntryActions
+    derivedEntryActions,
+    contextActions
 }: TileComponentProps) => {
 
     const router = useRouter();
@@ -140,6 +142,7 @@ const Tile = ({
                         logsActions={logsActions}
                         fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}
+                        contextActions={contextActions}
                         filterExpression={interfaceData?.tableArguments[tileId]?.getLogs_parameters?.filter_expr || null}
                         sortingExpression={interfaceData?.tableArguments[tileId]?.getLogs_parameters?.sorting || null}
                         groupingExpression={interfaceData?.tableArguments[tileId]?.getLogs_parameters?.grouping || null}

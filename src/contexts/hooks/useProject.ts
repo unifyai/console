@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useStoreContext } from '../providers/StoreProvider';
 import { Project } from '../slices/selectors/project';
 import { useShallow } from 'zustand/react/shallow';
+import { Context } from '@/types/evals/grid';
 
 // Define the default return value for the useProject hook
 const DEFAULT_USE_PROJECT_RETURN = {
@@ -22,6 +23,9 @@ export interface ProjectActions {
   // Property setters
   setName: (name: string) => void;
   setDescription: (description: string) => void;
+
+  // Context management
+  setContexts: (contexts: Context[]) => void;
   
   // Interface management
   addInterface: (interfaceId: string, initialState?: any) => void;
@@ -58,6 +62,10 @@ export function useProject(projectId: string | null) {
   const description = useStoreContext((state) => {
     if (!hasProject || !projectId) return '';
     return state.projectsById[projectId].description;
+  });
+  const contexts = useStoreContext((state) => {
+    if (!hasProject || !projectId) return [];
+    return state.projectsById[projectId].contexts;
   });
   const activeInterfaceId = useStoreContext((state) => {
     if (!hasProject || !projectId) return null;
@@ -111,6 +119,12 @@ export function useProject(projectId: string | null) {
       }
     },
 
+    setContexts: (contexts) => {
+      if (projectId) {
+        storeUpdateProject(projectId, { contexts });
+      }
+    },
+
     // Interface management
     addInterface: (interfaceId, initialState) => {
       if (projectId) {
@@ -148,6 +162,7 @@ export function useProject(projectId: string | null) {
     projectId,
     hasProject,
     interfaces,
+    contexts,
     storeInitProject,
     storeUpdateProject,
     storeRemoveProject,
@@ -162,6 +177,7 @@ export function useProject(projectId: string | null) {
     ? {
         name,
         description,
+        contexts,
         activeInterfaceId,
         interfaces,
     } as Project : null;

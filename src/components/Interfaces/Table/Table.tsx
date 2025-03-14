@@ -11,7 +11,7 @@ import {
   ColumnSizingState,
   GroupingState,
 } from "@tanstack/react-table";
-import { DerivedEntryActions, LogsActions, FieldsActions, Context } from "@/types/evals/grid";
+import { DerivedEntryActions, LogsActions, FieldsActions, Context, ContextActions } from "@/types/evals/grid";
 import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
@@ -32,7 +32,7 @@ import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
 import { FiltersByColumn } from "@/types/evals/columns";
 import CellPopover from "./Content/CellPopover";
-import { ItemType, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
+import { TableDataItem, TileProps } from "@/types/evals/grid";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
@@ -46,11 +46,6 @@ import ContextSelector from "./Content/ContextSelector";
 import { useTile } from "@/contexts/hooks/useTile";
 import { useTab } from "@/contexts/hooks/useTab";
 import { useTableTile } from "@/contexts/hooks/useTableTile";
-import { useProject } from "@/contexts/hooks/useProject";
-
-// Import interfaces to check property existence
-import { Tile } from "@/contexts/slices/selectors/tile";
-import { TableTileData } from "@/contexts/slices/selectors/tableTile";
 
 const LogsTable = ({
   tileId,
@@ -63,6 +58,7 @@ const LogsTable = ({
   logsActions,
   fieldsActions,
   derivedEntryActions,
+  contextActions,
   filterExpression,
   sortingExpression,
   groupingExpression,
@@ -81,6 +77,7 @@ const LogsTable = ({
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions,
+  contextActions: ContextActions,
   filterExpression: string | null,
   sortingExpression: string | null,
   groupingExpression: string | null,
@@ -125,7 +122,8 @@ const LogsTable = ({
     params: [],
     metrics: {},
     groupedMetrics: {},
-    boundaries: { minimums: {}, maximums: {} }
+    boundaries: { minimums: {}, maximums: {} },
+    metric: ""
   } as TableDataItem;
 
   // Create a generic updateItem function that checks property existence
@@ -424,6 +422,7 @@ const LogsTable = ({
             projectId={projectId}
             contexts={contexts}
             context={context_}
+            contextActions={contextActions}
           />
           <GlobalFilter
             interactive={interactive}

@@ -9,11 +9,13 @@ import { Button } from "@/components/UI/button"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/UI/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/UI/popover"
 
-export default function AutoComplete ({items, type, defaultValue, onSelect, onOpen, className}: {
+export default function AutoComplete ({items, type, defaultValue, onSelect, isOpen, disabled, onOpen, className}: {
     items: {value:string, label: string}[],
     type: string,
     defaultValue?: string,
     onSelect: (currentValue: string) => void,
+    isOpen?: boolean,
+    disabled?: boolean,
     onOpen?: () => void,
     className?: string
 }) {
@@ -26,13 +28,14 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, onOp
   }
   const label = items.find((item) => item.value === value)?.label;
   return (
-    <Popover open={open} onOpenChange={(o) => onOpenChange(o)}>
+    <Popover open={isOpen != undefined ? isOpen : open} onOpenChange={(o) => onOpenChange(o)}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
           role="combobox"
-          aria-expanded={open}
+          aria-expanded={isOpen != undefined ? isOpen : open}
           className={`h-8 px-3 w-[200px] justify-between truncate ... ${className}`}
+          disabled={disabled}
         >
           {value && label
             ? (type.includes("axis") ? label?.slice(0, 15) + (label?.length > 15 ? "..." : "") : label)
@@ -42,7 +45,7 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, onOp
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0">
         <Command>
-          <CommandInput placeholder={`Search ${type}...`} className="h-10" />
+          <CommandInput placeholder={`Search ${type}...`} className="h-10" disabled={disabled} />
           <CommandList>
             <CommandEmpty>{`No ${type} found.`}</CommandEmpty>
             <CommandGroup>

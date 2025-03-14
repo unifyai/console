@@ -15,6 +15,7 @@ const ProjectButtons = ({
     interfaceId,
     tabQueryParam,
     projectQueryParam,
+    defaultProject,
     setProjectQueryParam,
     setTabQueryParam,
     projectActions: serverProjectActions,
@@ -23,6 +24,7 @@ const ProjectButtons = ({
     interfaceId: string;
     tabQueryParam: string | null;
     projectQueryParam: string | null;
+    defaultProject: boolean,
     setProjectQueryParam: (project: string | null) => void;
     setTabQueryParam: (tab: string | null) => void;
     projectActions: ProjectsActions;
@@ -60,6 +62,7 @@ const ProjectButtons = ({
                 }}
                 type="Projects"
                 defaultValue={project || undefined}
+                isAutocompleteOpen={defaultProject ? true : undefined}
                 onOpen={() => serverProjectActions.get().then(projects => setProjects(projects))}
             />
             {project && (
@@ -102,7 +105,7 @@ const ProjectButtons = ({
                 variant="outline"
                 icon={tabData?.refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
                 tooltip={"Refresh Interface"}
-                disabled={tabData?.pending || tabData?.dataPending}
+                disabled={!project ||tabData?.pending || tabData?.dataPending}
                 onClick={() => {
                     tabActions?.setRefreshing(true);
                     router.refresh();
