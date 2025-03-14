@@ -239,9 +239,6 @@ const DefaultProject = ({
                             onClick={() => setImageDialog(true)}
                             className="cursor-zoom-in rounded-lg"
                         />
-                        <div className="text-sm font-semibold">
-                            Click image to maximize
-                        </div>
                     </div>
                 </div>}
                 <div className="relative max-w-[700px] max-h-[700px] overflow-y-auto rounded-md border border-1 p-2">
