@@ -678,14 +678,23 @@ const LogsTable = ({
                       cell={cell}
                       metric={tableDataItem_.metric}
                       getMetric={(key: string) => {
-                        const groupedMetrics = tableDataItem_.groupedMetrics;
+                        const groupingColumnId = row.groupingColumnId;
+                        const groupedMetrics = (
+                          tableDataItem_.groupedMetrics[groupingColumnId] || { [metric]: {} }
+                        )[metric] || {};
                         const newKey = key.replace("Entries/", "").replace("Parameters/", "");
                         const groupingValue = row.getValue(key) as string;
+                        const value = groupedMetrics[newKey] ? groupedMetrics[newKey][groupingValue] : undefined;
+                        return typeof value === "number" ? value.toFixed(2) : value?.toString() ?? "";
+                      }}
+                      getSharedValue={(key: string) => {
                         const groupingColumnId = row.groupingColumnId;
-                        const value = (
-                          groupedMetrics[groupingColumnId]
-                          && groupedMetrics[groupingColumnId][newKey]
-                        ) ? groupedMetrics[groupingColumnId][newKey][groupingValue] : undefined;
+                        const groupedSharedValues = (
+                          tableDataItem_.groupedMetrics[groupingColumnId] || { [metric]: {} }
+                        )["shared_value"] || {};
+                        const newKey = key.replace("Entries/", "").replace("Parameters/", "");
+                        const groupingValue = row.getValue(key) as string;
+                        const value = groupedSharedValues[newKey] ? groupedSharedValues[newKey][groupingValue] : undefined;
                         return typeof value === "number" ? value.toFixed(2) : value?.toString() ?? "";
                       }}
                     />
