@@ -95,7 +95,7 @@ const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, cr
                 const newOrder = previousIndex !== -1 
                     ?   [
                             ...columnOrder.slice(0, previousIndex + 1),
-                            `${previousColumn.split("/").slice(0, -1).join("/")}/${name}`,
+                            previousColumn.includes("Parameters/") ? `Parameters/${name}` : `Entries/${name}`,
                             ...columnOrder.slice(previousIndex + 1)
                         ] 
                     : columnOrder;
