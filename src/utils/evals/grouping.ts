@@ -375,19 +375,19 @@ export async function onGroupExpand(
     let groupedMetrics: {[key: string]: {[key: string]: {[key: string]: number | string}}} = {};
     const remainingGroupingExpression = remainingGrouping.length > 0 ? remainingGrouping.join(",") : null;
     if (remainingGroupingExpression) {
-      const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
-      const groupingColumnId = remainingGroupingExpression.split(",")[0];
-      const metrics = await getColumnMetrics(
-        project,
-        context,
-        columnContext,
-        numericColumns,
-        updatedFilterExpression,
-        groupingColumnId,
-        item.metric,
-        logsActions
-      ) as { [key: string]: { [key: string]: number | string }};
-      groupedMetrics[groupingColumnId] = metrics;
+      // const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
+      // const groupingColumnId = remainingGroupingExpression.split(",")[0];
+      // const metrics = await getColumnMetrics(
+      //   project,
+      //   context,
+      //   columnContext,
+      //   numericColumns,
+      //   updatedFilterExpression,
+      //   groupingColumnId,
+      //   item.metric,
+      //   logsActions
+      // ) as { [key: string]: { [key: string]: number | string }};
+      // groupedMetrics[groupingColumnId] = metrics;
     }
 
     // Convert and update logs
