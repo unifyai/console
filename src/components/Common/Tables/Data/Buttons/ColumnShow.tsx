@@ -185,7 +185,7 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
                     </DropdownMenuGroup>
 
     const derived = ColumnCreate 
-        ? <DropdownMenuItem>{ColumnCreate(header.column.id, setOpen)}</DropdownMenuItem> 
+        ? ColumnCreate(header.column.id, setOpen) 
         : null;
     
     return (

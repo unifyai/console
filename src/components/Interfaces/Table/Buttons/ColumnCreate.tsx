@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/UI/input";
 import SubmitButton from "@/components/Common/Buttons/Submit";
 import { getLogsParameters, TableArguments, LogProps, GroupedLogProps } from "@/types/evals/logs"
-import { DropdownMenuLabel, DropdownMenuGroup, DropdownMenuSub, DropdownMenuPortal, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/UI/dropdown-menu";
+import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuGroup, DropdownMenuSub, DropdownMenuPortal, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/UI/dropdown-menu";
 import { LoaderCircle } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import FormulaInput from "@/components/Common/Input/Formula";
@@ -167,9 +167,11 @@ const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, cr
 
     return (
         <Dialog open={loading ? true : undefined}>
-            <DialogTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <span>New column</span>
-            </DialogTrigger>    
+            <DropdownMenuItem>
+                <DialogTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <span>New column</span>
+                </DialogTrigger>    
+            </DropdownMenuItem>
             <DialogContent 
                 // Stop clicks from closing the parent if it’s still around
                 onPointerDown={(e) => e.stopPropagation()}
