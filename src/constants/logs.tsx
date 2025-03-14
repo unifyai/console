@@ -11,6 +11,7 @@ import lineDemo from "@/constants/demos/line-demo.json";
 import lineDemo2 from "@/constants/demos/line-demo2.json";
 import lineDemo3 from "@/constants/demos/line-demo3.json";
 import markingAssistantDemo from "@/constants/demos/MarkingAssistant.json";
+import quickstartDemo from "@/constants/demos/quickstart-demo.json";
 import scatterDemo from "@/constants/demos/scatter-demo.json";
 import scatterDemo2 from "@/constants/demos/scatter-demo2.json";
 import scatterDemo3 from "@/constants/demos/scatter-demo3.json";
@@ -1247,6 +1248,12 @@ export const demos: {
         },
     }
 } = {
+    "Basics/Quickstart": {
+        ...quickstartDemo,
+        gif: "line_group_dark",
+        link: "basics/quickstart",
+        description: "Run your first eval ⬇️, and then check out the logs in your first interface 📊"
+    },
     "Basics/Context": {
         ...contextDemo,
         gif: "table_nested_contexts_dark",
