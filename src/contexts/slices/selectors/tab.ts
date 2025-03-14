@@ -22,6 +22,7 @@ export interface Tab {
   resetting: boolean;
   edit: boolean;
   interactive: boolean;
+  help: boolean;
   copied?: string;
   deleting: boolean;
   dataPending: boolean;
@@ -54,6 +55,7 @@ export function initTab(tabId: string, initialState: Partial<Tab> = {}): Tab {
     edit: initialState.edit !== undefined ? initialState.edit : true,
     interactive: initialState.interactive !== undefined ? initialState.interactive : true,
     copied: initialState.copied,
+    help: initialState.help !== undefined ? initialState.help : true,
     deleting: initialState.deleting !== undefined ? initialState.deleting : false,
     dataPending: initialState.dataPending !== undefined ? initialState.dataPending : false,
     pending: initialState.pending !== undefined ? initialState.pending : true,

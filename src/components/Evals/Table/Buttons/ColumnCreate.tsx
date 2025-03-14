@@ -11,12 +11,13 @@ import { Plus, LoaderCircle } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import FormulaInput from "@/components/Common/Input/Formula";
 
-const ColumnCreate = ({ project, logs, currentTable, tableArguments, derive, _setTimestamp }: {
+const ColumnCreate = ({ project, context, logs, currentTable, tableArguments, derive, _setTimestamp }: {
     project: string,
+    context: string | undefined,
     logs: LogProps[] | GroupedLogProps[],
     currentTable: keyof TableArguments,
     tableArguments: TableArguments,
-    derive: (project: string, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
+    derive: (project: string, context: string | undefined, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
     _setTimestamp: (_timestamp: string) => void
 }) => {
 
@@ -73,8 +74,7 @@ const ColumnCreate = ({ project, logs, currentTable, tableArguments, derive, _se
                   .filter(([key, _]) => referencedTables.includes(key))
                   .map(([key, args]) => [key, args.getLogs_parameters])
         );
-        console.log(project, name, equation, referencedArguments)
-        derive(project, name, equation, referencedArguments).then(response => {
+        derive(project, context, name, equation, referencedArguments).then(response => {
             if ("info" in response) {
                 setErrorMessage("");
                 setLoading(true);

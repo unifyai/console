@@ -212,11 +212,12 @@ const Interface = ({
             </div>
           ) : !projectQueryParam ? (
             <DefaultProject
-              setProjectQueryParam={setProjectQueryParam}
-              setTabQueryParam={setTabQueryParam}
               projectActions={projectsActions}
               tabActions={serverTabActions}
               logsActions={logsActions}
+              derivedEntryActions={derivedEntryActions}
+              setTabQueryParam={setTabQueryParam}
+              setProjectQueryParam={setProjectQueryParam}
             />
           ) : null
         ) : (
@@ -276,6 +277,8 @@ const Interface = ({
           </DialogContent>
         </Dialog>
       )}
+
+      {/*  */}
 
       {/* Edit Tile Name Dialog */}
       {tabData?.edit && editTile && (

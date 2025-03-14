@@ -37,6 +37,7 @@ export function buildTabState(
     // resetting: false,
     edit: true,
     interactive: true,
+    help: true,
     // deleting: false,
     // dataPending: false,
     // pending: true,

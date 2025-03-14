@@ -1,10 +1,10 @@
 import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, LogItemProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { Context, ContextActions, DerivedEntryActions, FieldsActions, TabProps, TabActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TabsDataProps } from "@/types/evals/grid";
-import { searchParamToFilters, filtersToExpression, maybeWrapFilterInQuotes } from "@/utils/evals/filters";
+import { buildFilterExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+// import { cookies } from "next/headers";
 import { defaultNewCounter } from "@/constants/logs";
 import { defaultItems } from "@/constants/logs";
 import { IStoreState } from "@/contexts/store";
@@ -12,7 +12,6 @@ import { StoreProvider } from "@/contexts/providers/StoreProvider";
 import StoreUpdater from "@/contexts/providers/StoreUpdater";
 import Interface from "./Interface";
 import { buildInitialState } from "@/contexts/utils/stateBuilderUtils";
-import { DataArray } from "@mui/icons-material";
 
 const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, tabActions }: {
     tab: string | undefined,
@@ -24,9 +23,9 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     contextActions: ContextActions,
     tabActions: TabActions
 }) => {
-    const cookies_ = cookies();
-    const cookiesProject = cookies_.get("project")?.value;
-    const cookiesTab = cookies_.get("tab")?.value;
+    // const cookies_ = cookies();
+    const cookiesProject = undefined; //cookies_.get("project")?.value;
+    const cookiesTab = undefined; //cookies_.get("tab")?.value;
 
     // Get projects
     const projects: string[] = await projectsActions.get();
@@ -115,44 +114,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     ));
 
     /* Handle filters */
-    // 1- Convert filters search param value to a nested dictionary representation of column, function and values
-    // 2- Join column filters with the corresponding filter functions and values using "and"
-    // 3- Join common filters with the "in" filter function and common filter value using "or", or pass the expression if filtering by expression
-    // 4- Join common and column filters into a single filter expression
-    const logsFilters: { [column: string]: { [fn: string]: string } }[] = tableTiles.map(
-        tile => searchParamToFilters(tile.filters, tile.column_context)
-    );
-    const columnFiltersExpressions = logsFilters.map((filter, idx) => filtersToExpression(filter, fields[idx]));
-    const commonFiltersExpressions = tableTiles.map((tile, idx) => {
-        if (tile.common_filter && fields[idx]) {
-            const commonFilterMode = tile.common_filter.split("§")[0]
-            const commonFilterValue = tile.common_filter.split("§")[1]
-            if (!commonFilterValue) return ""
-            if (commonFilterMode === "expression") {
-                let filter = commonFilterValue;
-                const processFilter = (value: string, column: string, column_context: string | undefined) => value.replace(new RegExp(column, "g"), column_context ? processContext("merge", column_context, column) : column) 
-                Object.keys(fields).forEach(column => processFilter(filter, column, tile.column_context)) 
-                return filter
-            }
-            else {
-                const validFields = Object.fromEntries(Object.entries(fields[idx]).filter(([_, attributes]) => attributes.data_type != "image")) // Exclude images
-                const filterValue = maybeWrapFilterInQuotes(commonFilterValue)
-                const processFilter = (value: string, column: string, column_context: string | undefined) => `${value} in to_str(${column_context ? processContext("merge", column_context, column) : column})`
-                const filter = Object.keys(validFields).map(column => processFilter(filterValue, column, tile.column_context)).join(" or ")
-                return filter
-            }
-        }
-        return ""
-    });
-    let filterExpressions: (string | null)[] = tableTiles.map((tile, idx) => {
-        const columnFiltersExpression = columnFiltersExpressions[idx];
-        const commonFiltersExpression = commonFiltersExpressions[idx];
-        let filterExpression = null;
-        if (columnFiltersExpression) filterExpression = columnFiltersExpression;
-        if (commonFiltersExpression) filterExpression = filterExpression ? `${commonFiltersExpression} and ${filterExpression}` : commonFiltersExpression;
-        if (tile.freeze) filterExpression = filterExpression ? filterExpression + `created_at < "${tile.freeze}"` : `created_at < "${tile.freeze}"`;
-        return filterExpression;
-    });
+    const filterExpressions = tableTiles.map((tile, idx) => buildFilterExpression(tile.filters, tile.common_filter, tile.column_context, tile.freeze, fields[idx]))
 
     // Handle sorting
     const sortingObjects = tableTiles.map(tile => tile.sorting ? Object.fromEntries(
@@ -186,11 +148,12 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     // Aggregate table arguments and init plot arguments
     let tableArguments: TableArguments = tableTiles.map((tile, idx) => {
         let tableArguments_: TableArguments = { [tile.i]: {getLogs_parameters: { filter_expr: "" }, available_fields: {}} };
-        const filterExpression = filterExpressions[idx];
         const sortingExpression = sortingExpressions[idx];
         const groupingExpression = groupingExpressions[idx];
         const groupSortingExpression = groupSortingExpressions[idx];
-        if (filterExpression) tableArguments_[tile.i].getLogs_parameters["filter_expr"] = filterExpression;
+        if (tile.filters) tableArguments_[tile.i].getLogs_parameters["column_filters"] = tile.filters;
+        if (tile.common_filter) tableArguments_[tile.i].getLogs_parameters["common_filter"] = tile.common_filter;
+        if (tile.freeze) tableArguments_[tile.i].getLogs_parameters["freeze"] = tile.freeze;
         if (sortingExpression) tableArguments_[tile.i].getLogs_parameters["sorting"] = sortingExpression;
         if (groupingExpression) tableArguments_[tile.i].getLogs_parameters["grouping"] = groupingExpression;
         if (groupSortingExpression) tableArguments_[tile.i].getLogs_parameters["group_sorting"] = groupSortingExpression;
@@ -234,6 +197,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                 limit,
                 offsets[idx],
                 groupingExpressions[idx] ? 0 : null,
+                null,
                 Date.now().toString(),
             );
 
@@ -261,10 +225,16 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                 // aggregate plot arguments
                 const context = table?.context;
                 const columnContext = table?.column_context;
-                const filterExpression = filterExpressions[tableIdx];
-                if (filterExpression) plotArguments[table.i]["filter_expr"] = filterExpression
+                const freeze = table?.freeze
+                const commonFilter = table?.common_filter
+                const filters = table?.filters
+                if (filters) plotArguments[table.i]["column_filters"] = filters
+                if (commonFilter) plotArguments[table.i]["common_filter"] = commonFilter
+                if (freeze) plotArguments[table.i]["freeze"] = freeze
                 if (context) plotArguments[table.i]["context"] = context
                 if (columnContext) plotArguments[table.i]["column_context"] = columnContext;
+
+                const filterExpression = filterExpressions[tableIdx];
                 
                 // get plot data
                 let data: LogsResponseProps = { params: {}, logs: [], count: 0, groups: [] };
@@ -286,7 +256,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                     }
                     if (subset) plotArguments[table.i]["subset"] = subset
 
-                    data = await logsActions.get(currentProject, context ?? null, columnContext ?? null, filterExpression, null, null, null, subset, null, null, null, null, Date.now().toString());
+                    data = await logsActions.get(currentProject, context ?? null, columnContext ?? null, filterExpression, null, null, null, subset, null, null, null, null, null, Date.now().toString());
 
                     /* Replace param indices with actual param values */
                     if (Object.entries(data.logs).length && Object.entries(data.params).length) {
@@ -347,13 +317,25 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
         tableTiles.map(async (tile, idx) => {
             const logsData = allLogsData[idx];
             const totalPages = allTotalPages[idx];
+            const context = tile.context ?? null;
             const columnContext = tile.column_context ?? null
             const sorting = tile.sorting ?? null
             const hiddenColumns = tile.hidden_columns;
 
             const { entriesProperties, paramsProperties, logs, params, metrics, groupedMetrics, boundaries } = await getLogsDetails(
-                tile, logsData, fields[idx], columnContext, currentProject, filterExpressions[idx], groupingExpressions[idx], tile.metric, sorting, undefined, logsActions
-            )
+                tile,
+                logsData,
+                fields[idx],
+                context,
+                columnContext,
+                currentProject,
+                filterExpressions[idx],
+                groupingExpressions[idx],
+                tile.metric,
+                sorting,
+                undefined,
+                logsActions
+            );
 
             // Append available fields to the table attributes
             tableArguments[tile.i].available_fields = 
@@ -385,6 +367,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                     metrics,
                     groupedMetrics,
                     boundaries,
+                    metric: tile.metric ?? "mean"
                 }
             }
         })
@@ -457,6 +440,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                     logsActions={logsActions}
                     fieldsActions={fieldsActions}
                     derivedEntryActions={derivedEntryActions}
+                    contextActions={contextActions}
                 />
             </div>
         </StoreProvider>

@@ -37,6 +37,7 @@ export interface TabActions {
   setResetting: (resetting: boolean) => void;
   setEdit: (edit: boolean) => void;
   setInteractive: (interactive: boolean) => void;
+  setHelp: (help: boolean) => void;
   setCopied: (copied?: string) => void;
   setDeleting: (deleting: boolean) => void;
   setDataPending: (dataPending: boolean) => void;
@@ -163,6 +164,10 @@ export function useTab(
   const interactive = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return false;
     return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].interactive;
+  });
+  const help = useStoreContext((state) => {
+    if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return false;
+    return state.projectsById[activeProjectId].interfaces[activeInterfaceId].tabs[tabId].help;
   });
   const copied = useStoreContext((state) => {
     if (!hasTab || !tabId || !activeProjectId || !activeInterfaceId) return undefined;
@@ -310,6 +315,12 @@ export function useTab(
       setInteractive: (interactive) => {
         if (activeProjectId && activeInterfaceId && tabId) {
           storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { interactive });
+        }
+      },
+      
+      setHelp: (help) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeUpdateTab(activeProjectId, activeInterfaceId, tabId, { help });
         }
       },
       
@@ -532,6 +543,7 @@ export function useTab(
         resetting,
         edit,
         interactive,
+        help,
         copied,
         deleting,
         dataPending,
@@ -541,7 +553,7 @@ export function useTab(
   }, [
       hasTab, tabId, name, visible, active, order, globalContext, tabCreated,
       tempTabCreated, savedTab, focusedTileIds, tiles, saveSuccess,
-      resetting, edit, interactive, copied, deleting, dataPending,
+      resetting, edit, interactive, help, copied, deleting, dataPending,
       pending, refreshing
     ]);
 

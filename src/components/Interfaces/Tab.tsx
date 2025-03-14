@@ -8,11 +8,12 @@ import { Loader2, Maximize2, EyeOff, Copy, Grip, X, Braces, Grid2x2 } from "luci
 import { Badge } from "../UI/badge";
 import Tooltip from "../Common/Misc/Tooltip";
 import ActionButton from "../Common/Buttons/Action";
-import Cookies from "js-cookie";
+// import Cookies from "js-cookie";
 import { useTab } from '@/contexts/hooks/useTab';
 import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions } from "@/types/evals/grid";
 import ContextSelector from "./Table/Content/ContextSelector";
 import TileCard from "./TileCard";
+import TutorialButton from "./TutorialButton";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -69,22 +70,22 @@ const Tab = ({
   useEffect(() => {
     if (projectId && tabId) {
       // Store current selections in cookies
-      const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      Cookies.set("project", projectId, { expires: expirationDate });
-      Cookies.set("tab", tabId, { expires: expirationDate });
+      // const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      // Cookies.set("project", projectId, { expires: expirationDate });
+      // Cookies.set("tab", tabId, { expires: expirationDate });
       
       // Only fetch data on initial mount or when project/tab actually changes
-    if (isInitialMount.current) {
-      getLatestTab();
-      isInitialMount.current = false;
+      if (isInitialMount.current) {
+        getLatestTab();
+        isInitialMount.current = false;
+      }
     }
-    }
-    else if (!projectId) {
-      Cookies.remove("project");
-    }
-    else if (!tabId) {
-      Cookies.remove("tab");
-    }
+    // else if (!projectId) {
+    //   Cookies.remove("project");
+    // }
+    // else if (!tabId) {
+    //   Cookies.remove("tab");
+    // }
   }, [projectId, tabId, getLatestTab]);
 
   // Only call updateInterface when items have truly changed.
@@ -201,8 +202,15 @@ const Tab = ({
                     />
 
                     <div className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (tabData?.edit ? "h-16" : "h-10")}>
-                        <div className="mb-auto flex gap-2 ml-1">
-                            <Tooltip content="Tile Type">
+                      <div className="mb-auto flex gap-2 ml-1 items-center">
+                        {tabData?.help && <TutorialButton 
+                            url={
+                                item.tab === "Plot" ? "https://docs.unify.ai/interfaces/plots" :
+                                item.tab === "View" ? "https://docs.unify.ai/interfaces/views" :
+                                "https://docs.unify.ai/interfaces/tables"
+                            }
+                        />}
+                              <Tooltip content="Rename Tile">
                                 <Badge
                                     className="cursor-pointer text-sm font-normal mb-1"
                                     variant="primary"

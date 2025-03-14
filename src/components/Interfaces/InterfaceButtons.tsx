@@ -1,7 +1,7 @@
 "use client";
 
 import { TabProps, ContextActions } from "@/types/evals/grid";
-import { Eye, Hammer, SquareMousePointer } from "lucide-react";
+import { Eye, Hammer, SquareMousePointer, Info } from "lucide-react";
 import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
@@ -140,7 +140,7 @@ const InterfaceButtons = ({
     };
 
     return (
-        <div className="flex items-center gap-2 pl-4 pr-10">
+        <div className="flex items-center gap-2 px-2">
             {/* Left side - Focus and Context selector */}
             <ActionButton
                 className="transition-all"
@@ -266,6 +266,18 @@ const InterfaceButtons = ({
                     </Tooltip>
                 </Label>
             </div>
+
+            <Tooltip content="Toggle info icons">
+                <Info 
+                    name="help" 
+                    size={16}
+                    onClick={() => {
+                        if (project && tabData?.interactive) tabActions?.setHelp(!tabData?.help)
+                    }}
+                    opacity={!project || !tabData?.interactive ? 0.5 : 1}
+                    className={`mb-0.5 ml-0.5 ${project && tabData?.interactive && tabData?.help ? "text-primary" : ""} ${project && tabData?.interactive && !tabData?.help ? "hover:text-primary" : ""}`}
+                />
+            </Tooltip>
         </div>
     );
 };

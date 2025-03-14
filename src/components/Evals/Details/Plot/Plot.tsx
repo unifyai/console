@@ -47,6 +47,12 @@ const LogsPlot = ({ logs, fields}: {
     const [selectedYAxisProperty, setSelectedYAxisProperty] = useQueryState("y_axis", { shallow: false });
     const [groupByProperty, setGroupByProperty] = useQueryState("plot_group_by", { shallow: false });
 
+    // Track zoom level and reset when changing plot type or axes
+    let zoomRef = useRef(d3.zoomIdentity);
+    useEffect(() => {
+        zoomRef.current = d3.zoomIdentity
+    }, [selectedXAxisProperty, selectedYAxisProperty, plotType])
+    
     // Draw plot
     useEffect (() => {
         // Initialize SVG, container and placholder text
@@ -90,13 +96,16 @@ const LogsPlot = ({ logs, fields}: {
                     xTable,
                     yTable,
                     logs, 
-                    fields
+                    fields,
+                    zoomRef
                 );
             } else {
                 placeholder
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
+                .attr("x", "50%")
+                .attr("y", "50%")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
                 .text("Select two numeric properties to plot");
@@ -119,16 +128,20 @@ const LogsPlot = ({ logs, fields}: {
                     selectedXAxisProperty, 
                     selectedYAxisProperty, 
                     metric as string,
+                    "unsorted",
                     xTable,
                     yTable,
                     logs, 
-                    fields
+                    fields,
+                    zoomRef
                 );
             } else {
                 placeholder
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
+                .attr("x", "50%")
+                .attr("y", "50%")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
                 .text("Select a property to plot and a reduction metric");
@@ -160,6 +173,8 @@ const LogsPlot = ({ logs, fields}: {
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
+                .attr("x", "50%")
+                .attr("y", "50%")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
                 .text("Select a numeric or time property to plot");
@@ -168,7 +183,7 @@ const LogsPlot = ({ logs, fields}: {
 
         else {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                placeholder.text("");
+                if (logs.length > 1000) placeholder.text("Too many data points. Displaying a random subset.").attr("text-anchor", "start").attr("x", "5%").attr("y", "90%").attr("font-size", "12px"); else placeholder.text("");
                 const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
                 const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawScatterPlot(
@@ -186,13 +201,16 @@ const LogsPlot = ({ logs, fields}: {
                     xTable,
                     yTable,
                     logs, 
-                    fields
+                    fields,
+                    zoomRef
                 );
             } else {
                 placeholder
                 .attr("stroke", "black") 
                 .attr("stroke-width", 0.1)
                 .attr("fill", "gray")
+                .attr("x", "50%")
+                .attr("y", "50%")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
                 .text("Select two numeric properties to plot");
@@ -278,6 +296,7 @@ const LogsPlot = ({ logs, fields}: {
                     <rect id={"clip-rect"} x={margins.left} y={margins.top} width={dimensions.width - margins.left - margins.right} height={dimensions.height - margins.top - margins.bottom}/>
                 </clipPath>
             </defs>
+            <rect className="zoom-layer"/>
             <g className="plotData" clipPath="url(#clip)"/>
             <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="placeholderText"/>
             <line className="bottomLine" stroke="var(--foreground)" stroke-width="0.5"/>
