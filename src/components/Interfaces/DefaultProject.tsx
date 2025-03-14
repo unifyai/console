@@ -23,12 +23,16 @@ const DefaultProject = ({
     interfaceActions,
     logsActions,
     derivedEntryActions,
+    setInterface,
+    setProject
 }: {
     projects: string[] | undefined,
     projectActions: ProjectsActions,
     interfaceActions: InterfaceActions,
     logsActions: LogsActions,
     derivedEntryActions: DerivedEntryActions,
+    setInterface: (value: string | null) => void,
+    setProject: (value: string | null) => void,
 }) => {
     const disabled = projects == undefined
     const [pendingLocal, setPendingLocal] = useState(false);
@@ -71,11 +75,7 @@ const DefaultProject = ({
     ) => {
         if (projects?.includes(demoProject)) {
             setTimeout(() => {
-                window.open(
-                    `/interfaces?project=${demoProject}`,
-                    "_blank",
-                    "noopener,noreferrer"
-                );
+                setProject(demoProject);
                 setCreate(null);
             }, 3000);
         } else {
@@ -89,12 +89,10 @@ const DefaultProject = ({
                             demoProject, context, demoLogs[context].params, demoLogs[context].entries
                         ))).then(() => {
                             setTimeout(() => {
-                                window.open(
-                                    `/interfaces?project=${demoProject}&tab=${demoName}`,
-                                    "_blank",
-                                    "noopener,noreferrer"
-                                );
                                 setPendingLocal(false);
+                                setProject(demoProject);
+                                setInterface(demoName);
+                                setDemo(null);
                                 setCreate(null);
                             }, 3000);
                         });
@@ -114,12 +112,10 @@ const DefaultProject = ({
                             ))
                         ).then(() => {
                             setTimeout(() => {
-                                window.open(
-                                    `/interfaces?project=${demoProject}&tab=${demoName}`,
-                                    "_blank",
-                                    "noopener,noreferrer"
-                                );
                                 setPendingLocal(false);
+                                setProject(demoProject);
+                                setInterface(demoName);
+                                setDemo(null);
                                 setCreate(null);
                             }, 3000);
                         });
@@ -137,24 +133,20 @@ const DefaultProject = ({
                                     demoDerivedColumns.referenced_logs
                                 ).then(() => {
                                     setTimeout(() => {
-                                        window.open(
-                                            `/interfaces?project=${demoProject}&tab=${demoName}`,
-                                            "_blank",
-                                            "noopener,noreferrer"
-                                        );
                                         setPendingLocal(false);
+                                        setProject(demoProject);
+                                        setInterface(demoName);
+                                        setDemo(null);
                                         setCreate(null);
                                     }, 3000);
                                 });
                             }
                             else {
                                 setTimeout(() => {
-                                    window.open(
-                                        `/interfaces?project=${demoProject}&tab=${demoName}`,
-                                        "_blank",
-                                        "noopener,noreferrer"
-                                    );
                                     setPendingLocal(false);
+                                    setProject(demoProject);
+                                    setInterface(demoName);
+                                    setDemo(null);
                                     setCreate(null);
                                 }, 3000);
                             }
