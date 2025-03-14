@@ -149,7 +149,7 @@ const Tile = ({
                         groupSortingExpression={interfaceData?.tableArguments[tileId]?.getLogs_parameters?.group_sorting || null}
                         limit={tableData?.limit || 20}
                         offset={tableData?.offset || 0}
-                        updateInterface={updateTab}
+                        updateTab={updateTab}
                     />
                 );
             case 'Plot':
@@ -160,7 +160,7 @@ const Tile = ({
                         updateItem={(item: TileProps, attrName: ItemType) => (value: string | undefined) => {
                             tileActions?.updateTile({ [attrName]: value });
                         }}
-                        projectId={projectId}
+                        project={projectId}
                         pending={tileData.pending}
                         tableNames={[]}
                         logsActions={logsActions}

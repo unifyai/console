@@ -158,32 +158,46 @@ export const getLogsDetails = async (
 
   const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
 
-  let groupedMetrics: {[key: string]: {[key: string]: {[key: string]: number | string}}} = {};
+  let groupedMetrics: { [key: string]: { [key: string]: { [key: string]: { [key: string]: number | string } } } } = {};
   if (groupingExpression) {
-    // const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
-    // const groupingColumnId = (groupingExpression as string).split(",")[0];
-    // const metric_ = metric ?? "mean";
-    // const metrics = await getColumnMetrics(
-    //   project, context, column_context, numericColumns, filterExpression, groupingColumnId, metric_, logsActions
-    // ) as { [key: string]: { [key: string]: number | string }};
-    // groupedMetrics[groupingColumnId] = metrics;
+    const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
+    const groupingColumnId = (groupingExpression as string).split(",")[0];
+    const metric_ = metric ?? "mean";
+    const metricsData = await getColumnMetrics(
+      project, context, column_context, numericColumns, filterExpression, groupingColumnId, metric_, logsActions
+    ) as { [key: string]: { [key: string]: { [key: string]: number | string }}};
+    const metrics = Object.fromEntries(
+      Object.entries(metricsData).map(
+        ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
+          ([groupingValue, results]) => [groupingValue, results[metric_]]
+        ))]
+    ));
+    const sharedValues = Object.fromEntries(
+      Object.entries(metricsData).map(
+        ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
+          ([groupingValue, results]) => [groupingValue, results["shared_value"]]
+        ))]
+    ));
+    groupedMetrics[groupingColumnId] = {
+      [metric_]: metrics,
+      shared_value: sharedValues
+    };
   }
 
   /* Handle column metrics */
   // Getting metrics for filtered logs, and min / max values for full logs.
   // Min / max bounds are used to set the filtering range for numeric columns
-  // const [metrics, minimums, maximums] = await Promise.all([
-  //   getColumnMetrics(
-  //     project, context, column_context, columns, filterExpression, null, item.metric, logsActions
-  //   ) as Promise<{ [key: string]: number }>,
-  //   getColumnMetrics(
-  //     project, context, column_context, columns, null, null, "min", logsActions
-  //   ) as Promise<{ [key: string]: number }>,
-  //   getColumnMetrics(
-  //     project, context, column_context, columns, null, null, "max", logsActions
-  //   ) as Promise<{ [key: string]: number }>
-  // ]);
-  const [metrics, minimums, maximums] = [{}, {}, {}];
+  const [metrics, minimums, maximums] = await Promise.all([
+    getColumnMetrics(
+      project, context, column_context, columns, filterExpression, null, item.metric, logsActions
+    ) as Promise<{ [key: string]: number }>,
+    getColumnMetrics(
+      project, context, column_context, columns, null, null, "min", logsActions
+    ) as Promise<{ [key: string]: number }>,
+    getColumnMetrics(
+      project, context, column_context, columns, null, null, "max", logsActions
+    ) as Promise<{ [key: string]: number }>
+  ]);
 
   // Min-max boundaries for numeric and time-like column filters
   const boundaries = { minimums, maximums }

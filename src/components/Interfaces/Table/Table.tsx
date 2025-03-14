@@ -68,7 +68,7 @@ const LogsTable = ({
   groupSortingExpression,
   limit,
   offset,
-  updateInterface,
+  updateTab,
 }: {
   tileId: string;
   tabId: string;
@@ -87,7 +87,7 @@ const LogsTable = ({
   groupSortingExpression: string | null,
   limit: number,
   offset: number,
-  updateInterface: (savedTab?: any) => Promise<ResponseProps>,
+  updateTab: (savedTab?: any) => Promise<ResponseProps>,
 }) => {
   // Get access to the tab context and actions
   const { tab: tabData } = useTab(tabId, interfaceId, projectId);
@@ -507,9 +507,7 @@ const LogsTable = ({
             contexts={contexts}
             context={context_}
             contextActions={contextActions}
-            logsActions={logsActions}
-            fields={[...paramsProperties, ...entriesProperties]}
-            refresh={() => updateInterface()}
+            refresh={() => updateTab()}
             setPending={setPending}
           />
           <GlobalFilter
@@ -666,7 +664,7 @@ const LogsTable = ({
                       columnContext={item?.column_context}
                       getLogFieldsIds={logsActions.get}
                       deleteLogFields={logsActions.delete}
-                      refresh={() => updateInterface()}
+                      refresh={() => updateTab()}
                       setPending={setPending}
                     />
                   )}
@@ -679,7 +677,7 @@ const LogsTable = ({
                       logs={logs}
                       create={derivedEntryActions.create}
                       setPending={setPending}
-                      refresh={() => updateInterface()}
+                      refresh={() => updateTab()}
                       columnOrder={columnOrder}
                       setColumnOrder={setColumnOrder}
                       previousColumn={previousColumn}
@@ -698,7 +696,7 @@ const LogsTable = ({
                       logs={logs}
                       update={derivedEntryActions.update}
                       setPending={setPending}
-                      refresh={() => updateInterface()}
+                      refresh={() => updateTab()}
                       updateLoading={updateLoading}
                       setUpdateLoading={setUpdateLoading}
                       renderMode={renderMode as "button" | "menuItem"}
@@ -789,7 +787,7 @@ const LogsTable = ({
                     </FooterCell>
                   }
                   ExtraComponents={(table) => {
-                    return <DeleteCells project={projectId} selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} columnContext={item?.column_context} context={item?.context} refresh={() => updateInterface()} setPending={setPending}/>
+                    return <DeleteCells project={projectId} selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} columnContext={item?.column_context} context={item?.context} refresh={() => updateTab()} setPending={setPending}/>
                   }}
                   ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
                     <CellPopover flatLogs={flatLogs} paramsValues={paramsValues} cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />

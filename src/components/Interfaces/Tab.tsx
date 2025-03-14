@@ -224,6 +224,8 @@ const Tab = ({
                                         </Badge>
                                     </Tooltip>
                                 }
+                                refresh={() => updateTab()}
+                                setPending={tabActions?.setPending!}
                             />}
                             {(item.column_context) && item.tab == "Table" && <ContextSelector
                                 tileId={item.i}
@@ -236,6 +238,8 @@ const Tab = ({
                                         {item.column_context}
                                     </Badge>
                                 </Tooltip>}
+                                refresh={() => updateTab()}
+                                setPending={tabActions?.setPending!}
                             />}
                         </div>
                         <div className="flex-1 flex justify-end gap-2 mb-auto opacity-0 hover:opacity-100">

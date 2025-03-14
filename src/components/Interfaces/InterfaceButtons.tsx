@@ -156,6 +156,8 @@ const InterfaceButtons = ({
                 contexts={contexts}
                 setContext={handleContextChange}
                 contextActions={contextActions}
+                refresh={() => updateTab()}
+                setPending={tabActions?.setPending!}
             />
             
             {/* Middle - Save, Reset, AddTile */}
