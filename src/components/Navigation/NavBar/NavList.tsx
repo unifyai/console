@@ -7,7 +7,6 @@ import {
   ChartLine,
   ArrowBigRightDash,
   LayoutDashboard,
-  TestTubeDiagonal,
   Gauge,
 } from "lucide-react";
 
@@ -33,11 +32,6 @@ const NavList = (): NavItem[] => {
       title: "Endpoints",
       icon: ArrowBigRightDash,
       href: "/endpoints",
-    },
-    {
-      title: "Datasets",
-      icon: TestTubeDiagonal,
-      href: "/datasets",
     },
     {
       title: "Usage",

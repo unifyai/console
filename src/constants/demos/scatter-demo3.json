@@ -1,0 +1,883 @@
+{
+    "project": "scatter-demo3",
+    "name": "tab1",
+    "items": [
+        {
+            "i": "Table",
+            "x": 0.0,
+            "y": 0.0,
+            "w": 6.0,
+            "h": 8.0,
+            "tab": "Table",
+            "table_type": "Data Table"
+        },
+        {
+            "i": "Plot",
+            "x": 7.0,
+            "y": 0.0,
+            "w": 6.0,
+            "h": 8.0,
+            "tab": "Plot",
+            "x_axis": "Table.age",
+            "y_axis": "Table.salary",
+            "plot_group_by": "Table.identity",
+            "regression_line": "true"
+        }
+    ],
+    "new_counter": 2,
+    "logs": {
+        "entries": [
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 20,
+                "salary": 51458.27871847977
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 21,
+                "salary": 45608.81279104048
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 22,
+                "salary": 24998.64031458579
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 23,
+                "salary": 41789.00102256801
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 24,
+                "salary": 39770.163931926705
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 25,
+                "salary": 45292.213305082754
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 26,
+                "salary": 32222.481613934186
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 27,
+                "salary": 62839.02486578118
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 28,
+                "salary": 52761.71283228888
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 29,
+                "salary": 43755.27121427219
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 30,
+                "salary": 62538.40460060637
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 31,
+                "salary": 39491.3832469225
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 32,
+                "salary": 50848.28371597745
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 33,
+                "salary": 43463.7851727124
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 34,
+                "salary": 77465.58095137976
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 35,
+                "salary": 64743.70647010756
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 36,
+                "salary": 44952.80963679142
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 37,
+                "salary": 29483.238431402417
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 38,
+                "salary": 60649.95719932314
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 39,
+                "salary": 31584.43211728058
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 40,
+                "salary": 49222.71823628825
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 41,
+                "salary": 46738.66454613988
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 42,
+                "salary": 79487.76063814448
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 43,
+                "salary": 50024.81132155
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 44,
+                "salary": 79689.995091048
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 45,
+                "salary": 83484.13795559935
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 46,
+                "salary": 37127.67211902593
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 47,
+                "salary": 48018.208267007336
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 48,
+                "salary": 93446.63880526871
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 49,
+                "salary": 30441.61423564193
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 50,
+                "salary": 102380.7334782059
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 51,
+                "salary": 85717.86614051313
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 52,
+                "salary": 77172.93700127589
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 53,
+                "salary": 61403.81659352474
+            },
+            {
+                "gender": "male",
+                "nationality": "UK",
+                "age": 54,
+                "salary": 102432.07049851687
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 20,
+                "salary": 32827.0584225591
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 21,
+                "salary": 49837.02818779755
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 22,
+                "salary": 12126.189969119148
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 23,
+                "salary": 71102.14648678494
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 24,
+                "salary": 67235.32905518475
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 25,
+                "salary": 39997.70113665777
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 26,
+                "salary": 56223.94156566638
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 27,
+                "salary": 35848.50475985203
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 28,
+                "salary": 65632.58067420042
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 29,
+                "salary": 90128.21779686667
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 30,
+                "salary": 79725.79862853364
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 31,
+                "salary": 30664.15977289201
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 32,
+                "salary": 42747.027366048394
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 33,
+                "salary": 71380.07554068312
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 34,
+                "salary": 66116.72953143792
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 35,
+                "salary": 95342.56682952575
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 36,
+                "salary": 32929.59398209709
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 37,
+                "salary": 90968.13724868122
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 38,
+                "salary": 46261.26021942035
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 39,
+                "salary": 54592.725034845105
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 40,
+                "salary": 40312.9372400337
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 41,
+                "salary": 93849.40810810734
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 42,
+                "salary": 82724.77101877678
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 43,
+                "salary": 31026.064739844533
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 44,
+                "salary": 41305.77785498252
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 45,
+                "salary": 81848.06804224693
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 46,
+                "salary": 58303.47133806196
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 47,
+                "salary": 55149.56652840866
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 48,
+                "salary": 59616.77118292585
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 49,
+                "salary": 89766.87117018236
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 50,
+                "salary": 62840.47635829354
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 51,
+                "salary": 132554.4108082353
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 52,
+                "salary": 118089.89614121457
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 53,
+                "salary": 94504.73811566754
+            },
+            {
+                "gender": "male",
+                "nationality": "US",
+                "age": 54,
+                "salary": 93468.46118277262
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 20,
+                "salary": 19599.292190788772
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 21,
+                "salary": 17612.39348060756
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 22,
+                "salary": 24155.698798702062
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 23,
+                "salary": 32167.259476373893
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 24,
+                "salary": 32135.707468858767
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 25,
+                "salary": 24536.366815245485
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 26,
+                "salary": 18377.52505034447
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 27,
+                "salary": 25960.489797126032
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 28,
+                "salary": 28806.455089017356
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 29,
+                "salary": 34863.687230723655
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 30,
+                "salary": 39177.04094757532
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 31,
+                "salary": 41396.31332040654
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 32,
+                "salary": 22426.45670224721
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 33,
+                "salary": 36849.79483964045
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 34,
+                "salary": 52258.44465385706
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 35,
+                "salary": 40825.67492451304
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 36,
+                "salary": 34000.98218687268
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 37,
+                "salary": 45053.19816361724
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 38,
+                "salary": 55486.14732058847
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 39,
+                "salary": 36283.51381845804
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 40,
+                "salary": 52064.64726725787
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 41,
+                "salary": 58892.155967253304
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 42,
+                "salary": 43804.116608720426
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 43,
+                "salary": 43345.43639963587
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 44,
+                "salary": 39663.04681204069
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 45,
+                "salary": 60856.75854459504
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 46,
+                "salary": 54354.22485237097
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 47,
+                "salary": 45351.7643356304
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 48,
+                "salary": 59207.7886878269
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 49,
+                "salary": 43228.475979443334
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 50,
+                "salary": 39127.279213686255
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 51,
+                "salary": 54523.610265780866
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 52,
+                "salary": 65960.15511054981
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 53,
+                "salary": 57139.36739906529
+            },
+            {
+                "gender": "female",
+                "nationality": "UK",
+                "age": 54,
+                "salary": 64176.43960639526
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 20,
+                "salary": 67150.48991257291
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 21,
+                "salary": 46536.710692147244
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 22,
+                "salary": 34128.96335851774
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 23,
+                "salary": 56008.09348680853
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 24,
+                "salary": 45421.10667098072
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 25,
+                "salary": 67247.85934807053
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 26,
+                "salary": 67684.52371252695
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 27,
+                "salary": 64223.6400214327
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 28,
+                "salary": 41038.04947034743
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 29,
+                "salary": 43283.64869115838
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 30,
+                "salary": 50489.70935348555
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 31,
+                "salary": 81074.66536910726
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 32,
+                "salary": 32560.04709133429
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 33,
+                "salary": 28325.8619284572
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 34,
+                "salary": 59832.43372617424
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 35,
+                "salary": 79927.96582101908
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 36,
+                "salary": 40248.147048273895
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 37,
+                "salary": 52658.15607854418
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 38,
+                "salary": 68799.98838002131
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 39,
+                "salary": 43894.3814611788
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 40,
+                "salary": 68686.54978089941
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 41,
+                "salary": 40383.858280330445
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 42,
+                "salary": 46469.91137295278
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 43,
+                "salary": 48197.941987857936
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 44,
+                "salary": 50781.99042146497
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 45,
+                "salary": 32257.883724811763
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 46,
+                "salary": 49474.54487603585
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 47,
+                "salary": 60100.18234787627
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 48,
+                "salary": 61708.12337823593
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 49,
+                "salary": 69828.44983256196
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 50,
+                "salary": 69256.37540162547
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 51,
+                "salary": 49352.92433841923
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 52,
+                "salary": 40816.4477133674
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 53,
+                "salary": 81979.89895579073
+            },
+            {
+                "gender": "female",
+                "nationality": "US",
+                "age": 54,
+                "salary": 69944.07715695279
+            }
+        ]
+    },
+    "derived_columns": {
+        "project": "scatter-demo3",
+        "key": "identity",
+        "equation": "{Table:gender} + {Table:nationality}",
+        "referenced_logs": {
+            "Table": {
+                "filter_expr": ""
+            }
+        }
+    },
+    "code": "\nimport unify\nimport random\n\ngender_factors = {\"male\": 1500, \"female\": 750}\nloc_offsets = {\"UK\": 15000, \"US\": 45000}\nfor gender in [\"male\", \"female\"]:\n    for loc in [\"UK\", \"US\"]:\n        for age in range(20, 55):\n            unify.log(\n                gender=gender,\n                nationality=loc,\n                age=age,\n                salary=(\n                    age*500 +\n                    age*gender_factors[gender]*random.random() +\n                    loc_offsets[loc]*random.random()\n                ),\n            )\n"
+}

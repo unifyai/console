@@ -1,0 +1,522 @@
+{
+    "project": "bar-demo",
+    "name": "tab1",
+    "items": [
+        {
+            "i": "Table",
+            "x": 0.0,
+            "y": 0.0,
+            "w": 7.0,
+            "h": 8.0,
+            "tab": "Table",
+            "table_type": "Data Table"
+        },
+        {
+            "i": "Plot",
+            "x": 7.0,
+            "y": 0.0,
+            "w": 5.0,
+            "h": 8.0,
+            "tab": "Plot",
+            "plot_type": "Bar Chart"
+        }
+    ],
+    "new_counter": 2,
+    "logs": {
+        "params": [
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": true,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            },
+            {
+                "tool_use": false,
+                "sys_msg": "You are a helpful assistant. You can use tools and search the web."
+            }
+        ],
+        "entries": [
+            {
+                "example_idx": 0,
+                "score": 7.1750270594424155
+            },
+            {
+                "example_idx": 1,
+                "score": 1.162637821261695
+            },
+            {
+                "example_idx": 2,
+                "score": 0.8452795588276141
+            },
+            {
+                "example_idx": 3,
+                "score": 3.368213559935672
+            },
+            {
+                "example_idx": 4,
+                "score": 5.753197406421512
+            },
+            {
+                "example_idx": 5,
+                "score": 6.743611063629496
+            },
+            {
+                "example_idx": 6,
+                "score": 0.626445836841445
+            },
+            {
+                "example_idx": 7,
+                "score": 7.522365161085368
+            },
+            {
+                "example_idx": 8,
+                "score": 9.092815433290898
+            },
+            {
+                "example_idx": 9,
+                "score": 0.23209073812796688
+            },
+            {
+                "example_idx": 0,
+                "score": 9.604548453504634
+            },
+            {
+                "example_idx": 1,
+                "score": 6.230328531018418
+            },
+            {
+                "example_idx": 2,
+                "score": 6.463965355947391
+            },
+            {
+                "example_idx": 3,
+                "score": 7.683349732032674
+            },
+            {
+                "example_idx": 4,
+                "score": 9.957866716914822
+            },
+            {
+                "example_idx": 5,
+                "score": 0.022846846644272167
+            },
+            {
+                "example_idx": 6,
+                "score": 6.176694265954547
+            },
+            {
+                "example_idx": 7,
+                "score": 4.4992112980672
+            },
+            {
+                "example_idx": 8,
+                "score": 2.1703880620643625
+            },
+            {
+                "example_idx": 9,
+                "score": 8.20483133352868
+            },
+            {
+                "example_idx": 0,
+                "score": 6.594162784456438
+            },
+            {
+                "example_idx": 1,
+                "score": 4.550689605923564
+            },
+            {
+                "example_idx": 2,
+                "score": 3.7277931341484196
+            },
+            {
+                "example_idx": 3,
+                "score": 9.760165140932529
+            },
+            {
+                "example_idx": 4,
+                "score": 0.5618761695324392
+            },
+            {
+                "example_idx": 5,
+                "score": 5.881664574175183
+            },
+            {
+                "example_idx": 6,
+                "score": 5.954907523841038
+            },
+            {
+                "example_idx": 7,
+                "score": 1.8899991257869786
+            },
+            {
+                "example_idx": 8,
+                "score": 7.329993699711128
+            },
+            {
+                "example_idx": 9,
+                "score": 1.380052831531564
+            },
+            {
+                "example_idx": 0,
+                "score": 4.821603338382388
+            },
+            {
+                "example_idx": 1,
+                "score": 3.8795357604248037
+            },
+            {
+                "example_idx": 2,
+                "score": 0.6536087231867505
+            },
+            {
+                "example_idx": 3,
+                "score": 0.2754386836591183
+            },
+            {
+                "example_idx": 4,
+                "score": 2.529171155167939
+            },
+            {
+                "example_idx": 5,
+                "score": 1.988517328912074
+            },
+            {
+                "example_idx": 6,
+                "score": 1.5421035136306138
+            },
+            {
+                "example_idx": 7,
+                "score": 1.0589655508850393
+            },
+            {
+                "example_idx": 8,
+                "score": 4.399786140165226
+            },
+            {
+                "example_idx": 9,
+                "score": 2.9996161709900004
+            },
+            {
+                "example_idx": 0,
+                "score": 8.589554029354177
+            },
+            {
+                "example_idx": 1,
+                "score": 0.7075679741479279
+            },
+            {
+                "example_idx": 2,
+                "score": 3.8770340886141796
+            },
+            {
+                "example_idx": 3,
+                "score": 4.942033828123543
+            },
+            {
+                "example_idx": 4,
+                "score": 3.8753634901154532
+            },
+            {
+                "example_idx": 5,
+                "score": 4.887230326014464
+            },
+            {
+                "example_idx": 6,
+                "score": 7.032295368110177
+            },
+            {
+                "example_idx": 7,
+                "score": 3.9590730815063635
+            },
+            {
+                "example_idx": 8,
+                "score": 7.834182984558934
+            },
+            {
+                "example_idx": 9,
+                "score": 0.08655803876724932
+            },
+            {
+                "example_idx": 0,
+                "score": 3.5684796284862355
+            },
+            {
+                "example_idx": 1,
+                "score": 9.89469862695355
+            },
+            {
+                "example_idx": 2,
+                "score": 8.293560299439477
+            },
+            {
+                "example_idx": 3,
+                "score": 8.561635131851515
+            },
+            {
+                "example_idx": 4,
+                "score": 0.6710954468046015
+            },
+            {
+                "example_idx": 5,
+                "score": 3.6586120687357484
+            },
+            {
+                "example_idx": 6,
+                "score": 5.16088710659587
+            },
+            {
+                "example_idx": 7,
+                "score": 0.45570995935188763
+            },
+            {
+                "example_idx": 8,
+                "score": 2.596209461910525
+            },
+            {
+                "example_idx": 9,
+                "score": 1.820722915119436
+            }
+        ]
+    },
+    "derived_columns": {
+        "project": "bar-demo",
+        "key": "experiment",
+        "equation": "\"tool_use:\" + str( {Table:tool_use} ) + \",sys_msg:\" + str(version( {Table:sys_msg} ))",
+        "referenced_logs": {
+            "Table": {
+                "filter_expr": ""
+            }
+        }
+    },
+    "code": "\nimport unify\nimport random\n\nbase_msg = \"You are a helpful assistant.\"\nfor tool_use in [True, False]:\n    with unify.Params(tool_use=tool_use):\n        for sys_msg in [\n            base_msg,\n            base_msg + \" You can use tools.\",\n            base_msg + \" You can use tools and search the web.\"\n        ]:\n            with unify.Params(sys_msg=sys_msg):  \n                for example_idx in range(10):\n                    unify.log(\n                        example_idx=example_idx,\n                        score=random.uniform(0, 10)\n                    )\n"
+}

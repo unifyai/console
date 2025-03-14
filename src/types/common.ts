@@ -15,3 +15,9 @@ export interface NodeProps {
     data?: any;
     nodes?: NodeProps[];
 }
+
+export interface TreeNode {
+    path: string;
+    children: { [key: string]: TreeNode };
+    isComplete: boolean;
+}
