@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Check, ExternalLink, Loader2, Play } from "lucide-react";
+import { ExternalLink, Loader2, Play } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import MarkdownRender from "../Common/Code/MarkdownRender";
 import { DerivedEntryActions, InterfaceActions, LogsActions, ProjectsActions, TileProps } from "@/types/evals/grid";
@@ -287,7 +287,7 @@ const DefaultProject = ({
                             disabled={disabled}
                         />
                     </div>
-                    <MarkdownRender content={`\`\`\`python${demoCode}\`\`\``} noBackground />
+                    <MarkdownRender content={`\`\`\`python${demoCode}\`\`\``} darkOnly />
                 </div>
             </div>
         </div>
