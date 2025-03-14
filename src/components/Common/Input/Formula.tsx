@@ -137,7 +137,7 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
   
     // Find the selected option and determine if it has children
     const selectedOption = options.find(opt => opt.name === option);
-    const suffix = selectedOption?.children?.length ? '.' : ' ';
+    const suffix = selectedOption?.children?.length ? '.' : '';
   
     // Find start of current partial word using the same delimiters as input parsing, then
     // Walk backwards to find word start, then
