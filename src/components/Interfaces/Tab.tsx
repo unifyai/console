@@ -216,6 +216,9 @@ const Tab = ({
                             </Tooltip>
                             {item.context && item.tab == "Table" && <ContextSelector
                                 tileId={item.i}
+                                tabId={tabId}
+                                interfaceId={interfaceId}
+                                projectId={projectId}
                                 contexts={contexts}
                                 context={tabData?.globalContext}
                                 contextActions={contextActions}
@@ -232,6 +235,9 @@ const Tab = ({
                             />}
                             {(item.column_context) && item.tab == "Table" && <ContextSelector
                                 tileId={item.i}
+                                tabId={tabId}
+                                interfaceId={interfaceId}
+                                projectId={projectId}
                                 contexts={contexts}
                                 context={tabData?.globalContext}
                                 contextActions={contextActions}

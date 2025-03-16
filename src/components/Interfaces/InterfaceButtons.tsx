@@ -152,6 +152,7 @@ const InterfaceButtons = ({
             />
             
             <ContextSelector
+                projectId={project || undefined}
                 context={tabData?.globalContext}
                 contexts={contexts}
                 setContext={handleContextChange}
