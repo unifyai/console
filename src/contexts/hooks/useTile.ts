@@ -10,9 +10,8 @@ import { TableTileData } from '../slices/selectors/tableTile';
 
 // Define the valid tile types
 const tileTypes = ['Table', 'Plot', 'View'] as const;
-type TileType = (typeof tileTypes)[number];
 
-// Define the default tile position
+// Define stable fallback references
 const DEFAULT_TILE_POSITION = { x: 0, y: 0, width: 2, height: 2 };
 const DEFAULT_TILE_RETURN = { tile: null, actions: null, exists: false };
 

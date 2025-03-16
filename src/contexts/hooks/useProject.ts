@@ -4,7 +4,8 @@ import { Project } from '../slices/selectors/project';
 import { useShallow } from 'zustand/react/shallow';
 import { Context } from '@/types/evals/grid';
 
-// Define the default return value for the useProject hook
+// Define stable fallback references
+const EMPTY_CONTEXTS: Context[] = [];
 const DEFAULT_USE_PROJECT_RETURN = {
   project: null,
   actions: null,
@@ -64,7 +65,7 @@ export function useProject(projectId: string | null) {
     return state.projectsById[projectId].description;
   });
   const contexts = useStoreContext((state) => {
-    if (!hasProject || !projectId) return [];
+    if (!hasProject || !projectId) return EMPTY_CONTEXTS;
     return state.projectsById[projectId].contexts;
   });
   const activeInterfaceId = useStoreContext((state) => {

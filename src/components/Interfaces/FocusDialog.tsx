@@ -43,8 +43,7 @@ const FocusDialog = ({
         return (!tabActions || !tabData) ? [] : tabActions.getItems();
     }, [tabActions, tabData]);
 
-    const focusedTileIds = tabData?.focusedTileIds;
-    const safeFocusedTileIds = focusedTileIds ? Array.from(focusedTileIds) : [undefined, undefined];
+    const safeFocusedTileIds = useMemo(() => tabData?.focusedTileIds ? Array.from(tabData.focusedTileIds) : [undefined, undefined], [tabData?.focusedTileIds]);
 
     const focusedTileItems: [TileProps | undefined, TileProps | undefined] = safeFocusedTileIds.map(
         tile => {
@@ -103,7 +102,7 @@ const FocusDialog = ({
                                 size="default"
                             />}
                         >
-                            {tileProps.filter(item => !focusedTileIds!.includes(item.i)).map((item, idx_) => <DropdownMenuItem
+                            {tileProps.filter(item => !tabData?.focusedTileIds!.includes(item.i)).map((item, idx_) => <DropdownMenuItem
                                 key={idx_}
                                 onSelect={() => {
                                     const newFocusedTileIds = [...safeFocusedTileIds];

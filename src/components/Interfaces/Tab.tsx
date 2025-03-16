@@ -156,12 +156,7 @@ const Tab = ({
 
   // Show loading state if tab data is not yet available
   if (!tabData) {
-    return (
-      <div className="w-full h-full flex items-center justify-center">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        <p>Loading tab...</p>
-      </div>
-    );
+    return null;
   }
 
   return (

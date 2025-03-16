@@ -4,7 +4,8 @@ import { Interface } from '../slices/selectors/interface';
 import { Tab } from '../slices/selectors/tab';
 import { useShallow } from 'zustand/react/shallow';
 
-// Define the default return value for the useInterface hook
+// Define stable fallback references
+const EMPTY_TAB_IDS: string[] = [];
 const DEFAULT_USE_INTERFACE_RETURN = {
   interface: null,
   actions: null,
@@ -64,7 +65,7 @@ export function useInterface(interfaceId: string | null, projectId?: string | nu
     return state.projectsById[activeProjectId].interfaces[interfaceId].activeTabId || null;
   });
   const tabIds = useStoreContext(state => {
-    if (!hasInterface || !activeProjectId || !interfaceId) return [];
+    if (!hasInterface || !activeProjectId || !interfaceId) return EMPTY_TAB_IDS;
     return state.projectsById[activeProjectId].interfaces[interfaceId].tabIds;
   });
   const tabs = useStoreContext((
