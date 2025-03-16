@@ -9,44 +9,54 @@ import { buildProjectState } from "./builders/projectStateBuilder";
  * Build complete initial state for the store
  */
 export function buildInitialState(
-  currentProjectId: string,
-  currentProjectName: string,
+  currentProjectId: string | null,
+  currentProjectName: string | null,
   currentInterfaceId: string,
-  currentTabId: string,
+  currentTabId: string | null,
+  projects: string[],
+  contexts: Context[],
+  tabs: Record<string, TabProps>,
   tabsData: TabsDataProps,
   tableData: TableDataProps,
   plotData: PlotDataProps,
   tableArguments: TableArguments,
   limit: number,
   offsets: number[],
-  contexts: Context[],
-  tabs: Record<string, TabProps>
 ) {
-  return {
-    // Main hierarchical structure
-    projectsById: {
-      [currentProjectId]: buildProjectState(
-        currentProjectId,
-        currentProjectName,
-        currentInterfaceId,
-        currentTabId,
-        tabsData,
-        tableData,
-        plotData,
-        tableArguments,
-        limit,
-        offsets,
-        contexts,
-        tabs
-      )
-    },
+    const storeState: Partial<IStoreState> = {
+      // Global active states for navigation
+      activeProjectId: currentProjectId,
+      activeInterfaceId: currentInterfaceId,
+      activeTabId: currentTabId,
 
-    // Global active states for navigation
-    activeProjectId: currentProjectId,
-    activeInterfaceId: currentInterfaceId,
-    activeTabId: currentTabId,
-    
-    // Initialize projects list (for backward compatibility with IStoreState)
-    projects: [currentProjectId]
-  } as Partial<IStoreState>;
+      // Global states
+      projects: projects,
+
+      // Main hierarchical structure
+      projectsById: {},
+    }
+
+      
+    // Global states
+    // Main hierarchical structure
+    if (currentProjectId) {
+      storeState.projectsById = {
+        [currentProjectId]: buildProjectState(
+          currentProjectId,
+          currentProjectName,
+          currentInterfaceId,
+          currentTabId,
+          contexts,
+          tabs,
+          tabsData,
+          tableData,
+          plotData,
+          tableArguments,
+          limit,
+          offsets,
+        )
+      }
+    }
+
+    return storeState;
 }

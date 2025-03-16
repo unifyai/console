@@ -8,20 +8,20 @@ import { PlotDataProps } from "@/types/evals/grid";
  * Build initial state for a project with its interfaces
  */
 export function buildProjectState(
-  currentProjectId: string,
-  currentProjectName: string,
+  currentProjectId: string | null,
+  currentProjectName: string | null,
   currentInterfaceId: string,
-  currentTabId: string,
+  currentTabId: string | null,
+  contexts: Context[],
+  tabs: Record<string, TabProps>,
   tabsData: TabsDataProps,
   tableData: TableDataProps,
   plotData: PlotDataProps,
   tableArguments: TableArguments,
   limit: number,
   offsets: number[],
-  contexts: Context[],
-  tabs: Record<string, TabProps>
 ) {
-  return {
+  const project: Project = {
     id: currentProjectId,
     name: currentProjectName,
     description: "",
@@ -33,14 +33,16 @@ export function buildProjectState(
       [currentInterfaceId]: buildInterfaceState(
         currentInterfaceId,
         currentTabId,
+        tabs,
         tabsData,
         tableData,
         plotData,
         tableArguments,
         limit,
         offsets,
-        tabs
       )
     }
   } as Project;
+
+  return project;
 }

@@ -9,38 +9,40 @@ import { TableArguments } from "@/types/evals/logs";
  */
 export function buildInterfaceState(
   currentInterfaceId: string,
-  currentTabId: string,
+  currentTabId: string | null,
+  tabs: Record<string, TabProps>,
   tabsData: TabsDataProps,
   tableData: TableDataProps,
   plotData: PlotDataProps,
   tableArguments: TableArguments,
   limit: number,
   offsets: number[],
-  tabs: Record<string, TabProps>
 ) {
   // Create interface structure
-  const iface = {
+  const iface: Interface = {
     id: currentInterfaceId,
     name: "Default Interface",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    activeTabId: currentTabId,
+    activeTabId: currentTabId || null,
     tabIds: [],
     tabs: {} as Record<string, any>,
     tableArguments: tableArguments,
   } as Interface;
 
   // Add current active tab
-  iface.tabs[currentTabId] = buildTabState(
-    currentTabId,
-    tabsData[currentTabId],
-    tableData,
-    plotData,
-    limit,
-    offsets,
-    true, // Active
-    1, // First order
-  );
+  if (currentTabId) {
+    iface.tabs[currentTabId] = buildTabState(
+      currentTabId,
+      tabsData[currentTabId],
+      tableData,
+      plotData,
+      limit,
+      offsets,
+      true, // Active
+      1, // First order
+    );
+  }
 
   // Add other tabs from tabsData
   Object.entries(tabsData).forEach(([tabId, tabData]: [string, any]) => {

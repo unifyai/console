@@ -377,56 +377,64 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
 
     // TODO: In future versions, we'll support multiple interfaces per project
     // For now, hardcode a default interface ID
-    const currentProjectId = currentProject || "default-project";
-    const currentProjectName = currentProject || "Default Project";
+    const currentProjectId = currentProject || null;
+    const currentProjectName = currentProject || null;
     const currentInterfaceId = "default-interface";
-    const currentTabId = tab_1 || "default-tab";
-    
+    const currentTabId = tab_1 || null;
+
+    // Construct the initial state
+    const tabsData: TabsDataProps = {}
+
+    // Add current tab
+    if (currentTabId) {
+        tabsData[currentTabId] = {
+            name: currentTabId,
+            project: currentProject,
+            globalContext: currentTab?.context,
+            items: currentTab?.items || [],
+            new_counter: currentTab?.new_counter || 0,
+            tableTiles: tableTiles,
+            plotTiles: plotTiles,
+            viewTiles: viewTiles,
+            tabCreated: tabCreated,
+            tempTabCreated: tempTabCreated,
+            savedTab: savedTab,
+        } as TabsDataProps[keyof TabsDataProps]
+
+        // Add other tabs
+        Object.entries(tabsTemp).forEach(([id, data]) => {
+            if (id !== currentTabId) {
+                tabsData[id] = {
+                    name: id,
+                    project: data.project,
+                    globalContext: data.context,
+                    items: data.items,
+                    new_counter: data.new_counter,
+                    tableTiles: [],
+                    plotTiles: [],
+                    viewTiles: [],
+                    tabCreated: true,
+                    tempTabCreated: true,
+                    savedTab: tabs[id],
+                } as TabsDataProps[keyof TabsDataProps];
+            }
+        })
+    }
+
     const initialState: Partial<IStoreState> = buildInitialState(
         currentProjectId,
         currentProjectName,
         currentInterfaceId,
         currentTabId,
-        { 
-            [currentTabId]: {
-                name: currentTabId,
-                project: currentProject,
-                globalContext: currentTab?.context,
-                items: currentTab?.items || [],
-                new_counter: currentTab?.new_counter || 0,
-                tableTiles: tableTiles,
-                plotTiles: plotTiles,
-                viewTiles: viewTiles,
-                tabCreated: tabCreated,
-                tempTabCreated: tempTabCreated,
-                savedTab: savedTab,
-            } as TabsDataProps[keyof TabsDataProps],
-            ...Object.entries(tabsTemp).reduce((acc: TabsDataProps, [id, data]) => {
-                if (id !== currentTabId) {
-                    acc[id] = {
-                        name: id,
-                        project: data.project,
-                        globalContext: data.context,
-                        items: data.items,
-                        new_counter: data.new_counter,
-                        tableTiles: [],
-                        plotTiles: [],
-                        viewTiles: [],
-                        tabCreated: true,
-                        tempTabCreated: true,
-                        savedTab: tabs[id],
-                    } as TabsDataProps[keyof TabsDataProps];
-                }
-                return acc;
-            }, {})
-        } as TabsDataProps,
+        projects,
+        contexts,
+        tabs,
+        tabsData,
         tableData,
         plotData,
         tableArguments,
         limit,
         offsets,
-        contexts,
-        tabs
     );
 
     return (

@@ -12,10 +12,6 @@ export type StoreState = StoreSlice;
 // 2) Extend the store state with legacy fields for backward compatibility
 // -----------------------------------------------------------------------------
 export interface IStoreState extends StoreState {
-  // Make state property names explicit
-  projects: string[];
-  setProjects: (projects: string[]) => void;
-
   // Global action to reset the entire store state
   resetState: (newState: Partial<IStoreState>) => void;
 }
@@ -24,9 +20,9 @@ export interface IStoreState extends StoreState {
 // 3) Helper function to cast slice creators to the combined store type
 //    This helps TypeScript understand our composition pattern
 // -----------------------------------------------------------------------------
-function castSliceCreator<SliceState>(fn: any) {
-  return fn as any;
-}
+// function castSliceCreator<SliceState>(fn: any) {
+//   return fn as any;
+// }
 
 // -----------------------------------------------------------------------------
 // 4) The function that creates a new Zustand store instance
@@ -38,20 +34,12 @@ export function createStore(initialState?: Partial<IStoreState>) {
     devtools(
       immer((set, get, api) => {
         // Use the helper function to cast the slice creator
-        const storeSlice = castSliceCreator(createStoreSlice)(set, get, api);
-        
+        const storeSlice = createStoreSlice(set, get, api);
+
         return {
           // Include the slice
           ...storeSlice,
-          
-          // Initialize the projects array (for backward compatibility)
-          projects: initialState?.projects || [],
-          
-          // Add setProjects setter for the projects array
-          setProjects: (projects: string[]) => set((state) => {
-            state.projects = projects;
-          }),
-          
+
           // Global reset action
           resetState: (newState: Partial<IStoreState>) => set(newState),
         };

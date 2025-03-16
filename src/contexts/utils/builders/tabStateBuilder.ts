@@ -7,7 +7,7 @@ import { Tab } from "@/contexts/slices/selectors/tab";
  * Build initial state for a tab with its tiles
  */
 export function buildTabState(
-  currentTabId: string,
+  currentTabId: string | null,
   tabData: TabsDataProps[keyof TabsDataProps],
   tableData: TableDataProps = {},
   plotData: PlotDataProps = {},
@@ -20,7 +20,7 @@ export function buildTabState(
   const savedTabValue: TabProps | null = tabData.savedTab || null;
   
   // Create basic tab structure
-  const tab = {
+  const tab: Tab = {
     id: currentTabId,
     name: tabData.name || currentTabId,
     visible: true,

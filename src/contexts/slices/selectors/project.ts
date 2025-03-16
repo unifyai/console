@@ -3,8 +3,8 @@ import { Context } from "@/types/evals/grid";
 
 // Project state definition
 export interface Project {
-  id: string;
-  name: string;
+  id: string | null;
+  name: string | null;
   description: string;
   createdAt: string;
   updatedAt: string;
@@ -19,7 +19,7 @@ export interface Project {
 export function initProject(projectId: string, initialState: Partial<Project> = {}): Project {
   return {
     id: projectId,
-    name: initialState.name || "New Project",
+    name: initialState.name || null,
     description: initialState.description || "",
     createdAt: initialState.createdAt || new Date().toISOString(),
     updatedAt: initialState.updatedAt || new Date().toISOString(),

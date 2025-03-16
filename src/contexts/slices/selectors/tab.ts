@@ -3,8 +3,8 @@ import { Tile } from "./tile";
 
 // Tab state definition
 export interface Tab {
-  id: string;
-  name: string;
+  id: string | null;
+  name: string | null;
   visible: boolean;
   active: boolean;
   order: number;
@@ -36,7 +36,7 @@ export interface Tab {
 export function initTab(tabId: string, initialState: Partial<Tab> = {}): Tab {
   return {
     id: tabId,
-    name: initialState.name || "New Tab",
+    name: initialState.name || null,
     visible: initialState.visible !== undefined ? initialState.visible : true,
     active: initialState.active !== undefined ? initialState.active : false,
     order: initialState.order !== undefined ? initialState.order : 0,

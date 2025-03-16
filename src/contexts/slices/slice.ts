@@ -54,10 +54,14 @@ export interface StoreState {
   activeProjectId: string | null;
   activeInterfaceId: string | null;
   activeTabId: string | null;
+  //Global states
+  projects: string[];
 }
 
 // Actions for managing the projects state
 export interface StoreActions {
+  // Global actions
+  setProjects: (projects: string[]) => void;
   // Project level actions
   initProject: (projectId: string, initialState?: Partial<projectLogic.Project>) => void;
   removeProject: (projectId: string) => void;
@@ -148,12 +152,18 @@ export const createStoreSlice: StateCreator<
   [["zustand/immer", never]],
   [],
   StoreSlice
-> = (set, get) => ({
+> = (set, get, api) => ({
   // Initial state
+  projects: [],
   projectsById: {},
   activeProjectId: null,
   activeInterfaceId: null,
   activeTabId: null,
+
+  // Global actions
+  setProjects: (projects: string[]) => set(state => {
+    state.projects = projects;
+  }),
   
   // Project level actions
   initProject: (projectId, initialState = {}) => set(state => {
