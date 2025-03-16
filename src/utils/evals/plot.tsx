@@ -512,69 +512,6 @@ export const drawBarChart = (
         .on("mousemove", (event) => positionTooltip(event, event.target, tooltip))
         .on("mouseout", handleMouseOut);
 
-    // Handle panning and zooming
-    const initialX = xScale.copy();
-    const zoomContainer = svg.select(".zoom-layer").attr("x", 0).attr("y", 0).attr("width", dimensions.width).attr("height", dimensions.height).style("fill", "none").style("pointer-events", "all").lower();
-    zoomContainer.on("wheel", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-    });
-    zoomContainer.on('dblclick', () => {
-        zoomRef.current = d3.zoomIdentity;
-        zoomContainer.transition("zoom").duration(500).call(zoom.transform as any, d3.zoomIdentity);
-    });
-    const zoom = d3
-        .zoom()
-        .on('start', () => {
-            d3.select('body').style('overflow', 'hidden')
-            // Temporarily disable interaction during zoom   
-            g.selectAll("rect.bar-item").style("pointer-events", "none");
-        })
-        .on('end', () => {
-            d3.select('body').style('overflow', 'auto')
-            // Re-enable hover effects after zoom
-            g.selectAll("rect.bar-item").style("pointer-events", "all");
-        })
-        .on('zoom', (event) => {
-
-            event.sourceEvent?.preventDefault();
-            event.sourceEvent?.stopPropagation();
-        
-            zoomRef.current = event.transform
-
-            // Get transform parameters
-            const transform = event.transform;
-            const k = transform.k;
-            const tx = transform.x;
-        
-            // Calculate visible range boundaries
-            const visibleStart = (-tx) / k;
-            const visibleEnd = (dimensions.width - tx) / k;
-        
-            // Create a new band scale with transformed range
-            const newX = initialX.copy()
-                .range([visibleStart, visibleEnd])
-                .padding(0.2 * (1/k)); // Adjust padding based on zoom level
-        
-            // Recalculate ticks based on new domain
-            const [xTicks, yTicks] = [
-                generateTicks(0, 0, 10, scaleX === "log"),
-                generateTicks(minY, maxY, 10, scaleY === "log")
-            ]
-
-            // Redraw axes with new scales
-            drawAxes("Bar Chart", svg, dimensions, margins, newX, yScale, xTicks, yTicks);
-
-            // Update bars
-            g.selectAll(".bar-item")
-                .transition("zoom")
-                .attr("x", d => newX((d as DataLabel)[0])!)
-                .attr("width", newX.bandwidth());        
-            
-    });
-    // Attach zoom transform to container and reapply previous zoom if exists
-    zoomContainer.call(zoom as any);
-    zoomContainer.call(zoom.transform as any, zoomRef.current);
 };
 
 export const drawLineChart = (

@@ -388,7 +388,7 @@ export async function onGroupExpand(
         logsActions
       ) as { [key: string]: { [key: string]: { [key: string]: number | string } } };
       const metrics = Object.fromEntries(
-        Object.entries(metricsData).map(
+        Object.entries(metricsData).filter(([col, _]) => numericColumns.includes(col)).map(
           ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
             ([groupingValue, results]) => [groupingValue, results[item.metric ?? "mean"]]
           ))]

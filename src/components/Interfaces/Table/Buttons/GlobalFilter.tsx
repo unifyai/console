@@ -86,7 +86,7 @@ const GlobalFilter = ({ interactive, commonFilter, setCommonFilter, logs, curren
     }
     const closeIcon = <X size={15} onClick={onCloseClick} className="cursor-pointer" /> 
     const closeClassName = `absolute z-10 right-2 ${mode === "expression" ? "top-[10px]" : "top-[8px]"}`
-    const closeButton = commonFilter && commonFilter.length > 0 && <div className={closeClassName}>{closeIcon}</div> 
+    const closeButton = commonFilter?.length && <div className={closeClassName}>{closeIcon}</div> 
 
     return (
         <div className="flex flex-row items-center">

@@ -299,7 +299,7 @@ export const buildFilterExpression = (filters: string | undefined, common_filter
     let filterExpression: (string | null) = null
 	if (columnFiltersExpression) filterExpression = columnFiltersExpression;
 	if (commonFiltersExpression) filterExpression = filterExpression ? `${commonFiltersExpression} and ${filterExpression}` : commonFiltersExpression;
-	if (freeze) filterExpression = filterExpression ? filterExpression + `created_at < "${freeze}"` : `created_at < "${freeze}"`;
+	if (freeze) filterExpression = filterExpression ? filterExpression + ` and created_at < "${freeze}"` : `created_at < "${freeze}"`;
 
 	return filterExpression
 }

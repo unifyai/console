@@ -268,7 +268,7 @@ const DefaultProject = ({
                     </div>
                 </div>}
                 <div className="relative max-w-[700px] max-h-[700px] overflow-y-auto rounded-md border border-1 p-2">
-                    <div className="absolute z-10 top-3 right-12 flex gap-1">
+                    <div className="absolute z-10 top-3 right-12 flex gap-1 text-muted">
                         <Link href={`https://docs.unify.ai/${demoLink}`} target="_blank">
                             <ActionButton icon={<ExternalLink />} tooltip={"Learn more"} />
                         </Link>

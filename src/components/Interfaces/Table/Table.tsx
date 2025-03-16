@@ -102,7 +102,7 @@ const LogsTable = ({
   const item = useMemo(() => tileActions?.asTileItem(), [tileActions]);
 
   // Use the tableDataItem from the tile's table data
-  const tableDataItem = tableData?.tableDataItem || {
+  const tableDataItem = useMemo(() => tableData?.tableDataItem || {
     columnContexts: [],
     baseIndex: undefined,
     hiddenColumns: undefined,
@@ -119,7 +119,7 @@ const LogsTable = ({
     groupedMetrics: {},
     boundaries: { minimums: {}, maximums: {} },
     metric: ""
-  } as TableDataItem;
+  } as TableDataItem, [tableData?.tableDataItem]);
 
   // Create a generic updateItem function that checks property existence
   const updateItem = (item: TileProps, propName: string) => (value: any) => {
