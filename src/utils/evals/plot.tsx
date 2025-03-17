@@ -5,6 +5,7 @@ import { LogProps, LogItemProps, LogFieldsResponseProps } from "@/types/evals/lo
 import { DataLabel, DataPoint, GroupedDataPoint, GroupingColors, InfoCardData } from "@/types/evals/plot";
 import { toComputableValue, computeStatistic } from "./common";
 import { formatNumber } from "../formatNumber";
+import moment from 'moment';
 
 const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
 
@@ -243,7 +244,7 @@ function generateTicks(min: number, max: number, count = 10, isLogScale = false)
       if (!ticks.includes(min)) ticks.unshift(min)
       if (!ticks.includes(max)) ticks.push(max)  
     }
-  
+
     return ticks;
 }
 
@@ -301,7 +302,8 @@ const getValue = (fields: LogFieldsResponseProps, axisProperty: string, log: Log
             ? (log[`${table}.params`] as LogItemProps)[axisProperty]
             : (log[`${table}.entries`] as LogItemProps)[axisProperty]
     const dataType = fields[axisProperty] ? fields[axisProperty].data_type : "float"
-    if (dataType === "timestamp" || dataType === "timedelta" || dataType === "datetime") value = new Date(value).getTime()
+    if (dataType === "timestamp" || dataType === "datetime") value = new Date(value).getTime()
+    if (dataType === "timedelta") value = timeDeltaValueToDuration(value)
     if (dataType === "time") value = timeValueToTime(value).getTime()
     return value
 }
@@ -317,7 +319,13 @@ function durationToTimeDelta(durationInMilliseconds: number) {
     const displayMinutes = minutes % 60;
     const displaySeconds = seconds % 60;
 
-    return `${displayDays} days, ${displayHours}:${displayMinutes}:${displaySeconds} seconds`;
+    return `${displayDays} days, ${displayHours}:${displayMinutes}:${displaySeconds}`;
+}
+
+function timeDeltaValueToDuration (value: string) {
+    const duration = moment.duration(value);
+    const milliseconds = duration.asMilliseconds();
+    return milliseconds
 }
 
 function timeValueToTime (value: string) {
@@ -567,6 +575,7 @@ export const drawLineChart = (
         const sortedData = filteredData.sort((a, b) => {
             const valueA = getValue(fields, xAxisProperty, a, xTable)
             const valueB = getValue(fields, xAxisProperty, b, xTable)
+            if (xType === "timedelta") return valueB - valueA;
             return valueA - valueB;
         });
         const getData = (logs: LogProps[]) => logs.map(d => [
