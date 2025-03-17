@@ -15,13 +15,11 @@ import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./ProjectButtons";
 import EditTileName from "./EditTileName";
 import { useInterface } from '@/contexts/hooks/useInterface';
-import { useProject } from '@/contexts/hooks/useProject';
 import { useTab } from '@/contexts/hooks/useTab';
 import { Context, TabProps } from "@/types/evals/grid";
 import { useQueryState } from "nuqs";
 import { ProjectsActions, TabActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions } from '@/types/evals/grid';
 import { ResponseProps } from '@/types/common';
-import { useWhyDidYouUpdate } from '@/contexts/utils/sliceUtils';
 
 interface InterfaceComponentProps {
   interfaceId: string;
@@ -51,14 +49,6 @@ const Interface = ({
   // Get interface and project data from hooks
   const { actions: interfaceActions } = useInterface(interfaceId);
   const { tab: tabData, actions: tabActions } = useTab(tabQueryParam || "", interfaceId);
-
-  console.log("Render Interface");
-
-  useWhyDidYouUpdate("Interface", [
-    interfaceActions,
-    tabData?.tiles,
-    tabActions,
-  ]);
 
   // Local UI state - only keeping what's absolutely necessary as local state
   const [focusDialog, setFocusDialog] = useState(false);

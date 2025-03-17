@@ -5,8 +5,7 @@ import LogsTable from "@/components/Interfaces/Table/Table";
 import LogsPlot from "@/components/Interfaces/Details/Plot/Plot";
 import Selection from "@/components/Interfaces/Details/Selection/Selection";
 import { ResponseProps } from "@/types/common";
-import { LogsActions, FieldsActions, DerivedEntryActions, TileProps, ItemType, ContextActions } from "@/types/evals/grid";
-import { LogFieldsResponseProps, PlotArguments, TableArguments } from "@/types/evals/logs";
+import { LogsActions, FieldsActions, DerivedEntryActions, TileProps, ContextActions } from "@/types/evals/grid";
 
 // Import the new hooks
 import { useTile } from '@/contexts/hooks/useTile';
@@ -14,10 +13,9 @@ import { useTableTile } from '@/contexts/hooks/useTableTile';
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { ExpandProvider } from "@/contexts/ExpandContext";
 import { useTab } from "@/contexts/hooks/useTab";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useInterface } from "@/contexts/hooks/useInterface";
 import { useRouter } from "next/navigation";
-import { useWhyDidYouUpdate } from "@/contexts/utils/sliceUtils";
 
 // Define component props 
 interface TileComponentProps {
@@ -67,26 +65,6 @@ const Tile = ({
         w: tileData?.position?.width || 4,
         h: tileData?.position?.height || 4,
     }, [tileActions, tileData]);
-
-    useWhyDidYouUpdate('TileItemEffect', [
-        tileItem.tab,
-        tileItem.table_type,
-        tileItem.filters,
-        tileItem.context,
-        tileItem.column_context,
-        tileItem.common_filter,
-        tileItem.sorting,
-        tileItem.grouping,
-        tileItem.group_sorting,
-        tileItem.page_number,
-        tileItem.metric,
-        tileItem.plot_type,
-        tileItem.x_axis,
-        tileItem.y_axis,
-        tileItem.plot_group_by,
-        tileItem.auto_update,
-        tileItem.freeze
-      ]);
 
     // Use a ref to compare the needed properties so we only update if something truly changed.
     useEffect(() => {
