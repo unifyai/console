@@ -687,7 +687,10 @@ const LogsTable = ({
                         const groupingValue = row.getValue(key) as string;
                         const value = groupedMetrics[newKey] ? groupedMetrics[newKey][groupingValue] : undefined;
                         if (value && typeof value === "number")
-                          return value.toFixed(2)
+                          if (state.metric === "count")
+                            return Math.floor(value)
+                          else
+                            return value.toFixed(2)
                         else if (value && cell.column.columnDef.meta?.dataType === "timedelta" && state.metric != "count") 
                           try {
                             return durationToTimeDelta(timeDeltaValueToDuration(value.toString()));
