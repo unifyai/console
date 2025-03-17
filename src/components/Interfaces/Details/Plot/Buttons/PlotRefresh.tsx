@@ -21,7 +21,7 @@ const fetchLatestTimestamps = async (tables: string[], args: PlotArguments, proj
         })
     );
     const latestTimestamp = new Date(Math.max(...latestDates.map(t => new Date(t).getTime())))
-    const latest = latestTimestamp.toISOString()
+    const latest = latestTimestamp.toString() == "Invalid Date" ? "" : latestTimestamp.toISOString()
     return latest
 };
 

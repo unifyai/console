@@ -17,10 +17,11 @@ import EditTileName from "./EditTileName";
 import { useInterface } from '@/contexts/hooks/useInterface';
 import { useProject } from '@/contexts/hooks/useProject';
 import { useTab } from '@/contexts/hooks/useTab';
-import { TabProps } from "@/types/evals/grid";
+import { Context, TabProps } from "@/types/evals/grid";
 import { useQueryState } from "nuqs";
 import { ProjectsActions, TabActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions } from '@/types/evals/grid';
 import { ResponseProps } from '@/types/common';
+import { useWhyDidYouUpdate } from '@/contexts/utils/sliceUtils';
 
 interface InterfaceComponentProps {
   interfaceId: string;
@@ -49,8 +50,15 @@ const Interface = ({
 
   // Get interface and project data from hooks
   const { actions: interfaceActions } = useInterface(interfaceId);
-  const { project: projectData } = useProject(projectQueryParam || null);
   const { tab: tabData, actions: tabActions } = useTab(tabQueryParam || "", interfaceId);
+
+  console.log("Render Interface");
+
+  useWhyDidYouUpdate("Interface", [
+    interfaceActions,
+    tabData?.tiles,
+    tabActions,
+  ]);
 
   // Local UI state - only keeping what's absolutely necessary as local state
   const [focusDialog, setFocusDialog] = useState(false);
@@ -62,7 +70,7 @@ const Interface = ({
   const gridRef = useRef<HTMLDivElement>(null);
   
   // Additional data preparation
-  const contexts = (projectData?.contexts || []);
+  const contexts: Context[] = [];
 
   // Get tile props using the getItems function from the tabActions
   const tileProps = useMemo(() => {
@@ -82,7 +90,7 @@ const Interface = ({
         tabQueryParam &&
         projectQueryParam &&
         tabQueryParam === tabData?.id &&
-        projectQueryParam === projectData?.name &&
+        projectQueryParam === "Plots" &&
         !tabData?.pending
     ) {
         if (tabData?.tempTabCreated) {

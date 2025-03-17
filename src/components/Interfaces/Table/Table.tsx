@@ -4,16 +4,15 @@ import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
 import { TableArguments, LogProps, GroupedLogProps, LogItemProps } from "@/types/evals/logs";
 import {
-  ColumnDef,
   ColumnFiltersState,
   ColumnSort,
   ColumnPinningState,
   ColumnSizingState,
   GroupingState,
 } from "@tanstack/react-table";
-import { DerivedEntryActions, LogsActions, FieldsActions, Context, ContextActions } from "@/types/evals/grid";
+import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions } from "@/types/evals/grid";
 import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Ungroup, ListX, FilterX } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import { buildTree, nestedColumns, encodeRenderedDepth } from "@/utils/evals/table";
 import { Badge } from "@/components/UI/badge";
@@ -49,54 +48,54 @@ import ResetServerAction from "./Buttons/ResetServerAction";
 import { useTile } from "@/contexts/hooks/useTile";
 import { useTab } from "@/contexts/hooks/useTab";
 import { useTableTile } from "@/contexts/hooks/useTableTile";
+import { useInterface } from "@/contexts/hooks/useInterface";
+import { useProject } from "@/contexts/hooks/useProject";
 
 const LogsTable = ({
   tileId,
   tabId,
   interfaceId,
   projectId,
-  contexts,
-  context_,
-  tableArguments,
   logsActions,
   fieldsActions,
   derivedEntryActions,
   contextActions,
-  filterExpression,
-  sortingExpression,
-  groupingExpression,
-  groupSortingExpression,
-  limit,
-  offset,
   updateTab,
 }: {
   tileId: string;
   tabId: string;
   interfaceId: string;
   projectId: string | undefined;
-  contexts: Context[];
-  context_: string | undefined;
-  tableArguments: TableArguments;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions,
   contextActions: ContextActions,
-  filterExpression: string | null,
-  sortingExpression: string | null,
-  groupingExpression: string | null,
-  groupSortingExpression: string | null,
-  limit: number,
-  offset: number,
   updateTab: (savedTab?: any) => Promise<ResponseProps>,
 }) => {
-  // Get access to the tab context and actions
+
+  // Get access to the project data and actions
+  const { project: projectData } = useProject(projectId ?? null);
+  const contexts = projectData?.contexts || [];
+
+  // Get access to the interface data and actions
+  const { interface: interfaceData } = useInterface(interfaceId);
+  const tableArguments = interfaceData?.tableArguments as unknown as TableArguments;
+  const filterExpression = interfaceData?.tableArguments[tileId]?.getLogs_parameters?.filter_expr || null;
+  const sortingExpression = interfaceData?.tableArguments[tileId]?.getLogs_parameters?.sorting || null;
+  const groupingExpression = interfaceData?.tableArguments[tileId]?.getLogs_parameters?.grouping || null;
+  const groupSortingExpression = interfaceData?.tableArguments[tileId]?.getLogs_parameters?.group_sorting || null;
+
+  // Get access to the tab data and actions
   const { tab: tabData } = useTab(tabId, interfaceId, projectId);
+  const context_ = tabData?.globalContext;
   
   // Get access to the tile and its actions
   const { tile: tileData, actions: tileActions } = useTile(tileId, tabId, interfaceId, projectId);
   
   // Get access to the table tile specific data and actions
   const { tableTile: tableData, actions: tableTileActions } = useTableTile(tileId, tabId, interfaceId, projectId);
+  const limit = tableData?.limit || 20;
+  const offset = tableData?.offset || 0;
 
   // Get the item representation for the current tile
   const item = useMemo(() => tileActions?.asTileItem(), [tileActions]);
@@ -140,7 +139,7 @@ const LogsTable = ({
     logsData,
     totalPages,
     boundaries
-  } = tableDataItem;
+  } = useMemo(() => tableDataItem, [tableDataItem]);
 
   // Extract params values from logs
   const paramsValues: LogItemProps = {};

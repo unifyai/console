@@ -49,7 +49,7 @@ const Tile = ({
     
     // Get tile data and actions from hooks
     const { interface: interfaceData } = useInterface(interfaceId);
-    const { tab: tabData, actions: tabActions } = useTab(tabId, interfaceId);
+    const { tab: tabData } = useTab(tabId, interfaceId);
     const { tile: tileData, actions: tileActions } = useTile(tileId, tabId, interfaceId);
     const { tableTile: tableData } = useTableTile(tileId, tabId, interfaceId);
     
@@ -136,40 +136,22 @@ const Tile = ({
                         tabId={tabId}
                         interfaceId={interfaceId}
                         projectId={projectId}
-                        contexts={projectData?.contexts || []}
-                        context_={tabData?.globalContext}
-                        tableArguments={interfaceData?.tableArguments as unknown as TableArguments}
                         logsActions={logsActions}
                         fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}
                         contextActions={contextActions}
-                        filterExpression={interfaceData?.tableArguments[tileId]?.getLogs_parameters?.filter_expr || null}
-                        sortingExpression={interfaceData?.tableArguments[tileId]?.getLogs_parameters?.sorting || null}
-                        groupingExpression={interfaceData?.tableArguments[tileId]?.getLogs_parameters?.grouping || null}
-                        groupSortingExpression={interfaceData?.tableArguments[tileId]?.getLogs_parameters?.group_sorting || null}
-                        limit={tableData?.limit || 20}
-                        offset={tableData?.offset || 0}
                         updateTab={updateTab}
                     />
                 );
             case 'Plot':
                 return (
                     <LogsPlot 
-                        interactive={tabData?.interactive || true}
-                        item={tileItem}
-                        updateItem={(item: TileProps, attrName: ItemType) => (value: string | undefined) => {
-                            tileActions?.updateTile({ [attrName]: value });
-                        }}
-                        project={projectId}
-                        pending={tileData.pending}
-                        tableNames={[]}
+                        tileId={tileId}
+                        tabId={tabId}
+                        interfaceId={interfaceId}
+                        projectId={projectId}
                         logsActions={logsActions}
                         fieldsActions={fieldsActions}
-                        plotDataItem_={tileData.plotData?.plotDataItem || {
-                            plotLogs: [],
-                            plotArguments: {} as PlotArguments,
-                            plotFields: {} as LogFieldsResponseProps
-                        }}
                     />
                 );
             case 'View':

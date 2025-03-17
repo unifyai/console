@@ -96,21 +96,29 @@ export function buildPlotTileState(
   plotData: PlotDataProps,
 ) {
   const baseTile = buildTileState(tileProps, 'Plot');
-  
+
   // Add plot-specific data
   return {
     ...baseTile,
     plotData: {
-      plotType: tileProps.plot_type,
-      xAxis: tileProps.x_axis,
-      yAxis: tileProps.y_axis,
-      groupBy: tileProps.plot_group_by,
-      data: plotData[tileProps.i]?.plotLogs,
-      plotArguments: plotData[tileProps.i]?.plotArguments,
-      plotFields: plotData[tileProps.i]?.plotFields,
       lastUpdated: new Date().toISOString(),
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+
+      // Plot-specific fields from TileProps
+      plot_type: tileProps.plot_type,
+      plot_scale_x: tileProps.plot_scale_x,
+      plot_scale_y: tileProps.plot_scale_y,
+      is_aggregated: tileProps.is_aggregated,
+      x_axis: tileProps.x_axis,
+      y_axis: tileProps.y_axis,
+      plot_group_by: tileProps.plot_group_by,
+      bin_count: tileProps.bin_count,
+      regression_line: tileProps.regression_line,
+
+      // Plot-specific fields from PlotDataItem
+      plotDataItem: plotData[tileProps.i] || {},
+
     } as PlotTileData,
   } as Tile;
 }

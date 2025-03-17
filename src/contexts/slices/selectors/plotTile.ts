@@ -46,8 +46,16 @@ export function initPlotTileData(initialState: Partial<PlotTileData> = {}): Plot
     plot_group_by: initialState.plot_group_by,
     bin_count: initialState.bin_count,
     regression_line: initialState.regression_line,
+
+    // Fields from PlotDataItem
+    plotDataItem: {
+      plotLogs: initialState.plotDataItem?.plotLogs || [],
+      plotArguments: initialState.plotDataItem?.plotArguments || {},
+      plotFields: initialState.plotDataItem?.plotFields || {},
+    } as PlotDataItem,
+
     ...initialState,
-  };
+  } as PlotTileData;
 }
 
 /**
