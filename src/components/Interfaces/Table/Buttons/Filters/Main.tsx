@@ -76,6 +76,7 @@ const ColumnFilter = ({
         filterLoading={filterLoading}
         setFilterLoading={setFilterLoading}
         setIsFiltered={setIsFiltered}
+        dataType={dataTypes[column] as "timedelta" | "timestamp" | "date" | "time"}
         renderMode={renderMode}/>
     }
     else if (dataTypes[column] === "image") {
