@@ -62,7 +62,7 @@ export function formatTimeTypeValue(value: number, data_type: string) {
             return new Date(value).toISOString().replace("Z", "").replace("T", " ")
         case "time":
             return new Date(value).toISOString().split("T")[1].split(".")[0]
-        case "datetime":
+        case "date":
             return new Date(value).toISOString().split("T")[0]
         case "timedelta":
             return durationToTimeDelta(value)

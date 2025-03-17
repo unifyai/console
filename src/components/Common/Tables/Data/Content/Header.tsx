@@ -130,7 +130,7 @@ const DataTableHeader = ({
     header.column.columnDef.meta?.dataType === "bool" || 
     header.column.columnDef.meta?.dataType === "timestamp" || 
     header.column.columnDef.meta?.dataType === "time" ||
-    header.column.columnDef.meta?.dataType === "datetime" ||
+    header.column.columnDef.meta?.dataType === "date" ||
     header.column.columnDef.meta?.dataType === "timedelta"
 
   // Handle pinning animation

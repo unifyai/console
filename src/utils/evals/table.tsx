@@ -521,10 +521,10 @@ export const nestedColumns = (
 							return String(cellValue);
 						}
 					}
-
+					
 					case "timestamp":
 					case "time":
-					case "datetime":
+					case "date":
 					case "str": {
 						// For timestamps or generally string data, handle leading/trailing quotes
 						if (typeof cellValue === "string") {
