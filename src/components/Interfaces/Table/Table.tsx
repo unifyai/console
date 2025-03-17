@@ -653,7 +653,7 @@ const LogsTable = ({
                           groupingValue,
                           parentId,
                           project!,
-                          item.context ?? null,
+                          (item.context || context || context_) ?? null,
                           item.column_context ?? null,
                           filterExpression,
                           sortingExpression,
