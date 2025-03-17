@@ -44,6 +44,7 @@ import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data
 import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import ContextSelector from "./Content/ContextSelector";
 import ResetServerAction from "./Buttons/ResetServerAction";
+import { durationToTimeDelta, timeDeltaValueToDuration } from "@/utils/evals/format";
 
 const LogsTable = ({
   interactive,
@@ -685,7 +686,17 @@ const LogsTable = ({
                         const newKey = key.replace("Entries/", "").replace("Parameters/", "");
                         const groupingValue = row.getValue(key) as string;
                         const value = groupedMetrics[newKey] ? groupedMetrics[newKey][groupingValue] : undefined;
-                        return typeof value === "number" ? value.toFixed(2) : value?.toString() ?? "";
+                        if (value && typeof value === "number")
+                          return value.toFixed(2)
+                        else if (value && cell.column.columnDef.meta?.dataType === "timedelta" && state.metric != "count") 
+                          try {
+                            return durationToTimeDelta(timeDeltaValueToDuration(value.toString()));
+                          } catch (error) {
+                            console.error("Error formatting timedelta:", error);
+                            return value?.toString() ?? "";
+                          }
+                        else
+                          return value?.toString() ?? ""
                       }}
                       getSharedValue={(key: string) => {
                         const groupingColumnId = row.groupingColumnId;
@@ -695,7 +706,17 @@ const LogsTable = ({
                         const newKey = key.replace("Entries/", "").replace("Parameters/", "");
                         const groupingValue = row.getValue(key) as string;
                         const value = groupedSharedValues[newKey] ? groupedSharedValues[newKey][groupingValue] : undefined;
-                        return typeof value === "number" ? value.toFixed(2) : value?.toString() ?? "";
+                        if (value && typeof value === "number") 
+                          return value.toFixed(2)
+                        else if (value && cell.column.columnDef.meta?.dataType === "timedelta") 
+                          try {
+                            return durationToTimeDelta(timeDeltaValueToDuration(value.toString()));
+                          } catch (error) {
+                            console.error("Error formatting timedelta:", error);
+                            return value?.toString() ?? "";
+                          }
+                        else
+                          return value?.toString() ?? ""
                       }}
                     />
                   )}

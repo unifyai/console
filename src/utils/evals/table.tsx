@@ -511,11 +511,17 @@ export const nestedColumns = (
 						return formatNumber(numericValue);
 					}
 
-					case "timedelta":
-						const duration = timeDeltaValueToDuration(String(cellValue))
-						const delta = durationToTimeDelta(duration)
-						return delta
-					
+					case "timedelta": {
+						try {
+							const duration = timeDeltaValueToDuration(String(cellValue))
+							const delta = durationToTimeDelta(duration)
+							return delta;
+						} catch (error) {
+							console.error("Error formatting timedelta:", error);
+							return String(cellValue);
+						}
+					}
+
 					case "timestamp":
 					case "time":
 					case "datetime":
