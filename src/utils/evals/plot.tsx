@@ -5,8 +5,7 @@ import { LogProps, LogItemProps, LogFieldsResponseProps } from "@/types/evals/lo
 import { DataLabel, DataPoint, GroupedDataPoint, GroupingColors, InfoCardData } from "@/types/evals/plot";
 import { toComputableValue, computeStatistic } from "./common";
 import { formatNumber } from "../formatNumber";
-import moment from 'moment';
-
+import { formatTimeTypeValue, timeValueToTime, timeDeltaValueToDuration } from "./format";
 const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
 
 /** Utility functions to draw UI elements shared across plot types, including: 
@@ -201,7 +200,6 @@ const positionTooltip = (event: any, target: any, tooltip: any) => {
  * Reversing the axis domain to compute log scaled values if all numbers in the range are strictly negative
  * Checking if a table's logs has values for a given axis property, and getting those values, if applicable
  * Combine plot logs data across tables
- * Formatting time values depending on the time type
  * Extracting a subset of the data if it's too large
 */
 function niceIncrement(min: number, max: number, count = 10) {
@@ -306,47 +304,6 @@ const getValue = (fields: LogFieldsResponseProps, axisProperty: string, log: Log
     if (dataType === "timedelta") value = timeDeltaValueToDuration(value)
     if (dataType === "time") value = timeValueToTime(value).getTime()
     return value
-}
-
-function durationToTimeDelta(durationInMilliseconds: number) {
-    const seconds = Math.floor(durationInMilliseconds / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-
-    const displayDays = days;
-    const displayHours = hours % 24;
-    const displayMinutes = minutes % 60;
-    const displaySeconds = seconds % 60;
-
-    return `${displayDays} days, ${displayHours}:${displayMinutes}:${displaySeconds}`;
-}
-
-function timeDeltaValueToDuration (value: string) {
-    const duration = moment.duration(value);
-    const milliseconds = duration.asMilliseconds();
-    return milliseconds
-}
-
-function timeValueToTime (value: string) {
-    const now = new Date();
-    const [hours, minutes, seconds] = value.split(":")
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), parseInt(hours), parseInt(minutes), parseInt(seconds));
-}
-
-function formatTimeTypeValue(value: number, data_type: string) {
-    switch (data_type) {
-        case "timestamp":
-            return new Date(value).toISOString().replace("Z", "").replace("T", " ")
-        case "time":
-            return new Date(value).toISOString().split("T")[1].split(".")[0]
-        case "datetime":
-            return new Date(value).toISOString().split("T")[0]
-        case "timedelta":
-            return durationToTimeDelta(value)
-        default:
-            return new Date(value).toISOString().replace("Z", "").replace("T", " ")
-    }
 }
 
 function getRandomSubset(arr: any[], size: number) {
