@@ -79,7 +79,7 @@ const ContextSelector = ({
             let isCommon = true;
             const currentPath = firstContextParts.slice(0, i + 1).join('/');
             for (let j = 1; j < contextNames.length; j++) {
-                if (!contextNames[j].startsWith(currentPath + (i < firstContextParts.length - 1 ? '/' : ''))) {
+                if (contextNames[j].split("/")[i] != currentPath) {
                     isCommon = false;
                     break;
                 }
