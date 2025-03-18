@@ -317,6 +317,7 @@ export function getGroupingFilters(
 }
 
 export async function onGroupExpand(
+  rowId: string,
   groupingColumnId: string,
   groupingValue: string,
   parentId: string | null,
@@ -390,16 +391,16 @@ export async function onGroupExpand(
       const metrics = Object.fromEntries(
         Object.entries(metricsData).filter(([col, _]) => numericColumns.includes(col)).map(
           ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
-            ([groupingValue, results]) => [groupingValue, results[item.metric ?? "mean"]]
+            ([groupingVal, results]) => [groupingVal, results[item.metric ?? "mean"]]
           ))]
       ));
       const sharedValues = Object.fromEntries(
         Object.entries(metricsData).map(
           ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
-            ([groupingValue, results]) => [groupingValue, results["shared_value"]]
+            ([groupingVal, results]) => [groupingVal, results["shared_value"]]
           ))]
       ));
-      groupedMetrics[groupingColumnId] = {
+      groupedMetrics[rowId] = {
         [item.metric ?? "mean"]: metrics,
         shared_value: sharedValues
       };

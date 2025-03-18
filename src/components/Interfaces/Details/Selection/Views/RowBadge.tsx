@@ -2,6 +2,7 @@
 
 import React from "react"
 import Tooltip from "@/components/Common/Misc/Tooltip"
+import { useTheme } from "next-themes";
 
 /**
  * Compresses row indices like [0,1,2,4,5,7] to a string "1-3,5-6,8".
@@ -81,6 +82,9 @@ export default function RowBadge({
   customClass,  
   mode = "none",
 }: RowBadgeProps) {
+  const { theme, resolvedTheme } = useTheme();
+  const isDarkMode = theme === 'dark' || resolvedTheme === 'dark';
+
   if (!rowNumbers.length) {
     return null;
   }
@@ -94,17 +98,25 @@ export default function RowBadge({
   if (!customClass) {
     switch (mode) {
       case "insert":
-        colorClasses = "insert bg-green-300 text-green-800";
+        colorClasses = isDarkMode 
+          ? "insert bg-green-800 text-foreground border border-muted" 
+          : "insert bg-green-200 text-foreground border border-muted";
         break;
       case "delete":
-        colorClasses = "delete bg-red-300 text-red-800";
+        colorClasses = isDarkMode 
+          ? "delete bg-red-800 text-foreground border border-muted" 
+          : "delete bg-red-200 text-foreground border border-muted";
         break;
       case "base":
-        colorClasses = "base bg-red-200 text-red-800";
+        colorClasses = isDarkMode 
+          ? "base bg-red-800 text-foreground border border-muted" 
+          : "base bg-red-200 text-foreground border border-muted";
         break;
       default:
         // mode="none"
-        colorClasses = "none bg-gray-200 text-gray-700";
+        colorClasses = isDarkMode 
+          ? "none bg-background text-foreground border border-muted" 
+          : "none bg-background text-foreground border border-muted";
         break;
     }
   }
