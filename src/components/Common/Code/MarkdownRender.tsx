@@ -35,7 +35,13 @@ const MarkdownRender = ({ content, darkOnly }: { content: string, darkOnly?: boo
           lineProps={{ style: { wordBreak: "break-all", whiteSpace: "pre-wrap" } }}
           wrapLines={true}
           wrapLongLines={true}
-          customStyle={(darkOnly && theme == "dark") ? { backgroundColor: "transparent" } : darkOnly ? { backgroundColor: "var(--eerie-black)" } : undefined}
+          customStyle={
+            (darkOnly && theme == "dark")
+              ? { backgroundColor: "transparent" }
+              : darkOnly
+                ? { backgroundColor: "var(--eerie-black)" }
+                : undefined
+          }
         >
           {codeContent}
         </SyntaxHighlighter>
