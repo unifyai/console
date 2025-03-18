@@ -32,10 +32,10 @@ const LoginFragment = ({ onLogin: handleLogin, error }: LoginProps) => {
                     className="text-5xl text-transparent bg-clip-text bg-gradient-to-br from-[#0A0C13] to-[#606264]"
                 >
                     <span>
-                        {"The Best LLM In "}
+                        {"Build AI "}
                     </span>
                     <span className="font-semibold">
-                        One API
+                        {"Your Way"}
                     </span>
                 </h1>
                 <div className="flex flex-col gap-3">
@@ -82,21 +82,21 @@ const LoginFragment = ({ onLogin: handleLogin, error }: LoginProps) => {
                 </div>
                 <div className="flex flex-col gap-[40px]">
                     <div className="flex gap-[30px] font-medium">
-                        <Image src={loginImage1} alt="Convert code" className="h-fit" />
-                        <p>
-                            Route every prompt to the best endpoint.
-                        </p>
-                    </div>
-                    <div className="flex gap-[30px] font-medium">
                         <Image src={loginImage2} alt="Convert code" className="h-fit" />
                         <p>
                             Deploy through any endpoint with a single API.
                         </p>
                     </div>
                     <div className="flex gap-[30px] font-medium">
+                        <Image src={loginImage1} alt="Convert code" className="h-fit" />
+                        <p>
+                            Iterate on your workflows with customized interfaces.
+                        </p>
+                    </div>
+                    <div className="flex gap-[30px] font-medium">
                         <Image src={loginImage3} alt="Convert code" className="h-fit" />
                         <p>
-                            Programmatically access live endpoint benchmarks.
+                            Monitor your applications with flexible dashboards.
                         </p>
                     </div>
                 </div>
