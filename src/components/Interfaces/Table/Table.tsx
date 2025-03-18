@@ -38,11 +38,13 @@ import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
 import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
+import ColumnGroupBy from "@/components/Interfaces/Table/Buttons/ColumnGroupBy";
 import ColumnGroupSort from "@/components/Interfaces/Table/Buttons/ColumnGroupSort";
 import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data/Buttons/RowExpanding";
 import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import ContextSelector from "./Content/ContextSelector";
 import ResetServerAction from "./Buttons/ResetServerAction";
+import { durationToTimeDelta, timeDeltaValueToDuration } from "@/utils/evals/format";
 
 const LogsTable = ({
   interactive,
@@ -475,7 +477,7 @@ const LogsTable = ({
             setColumnVisibility={setColumnVisibility}
             context={item.context ?? null}
           />
-          <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => setGrouping([])}/>
+          <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => {setGrouping([]); setGroupSorting([])}}/>
           <ResetServerAction condition={(sorting.length > 0 || groupSorting.length > 0)} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => {setSorting([]); setGroupSorting([])}}/>
           <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); updateItem(item, "common_filter")(undefined)}}/>
         </div>
@@ -547,6 +549,22 @@ const LogsTable = ({
                   columns={columns}
                   state={state}
                   setState={setState}
+                  ColumnGroupBy={(column, groupLoading, setGroupLoading, setGroupSortLoading, setIsGrouped, renderMode = "button") => (
+                    <ColumnGroupBy
+                      interactive={interactive}
+                      auto_update={item.auto_update === "true"}
+                      column={column}
+                      grouping={state.grouping}
+                      setGrouping={setState.setGrouping}
+                      setGroupSorting={setState.setGroupSorting}
+                      data={logs}
+                      groupLoading={groupLoading}
+                      setGroupLoading={setGroupLoading}
+                      setGroupSortLoading={setGroupSortLoading}
+                      setIsGrouped={setIsGrouped}
+                      renderMode={renderMode}
+                    />
+                  )}
                   ColumnGroupSort={(column, groupSortLoading, setGroupSortLoading, setIsGroupSorted, renderMode = "button") => (
                     <ColumnGroupSort
                       interactive={interactive}
@@ -636,7 +654,7 @@ const LogsTable = ({
                           groupingValue,
                           parentId,
                           project!,
-                          item.context ?? null,
+                          (item.context || context || context_) ?? null,
                           item.column_context ?? null,
                           filterExpression,
                           sortingExpression,
@@ -661,15 +679,47 @@ const LogsTable = ({
                       cell={cell}
                       metric={tableDataItem_.metric}
                       getMetric={(key: string) => {
-                        const groupedMetrics = tableDataItem_.groupedMetrics;
+                        const groupingColumnId = row.groupingColumnId;
+                        const groupedMetrics = (
+                          tableDataItem_.groupedMetrics[groupingColumnId] || { [metric]: {} }
+                        )[metric] || {};
                         const newKey = key.replace("Entries/", "").replace("Parameters/", "");
                         const groupingValue = row.getValue(key) as string;
+                        const value = groupedMetrics[newKey] ? groupedMetrics[newKey][groupingValue] : undefined;
+                        if (value && typeof value === "number")
+                          if (state.metric === "count")
+                            return Math.floor(value)
+                          else
+                            return value.toFixed(2)
+                        else if (value && cell.column.columnDef.meta?.dataType === "timedelta" && state.metric != "count") 
+                          try {
+                            return durationToTimeDelta(timeDeltaValueToDuration(value.toString()));
+                          } catch (error) {
+                            console.error("Error formatting timedelta:", error);
+                            return value?.toString() ?? "";
+                          }
+                        else
+                          return value?.toString() ?? ""
+                      }}
+                      getSharedValue={(key: string) => {
                         const groupingColumnId = row.groupingColumnId;
-                        const value = (
-                          groupedMetrics[groupingColumnId]
-                          && groupedMetrics[groupingColumnId][newKey]
-                        ) ? groupedMetrics[groupingColumnId][newKey][groupingValue] : undefined;
-                        return typeof value === "number" ? value.toFixed(2) : value?.toString() ?? "";
+                        const groupedSharedValues = (
+                          tableDataItem_.groupedMetrics[groupingColumnId] || { [metric]: {} }
+                        )["shared_value"] || {};
+                        const newKey = key.replace("Entries/", "").replace("Parameters/", "");
+                        const groupingValue = row.getValue(key) as string;
+                        const value = groupedSharedValues[newKey] ? groupedSharedValues[newKey][groupingValue] : undefined;
+                        if (value && typeof value === "number") 
+                          return value.toFixed(2)
+                        else if (value && cell.column.columnDef.meta?.dataType === "timedelta") 
+                          try {
+                            return durationToTimeDelta(timeDeltaValueToDuration(value.toString()));
+                          } catch (error) {
+                            console.error("Error formatting timedelta:", error);
+                            return value?.toString() ?? "";
+                          }
+                        else
+                          return value?.toString() ?? ""
                       }}
                     />
                   )}
@@ -694,6 +744,7 @@ const LogsTable = ({
                   ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
                     <CellPopover flatLogs={flatLogs} paramsValues={paramsValues} cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />
                   }
+                  error={"detail" in logsData ? logsData["detail"] : undefined}
                 />
               </div>
             ) : (

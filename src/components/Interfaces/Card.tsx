@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from 'next/navigation';
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -78,7 +78,18 @@ const Card = ({
     const router = useRouter();
     const [initial, setInitial] = useState(true);
     const tab = items.find(item => item.i == index)?.tab;
-    const relevantItem = item.table ? items.find(it => it.i == item.table) : undefined;
+    const relevantItem = useMemo(() => item.table ? items.find(it => it.i == item.table) : undefined, [items, item.table]);
+    const tableDataItem = useMemo(() => ({
+        ...(tableData[item.i] || {}),
+        logs: tableData[item.i]?.logs || [],
+        params: tableData[item.i]?.params || [],
+        entriesProperties: tableData[item.i]?.entriesProperties || [],
+        paramsProperties: tableData[item.i]?.paramsProperties || [],
+        metrics: tableData[item.i]?.metrics || {},
+        logsData: tableData[item.i]?.logsData || { params: {}, logs: [], count: 0, groups: {} },
+        totalPages: tableData[item.i]?.totalPages || 0,
+        boundaries: tableData[item.i]?.boundaries || { minimus: {}, maximums: {} }
+    }), [tableData, item.i]);
 
     // Use a ref to compare the needed properties so we only update if something truly changed.
     useEffect(() => {
@@ -199,17 +210,7 @@ const Card = ({
                 tab={tab}
                 item={item}
                 tableArguments={tableArguments}
-                tableDataItem_={{
-                    ...(tableData[item.i] || {}),
-                    logs: tableData[item.i]?.logs || [],
-                    params: tableData[item.i]?.params || [],
-                    entriesProperties: tableData[item.i]?.entriesProperties || [],
-                    paramsProperties: tableData[item.i]?.paramsProperties || [],
-                    metrics: tableData[item.i]?.metrics || {},
-                    logsData: tableData[item.i]?.logsData || { params: {}, logs: [], count: 0, groups: {} },
-                    totalPages: tableData[item.i]?.totalPages || 0,
-                    boundaries: tableData[item.i]?.boundaries || { minimus: {}, maximums: {} }
-                }}
+                tableDataItem_={tableDataItem}
                 setTableData={setTableData}
                 updateItem={updateItem}
                 fieldsActions={fieldsActions}

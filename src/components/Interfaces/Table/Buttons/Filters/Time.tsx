@@ -25,7 +25,7 @@ interface TimeFilter {
     value: string
 }
 
-const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, open, setOpen, filterLoading, setFilterLoading, setIsFiltered, renderMode }: {
+const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, open, setOpen, filterLoading, setFilterLoading, setIsFiltered, renderMode, dataType }: {
     interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn,
@@ -35,7 +35,8 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
     filterLoading: boolean,
     setFilterLoading: (filterLoading: boolean) => void,
     setIsFiltered: (isFiltered: boolean) => void,
-    renderMode: "button" | "menuItem"
+    renderMode: "button" | "menuItem",
+    dataType?: "timedelta" | "timestamp" | "date" | "time"
 }) => {
 
     /* Display loader when data updates */
@@ -183,15 +184,35 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
                 </DropdownMenuItem>
             )}
         </BaseDropdown>
-    const times = [
-        {name: "year", className: "w-[72px] border-r-0"},
-        {name: "month", className: "border-l-0 border-r-0"},
-        {name: "day", className: "border-l-0 border-r-0"},
-        {name: "hours", className: "border-l-0 border-r-0"},
-        {name: "minutes", className: "border-l-0 border-r-0"},
-        {name: "seconds", className: "border-l-0 border-r-0"},
-        {name: "milliseconds", className: "w-[68px] border-l-0 rounded-tr-md rounded-br-md"},
-    ]
+    
+    /* Define time components based on data type */
+    const year =         {name: "year", className: "w-[72px] border-r-0"}
+    const month =        {name: "month", className: "border-l-0 border-r-0"}
+    const day =          {name: "day", className: "border-l-0 border-r-0"}
+    const hours =        {name: "hours", className: "border-l-0 border-r-0"}
+    const minutes =      {name: "minutes", className: "border-l-0 border-r-0"}
+    const seconds =      {name: "seconds", className: "border-l-0 border-r-0"}
+    const milliseconds = {name: "milliseconds", className: "w-[68px] border-l-0 rounded-tr-md rounded-br-md"}
+    let times : any[] = []
+    switch (dataType) {
+        case "date":
+            day.className = "border-l-0 rounded-tr-md rounded-br-md"
+            times = [year, month, day]
+            break;
+        case "time":
+            seconds.className = "border-l-0 rounded-tr-md rounded-br-md"
+            times = [hours, minutes, seconds]
+            break;
+        case "timedelta":
+            seconds.className = "border-l-0 rounded-tr-md rounded-br-md"
+            times = [year, month, day, hours, minutes, seconds]
+            break;
+        default:
+            times = [year, month, day, hours, minutes, seconds, milliseconds]
+            break;
+    }
+
+    /* Inputs */
     const filterRefs = useRef<Record<string, Record<string, HTMLInputElement | null>>>({});
     const valueInput = (filter: TimeFilter, refs: Record<string, HTMLInputElement | null>) => 
         <div className="flex flex-row">
@@ -288,7 +309,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
             <div className="flex flex-row gap-2 justify-between">
                 <div className="flex flex-row justify-start">
                     {append}
-                    {basis}
+                    {dataType != "timedelta" && basis}
                 </div>
                 <div className="flex flex-row gap-2 justify-end">
                     {reset}

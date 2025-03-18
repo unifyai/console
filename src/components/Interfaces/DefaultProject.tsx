@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Check, ExternalLink, Loader2, Play } from "lucide-react";
+import { ExternalLink, Loader2, Play } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import MarkdownRender from "../Common/Code/MarkdownRender";
 import { DerivedEntryActions, InterfaceActions, LogsActions, ProjectsActions, TileProps } from "@/types/evals/grid";
@@ -23,12 +23,16 @@ const DefaultProject = ({
     interfaceActions,
     logsActions,
     derivedEntryActions,
+    setInterface,
+    setProject
 }: {
     projects: string[] | undefined,
     projectActions: ProjectsActions,
     interfaceActions: InterfaceActions,
     logsActions: LogsActions,
     derivedEntryActions: DerivedEntryActions,
+    setInterface: (value: string | null) => void,
+    setProject: (value: string | null) => void,
 }) => {
     const disabled = projects == undefined
     const [pendingLocal, setPendingLocal] = useState(false);
@@ -71,11 +75,7 @@ const DefaultProject = ({
     ) => {
         if (projects?.includes(demoProject)) {
             setTimeout(() => {
-                window.open(
-                    `/interfaces?project=${demoProject}`,
-                    "_blank",
-                    "noopener,noreferrer"
-                );
+                setProject(demoProject);
                 setCreate(null);
             }, 3000);
         } else {
@@ -89,12 +89,10 @@ const DefaultProject = ({
                             demoProject, context, demoLogs[context].params, demoLogs[context].entries
                         ))).then(() => {
                             setTimeout(() => {
-                                window.open(
-                                    `/interfaces?project=${demoProject}&tab=${demoName}`,
-                                    "_blank",
-                                    "noopener,noreferrer"
-                                );
                                 setPendingLocal(false);
+                                setProject(demoProject);
+                                setInterface(demoName);
+                                setDemo(null);
                                 setCreate(null);
                             }, 3000);
                         });
@@ -114,12 +112,10 @@ const DefaultProject = ({
                             ))
                         ).then(() => {
                             setTimeout(() => {
-                                window.open(
-                                    `/interfaces?project=${demoProject}&tab=${demoName}`,
-                                    "_blank",
-                                    "noopener,noreferrer"
-                                );
                                 setPendingLocal(false);
+                                setProject(demoProject);
+                                setInterface(demoName);
+                                setDemo(null);
                                 setCreate(null);
                             }, 3000);
                         });
@@ -127,36 +123,56 @@ const DefaultProject = ({
                     else {
                         logsActions.create(
                             demoProject, null, demoLogs.params, demoLogs.entries
-                        ).then(() => {
-                            if (demoDerivedColumns != undefined) {
-                                derivedEntryActions.create(
-                                    demoDerivedColumns.project,
-                                    demoDerivedColumns.context,
-                                    demoDerivedColumns.key,
-                                    demoDerivedColumns.equation,
-                                    demoDerivedColumns.referenced_logs
+                        ).then((logIds) => {
+                            if (demoItems.find(item => item.i == "View")) {
+                                const columns = Object.keys(demoLogs.entries[0]);
+                                const selected = columns.map(
+                                    column => `${logIds[0]}_Entries/${column}`
+                                ).join(",");
+                                demoItems[0].selected = selected;
+                                interfaceActions.update(
+                                    demoName,
+                                    demoProject,
+                                    undefined,
+                                    demoItems,
+                                    demoNewCounter,
+                                    undefined,
+                                    true
                                 ).then(() => {
                                     setTimeout(() => {
-                                        window.open(
-                                            `/interfaces?project=${demoProject}&tab=${demoName}`,
-                                            "_blank",
-                                            "noopener,noreferrer"
-                                        );
                                         setPendingLocal(false);
+                                        setProject(demoProject);
+                                        setInterface(demoName);
+                                        setDemo(null);
                                         setCreate(null);
                                     }, 3000);
                                 });
-                            }
-                            else {
-                                setTimeout(() => {
-                                    window.open(
-                                        `/interfaces?project=${demoProject}&tab=${demoName}`,
-                                        "_blank",
-                                        "noopener,noreferrer"
-                                    );
-                                    setPendingLocal(false);
-                                    setCreate(null);
-                                }, 3000);
+                            } else {
+                                if (demoDerivedColumns != undefined) {
+                                    derivedEntryActions.create(
+                                        demoDerivedColumns.project,
+                                        demoDerivedColumns.context,
+                                        demoDerivedColumns.key,
+                                        demoDerivedColumns.equation,
+                                        demoDerivedColumns.referenced_logs
+                                    ).then(() => {
+                                        setTimeout(() => {
+                                            setPendingLocal(false);
+                                            setProject(demoProject);
+                                            setInterface(demoName);
+                                            setDemo(null);
+                                            setCreate(null);
+                                        }, 3000);
+                                    });
+                                } else {
+                                    setTimeout(() => {
+                                        setPendingLocal(false);
+                                        setProject(demoProject);
+                                        setInterface(demoName);
+                                        setDemo(null);
+                                        setCreate(null);
+                                    }, 3000);
+                                }
                             }
                         });
                     }
@@ -247,13 +263,10 @@ const DefaultProject = ({
                             onClick={() => setImageDialog(true)}
                             className="cursor-zoom-in rounded-lg"
                         />
-                        <div className="text-sm font-semibold">
-                            Click image to maximize
-                        </div>
                     </div>
                 </div>}
                 <div className="relative max-w-[700px] max-h-[700px] overflow-y-auto rounded-md border border-1 p-2">
-                    <div className="absolute z-10 top-3 right-12 flex gap-1">
+                    <div className="absolute z-10 top-3 right-12 flex gap-1 text-muted">
                         <Link href={`https://docs.unify.ai/${demoLink}`} target="_blank">
                             <ActionButton icon={<ExternalLink />} tooltip={"Learn more"} />
                         </Link>
@@ -274,7 +287,7 @@ const DefaultProject = ({
                             disabled={disabled}
                         />
                     </div>
-                    <MarkdownRender content={`\`\`\`python${demoCode}\`\`\``} noBackground />
+                    <MarkdownRender content={`\`\`\`python${demoCode}\`\`\``} darkOnly />
                 </div>
             </div>
         </div>

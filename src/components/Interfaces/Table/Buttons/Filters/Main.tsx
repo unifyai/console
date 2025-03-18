@@ -65,7 +65,7 @@ const ColumnFilter = ({
         setIsFiltered={setIsFiltered}
         renderMode={renderMode}/>
     }
-    else if (dataTypes[column] === "timestamp" || dataTypes[column] === "time" || dataTypes[column] === "datetime" || dataTypes[column] === "deltatime") {
+    else if (dataTypes[column] === "timestamp" || dataTypes[column] === "time" || dataTypes[column] === "date" || dataTypes[column] === "timedelta") {
         filter = <TimeColumnFilter
         interactive={interactive}
         column={column}
@@ -76,6 +76,7 @@ const ColumnFilter = ({
         filterLoading={filterLoading}
         setFilterLoading={setFilterLoading}
         setIsFiltered={setIsFiltered}
+        dataType={dataTypes[column] as "timedelta" | "timestamp" | "date" | "time"}
         renderMode={renderMode}/>
     }
     else if (dataTypes[column] === "image") {

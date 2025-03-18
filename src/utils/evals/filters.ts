@@ -31,6 +31,29 @@ export const handleInvalidDate = (date: AbsoluteDateString | RelativeDateString)
 		return date  
 }
 
+/* 
+	Converts a relative format date to an ISO timedelta string
+*/
+export const relativeToTimeDelta = (value: RelativeDateString) => {
+	let times = value.replace('"',"").split(";")
+	times = times.map((time) => {
+		if (time.endsWith("Y"))
+			return `P${time}`
+		else if (time.endsWith("D"))
+			return `${time}T`
+		else if (time.endsWith("h"))
+			return time.replace("h", "H")
+		else if (time.endsWith("m"))
+			return time.replace("m", "M")
+		else if (time.endsWith("s"))
+			return time.replace("s", "S")
+		else
+			return time
+	})
+	times = times.slice(0, -1) // Remove milliseconds
+	return `${times.join("")}`
+}
+
 /* Converts a date from relative format to an absolute date	*/
 export const toAbsoluteDate = (value: RelativeDateString) => {
 	const offsets = value.split(";").map(offset => +offset.replace(/[^0-9]/g, ''))
@@ -139,9 +162,32 @@ function joinFunctionFilters (filter: string, fn: string, cKey: string, fields: 
 			let value = item;
 
 			// Handle relative timestamps
-			if (fields[cKey] && fields[cKey].data_type === "timestamp" && value.includes(";")) {
+			if (fields[cKey] && ["timestamp", "time", "date"].includes(fields[cKey].data_type) && value.includes(";")) {
 				const date = toAbsoluteDate(value as RelativeDateString)
-				value = `"${date.replace("T", " ").replace("Z", "")}"`
+				value = `${date.replace("T", " ").replace("Z", "")}`
+				value = value.startsWith('"') ? value : `"${value}`
+				value = value.endsWith('"') ? value : `${value}"`
+			}
+
+			// Handle datetime
+			if (fields[cKey] && fields[cKey].data_type === "date") {
+				value = value.split(" ")[0]
+				value = value.startsWith('"') ? value : `"${value}`
+				value = value.endsWith('"') ? value : `${value}"`
+			}
+
+			// Handle time
+			if (fields[cKey] && fields[cKey].data_type === "time") {
+				value = value.split(" ")[1]
+				value = value.startsWith('"') ? value : `"${value}`
+				value = value.endsWith('"') ? value : `${value}"`
+			}
+
+			// Handle timedelta (relative by default)
+			if (fields[cKey] && fields[cKey].data_type === "timedelta") {
+				value = relativeToTimeDelta(value as RelativeDateString)
+				value = value.startsWith('"') ? value : `"${value}`
+				value = value.endsWith('"') ? value : `${value}"`
 			}
 
 			// Handle isNone / exists / inclusion
@@ -299,7 +345,7 @@ export const buildFilterExpression = (filters: string | undefined, common_filter
     let filterExpression: (string | null) = null
 	if (columnFiltersExpression) filterExpression = columnFiltersExpression;
 	if (commonFiltersExpression) filterExpression = filterExpression ? `${commonFiltersExpression} and ${filterExpression}` : commonFiltersExpression;
-	if (freeze) filterExpression = filterExpression ? filterExpression + `created_at < "${freeze}"` : `created_at < "${freeze}"`;
+	if (freeze) filterExpression = filterExpression ? filterExpression + ` and created_at < "${freeze}"` : `created_at < "${freeze}"`;
 
 	return filterExpression
 }

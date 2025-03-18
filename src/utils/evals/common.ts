@@ -158,15 +158,30 @@ export const getLogsDetails = async (
 
   const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
 
-  let groupedMetrics: {[key: string]: {[key: string]: {[key: string]: number | string}}} = {};
+  let groupedMetrics: { [key: string]: { [key: string]: { [key: string]: { [key: string]: number | string } } } } = {};
   if (groupingExpression) {
     const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
     const groupingColumnId = (groupingExpression as string).split(",")[0];
     const metric_ = metric ?? "mean";
-    const metrics = await getColumnMetrics(
-      project, context, column_context, numericColumns, filterExpression, groupingColumnId, metric_, logsActions
-    ) as { [key: string]: { [key: string]: number | string }};
-    groupedMetrics[groupingColumnId] = metrics;
+    const metricsData = await getColumnMetrics(
+      project, context, column_context, columns, filterExpression, groupingColumnId, metric_, logsActions
+    ) as { [key: string]: { [key: string]: { [key: string]: number | string }}};
+    const metrics = Object.fromEntries(
+      Object.entries(metricsData).filter(([col, _]) => numericColumns.includes(col)).map(
+        ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
+          ([groupingValue, results]) => [groupingValue, results[metric_]]
+        ))]
+    ));
+    const sharedValues = Object.fromEntries(
+      Object.entries(metricsData).map(
+        ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
+          ([groupingValue, results]) => [groupingValue, results["shared_value"]]
+        ))]
+    ));
+    groupedMetrics[groupingColumnId] = {
+      [metric_]: metrics,
+      shared_value: sharedValues
+    };
   }
 
   /* Handle column metrics */

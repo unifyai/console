@@ -23,9 +23,11 @@ interface BooleanFilter {
     value: string
 }
 
-const toLowerBoolean = (value: string): string => {
-    return value.trim().toLowerCase();
-}
+const capitalizeFirstLetter = (value: string): string => {
+    const trimmedValue = value.trim();
+    if (!trimmedValue) return '';
+    return trimmedValue.charAt(0).toUpperCase() + trimmedValue.slice(1);
+  };
 
 const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, open, setOpen, filterLoading, setFilterLoading, setIsFiltered, renderMode }: {
     interactive: boolean,
@@ -152,38 +154,11 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
                 </DropdownMenuItem>
             )}
         </BaseDropdown>
-    const valueInput = (
-        filter: BooleanFilter,
-        option: { name: string; label: string; description: string }
-    ) => {
-        // We'll store the field's local 'value' in state, or rely on `filter.value`.
-        // But to keep minimal changes, we can just read from `filter.value` directly
-        // and update filters with onValueChange.
-        return (
-            <Select
-                value={toLowerBoolean(filter.value)} // either "true" or "false"
-                onValueChange={(val) => {
-                    onInput(val, filter)
-                }}
-            >
-                <SelectTrigger className="w-full" onKeyDown={onEnter}>
-                    <SelectValue placeholder={option.description} />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectGroup>
-                        <SelectLabel>Boolean</SelectLabel>
-                        <SelectItem className="cursor-pointer" value="true">true</SelectItem>
-                        <SelectItem className="cursor-pointer" value="false">false</SelectItem>
-                    </SelectGroup>
-                </SelectContent>
-            </Select>
-        )
-    };
     const toggleInput = (filter: BooleanFilter) =>     
         <BaseButton 
-            text={filter.value === "True" ? "true" : filter.value === "False" ? "false" : filter.value} 
+            text={capitalizeFirstLetter(filter.value)} 
             variant="outline" 
-            className="rounded-none rounded-tr-lg rounded-br-lg w-full"
+            className="rounded-none rounded-tr-lg rounded-br-lg w-full font-normal text-sm"
             onKeyDown={onEnter}
             onClick={() => {
                 const newFilters = [...filters]
@@ -207,10 +182,7 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
                     }
                 }}
             >
-                {["exists", "isNone", "is"].includes(option.name)
-                    ? toggleInput(filter)
-                    : valueInput(filter, option)
-                }
+                {toggleInput(filter)}
             </InputWithStartSelect>
         )
     }

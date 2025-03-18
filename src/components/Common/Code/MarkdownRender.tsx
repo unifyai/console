@@ -10,7 +10,7 @@ import {
   docco,
 } from "react-syntax-highlighter/dist/esm/styles/hljs";
 
-const MarkdownRender = ({ content, noBackground }: { content: string, noBackground?: boolean }) => {
+const MarkdownRender = ({ content, darkOnly }: { content: string, darkOnly?: boolean }) => {
   const { theme } = useTheme();
 
   const CodeBlock = ({
@@ -28,17 +28,16 @@ const MarkdownRender = ({ content, noBackground }: { content: string, noBackgrou
     const codeContent = String(children).replace(/\n$/, "");
     return !inline ? (
       <div className="relative">
-        <div className="absolute top-1 right-1">
+        <div className={"absolute top-1 right-1 " + (darkOnly ? "text-muted" : "")}>
           <CopyButton content={codeContent} copyMessage="Copied!" />
         </div>
         <SyntaxHighlighter
           language={language?.[1] ?? undefined}
-          style={theme && ["dark", "system"].includes(theme) ? dracula : docco}
+          style={(darkOnly || (theme && ["dark", "system"].includes(theme))) ? dracula : docco}
           PreTag="div"
           lineProps={{ style: { wordBreak: "break-all", whiteSpace: "pre-wrap" } }}
           wrapLines={true}
           wrapLongLines={true}
-          customStyle={(noBackground && theme != "system") ? { backgroundColor: "transparent" } : undefined}
         >
           {codeContent}
         </SyntaxHighlighter>
@@ -51,7 +50,7 @@ const MarkdownRender = ({ content, noBackground }: { content: string, noBackgrou
   };
 
   return (
-    <div className={"prose w-full " + (noBackground ? "text-sm" : "")}>
+    <div className={"prose w-full " + (darkOnly ? "text-sm" : "")}>
       <Markdown
         components={{
           code: CodeBlock as any,

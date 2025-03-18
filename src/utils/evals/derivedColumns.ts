@@ -22,12 +22,20 @@ export const expressionToDerivedFunction = ( expression: string, currentTable: s
 };
   
 
-/* Converts back a derived equation to a raw mathematical function, by:
-   1- Removing curly braces around table:column or table.column, and
-   2- Replacing all colons with dots to revert to original separator
+/* Converts back a derived equation to a raw mathematical function by
+   removing curly braces and replacing colon with dot in all instances
+   of {table:column} pattern
 */
-export const derivedFunctionToExpression = (equation: string) => {
-    const unwrapped = equation.replace(/\{([^}]+)\}/g, '$1');
-    const original = unwrapped.replace(/:/g, '.');
-    return original;
+export const derivedFunctionToExpression = (equation: string, tables: string[], columns: string[]) => {
+    const tableSet = new Set(tables);
+    const columnSet = new Set(columns);
+    const replaced = equation.replace(/\{([^}]+)\}/g, (_, content) => {
+        const parts = content.split(':');
+        if (parts.length === 2 && tableSet.has(parts[0]) && columnSet.has(parts[1])) {
+            return `${parts[0]}.${parts[1]}`;
+        } else {
+            return `{${content}}`;
+        }
+    });
+    return replaced;
 };

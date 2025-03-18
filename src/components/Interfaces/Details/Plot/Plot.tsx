@@ -126,9 +126,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
             } else {
                 clearCanvas(svgRef, containerRef)
                 placeholder
-                .attr("stroke", "black") 
-                .attr("stroke-width", 0.1)
-                .attr("fill", "gray")
+                .attr("x", "50%")
+                .attr("y", "50%")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
                 .text("Select two numeric properties to plot");
@@ -159,9 +158,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
             } else {
                 clearCanvas(svgRef, containerRef)
                 placeholder
-                .attr("stroke", "black") 
-                .attr("stroke-width", 0.1)
-                .attr("fill", "gray")
+                .attr("x", "50%")
+                .attr("y", "50%")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
                 .text("Select a property and a reduction metric to plot ");    
@@ -191,9 +189,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
             } else {
                 clearCanvas(svgRef, containerRef)
                 placeholder
-                .attr("stroke", "black") 
-                .attr("stroke-width", 0.1)
-                .attr("fill", "gray")
+                .attr("x", "50%")
+                .attr("y", "50%")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
                 .text("Select a numeric or time property to plot");    
@@ -202,7 +199,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
         
         else {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                placeholder.text("");
+                if (logs.length > 1000) placeholder.text("Too many data points. Displaying a random subset.").attr("text-anchor", "start").attr("x", `${margins.left + 10}px`).attr("y", `${dimensions.height - margins.bottom - 10}px`).attr("font-size", "10px"); else placeholder.text("");
                 const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, updateItem(item, "plot_scale_x"), setLogScaleXEnabled)
                 const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, updateItem(item, "plot_scale_y"), setLogScaleYEnabled)
                 drawScatterPlot(
@@ -226,9 +223,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
             } else {
                 clearCanvas(svgRef, containerRef)
                 placeholder
-                .attr("stroke", "black") 
-                .attr("stroke-width", 0.1)
-                .attr("fill", "gray")
+                .attr("x", "50%")
+                .attr("y", "50%")
                 .attr("text-anchor", "middle")
                 .attr("font-size", "16px")
                 .text("Select two numeric properties to plot");    
@@ -363,7 +359,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                 </defs>
                 <rect className="zoom-layer"/>
                 <g className="plotData" clipPath={`url(#${clipId})`}/>
-                <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="placeholderText"/>
+                <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="placeholderText" stroke="var(--foreground)" stroke-width="0.1" style={{"fill": "var(--foreground)"}}/>
                 <line className="bottomLine" stroke="var(--foreground)" stroke-width="0.5"/>
                 <line className="leftLine" stroke="var(--foreground)" stroke-width="0.5"/>
                 <line className="topLine" stroke="var(--foreground)" stroke-width="0.5"/>

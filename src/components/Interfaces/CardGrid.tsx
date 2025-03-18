@@ -184,7 +184,8 @@ const CardGrid = ({
 
     // Only call updateInterface when items have truly changed.
     useEffect(() => {
-        updateInterface();
+        if (!resetting)
+            updateInterface();
     }, [items, context]);
 
     // trigger update when table data changes (server reloaded)
@@ -308,6 +309,8 @@ const CardGrid = ({
                 interfaceActions={interfaceActions}
                 logsActions={logsActions}
                 derivedEntryActions={derivedEntryActions}
+                setInterface={setInterface}
+                setProject={setProject}
             /> : <></> : interfaces.map((int_, idx) => <TabsContent
                 key={idx}
                 value={int_}

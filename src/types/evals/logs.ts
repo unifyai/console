@@ -63,6 +63,7 @@ export interface LogsResponseProps {
     logs: LogProps[] | GroupedLogPropsRaw,
     count: number,
     groups: LogItemProps,
+    detail?: string    // Potential error message or notification from the endpoint
 }
 
 export type LogFieldsProps = [number, string][]

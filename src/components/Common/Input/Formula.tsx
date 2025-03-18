@@ -58,8 +58,11 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
       return;
     }
 
+    // Match any segment of a path-like
     const filtered = options.filter(option =>
-      option.name.toLowerCase().startsWith(lastWord.toLowerCase())
+      option.name.split('/').some(segment => 
+        segment.toLowerCase().startsWith(lastWord.toLowerCase())
+      )
     );
 
     setFilteredOptions(filtered);
@@ -134,7 +137,7 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
   
     // Find the selected option and determine if it has children
     const selectedOption = options.find(opt => opt.name === option);
-    const suffix = selectedOption?.children?.length ? '.' : ' ';
+    const suffix = selectedOption?.children?.length ? '.' : '';
   
     // Find start of current partial word using the same delimiters as input parsing, then
     // Walk backwards to find word start, then
@@ -146,7 +149,7 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
     }
     matchStart++;
     const partialWord = originalValue.slice(matchStart, cursorPosition);
-    if (option.toLowerCase().startsWith(partialWord.toLowerCase())) {
+    if (option.split("/").some(o => o.toLowerCase().startsWith(partialWord.toLowerCase()))) {
       newValue = originalValue.slice(0, matchStart) + option + suffix + originalValue.slice(cursorPosition);
     } else {
       newValue = originalValue.slice(0, cursorPosition) + option + suffix + originalValue.slice(cursorPosition);

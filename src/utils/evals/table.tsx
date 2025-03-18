@@ -18,6 +18,7 @@ import { Table } from "@tanstack/react-table";
 
 import { ImageDisplay, isImage } from "./selection";
 import { formatNumber } from "../formatNumber";
+import { durationToTimeDelta, timeDeltaValueToDuration } from "./format";
 import { sanitizeId } from "./columnOperations";
 import { DraggingColumnsState } from "@/types/evals/columns";
 
@@ -510,7 +511,20 @@ export const nestedColumns = (
 						return formatNumber(numericValue);
 					}
 
+					case "timedelta": {
+						try {
+							const duration = timeDeltaValueToDuration(String(cellValue))
+							const delta = durationToTimeDelta(duration)
+							return delta;
+						} catch (error) {
+							console.error("Error formatting timedelta:", error);
+							return String(cellValue);
+						}
+					}
+					
 					case "timestamp":
+					case "time":
+					case "date":
 					case "str": {
 						// For timestamps or generally string data, handle leading/trailing quotes
 						if (typeof cellValue === "string") {

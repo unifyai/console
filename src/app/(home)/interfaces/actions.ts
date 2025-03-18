@@ -116,9 +116,10 @@ export const getLogs = async (apiKey: string) => {
                 + (return_ids_only ? `&return_ids_only=${return_ids_only}` : ""),
                 { method: "GET", headers: { apiKey: apiKey }, next: { tags: [`logs_${_timestamp}`] } },
             );
+            const json = await response.json();
             if (!response.ok)
-                return { params: {}, logs: [], count: 0, groups: [] };
-            return await response.json();
+                return { params: {}, logs: [], count: 0, groups: [], detail: json.detail };
+            return await json;
         } catch (e) {
             console.log(`Failed to get logs error: ${e}`)
             return {"params":{},"logs":[],"count":0, "groups": []}
