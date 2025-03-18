@@ -6,7 +6,6 @@ import { CSS, Transform } from "@dnd-kit/utilities";
 
 import { TableCell } from "@/components/UI/table";
 
-import ColumnResizer from "@/components/Common/Tables/Data/Buttons/ColumnResize";
 import { DraggingColumnsState } from "@/types/evals/columns";
 
 const FooterCell = ({ 
@@ -79,8 +78,6 @@ const FooterCell = ({
             <div className="font-bold overflow-hidden text-nowrap text-ellipsis ...">
                 {children}
             </div>
-
-            <ColumnResizer column={column} resizeHandler={resizeMap[column.id]}/>
 
         </TableCell>
     );
