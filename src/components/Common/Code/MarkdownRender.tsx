@@ -5,10 +5,7 @@ import { useTheme } from "next-themes";
 import Markdown from "react-markdown";
 import SyntaxHighlighter from "react-syntax-highlighter";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
-import {
-  dracula,
-  docco,
-} from "react-syntax-highlighter/dist/esm/styles/hljs";
+import { dracula, docco } from "react-syntax-highlighter/dist/esm/styles/hljs";
 
 const MarkdownRender = ({ content, darkOnly }: { content: string, darkOnly?: boolean }) => {
   const { theme } = useTheme();
@@ -38,6 +35,7 @@ const MarkdownRender = ({ content, darkOnly }: { content: string, darkOnly?: boo
           lineProps={{ style: { wordBreak: "break-all", whiteSpace: "pre-wrap" } }}
           wrapLines={true}
           wrapLongLines={true}
+          customStyle={(darkOnly && theme == "dark") ? { backgroundColor: "transparent" } : undefined}
         >
           {codeContent}
         </SyntaxHighlighter>
