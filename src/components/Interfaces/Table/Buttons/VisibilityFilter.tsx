@@ -122,7 +122,14 @@ const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, conte
         <BasePopover button={button}>
             <div className="flex flex-col gap-1 p-3">
             <p className="font-bold text-medium pb-1">Select visible columns</p>
-            <div className="max-h-[60vh] overflow-y-auto pr-2">
+            <div
+                className="max-h-[60vh] overflow-y-auto pr-2"
+                onWheel={(e) => {
+                    e.stopPropagation();
+                    const container = e.currentTarget;
+                    container.scrollTop += e.deltaY;
+                }}
+            >
                 {hideAll}
                 {hideParams}
                 {hideEntries}
