@@ -56,9 +56,7 @@ const MarkdownRender = ({ content, darkOnly }: { content: string, darkOnly?: boo
   return (
     <div className={"prose w-full " + (darkOnly ? "text-sm" : "")}>
       <Markdown
-        components={{
-          code: CodeBlock as any,
-        }}
+        components={{ code: CodeBlock as any }}
       >
         {content}
       </Markdown>
