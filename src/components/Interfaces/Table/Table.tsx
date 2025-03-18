@@ -496,7 +496,11 @@ const LogsTable = ({
               logs={logs}
             />
           </div>
-          <FreezeLogs item={item} updateItem={updateItem} />
+          <FreezeLogs 
+            item={item}
+            data={logs}
+            updateItem={updateItem}
+          />
           <RefreshLogs
             item={item}
             project={project}
