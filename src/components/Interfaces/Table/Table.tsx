@@ -650,6 +650,7 @@ const LogsTable = ({
                       setExpandingRowId={props.setExpandingRowId}
                       onExpand={async (groupingColumnId: string, groupingValue: string, parentId: string, setExpandingRowId: (id: string | null) => void) => {
                         await onGroupExpand(
+                          props.row.id,
                           groupingColumnId,
                           groupingValue,
                           parentId,
@@ -680,8 +681,12 @@ const LogsTable = ({
                       metric={tableDataItem_.metric}
                       getMetric={(key: string) => {
                         const groupingColumnId = row.groupingColumnId;
+                        const slicedRowId = row.id.split(">").slice(0, -1).join(">");
                         const groupedMetrics = (
-                          tableDataItem_.groupedMetrics[groupingColumnId] || { [metric]: {} }
+                          groupingColumnId in tableDataItem_.groupedMetrics ?
+                          tableDataItem_.groupedMetrics[groupingColumnId] :
+                          slicedRowId in tableDataItem_.groupedMetrics ? tableDataItem_.groupedMetrics[slicedRowId] :
+                          { [metric]: {} }
                         )[metric] || {};
                         const newKey = key.replace("Entries/", "").replace("Parameters/", "");
                         const groupingValue = row.getValue(key) as string;
@@ -702,9 +707,13 @@ const LogsTable = ({
                           return value?.toString() ?? ""
                       }}
                       getSharedValue={(key: string) => {
+                        const slicedRowId = row.id.split(">").slice(0, -1).join(">");
                         const groupingColumnId = row.groupingColumnId;
                         const groupedSharedValues = (
-                          tableDataItem_.groupedMetrics[groupingColumnId] || { [metric]: {} }
+                          groupingColumnId in tableDataItem_.groupedMetrics ?
+                          tableDataItem_.groupedMetrics[groupingColumnId] :
+                          slicedRowId in tableDataItem_.groupedMetrics ? tableDataItem_.groupedMetrics[slicedRowId] :
+                          { ["shared_value"]: {} }
                         )["shared_value"] || {};
                         const newKey = key.replace("Entries/", "").replace("Parameters/", "");
                         const groupingValue = row.getValue(key) as string;
