@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, Dispatch, SetStateAction, ReactNode } from "react";
-import { Trash } from "lucide-react";
+import { Check, Trash } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import BaseDialog from "./Base";
 import ActionButton from "../Buttons/Action"
 import DeleteButton from "../Buttons/Delete";
 
-const DeleteDialog = ({ args, type, deletingFunction, showDialog, variant, setShowDialog, onDelete, icon = <Trash/>, text, expectedResponseType }: {
+const DeleteDialog = ({ args, type, deletingFunction, showDialog, variant, setShowDialog, onDelete, icon = <Trash/>, text, expectedResponseType, className }: {
     args: any[],
     type: string
     deletingFunction: (...args: any[]) => Promise<ResponseProps | string>,
@@ -17,7 +17,8 @@ const DeleteDialog = ({ args, type, deletingFunction, showDialog, variant, setSh
     onDelete?: () => void,
     icon?: ReactNode,
     text?: string,
-    expectedResponseType?: ResponseProps | "string"
+    expectedResponseType?: ResponseProps | "string",
+    className?: string
 }) => {
     // Define messages
     const messages = {
@@ -57,14 +58,14 @@ const DeleteDialog = ({ args, type, deletingFunction, showDialog, variant, setSh
         e.preventDefault();
         onOpen()
     }
-    const button =   setShowDialog ? null : <ActionButton tooltip={tooltip} icon={icon} text={text} variant={variant} onClick={onClick}/>
+    const button =   setShowDialog ? null : <ActionButton tooltip={tooltip} icon={icon} text={text} variant={variant} className={className} onClick={onClick}/>
 
     const title =   tooltip + " ?"
     const body =    success ? messages["success"] : error ? messages["error"] : messages["warning"];
     const footer =  success ? null : <DeleteButton disabled={loading} onClick={onSubmit} loading={loading}/>
 
     return (
-        <BaseDialog button={button} title={title} body={body} footer={footer} open={showDialog ? showDialog : open} setOpen={setShowDialog ? setShowDialog : setOpen}/>
+        <BaseDialog button={button} title={title} body={body} footer={footer} open={showDialog ? showDialog : open} triggerClassName={className} setOpen={setShowDialog ? setShowDialog : setOpen}/>
   );
 }
 

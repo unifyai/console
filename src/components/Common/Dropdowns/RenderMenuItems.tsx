@@ -25,7 +25,7 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, s
                 onSelect={() => (
                     (nonRootNodePath != attr) ? setter(nonRootNodePath) : setter("")
                 )}
-                className="w-48 justify-between items-center"
+                className="w-48 justify-between items-center cursor-pointer"
             >
                 <div className="flex flex-row gap-2 items-center">
                     {attr == nonRootNodePath ? <Check size={15}/> : <div className="w-4"/>}
@@ -61,7 +61,7 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, s
                                 onSelect={() => (
                                     nonRootNodePath != attr ? setter(nonRootNodePath) : setter("")
                                 )}
-                                className="w-48 justify-between"
+                                className="w-48 justify-between cursor-pointer"
                             >
                                 <div className="flex flex-row gap-2 items-center">
                                     {attr == nonRootNodePath ? <Check size={15}/> : <div className="w-4"/>}
