@@ -35,7 +35,7 @@ import {
   isTimestamp,
   isChat
 } from "@/utils/evals/selection";
-import { isPdf } from "./Selection";
+import { isPdf } from "./SelectionUtils";
 
 import {
   Waypoints,
