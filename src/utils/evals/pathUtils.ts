@@ -42,7 +42,8 @@ export function makeListPath(nestingLevel: number, index: number): string {
  *  - Optionally used for top-level dictionary => e.g. "entries.dict.0.<key>"
  */
 export function makePrefixedDictPath(prefix: string, nestingLevel: number, key: string): string {
-  return `${prefix}.dict.${nestingLevel}.${sanitizePropertyKey(key)}`;
+  const path = `${prefix}.dict.${nestingLevel}.${sanitizePropertyKey(key)}`;
+  return path;
 }
 
 /**
@@ -50,7 +51,8 @@ export function makePrefixedDictPath(prefix: string, nestingLevel: number, key: 
  *  - Optionally used for top-level list => e.g. "params.list.0.<index>"
  */
 export function makePrefixedListPath(prefix: string, nestingLevel: number, index: number): string {
-  return `${prefix}.list.${nestingLevel}.${index}`;
+  const path = `${prefix}.list.${nestingLevel}.${index}`;
+  return path;
 }
 
 /**
@@ -97,6 +99,7 @@ export function gatherAllSubPaths(
     }
   } else if (isList(value)) {
     const arr = value as any[];
+    
     for (let i = 0; i < arr.length; i++) {
       let childPath: string;
       if (basePath) {
@@ -115,7 +118,7 @@ export function gatherAllSubPaths(
 
 /*------------------------------------------------------------------------------
   gatherAllSubPathsMulti:
-    Similar to gatherAllSubPaths, but it merges “baseValue” plus any number of
+    Similar to gatherAllSubPaths, but it merges "baseValue" plus any number of
     comparables to ensure we also discover paths that exist only in comparables.
 
     Usage:

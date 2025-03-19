@@ -3,8 +3,6 @@ import React, {
     useState,
     useEffect,
     useCallback,
-    Dispatch,
-    SetStateAction,
   } from "react";
   import { LogProps } from "@/types/evals/logs";
   import SelectionEntry from "./SelectionEntry";
@@ -14,6 +12,18 @@ import React, {
   import {
     FoldVertical,
     UnfoldVertical,
+    FileText,
+    CaseLower,
+    Pilcrow,
+    Columns,
+    AlignJustify,
+    Code,
+    SquareSlash,
+    Type,
+    RemoveFormatting,
+    Rows3,
+    Grab,
+    ChevronsUpDown,
   } from "lucide-react";
   
   import {
@@ -31,20 +41,87 @@ import React, {
   } from "@dnd-kit/sortable";
   import { TileProps, ItemType } from "@/types/evals/grid";
   
-  import { useExpandContextSelector } from "@/contexts/ExpandContext";
   import {
     makePrefixedDictPath,
+    gatherAllSubPaths,
+    gatherAllSubPathsMulti,
   } from "@/utils/evals/pathUtils";
 
   import {
     buildLogWithChosenColumns,
     shallowArrayEquals,
+    shallowEqualBooleanRecords,
   } from "./SelectionUtils";
 
   import SortableAccordionItem from "./SortableAccordionItem";
+  import { Combobox } from "@/components/UI/Combobox";
+  import { BasePopover } from "@/components/Common/Popovers/Base";
+  import { Switch } from "@/components/UI/switch";
+  import { Button } from "@/components/UI/button";
+
+  import { createContext, useContextSelector } from "use-context-selector";
+
+// Create a custom context for panel-specific state
+type PanelExpandContextType = {
+  openKeys: Set<string>;
+  setOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>;
+  forceExpandAll: boolean;
+  forceCollapseAll: boolean;
+  toggleKey: (path: string) => void;
+  expandAll: () => void;
+  collapseAll: () => void;
+  expandRecursively: (paths: string[]) => void;
+  collapseRecursively: (paths: string[]) => void;
+};
+
+const PanelExpandContext = createContext<PanelExpandContextType>(null as any);
+
+function PanelExpandProvider({
+  children,
+  openKeys,
+  setOpenKeys,
+  forceExpandAll,
+  forceCollapseAll,
+  toggleKey,
+  expandAll,
+  collapseAll,
+  expandRecursively,
+  collapseRecursively,
+}: React.PropsWithChildren<PanelExpandContextType>) {
+  const value = useMemo(
+    () => ({
+      openKeys,
+      setOpenKeys,
+      forceExpandAll,
+      forceCollapseAll,
+      toggleKey,
+      expandAll,
+      collapseAll,
+      expandRecursively,
+      collapseRecursively,
+    }),
+    [openKeys, setOpenKeys, forceExpandAll, forceCollapseAll, toggleKey, expandAll, collapseAll, expandRecursively, collapseRecursively]
+  );
+
+  return (
+    <PanelExpandContext.Provider value={value}>
+      {children}
+    </PanelExpandContext.Provider>
+  );
+}
+
+// This works like useExpandContextSelector but gets values from our panel context
+export function usePanelExpandContextSelector<T>(selector: (ctx: PanelExpandContextType) => T): T {
+  const selected = useContextSelector(PanelExpandContext, selector);
+  if (selected === undefined) {
+    throw new Error("usePanelExpandContextSelector must be used within a PanelExpandProvider");
+  }
+  return selected;
+}
+
 /*******************************************************************************
  * "SelectionPanel" Subcomponent
- *   Merges the old & new param/entry building with reorder logic + expand toggles
+ *   Each panel has its own independent state for display, diff mode, and expansions
  ******************************************************************************/
 export default function SelectionPanel({
     panelId,
@@ -54,26 +131,10 @@ export default function SelectionPanel({
     selectedRowIndices,
     columnOrdering,
     indexToColumns,
-    entriesFilter,
-    paramsFilter,
-    editMode,
-    displayMode,
-    diffMode,
-    splitView,
     tableItem,
     item,
     updateItem,
-    onEntriesExpandToggle,
-    onParamsExpandToggle,
-    areAllOpenEntries,
-    areAllOpenParams,
-    setEntriesFilter,
-    setParamsFilter,
-    globalEntryOrderings,
-    setGlobalEntryOrderings,
-    globalParamOrderings,
-    setGlobalParamOrderings,
-    panels,
+    initialBaseIndex,
   }: {
     panelId: number;
     logs: LogProps[];
@@ -82,38 +143,91 @@ export default function SelectionPanel({
     selectedRowIndices: number[];
     columnOrdering: string[];
     indexToColumns: Record<number, Set<string>>;
-    entriesFilter: Record<string, boolean>;
-    paramsFilter: Record<string, boolean>;
-    editMode: boolean;
-    displayMode: "markdown" | "text" | "raw";
-    diffMode: "none" | "lines" | "words" | "characters";
-    splitView: boolean;
     tableItem: TileProps | undefined;
     item: TileProps;
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
-    onEntriesExpandToggle: () => void;
-    onParamsExpandToggle: () => void;
-    areAllOpenEntries: () => boolean;
-    areAllOpenParams: () => boolean;
-    setEntriesFilter: Dispatch<SetStateAction<Record<string, boolean>>>;
-    setParamsFilter: Dispatch<SetStateAction<Record<string, boolean>>>;
-    globalEntryOrderings: { [key: string]: string[] };
-    setGlobalEntryOrderings: Dispatch<SetStateAction<{ [key: string]: string[] }>>;
-    globalParamOrderings: { [key: string]: string[] };
-    setGlobalParamOrderings: Dispatch<SetStateAction<{ [key: string]: string[] }>>;
-    panels: {baseRowIndex: number}[];
-  }): React.ReactNode {
-    // Use context selectors to only subscribe to the parts of the context we need
-    const openKeys = useExpandContextSelector(ctx => ctx.openKeys);
-    const setOpenKeys = useExpandContextSelector(ctx => ctx.setOpenKeys);
-  
+    initialBaseIndex: number;
+  }) {
+    
+    // Local panel states for display options
+    const [displayMode, setDisplayMode] = useState<"markdown" | "text" | "raw">("markdown");
+    const [diffModeIdx, setDiffModeIdx] = useState(0);
+    const allDiffModes = ["none", "lines", "words", "characters"] as const;
+    const diffMode = allDiffModes[diffModeIdx];
+    const [splitView, setSplitView] = useState(false);
+    const [editMode, setEditMode] = useState(false);
+    
+    // Local panel states for column filters
+    const [entriesFilter, setEntriesFilter] = useState<Record<string, boolean>>({});
+    const [paramsFilter, setParamsFilter] = useState<Record<string, boolean>>({});
+    
+    // Local panel states for reordering
+    const [entryOrderings, setEntryOrderings] = useState<{
+      [key: string]: string[];
+    }>({});
+    const [paramOrderings, setParamOrderings] = useState<{
+      [key: string]: string[];
+    }>({});
+    
+    // Local panel state for saved expansion keys during edit mode
+    const [savedOpenKeys, setSavedOpenKeys] = useState<Set<string>>(new Set());
+    
     // Add versions
     const version = "";
     const comparableVersions: string[] = [];
+    
+    // Local baseIndex state
+    const [baseIndexParam, setBaseIndexParam] = useState(initialBaseIndex);
+    
+    // Check if baseIndexParam is valid in useEffect to avoid potential infinite re-render
+    useEffect(() => {
+      if (baseIndexParam < 0 || baseIndexParam >= selectedRowIndices.length) {
+        setBaseIndexParam(0);
+      }
+    }, [baseIndexParam, selectedRowIndices.length]);
+    
+    const baseRowIndex = selectedRowIndices[baseIndexParam] ?? -1;
   
+    // Use our own local state instead of useExpandContextSelector
+    const [localOpenKeys, setLocalOpenKeys] = useState<Set<string>>(new Set());
+    
+    // Local implementation of toggleKey
+    const localToggleKey = useCallback((path: string) => {
+      setLocalOpenKeys((prev) => {
+        const next = new Set(prev);
+        if (next.has(path)) {
+          next.delete(path);
+        } else {
+          next.add(path);
+        }
+        return next;
+      });
+    }, []);
+    
+    // Implement expandRecursively and collapseRecursively functions
+    const expandRecursively = useCallback((paths: string[]) => {
+      setLocalOpenKeys((prev) => {
+        const next = new Set(prev);
+        paths.forEach(path => {
+          next.add(path);
+        });
+        return next;
+      });
+    }, []);
+    
+    const collapseRecursively = useCallback((paths: string[]) => {
+      setLocalOpenKeys((prev) => {
+        const next = new Set(prev);
+        paths.forEach(path => {
+          next.delete(path);
+        });
+        return next;
+      });
+    }, []);
+
     // Create a local handleAccordionValueChange function
     const handleAccordionValueChange = (newVals: string[], filtered: string[], isParams: boolean) => {
-      const next = new Set(openKeys);
+      const next = new Set(localOpenKeys);
       
       // For shallow toggling, only update the root path for each property
       filtered.forEach(prop => {
@@ -128,21 +242,60 @@ export default function SelectionPanel({
         }
       });
       
-      setOpenKeys(next);
+      setLocalOpenKeys(next);
     };
-  
-    // baseIndex from item/base_index
-    let baseIndexParam = parseInt(item.base_index ?? "0", 10);
-  
-    if (isNaN(baseIndexParam)) {
-      baseIndexParam = 0;
+
+    // Add the gatherSubpathsForProperty function
+    function gatherSubpathsForProperty(isParams: boolean, propName: string): Set<string> {
+      // Check if we're dealing with params and if baseLog even exists
+      if (!baseLog) {
+        return new Set<string>();
+      }
+      
+      // Decide whether to use "entries" or "params"
+      const propContainer = isParams ? (baseLog.params || {}) : (baseLog.entries || {});
+      // Find the raw value for the target property
+      const raw = propContainer[propName];
+      
+      // For params, unwrap the .paramValue
+      const rawVal = isParams && raw && typeof raw === "object" ? raw.paramValue : raw;
+      
+      // Empty? Nothing to expand.
+      if (!rawVal) {
+        return new Set<string>();
+      }
+      
+      // Build the appropriate root path for this property
+      const prefixStr = isParams ? "params" : "entries";
+      const rootPath = makePrefixedDictPath(prefixStr, 0, propName);
+      
+      // For multi-mode path gathering
+      const compareIndices = selectedRowIndices.filter((_, i) => i !== baseIndexParam);
+      
+      let comparables: any[] = [];
+      
+      // For multi-mode, gather comparable values from the selected logs
+      if (compareIndices.length > 0) {
+        comparables = compareIndices.map(rowIndex => {
+          const log = sortedLogs[rowIndex];
+          if (!log) return undefined;
+          
+          const container = isParams ? (log.params || {}) : (log.entries || {});
+          const val = container[propName];
+          return isParams && val && typeof val === "object" ? val.paramValue : val;
+        }).filter(v => v !== undefined);
+      }
+      
+      // Now gather all subpaths - use gatherAllSubPathsMulti if we have comparables
+      let subPaths: string[];
+      if (comparables.length > 0) {
+        subPaths = gatherAllSubPathsMulti(rawVal, comparables, rootPath, prefixStr, 0);
+      } else {
+        subPaths = gatherAllSubPaths(rawVal, rootPath, prefixStr, 0);
+      }
+      
+      return new Set(subPaths);
     }
-    
-    if (baseIndexParam < 0 || baseIndexParam >= selectedRowIndices.length) {
-      baseIndexParam = 0;
-    }
-    
-    const baseRowIndex = selectedRowIndices[baseIndexParam] ?? -1;
   
     const buildLogIfValid = useCallback(
       (rIdx: number) => {
@@ -155,7 +308,7 @@ export default function SelectionPanel({
           indexToColumns,
           columnOrdering,
         );
-        
+                
         return result;
       },
       [logs, params, indexToColumns, columnOrdering]
@@ -181,34 +334,34 @@ export default function SelectionPanel({
       comps: (Record<string, unknown> | undefined)[],
       preferredOrder?: string[]
     ): string[] {
-      const s = new Set<string>();
+      // First gather all keys from base and comparables
+      const keyset = new Set<string>();
+      
+      // Add base keys
       if (baseObj) {
-        for (const k of Object.keys(baseObj)) {
-          s.add(k);
+        Object.keys(baseObj).forEach(k => keyset.add(k));
+      }
+      
+      // Add comparable keys
+      for (const comp of comps) {
+        if (comp) {
+          Object.keys(comp).forEach(k => keyset.add(k));
         }
       }
-      comps.forEach((c) => {
-        if (c) {
-          for (const k of Object.keys(c)) {
-            s.add(k);
-          }
-        }
-      });
       
       // If we have a preferred order, use it to order the keys
       if (preferredOrder && preferredOrder.length > 0) {
-        // First get all keys that are both in the union and in the preferred order
-        const orderedKeys = preferredOrder.filter(key => s.has(key));
+        // Start with the keys that are in the preferred order
+        const orderedKeys = preferredOrder.filter(k => keyset.has(k));
         
-        // Then get any keys from the union that aren't in the preferred order
-        const remainingKeys = Array.from(s).filter(key => !preferredOrder.includes(key));
+        // Add any remaining keys that weren't in the preferred order
+        const remainingKeys = Array.from(keyset).filter(k => !preferredOrder.includes(k));
         
-        // Return ordered keys followed by any remaining keys (which we'll sort for consistency)
-        return [...orderedKeys, ...remainingKeys.sort()];
+        return [...orderedKeys, ...remainingKeys];
       }
       
-      // If no preferred order, return all keys (default to sorted for backward compatibility)
-      return Array.from(s).sort();
+      // Fallback to using the key insertion order (which browser maintains for objects)
+      return Array.from(keyset);
     }
   
     const entryKeys = useMemo(() => {
@@ -254,7 +407,7 @@ export default function SelectionPanel({
     // On mount / filter change, load from global reorder or fallback
     useEffect(() => {
       const vKey = visibleParamsKey();
-      const reorder = globalParamOrderings[vKey];
+      const reorder = paramOrderings[vKey];
       const fallback = visibleParams();
       
       let finalP: string[] = [];
@@ -262,8 +415,17 @@ export default function SelectionPanel({
         finalP = reorder;
         setParamOrder(reorder);
       } else if (!reorder && JSON.stringify(fallback) !== JSON.stringify(paramOrder)) {
-        finalP = fallback;
-        setParamOrder(fallback);
+        // Use columnOrdering to order the parameters if applicable
+        if (columnOrdering.length > 0) {
+          // First use ordered items from columnOrdering that exist in fallback
+          const orderedItems = columnOrdering.filter(key => fallback.includes(key));
+          // Then add any fallback items not in columnOrdering
+          const remainingItems = fallback.filter(key => !columnOrdering.includes(key));
+          finalP = [...orderedItems, ...remainingItems];
+        } else {
+          finalP = fallback;
+        }
+        setParamOrder(finalP);
       }
   
       if (finalP.length === 0) {
@@ -277,11 +439,11 @@ export default function SelectionPanel({
       if (missing.length > 0) {
         setParamOrder((prev) => [...prev, ...missing]);
       }
-    }, [panelId, paramKeys, paramsFilter, globalParamOrderings, paramOrder, visibleParamsKey]);
+    }, [panelId, paramKeys, paramsFilter, paramOrderings, visibleParamsKey, columnOrdering, paramOrder]);
   
     useEffect(() => {
       const vKey = visibleEntriesKey();
-      const reorder = globalEntryOrderings[vKey];
+      const reorder = entryOrderings[vKey];
       const fallback = visibleEntries();
   
       let finalE: string[] = [];
@@ -289,8 +451,17 @@ export default function SelectionPanel({
         finalE = reorder;
         setEntryOrder(reorder);
       } else if (!reorder && JSON.stringify(fallback) !== JSON.stringify(entryOrder)) {
-        finalE = fallback;
-        setEntryOrder(fallback);
+        // Use columnOrdering to order the entries if applicable
+        if (columnOrdering.length > 0) {
+          // First use ordered items from columnOrdering that exist in fallback
+          const orderedItems = columnOrdering.filter(key => fallback.includes(key));
+          // Then add any fallback items not in columnOrdering
+          const remainingItems = fallback.filter(key => !columnOrdering.includes(key));
+          finalE = [...orderedItems, ...remainingItems];
+        } else {
+          finalE = fallback;
+        }
+        setEntryOrder(finalE);
       }
   
       if (finalE.length === 0) {
@@ -304,7 +475,7 @@ export default function SelectionPanel({
       if (missingE.length > 0) {
         setEntryOrder((prev) => [...prev, ...missingE]);
       }
-    }, [panelId, entryKeys, entriesFilter, globalEntryOrderings, entryOrder, visibleEntriesKey]);
+    }, [panelId, entryKeys, entriesFilter, entryOrderings, entryOrder, visibleEntriesKey, columnOrdering]);
   
     const sensors = useSensors(
       useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -321,7 +492,7 @@ export default function SelectionPanel({
         const reordered = arrayMove(items, oldIndex, newIndex);
         if (!shallowArrayEquals(reordered, items)) {
           const key = visibleParamsKey();
-          setGlobalParamOrderings((prev) => ({
+          setParamOrderings((prev) => ({
             ...prev,
             [key]: reordered,
           }));
@@ -341,7 +512,7 @@ export default function SelectionPanel({
         const reordered = arrayMove(items, oldIndex, newIndex);
         if (!shallowArrayEquals(reordered, items)) {
           const key = visibleEntriesKey();
-          setGlobalEntryOrderings((prev) => ({
+          setEntryOrderings((prev) => ({
             ...prev,
             [key]: reordered,
           }));
@@ -387,7 +558,7 @@ export default function SelectionPanel({
         return !isAllEmpty(baseVal, compVals);
       });
       if (!filtered.length) return null;
-  
+      
       const allOpen = areAllOpenParams();
   
       // Calculate accordionValue based on only the root paths of each property
@@ -395,9 +566,10 @@ export default function SelectionPanel({
         // Check if the root path itself is in openKeys (for shallow toggling)
         const prefixStr = "params";
         const rootPath = makePrefixedDictPath(prefixStr, 0, prop);
-        return openKeys.has(rootPath);
+        return localOpenKeys.has(rootPath);
       });
-  
+
+      
       // IMPORTANT: We need to pass the actual row indices to SelectionEntry
       // baseRowIndex is already the 0-based row index, so no need to subtract 1
       const baseIndexForSelection = baseRowIndex; // Don't subtract 1, it's already 0-based
@@ -458,6 +630,8 @@ export default function SelectionPanel({
                         }));
                       }}
                       editMode={editMode}
+                      panelOpenKeys={localOpenKeys}
+                      panelSetOpenKeys={setLocalOpenKeys}
                     />
                   </SortableAccordionItem>
                 ))}
@@ -482,7 +656,7 @@ export default function SelectionPanel({
         return !isAllEmpty(baseVal, compVals);
       });
       if (!filtered.length) return null;
-  
+      
       const allOpen = areAllOpenEntries();
       
       // Calculate accordionValue based on only the root paths of each property
@@ -490,7 +664,7 @@ export default function SelectionPanel({
         // Check if the root path itself is in openKeys (for shallow toggling)
         const prefixStr = "entries";
         const rootPath = makePrefixedDictPath(prefixStr, 0, prop);
-        return openKeys.has(rootPath);
+        return localOpenKeys.has(rootPath);
       });
   
       // IMPORTANT: We need to pass the actual row indices to SelectionEntry
@@ -553,6 +727,8 @@ export default function SelectionPanel({
                         }));
                       }}
                       editMode={editMode}
+                      panelOpenKeys={localOpenKeys}
+                      panelSetOpenKeys={setLocalOpenKeys}
                     />
                   </SortableAccordionItem>
                 ))}
@@ -563,22 +739,411 @@ export default function SelectionPanel({
       );
     }
   
+    // Function to determine if all entries are expanded
+    function areAllOpenEntries(): boolean {
+      if (editMode) return false;
+      if (!baseLog) return false;
+      
+      const visibleE = entryKeys.filter((k) => entriesFilter[k] !== false);
+      if (!visibleE.length) return false;
+      
+      // Check both the top-level items and their subpaths
+      const subPathSet = new Set<string>();
+      
+      // Include paths for the top-level entries themselves
+      const prefixStr = "entries";
+      visibleE.forEach((k) => {
+        // Add the root path for this entry
+        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
+        subPathSet.add(rootPath);
+        
+        // Also add all subpaths
+        const spList = gatherSubpathsForProperty(false, k);
+        spList.forEach((sp) => subPathSet.add(sp));
+      });
+      
+      const allOpen = subPathSet.size > 0 && Array.from(subPathSet).every((sp) => localOpenKeys.has(sp));
+      return allOpen;
+    }
+    
+    // Function to determine if all params are expanded
+    function areAllOpenParams(): boolean {
+      if (editMode) return false;
+      if (!baseLog) return false;
+      
+      const visibleP = paramKeys.filter((k) => paramsFilter[k] !== false);
+      if (!visibleP.length) return false;
+      
+      // Check both the top-level items and their subpaths
+      const subPathSet = new Set<string>();
+      
+      // Include paths for the top-level params themselves
+      const prefixStr = "params";
+      visibleP.forEach((k) => {
+        // Add the root path for this param
+        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
+        subPathSet.add(rootPath);
+        
+        // Also add all subpaths
+        const spList = gatherSubpathsForProperty(true, k);
+        spList.forEach((sp: string) => subPathSet.add(sp));
+      });
+      
+      return subPathSet.size > 0 && Array.from(subPathSet).every((sp: string) => localOpenKeys.has(sp));
+    }
+    
+    // Function to expand/collapse all entries
+    function onEntriesExpandToggle() {
+      if (editMode) return;
+      if (!baseLog) return;
+      
+      const visibleE = entryKeys.filter((k) => entriesFilter[k] !== false);
+      const subPathSet = new Set<string>();
+      
+      // Include paths for the top-level entries themselves
+      const prefixStr = "entries";
+      visibleE.forEach((k) => {
+        // Add the root path for this entry
+        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
+        subPathSet.add(rootPath);
+        
+        // Also add all subpaths
+        const spList = gatherSubpathsForProperty(false, k);
+        spList.forEach((sp) => subPathSet.add(sp));
+      });
+      
+      const currentlyAllOpen = areAllOpenEntries();
+      
+      if (currentlyAllOpen) {
+        // Collapse all
+        collapseRecursively(Array.from(subPathSet));
+      } else {
+        // Expand all
+        expandRecursively(Array.from(subPathSet));
+      }
+    }
+    
+    // Function to expand/collapse all params
+    function onParamsExpandToggle() {
+      if (editMode) return;
+      if (!baseLog) return;
+      
+      const visibleP = paramKeys.filter((k) => paramsFilter[k] !== false);
+      const subPathSet = new Set<string>();
+      
+      // Include paths for the top-level params themselves
+      const prefixStr = "params";
+      visibleP.forEach((k) => {
+        // Add the root path for this param
+        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
+        subPathSet.add(rootPath);
+        
+        // Also add all subpaths
+        const spList = gatherSubpathsForProperty(true, k);
+        spList.forEach((sp: string) => subPathSet.add(sp));
+      });
+      
+      const currentlyAllOpen = areAllOpenParams();
+      
+      setLocalOpenKeys((prev) => {
+        const next = new Set(prev);
+        if (currentlyAllOpen) {
+          subPathSet.forEach((sp: string) => next.delete(sp));
+        } else {
+          subPathSet.forEach((sp: string) => next.add(sp));
+        }
+        return next;
+      });
+    }
+  
+    // Function to toggle edit mode with expansion key management
+    const toggleEditMode = () => {
+      if (!editMode) {
+        // turning ON => save current expansions, then close them all
+        setSavedOpenKeys(new Set(localOpenKeys));
+        setLocalOpenKeys(new Set()); // forcibly close all expansions
+        setEditMode(true);
+      } else {
+        // turning OFF => restore expansions
+        setLocalOpenKeys(savedOpenKeys);
+        setSavedOpenKeys(new Set());
+        setEditMode(false);
+      }
+    };
+  
     if (!baseLog) {
       return (
         <div className="flex flex-col w-full h-full overflow-hidden bg-background">
           <p className="text-sm text-muted-foreground p-2">
-            No valid base row (panel {panelId + 1})
+            No valid base row
           </p>
         </div>
       );
     }
   
     return (
-      <div className="flex flex-col w-full h-full overflow-hidden">
-        <div className="flex-1 overflow-y-auto px-5 min-h-0 space-y-6">
-          <ParamSection />
-          <EntriesSection />
+      <PanelExpandProvider
+        openKeys={localOpenKeys}
+        setOpenKeys={setLocalOpenKeys}
+        forceExpandAll={false}
+        forceCollapseAll={false}
+        toggleKey={localToggleKey}
+        expandAll={() => {}}
+        collapseAll={() => {}}
+        expandRecursively={expandRecursively}
+        collapseRecursively={collapseRecursively}
+      >
+        <div className="flex flex-col w-full h-full overflow-hidden">
+          {/* Panel-specific controls */}
+          <div className="p-2 border-b border-muted flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              {/* Panel ID text removed as requested */}
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Cycle display mode */}
+              <ActionButton
+                tooltip={
+                  displayMode === "raw"
+                    ? "Viewing as raw"
+                    : displayMode === "markdown"
+                    ? "Viewing as markdown"
+                    : "Viewing as text"
+                }
+                icon={
+                  displayMode === "raw" ? (
+                    <Code className="h-4 w-4" />
+                  ) : displayMode === "markdown" ? (
+                    <Type className="h-4 w-4" />
+                  ) : (
+                    <RemoveFormatting className="h-4 w-4" />
+                  )
+                }
+                onClick={() => {
+                  setDisplayMode((prev) => {
+                    if (prev === "markdown") return "text";
+                    if (prev === "text") return "raw";
+                    return "markdown";
+                  });
+                }}
+                variant="ghost"
+                size="icon"
+              />
+              
+              {/* Show/Hide columns Popover */}
+              <BasePopover
+                button={
+                  <ActionButton
+                    tooltip="Show / hide columns"
+                    icon={<Rows3 className="h-4 w-4" />}
+                    variant="ghost"
+                    size="icon"
+                  />
+                }
+              >
+                <div className="flex flex-col gap-1 p-3">
+                  <p className="font-bold text-medium pb-1">Select visible columns</p>
+                  <div className="max-h-[60vh] overflow-y-auto pr-2">
+                    {/* Master toggle for all */}
+                    <div className="flex justify-between items-center mb-5 mt-3">
+                      <span className="font-bold text-sm">
+                        {entryKeys.every((k) => entriesFilter[k] !== false) &&
+                        paramKeys.every((k) => paramsFilter[k] !== false)
+                          ? "Hide all"
+                          : "Show all"}
+                      </span>
+                      <Switch
+                        checked={
+                          entryKeys.every((k) => entriesFilter[k] !== false) &&
+                          paramKeys.every((k) => paramsFilter[k] !== false)
+                        }
+                        onCheckedChange={(checked) => {
+                          const newE: Record<string, boolean> = {};
+                          entryKeys.forEach((k) => {
+                            newE[k] = checked;
+                          });
+                          if (!shallowEqualBooleanRecords(newE, entriesFilter)) {
+                            setEntriesFilter(newE);
+                          }
+
+                          const newP: Record<string, boolean> = {};
+                          paramKeys.forEach((k) => {
+                            newP[k] = checked;
+                          });
+                          if (!shallowEqualBooleanRecords(newP, paramsFilter)) {
+                            setParamsFilter(newP);
+                          }
+                        }}
+                      />
+                    </div>
+
+                    {/* Params toggles */}
+                    {paramKeys.length > 0 && (
+                      <div className="mt-2">
+                        <div className="flex justify-between items-center mb-1">
+                          <p className="font-bold text-sm">Params</p>
+                          <Switch
+                            checked={paramKeys.every(
+                              (k) => paramsFilter[k] !== false
+                            )}
+                            onCheckedChange={(checked) => {
+                              const newVal: Record<string, boolean> = {};
+                              paramKeys.forEach((k) => {
+                                newVal[k] = checked;
+                              });
+                              if (!shallowEqualBooleanRecords(newVal, paramsFilter)) {
+                                setParamsFilter(newVal);
+                              }
+                            }}
+                          />
+                        </div>
+                        {paramKeys.map((k) => (
+                          <div
+                            key={k}
+                            className="flex items-center justify-between py-1 pl-4"
+                          >
+                            <span className="text-sm w-[180px] truncate pr-2" title={k}>
+                              {k}
+                            </span>
+                            <Switch
+                              checked={paramsFilter[k] !== false}
+                              onCheckedChange={(checked) => {
+                                setParamsFilter((prev) => {
+                                  if (prev[k] === checked) {
+                                    return prev;
+                                  }
+                                  const newObj = { ...prev, [k]: checked };
+                                  return newObj;
+                                });
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Entries toggles */}
+                    <div className="mt-4">
+                      <div className="flex justify-between items-center mb-1">
+                        <p className="font-bold text-sm">Entries</p>
+                        <Switch
+                          checked={entryKeys.every(
+                            (k) => entriesFilter[k] !== false
+                          )}
+                          onCheckedChange={(checked) => {
+                            const newVal: Record<string, boolean> = {};
+                            entryKeys.forEach((k) => {
+                              newVal[k] = checked;
+                            });
+                            if (!shallowEqualBooleanRecords(newVal, entriesFilter)) {
+                              setEntriesFilter(newVal);
+                            }
+                          }}
+                        />
+                      </div>
+                      {entryKeys.map((k) => (
+                        <div
+                          key={k}
+                          className="flex items-center justify-between py-1 pl-4"
+                        >
+                          <span className="text-sm w-[180px] truncate pr-2" title={k}>
+                            {k}
+                          </span>
+                          <Switch
+                            checked={entriesFilter[k] !== false}
+                            onCheckedChange={(checked) => {
+                              setEntriesFilter((prev) => {
+                                if (prev[k] === checked) {
+                                  return prev;
+                                }
+                                const newObj = { ...prev, [k]: checked };
+                                return newObj;
+                              });
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </BasePopover>
+              
+              {/* Toggle Edit Mode */}
+              <ActionButton
+                tooltip={
+                  editMode
+                    ? "Edit mode active – drag and drop"
+                    : "Activate edit mode for sorting"
+                }
+                icon={<Grab className="h-4 w-4" />}
+                onClick={toggleEditMode}
+                variant={editMode ? "primary" : "ghost"}
+                size="icon"
+              />
+            </div>
+          </div>
+          
+          {/* Base row selection & diff controls */}
+          {selectedRowIndices.length > 1 && (
+            <div className="border-b border-muted bg-background px-3 py-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Base:</span>
+                <Combobox
+                  items={selectedRowIndices.map((rIdx, i) => ({
+                    value: String(i),
+                    label: `Row ${rIdx + 1}`,
+                    dataIndex: i,
+                  }))}
+                  value={String(baseIndexParam)}
+                  onValueChange={(newVal) => {
+                    const idx = parseInt(newVal, 10);
+                    if (!isNaN(idx)) {
+                      setBaseIndexParam(idx);
+                    }
+                  }}
+                  placeholder="Pick base row"
+                  className="w-[110px]"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <ActionButton
+                  tooltip={`Cycle diff mode (current: ${diffMode})`}
+                  icon={
+                    diffMode === "none"
+                      ? <SquareSlash />
+                      : diffMode === "lines"
+                      ? <FileText />
+                      : diffMode === "words"
+                      ? <CaseLower />
+                      : <Pilcrow />
+                  }
+                  onClick={() => {
+                    setDiffModeIdx((prev) => (prev + 1) % allDiffModes.length);
+                  }}
+                  variant="ghost"
+                  size="icon"
+                />
+                <ActionButton
+                  tooltip={splitView ? "Switch to Inline View" : "Switch to Split View"}
+                  icon={
+                    splitView ? (
+                      <Columns className="h-4 w-4" />
+                    ) : (
+                      <AlignJustify className="h-4 w-4" />
+                    )
+                  }
+                  onClick={() => setSplitView(!splitView)}
+                  variant="ghost"
+                  size="icon"
+                />
+              </div>
+            </div>
+          )}
+          
+          <div className="flex-1 overflow-y-auto px-5 min-h-0 space-y-6">
+            <ParamSection />
+            <EntriesSection />
+          </div>
         </div>
-      </div>
+      </PanelExpandProvider>
     );
   }

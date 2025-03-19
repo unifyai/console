@@ -36,6 +36,9 @@ type ExpandContextType = {
  */
 const ExpandContext = createContext<ExpandContextType>(null as any);
 
+// Export ExpandContext to allow direct access when needed
+export { ExpandContext };
+
 interface ExpandProviderProps {
   children: ReactNode;
 }
