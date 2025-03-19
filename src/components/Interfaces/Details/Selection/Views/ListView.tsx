@@ -27,7 +27,7 @@ import {
   makePrefixedListPath,
   sanitizePropertyKey,
 } from "@/utils/evals/pathUtils";
-import { useExpandContextSelector } from "@/contexts/ExpandContext";
+import { usePanelExpandContextSelector } from "@/components/Interfaces/Details/Selection/SelectionPanel";
 
 import { LogComparisonProps } from "./types";
 import { getValueType, getTypeIcon } from "./ViewTypes";
@@ -132,30 +132,37 @@ function presenceDiff(
   handleRecursiveToggle => expand/collapse entire sublist recursively
 ────────────────────────────────────────────────────────────────────────────*/
 function handleRecursiveToggle(
-  baseValue: unknown,
-  comparables: unknown[],
-  path: string,
-  prefix: string,
+  e: React.MouseEvent, 
+  path: string, 
+  value: any, 
+  comparables: any[], 
+  prefix: string, 
   nestingLevel: number,
-  openKeys: Set<string>,
-  setOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>
+  expandRecursively: (paths: string[]) => void,
+  collapseRecursively: (paths: string[]) => void,
+  openKeys: Set<string>
 ) {
+  e.stopPropagation();
+  
+  // Always recompute subPaths to ensure we have the latest
   let subPaths: string[];
   if (comparables && comparables.length > 0) {
-    subPaths = gatherAllSubPathsMulti(baseValue, comparables, path, prefix, nestingLevel);
+    subPaths = gatherAllSubPathsMulti(value, comparables, path, prefix, nestingLevel);
   } else {
-    subPaths = gatherAllSubPaths(baseValue, path, prefix, nestingLevel);
+    subPaths = gatherAllSubPaths(value, path, prefix, nestingLevel);
   }
+  
+  
+  // check if all are open
   const allOpen = subPaths.every((p) => openKeys.has(p));
-  setOpenKeys((prev) => {
-    const next = new Set(prev);
-    if (allOpen) {
-      subPaths.forEach((sp) => next.delete(sp));
-    } else {
-      subPaths.forEach((sp) => next.add(sp));
-    }
-    return next;
-  });
+  
+  if (allOpen) {
+    // collapse - call collapseRecursively
+    collapseRecursively(subPaths);
+  } else {
+    // expand - call expandRecursively
+    expandRecursively(subPaths);
+  }
 }
 
 /*────────────────────────────────────────────────────────────────────────────
@@ -218,11 +225,14 @@ function renderNoDiffMode(
     nestingLevel: number,
     prefix: string,
     parentPath: string,
+    expandRecursively: (paths: string[]) => void,
+    collapseRecursively: (paths: string[]) => void,
   }
 ) {
   const { 
     baseLogIndex, comparisonLogsIndex, version, comparableVersions, 
-    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath 
+    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath,
+    expandRecursively, collapseRecursively
   } = options;
   
   // Build the open values array for the accordion
@@ -303,26 +313,7 @@ function renderNoDiffMode(
         // 5. Setup recursive toggle handler
         const isPathOpen = openKeys.has(path);
         function handleExpandClick(e: React.MouseEvent) {
-          e.stopPropagation();
-          // Find the first value that's a complex type
-          const complexVal = rowValuePairs.find(p => {
-            const v = p.val;
-            return isDict(v) || isList(v);
-          })?.val;
-          
-          if (complexVal) {
-            // We'll use just this one value for gathering sub-paths
-            // since we only need the structure, not the actual values
-            handleRecursiveToggle(
-              complexVal,
-              [], // No comparables in this context
-              path,
-              prefix,
-              nestingLevel,
-              openKeys,
-              setOpenKeys
-            );
-          }
+          handleRecursiveToggle(e, path, firstVal, comparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
         }
         
         return (
@@ -404,11 +395,14 @@ export default function ListView({
   prefix = "entries",
   parentPath = "",
 }: ListViewProps) {
-  // Use context selectors to only subscribe to the parts of the context we need
-  const openKeys = useExpandContextSelector(ctx => ctx.openKeys);
-  const setOpenKeys = useExpandContextSelector(ctx => ctx.setOpenKeys);
-  const forceExpandAll = useExpandContextSelector(ctx => ctx.forceExpandAll);
-  const forceCollapseAll = useExpandContextSelector(ctx => ctx.forceCollapseAll);
+  // Use panel context selectors to only subscribe to the parts of the context we need
+  const openKeys = usePanelExpandContextSelector((ctx) => ctx.openKeys);
+  const setOpenKeys = usePanelExpandContextSelector((ctx) => ctx.setOpenKeys);
+  const forceExpandAll = usePanelExpandContextSelector((ctx) => ctx.forceExpandAll);
+  const forceCollapseAll = usePanelExpandContextSelector((ctx) => ctx.forceCollapseAll);
+  // Get the expandRecursively and collapseRecursively functions from context
+  const expandRecursively = usePanelExpandContextSelector((ctx) => ctx.expandRecursively);
+  const collapseRecursively = usePanelExpandContextSelector((ctx) => ctx.collapseRecursively);
 
   // Check if base is a valid list
   const isValidList = isList(value);
@@ -513,16 +507,7 @@ export default function ListView({
     const isOpen = openKeys.has(path);
 
     function handleExpandClick(e: React.MouseEvent) {
-      e.stopPropagation();
-      handleRecursiveToggle(
-        arrValue,
-        [],
-        path,
-        prefix,
-        nestingLevel,
-        openKeys,
-        setOpenKeys
-      );
+      handleRecursiveToggle(e, path, arrValue, comparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
     }
 
     return (
@@ -592,16 +577,7 @@ export default function ListView({
     }
 
     function handleExpandClick(e: React.MouseEvent) {
-      e.stopPropagation();
-      handleRecursiveToggle(
-        baseVal,
-        compVals,
-        path,
-        prefix,
-        nestingLevel,
-        openKeys,
-        setOpenKeys
-      );
+      handleRecursiveToggle(e, path, baseVal, compVals, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
     }
 
     return (
@@ -722,6 +698,8 @@ export default function ListView({
             nestingLevel,
             prefix,
             parentPath,
+            expandRecursively,
+            collapseRecursively,
           }
         )
       ) : (

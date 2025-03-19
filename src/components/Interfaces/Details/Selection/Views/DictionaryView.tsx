@@ -27,7 +27,7 @@ import {
   makePrefixedDictPath,
   sanitizePropertyKey,
 } from "@/utils/evals/pathUtils";
-import { useExpandContextSelector } from "@/contexts/ExpandContext";
+import { usePanelExpandContextSelector } from "@/components/Interfaces/Details/Selection/SelectionPanel";
 
 import { LogComparisonProps } from "./types";
 import { getValueType, getTypeIcon } from "./ViewTypes";
@@ -132,42 +132,37 @@ function presenceDiff(
   handleRecursiveToggle => expand/collapse everything under the given path
 ────────────────────────────────────────────────────────────────────────────*/
 function handleRecursiveToggle(
-  baseValue: unknown,
-  comparables: unknown[],
-  path: string,
-  prefix: string,
+  e: React.MouseEvent, 
+  path: string, 
+  value: any, 
+  comparables: any[], 
+  prefix: string, 
   nestingLevel: number,
-  openKeys: Set<string>,
-  setOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>
+  expandRecursively: (paths: string[]) => void,
+  collapseRecursively: (paths: string[]) => void,
+  openKeys: Set<string>
 ) {
-  // gather any subpaths under "path"
+  e.stopPropagation();
+  
+  // Always recompute subPaths to ensure we have the latest
   let subPaths: string[];
   if (comparables && comparables.length > 0) {
-    // In multi-mode, use gatherAllSubPathsMulti to include all keys
-    subPaths = gatherAllSubPathsMulti(baseValue, comparables, path, prefix, nestingLevel);
+    subPaths = gatherAllSubPathsMulti(value, comparables, path, prefix, nestingLevel);
   } else {
-    // In single-mode, use the original method
-    subPaths = gatherAllSubPaths(baseValue, path, prefix, nestingLevel);
+    subPaths = gatherAllSubPaths(value, path, prefix, nestingLevel);
   }
+  
   
   // check if all are open
   const allOpen = subPaths.every((sp) => openKeys.has(sp));
-
-  setOpenKeys((prev) => {
-    const next = new Set(prev);
-    if (allOpen) {
-      // collapse - remove them
-      subPaths.forEach((sp) => {
-        next.delete(sp);
-      });
-    } else {
-      // expand - add them
-      subPaths.forEach((sp) => {
-        next.add(sp);
-      });
-    }
-    return next;
-  });
+  
+  if (allOpen) {
+    // collapse - call collapseRecursively
+    collapseRecursively(subPaths);
+  } else {
+    // expand - call expandRecursively
+    expandRecursively(subPaths);
+  }
 }
 
 /*────────────────────────────────────────────────────────────────────────────
@@ -238,11 +233,14 @@ function renderNoDiffMode(
     nestingLevel: number,
     prefix: string,
     parentPath: string,
+    expandRecursively: (paths: string[]) => void,
+    collapseRecursively: (paths: string[]) => void,
   }
 ) {
   const { 
     baseLogIndex, comparisonLogsIndex, version, comparableVersions, 
-    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath 
+    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath,
+    expandRecursively, collapseRecursively
   } = options;
   
   // Build the open values array for the accordion
@@ -312,25 +310,7 @@ function renderNoDiffMode(
         const isPathOpen = openKeys.has(path);
         function handleExpandToggle(e: React.MouseEvent) {
           e.stopPropagation();
-          // Find the first value that's a complex type
-          const complexVal = rowValuePairs.find(p => {
-            const v = p.val;
-            return isDict(v) || isList(v);
-          })?.val;
-          
-          if (complexVal) {
-            // We'll use just this one value for gathering sub-paths
-            // since we only need the structure, not the actual values
-            handleRecursiveToggle(
-              complexVal,
-              [], // No comparables in this context
-              path,
-              prefix,
-              nestingLevel,
-              openKeys,
-              setOpenKeys
-            );
-          }
+          handleRecursiveToggle(e, path, value, comparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
         }
         
         return (
@@ -403,11 +383,14 @@ export default function DictionaryView({
   prefix = "entries",
   parentPath = "", // new param to track parent's path
 }: DictionaryViewProps) {
-  // Use context selectors to only subscribe to the parts of the context we need
-  const openKeys = useExpandContextSelector(ctx => ctx.openKeys);
-  const setOpenKeys = useExpandContextSelector(ctx => ctx.setOpenKeys);
-  const forceExpandAll = useExpandContextSelector(ctx => ctx.forceExpandAll);
-  const forceCollapseAll = useExpandContextSelector(ctx => ctx.forceCollapseAll);
+  // Use panel context selectors to only subscribe to the parts of the context we need
+  const openKeys = usePanelExpandContextSelector((ctx) => ctx.openKeys);
+  const setOpenKeys = usePanelExpandContextSelector((ctx) => ctx.setOpenKeys);
+  const forceExpandAll = usePanelExpandContextSelector((ctx) => ctx.forceExpandAll);
+  const forceCollapseAll = usePanelExpandContextSelector((ctx) => ctx.forceCollapseAll);
+  // Get the expandRecursively and collapseRecursively functions from context
+  const expandRecursively = usePanelExpandContextSelector((ctx) => ctx.expandRecursively);
+  const collapseRecursively = usePanelExpandContextSelector((ctx) => ctx.collapseRecursively);
 
   const singleMode = !comparables || comparables.length === 0;
   
@@ -420,14 +403,15 @@ export default function DictionaryView({
   // In multi-mode, we can proceed if either the base or any comparable is a valid dict
   const canProceed = isValidDict || (!singleMode && hasValidComparables);
 
-  // gather union of all dictionary keys - handle invalid dict case inside
+  // gather union of all dictionary keys - without explicitly sorting
   const { allKeys, rowIndices } = useMemo(() => {
     if (singleMode && !isValidDict) {
       return { allKeys: [], rowIndices: [] };
     }
     
     if (singleMode) {
-      const baseObjKeys = Object.keys(value).sort();
+      // Don't sort keys, respect original order
+      const baseObjKeys = Object.keys(value);
       return {
         allKeys: baseObjKeys,
         rowIndices: [baseLogIndex],
@@ -440,9 +424,10 @@ export default function DictionaryView({
           Object.keys(dict).forEach((k) => union.add(k));
         }
       });
-      const sortedKeys = Array.from(union).sort();
+      // Don't sort keys, respect object key insertion order
+      const keys = Array.from(union);
       return {
-        allKeys: sortedKeys,
+        allKeys: keys,
         rowIndices: [baseLogIndex, ...comparisonLogsIndex],
       };
     }
@@ -498,16 +483,7 @@ export default function DictionaryView({
     const isOpen = openKeys.has(path);
 
     function handleExpandToggle(e: React.MouseEvent) {
-      e.stopPropagation();
-      handleRecursiveToggle(
-        baseVal,
-        [],
-        path,
-        prefix,
-        nestingLevel,
-        openKeys,
-        setOpenKeys
-      );
+      handleRecursiveToggle(e, path, value, comparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
     }
 
     // Build tooltip text
@@ -594,16 +570,7 @@ export default function DictionaryView({
     const isOpen = openKeys.has(path);
 
     function handleExpandToggle(e: React.MouseEvent) {
-      e.stopPropagation();
-      handleRecursiveToggle(
-        baseVal,
-        compVals,
-        path,
-        prefix,
-        nestingLevel,
-        openKeys,
-        setOpenKeys
-      );
+      handleRecursiveToggle(e, path, value, comparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
     }
 
     // Build tooltip text
@@ -713,6 +680,8 @@ export default function DictionaryView({
             nestingLevel,
             prefix,
             parentPath,
+            expandRecursively,
+            collapseRecursively,
           }
         )
       ) : (

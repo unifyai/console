@@ -50,7 +50,6 @@ import {
   FileText
 } from "lucide-react";
 
-import { useExpandContextSelector } from "@/contexts/ExpandContext";
 import {
   makePrefixedDictPath,
   makePrefixedListPath,
@@ -335,11 +334,12 @@ interface SelectionEntryProps {
   comparableVersions?: string[];
   tableItem: TileProps | undefined;
   updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
-  onAccordionValueChange?: (value: string[]) => void;
   onHideColumn?: (prop: string) => void;
   editMode?: boolean;
   forceExpandAll?: boolean;
   forceCollapseAll?: boolean;
+  panelOpenKeys: Set<string>;
+  panelSetOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>;
 }
 
 /**
@@ -370,18 +370,41 @@ export default function SelectionEntry({
   comparableVersions = [],
   tableItem,
   updateItem,
-  onAccordionValueChange,
   onHideColumn,
   editMode = false,
   forceExpandAll,
   forceCollapseAll,
+  panelOpenKeys,
+  panelSetOpenKeys,
 }: SelectionEntryProps) {
   const [hovered, setHovered] = useState(false);
-  const [prevAccordionValues, setPrevAccordionValues] = useState<string[]>([]);
   
-  // Use context selectors to only subscribe to the parts of the context we need
-  const openKeys = useExpandContextSelector(ctx => ctx.openKeys);
-  const setOpenKeys = useExpandContextSelector(ctx => ctx.setOpenKeys);
+  // We need to access the expandRecursively and collapseRecursively functions from context
+  // We use the fake usePanelExpandContextSelector function to get the right values
+  const expandRecursively = useMemo(() => {
+    return (paths: string[]) => {
+      panelSetOpenKeys((prev) => {
+        const next = new Set(prev);
+        paths.forEach(path => next.add(path));
+        return next;
+      });
+    };
+  }, [panelSetOpenKeys]);
+  
+  const collapseRecursively = useMemo(() => {
+    return (paths: string[]) => {
+      panelSetOpenKeys((prev) => {
+        const next = new Set(prev);
+        paths.forEach(path => next.delete(path));
+        return next;
+      });
+    };
+  }, [panelSetOpenKeys]);
+  
+  // Use panel-specific props directly
+  // No type assertions needed since props are properly typed
+  const openKeys = panelOpenKeys;
+  const setOpenKeys = panelSetOpenKeys;
 
   // gather comparables
   const comps = (comparisonLogs ?? []).map((cl) => {
@@ -427,20 +450,25 @@ export default function SelectionEntry({
     if (!isDictOrList || !topLevelPath) return [];
     const prefixStr = source === "entries" ? "entries" : "params";
 
+
     // In multi-mode, use gatherAllSubPathsMulti to include keys from comparables
+    let paths: string[] = [];
     if (comps && comps.length > 0) {
-      return gatherAllSubPathsMulti(rawValue, comps, topLevelPath, prefixStr, 0);
+      paths = gatherAllSubPathsMulti(rawValue, comps, topLevelPath, prefixStr, 0);
     } else {
       // In single-mode, use the original gatherAllSubPaths
-      return gatherAllSubPaths(rawValue, topLevelPath, prefixStr, 0);
+      paths = gatherAllSubPaths(rawValue, topLevelPath, prefixStr, 0);
     }
-  }, [rawValue, isDictOrList, topLevelPath, source, comps]);
+
+    return paths;
+  }, [rawValue, isDictOrList, topLevelPath, source, comps, property]);
 
   // check if all subPaths are in openKeys => allOpen
   const allOpen = useMemo(() => {
     if (!isDictOrList || !subPaths.length) return false;
-    return subPaths.every((p) => openKeys.has(p));
-  }, [isDictOrList, subPaths, openKeys]);
+    const result = subPaths.every((p) => openKeys.has(p));
+    return result;
+  }, [isDictOrList, subPaths, openKeys, property]);
   
   // Return early if empty - after all hooks have been called
   if (isEmpty) {
@@ -456,17 +484,25 @@ export default function SelectionEntry({
     e.stopPropagation();
     if (!isDictOrList) return;
 
-    setOpenKeys((prev) => {
-      const next = new Set(prev);
-      if (allOpen) {
-        // collapse everything
-        subPaths.forEach((p) => next.delete(p));
-      } else {
-        // expand everything
-        subPaths.forEach((p) => next.add(p));
-      }
-      return next;
-    });
+    // Force re-gather subpaths in case state has changed
+    const prefixStr = source === "entries" ? "entries" : "params";
+    
+    // Get the full list of paths directly
+    let paths: string[];
+    if (comps && comps.length > 0) {
+      paths = gatherAllSubPathsMulti(rawValue, comps, topLevelPath, prefixStr, 0);
+    } else {
+      paths = gatherAllSubPaths(rawValue, topLevelPath, prefixStr, 0);
+    }
+
+
+    if (allOpen) {
+      // collapse everything recursively
+      collapseRecursively(paths);
+    } else {
+      // expand everything recursively
+      expandRecursively(paths);
+    }
   };
 
   // subcomponent that actually renders the value
@@ -491,13 +527,6 @@ export default function SelectionEntry({
   return (
     <AccordionItem
       value={itemValue}
-      onDragStart={() => {
-        setPrevAccordionValues([]);
-        onAccordionValueChange?.([]);
-      }}
-      onDragEnd={() => {
-        onAccordionValueChange?.(prevAccordionValues);
-      }}
     >
       <AccordionTrigger
         onMouseEnter={() => setHovered(true)}
