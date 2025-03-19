@@ -1,6 +1,5 @@
-
-  import { LogProps } from "@/types/evals/logs";
-  import { sanitizeId } from "@/utils/evals/columnOperations";
+import { LogProps } from "@/types/evals/logs";
+import { sanitizeId } from "@/utils/evals/columnOperations";
 
 /*******************************************************************************
  * Helper & Utility Functions
@@ -87,31 +86,30 @@ export function buildIndexToColumnsMapFromId(
 selectedCells: string[],
 sortedLogs: LogProps[]
 ): Record<number, Set<string>> {
-
-const map: Record<number, Set<string>> = {};
-for (const token of selectedCells) {    
+  
+  const map: Record<number, Set<string>> = {};
+  for (const token of selectedCells) {    
     const underscorePos = token.indexOf("_");
     if (underscorePos < 1) {
-    continue;
+      continue;
     }
     
     const logIdStr = token.slice(0, underscorePos);
-
     let columnName = token.slice(underscorePos + 1);
     
     const rowIndex = sortedLogs.findIndex((log) => String(log.id) === logIdStr);
     
     if (rowIndex < 0) {
-    continue;
+      continue;
     }
-    
+
     if (!map[rowIndex]) {
-    map[rowIndex] = new Set<string>();
+      map[rowIndex] = new Set<string>();
     }
     
     map[rowIndex].add(columnName);
-}
-return map;
+  }
+  return map;
 }
 
 /** Build row selection order from the selected cells. */
@@ -147,31 +145,47 @@ indexToColumns: Record<number, Set<string>>,
 columnOrdering: string[],
 ): LogProps {
 const chosen = indexToColumns[rowIndex] ?? new Set<string>();
+
 const safeEntries = originalLog.entries ?? {};
 
-const finalColsEntries =
-    columnOrdering.length > 0
-    ? columnOrdering
-        .filter((c) => chosen.has(c))
-        .map(sanitizeId)
-    : Array.from(chosen).map(sanitizeId);
+// The key fix: If none of the columnOrdering items match the chosen columns,
+// fall back to using all chosen columns directly (even if columnOrdering.length > 0)
+let finalColsEntries: string[];
+if (columnOrdering.length > 0) {
+    const filtered = columnOrdering.filter(c => chosen.has(c)).map(sanitizeId);
+    if (filtered.length > 0) {
+        finalColsEntries = filtered;
+    } else {
+        // If nothing matched, use the chosen columns directly
+        finalColsEntries = Array.from(chosen).map(sanitizeId);
+    }
+} else {
+    finalColsEntries = Array.from(chosen).map(sanitizeId);
+}
 
 const newEntries: Record<string, unknown> = {};
 for (const c of finalColsEntries) {
     if (Object.prototype.hasOwnProperty.call(safeEntries, c)) {
     newEntries[c] = safeEntries[c];
+    } else {
     }
 }
 
 const safeParams = originalLog.params ?? {};  
 
-const finalColsParams =
-    columnOrdering.length > 0
-    ? columnOrdering
-        .filter((c) => chosen.has(c))
-        .map(sanitizeId)
-    : Array.from(chosen).map(sanitizeId);
-
+// Apply the same fix for params
+let finalColsParams: string[];
+if (columnOrdering.length > 0) {
+    const filtered = columnOrdering.filter(c => chosen.has(c)).map(sanitizeId);
+    if (filtered.length > 0) {
+        finalColsParams = filtered;
+    } else {
+        // If nothing matched, use the chosen columns directly
+        finalColsParams = Array.from(chosen).map(sanitizeId);
+    }
+} else {
+    finalColsParams = Array.from(chosen).map(sanitizeId);
+}
 
 const newParams: Record<string, unknown> = {};
 for (const c of finalColsParams) {
