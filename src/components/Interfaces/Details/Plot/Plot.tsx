@@ -20,7 +20,7 @@ import { TileProps } from "@/types/evals/grid";
 import { useTab } from "@/contexts/hooks/useTab";
 import { useTile } from "@/contexts/hooks/useTile";
 import { usePlotTile } from "@/contexts/hooks/usePlotTile";
-import { useStore } from "@/contexts/hooks/useStore";
+import { useTiles } from "@/contexts/hooks/useStore";
 
 const LogsPlot = ({ 
     tileId,
@@ -55,7 +55,7 @@ const LogsPlot = ({
     const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
     
     // Only subscribe to a subset of the tiles objects to incl. name, type and tableTile only
-    const tiles = useStore().getTiles(tileIds, ["name", "type"]);
+    const tiles = useTiles(tileIds, ["name", "type", "tableTile.tableDataItem"]);
 
     const tableNames = useMemo(() => {
         // Only return table names for table tiles

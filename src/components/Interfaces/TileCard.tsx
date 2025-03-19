@@ -12,7 +12,7 @@ import { ResponseProps } from "@/types/common";
 import { DerivedEntryActions, FieldsActions, ContextActions, TabProps, TileProps } from "@/types/evals/grid";
 import { LogsActions } from "@/types/evals/grid";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
-import { useStore } from "@/contexts/hooks/useStore";
+import { useLogLengths } from "@/contexts/hooks/useStore";
 
 const Tile = lazy(() => import('./Tile'));
 
@@ -69,7 +69,7 @@ const TileCard = ({
   const { dataActions: tileDataActions } = useTile(item?.i, tabId, interfaceId, projectId);
 
   // Define logsLengths as a computed property based on the tiles
-  const logsLengths = useStore().getLogLengths();
+  const logsLengths = useLogLengths();
 
   return (
     <div className="relative flex w-full h-full border">

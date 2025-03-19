@@ -3,8 +3,8 @@
 import { useEffect, useRef } from 'react';
 import { IStoreState } from '../store';
 import { useStoreContext } from './StoreProvider';
-import { shallow } from 'zustand/vanilla/shallow';
 import { useShallow } from 'zustand/react/shallow';
+import isEqual from 'fast-deep-equal';
 
 // Component to handle store updates when initialState changes
 function StoreUpdater({ initialState }: { initialState: Partial<IStoreState> }) {
@@ -83,7 +83,7 @@ function applyGranularUpdates(
   
   // Update projects list if changed
   if (prevState.projects !== newState.projects && newState.projects) {
-    if (!shallow(prevState.projects || [], newState.projects)) {
+    if (!isEqual(prevState.projects || [], newState.projects)) {
       actions.setProjects(newState.projects);
     }
   }
@@ -144,7 +144,7 @@ function updateProjectsCollection(
     }
     
     // If we have a new project or the project changed, update it
-    if (newProject && (!prevProject || !shallow(prevProject, newProject))) {
+    if (newProject && (!prevProject || !isEqual(prevProject, newProject))) {
       updateProject(projectId, newProject);
     }
   }
@@ -180,7 +180,7 @@ function updateInterfacesCollection(
     }
     
     // If we have a new interface or the interface changed, update it
-    if (newInterface && (!prevInterface || !shallow(prevInterface, newInterface))) {
+    if (newInterface && (!prevInterface || !isEqual(prevInterface, newInterface))) {
       updateInterface(interfaceId, newInterface);
     }
   }
@@ -216,7 +216,7 @@ function updateTabsCollection(
     }
     
     // If we have a new tab or the tab changed, update it
-    if (newTab && (!prevTab || !shallow(prevTab, newTab))) {
+    if (newTab && (!prevTab || !isEqual(prevTab, newTab))) {
       updateTab(tabId, newTab);
     }
   }
@@ -252,7 +252,7 @@ function updateTilesCollection(
     }
     
     // If we have a new tile or the tile changed, update it
-    if (newTile && (!prevTile || !shallow(prevTile, newTile))) {
+    if (newTile && (!prevTile || !isEqual(prevTile, newTile))) {
       updateTile(tileId, newTile);
     }
   }

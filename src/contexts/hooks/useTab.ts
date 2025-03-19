@@ -5,7 +5,7 @@ import { Tile } from '../slices/selectors/tile';
 import { TabProps, TileProps } from '@/types/evals/grid';
 import { useTileActions, TileActions } from './useTile';
 import { useShallow } from 'zustand/react/shallow';
-import { shallow } from 'zustand/vanilla/shallow';
+import isEqual from 'fast-deep-equal';
 import { constructHierarchicalId } from '../utils/sliceUtils';
 
 // Define stable fallback references
@@ -326,7 +326,7 @@ export function useTab(
     });
 
     // If the items are the same, return the old reference to prevent re-renders
-    if (shallow(itemsRef.current, newItems)) {
+    if (isEqual(itemsRef.current, newItems)) {
       return itemsRef.current;
     }
     

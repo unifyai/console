@@ -1,11 +1,18 @@
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { useStoreContext } from '../providers/StoreProvider';
 import { useShallow } from 'zustand/react/shallow';
-import { shallow } from 'zustand/vanilla/shallow';
 import { Project } from '../slices/selectors/project';
 import { Interface } from '../slices/selectors/interface';
 import { Tab } from '../slices/selectors/tab';
 import { Tile } from '../slices/selectors/tile';
+
+// Define stable fallback references
+const EMPTY_PROJECTS: string[] = [];
+const EMPTY_TILES: Partial<Tile>[] = [];
+const EMPTY_PROJECTS_ARRAY: Partial<Project>[] = [];
+const EMPTY_INTERFACES_ARRAY: Partial<Interface>[] = [];
+const EMPTY_TABS_ARRAY: Partial<Tab>[] = [];
+const EMPTY_RECORD: Record<string, number> = {};
 
 /**
  * Helper function to get a nested property from an object using dot notation
@@ -18,409 +25,486 @@ function getNestedProperty(obj: any, path: string): any {
 }
 
 /**
- * Helper function to set a nested property in an object using dot notation
- * e.g., setNestedProperty({}, "a.b.c", "value") will return { a: { b: { c: "value" } } }
- */
-function setNestedProperty(obj: any, path: string, value: any): void {
-  const parts = path.split('.');
-  let current = obj;
-  
-  for (let i = 0; i < parts.length - 1; i++) {
-    const part = parts[i];
-    if (!(part in current)) {
-      current[part] = {};
-    } else if (typeof current[part] !== 'object') {
-      current[part] = {};
-    }
-    current = current[part];
-  }
-  
-  current[parts[parts.length - 1]] = value;
-}
-
-/**
- * Helper function to filter object properties based on a list of property names
- * Supports nested properties using dot notation (e.g., "a.b.c")
- */
-function filterObjectProps<T extends object>(obj: T, props: string[] = []): Partial<T> {
-  if (!props.length) return obj;
-  
-  const result = {} as any;
-  
-  props.forEach(prop => {
-    if (prop.includes('.')) {
-      // Handle nested properties
-      const value = getNestedProperty(obj, prop);
-      if (value !== undefined) {
-        setNestedProperty(result, prop, value);
-      }
-    } else if (prop in obj) {
-      // Handle top-level properties
-      result[prop] = obj[prop as keyof T];
-    }
-  });
-  
-  return result;
-}
-
-/**
- * Custom hook to provide simplified access to store data with optimized selectors.
- * This hook eliminates the need to directly use useStoreContext in components
- * and provides memoized access to common data patterns.
+ * Core hook that provides direct access to common store selectors
  */
 export function useStore() {
-  // Access the store selectors directly for values
-  const projects = useStoreContext(useShallow(state => state.projectsById));
-  const interfaces = useStoreContext(useShallow(state => state.interfacesById));
-  const tabs = useStoreContext(useShallow(state => state.tabsById));
-  const tiles = useStoreContext(useShallow(state => state.tilesById));
-  const projectNames = useStoreContext(useShallow(state => state.projects));
-  
-  // Active IDs
-  const activeProjectId = useStoreContext(state => state.activeProjectId);
-  const activeInterfaceId = useStoreContext(state => state.activeInterfaceId);
-  const activeTabId = useStoreContext(state => state.activeTabId);
-  
-  // Actions
-  const setProjects = useStoreContext(state => state.setProjects);
-
-  // Refs for memoization with shallow equality checks
-  const projectsRef = useRef(projects);
-  const interfacesRef = useRef(interfaces);
-  const tabsRef = useRef(tabs);
-  const tilesRef = useRef(tiles);
-  const projectNamesRef = useRef(projectNames);
-  const activeProjectIdRef = useRef(activeProjectId);
-  const activeInterfaceIdRef = useRef(activeInterfaceId);
-  const activeTabIdRef = useRef(activeTabId);
-  
-  // Cache refs for all getter functions
-  const projectByIdCacheRef = useRef(new Map<string, Partial<Project>>());
-  const projectsListCacheRef = useRef(new Map<string, Partial<Project>[]>());
-  const interfaceByIdCacheRef = useRef(new Map<string, Partial<Interface>>());
-  const interfacesListCacheRef = useRef(new Map<string, Partial<Interface>[]>());
-  const tabByIdCacheRef = useRef(new Map<string, Partial<Tab>>());
-  const tabsListCacheRef = useRef(new Map<string, Partial<Tab>[]>());
-  const tileByIdCacheRef = useRef(new Map<string, Partial<Tile>>());
-  const tilesListCacheRef = useRef(new Map<string, Partial<Tile>[]>());
-  const logLengthsRef = useRef<Record<string, number>>({});
-
-  // Update refs if values changed (using shallow comparison)
-  if (!shallow(projectsRef.current, projects)) {
-    projectsRef.current = projects;
-    // Clear caches when projects data changes
-    projectByIdCacheRef.current.clear();
-    projectsListCacheRef.current.clear();
-  }
-  if (!shallow(interfacesRef.current, interfaces)) {
-    interfacesRef.current = interfaces;
-    // Clear caches when interfaces data changes
-    interfaceByIdCacheRef.current.clear();
-    interfacesListCacheRef.current.clear();
-  }
-  if (!shallow(tabsRef.current, tabs)) {
-    tabsRef.current = tabs;
-    // Clear caches when tabs data changes
-    tabByIdCacheRef.current.clear();
-    tabsListCacheRef.current.clear();
-  }
-  if (!shallow(tilesRef.current, tiles)) {
-    tilesRef.current = tiles;
-    // Clear caches when tiles data changes
-    tileByIdCacheRef.current.clear();
-    tilesListCacheRef.current.clear();
-    // Reset log lengths cache too
-    logLengthsRef.current = {};
-  }
-  if (!shallow(projectNamesRef.current, projectNames)) projectNamesRef.current = projectNames;
-  if (activeProjectIdRef.current !== activeProjectId) activeProjectIdRef.current = activeProjectId;
-  if (activeInterfaceIdRef.current !== activeInterfaceId) activeInterfaceIdRef.current = activeInterfaceId;
-  if (activeTabIdRef.current !== activeTabId) activeTabIdRef.current = activeTabId;
-
-  // Project getters
-  const getProjectById = useMemo(() => {
-    return (projectId: string | null, props: string[] = []): Partial<Project> | null => {
-      if (!projectId) return null;
-      
-      const project = projectsRef.current[projectId] || null;
-      if (!project) return null;
-      
-      // Generate a cache key from the projectId and props
-      // Create a copy of props before sorting to avoid modifying read-only arrays
-      const cacheKey = `${projectId}-${[...props].sort().join(',')}`;
-      
-      // Check if we have a cached result
-      if (projectByIdCacheRef.current.has(cacheKey)) {
-        return projectByIdCacheRef.current.get(cacheKey) || null;
-      }
-      
-      // Filter the properties
-      const result = filterObjectProps(project, props);
-      
-      // Cache the result
-      projectByIdCacheRef.current.set(cacheKey, result);
-      
-      return result;
-    };
-  }, []);
-
-  const getProjects = useMemo(() => {
-    return (projectIds: string[] = [], props: string[] = []): Partial<Project>[] => {
-      // If no specific project IDs provided, use all projects
-      const targetIds = projectIds.length ? projectIds : Object.keys(projectsRef.current);
-      
-      // Generate a cache key
-      // Create copies of arrays before sorting to avoid modifying read-only arrays
-      const cacheKey = `${[...targetIds].sort().join(',')}-${[...props].sort().join(',')}`;
-      
-      // Check if we have a cached result
-      if (projectsListCacheRef.current.has(cacheKey)) {
-        return projectsListCacheRef.current.get(cacheKey) || [];
-      }
-      
-      // Filter projects by IDs and then by properties
-      const result = targetIds
-        .filter(id => projectsRef.current[id])
-        .map(id => filterObjectProps(projectsRef.current[id], props));
-      
-      // Cache the result
-      projectsListCacheRef.current.set(cacheKey, result);
-      
-      return result;
-    };
-  }, []);
-
-  const getProjectsNames = useMemo(() => {
-    return (): string[] => projectNamesRef.current;
-  }, []);
-
-  const setProjectsNames = useMemo(() => {
-    return (projectNames: string[]): void => {
-      setProjects(projectNames);
-    };
-  }, [setProjects]);
-
-  // Interface getters
-  const getInterfaceById = useMemo(() => {
-    return (interfaceId: string | null, props: string[] = []): Partial<Interface> | null => {
-      if (!interfaceId) return null;
-      
-      const interfaceObj = interfacesRef.current[interfaceId] || null;
-      if (!interfaceObj) return null;
-      
-      // Generate a cache key
-      // Create a copy of props before sorting to avoid modifying read-only arrays
-      const cacheKey = `${interfaceId}-${[...props].sort().join(',')}`;
-      
-      // Check if we have a cached result
-      if (interfaceByIdCacheRef.current.has(cacheKey)) {
-        return interfaceByIdCacheRef.current.get(cacheKey) || null;
-      }
-      
-      // Filter the properties
-      const result = filterObjectProps(interfaceObj, props);
-      
-      // Cache the result
-      interfaceByIdCacheRef.current.set(cacheKey, result);
-      
-      return result;
-    };
-  }, []);
-
-  const getInterfaces = useMemo(() => {
-    return (interfaceIds: string[] = [], props: string[] = []): Partial<Interface>[] => {
-      // If no specific interface IDs provided, use all interfaces
-      const targetIds = interfaceIds.length ? interfaceIds : Object.keys(interfacesRef.current);
-      
-      // Generate a cache key
-      // Create copies of arrays before sorting to avoid modifying read-only arrays
-      const cacheKey = `${[...targetIds].sort().join(',')}-${[...props].sort().join(',')}`;
-      
-      // Check if we have a cached result
-      if (interfacesListCacheRef.current.has(cacheKey)) {
-        return interfacesListCacheRef.current.get(cacheKey) || [];
-      }
-      
-      // Filter interfaces by IDs and then by properties
-      const result = targetIds
-        .filter(id => interfacesRef.current[id])
-        .map(id => filterObjectProps(interfacesRef.current[id], props));
-      
-      // Cache the result
-      interfacesListCacheRef.current.set(cacheKey, result);
-      
-      return result;
-    };
-  }, []);
-
-  // Tab getters
-  const getTabById = useMemo(() => {
-    return (tabId: string | null, props: string[] = []): Partial<Tab> | null => {
-      if (!tabId) return null;
-      
-      const tab = tabsRef.current[tabId] || null;
-      if (!tab) return null;
-      
-      // Generate a cache key
-      // Create a copy of props before sorting to avoid modifying read-only arrays
-      const cacheKey = `${tabId}-${[...props].sort().join(',')}`;
-      
-      // Check if we have a cached result
-      if (tabByIdCacheRef.current.has(cacheKey)) {
-        return tabByIdCacheRef.current.get(cacheKey) || null;
-      }
-      
-      // Filter the properties
-      const result = filterObjectProps(tab, props);
-      
-      // Cache the result
-      tabByIdCacheRef.current.set(cacheKey, result);
-      
-      return result;
-    };
-  }, []);
-
-  const getTabs = useMemo(() => {
-    return (tabIds: string[] = [], props: string[] = []): Partial<Tab>[] => {
-      // If no specific tab IDs provided, use all tabs
-      const targetIds = tabIds.length ? tabIds : Object.keys(tabsRef.current);
-      
-      // Generate a cache key
-      // Create copies of arrays before sorting to avoid modifying read-only arrays
-      const cacheKey = `${[...targetIds].sort().join(',')}-${[...props].sort().join(',')}`;
-      
-      // Check if we have a cached result
-      if (tabsListCacheRef.current.has(cacheKey)) {
-        return tabsListCacheRef.current.get(cacheKey) || [];
-      }
-      
-      // Filter tabs by IDs and then by properties
-      const result = targetIds
-        .filter(id => tabsRef.current[id])
-        .map(id => filterObjectProps(tabsRef.current[id], props));
-      
-      // Cache the result
-      tabsListCacheRef.current.set(cacheKey, result);
-      
-      return result;
-    };
-  }, []);
-
-  // Tile getters
-  const getTileById = useMemo(() => {
-    return (tileId: string | null, props: string[] = []): Partial<Tile> | null => {
-      if (!tileId) return null;
-      
-      const tile = tilesRef.current[tileId] || null;
-      if (!tile) return null;
-      
-      // Generate a cache key
-      // Create a copy of props before sorting to avoid modifying read-only arrays
-      const cacheKey = `${tileId}-${[...props].sort().join(',')}`;
-      
-      // Check if we have a cached result
-      if (tileByIdCacheRef.current.has(cacheKey)) {
-        return tileByIdCacheRef.current.get(cacheKey) || null;
-      }
-      
-      // Filter the properties
-      const result = filterObjectProps(tile, props);
-      
-      // Cache the result
-      tileByIdCacheRef.current.set(cacheKey, result);
-      
-      return result;
-    };
-  }, []);
-
-  // Function to get multiple tiles by their IDs
-  const getTiles = useMemo(() => {
-    return (tileIds: string[] = [], props: string[] = []): Partial<Tile>[] => {
-      // If no specific tile IDs provided, use all tiles
-      const targetIds = tileIds.length ? tileIds : Object.keys(tilesRef.current);
-      
-      // Generate a cache key
-      // Create copies of arrays before sorting to avoid modifying read-only arrays
-      const cacheKey = `${[...targetIds].sort().join(',')}-${[...props].sort().join(',')}`;
-      
-      // Check if we have a cached result
-      if (tilesListCacheRef.current.has(cacheKey)) {
-        return tilesListCacheRef.current.get(cacheKey) || [];
-      }
-      
-      // Filter tiles by IDs and then by properties
-      const result = targetIds
-        .filter(id => tilesRef.current[id])
-        .map(id => filterObjectProps(tilesRef.current[id], props));
-      
-      // Cache the result
-      tilesListCacheRef.current.set(cacheKey, result);
-      
-      return result;
-    };
-  }, []);
-
-  // Function to get log lengths for all table tiles
-  const getLogLengths = useMemo(() => {
-    return (): Record<string, number> => {
-      // If we have cached log lengths and the tiles haven't changed, return cached value
-      if (Object.keys(logLengthsRef.current).length > 0) {
-        return logLengthsRef.current;
-      }
-      
-      // Calculate the new result
-      const newResult = Object.values(tilesRef.current).reduce((acc: Record<string, number>, tile: Tile) => {
-        if (tile && tile.type === 'Table' && tile.name) {
-          acc[tile.name] = tile.tableTile?.tableDataItem?.logs?.length || 0;
-        }
-        return acc;
-      }, {});
-      
-      // Store the result
-      logLengthsRef.current = newResult;
-      
-      return newResult;
-    };
-  }, []);
-
-  // Active ID getters
-  const getActiveProjectId = useMemo(() => {
-    return (): string | null => activeProjectIdRef.current;
-  }, []);
-
-  const getActiveInterfaceId = useMemo(() => {
-    return (): string | null => activeInterfaceIdRef.current;
-  }, []);
-
-  const getActiveTabId = useMemo(() => {
-    return (): string | null => activeTabIdRef.current;
-  }, []);
-
+  // Basic store access functions - simplified and focused
   return {
-    // Project getters
-    getProjectById,
-    getProjects,
-    getProjectsNames,
-    setProjectsNames,
-    
-    // Interface getters
-    getInterfaceById,
-    getInterfaces,
-    
-    // Tab getters
-    getTabById,
-    getTabs,
-    
-    // Tile getters
-    getTileById,
-    getTiles,
-    
-    // Active ID getters
-    getActiveProjectId,
-    getActiveInterfaceId,
-    getActiveTabId,
+    // Active state getters - use these when you only need the active IDs
+    useActiveIds: () => {
+      // Step 1: Subscribe to raw state
+      const activeIds = useStoreContext(
+        useShallow(state => ({
+          projectId: state.activeProjectId,
+          interfaceId: state.activeInterfaceId,
+          tabId: state.activeTabId
+        }))
+      );
+      
+      // Step 2: Memoize the result (simpler than other hooks since no transformation needed)
+      return useMemo(() => activeIds, [activeIds]);
+    },
 
-    // Log length getters
-    getLogLengths,
+    // Simple selectors for lists
+    useProjectNames: () => {
+      // Step 1: Subscribe to raw state
+      const projectNames = useStoreContext(
+        useShallow(state => state.projects || EMPTY_PROJECTS)
+      );
+      
+      // Step 2: Memoize the result (simpler than other hooks since no transformation needed)
+      return useMemo(() => projectNames, [projectNames]);
+    },
+    
+    // Common store actions
+    useSetProjects: () => useStoreContext(state => state.setProjects),
+    useSetActiveProject: () => useStoreContext(state => state.setActiveProject),
+    useSetActiveInterface: () => useStoreContext(state => state.setActiveInterface),
+    useSetActiveTab: () => useStoreContext(state => state.setActiveTab),
   };
-} 
+}
+
+/**
+ * Hook to get properties of a specific project
+ */
+export function useProjectProperties(projectId: string | undefined, properties: string[] = []): Partial<Project> | undefined {
+  // Step 1: Subscribe to raw project data using useShallow
+  const project = useStoreContext(
+    useShallow(state => {
+      if (!projectId || !state.projectsById[projectId]) return undefined;
+      return state.projectsById[projectId];
+    })
+  );
+  
+  // Step 2: Memoize the transformation of raw data
+  return useMemo(() => {
+    if (!project) return undefined;
+    
+    // If no specific properties requested, return the whole project
+    if (!properties.length) return project;
+    
+    // Return only requested properties (including nested ones)
+    const result: Record<string, any> = {};
+    properties.forEach(prop => {
+      const propPath = prop as string;
+      if (propPath.includes('.')) {
+        // Handle nested property
+        const value = getNestedProperty(project, propPath);
+        if (value !== undefined) {
+          // For nested properties, only store the final property in the result
+          const lastPart = propPath.split('.').pop() as string;
+          result[lastPart] = value;
+        }
+      } else {
+        // Handle top-level property
+        result[prop] = project[prop as keyof Project];
+      }
+    });
+    
+    return result as Partial<Project>;
+  }, [project, properties]);
+}
+
+/**
+ * Hook to get a list of projects with specified properties
+ */
+export function useProjects(projectIds?: string[], properties?: string[]): Partial<Project>[] {
+  // Step 1: Subscribe to raw data - both the project IDs and the projects themselves
+  const { ids, rawProjectsById } = useStoreContext(
+    useShallow(state => {
+      // Determine which project IDs to use
+      const idsToUse = projectIds?.length ? projectIds : state.projects;
+      
+      // Get the raw projects data
+      const projectsData: Record<string, Project> = {};
+      if (idsToUse?.length) {
+        idsToUse.forEach(id => {
+          if (state.projectsById[id]) {
+            projectsData[id] = state.projectsById[id];
+          }
+        });
+      }
+      
+      return {
+        ids: idsToUse || EMPTY_PROJECTS,
+        rawProjectsById: projectsData
+      };
+    })
+  );
+  
+  // Step 2: Memoize the transformation of raw data
+  return useMemo(() => {
+    if (!ids?.length) return EMPTY_PROJECTS_ARRAY;
+    
+    const props = properties || [];
+    
+    // Map to projects with selected properties
+    return ids
+      .filter(id => rawProjectsById[id])
+      .map(id => {
+        const project = rawProjectsById[id];
+        
+        if (!props.length) return project;
+        
+        // Return only requested properties (including nested ones)
+        const result: Record<string, any> = {};
+        props.forEach(prop => {
+          const propPath = prop as string;
+          if (propPath.includes('.')) {
+            // Handle nested property
+            const value = getNestedProperty(project, propPath);
+            if (value !== undefined) {
+              // For nested properties, only store the final property in the result
+              const lastPart = propPath.split('.').pop() as string;
+              result[lastPart] = value;
+            }
+          } else {
+            // Handle top-level property
+            result[prop] = project[prop as keyof Project];
+          }
+        });
+        
+        return result as Partial<Project>;
+      });
+  }, [ids, properties, rawProjectsById]);
+}
+
+/**
+ * Hook to get properties of a specific interface
+ */
+export function useInterfaceProperties(interfaceId: string | undefined, properties: string[] = []): Partial<Interface> | undefined {
+  // Step 1: Subscribe to raw interface data using useShallow
+  const interfaceObj = useStoreContext(
+    useShallow(state => {
+      if (!interfaceId || !state.interfacesById[interfaceId]) return undefined;
+      return state.interfacesById[interfaceId];
+    })
+  );
+  
+  // Step 2: Memoize the transformation of raw data
+  return useMemo(() => {
+    if (!interfaceObj) return undefined;
+    
+    // If no specific properties requested, return the whole interface
+    if (!properties.length) return interfaceObj;
+    
+    // Return only requested properties (including nested ones)
+    const result: Record<string, any> = {};
+    properties.forEach(prop => {
+      const propPath = prop as string;
+      if (propPath.includes('.')) {
+        // Handle nested property
+        const value = getNestedProperty(interfaceObj, propPath);
+        if (value !== undefined) {
+          // For nested properties, only store the final property in the result
+          const lastPart = propPath.split('.').pop() as string;
+          result[lastPart] = value;
+        }
+      } else {
+        // Handle top-level property
+        result[prop] = interfaceObj[prop as keyof Interface];
+      }
+    });
+    
+    return result as Partial<Interface>;
+  }, [interfaceObj, properties]);
+}
+
+/**
+ * Hook to get a list of interfaces with specified properties
+ */
+export function useInterfaces(interfaceIds?: string[], properties?: string[]): Partial<Interface>[] {
+  // Step 1: Subscribe to raw data - both interface IDs and interface objects
+  const { ids, rawInterfacesById } = useStoreContext(
+    useShallow(state => {
+      // Determine which interface IDs to use
+      const idsToUse = interfaceIds?.length 
+        ? interfaceIds 
+        : Object.keys(state.interfacesById);
+      
+      // Get the raw interfaces data
+      const interfacesData: Record<string, Interface> = {};
+      if (idsToUse?.length) {
+        idsToUse.forEach(id => {
+          if (state.interfacesById[id]) {
+            interfacesData[id] = state.interfacesById[id];
+          }
+        });
+      }
+      
+      return {
+        ids: idsToUse || [],
+        rawInterfacesById: interfacesData
+      };
+    })
+  );
+  
+  // Step 2: Memoize the transformation of raw data
+  return useMemo(() => {
+    if (!ids?.length) return EMPTY_INTERFACES_ARRAY;
+    
+    const props = properties || [];
+    
+    // Map to interfaces with selected properties
+    return ids
+      .filter(id => rawInterfacesById[id])
+      .map(id => {
+        const interfaceObj = rawInterfacesById[id];
+        
+        if (!props.length) return interfaceObj;
+        
+        // Return only requested properties (including nested ones)
+        const result: Record<string, any> = {};
+        props.forEach(prop => {
+          const propPath = prop as string;
+          if (propPath.includes('.')) {
+            // Handle nested property
+            const value = getNestedProperty(interfaceObj, propPath);
+            if (value !== undefined) {
+              // For nested properties, only store the final property in the result
+              const lastPart = propPath.split('.').pop() as string;
+              result[lastPart] = value;
+            }
+          } else {
+            // Handle top-level property
+            result[prop] = interfaceObj[prop as keyof Interface];
+          }
+        });
+        
+        return result as Partial<Interface>;
+      });
+  }, [ids, properties, rawInterfacesById]);
+}
+
+/**
+ * Hook to get properties of a specific tab
+ */
+export function useTabProperties(tabId: string | undefined, properties: string[] = []): Partial<Tab> | undefined {
+  // Step 1: Subscribe to raw tab data using useShallow
+  const tab = useStoreContext(
+    useShallow(state => {
+      if (!tabId || !state.tabsById[tabId]) return undefined;
+      return state.tabsById[tabId];
+    })
+  );
+  
+  // Step 2: Memoize the transformation of raw data
+  return useMemo(() => {
+    if (!tab) return undefined;
+    
+    // If no specific properties requested, return the whole tab
+    if (!properties.length) return tab;
+    
+    // Return only requested properties (including nested ones)
+    const result: Record<string, any> = {};
+    properties.forEach(prop => {
+      const propPath = prop as string;
+      if (propPath.includes('.')) {
+        // Handle nested property
+        const value = getNestedProperty(tab, propPath);
+        if (value !== undefined) {
+          // For nested properties, only store the final property in the result
+          const lastPart = propPath.split('.').pop() as string;
+          result[lastPart] = value;
+        }
+      } else {
+        // Handle top-level property
+        result[prop] = tab[prop as keyof Tab];
+      }
+    });
+    
+    return result as Partial<Tab>;
+  }, [tab, properties]);
+}
+
+/**
+ * Hook to get a list of tabs with specified properties
+ */
+export function useTabs(tabIds?: string[], properties?: string[]): Partial<Tab>[] {
+  // Step 1: Subscribe to raw data - both tab IDs and tab objects
+  const { ids, rawTabsById } = useStoreContext(
+    useShallow(state => {
+      // Determine which tab IDs to use
+      const idsToUse = tabIds?.length 
+        ? tabIds 
+        : Object.keys(state.tabsById);
+      
+      // Get the raw tabs data
+      const tabsData: Record<string, Tab> = {};
+      if (idsToUse?.length) {
+        idsToUse.forEach(id => {
+          if (state.tabsById[id]) {
+            tabsData[id] = state.tabsById[id];
+          }
+        });
+      }
+      
+      return {
+        ids: idsToUse || [],
+        rawTabsById: tabsData
+      };
+    })
+  );
+  
+  // Step 2: Memoize the transformation of raw data
+  return useMemo(() => {
+    if (!ids?.length) return EMPTY_TABS_ARRAY;
+    
+    const props = properties || [];
+    
+    // Map to tabs with selected properties
+    return ids
+      .filter(id => rawTabsById[id])
+      .map(id => {
+        const tab = rawTabsById[id];
+        
+        if (!props.length) return tab;
+        
+        // Return only requested properties (including nested ones)
+        const result: Record<string, any> = {};
+        props.forEach(prop => {
+          const propPath = prop as string;
+          if (propPath.includes('.')) {
+            // Handle nested property
+            const value = getNestedProperty(tab, propPath);
+            if (value !== undefined) {
+              // For nested properties, only store the final property in the result
+              const lastPart = propPath.split('.').pop() as string;
+              result[lastPart] = value;
+            }
+          } else {
+            // Handle top-level property
+            result[prop] = tab[prop as keyof Tab];
+          }
+        });
+        
+        return result as Partial<Tab>;
+      });
+  }, [ids, properties, rawTabsById]);
+}
+
+/**
+ * Hook to get properties of a specific tile
+ */
+export function useTileProperties(tileId: string | undefined, properties: string[] = []): Partial<Tile> | undefined {
+  // Step 1: Subscribe to raw tile data using useShallow
+  const tile = useStoreContext(
+    useShallow(state => {
+      if (!tileId || !state.tilesById[tileId]) return undefined;
+      return state.tilesById[tileId];
+    })
+  );
+  
+  // Step 2: Memoize the transformation of raw data
+  return useMemo(() => {
+    if (!tile) return undefined;
+    
+    // If no specific properties requested, return the whole tile
+    if (!properties.length) return tile;
+    
+    // Return only requested properties (including nested ones)
+    const result: Record<string, any> = {};
+    properties.forEach(prop => {
+      const propPath = prop as string;
+      if (propPath.includes('.')) {
+        // Handle nested property
+        const value = getNestedProperty(tile, propPath);
+        if (value !== undefined) {
+          // For nested properties, only store the final property in the result
+          const lastPart = propPath.split('.').pop() as string;
+          result[lastPart] = value;
+        }
+      } else {
+        // Handle top-level property
+        result[prop] = tile[prop as keyof Tile];
+      }
+    });
+    
+    return result as Partial<Tile>;
+  }, [tile, properties]);
+}
+
+/**
+ * Hook to get multiple tiles by their IDs with selected properties
+ */
+export function useTiles(tileIds: string[] = [], properties: string[] = []): Partial<Tile>[] {
+  // Step 1: Subscribe to raw tile data using useShallow for efficient store updates
+  // This will only trigger re-renders when the relevant tiles change
+  const rawTilesById = useStoreContext(
+    useShallow(state => {
+      // If no tileIds provided, return empty object to avoid unnecessary processing
+      if (!tileIds.length) return {};
+      
+      // Extract only the specific tiles we care about to minimize subscriptions
+      const result: Record<string, Tile> = {};
+      for (const id of tileIds) {
+        if (state.tilesById[id]) {
+          result[id] = state.tilesById[id];
+        }
+      }
+      return result;
+    })
+  );
+  
+  // Step 2: Memoize the transformation of raw data
+  // This prevents creating new arrays/objects when inputs or data haven't changed
+  return useMemo(() => {
+    // If no IDs to process, return empty array (using stable reference)
+    if (!tileIds.length) return EMPTY_TILES;
+    
+    // Transform raw data into the expected format
+    return tileIds
+      .filter(id => rawTilesById[id])
+      .map(id => {
+        const tile = rawTilesById[id];
+        
+        // If no specific properties requested, return the whole tile
+        if (!properties.length) return tile;
+        
+        // Return only requested properties (including nested ones)
+        const result: Record<string, any> = {};
+        properties.forEach(prop => {
+          const propPath = prop as string;
+          if (propPath.includes('.')) {
+            // Handle nested property
+            const value = getNestedProperty(tile, propPath);
+            if (value !== undefined) {
+              // For nested properties, only store the final property in the result
+              const lastPart = propPath.split('.').pop() as string;
+              result[lastPart] = value;
+            }
+          } else {
+            // Handle top-level property
+            result[prop] = tile[prop as keyof Tile];
+          }
+        });
+        
+        return result as Partial<Tile>;
+      });
+  }, [tileIds, properties, rawTilesById]);
+}
+
+/**
+ * Hook to get log lengths for all table tiles
+ */
+export function useLogLengths(): Record<string, number> {
+  // Step 1: Subscribe to raw tile data using useShallow
+  const tiles = useStoreContext(
+    useShallow(state => {
+      if (!state.tilesById || Object.keys(state.tilesById).length === 0) return null;
+      return state.tilesById;
+    })
+  );
+  
+  // Step 2: Memoize the transformation of raw data
+  return useMemo(() => {
+    if (!tiles) return EMPTY_RECORD;
+    
+    return Object.values(tiles).reduce((acc: Record<string, number>, tile: Tile) => {
+      if (tile && tile.type === 'Table' && tile.name) {
+        acc[tile.name] = tile.tableTile?.tableDataItem?.logs?.length || 0;
+      }
+      return acc;
+    }, {});
+  }, [tiles]);
+}

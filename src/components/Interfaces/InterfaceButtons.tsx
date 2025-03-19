@@ -17,7 +17,7 @@ import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useTab } from "@/contexts/hooks/useTab";
 import { SetStateAction, useMemo } from "react";
 import { useProject } from "@/contexts/hooks/useProject";
-import { useStore } from "@/contexts/hooks/useStore";
+import { useTiles } from "@/contexts/hooks/useStore";
 
 const InterfaceButtons = ({
     interfaceId,
@@ -63,7 +63,7 @@ const InterfaceButtons = ({
     const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
 
     // Only subscribe to a subset of the tiles objects to incl. name, type and tableTile only
-    const tiles = useStore().getTiles(tileIds, ["name", "type", "tableTile"]);
+    const tiles = useTiles(tileIds, ["name", "type", "tableTile"]);
 
     // Calculate derived state
     const items = useMemo(() => {

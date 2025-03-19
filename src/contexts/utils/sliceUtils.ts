@@ -1,5 +1,5 @@
 import { current as immerCurrent, isDraft, WritableDraft } from "immer";
-import { shallow } from 'zustand/vanilla/shallow';
+import isEqual from 'fast-deep-equal';
 import { Tile, TILE_KEYS } from "../slices/selectors/tile";
 import { PLOT_TILE_KEYS, PlotTile } from "../slices/selectors/plotTile";
 import { VIEW_TILE_KEYS, ViewTile } from "../slices/selectors/viewTile";
@@ -37,7 +37,7 @@ export function filterUnchangedProps<T extends object>(
     const oldVal = unwrapIfDraft(current[key]);
     const newVal = unwrapIfDraft(updates[key]);
 
-    if (!shallow(oldVal, newVal) && !shallow(JSON.stringify(oldVal), JSON.stringify(newVal))) {
+    if (!isEqual(oldVal, newVal)) {
       filtered[key] = newVal;
       changed = true;
     }

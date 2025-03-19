@@ -14,7 +14,8 @@ import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActi
 import ContextSelector from "./Table/Content/ContextSelector";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import TutorialButton from "./TutorialButton";
-import { useStore } from "@/contexts/hooks/useStore";
+import { useTiles } from "@/contexts/hooks/useStore";
+import { useWhyDidYouUpdate } from "@/contexts/utils/sliceUtils";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 const TileCard = lazy(() => import('./TileCard'));
@@ -66,7 +67,13 @@ const Tab = ({
   const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
   
   // Only subscribe to a subset of the tiles objects to incl. name, type and tableTile only
-  const tiles = useStore().getTiles(tileIds, ["name", "type", "tableTile.tableDataItem"]);
+  const tiles = useTiles(tileIds, ["name", "type", "tableTile.tableDataItem"]);
+
+  // Extract tableDataItems from tiles for efficient dependency tracking
+  const tileTableDataItems = useMemo(() => 
+    tiles.map(tile => tile?.tableTile?.tableDataItem),
+    [tiles]
+  );
 
   // Get tile props using the getItems function from the tab UI actions
   const tileProps = useMemo(() => {
@@ -109,10 +116,14 @@ const Tab = ({
     })();
   }, [tileProps, tabDataState?.globalContext]);
 
-  const tileTableDataItems = useMemo(() => 
-    tiles.map(tile => tile?.tableTile?.tableDataItem),
-    [tiles]
-  );
+  // Track all essential dependencies for debugging render cycles
+  useWhyDidYouUpdate('Tab', [
+    tileTableDataItems,
+    tileIds,
+    tiles,
+    tileProps,
+    tabDataState?.globalContext
+  ]);
 
   // Trigger update when table data changes (server reloaded)
   useEffect(() => {
@@ -127,6 +138,8 @@ const Tab = ({
       if (tabUIState?.refreshing === true) {
         tabUIActions.setRefreshing(false);
       }
+
+      console.log("[Tab] Updating tiles....");
 
       // Reset pending state for all tiles
       tiles.forEach(tile => {
