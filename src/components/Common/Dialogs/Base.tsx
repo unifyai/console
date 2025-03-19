@@ -2,7 +2,7 @@
 import { ReactNode } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/UI/dialog";
 
-export default function BaseDialog ({button, title, description, body, footer, open, setOpen, onOpen, disabled}: {
+export default function BaseDialog ({button, title, description, body, footer, open, setOpen, onOpen, disabled, triggerClassName}: {
     button: ReactNode, 
     title: string, 
     body: ReactNode, 
@@ -10,6 +10,7 @@ export default function BaseDialog ({button, title, description, body, footer, o
     description?: string, 
     open?: boolean,
     disabled?: boolean,
+    triggerClassName?: string,
     setOpen?: (open: boolean) => void,
     onOpen?: () => void,
 }) {
@@ -20,7 +21,7 @@ export default function BaseDialog ({button, title, description, body, footer, o
   return (
     <Dialog open={open} onOpenChange={(o) => onOpenChange(o)}>
 
-      <DialogTrigger disabled={disabled}>
+      <DialogTrigger disabled={disabled} className={triggerClassName}>
         {button}
       </DialogTrigger>
       
