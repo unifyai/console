@@ -10,8 +10,11 @@ import { defaultItems } from "@/constants/logs";
 import { IStoreState } from "@/contexts/store";
 import { StoreProvider } from "@/contexts/providers/StoreProvider";
 import StoreUpdater from "@/contexts/providers/StoreUpdater";
-import Interface from "./Interface";
+import { Suspense, lazy } from "react";
+import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { buildInitialState } from "@/contexts/utils/stateBuilderUtils";
+
+const Interface = lazy(() => import("./Interface"));
 
 const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, tabActions }: {
     tab: string | undefined,
@@ -24,7 +27,6 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     tabActions: TabActions
 }) => {
 
-    console.log("[Main] SERVER SIDE REFRESH...");
     // const cookies_ = cookies();
     const cookiesProject = undefined; //cookies_.get("project")?.value;
     const cookiesTab = undefined; //cookies_.get("tab")?.value;
@@ -424,8 +426,6 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
         })
     }
 
-    console.log("[Main] REBUILDING INITIAL STATE...");
-
     // Now build the initial state
     const initialState: Partial<IStoreState> = buildInitialState(
         currentTabName,
@@ -446,15 +446,21 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
         <StoreProvider initialState={initialState}>
             <StoreUpdater initialState={initialState} />
             <div className="w-full h-full bg-white">
-                <Interface
-                    interfaceId={currentInterfaceName}
-                    tabActions={tabActions}
-                    projectsActions={projectsActions}
-                    logsActions={logsActions}
-                    fieldsActions={fieldsActions}
-                    derivedEntryActions={derivedEntryActions}
-                    contextActions={contextActions}
-                />
+                <Suspense fallback={
+                    <div className="w-full h-full flex items-center justify-center">
+                        <SkeletonLoader />
+                    </div>
+                }>
+                    <Interface
+                        interfaceId={currentInterfaceName}
+                        tabActions={tabActions}
+                        projectsActions={projectsActions}
+                        logsActions={logsActions}
+                        fieldsActions={fieldsActions}
+                        derivedEntryActions={derivedEntryActions}
+                        contextActions={contextActions}
+                    />
+                </Suspense>
             </div>
         </StoreProvider>
     );

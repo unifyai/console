@@ -90,11 +90,6 @@ export function buildInterfaceState(
     }
   });
 
-  console.log("[InterfaceStateBuilder] tabs", tabs);
-  console.log("[InterfaceStateBuilder] tabsData", tabsData);
-  console.log("[InterfaceStateBuilder] tabNames", tabNames);
-  console.log("[InterfaceStateBuilder] tabIds", tabIds);
-
   // Sort tab names and IDs
   tabIds.sort();
   tabNames.sort();

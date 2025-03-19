@@ -1,17 +1,20 @@
 "use client";
 
 // Use correct import paths as found in Card.tsx
-import LogsTable from "@/components/Interfaces/Table/Table";
-import LogsPlot from "@/components/Interfaces/Details/Plot/Plot";
-import Selection from "@/components/Interfaces/Details/Selection/Selection";
 import { ResponseProps } from "@/types/common";
 import { LogsActions, FieldsActions, DerivedEntryActions, TileProps, ContextActions, TabProps } from "@/types/evals/grid";
 
 // Import the new hooks
 import { useTile } from '@/contexts/hooks/useTile';
 import { ExpandProvider } from "@/contexts/ExpandContext";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense, lazy } from "react";
 import { useRouter } from "next/navigation";
+import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
+
+// Dynamically import components
+const LogsTable = lazy(() => import("@/components/Interfaces/Table/Table"));
+const LogsPlot = lazy(() => import("@/components/Interfaces/Details/Plot/Plot"));
+const Selection = lazy(() => import("@/components/Interfaces/Details/Selection/Selection"));
 
 // Define component props 
 interface TileComponentProps {
@@ -100,39 +103,57 @@ const Tile = ({
         switch (tileMetaState?.type) {
             case 'Table':
                 return (
-                    <LogsTable 
-                        tileId={tileId}
-                        tabId={tabId}
-                        interfaceId={interfaceId}
-                        projectId={projectId}
-                        logsActions={logsActions}
-                        fieldsActions={fieldsActions}
-                        derivedEntryActions={derivedEntryActions}
-                        contextActions={contextActions}
-                        updateTab={updateTab}
-                    />
+                    <Suspense fallback={
+                        <div className="w-full h-full flex items-center justify-center">
+                            <SkeletonLoader />
+                        </div>
+                    }>
+                        <LogsTable 
+                            tileId={tileId}
+                            tabId={tabId}
+                            interfaceId={interfaceId}
+                            projectId={projectId}
+                            logsActions={logsActions}
+                            fieldsActions={fieldsActions}
+                            derivedEntryActions={derivedEntryActions}
+                            contextActions={contextActions}
+                            updateTab={updateTab}
+                        />
+                    </Suspense>
                 );
             case 'Plot':
                 return (
-                    <LogsPlot 
-                        tileId={tileId}
-                        tabId={tabId}
-                        interfaceId={interfaceId}
-                        projectId={projectId}
-                        logsActions={logsActions}
-                        fieldsActions={fieldsActions}
-                    />
+                    <Suspense fallback={
+                        <div className="w-full h-full flex items-center justify-center">
+                            <SkeletonLoader />
+                        </div>
+                    }>
+                        <LogsPlot 
+                            tileId={tileId}
+                            tabId={tabId}
+                            interfaceId={interfaceId}
+                            projectId={projectId}
+                            logsActions={logsActions}
+                            fieldsActions={fieldsActions}
+                        />
+                    </Suspense>
                 );
             case 'View':
                 return (
                     <div className="w-full overflow-auto">
                         <ExpandProvider>
-                            <Selection
-                                tileId={tileId}
-                                tabId={tabId}
-                                interfaceId={interfaceId}
-                                projectId={projectId}
-                            />
+                            <Suspense fallback={
+                                <div className="w-full h-full flex items-center justify-center">
+                                    <SkeletonLoader />
+                                </div>
+                            }>
+                                <Selection
+                                    tileId={tileId}
+                                    tabId={tabId}
+                                    interfaceId={interfaceId}
+                                    projectId={projectId}
+                                />
+                            </Suspense>
                         </ExpandProvider>
                     </div>
                 );

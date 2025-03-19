@@ -1,19 +1,15 @@
 "use client";
 
-import React, { useState, useRef, Suspense, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useRef, Suspense, useMemo, useEffect, useCallback, lazy } from 'react';
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Tabs, TabsContent } from "../UI/tabs";
 import { Dialog, DialogContent } from "../UI/dialog";
 import ActionButton from "../Common/Buttons/Action";
-import FocusDialog from "./FocusDialog";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
-import Tab from './Tab';
-import DefaultProject from "./DefaultProject";
 import InterfaceButtons from "./InterfaceButtons";
 import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./ProjectButtons";
-import EditTileName from "./EditTileName";
 import { useInterface } from '@/contexts/hooks/useInterface';
 import { useTab } from '@/contexts/hooks/useTab';
 import { Context, TabProps, TileProps } from "@/types/evals/grid";
@@ -21,6 +17,12 @@ import { useQueryState } from "nuqs";
 import { ProjectsActions, TabActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions } from '@/types/evals/grid';
 import { ResponseProps } from '@/types/common';
 import { useProject } from '@/contexts/hooks/useProject';
+
+// Lazy load components
+const Tab = lazy(() => import('./Tab'));
+const DefaultProject = lazy(() => import('./DefaultProject'));
+const FocusDialog = lazy(() => import('./FocusDialog'));
+const EditTileName = lazy(() => import('./EditTileName'));
 
 interface InterfaceComponentProps {
   interfaceId: string;
@@ -82,7 +84,6 @@ const Interface = ({
 
   // update interface – preserves context functionality
   const updateTab = useCallback((savedTab: TabProps | null = null, updatedTileProps: TileProps[] | TileProps | null = null) => {
-    console.log("[Interface] UPDATING TAB...");
     let currentTileProps: TileProps[] = [];
     // If updatedTileProps is an array, we need to update all the tiles in the array
     if (Array.isArray(updatedTileProps)) {
@@ -139,7 +140,6 @@ const Interface = ({
 
   // Function to get the latest tab from the server and sync state
   const getLatestTab = useCallback(() => {
-    console.log("[Interface] GETTING LATEST TAB...");
     if (!projectQueryParam || !tabQueryParam) return;
 
     serverTabActions?.get(projectQueryParam, true).then((tabProps: TabProps[]) => {
@@ -240,14 +240,16 @@ const Interface = ({
               <Loader2 className="animate-spin my-36" />
             </div>
           ) : !projectQueryParam ? (
-            <DefaultProject
-              projectActions={projectsActions}
-              tabActions={serverTabActions}
-              logsActions={logsActions}
-              derivedEntryActions={derivedEntryActions}
-              setTabQueryParam={setTabQueryParam}
-              setProjectQueryParam={setProjectQueryParam}
-            />
+            <Suspense fallback={<div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>}>
+              <DefaultProject
+                projectActions={projectsActions}
+                tabActions={serverTabActions}
+                logsActions={logsActions}
+                derivedEntryActions={derivedEntryActions}
+                setTabQueryParam={setTabQueryParam}
+                setProjectQueryParam={setProjectQueryParam}
+              />
+            </Suspense>
           ) : null
         ) : (
           tabNames.map((tabName: string, idx: number) => (
@@ -265,20 +267,22 @@ const Interface = ({
                   <Loader2 className="animate-spin my-36" />
                 </div>
               ) : (
-                <Tab
-                  tabId={tabQueryParam || ""}
-                  interfaceId={interfaceId}
-                  projectId={projectQueryParam || ""}
-                  setNewCounter={setNewCounter}
-                  setEditTile={setEditTile}
-                  updateTab={updateTab}
-                  getLatestTab={getLatestTab}
-                  setFocusDialog={setFocusDialog}
-                  logsActions={logsActions}
-                  fieldsActions={fieldsActions}
-                  derivedEntryActions={derivedEntryActions}
-                  contextActions={contextActions}
-                />
+                <Suspense fallback={<div className="w-full h-full"><SkeletonLoader /></div>}>
+                  <Tab
+                    tabId={tabQueryParam || ""}
+                    interfaceId={interfaceId}
+                    projectId={projectQueryParam || ""}
+                    setNewCounter={setNewCounter}
+                    setEditTile={setEditTile}
+                    updateTab={updateTab}
+                    getLatestTab={getLatestTab}
+                    setFocusDialog={setFocusDialog}
+                    logsActions={logsActions}
+                    fieldsActions={fieldsActions}
+                    derivedEntryActions={derivedEntryActions}
+                    contextActions={contextActions}
+                  />
+                </Suspense>
               )}
             </TabsContent>
           ))
@@ -307,15 +311,15 @@ const Interface = ({
         </Dialog>
       )}
 
-      {/*  */}
-
       {/* Edit Tile Name Dialog */}
       {tabUIState?.edit && editTile && (
-        <EditTileName
-          tabId={tabQueryParam || ""}
-          editTile={editTile}
-          setEditTile={setEditTile}
-        />
+        <Suspense fallback={<div className="w-full h-16"><SkeletonLoader /></div>}>
+          <EditTileName
+            tabId={tabQueryParam || ""}
+            editTile={editTile}
+            setEditTile={setEditTile}
+          />
+        </Suspense>
       )}
 
       {/* Save Dialog */}

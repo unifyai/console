@@ -84,7 +84,6 @@ function applyGranularUpdates(
   // Update projects list if changed
   if (prevState.projects !== newState.projects && newState.projects) {
     if (!shallow(prevState.projects || [], newState.projects)) {
-      console.log("[StoreUpdater] projects", prevState.projects, newState.projects, shallow(prevState.projects || [], newState.projects));
       actions.setProjects(newState.projects);
     }
   }
@@ -146,7 +145,6 @@ function updateProjectsCollection(
     
     // If we have a new project or the project changed, update it
     if (newProject && (!prevProject || !shallow(prevProject, newProject))) {
-      console.log("[StoreUpdater] project", projectId, newProject, shallow(prevProject, newProject));
       updateProject(projectId, newProject);
     }
   }
@@ -183,7 +181,6 @@ function updateInterfacesCollection(
     
     // If we have a new interface or the interface changed, update it
     if (newInterface && (!prevInterface || !shallow(prevInterface, newInterface))) {
-      console.log("[StoreUpdater] interface", interfaceId, newInterface, shallow(prevInterface, newInterface));
       updateInterface(interfaceId, newInterface);
     }
   }
@@ -220,7 +217,6 @@ function updateTabsCollection(
     
     // If we have a new tab or the tab changed, update it
     if (newTab && (!prevTab || !shallow(prevTab, newTab))) {
-      console.log("[StoreUpdater] tab", tabId, newTab, shallow(prevTab, newTab));
       updateTab(tabId, newTab);
     }
   }
@@ -257,7 +253,6 @@ function updateTilesCollection(
     
     // If we have a new tile or the tile changed, update it
     if (newTile && (!prevTile || !shallow(prevTile, newTile))) {
-      console.log("[StoreUpdater] tile", tileId, newTile, shallow(prevTile, newTile));
       updateTile(tileId, newTile);
     }
   }

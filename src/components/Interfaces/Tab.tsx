@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, Suspense, lazy } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { ResponseProps } from "@/types/common";
@@ -12,11 +12,12 @@ import ActionButton from "../Common/Buttons/Action";
 import { useTab } from '@/contexts/hooks/useTab';
 import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions } from "@/types/evals/grid";
 import ContextSelector from "./Table/Content/ContextSelector";
-import TileCard from "./TileCard";
+import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import TutorialButton from "./TutorialButton";
 import { useStore } from "@/contexts/hooks/useStore";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
+const TileCard = lazy(() => import('./TileCard'));
 
 interface TabComponentProps {
   interfaceId: string;
@@ -191,19 +192,25 @@ const Tab = ({
                     hidden={!item.visible}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <TileCard
-                        index={idx}
-                        tileId={item.i}
-                        tabId={tabId}
-                        interfaceId={interfaceId}
-                        projectId={projectId}
-                        updateTab={updateTab}
-                        getLatestTab={getLatestTab}
-                        logsActions={logsActions}
-                        fieldsActions={fieldsActions}
-                        derivedEntryActions={derivedEntryActions}
-                        contextActions={contextActions}
-                    />
+                    <Suspense fallback={
+                        <div className="w-full h-full flex items-center justify-center border p-4">
+                            <SkeletonLoader />
+                        </div>
+                    }>
+                        <TileCard
+                            index={idx}
+                            tileId={item.i}
+                            tabId={tabId}
+                            interfaceId={interfaceId}
+                            projectId={projectId}
+                            updateTab={updateTab}
+                            getLatestTab={getLatestTab}
+                            logsActions={logsActions}
+                            fieldsActions={fieldsActions}
+                            derivedEntryActions={derivedEntryActions}
+                            contextActions={contextActions}
+                        />
+                    </Suspense>
 
                     <div className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (tabUIState?.edit ? "h-16" : "h-10")}>
                       <div className="mb-auto flex gap-2 ml-1 items-center">

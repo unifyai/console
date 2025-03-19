@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, Suspense, lazy } from "react";
 import { Plus } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
@@ -11,8 +11,10 @@ import { useTab } from "@/contexts/hooks/useTab";
 import { ResponseProps } from "@/types/common";
 import { DerivedEntryActions, FieldsActions, ContextActions, TabProps, TileProps } from "@/types/evals/grid";
 import { LogsActions } from "@/types/evals/grid";
-import Tile from "./Tile";
+import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { useStore } from "@/contexts/hooks/useStore";
+
+const Tile = lazy(() => import('./Tile'));
 
 interface TileCardProps {
   index: number;
@@ -132,17 +134,23 @@ const TileCard = ({
         </div>
 
         {/* Tile content */}
-        <Tile
-            tileId={item?.i}
-            tabId={tabId}
-            interfaceId={interfaceId}
-            projectId={projectId}
-            updateTab={updateTab}
-            logsActions={logsActions}
-            fieldsActions={fieldsActions}
-            derivedEntryActions={derivedEntryActions}
-            contextActions={contextActions}
-        />
+        <Suspense fallback={
+          <div className="w-full h-full flex-1 flex items-center justify-center">
+            <SkeletonLoader />
+          </div>
+        }>
+          <Tile
+              tileId={item?.i}
+              tabId={tabId}
+              interfaceId={interfaceId}
+              projectId={projectId}
+              updateTab={updateTab}
+              logsActions={logsActions}
+              fieldsActions={fieldsActions}
+              derivedEntryActions={derivedEntryActions}
+              contextActions={contextActions}
+          />
+        </Suspense>
 
       </div>
     </div>
