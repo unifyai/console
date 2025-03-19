@@ -1,27 +1,24 @@
 import { TableDataItem } from "@/types/evals/grid";
 
-// Table tile related types
-export interface TableTileData {
-  // Additional fields needed for internal state management
-  limit: number;
-  offset: number;
-  lastUpdated: string | null;
-  createdAt: string;
-  updatedAt: string;
+// ( IMPORTANT )
+// NOTE: When adding new fields here,
+// make sure to update the TABLE_TILE_KEYS array in this file.
+// Look at the plotTile and viewTile files for examples.
 
-  // Table-specific fields from TileProps
-  // ( IMPORTANT )
-  // NOTE: When adding new fields here from TileProps in grid.ts,
-  // make sure to update the TABLE_TILE_KEYS array in the useTile hook.
-  // Look at the plotTile and viewTile files for examples.
+// Table tile meta - metadata information
+export interface TableTileMeta {
+}
+
+// Table-specific fields from TileProps
+
+// Table tile data - business data
+export interface TableTileData {
   table_type?: string;     // Type of table
-  column_context?: string; // Context for columns display
-  page_number?: string;    // Current page for pagination
   metric?: string;         // Current metric being displayed
   column_order?: string;   // Column ordering information
   hidden_columns?: string; // Hidden columns configuration
-  sorting?: string; // Sorting expression (equivalent to sorting)
-  grouping?: string; // Grouping expression (equivalent to grouping)
+  sorting?: string;        // Sorting expression
+  grouping?: string;       // Grouping expression
   group_sorting?: string;  // How groups are sorted
   columns_pin_left?: string; // Columns pinned to the left
   columns_pin_right?: string; // Columns pinned to the right
@@ -32,22 +29,38 @@ export interface TableTileData {
   tableDataItem?: TableDataItem;
 }
 
+// Table tile UI - UI-related state
+export interface TableTileUI {
+  limit: number;
+  offset: number;
+  column_context?: string; // Context for columns display
+  page_number?: string;    // Current page for pagination
+}
+
+// Combined Table tile type
+export type TableTile = TableTileMeta & TableTileData & TableTileUI;
+
+// tableTileKeys: all fields for TableTile
+export const TABLE_TILE_KEYS: (keyof TableTile)[] = [
+  "table_type","metric","column_order","hidden_columns","sorting",
+  "grouping","group_sorting","columns_pin_left","columns_pin_right",
+  "selected","base_index","tableDataItem","limit","offset",
+  "column_context","page_number"
+];
+
 /**
  * Initialize a new table tile
  */
-export function initTableTileData(initialState: Partial<TableTileData> = {}): TableTileData {
+export function initTableTile(initialState: Partial<TableTile> = {}): TableTile {
   return {
-    // Additional fields for internal state
+    // UI
     limit: initialState.limit || 20,
     offset: initialState.offset || 0,
-    lastUpdated: initialState.lastUpdated || null,
-    createdAt: initialState.createdAt || new Date().toISOString(),
-    updatedAt: initialState.updatedAt || new Date().toISOString(),
-
-    // Table-specific fields from TileProps
-    table_type: initialState.table_type,
     column_context: initialState.column_context,
     page_number: initialState.page_number,
+
+    // Data
+    table_type: initialState.table_type,
     metric: initialState.metric,
     column_order: initialState.column_order,
     hidden_columns: initialState.hidden_columns,
@@ -80,17 +93,15 @@ export function initTableTileData(initialState: Partial<TableTileData> = {}): Ta
     } as TableDataItem,
 
     ...initialState,
-  } as TableTileData;
+  } as TableTile;
 }
 
 /**
  * Update an existing table tile
  */
-export function updateTableTileData(tableTile: TableTileData, updates: Partial<TableTileData>): TableTileData {
+export function updateTableTile(tableTile: TableTile, updates: Partial<TableTile>): TableTile {
   return {
     ...tableTile,
     ...updates,
-    updatedAt: new Date().toISOString(),
-    lastUpdated: new Date().toISOString()
   };
 }

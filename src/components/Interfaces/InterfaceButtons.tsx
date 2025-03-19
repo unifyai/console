@@ -1,6 +1,6 @@
 "use client";
 
-import { TabProps, ContextActions } from "@/types/evals/grid";
+import { TabProps, ContextActions, TileProps } from "@/types/evals/grid";
 import { Eye, Hammer, SquareMousePointer, Info } from "lucide-react";
 import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
@@ -17,6 +17,7 @@ import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useTab } from "@/contexts/hooks/useTab";
 import { SetStateAction, useMemo } from "react";
 import { useProject } from "@/contexts/hooks/useProject";
+import { useStore } from "@/contexts/hooks/useStore";
 
 const InterfaceButtons = ({
     interfaceId,
@@ -34,7 +35,7 @@ const InterfaceButtons = ({
     tabQueryParam: string | null,
     newCounter: number,
     setNewCounter: (newCounter: number) => void,
-    updateTab: (savedTab?: TabProps | null) => Promise<ResponseProps>,
+    updateTab: (savedTab?: TabProps | null, updatedTileProps?: TileProps[] | TileProps | null) => Promise<ResponseProps>,
     focusDialog: boolean,
     setFocusDialog: (value: SetStateAction<boolean>) => void,
     saveDialog: boolean,
@@ -43,39 +44,49 @@ const InterfaceButtons = ({
 }) => {
     const router = useRouter();
 
-    // Global states from the store
-    const project = useStoreContext(s => s.activeProjectId);
-
-    // Get the project data and the contexts
-    const { project: projectData } = useProject(project);
-    const contexts = projectData?.contexts || [];
+    // Get the project data and the contexts with granular access
+    const project = useStoreContext((state) => state.activeProjectId);
+    const { data: projectDataState } = useProject(project);
     
-    // Tab states and actions - get all UI states from here
-    const { tab: tabData, actions: tabActions } = useTab(tabQueryParam || "", interfaceId);
+    const contexts = projectDataState?.contexts || [];
+
+    // Tab states and actions with granular access
+    const { 
+        data: tabDataState,
+        ui: tabUIState,
+        dataActions: tabDataActions,
+        uiActions: tabUIActions,
+        actions: tabActions 
+    } = useTab(tabQueryParam || "", interfaceId);
+
+    // Get tileIds from tab data properly
+    const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
+
+    // Only subscribe to a subset of the tiles objects to incl. name, type and tableTile only
+    const tiles = useStore().getTiles(tileIds, ["name", "type", "tableTile"]);
 
     // Calculate derived state
     const items = useMemo(() => {
-        return !tabActions || !tabData ? [] : tabActions.getItems();
-    }, [tabActions, tabData]);
+        return !tabUIActions ? [] : tabUIActions.getItems();
+    }, [tabUIActions]);
 
     // Get hidden items
     const hiddenItems = items.filter(item => !item.visible);
 
-    const saveIcon = tabData?.saveSuccess ? <Check /> : tabData?.saveSuccess === false ? <TriangleAlert /> : <Save />;
-    const resetIcon = tabData?.resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
-    const variant = tabData?.saveSuccess === false ? "destructive" : "outline";
+    const saveIcon = tabUIState?.saveSuccess ? <Check /> : tabUIState?.saveSuccess === false ? <TriangleAlert /> : <Save />;
+    const resetIcon = tabUIState?.resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
+    const variant = tabUIState?.saveSuccess === false ? "destructive" : "outline";
 
     // Handle context change 
     const handleContextChange = (ctx: string) => {
-        if (tabActions && tabData) {
+        if (tabActions) {
             // First update the tab's context
-            tabActions.setGlobalContext(ctx);
+            tabDataActions.setGlobalContext(ctx);
 
-            // Then update each tile's context-related properties if needed
-            if (tabData.tiles) {
-                Object.values(tabData.tiles).forEach(tile => {
+                // Then update each tile's context-related properties if needed
+                tiles.forEach(tile => {
                     // Get the corresponding item to check current context
-                    const item = items.find(i => i.i === tile.id);
+                    const item = items.find(i => i.i === tile.name);
                     if (item) {
                         const validContext = contexts.some(c => c.name === ctx);
                         const validItemContext = item.context?.startsWith(ctx);
@@ -91,51 +102,33 @@ const InterfaceButtons = ({
                                     : undefined;
 
                         // Update the tile's context
-                        tabActions.updateTile(tile.id, {
+                        tabDataActions.updateTile(tile.name || "", {
                             context: newContext
                         });
 
                         // Update the tile's column_context
-                        if (tile.type === "Table" && tile.tableData) {
-                            tabActions.updateTableTile(tile.id, {
+                        if (tile.type === "Table" && tile.tableTile) {
+                            tabDataActions.updateTableTile(tile.name || "", {
                                 column_context: validItemContext ? item.column_context : undefined
                             });
                         }
                     }
                 });
-            }
 
             // Set data pending and refresh
-            tabActions.setDataPending(true);
+            tabUIActions.setDataPending(true);
             router.refresh();
         }
     };
 
     // Handler for pasting tile
     const handlePaste = () => {
-        if (tabData?.copied && tabActions) {
-            const copiedTile = items.find(item => item.i === tabData.copied);
-            if (copiedTile && tabData) {
-                const tileToClone = tabData.tiles[tabData.copied];
-                if (tileToClone) {
-                    const newId = "Tile_" + newCounter;
-                    tabActions.initTile(newId, {
-                        type: tileToClone.type,
-                        name: `Copy of ${tileToClone.name}`,
-                        position: {
-                            x: (Object.keys(tabData.tiles).length * 2) % 12,
-                            y: Math.floor((Object.keys(tabData.tiles).length * 2) / 12),
-                            width: tileToClone.position.width,
-                            height: tileToClone.position.height
-                        },
-                        minW: undefined,
-                        minH: undefined,
-                        visible: true
-                    });
-                    setNewCounter(newCounter + 1);
-                    tabActions.setCopied(undefined);
-                }
-            }
+        if (tabUIState?.copied && tabDataActions) {
+            const newName = "Tile_" + newCounter;
+            tabDataActions.addTile(tabUIState.copied, newName);
+
+            setNewCounter(newCounter + 1);
+            tabUIActions?.setCopied(undefined);
         }
     };
 
@@ -147,18 +140,18 @@ const InterfaceButtons = ({
                 tooltip="Open Focus Pane"
                 icon={<FocusIcon/>}
                 variant={"outline"}
-                disabled={!project || !tabQueryParam || tabData?.pending}
+                disabled={!project || !tabQueryParam || tabUIState?.pending}
                 onClick={() => setFocusDialog(true)}
             />
             
             <ContextSelector
                 projectId={project || undefined}
-                context={tabData?.globalContext}
+                context={tabDataState?.globalContext}
                 contexts={contexts}
                 setContext={handleContextChange}
                 contextActions={contextActions}
                 refresh={() => updateTab()}
-                setPending={tabActions?.setPending!}
+                setPending={tabUIActions?.setPending!}
             />
             
             {/* Middle - Save, Reset, AddTile */}
@@ -167,7 +160,7 @@ const InterfaceButtons = ({
                 tooltip={!project ? "Select a project first" : "Save Interface"}
                 icon={saveIcon}
                 variant={variant}
-                disabled={!project || !tabQueryParam || tabData?.pending}
+                disabled={!project || !tabQueryParam || tabUIState?.pending}
                 onClick={async () => setSaveDialog(true)}
             />
 
@@ -176,11 +169,11 @@ const InterfaceButtons = ({
                 tooltip={!project ? "Select a project first" : "Return to last saved interface"}
                 icon={resetIcon}
                 variant="outline"
-                disabled={!project || tabData?.pending}
+                disabled={!project || tabUIState?.pending}
                 onClick={() => {
-                    updateTab(tabData?.savedTab);
-                    tabActions?.setResetting(true);
-                    tabActions?.setEdit(true);
+                    updateTab(tabDataState?.savedTab);
+                    tabUIActions?.setResetting(true);
+                    tabUIActions?.setEdit(true);
                     router.refresh();
                 }}
             />
@@ -200,7 +193,7 @@ const InterfaceButtons = ({
                         icon={<Eye/>}
                         tooltip="Show Hidden"
                         size="sm"
-                        disabled={hiddenItems.length === 0 || tabData?.pending}
+                        disabled={hiddenItems.length === 0 || tabUIState?.pending}
                     />
                 }
             >
@@ -208,11 +201,11 @@ const InterfaceButtons = ({
                     <DropdownMenuItem
                         key={idx}
                         onSelect={() => {
-                            if (tabActions && item.i) {
-                                tabActions.updateTile(item.i, {
+                            if (tabDataActions && item.i) {
+                                tabDataActions.updateTile(item.i, {
                                     position: {
-                                        x: (Object.keys(tabData?.tiles || {}).length * 2) % 12,
-                                        y: (Object.keys(tabData?.tiles || {}).length * 2) / 12,
+                                        x: (tileIds.length * 2) % 12,
+                                        y: (tileIds.length * 2) / 12,
                                         width: 4,
                                         height: 4,
                                     },
@@ -235,7 +228,7 @@ const InterfaceButtons = ({
                 variant="outline"
                 icon={<Clipboard/>}
                 tooltip="Paste"
-                disabled={!tabData?.copied || tabData?.pending}
+                disabled={!tabUIState?.copied || tabUIState?.pending}
                 onClick={handlePaste}
             />
 
@@ -243,13 +236,13 @@ const InterfaceButtons = ({
             <div className="flex items-center gap-2 border rounded-md p-1">
                 <Switch
                     id="edit"
-                    checked={tabData?.edit || false}
-                    onCheckedChange={() => tabActions?.setEdit(!tabData?.edit)}
+                    checked={tabUIState?.edit || false}
+                    onCheckedChange={() => tabUIActions?.setEdit(!tabUIState?.edit)}
                     disabled={!project}
                 />
                 <Label htmlFor="edit" className="cursor-pointer">
                     <Tooltip content="Edit">
-                        <Hammer name="edit" size={18} color={tabData?.edit ? "var(--primary)" : undefined} />
+                        <Hammer name="edit" size={18} color={tabUIState?.edit ? "var(--primary)" : undefined} />
                     </Tooltip>
                 </Label>
             </div>
@@ -257,13 +250,13 @@ const InterfaceButtons = ({
             <div className="flex items-center gap-2 border rounded-md p-1">
                 <Switch
                     id="interactive"
-                    checked={tabData?.interactive || false}
-                    onCheckedChange={() => tabActions?.setInteractive(!tabData?.interactive)}
+                    checked={tabUIState?.interactive || false}
+                    onCheckedChange={() => tabUIActions?.setInteractive(!tabUIState?.interactive)}
                     disabled={!project}
                 />
                 <Label htmlFor="interactive" className="cursor-pointer">
                     <Tooltip content="Interactive">
-                        <SquareMousePointer name="interactive" size={18} color={tabData?.interactive ? "var(--primary)" : undefined} />
+                        <SquareMousePointer name="interactive" size={18} color={tabUIState?.interactive ? "var(--primary)" : undefined} />
                     </Tooltip>
                 </Label>
             </div>
@@ -273,10 +266,10 @@ const InterfaceButtons = ({
                     name="help" 
                     size={16}
                     onClick={() => {
-                        if (project && tabData?.interactive) tabActions?.setHelp(!tabData?.help)
+                        if (project && tabUIState?.interactive) tabUIActions?.setHelp(!tabUIState?.help)
                     }}
-                    opacity={!project || !tabData?.interactive ? 0.5 : 1}
-                    className={`mb-0.5 ml-0.5 ${project && tabData?.interactive && tabData?.help ? "text-primary" : ""} ${project && tabData?.interactive && !tabData?.help ? "hover:text-primary" : ""}`}
+                    opacity={!project || !tabUIState?.interactive ? 0.5 : 1}
+                    className={`mb-0.5 ml-0.5 ${project && tabUIState?.interactive && tabUIState?.help ? "text-primary" : ""} ${project && tabUIState?.interactive && !tabUIState?.help ? "hover:text-primary" : ""}`}
                 />
             </Tooltip>
         </div>

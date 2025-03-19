@@ -1,4 +1,7 @@
-import { Project } from "@/contexts/slices/selectors/project";
+import { Project, ProjectMeta, ProjectData, ProjectUI, initProject } from "@/contexts/slices/selectors/project";
+import { Interface } from "@/contexts/slices/selectors/interface";
+import { Tab } from "@/contexts/slices/selectors/tab";
+import { Tile } from "@/contexts/slices/selectors/tile";
 import { buildInterfaceState } from "./interfaceStateBuilder";
 import { TableArguments } from "@/types/evals/logs";
 import { Context, TabProps, TableDataProps, TabsDataProps } from "@/types/evals/grid";
@@ -6,12 +9,13 @@ import { PlotDataProps } from "@/types/evals/grid";
 
 /**
  * Build initial state for a project with its interfaces
+ * @returns Object with the project and all related entities
  */
 export function buildProjectState(
-  currentProjectId: string | null,
-  currentProjectName: string | null,
-  currentInterfaceId: string,
-  currentTabId: string | null,
+  tabName: string | null,
+  interfaceId: string,
+  projectId: string | null,
+  projectName: string | null,
   contexts: Context[],
   tabs: Record<string, TabProps>,
   tabsData: TabsDataProps,
@@ -21,28 +25,65 @@ export function buildProjectState(
   limit: number,
   offsets: number[],
 ) {
-  const project: Project = {
-    id: currentProjectId,
-    name: currentProjectName,
-    description: "",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    contexts: contexts || [],
-    activeInterfaceId: currentInterfaceId,
-    interfaces: {
-      [currentInterfaceId]: buildInterfaceState(
-        currentInterfaceId,
-        currentTabId,
-        tabs,
-        tabsData,
-        tableData,
-        plotData,
-        tableArguments,
-        limit,
-        offsets,
-      )
-    }
-  } as Project;
+  if (!projectId) {
+    return { project: null, interfaces: {}, tabs: {}, tiles: {} };
+  }
 
-  return project;
+  // Initialize collections for the result
+  const interfacesById: Record<string, Interface> = {};
+  const tabsById: Record<string, Tab> = {};
+  const tilesById: Record<string, Tile> = {};
+  const interfaceIds: string[] = [];
+  
+  // Add the current interface
+  interfaceIds.push(interfaceId);
+  
+  const { interface: interfaceObj, tabs: interfaceTabs, tiles: interfaceTiles } = buildInterfaceState(
+    tabName,
+    interfaceId,
+    projectId,
+    tabs,
+    tabsData,
+    tableData,
+    plotData,
+    tableArguments,
+    limit,
+    offsets,
+  );
+  
+  if (interfaceObj) {
+    interfacesById[interfaceId] = interfaceObj;
+    // Merge the tabs and tiles
+    Object.assign(tabsById, interfaceTabs);
+    Object.assign(tilesById, interfaceTiles);
+  }
+  
+  // Create project meta
+  const projectMeta: ProjectMeta = {
+    id: projectId,
+    name: projectName,
+    // createdAt: new Date().toISOString(),
+    // updatedAt: new Date().toISOString(),
+  };
+  
+  // Create project data
+  const projectData: ProjectData = {
+    description: "",
+    contexts: contexts || [],
+    interfaceIds: interfaceIds,
+  };
+  
+  // Create project UI
+  const projectUI: ProjectUI = {
+    activeInterfaceId: interfaceId,
+  };
+  
+  // Create the complete project
+  const project: Project = {
+    ...projectMeta,
+    ...projectData,
+    ...projectUI,
+  };
+  
+  return { project, interfaces: interfacesById, tabs: tabsById, tiles: tilesById };
 }

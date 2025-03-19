@@ -1,12 +1,20 @@
-import { current as immerCurrent, isDraft } from "immer";
+import { current as immerCurrent, isDraft, WritableDraft } from "immer";
 import { shallow } from 'zustand/vanilla/shallow';
-import { Tile } from "../slices/selectors/tile";
-import { PlotTileData } from "../slices/selectors/plotTile";
-import { ViewTileData } from "../slices/selectors/viewTile";
-import { TableTileData } from "../slices/selectors/tableTile";
-import { TILE_KEYS, TABLE_TILE_KEYS, PLOT_TILE_KEYS, VIEW_TILE_KEYS } from "../slices/slice";
+import { Tile, TILE_KEYS } from "../slices/selectors/tile";
+import { PLOT_TILE_KEYS, PlotTile } from "../slices/selectors/plotTile";
+import { VIEW_TILE_KEYS, ViewTile } from "../slices/selectors/viewTile";
+import { TABLE_TILE_KEYS, TableTile } from "../slices/selectors/tableTile";
 import { useRef } from "react";
 import { useEffect } from "react";
+import { StoreSlice, Tab } from "../slices/slice";
+
+// Import the domain logic from selector files
+import * as interfaceLogic from "../slices/selectors/interface";
+import * as tabLogic from "../slices/selectors/tab";
+import * as tileLogic from "../slices/selectors/tile";
+import * as tableTileLogic from "../slices/selectors/tableTile";
+import * as plotTileLogic from "../slices/selectors/plotTile";
+import * as viewTileLogic from "../slices/selectors/viewTile";
 
 /**
  * A helper to do partial shallow checks:
@@ -29,7 +37,7 @@ export function filterUnchangedProps<T extends object>(
     const oldVal = unwrapIfDraft(current[key]);
     const newVal = unwrapIfDraft(updates[key]);
 
-    if (!shallow(oldVal, newVal)) {
+    if (!shallow(oldVal, newVal) && !shallow(JSON.stringify(oldVal), JSON.stringify(newVal))) {
       filtered[key] = newVal;
       changed = true;
     }
@@ -55,26 +63,34 @@ export function splitTileUpdates(
   updates: Record<string, any>
 ): {
   tileUpdates: Partial<Tile>;
-  tableTileUpdates: Partial<TableTileData>;
-  plotTileUpdates: Partial<PlotTileData>;
-  viewTileUpdates: Partial<ViewTileData>;
+  tableTileUpdates: Partial<TableTile>;
+  plotTileUpdates: Partial<PlotTile>;
+  viewTileUpdates: Partial<ViewTile>;
 } {
   const tileUpdates: Partial<Tile> = {};
-  const tableTileUpdates: Partial<TableTileData> = {};
-  const plotTileUpdates: Partial<PlotTileData> = {};
-  const viewTileUpdates: Partial<ViewTileData> = {};
+  const tableTileUpdates: Partial<TableTile> = {};
+  const plotTileUpdates: Partial<PlotTile> = {};
+  const viewTileUpdates: Partial<ViewTile> = {};
   
   for (const key in updates) {
     if (TILE_KEYS.includes(key as keyof Tile)) {
       tileUpdates[key as keyof Tile] = updates[key];
-    } else if (TABLE_TILE_KEYS.includes(key as keyof TableTileData)) {
-      tableTileUpdates[key as keyof TableTileData] = updates[key];
-    } else if (PLOT_TILE_KEYS.includes(key as keyof PlotTileData)) {
-      plotTileUpdates[key as keyof PlotTileData] = updates[key];
-    } else if (VIEW_TILE_KEYS.includes(key as keyof ViewTileData)) {
-      viewTileUpdates[key as keyof ViewTileData] = updates[key];
-    } else {
-      console.warn(`Unknown property '${key}' not in Tile or TableTileData.`);
+    }
+    
+    if (TABLE_TILE_KEYS.includes(key as keyof TableTile)) {
+      tableTileUpdates[key as keyof TableTile] = updates[key];
+    }
+    
+    if (PLOT_TILE_KEYS.includes(key as keyof PlotTile)) {
+      plotTileUpdates[key as keyof PlotTile] = updates[key];
+    }
+    
+    if (VIEW_TILE_KEYS.includes(key as keyof ViewTile)) {
+      viewTileUpdates[key as keyof ViewTile] = updates[key] as never;
+    }
+    
+    if (!tileUpdates && !tableTileUpdates && !plotTileUpdates && !viewTileUpdates) {
+      console.warn(`Unknown property '${key}' not in Tile or TableTile or PlotTile or ViewTile.`);
     }
   }
 
@@ -103,4 +119,259 @@ export function useWhyDidYouUpdate(name: string, deps: any[]) {
     }
     previousDeps.current = deps;
   }, deps);
+}
+
+/**
+ * A generic helper to recursively construct the hierarchical id for any slice selector from its name and parent ids.
+ * The parent ids could be names or hierarchical ids themselves or a mix of both.
+ * @param name - The name of the slice selector
+ * @param parentIds - The parent ids of the slice selector in order i.e. project, interface, tab, tile
+ * @returns The hierarchical id of the slice selector
+ */
+export function constructHierarchicalId(name: string, parentIds: string[]): string {
+  if (parentIds.length === 0) {
+    return name;
+  }
+
+  // If the name is already hierarchical, return it
+  if (name.includes('>')) {
+    return name;
+  }
+
+  return parentIds.map(id => constructHierarchicalId(id, [])).join('>') + '>' + name;
+}
+
+/**
+ * A generic helper to deconstruct the hierarchical id for any slice selector from its hierarchical id
+ * @param hierarchicalId - The hierarchical id of the slice selector
+ * @returns The name and parent ids of the slice selector
+ */
+export function deconstructHierarchicalId(hierarchicalId: string): { name: string, parentIds: string[] } {
+  const parts = hierarchicalId.split('>');
+  return { name: parts[parts.length - 1], parentIds: parts.slice(0, -1) };
+}
+
+/**
+ * Add a tile to a tab
+ */
+export function addTile(
+  state: WritableDraft<StoreSlice>,
+  tabId: string,
+  sourceTileId: string,
+  newTileId: string,
+  initialState: Partial<Tile> | undefined
+): void {
+  const tab = state.tabsById[tabId];
+  const sourceTile = state.tilesById[sourceTileId];
+  
+  if (!tab || !sourceTile) return;
+
+  // Only initialize if it doesn't exist
+  if (!state.tilesById[newTileId]) {
+    const newTile = tileLogic.initTile(newTileId, {
+      ...sourceTile,
+      ...initialState,
+    });
+    state.tilesById[newTileId] = newTile;
+
+    // Initialize type-specific data if needed
+    if (newTile.type === 'Table' && !newTile.tableTile) {
+      state.tilesById[newTileId].tableTile = tableTileLogic.initTableTile();
+    } else if (newTile.type === 'Plot' && !newTile.plotTile) {
+      state.tilesById[newTileId].plotTile = plotTileLogic.initPlotTile();
+    } else if (newTile.type === 'View' && !newTile.viewTile) {
+      state.tilesById[newTileId].viewTile = viewTileLogic.initViewTile();
+    }
+  }
+  
+    // Add the tile to the tab
+  state.tabsById[tabId] = tabLogic.addTileId(tab, newTileId);
+}
+
+/**
+ * Remove a tile from a tab
+ */
+export function removeTile(
+  state: WritableDraft<StoreSlice>,
+  tabId: string,
+  tileId: string
+): void {
+  const tab = state.tabsById[tabId];
+  const tile = state.tilesById[tileId];
+  
+  if (!tab || !tile) return;
+  
+  // Remove the tile
+  delete state.tilesById[tileId];
+  
+  // Update the tab's tileIds array
+  state.tabsById[tabId] = tabLogic.removeTileId(tab, tileId);
+}
+
+/**
+ * Rename a tile
+ */
+export function renameTile(
+  state: WritableDraft<StoreSlice>,
+  tabId: string,
+  sourceTileId: string,
+  newTileId: string,
+  initialState: Partial<Tile> | undefined
+): void {
+  const tab = state.tabsById[tabId];
+  if (!tab) return;
+
+  addTile(state, tabId, sourceTileId, newTileId, initialState);
+
+  // Then update any references to this tile in other tiles
+  // (This is for tiles that reference other tiles by name)
+  const { name: sourceTileName } = deconstructHierarchicalId(sourceTileId);
+  const { name: newTileName } = deconstructHierarchicalId(newTileId);
+
+  Object.keys(state.tilesById).forEach(id => {
+    const tile = state.tilesById[id];
+    if (tile.table === sourceTileName) {
+      state.tilesById[id].table = newTileName;
+    }
+  });
+
+  // Remove the source tile
+  removeTile(state, tabId, sourceTileId);
+}
+
+/**
+ * Add a tab to an interface
+ */
+export function addTab(
+  state: WritableDraft<StoreSlice>,
+  interfaceId: string,
+  sourceTabId: string,
+  newTabId: string,
+  initialState: Partial<Tab> | undefined
+): void {
+  const interfaceObj = state.interfacesById[interfaceId];
+
+  // Get the source tab
+  const sourceTab = state.tabsById[sourceTabId];
+
+  if (!interfaceObj || !sourceTab) return;
+
+  // Update the tab's tileIds array by replacing tabName substrings with newName substrings
+  const newTileIds = sourceTab.tileIds?.map(id => id.replace(sourceTabId, newTabId));
+
+  // Only initialize if it doesn't exist
+  if (!state.tabsById[newTabId]) {
+    const newTab = tabLogic.initTab(newTabId, {
+      ...sourceTab,
+      tileIds: newTileIds,
+      ...initialState,
+    });
+    state.tabsById[newTabId] = newTab;
+  }
+
+  const { name: newTabName } = deconstructHierarchicalId(newTabId);
+
+  // Update the interface's tabIds array using the proper function
+  state.interfacesById[interfaceId] = interfaceLogic.addTabId(interfaceObj, newTabId);
+
+  // Update the interface's tabNames array using the proper function
+  state.interfacesById[interfaceId] = interfaceLogic.addTabName(interfaceObj, newTabName);
+
+  // Now copy over the tiles from the source tab but with the new tile ids and names
+  sourceTab.tileIds.forEach((sourceTileId, index) => {
+    const tile = state.tilesById[sourceTileId];
+    const newTileId = newTileIds[index];
+
+    if (tile) {
+      state.tilesById[newTileId] = tileLogic.initTile(newTileId, {
+        ...tile,
+        id: newTileId,
+        tabId: newTabId,
+      });
+
+      // Initialize type-specific data if needed
+      if (tile.type === 'Table' && !tile.tableTile) {
+        state.tilesById[newTileId].tableTile = tableTileLogic.initTableTile();
+      } else if (tile.type === 'Plot' && !tile.plotTile) {
+        state.tilesById[newTileId].plotTile = plotTileLogic.initPlotTile();
+      } else if (tile.type === 'View' && !tile.viewTile) {
+        state.tilesById[newTileId].viewTile = viewTileLogic.initViewTile();
+      }
+    }
+  });
+}
+
+/**
+ * Remove a tab from an interface
+ */
+export function removeTab(
+  state: WritableDraft<StoreSlice>,
+  interfaceId: string,
+  tabId: string
+): void {
+  const interfaceObj = state.interfacesById[interfaceId];
+  const tab = state.tabsById[tabId];
+  
+  if (!interfaceObj || !tab) return;
+  
+  // Clean up associated tiles
+  if (tab.tileIds) {
+    tab.tileIds.forEach(tileId => {
+      const tile = state.tilesById[tileId];
+      if (tile) {
+        // Clean up tile-specific data
+        if (tile.type === 'Table') state.tilesById[tileId].tableTile = null;
+        else if (tile.type === 'Plot') state.tilesById[tileId].plotTile = null;
+        else if (tile.type === 'View') state.tilesById[tileId].viewTile = null;
+      }
+      // Remove the tile
+      delete state.tilesById[tileId];
+    });
+  }
+  
+  // Remove the tab
+  delete state.tabsById[tabId];
+  
+  // Update the interface's tabIds and tabNames arrays
+  if (interfaceObj.tabIds) {
+    interfaceObj.tabIds = interfaceObj.tabIds.filter(tid => tid !== tabId);
+  }
+  if (interfaceObj.tabNames) {
+    interfaceObj.tabNames = interfaceObj.tabNames.filter(name => name !== tab.name);
+  }
+  
+  // Reset active tab if it matches the removed tab
+  if (state.activeTabId === tabId) {
+    state.activeTabId = null;
+  }
+
+}
+
+/**
+ * Rename a tab
+ */
+export function renameTab(
+  state: WritableDraft<StoreSlice>,
+  interfaceId: string,
+  sourceTabId: string,
+  newTabId: string,
+  initialState: Partial<Tab> | undefined
+): void {
+  const interfaceObj = state.interfacesById[interfaceId];
+
+  // Get the source tab
+  const sourceTab = state.tabsById[sourceTabId];
+
+  if (!interfaceObj || !sourceTab) return;
+
+  // Add the new tab
+  addTab(state, interfaceId, sourceTabId, newTabId, initialState);
+
+  // Reset active tab if it matches the removed tab to the new tab
+  if (state.activeTabId === sourceTabId) {
+    state.activeTabId = newTabId;
+  }
+
+  // Now remove the source tab
+  removeTab(state, interfaceId, sourceTabId);
 }

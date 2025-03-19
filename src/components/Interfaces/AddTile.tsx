@@ -15,24 +15,24 @@ const AddTile = ({
     newCounter: number,
     setNewCounter: (newCounter: number) => void,
 }) => {
-    // Get tab data and actions using useTab hook
-    const { tab: tabData, actions: tabActions, exists } = useTab(tabId);
+    // Get tab data and actions using useTab hook with granular access
+    const { ui: tabUIState, dataActions: tabDataActions, uiActions: tabUIActions, exists } = useTab(tabId);
     
     // Use the getItems function from the useTab hook to get TileProps array
     const items = useMemo(() => {
-        return !exists || !tabActions ? [] : tabActions.getItems().filter(item => item.visible !== false);
-    }, [exists, tabActions]);
+        return !exists || !tabUIActions ? [] : tabUIActions.getItems().filter(item => item.visible !== false);
+    }, [exists, tabUIActions]);
 
     return (
         <ActionButton
             className="transition-all"
-            tooltip={(!tabData?.edit || !project) ? "Select a project first" : "Add new tile"}
+            tooltip={(!tabUIState?.edit || !project) ? "Select a project first" : "Add new tile"}
             icon={<Plus />}
             text="Add Tile"
             variant="outline"
-            disabled={!tabData?.edit || !project || tabData?.pending || !exists}
+            disabled={!tabUIState?.edit || !project || tabUIState?.pending || !exists}
             onClick={() => {
-                const newTileId = "Tile_" + newCounter;
+                const newTileName = "Tile_" + newCounter;
                 
                 // Calculate the best position for the new tile
                 const position = {
@@ -110,8 +110,8 @@ const AddTile = ({
                 };
 
                 // Initialize the new tile with the calculated position
-                tabActions?.initTile(newTileId, {
-                    name: newTileId,
+                tabDataActions?.initTile(newTileName, {
+                    name: newTileName,
                     position,
                     minW: undefined,
                     minH: undefined,

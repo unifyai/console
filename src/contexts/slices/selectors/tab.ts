@@ -1,23 +1,30 @@
 import { TabProps } from "@/types/evals/grid";
-import { Tile } from "./tile";
 
-// Tab state definition
-export interface Tab {
+// Tab metadata - core identifying information
+export interface TabMeta {
   id: string | null;
   name: string | null;
+  // createdAt: string;
+  // updatedAt: string;
   visible: boolean;
   active: boolean;
   order: number;
+  tabCreated: boolean;
+  tempTabCreated: boolean;
+}
+
+// Tab data - business data and relationships
+export interface TabData {
   globalContext?: string;
-  tabCreated: boolean; // From metadata
-  tempTabCreated: boolean; // From metadata
   savedTab: TabProps | null; // This needs to match exactly the TabProps type from grid.ts
-  focusedTileIds: [string | undefined, string | undefined];
-  createdAt: string;
-  updatedAt: string;
-  tiles: Record<string, Tile>; // Child tiles indexed by ID
-  
-  // UI state properties moved from Interface and local state
+  tileIds: string[]; // References to tiles instead of containing them directly
+}
+
+// Tab UI state - UI-related state
+export interface TabUI {
+  projectId: string | null;
+  interfaceId: string | null;
+  focusedTileNames: [string | undefined, string | undefined];
   saveSuccess?: boolean;
   resetting: boolean;
   edit: boolean;
@@ -28,38 +35,49 @@ export interface Tab {
   dataPending: boolean;
   pending: boolean;
   refreshing: boolean;
+  itemsNeedRecompute: boolean; // Flag to indicate when items need recomputing
 }
+
+// Combined Tab state definition
+export interface Tab extends TabMeta, TabData, TabUI {}
 
 /**
  * Initialize a new tab
  */
 export function initTab(tabId: string, initialState: Partial<Tab> = {}): Tab {
   return {
+    // Meta
     id: tabId,
     name: initialState.name || null,
     visible: initialState.visible !== undefined ? initialState.visible : true,
     active: initialState.active !== undefined ? initialState.active : false,
     order: initialState.order !== undefined ? initialState.order : 0,
-    globalContext: initialState.globalContext,
     tabCreated: initialState.tabCreated !== undefined ? initialState.tabCreated : false,
     tempTabCreated: initialState.tempTabCreated !== undefined ? initialState.tempTabCreated : false,
-    savedTab: initialState.savedTab !== undefined ? initialState.savedTab : null,
-    focusedTileIds: initialState.focusedTileIds !== undefined ? initialState.focusedTileIds : [undefined, undefined],
-    createdAt: initialState.createdAt || new Date().toISOString(),
-    updatedAt: initialState.updatedAt || new Date().toISOString(),
-    tiles: initialState.tiles || {},
+    // createdAt: initialState.createdAt || new Date().toISOString(),
+    // updatedAt: initialState.updatedAt || new Date().toISOString(),
     
-    // Default values for the UI state properties
+    // Data
+    globalContext: initialState.globalContext,
+    savedTab: initialState.savedTab !== undefined ? initialState.savedTab : null,
+    tileIds: initialState.tileIds || [],
+    
+    // UI
+    projectId: initialState.projectId || null,
+    interfaceId: initialState.interfaceId || null,
+    focusedTileNames: initialState.focusedTileNames !== undefined ? initialState.focusedTileNames : [undefined, undefined],
     saveSuccess: initialState.saveSuccess,
     resetting: initialState.resetting !== undefined ? initialState.resetting : false,
     edit: initialState.edit !== undefined ? initialState.edit : true,
     interactive: initialState.interactive !== undefined ? initialState.interactive : true,
-    copied: initialState.copied,
     help: initialState.help !== undefined ? initialState.help : true,
+    copied: initialState.copied,
     deleting: initialState.deleting !== undefined ? initialState.deleting : false,
     dataPending: initialState.dataPending !== undefined ? initialState.dataPending : false,
-    pending: initialState.pending !== undefined ? initialState.pending : true,
+    pending: initialState.pending !== undefined ? initialState.pending : false,
     refreshing: initialState.refreshing !== undefined ? initialState.refreshing : false,
+    itemsNeedRecompute: initialState.itemsNeedRecompute !== undefined ? initialState.itemsNeedRecompute : false,
+    
     ...initialState,
   };
 }
@@ -71,12 +89,12 @@ export function updateTab(tab: Tab, updates: Partial<Tab>): Tab {
   return {
     ...tab,
     ...updates,
-    updatedAt: new Date().toISOString()
+    // updatedAt: new Date().toISOString()
   };
 }
 
 /**
- * Set a specific property on a tab
+ * Set a specific property of a tab
  */
 export function setTabProperty<K extends keyof Tab>(
   tab: Tab, 
@@ -86,33 +104,47 @@ export function setTabProperty<K extends keyof Tab>(
   return {
     ...tab,
     [property]: value,
-    updatedAt: new Date().toISOString()
+    // updatedAt: new Date().toISOString()
   };
 }
 
 /**
  * Add a tile to a tab
  */
-export function addTile(tab: Tab, tileId: string): Tab {
-  if (!tab.tiles) {
-    tab.tiles = {};
+export function addTileId(tab: Tab, tileId: string): Tab {
+  // If the tile already exists in the tab, don't add it again
+  if (tab.tileIds.includes(tileId)) {
+    return tab;
   }
-  return tab;
+  
+  // Create a new array with the new tile ID
+  const tileIds = [...tab.tileIds, tileId];
+  
+  // Return the updated tab
+  return {
+    ...tab,
+    tileIds,
+    // updatedAt: new Date().toISOString()
+  };
 }
 
 /**
  * Remove a tile from a tab
  */
-export function removeTile(tab: Tab, tileId: string): Tab {
-  if (tab.tiles && tab.tiles[tileId]) {
-    const newTiles = { ...tab.tiles };
-    delete newTiles[tileId];
-    
-    return {
-      ...tab,
-      tiles: newTiles,
-      updatedAt: new Date().toISOString()
-    };
-  }
-  return tab;
+export function removeTileId(tab: Tab, tileId: string): Tab {
+  // Filter out the tile ID to remove
+  const tileIds = tab.tileIds.filter(id => id !== tileId);
+  
+  // Update the focused tiles if needed
+  let focusedTileIds = [...tab.focusedTileNames] as [string | undefined, string | undefined];
+  if (focusedTileIds[0] === tileId) focusedTileIds[0] = undefined;
+  if (focusedTileIds[1] === tileId) focusedTileIds[1] = undefined;
+  
+  // Return the updated tab
+  return {
+    ...tab,
+    tileIds,
+    focusedTileNames: focusedTileIds,
+    // updatedAt: new Date().toISOString()
+  };
 }

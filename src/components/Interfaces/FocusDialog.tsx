@@ -32,29 +32,32 @@ const FocusDialog = ({
     fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
     contextActions: ContextActions,
-    updateTab: (savedTab?: any) => Promise<ResponseProps>;
+    updateTab: (savedTab?: any, updatedTileProps?: any) => Promise<ResponseProps>;
     getLatestTab: () => void;
     setFocusDialog: Dispatch<SetStateAction<boolean>>,
 }) => {
-    const { tab: tabData, actions: tabActions } = useTab(tabId, interfaceId);
+    const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId, interfaceId);
 
     // Get tile props using the getItems function from the tabActions
     const tileProps = useMemo(() => {
-        return (!tabActions || !tabData) ? [] : tabActions.getItems();
-    }, [tabActions, tabData]);
+        return (!tabUIActions) ? [] : tabUIActions.getItems();
+    }, [tabUIActions]);
 
-    const safeFocusedTileIds = useMemo(() => tabData?.focusedTileIds ? Array.from(tabData.focusedTileIds) : [undefined, undefined], [tabData?.focusedTileIds]);
+    const safeFocusedTileNames = useMemo(() => 
+        tabUIState?.focusedTileNames ? Array.from(tabUIState.focusedTileNames) : [undefined, undefined], 
+        [tabUIState?.focusedTileNames]
+    );
 
-    const focusedTileItems: [TileProps | undefined, TileProps | undefined] = safeFocusedTileIds.map(
-        tile => {
-            const index = tileProps.findIndex(item => item.i == tile);
+    const focusedTileItems: [TileProps | undefined, TileProps | undefined] = safeFocusedTileNames.map(
+        focusedTileName => {
+            const index = tileProps.findIndex(item => item.i === focusedTileName);
             const item = index !== -1 ? tileProps[index] : undefined;
             return index !== -1 ? item : undefined;
         }
     ) as [TileProps | undefined, TileProps | undefined];
 
     const tiles = focusedTileItems.map((item: TileProps | undefined, idx: number) => {
-        const index = tileProps.findIndex(it => it.i == item?.i);
+        const index = tileProps.findIndex(it => it.i === item?.i);
         return (
             item
                 ? <div className="h-full relative pt-2">
@@ -71,7 +74,7 @@ const FocusDialog = ({
                         derivedEntryActions={derivedEntryActions}
                         contextActions={contextActions}
                     />
-                    <div className={"w-full px-2 transition-all absolute -top-1 flex justify-between " + (tabData?.edit ? "h-20" : "h-10")}>
+                    <div className={"w-full px-2 transition-all absolute -top-1 flex justify-between " + (tabUIState?.edit ? "h-20" : "h-10")}>
                         <div>
                             <Badge variant="primary">{item.i}</Badge>
                         </div>
@@ -79,10 +82,10 @@ const FocusDialog = ({
                             <ActionButton
                                 className="remove cursor-pointer hover:z-10"
                                 onClick={() => {
-                                    const newFocusedTileIds = [...safeFocusedTileIds];
-                                    newFocusedTileIds[idx] = undefined;
-                                    tabActions?.setFocusedTileIds(newFocusedTileIds as [string | undefined, string | undefined]);
-                                    if (newFocusedTileIds[0] == undefined && newFocusedTileIds[1] == undefined)
+                                    const newFocusedTileNames = [...safeFocusedTileNames];
+                                    newFocusedTileNames[idx] = undefined;
+                                    tabUIActions?.setFocusedTileNames(newFocusedTileNames as [string | undefined, string | undefined]);
+                                    if (newFocusedTileNames[0] == undefined && newFocusedTileNames[1] == undefined)
                                         setFocusDialog(false);
                                 }}
                                 icon={<X />}
@@ -102,12 +105,12 @@ const FocusDialog = ({
                                 size="default"
                             />}
                         >
-                            {tileProps.filter(item => !tabData?.focusedTileIds!.includes(item.i)).map((item, idx_) => <DropdownMenuItem
+                            {tileProps.filter(item => !safeFocusedTileNames.includes(item.i)).map((item, idx_) => <DropdownMenuItem
                                 key={idx_}
                                 onSelect={() => {
-                                    const newFocusedTileIds = [...safeFocusedTileIds];
-                                    newFocusedTileIds[idx] = item.i;
-                                    tabActions?.setFocusedTileIds(newFocusedTileIds as [string | undefined, string | undefined]);
+                                    const newFocusedTileNames = [...safeFocusedTileNames];
+                                    newFocusedTileNames[idx] = item.i;
+                                    tabUIActions?.setFocusedTileNames(newFocusedTileNames as [string | undefined, string | undefined]);
                                 }}
                                 className="w-64 flex justify-between items-center"
                             >

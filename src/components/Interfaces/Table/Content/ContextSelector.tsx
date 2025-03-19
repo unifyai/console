@@ -3,8 +3,7 @@
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ActionButton from "../../../Common/Buttons/Action";
 import BaseDropdown from "../../../Common/Dropdowns/Base";
-import { DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuSub, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSubTrigger } from "../../../UI/dropdown-menu";
-import { Context, ContextActions, LogsActions } from "@/types/evals/grid";
+import { Context, ContextActions } from "@/types/evals/grid";
 import { Braces, FolderTree, Grid2x2, X } from "lucide-react";
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { ResponseProps } from "@/types/common";
@@ -49,23 +48,29 @@ const ContextSelector = ({
         });
     }
 
-    const { actions: projectActions } = useProject(projectId || null);
-    const { actions: tileActions } = useTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
-    const { tableTile: tableData, actions: tableTileActions } = useTableTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
-    
+    const { dataActions: projectDataActions } = useProject(projectId || null);
+
+    const { actions: tileActions, dataActions: tileDataActions } = useTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
+
+    const { 
+        tableTile: tableTileState,
+        actions: tableTileActions,
+        uiActions: tableUIActions 
+    } = useTableTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
+
     const item = useMemo(() => tileActions?.asTileItem(), [tileActions]);
     
-    const finalSetContext = (tileActions && tableTileActions && item != undefined) ? (ctx: string) => {
+    const finalSetContext = (tileActions && tileDataActions && tableUIActions && item != undefined) ? (ctx: string) => {
         if (ctx !== item.context) {
             // Update the tile's column_context
-            tableTileActions.updateTableData({ column_context: "" });
+            tableUIActions.setColumnContext("");
 
             // Update the tile's context
-            tileActions.updateTile({ context: ctx });
+            tileDataActions.setContext(ctx);
         }
     } : setContext;
     
-    const empty = contexts.length == 0 && tableData?.tableDataItem?.columnContexts?.length == 0;
+    const empty = contexts.length == 0 && tableTileState?.tableDataItem?.columnContexts?.length == 0;
 
     // Build and render the tree
     const contextNames = contexts.map(context => context.name).sort();
@@ -121,7 +126,7 @@ const ContextSelector = ({
                 return a.localeCompare(b);
             })
         );
-    const columnContextTree = buildNestedDropdownTree(tableData?.tableDataItem?.columnContexts || []);
+    const columnContextTree = buildNestedDropdownTree(tableTileState?.tableDataItem?.columnContexts || []);
     const contextHeader = item != undefined ? (
         contextPrefix == "" ? (context || "Context") : contextPrefix
     ) : (largestCommonPrefix == "" ? "Context" : largestCommonPrefix);
@@ -139,7 +144,7 @@ const ContextSelector = ({
                 open={!projectId ? false : undefined}
                 setOpen={(isOpen) => {
                     if (isOpen && projectId && contextActions) {
-                        contextActions.get(projectId).then(ctxs => projectActions?.setContexts(ctxs));
+                        contextActions.get(projectId).then(ctxs => projectDataActions?.setContexts(ctxs));
                     }
                 }}
             >
@@ -193,7 +198,7 @@ const ContextSelector = ({
                             />
                         ))}
                     </div> : <></>}
-                    {item && tileActions && tableTileActions && (tableData?.tableDataItem?.columnContexts) && tableData.tableDataItem.columnContexts.length > 0 && <div className="pt-2">
+                    {item && tileActions && tableTileActions && (tableTileState?.tableDataItem?.columnContexts) && tableTileState.tableDataItem.columnContexts.length > 0 && <div className="pt-2">
                         <div className="font-bold text-sm px-2 pb-2 border-b flex justify-between items-center">
                             <div className="flex gap-2 items-center">
                                 <Grid2x2 size={18} /> Column Context
@@ -201,7 +206,7 @@ const ContextSelector = ({
                             {item.column_context && <Tooltip content="Clear Column Context">
                                 <X
                                     size={18}
-                                    onClick={() => tableTileActions.updateTableData({ column_context: "" })}
+                                    onClick={() => tableUIActions?.setColumnContext("")}
                                     className="cursor-pointer hover:text-primary"
                                 />
                             </Tooltip>}
@@ -219,7 +224,7 @@ const ContextSelector = ({
                                 showRoot={true}
                                 attr={item.column_context}
                                 isColumnContext={true}
-                                setter={(value) => tableTileActions.updateTableData({ column_context: value })}
+                                setter={(value) => tableUIActions?.setColumnContext(value)}
                                 deleteDialog={
                                     projectId ? <div onClick={(e) => e.stopPropagation()}>
                                         <DeleteDialog

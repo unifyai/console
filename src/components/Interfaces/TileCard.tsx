@@ -9,9 +9,10 @@ import { useTile } from "@/contexts/hooks/useTile";
 import { icons, tabTypes } from "@/constants/logs";
 import { useTab } from "@/contexts/hooks/useTab";
 import { ResponseProps } from "@/types/common";
-import { DerivedEntryActions, FieldsActions, ContextActions } from "@/types/evals/grid";
+import { DerivedEntryActions, FieldsActions, ContextActions, TabProps, TileProps } from "@/types/evals/grid";
 import { LogsActions } from "@/types/evals/grid";
 import Tile from "./Tile";
+import { useStore } from "@/contexts/hooks/useStore";
 
 interface TileCardProps {
   index: number;
@@ -19,7 +20,7 @@ interface TileCardProps {
   tabId: string;
   interfaceId: string;
   projectId: string;
-  updateTab: (savedTab?: any) => Promise<ResponseProps>;
+  updateTab: (savedTab?: TabProps | null, updatedTileProps?: TileProps[] | TileProps | null) => Promise<ResponseProps>;
   getLatestTab: () => void;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
@@ -41,44 +42,38 @@ const TileCard = ({
   contextActions,
 }: TileCardProps) => {
 
-  const { tab: tabData, actions: tabActions } = useTab(tabId, interfaceId);
+  const { 
+    ui: tabUIState, 
+    dataActions: tabDataActions,
+    uiActions: tabUIActions
+  } = useTab(tabId, interfaceId);
 
-  // Derive tiles from tab data
-  const tiles = tabData ? Object.values(tabData.tiles || {}) : [];
-
-  // Get tile props using the getItems function from the tabActions
+  // Get tile props using the getItems function from the tabUIActions
   const tileProps = useMemo(() => {
-    return (!tabActions || !tabData) ? [] : tabActions.getItems();
-  }, [tabActions, tabData]);
+    return !tabUIActions ? [] : tabUIActions.getItems();
+  }, [tabUIActions]);
 
   const tableNames = useMemo(() => {
     // Only return table names for table tiles
     // Return should be an array of strings only
-    return tileProps.map(item => item.tab == "Table" ? item.i : null).filter(Boolean) as string[];
+    return tileProps.map(item => item.tab === "Table" ? item.i : null).filter(Boolean) as string[];
   }, [tileProps]);
 
   // Get the current item based on the index prop
   const item = tileProps[index];
-  const tab = item.tab;
+  const tab = item?.tab;
   
   // Call useTile once at the top level of the component for the current item
-  const { actions: tileActions } = useTile(item?.i, tabId, interfaceId, projectId);
+  const { dataActions: tileDataActions } = useTile(item?.i, tabId, interfaceId, projectId);
 
-  // Define tableData as a computed property based on the tiles
-  const logsLengths = useMemo(() => {
-    return tiles.reduce((acc: Record<string, number>, tile) => {
-      if (tile.type === 'Table' && tile.name) {
-        acc[tile.name] = tile.tableData?.tableDataItem?.logs?.length || 0;
-      }
-      return acc;
-    }, {});
-  }, [tiles]);
+  // Define logsLengths as a computed property based on the tiles
+  const logsLengths = useStore().getLogLengths();
 
   return (
     <div className="relative flex w-full h-full border">
-      <div className={"w-full flex-1 flex flex-col items-center " + ((!tabData?.edit && tab) ? "mt-4" : tab ? "mt-2" : "justify-center")}>
+      <div className={"w-full flex-1 flex flex-col items-center " + ((!tabUIState?.edit && tab) ? "mt-4" : tab ? "mt-2" : "justify-center")}>
         <div className="flex gap-4 z-20">
-          {tabData?.edit && <div className="w-fit">
+          {tabUIState?.edit && <div className="w-fit">
             <BaseDropdown
               button={<ActionButton
                 tooltip="Select Tile Type"
@@ -88,25 +83,27 @@ const TileCard = ({
                 size="default"
               />}
             >
-              {(!tabData?.edit ? [] : tabTypes).map((tab, idx) => {
+              {(!tabUIState?.edit ? [] : tabTypes).map((tabType, idx) => {
                 return (
                   <DropdownMenuItem
                     key={idx}
                     onSelect={() => {
-                      tabActions?.updateTile(item?.i, { type: tab });
-                      if (item?.tab == undefined && tab == "Table") {
-                        tabActions?.updateTile(item?.i, { table_type: "Data Table" });
+                      if (item?.i) {
+                        tabDataActions?.updateTile(item.i, { type: tabType });
+                        if (item?.tab === undefined && tabType === "Table") {
+                          tabDataActions?.updateTableTile(item.i, { table_type: "Data Table" });
+                        }
                       }
                     }}
                     className="w-64 flex justify-between items-center"
                   >
-                    <span>{tab}</span>{icons[tab as keyof typeof icons]}
+                    <span>{tabType}</span>{icons[tabType as keyof typeof icons]}
                   </DropdownMenuItem>
                 )
               })}
             </BaseDropdown>
           </div>}
-          {tab && tabData?.edit && tab == "View" && <div className="w-fit">
+          {tab && tabUIState?.edit && tab === "View" && <div className="w-fit">
             <BaseDropdown
               button={<ActionButton
                 tooltip="Select Table"
@@ -115,12 +112,12 @@ const TileCard = ({
                 size="default"
               />}
             >
-              {(!tabData?.edit ? [] : tableNames).map((tile, idx) => {
+              {(!tabUIState?.edit ? [] : tableNames).map((tile, idx) => {
                 return (
                   <DropdownMenuItem
                     key={idx}
                     onSelect={() => {
-                      tileActions?.updateTile({ table: tile });
+                      tileDataActions?.setTable(tile);
                     }}
                     disabled={!logsLengths[tile]}
                     className="w-64"

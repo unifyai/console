@@ -1,17 +1,19 @@
 import { PlotDataItem } from "@/types/evals/grid";
 
-// Plot tile related types
+// ( IMPORTANT )
+// NOTE: When adding new fields here,
+// make sure to update the PLOT_TILE_KEYS array in this file.
+// Look at the tableTile and viewTile files for examples.
+
+// Plot tile meta - metadata information
+export interface PlotTileMeta {
+}
+
+// Plot tile data - business data 
 export interface PlotTileData {
   // Core plot data properties
-  lastUpdated: string | null;
-  createdAt: string;
-  updatedAt: string;
   
   // Plot-specific fields from TileProps
-  // ( IMPORTANT )
-  // NOTE: When adding new fields here from TileProps in grid.ts,
-  // make sure to update the PLOT_TILE_KEYS array in the useTile hook.
-  // Look at the tableTile and viewTile files for examples.
   plot_type?: string;          // Used in addition to plotType for compatibility
   plot_scale_x?: string;       // X-axis scale type (linear, log, etc.)
   plot_scale_y?: string;       // Y-axis scale type
@@ -26,17 +28,26 @@ export interface PlotTileData {
   plotDataItem?: PlotDataItem;
 }
 
+// Plot tile UI - UI-related state
+export interface PlotTileUI {
+}
+
+// Combined Plot tile type
+export type PlotTile = PlotTileMeta & PlotTileData & PlotTileUI;
+
+// plotTileKeys: all fields for PlotTile
+export const PLOT_TILE_KEYS: (keyof PlotTile)[] = [
+  "plot_type","plot_scale_x","plot_scale_y",
+  "is_aggregated","x_axis","y_axis","plot_group_by","bin_count","regression_line",
+  "plotDataItem"
+];
+
 /**
  * Initialize a new plot tile
  */
-export function initPlotTileData(initialState: Partial<PlotTileData> = {}): PlotTileData {
+export function initPlotTile(initialState: Partial<PlotTile> = {}): PlotTile {
   return {
-    // Core plot data properties
-    lastUpdated: initialState.lastUpdated || null,
-    createdAt: initialState.createdAt || new Date().toISOString(),
-    updatedAt: initialState.updatedAt || new Date().toISOString(),
-    
-    // Plot-specific fields from TileProps
+    // Data
     plot_type: initialState.plot_type,
     plot_scale_x: initialState.plot_scale_x,
     plot_scale_y: initialState.plot_scale_y,
@@ -55,17 +66,15 @@ export function initPlotTileData(initialState: Partial<PlotTileData> = {}): Plot
     } as PlotDataItem,
 
     ...initialState,
-  } as PlotTileData;
+  } as PlotTile;
 }
 
 /**
  * Update an existing plot tile
  */
-export function updatePlotTile(plotTile: PlotTileData, updates: Partial<PlotTileData>): PlotTileData {
+export function updatePlotTile(plotTile: PlotTile, updates: Partial<PlotTile>): PlotTile {
   return {
     ...plotTile,
     ...updates,
-    updatedAt: new Date().toISOString(),
-    lastUpdated: new Date().toISOString()
   };
 }

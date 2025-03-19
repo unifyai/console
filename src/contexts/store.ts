@@ -14,6 +14,9 @@ export type StoreState = StoreSlice;
 export interface IStoreState extends StoreState {
   // Global action to reset the entire store state
   resetState: (newState: Partial<IStoreState>) => void;
+
+  // Global action to update the entire store state
+  updateState: (updates: Partial<IStoreState>) => void;
 }
 
 // -----------------------------------------------------------------------------
@@ -41,7 +44,16 @@ export function createStore(initialState?: Partial<IStoreState>) {
           ...storeSlice,
 
           // Global reset action
-          resetState: (newState: Partial<IStoreState>) => set(newState),
+          resetState: (newState: Partial<IStoreState>) => set((state) => ({
+            ...state,
+            ...newState,
+          })),
+
+          // Global update action
+          updateState: (updates: Partial<IStoreState>) => set((state) => ({
+            ...state,
+            ...updates,
+          })),
         };
       }),
       {

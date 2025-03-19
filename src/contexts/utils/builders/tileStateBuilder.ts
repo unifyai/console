@@ -1,18 +1,25 @@
-import { PlotTileData } from "@/contexts/slices/selectors/plotTile";
-import { TableTileData } from "@/contexts/slices/selectors/tableTile";
-import { ViewTileData } from "@/contexts/slices/selectors/viewTile";
-import { Tile } from "@/contexts/slices/selectors/tile";
-import { PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
+import { Tile, TileMeta, TileData, TileUI } from '@/contexts/slices/selectors/tile';
+import { TableTile, TableTileData, TableTileMeta, TableTileUI } from '@/contexts/slices/selectors/tableTile';
+import { PlotTile, PlotTileData, PlotTileMeta, PlotTileUI } from '@/contexts/slices/selectors/plotTile';
+import { ViewTile, ViewTileMeta, ViewTileData, ViewTileUI } from '@/contexts/slices/selectors/viewTile';
+import { PlotDataProps, TableDataProps, TileProps } from '@/types/evals/grid';
 
 /**
- * Build initial state for a tile
+ * Build a generic tile state object
  */
 export function buildTileState(
+  tabId: string | null = null,
+  interfaceId: string | null = null,
+  projectId: string | null = null,
   tileProps: TileProps,
   type: "Table" | "Plot" | "View" = "Table",
-) {
-  return {
-    id: tileProps.i,
+): Tile {
+  // Generate the hierarchical tile ID
+  const tileId = `${tabId}>${tileProps.i}`;
+  
+  // Build tile meta
+  const tileMeta: TileMeta = {
+    id: tileId,
     name: tileProps.i,
     type: type,
     position: {
@@ -23,121 +30,189 @@ export function buildTileState(
     },
     minW: tileProps.minW,
     minH: tileProps.minH,
-    visible: tileProps.visible,
-    locked: false,
-    pending: false,
-    loading: false,
-    error: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    // createdAt: new Date().toISOString(),
+    // updatedAt: new Date().toISOString(),
+  };
 
-    moved: tileProps.moved,
-    static: tileProps.static,
-
+  // Build tile data
+  const tileData: TileData = {
     context: tileProps.context,
     table: tileProps.table,
     auto_update: tileProps.auto_update,
     freeze: tileProps.freeze,
     filters: tileProps.filters,
     common_filter: tileProps.common_filter,
-  } as Tile;
+  };
+
+  // Build tile UI state
+  const tileUI: TileUI = {
+    projectId,
+    interfaceId,
+    tabId,
+    visible: tileProps.visible,
+    locked: false,
+    pending: false,
+    loading: false,
+    error: null,
+    moved: tileProps.moved,
+    static: tileProps.static,
+    itemsNeedRecompute: false,
+  };
+
+  // Create base tile
+  const tile: Tile = {
+    ...tileMeta,
+    ...tileData,
+    ...tileUI,
+    tableTile: null,
+    plotTile: null,
+    viewTile: null,
+  };
+
+  return tile;
 }
 
 /**
- * Build initial state for a table tile with table-specific data
+ * Build table tile state
  */
 export function buildTableTileState(
+  tabId: string | null = null,
+  interfaceId: string | null = null,
+  projectId: string | null = null,
   tileProps: TileProps,
   tableData: TableDataProps = {},
   limit: number = 10,
   offsets: number[],
   tileIndex: number = 0,
-) {
-  const baseTile = buildTileState(tileProps, 'Table');
+): Tile {
+  // Create the base tile
+  const tile = buildTileState(tabId, interfaceId, projectId, tileProps, "Table");
   
-  // Add table-specific data
+  // Build table tile meta
+  const tableTileMeta: TableTileMeta = {
+  };
+
+  // Build table tile data
+  const tableTileData: TableTileData = {
+    table_type: tileProps.table_type,
+    metric: tileProps.metric,
+    column_order: tileProps.column_order,
+    hidden_columns: tileProps.hidden_columns,
+    sorting: tileProps.sorting,
+    grouping: tileProps.grouping,
+    group_sorting: tileProps.group_sorting,
+    columns_pin_left: tileProps.columns_pin_left,
+    columns_pin_right: tileProps.columns_pin_right,
+    selected: tileProps.selected,
+    base_index: tileProps.base_index,
+    tableDataItem: tableData[tileProps.i],
+  };
+
+  // Build table tile UI
+  const tableTileUI: TableTileUI = {
+    limit: limit,
+    offset: offsets[tileIndex],
+    column_context: tileProps.column_context,
+    page_number: tileProps.page_number,
+  };
+
+  // Build the complete table tile
+  const tableTile: TableTile = {
+    ...tableTileMeta,
+    ...tableTileData,
+    ...tableTileUI,
+  };
+  
+  // Build the complete tile with table-specific data
   return {
-    ...baseTile,
-    tableData: {
-      // Additional fields for internal state
-      limit: limit,
-      offset: offsets[tileIndex],
-      lastUpdated: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-
-      // Table-specific fields from TileProps
-      table_type: tileProps.table_type,
-      column_context: tileProps.column_context,
-      page_number: tileProps.page_number,
-      metric: tileProps.metric,
-      column_order: tileProps.column_order,
-      hidden_columns: tileProps.hidden_columns,
-      sorting: tileProps.sorting,
-      grouping: tileProps.grouping,
-      group_sorting: tileProps.group_sorting,
-      columns_pin_left: tileProps.columns_pin_left,
-      columns_pin_right: tileProps.columns_pin_right,
-      selected: tileProps.selected,
-      base_index: tileProps.base_index,
-
-      // Table-specific fields from TableDataItem
-      tableDataItem: tableData[tileProps.i] || {},
-
-    } as TableTileData,
-  } as Tile;
+    ...tile,
+    tableTile,
+  };
 }
 
 /**
- * Build initial state for a plot tile with plot-specific data
+ * Build plot tile state
  */
 export function buildPlotTileState(
+  tabId: string | null = null,
+  interfaceId: string | null = null,
+  projectId: string | null = null,
   tileProps: TileProps,
-  plotData: PlotDataProps,
-) {
-  const baseTile = buildTileState(tileProps, 'Plot');
+  plotData: PlotDataProps = {},
+): Tile {
+  // Create the base tile
+  const tile = buildTileState(tabId, interfaceId, projectId, tileProps, "Plot");
 
-  // Add plot-specific data
+  // Build plot tile meta
+  const plotTileMeta: PlotTileMeta = {
+  };
+
+  // Build plot tile data
+  const plotTileData: PlotTileData = {
+    plot_type: tileProps.plot_type,
+    plot_scale_x: tileProps.plot_scale_x,
+    plot_scale_y: tileProps.plot_scale_y,
+    is_aggregated: tileProps.is_aggregated,
+    x_axis: tileProps.x_axis,
+    y_axis: tileProps.y_axis,
+    plot_group_by: tileProps.plot_group_by,
+    bin_count: tileProps.bin_count,
+    regression_line: tileProps.regression_line,
+    plotDataItem: plotData[tileProps.i],
+  };
+
+  // Build plot tile UI
+  const plotTileUI: PlotTileUI = {
+  };
+
+  // Build the complete plot tile
+  const plotTile: PlotTile = {
+    ...plotTileMeta,
+    ...plotTileData,
+    ...plotTileUI,
+  };
+  
+  // Return the complete tile with plot-specific data
   return {
-    ...baseTile,
-    plotData: {
-      lastUpdated: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-
-      // Plot-specific fields from TileProps
-      plot_type: tileProps.plot_type,
-      plot_scale_x: tileProps.plot_scale_x,
-      plot_scale_y: tileProps.plot_scale_y,
-      is_aggregated: tileProps.is_aggregated,
-      x_axis: tileProps.x_axis,
-      y_axis: tileProps.y_axis,
-      plot_group_by: tileProps.plot_group_by,
-      bin_count: tileProps.bin_count,
-      regression_line: tileProps.regression_line,
-
-      // Plot-specific fields from PlotDataItem
-      plotDataItem: plotData[tileProps.i] || {},
-
-    } as PlotTileData,
-  } as Tile;
+    ...tile,
+    plotTile,
+  };
 }
 
 /**
- * Build initial state for a view tile with view-specific data
+ * Build view tile state
  */
 export function buildViewTileState(
+  tabId: string | null = null,
+  interfaceId: string | null = null,
+  projectId: string | null = null,
   tileProps: TileProps,
-) {
-  const baseTile = buildTileState(tileProps, 'View');
+): Tile {
+  // Create the base tile
+  const tile = buildTileState(tabId, interfaceId, projectId, tileProps, "View");
   
-  // Add table-specific data
+  // Build view tile meta
+  const viewTileMeta: ViewTileMeta = {
+  };
+
+  // Build view tile data
+  const viewTileData: ViewTileData = {
+  };
+
+  // Build view tile UI
+  const viewTileUI: ViewTileUI = {
+  };
+
+  // Build the complete view tile
+  const viewTile: ViewTile = {
+    ...viewTileMeta,
+    ...viewTileData,
+    ...viewTileUI,
+  };
+  
+  // Return the complete tile with view-specific data
   return {
-    ...baseTile,
-    viewData: {
-      lastUpdated: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    } as ViewTileData,
-  } as Tile;
+    ...tile,
+    viewTile,
+  };
 }

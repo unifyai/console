@@ -16,10 +16,11 @@ import ProjectButtons from "./ProjectButtons";
 import EditTileName from "./EditTileName";
 import { useInterface } from '@/contexts/hooks/useInterface';
 import { useTab } from '@/contexts/hooks/useTab';
-import { Context, TabProps } from "@/types/evals/grid";
+import { Context, TabProps, TileProps } from "@/types/evals/grid";
 import { useQueryState } from "nuqs";
 import { ProjectsActions, TabActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions } from '@/types/evals/grid';
 import { ResponseProps } from '@/types/common';
+import { useProject } from '@/contexts/hooks/useProject';
 
 interface InterfaceComponentProps {
   interfaceId: string;
@@ -46,9 +47,18 @@ const Interface = ({
   const [tabQueryParam, setTabQueryParam] = useQueryState("tab", { shallow: false });
   const [projectQueryParam, setProjectQueryParam] = useQueryState("project", { shallow: false });
 
-  // Get interface and project data from hooks
-  const { actions: interfaceActions } = useInterface(interfaceId);
-  const { tab: tabData, actions: tabActions } = useTab(tabQueryParam || "", interfaceId);
+  // Get interface and project data from hooks with granular access
+  const { data: projectDataState, meta: projectMetaState } = useProject(projectQueryParam || "");
+  const { dataActions: interfaceDataActions } = useInterface(interfaceId);
+
+  const { 
+    meta: tabMetaState,
+    data: tabDataState,
+    ui: tabUIState,
+    metaActions: tabMetaActions,
+    dataActions: tabDataActions,
+    uiActions: tabUIActions,
+  } = useTab(tabQueryParam || "", interfaceId);
 
   // Local UI state - only keeping what's absolutely necessary as local state
   const [focusDialog, setFocusDialog] = useState(false);
@@ -60,30 +70,41 @@ const Interface = ({
   const gridRef = useRef<HTMLDivElement>(null);
   
   // Additional data preparation
-  const contexts: Context[] = [];
+  const contexts: Context[] = useMemo(() => projectDataState?.contexts || [], [projectDataState]);
 
   // Get tile props using the getItems function from the tabActions
   const tileProps = useMemo(() => {
-    return (!tabActions || !tabData) ? [] : tabActions.getItems();
-  }, [tabActions, tabData]);
+    return (!tabUIActions) ? [] : tabUIActions.getItems();
+  }, [tabUIActions]);
 
-  // Get tab Ids for the current interface
-  const tabIds = useMemo(() => interfaceActions?.getTabIds() || [], [interfaceActions]);
+  // Get tab names for the current interface
+  const tabNames = useMemo(() => interfaceDataActions?.getTabNames() || [], [interfaceDataActions]);
 
   // update interface – preserves context functionality
-  const updateTab = (savedTab: TabProps | null = null) => {
-    const context_1 = savedTab != null ? savedTab.context : tabData?.globalContext;
-    const items_1 = savedTab?.items ?? tileProps;
+  const updateTab = useCallback((savedTab: TabProps | null = null, updatedTileProps: TileProps[] | TileProps | null = null) => {
+    console.log("[Interface] UPDATING TAB...");
+    let currentTileProps: TileProps[] = [];
+    // If updatedTileProps is an array, we need to update all the tiles in the array
+    if (Array.isArray(updatedTileProps)) {
+      currentTileProps = updatedTileProps;
+    } else {
+      // If an updated tileProps is provided, create a new version of tileProps with the update
+      currentTileProps = updatedTileProps 
+        ? tileProps.map(tp => tp.i === updatedTileProps.i ? updatedTileProps : tp) 
+        : tileProps;
+    }
+    const context_1 = savedTab != null ? savedTab.context : tabDataState?.globalContext;
+    const items_1 = savedTab?.items ?? currentTileProps;
     const newCounter_1 = savedTab?.new_counter ?? newCounter;
 
     if (
         tabQueryParam &&
         projectQueryParam &&
-        tabQueryParam === tabData?.id &&
-        projectQueryParam === "Plots" &&
-        !tabData?.pending
+        tabQueryParam === tabMetaState?.name &&
+        projectQueryParam === projectMetaState?.name &&
+        !tabUIState?.pending
     ) {
-        if (tabData?.tempTabCreated) {
+        if (tabMetaState?.tempTabCreated) {
             return serverTabActions.update(
                 tabQueryParam,
                 projectQueryParam as string,
@@ -105,18 +126,28 @@ const Interface = ({
         }
     }
     return Promise.reject(Error("updateTab conditions not met"));
-  };
+  }, [
+    tabQueryParam, 
+    projectQueryParam, 
+    tabDataState?.globalContext, 
+    tabMetaState?.tempTabCreated, 
+    tabUIState?.pending, 
+    serverTabActions,
+    tileProps,
+    newCounter,
+  ]);
 
   // Function to get the latest tab from the server and sync state
   const getLatestTab = useCallback(() => {
+    console.log("[Interface] GETTING LATEST TAB...");
     if (!projectQueryParam || !tabQueryParam) return;
 
     serverTabActions?.get(projectQueryParam, true).then((tabProps: TabProps[]) => {
       const currentTab = tabProps.find(t => t.name == tabQueryParam);
 
-      if (currentTab && tabActions) {
+      if (currentTab && tabUIActions && tabDataActions && tabMetaActions && interfaceDataActions) {
         // Update the tab's global context
-        tabActions.setGlobalContext(currentTab.context);
+        tabDataActions.setGlobalContext(currentTab.context);
 
         // Update items (tiles) with correct context
         const updatedItems = currentTab.items.map(item => ({
@@ -127,22 +158,22 @@ const Interface = ({
         }));
 
         // For each item in the current tab, update the tile in the store
-        tabActions.setItems(updatedItems);
+        tabUIActions.setItems(updatedItems);
 
         setNewCounter(currentTab.new_counter || 0);
-        tabActions.setTempTabCreated(Boolean(currentTab));
-        tabActions.setPending(false);
-        interfaceActions?.setTabIds(tabProps.map(tab => tab.name).sort());
+        tabMetaActions.setTempTabCreated(Boolean(currentTab));
+        tabUIActions.setPending(false);
+        interfaceDataActions?.setTabNames(tabProps.map(tab => tab.name).sort());
       }
     });
-  }, [projectQueryParam, tabQueryParam, tabActions, interfaceActions, contexts]);
+  }, [projectQueryParam, tabQueryParam, tabUIActions, tabDataActions, tabMetaActions, interfaceDataActions, contexts]);
 
   // Set active tab handler
   const handleTabChange = (value: string | undefined) => {
-    if (tabData && !tabData.deleting) {
-      if (tabActions) {
-        tabActions.setPending(true);
-        tabActions.setDataPending(true);
+    if (tabUIState && !tabUIState?.deleting) {
+      if (tabUIActions) {
+        tabUIActions.setPending(true);
+        tabUIActions.setDataPending(true);
       }
       // Update URL query param
       setTabQueryParam(value || null);
@@ -158,7 +189,7 @@ const Interface = ({
   }, [newCounter]);
 
   return (
-    <div className="w-full h-full overflow-auto relative" ref={gridRef}>
+    <div className="w-full h-full overflow-auto relative bg-background" ref={gridRef}>
       <Tabs
         value={tabQueryParam || undefined}
         onValueChange={handleTabChange}
@@ -203,8 +234,8 @@ const Interface = ({
           />
         </div>
 
-        {tabIds.length === 0 ? (
-          projectQueryParam && tabData?.pending ? (
+        {tabNames.length === 0 ? (
+          projectQueryParam && tabUIState?.pending ? (
             <div className="flex justify-center">
               <Loader2 className="animate-spin my-36" />
             </div>
@@ -219,17 +250,17 @@ const Interface = ({
             />
           ) : null
         ) : (
-          tabIds.map((tabId: string, idx: number) => (
+          tabNames.map((tabName: string, idx: number) => (
             <TabsContent
               key={idx}
-              value={tabId}
+              value={tabName}
               className="tutorial-selection-pane relative"
             >
-              {tabData?.pending ? (
+              {tabUIState?.pending ? (
                 <div className="flex justify-center">
                   <Loader2 className="animate-spin my-36" />
                 </div>
-              ) : tabQueryParam != tabId ? (
+              ) : tabQueryParam != tabName ? (
                 <div key={idx} className="flex text-center justify-center">
                   <Loader2 className="animate-spin my-36" />
                 </div>
@@ -279,7 +310,7 @@ const Interface = ({
       {/*  */}
 
       {/* Edit Tile Name Dialog */}
-      {tabData?.edit && editTile && (
+      {tabUIState?.edit && editTile && (
         <EditTileName
           tabId={tabQueryParam || ""}
           editTile={editTile}
@@ -300,13 +331,13 @@ const Interface = ({
                 <ActionButton
                   className="w-fit remove cursor-pointer mr-0 justify-self-end"
                   onClick={async () => {
-                    if (tabData?.saveSuccess == undefined) {
+                    if (tabUIState?.saveSuccess == undefined) {
                         let response: ResponseProps | undefined = undefined;
-                        if (tabData?.tabCreated) {
+                        if (tabMetaState?.tabCreated) {
                             response = await serverTabActions.update(
                                 tabQueryParam as string,
                                 projectQueryParam as string,
-                                tabData?.globalContext,
+                                tabDataState?.globalContext,
                                 tileProps,
                                 newCounter,
                                 undefined,
@@ -316,16 +347,16 @@ const Interface = ({
                             response = await serverTabActions.create(
                                 tabQueryParam as string,
                                 projectQueryParam as string,
-                                tabData?.globalContext,
+                                tabDataState?.globalContext,
                                 tileProps,
                                 newCounter,
                                 false
                             );
                         }
                         if (response && "info" in response) {
-                            tabActions?.setSaveSuccess(true);
+                            tabUIActions?.setSaveSuccess(true);
                         } else {
-                            tabActions?.setSaveSuccess(false);
+                            tabUIActions?.setSaveSuccess(false);
                         }
                         setSaveDialog(false);
                         router.refresh();

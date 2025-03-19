@@ -1,43 +1,47 @@
-// View type
-export type ViewType = 'html' | 'markdown' | 'code' | 'iframe' | 'image' | 'pdf';
+// ( IMPORTANT )
+// NOTE: When adding new properties, make sure to update the VIEW_TILE_KEYS array in this file.
+// Look at the tableTile and plotTile files for examples.
 
-// View tile data
+// View tile data - combined data structure with all properties
+export interface ViewTileMeta {
+  // Meta properties
+}
+
+// View tile data - business data 
 export interface ViewTileData {
-  lastUpdated: string | null;
-  createdAt: string;
-  updatedAt: string;
-
-  // ( IMPORTANT )
-  // NOTE: When adding new properties, make sure to update the VIEW_TILE_KEYS array in the useTile hook.
-  // Look at the tableTile and plotTile files for examples.
 }
 
+// View tile UI - UI-related state
+export interface ViewTileUI {
+}
+
+// Combined View tile type
+export type ViewTile = ViewTileMeta & ViewTileData & ViewTileUI;
+
+// viewTileKeys: all fields for ViewTile
+export const VIEW_TILE_KEYS: (keyof ViewTile)[] = [];
+
+
 /**
- * Initialize a new view tile in the nested state
+ * Initialize a new view tile
  */
-export function initViewTileData(
-  initialState: Partial<ViewTileData> = {}
-): ViewTileData {
-  // Create default state for the view tile
+export function initViewTile(
+  initialState: Partial<ViewTile> = {}
+): ViewTile {
   return {
-    lastUpdated: initialState.lastUpdated || null,
-    createdAt: initialState.createdAt || new Date().toISOString(),
-    updatedAt: initialState.updatedAt || new Date().toISOString(),
     ...initialState,
-  } as ViewTileData;
+  } as ViewTile;
 }
 
 /**
- * Update a view tile in the nested state
+ * Update a view tile
  */
-export function updateViewTileData(
-  viewTile: ViewTileData,
-  updates: Partial<ViewTileData>
-): ViewTileData {
+export function updateViewTile(
+  viewTile: ViewTile,
+  updates: Partial<ViewTile>
+): ViewTile {
   return {
     ...viewTile,
     ...updates,
-    updatedAt: new Date().toISOString(),
-    lastUpdated: new Date().toISOString()
   };
 }

@@ -23,6 +23,8 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     contextActions: ContextActions,
     tabActions: TabActions
 }) => {
+
+    console.log("[Main] SERVER SIDE REFRESH...");
     // const cookies_ = cookies();
     const cookiesProject = undefined; //cookies_.get("project")?.value;
     const cookiesTab = undefined; //cookies_.get("tab")?.value;
@@ -377,18 +379,18 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
 
     // TODO: In future versions, we'll support multiple interfaces per project
     // For now, hardcode a default interface ID
-    const currentProjectId = currentProject || null;
     const currentProjectName = currentProject || null;
-    const currentInterfaceId = "default-interface";
-    const currentTabId = tab_1 || null;
+    const currentInterfaceName = "interface";
+    const currentTabName = tab_1 || null;
 
     // Construct the initial state
     const tabsData: TabsDataProps = {}
 
     // Add current tab
-    if (currentTabId) {
+    if (currentTabName) {
+        const currentTabId = `${currentProjectName}>${currentInterfaceName}>${currentTabName}`;
         tabsData[currentTabId] = {
-            name: currentTabId,
+            name: currentTabName,
             project: currentProject,
             globalContext: currentTab?.context,
             items: currentTab?.items || [],
@@ -402,10 +404,11 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
         } as TabsDataProps[keyof TabsDataProps]
 
         // Add other tabs
-        Object.entries(tabsTemp).forEach(([id, data]) => {
-            if (id !== currentTabId) {
-                tabsData[id] = {
-                    name: id,
+        Object.entries(tabsTemp).forEach(([name, data]) => {
+            if (name !== currentTabName) {
+                const tabId = `${currentProjectName}>${currentInterfaceName}>${name}`;
+                tabsData[tabId] = {
+                    name: name,
                     project: data.project,
                     globalContext: data.context,
                     items: data.items,
@@ -415,17 +418,19 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                     viewTiles: [],
                     tabCreated: true,
                     tempTabCreated: true,
-                    savedTab: tabs[id],
+                    savedTab: tabs[name],
                 } as TabsDataProps[keyof TabsDataProps];
             }
         })
     }
 
+    console.log("[Main] REBUILDING INITIAL STATE...");
+
+    // Now build the initial state
     const initialState: Partial<IStoreState> = buildInitialState(
-        currentProjectId,
+        currentTabName,
+        currentInterfaceName,
         currentProjectName,
-        currentInterfaceId,
-        currentTabId,
         projects,
         contexts,
         tabs,
@@ -442,7 +447,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
             <StoreUpdater initialState={initialState} />
             <div className="w-full h-full bg-white">
                 <Interface
-                    interfaceId={currentInterfaceId}
+                    interfaceId={currentInterfaceName}
                     tabActions={tabActions}
                     projectsActions={projectsActions}
                     logsActions={logsActions}

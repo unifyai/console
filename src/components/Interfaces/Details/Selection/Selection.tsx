@@ -282,12 +282,12 @@ export default function Selection({
   /******************************************************************************
    * Prepare sorted logs & selection data
    ******************************************************************************/
-  const { tile: tileDataWithId, actions: tileActionsWithId } = useTile(tileId, tabId, interfaceId, projectId);
+  const { meta: tileMetaStateWithId, actions: tileActionsWithId } = useTile(tileId, tabId, interfaceId, projectId);
 
   const item = useMemo(() => tileActionsWithId?.asTileItem(), [tileActionsWithId]);
 
   // Get the table tile this selection references
-  const { tile: tileDataWithTable, actions: tileActionsWithTable } = useTile(
+  const { tile: tileStateWithTable, actions: tileActionsWithTable } = useTile(
     item?.table || "", 
     tabId, 
     interfaceId, 
@@ -298,17 +298,17 @@ export default function Selection({
   const tableItem = useMemo(() => tileActionsWithTable?.asTileItem() || 
     { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileActionsWithTable, item?.table]);
   const relevantItem = useMemo(() => tileActionsWithTable?.asTileItem() || undefined, [tileActionsWithTable]);
-  const tableDataItem = useMemo(() => tileDataWithTable?.tableData?.tableDataItem || {} as TableDataItem, [tileDataWithTable]);
+  const tableDataItem = useMemo(() => tileStateWithTable?.tableTile?.tableDataItem || {} as TableDataItem, [tileStateWithTable]);
 
   // Create a generic updateItem function that checks property existence
   const updateItem = useCallback((item: TileProps, propName: string) => (value: any) => {
-    if (tileActionsWithId && item.i == tileDataWithId?.id) {
+    if (tileActionsWithId && item.i == tileMetaStateWithId?.name) {
       tileActionsWithId.updateTile({ [propName]: value });
     }
-    else if (tileActionsWithTable && item.table == tileDataWithTable?.id) {
+    else if (tileActionsWithTable && item.table == tileStateWithTable?.name) {
       tileActionsWithTable.updateTile({ [propName]: value });
     }
-  }, [tileActionsWithId, tileActionsWithTable, tileDataWithId, tileDataWithTable]);
+  }, [tileActionsWithId, tileActionsWithTable, tileMetaStateWithId, tileStateWithTable]);
 
   const params = useMemo(() => tableDataItem?.params || {}, [tableDataItem, item?.table]);
   const logs = useMemo(() => maybeFlattenGroupedLogs(tableDataItem?.logs || []), [tableDataItem, item?.table]);

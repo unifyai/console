@@ -1,19 +1,61 @@
 import { useMemo } from 'react';
 import { useStoreContext } from '../providers/StoreProvider';
-import { Interface } from '../slices/selectors/interface';
+import { Interface, InterfaceMeta, InterfaceData, InterfaceUI } from '../slices/selectors/interface';
 import { Tab } from '../slices/selectors/tab';
 import { useShallow } from 'zustand/react/shallow';
+import { TableArguments } from '@/types/evals/logs';
 
 // Define stable fallback references
+const EMPTY_TAB_NAMES: string[] = [];
 const EMPTY_TAB_IDS: string[] = [];
+const EMPTY_TABLE_ARGUMENTS = {};
 const DEFAULT_USE_INTERFACE_RETURN = {
   interface: null,
+  meta: null,
+  data: null,
+  ui: null,
+  metaActions: null,
+  dataActions: null,
+  uiActions: null,
   actions: null,
   exists: false
 };
 
 /**
- * Interface for interface-related actions
+ * Interface for interface-related meta actions
+ */
+export interface InterfaceMetaActions {
+  setName: (name: string) => void;
+}
+
+/**
+ * Interface for interface-related data actions
+ */
+export interface InterfaceDataActions {
+  // Interface management
+
+  // Tab management
+  addTab: (tabName: string, newName: string, initialState?: Partial<Tab>) => void;
+  removeTab: (tabName: string) => void;
+  renameTab: (tabName: string, newName: string) => void;
+  getTabNames: () => string[];
+  setTabNames: (tabNames: string[]) => void;
+  getTabIds: () => string[];
+  setTabIds: (tabIds: string[]) => void;
+
+  // Table arguments
+  setTableArguments: (tableArguments: TableArguments) => void;
+}
+
+/**
+ * Interface for interface-related UI actions
+ */
+export interface InterfaceUIActions {
+  setActiveTabId: (tabName: string | null) => void;
+}
+
+/**
+ * Interface for all interface-related actions
  */
 export interface InterfaceActions {
   // Basic interface management
@@ -21,132 +63,311 @@ export interface InterfaceActions {
   updateInterface: (updates: Partial<Interface>) => void;
   removeInterface: () => void;
   
-  // Property setters
-  setName: (name: string) => void;
-  
-  // Tab management
-  setTabIds: (tabs: string[]) => void;
-  
-  // Helper methods
-  getTabIds: () => string[];
+  // Categorized actions
+  meta: InterfaceMetaActions;
+  data: InterfaceDataActions;
+  ui: InterfaceUIActions;
 }
 
 /**
  * Custom hook to access interface state and actions
- * @param interfaceId The ID of the interface to access
- * @param projectId Optional project ID (if not provided, active project will be used)
+ * @param interfaceName The name of the interface to access
+ * @param projectName Optional project name (if not provided, active project will be used)
  * @returns Object containing interface state, actions, and existence flag
  */
-export function useInterface(interfaceId: string | null, projectId?: string | null) {
+export function useInterface(interfaceName: string | null, projectName?: string | null) {
   // Call all hooks unconditionally at the top level
-  
+
   // Get active project ID if not provided
   const activeProjectId = useStoreContext(state => 
-    projectId !== undefined ? projectId : state.activeProjectId
+    projectName ? projectName : state.activeProjectId
   );
 
-  // Instead of subscribing to the entire interface object,
-  // we subscribe to individual properties. This way, changes in
-  // unrelated fields won't cause a new reference for everything.
+  // Construct hierarchical ID if needed
+  const interfaceId = useMemo(() => {
+    if (!interfaceName) return null;
+    
+    // Check if the interfaceId already has the hierarchical format
+    if (interfaceName.includes('>')) {
+      return interfaceName;
+    }
+    
+    // Otherwise, construct it
+    return activeProjectId ? `${activeProjectId}>${interfaceName}` : interfaceName;
+  }, [interfaceName, activeProjectId]);
 
-  // We first check if project or interface exist. If not, all below are null/undefined.
-  const hasInterface = useStoreContext(state => {
+  // Check if the interface exists
+  const interfaceExists = useStoreContext(state => {
     if (!interfaceId || !activeProjectId) return false;
-    const proj = state.projectsById[activeProjectId];
-    return !!(proj && proj.interfaces && proj.interfaces[interfaceId]);
+    return !!state.interfacesById[interfaceId];
   });
 
+  // Granular subscriptions to Meta properties
+  const id = interfaceId;
+  
   const name = useStoreContext(state => {
-    if (!hasInterface || !activeProjectId || !interfaceId) return null;
-    return state.projectsById[activeProjectId].interfaces[interfaceId].name;
+    if (!interfaceExists || !interfaceId) return null;
+    return state.interfacesById[interfaceId].name;
   });
+
+  // Granular subscriptions to Data properties
+  const tabNames = useStoreContext(state => {
+    if (!interfaceExists || !interfaceId) return EMPTY_TAB_NAMES;
+    return state.interfacesById[interfaceId].tabNames;
+  });
+
+  const tabIds = useStoreContext(
+    useShallow(state => {
+      if (!interfaceExists || !interfaceId) return EMPTY_TAB_IDS;
+      return state.interfacesById[interfaceId].tabIds;
+    })
+  );
+  
+  const tableArguments = useStoreContext(
+    useShallow(state => {
+      if (!interfaceExists || !interfaceId) return EMPTY_TABLE_ARGUMENTS;
+      return state.interfacesById[interfaceId].tableArguments || EMPTY_TABLE_ARGUMENTS;
+    })
+  );
+
+  // Granular subscriptions to UI properties
+  const projectIdFromState = useStoreContext(state => {
+    if (!interfaceExists || !interfaceId) return null;
+    return state.interfacesById[interfaceId].projectId;
+  });
+  
   const activeTabId = useStoreContext(state => {
-    if (!hasInterface || !activeProjectId || !interfaceId) return null;
-    return state.projectsById[activeProjectId].interfaces[interfaceId].activeTabId || null;
+    if (!interfaceExists || !interfaceId) return null;
+    return state.interfacesById[interfaceId].activeTabId;
   });
-  const tabIds = useStoreContext(state => {
-    if (!hasInterface || !activeProjectId || !interfaceId) return EMPTY_TAB_IDS;
-    return state.projectsById[activeProjectId].interfaces[interfaceId].tabIds;
-  });
-  const tabs = useStoreContext((
-    useShallow((state) => {
-    if (!hasInterface || !activeProjectId || !interfaceId) return null;
-    return state.projectsById[activeProjectId].interfaces[interfaceId].tabs || null;
-  })));
-  const tableArguments = useStoreContext((
-    useShallow((state) => {
-    if (!hasInterface || !activeProjectId || !interfaceId) return null;
-    return state.projectsById[activeProjectId].interfaces[interfaceId].tableArguments || null;
-  })));
 
   // Get store actions
   const storeInitInterface = useStoreContext(state => state.initInterface);
   const storeUpdateInterface = useStoreContext(state => state.updateInterface);
   const storeRemoveInterface = useStoreContext(state => state.removeInterface);
   const storeInitTab = useStoreContext(state => state.initTab);
+  const storeAddTab = useStoreContext(state => state.addTab);
   const storeRemoveTab = useStoreContext(state => state.removeTab);
-  const storeUpdateTab = useStoreContext(state => state.updateTab);
+  const storeRenameTab = useStoreContext(state => state.renameTab);
+  const storeRenameTile = useStoreContext(state => state.renameTile);
   const storeSetActiveTab = useStoreContext(state => state.setActiveTab);
 
-  // Memoize all actions to prevent unnecessary re-renders
-  const actions = useMemo<InterfaceActions>(() => ({
-    // Basic interface management
-    initInterface: (initialState) => {
-      if (activeProjectId && interfaceId) {
-        storeInitInterface(activeProjectId, interfaceId, initialState);
-      }
-    },
+  // Memoize the metadata object to prevent unnecessary rerenders
+  const meta = useMemo<Partial<InterfaceMeta> | null>(() => {
+    if (!interfaceExists) return null;
     
-    updateInterface: (updates) => {
-      if (activeProjectId && interfaceId) {
-        storeUpdateInterface(activeProjectId, interfaceId, updates);
-      }
-    },
+    return {
+      id: id!,
+      name: name!,
+      tabNames: tabNames
+    };
+  }, [interfaceExists, id, name, tabNames]);
+  
+  // Memoize the data object to prevent unnecessary rerenders
+  const data = useMemo<Partial<InterfaceData> | null>(() => {
+    if (!interfaceExists) return null;
     
-    removeInterface: () => {
-      if (activeProjectId && interfaceId) {
-        storeRemoveInterface(activeProjectId, interfaceId);
-      }
-    },
+    return {
+      tabNames: tabNames,
+      tabIds,
+      tableArguments
+    };
+  }, [interfaceExists, tabIds, tableArguments, tabNames]);
+  
+  // Memoize the UI state object to prevent unnecessary rerenders
+  const ui = useMemo<Partial<InterfaceUI> | null>(() => {
+    if (!interfaceExists) return null;
     
-    // Property setters
+    return {
+      projectId: projectIdFromState,
+      activeTabId
+    };
+  }, [interfaceExists, projectIdFromState, activeTabId]);
+
+  // Memoize the meta actions to prevent unnecessary re-renders
+  const metaActions = useMemo<InterfaceMetaActions>(() => ({
     setName: (name) => {
       if (activeProjectId && interfaceId) {
-        storeUpdateInterface(activeProjectId, interfaceId, { name });
+        storeUpdateInterface(interfaceId, { name });
       }
-    },
+    }
+  }), [activeProjectId, interfaceId, storeUpdateInterface]);
 
-    // New method to set tabs
-    setTabIds: (tabIds: string[]) => {
+  // Memoize the data actions to prevent unnecessary re-renders
+  const dataActions = useMemo<InterfaceDataActions>(() => ({
+
+    addTab: (tabName, newName, initialState = {}) => {
       if (activeProjectId && interfaceId) {
-        storeUpdateInterface(activeProjectId, interfaceId, { tabIds });
+        // Check if the tabIds are already hierarchical
+        const sourceTabId = tabName.includes('>')
+          ? tabName
+          : `${interfaceId}>${tabName}`;
+        
+        const newTabId = newName.includes('>')
+          ? newName
+          : `${interfaceId}>${newName}`;
+
+        // Add the new tab to the interface
+        storeAddTab(
+          interfaceId,
+          sourceTabId,
+          newTabId,
+          {
+            id: newTabId,
+            name: newName,
+            projectId: activeProjectId,
+            interfaceId: interfaceId,
+            ...initialState
+          }
+        );
       }
     },
 
-    // Helper methods
+    removeTab: (tabName) => {
+      if (activeProjectId && interfaceId) {
+        // Check if the tab ID is already hierarchical
+        const hierarchicalTabId = tabName.includes('>')
+          ? tabName
+          : `${interfaceId}>${tabName}`;
+        
+        // Remove the tab
+        storeRemoveTab(interfaceId, hierarchicalTabId);
+      }
+    },
+
+    renameTab: (tabName, newName) => {
+      if (activeProjectId && interfaceId) {
+        // Check if the tabIds are already hierarchical
+        const sourceTabId = tabName.includes('>')
+          ? tabName
+          : `${interfaceId}>${tabName}`;
+        
+        const newTabId = newName.includes('>')
+          ? newName
+          : `${interfaceId}>${newName}`;
+
+        // Rename the tab to the interface
+        storeRenameTab(
+          interfaceId,
+          sourceTabId,
+          newTabId,
+          {
+            id: newTabId,
+            name: newName,
+            projectId: activeProjectId,
+            interfaceId: interfaceId,
+          }
+        );
+      }
+    },
+
+    getTabNames: () => tabNames,
+
+    setTabNames: (tabNames) => {
+      if (activeProjectId && interfaceId) {
+        storeUpdateInterface(interfaceId, { tabNames: tabNames });
+      }
+    },
+
     getTabIds: () => tabIds,
 
+    setTabIds: (tabIds) => {
+      if (activeProjectId && interfaceId) {
+        storeUpdateInterface(interfaceId, { tabIds: tabIds });
+      }
+    },
+    
+    setTableArguments: (tableArguments) => {
+      if (activeProjectId && interfaceId) {
+        storeUpdateInterface(interfaceId, { tableArguments });
+      }
+    }
   }), [
-    interfaceId,
-    activeProjectId,
-    activeTabId,
+    activeProjectId, 
+    interfaceId, 
     tabIds,
-    tableArguments,
-    storeInitInterface, 
-    storeUpdateInterface, 
-    storeRemoveInterface,
     storeInitTab,
-    storeRemoveTab,
-    storeUpdateTab,
-    storeSetActiveTab,
+    storeAddTab,
+    storeRemoveTab, 
+    storeRenameTab,
+    storeRenameTile,
+    storeUpdateInterface,
+  ]);
+
+  // Memoize the UI actions to prevent unnecessary re-renders
+  const uiActions = useMemo<InterfaceUIActions>(() => ({
+    setActiveTabId: (tabName) => {
+      if (activeProjectId && interfaceId) {
+        // Check if the tab ID is already hierarchical
+        const hierarchicalTabId = tabName && !tabName.includes('>')
+          ? `${interfaceId}>${tabName}`
+          : tabName;
+        
+        // Set the active tab at the global level
+        if (hierarchicalTabId) {
+          storeSetActiveTab(interfaceId, hierarchicalTabId);
+        }
+        
+        // Update the interface's active tab
+        storeUpdateInterface(interfaceId, { activeTabId: hierarchicalTabId });
+      }
+    }
+  }), [
+    activeProjectId, 
+    interfaceId, 
+    storeSetActiveTab, 
+    storeUpdateInterface
   ]);
   
-  // We build a final 'interface' object from the narrower fields
-  // so the calling component has a shape similar to before, if needed.
-  const finalInterface = useMemo(() => {
-    if (!hasInterface) return null;
-    return { name, activeTabId, tabIds, tabs, tableArguments } as Interface;
-  }, [hasInterface, name, activeTabId, tabIds,  tabs, tableArguments]);
+  // Memoize all actions to prevent unnecessary re-renders
+  const actions = useMemo<InterfaceActions>(() => {
+    return {
+      // Basic interface management
+      initInterface: (initialState) => {
+        if (activeProjectId && interfaceId) {
+          storeInitInterface(activeProjectId, interfaceId, initialState);
+        }
+      },
+      
+      updateInterface: (updates) => {
+        if (activeProjectId && interfaceId) {
+          storeUpdateInterface(interfaceId, updates);
+        }
+      },
+      
+      removeInterface: () => {
+        if (activeProjectId && interfaceId) {
+          storeRemoveInterface(activeProjectId, interfaceId);
+        }
+      },
+      
+      // Categorized actions
+      meta: metaActions,
+      data: dataActions,
+      ui: uiActions,
+    };
+  }, [
+    activeProjectId,
+    interfaceId,
+    tabIds,
+    storeInitInterface,
+    storeUpdateInterface,
+    storeRemoveInterface,
+    metaActions,
+    dataActions,
+    uiActions
+  ]);
+  
+  // Build a final 'interface' object from the separate meta, data, and UI objects
+  const interfaceObj = useMemo<Partial<Interface> | null>(() => {
+    if (!meta || !data || !ui) return null;
+    
+    return {
+      ...meta,
+      ...data,
+      ...ui
+    };
+  }, [meta, data, ui]);
 
   // Use interfaceId to conditionally return values, but only after all hooks are called
   if (interfaceId === null) {
@@ -154,8 +375,14 @@ export function useInterface(interfaceId: string | null, projectId?: string | nu
   }
 
   return {
-    interface: finalInterface,
+    interface: interfaceObj,
+    meta,
+    data,
+    ui,
+    metaActions,
+    dataActions,
+    uiActions,
     actions,
-    exists: hasInterface,
+    exists: interfaceExists
   };
 }

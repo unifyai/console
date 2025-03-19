@@ -5,16 +5,12 @@ import LogsTable from "@/components/Interfaces/Table/Table";
 import LogsPlot from "@/components/Interfaces/Details/Plot/Plot";
 import Selection from "@/components/Interfaces/Details/Selection/Selection";
 import { ResponseProps } from "@/types/common";
-import { LogsActions, FieldsActions, DerivedEntryActions, TileProps, ContextActions } from "@/types/evals/grid";
+import { LogsActions, FieldsActions, DerivedEntryActions, TileProps, ContextActions, TabProps } from "@/types/evals/grid";
 
 // Import the new hooks
 import { useTile } from '@/contexts/hooks/useTile';
-import { useTableTile } from '@/contexts/hooks/useTableTile';
-import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { ExpandProvider } from "@/contexts/ExpandContext";
-import { useTab } from "@/contexts/hooks/useTab";
 import { useEffect, useMemo, useState } from "react";
-import { useInterface } from "@/contexts/hooks/useInterface";
 import { useRouter } from "next/navigation";
 
 // Define component props 
@@ -23,7 +19,7 @@ interface TileComponentProps {
     tabId: string;
     interfaceId: string;
     projectId: string;
-    updateTab: (savedTab?: any) => Promise<ResponseProps>;
+    updateTab: (savedTab?: TabProps | null, updatedTileProps?: TileProps[] | TileProps | null) => Promise<ResponseProps>;
     logsActions: LogsActions;
     fieldsActions: FieldsActions;
     derivedEntryActions: DerivedEntryActions;
@@ -45,31 +41,26 @@ const Tile = ({
     const router = useRouter();
     const [initial, setInitial] = useState(true);
     
-    // Get tile data and actions from hooks
-    const { interface: interfaceData } = useInterface(interfaceId);
-    const { tab: tabData } = useTab(tabId, interfaceId);
-    const { tile: tileData, actions: tileActions } = useTile(tileId, tabId, interfaceId);
-    const { tableTile: tableData } = useTableTile(tileId, tabId, interfaceId);
-    
-    // Get the active project to access contexts
-    const activeProjectId = useStoreContext((s) => s.activeProjectId);
-    const projectData = useStoreContext(
-        state => activeProjectId ? state.projectsById[activeProjectId] : null
-    );
+    // Get tile data and actions from hooks with granular access
+    const { 
+        meta: tileMetaState,
+        actions: tileActions,
+        uiActions: tileUIActions
+    } = useTile(tileId, tabId, interfaceId);
 
     // Get the item props for grid layout (position, etc)
     const tileItem: TileProps = useMemo(() => tileActions?.asTileItem() || {
         i: tileId,
-        x: tileData?.position?.x || 0,
-        y: tileData?.position?.y || 0,
-        w: tileData?.position?.width || 4,
-        h: tileData?.position?.height || 4,
-    }, [tileActions, tileData]);
+        x: tileMetaState?.position?.x || 0,
+        y: tileMetaState?.position?.y || 0,
+        w: tileMetaState?.position?.width || 4,
+        h: tileMetaState?.position?.height || 4,
+    }, [tileActions, tileMetaState]);
 
     // Use a ref to compare the needed properties so we only update if something truly changed.
     useEffect(() => {
         if (tileItem.tab != "View" && !initial) {
-            updateTab().then(() => {
+            updateTab(null, tileItem).then(() => {
                 router.refresh();
             }).catch(error => {
                 console.error('Error updating interface:', error);
@@ -97,7 +88,7 @@ const Tile = ({
 
     useEffect(() => {
         if (tileItem.tab != "View" && !initial)
-            tileActions?.setPending(true);
+            tileUIActions?.setPending(true);
     }, [tileItem.tab, tileItem.table_type, tileItem.context, tileItem.column_context]);
 
     useEffect(() => {
@@ -106,7 +97,7 @@ const Tile = ({
 
     // Render based on tile type
     const renderContent = () => {
-        switch (tileData?.type) {
+        switch (tileMetaState?.type) {
             case 'Table':
                 return (
                     <LogsTable 

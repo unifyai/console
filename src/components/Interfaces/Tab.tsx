@@ -14,6 +14,7 @@ import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActi
 import ContextSelector from "./Table/Content/ContextSelector";
 import TileCard from "./TileCard";
 import TutorialButton from "./TutorialButton";
+import { useStore } from "@/contexts/hooks/useStore";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -24,7 +25,7 @@ interface TabComponentProps {
   setNewCounter: (newCounter: number) => void;
   setFocusDialog: (focusDialog: boolean) => void;
   setEditTile: (editTile: string | undefined) => void;
-  updateTab: (savedTab?: any) => Promise<ResponseProps>;
+  updateTab: (savedTab?: any, updatedItem?: any) => Promise<ResponseProps>;
   getLatestTab: () => void;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
@@ -47,7 +48,12 @@ const Tab = ({
   contextActions,
 }: TabComponentProps) => {
   // Use hooks to get tab and interface data and actions
-  const { tab: tabData, actions: tabActions } = useTab(tabId, interfaceId);
+  const { 
+    data: tabDataState,
+    ui: tabUIState,
+    dataActions: tabDataActions,
+    uiActions: tabUIActions,
+  } = useTab(tabId, interfaceId);
 
   // Get project id and contexts from store
   const projectData = useStoreContext(state => 
@@ -55,14 +61,17 @@ const Tab = ({
   );
   const contexts = projectData?.contexts || [];
 
-  // Derive tiles from tab data
-  const tiles = tabData ? Object.values(tabData.tiles || {}) : [];
-
-  // Get tile props using the getItems function from the tabActions
-  const tileProps = useMemo(() => {
-    return (!tabActions || !tabData) ? [] : tabActions.getItems();
-  }, [tabActions, tabData]);
+  // Get tileIds from tab data properly
+  const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
   
+  // Only subscribe to a subset of the tiles objects to incl. name, type and tableTile only
+  const tiles = useStore().getTiles(tileIds, ["name", "type", "tableTile.tableDataItem"]);
+
+  // Get tile props using the getItems function from the tab UI actions
+  const tileProps = useMemo(() => {
+    return (!tabUIActions) ? [] : tabUIActions.getItems();
+  }, [tabUIActions]);
+
   // Add a ref to track initial mount
   const isInitialMount = useRef(true);
 
@@ -92,70 +101,70 @@ const Tab = ({
   useEffect(() => {
     (() => {
       try {
-        updateTab();
+        updateTab(null, tileProps);
       } catch (err) {
         console.error("updateTab failed:", err);
       }
     })();
-  }, [tileProps, tabData?.globalContext]);
+  }, [tileProps, tabDataState?.globalContext]);
 
   const tileTableDataItems = useMemo(() => 
-    tiles.map(tile => tile.tableData?.tableDataItem),
+    tiles.map(tile => tile?.tableTile?.tableDataItem),
     [tiles]
   );
 
   // Trigger update when table data changes (server reloaded)
   useEffect(() => {
-    if (!tabData || !tabActions) return;
+    if (!tabDataState || !tabUIActions || !tabDataActions) return;
 
     // Use setTimeout to delay execution
     setTimeout(() => {
       // Reset loading states
-      if (tabData.dataPending === true) {
-        tabActions.setDataPending(false);
+      if (tabUIState?.dataPending === true) {
+        tabUIActions.setDataPending(false);
       }
-      if (tabData.refreshing === true) {
-        tabActions.setRefreshing(false);
+      if (tabUIState?.refreshing === true) {
+        tabUIActions.setRefreshing(false);
       }
 
       // Reset pending state for all tiles
       tiles.forEach(tile => {
-        if (typeof tile === 'object' && tile !== null && 'id' in tile) {
-          tabActions.updateTile(tile.id, { pending: false });
+        if (typeof tile === 'object' && tile !== null && 'name' in tile) {
+          tabDataActions.updateTile(tile.name || "", { pending: false });
         }
       });
 
       // If tab is pending or resetting, get latest data
-      if ((tabData.pending || tabData.resetting) && projectId && tabId) {
+      if ((tabUIState?.pending || tabUIState?.resetting) && projectId && tabId) {
         getLatestTab();
       }
 
       // Reset resetting state
-      tabActions.setResetting(false);
+      tabUIActions.setResetting(false);
     }, 1500);
   }, [tileTableDataItems]);
 
   // End success green after 3 seconds
   useEffect(() => { 
-    const timer = setTimeout(() => tabActions?.setSaveSuccess(undefined), 3000);
+    const timer = setTimeout(() => tabUIActions?.setSaveSuccess(undefined), 3000);
     return () => clearTimeout(timer);
-  }, [tabData?.saveSuccess, tabActions]);
+  }, [tabUIState?.saveSuccess, tabUIActions]);
 
   // Handle layout changes
   const onLayoutChange = (newLayout: any) => {
-    if (!tabData?.pending && tabActions) {
+    if (!tabUIState?.pending && tabUIActions) {
       const updatedItems = newLayout.map((item: any) => {
         const originalItem = tileProps.find(i => i.i === item.i);
         return { ...originalItem, ...item };
       });
-      tabActions.setItems([...updatedItems]);
+      tabUIActions.setItems([...updatedItems]);
     } else {
-      tabActions?.setPending(false);
+      tabUIActions?.setPending(false);
     }
   };
 
   // Show loading state if tab data is not yet available
-  if (!tabData) {
+  if (!tabDataState || !tabUIState) {
     return null;
   }
 
@@ -167,8 +176,8 @@ const Tab = ({
         rowHeight={110}
         margin={[0, 0]}
         containerPadding={[0, 0]}
-        isDraggable={tabData?.edit}
-        isResizable={tabData?.edit}
+        isDraggable={tabUIState?.edit}
+        isResizable={tabUIState?.edit}
         draggableHandle=".drag"
         resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
     >
@@ -196,9 +205,9 @@ const Tab = ({
                         contextActions={contextActions}
                     />
 
-                    <div className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (tabData?.edit ? "h-16" : "h-10")}>
+                    <div className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (tabUIState?.edit ? "h-16" : "h-10")}>
                       <div className="mb-auto flex gap-2 ml-1 items-center">
-                        {tabData?.help && <TutorialButton 
+                        {tabUIState?.help && <TutorialButton 
                             url={
                                 item.tab === "Plot" ? "https://docs.unify.ai/interfaces/plots" :
                                 item.tab === "View" ? "https://docs.unify.ai/interfaces/views" :
@@ -209,7 +218,7 @@ const Tab = ({
                                 <Badge
                                     className="cursor-pointer text-sm font-normal mb-1"
                                     variant="primary"
-                                    onClick={() => tabData?.edit ? setEditTile(item.i) : undefined}
+                                    onClick={() => tabUIState?.edit ? setEditTile(item.i) : undefined}
                                 >
                                     {item.i}
                                 </Badge>
@@ -220,7 +229,7 @@ const Tab = ({
                                 interfaceId={interfaceId}
                                 projectId={projectId}
                                 contexts={contexts}
-                                context={tabData?.globalContext}
+                                context={tabDataState?.globalContext}
                                 contextActions={contextActions}
                                 button={
                                     <Tooltip content="Context">
@@ -231,7 +240,7 @@ const Tab = ({
                                     </Tooltip>
                                 }
                                 refresh={() => updateTab()}
-                                setPending={tabActions?.setPending!}
+                                setPending={tabUIActions.setPending}
                             />}
                             {(item.column_context) && item.tab == "Table" && <ContextSelector
                                 tileId={item.i}
@@ -239,7 +248,7 @@ const Tab = ({
                                 interfaceId={interfaceId}
                                 projectId={projectId}
                                 contexts={contexts}
-                                context={tabData?.globalContext}
+                                context={tabDataState?.globalContext}
                                 contextActions={contextActions}
                                 button={<Tooltip content="Column Context">
                                     <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
@@ -248,34 +257,35 @@ const Tab = ({
                                     </Badge>
                                 </Tooltip>}
                                 refresh={() => updateTab()}
-                                setPending={tabActions?.setPending!}
+                                setPending={tabUIActions.setPending}
                             />}
                         </div>
                         <div className="flex-1 flex justify-end gap-2 mb-auto opacity-0 hover:opacity-100">
                             <ActionButton
                                 className="cursor-pointer hover:z-10"
                                 onClick={() => {
-                                    if (!tabData?.focusedTileIds.includes(item.i)) {
-                                        tabActions?.setFocusedTileIds([item.i, tabData?.focusedTileIds[0] || tabData?.focusedTileIds[1]]);
+                                    const focusedTileNames = tabUIState?.focusedTileNames || [undefined, undefined];
+                                    if (!focusedTileNames.includes(item.i)) {
+                                        tabUIActions?.setFocusedTileNames([item.i, focusedTileNames[0] || focusedTileNames[1]] as [string | undefined, string | undefined]);
                                     }
                                     setFocusDialog(true);
                                 }}
                                 icon={<Maximize2 />}
                                 tooltip="Open in Focus Pane"
-                                variant={tabData?.focusedTileIds.includes(item.i) ? "primary" : "outline"}
+                                variant={(tabUIState?.focusedTileNames || [undefined, undefined]).includes(item.i) ? "primary" : "outline"}
                             />
-                            {tabData?.edit && (
+                            {tabUIState?.edit && (
                                 <>
                                     <ActionButton
                                         className="cursor-pointer hover:z-10"
-                                        onClick={() => tabActions?.updateTile(item.i, { visible: false })}
+                                        onClick={() => tabDataActions?.updateTile(item.i, { visible: false })}
                                         icon={<EyeOff />}
                                         tooltip={"Hide"}
                                         variant="outline"
                                     />
                                     <ActionButton
                                         className="cursor-pointer hover:z-10"
-                                        onClick={() => tabActions?.setCopied(item.i)}
+                                        onClick={() => tabUIActions?.setCopied(item.i)}
                                         icon={<Copy />}
                                         tooltip={"Copy"}
                                         variant="outline"
@@ -289,7 +299,7 @@ const Tab = ({
                                     <ActionButton
                                         className="remove cursor-pointer hover:z-10"
                                         onClick={() => {
-                                            tabActions?.removeTile(item.i);
+                                            tabDataActions?.removeTile(item.i);
                                             if (tileProps.length <= 1) {
                                                 setNewCounter(0);
                                             }

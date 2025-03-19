@@ -32,7 +32,7 @@ import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
 import { FiltersByColumn } from "@/types/evals/columns";
 import CellPopover from "./Content/CellPopover";
-import { TableDataItem, TileProps } from "@/types/evals/grid";
+import { TableDataItem, TileProps, TabProps } from "@/types/evals/grid";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
@@ -50,6 +50,8 @@ import { useTab } from "@/contexts/hooks/useTab";
 import { useTableTile } from "@/contexts/hooks/useTableTile";
 import { useInterface } from "@/contexts/hooks/useInterface";
 import { useProject } from "@/contexts/hooks/useProject";
+
+import { shallow } from "zustand/vanilla/shallow";
 
 const LogsTable = ({
   tileId,
@@ -70,38 +72,43 @@ const LogsTable = ({
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions,
   contextActions: ContextActions,
-  updateTab: (savedTab?: any) => Promise<ResponseProps>,
+  updateTab: (savedTab?: TabProps | null, updatedTileProps?: TileProps[] | TileProps | null) => Promise<ResponseProps>,
 }) => {
 
   // Get access to the project data and actions
-  const { project: projectData } = useProject(projectId ?? null);
-  const contexts = projectData?.contexts || [];
+  const { data: projectDataState } = useProject(projectId ?? null);
+  const contexts = projectDataState?.contexts || [];
 
   // Get access to the interface data and actions
-  const { interface: interfaceData } = useInterface(interfaceId);
-  const tableArguments = interfaceData?.tableArguments as unknown as TableArguments;
-  const filterExpression = interfaceData?.tableArguments[tileId]?.getLogs_parameters?.filter_expr || null;
-  const sortingExpression = interfaceData?.tableArguments[tileId]?.getLogs_parameters?.sorting || null;
-  const groupingExpression = interfaceData?.tableArguments[tileId]?.getLogs_parameters?.grouping || null;
-  const groupSortingExpression = interfaceData?.tableArguments[tileId]?.getLogs_parameters?.group_sorting || null;
+  const { data: interfaceDataState } = useInterface(interfaceId);
+  const tableArguments = interfaceDataState?.tableArguments as unknown as TableArguments;
+  const filterExpression = tableArguments?.[tileId]?.getLogs_parameters?.filter_expr || null;
+  const sortingExpression = tableArguments?.[tileId]?.getLogs_parameters?.sorting || null;
+  const groupingExpression = tableArguments?.[tileId]?.getLogs_parameters?.grouping || null;
+  const groupSortingExpression = tableArguments?.[tileId]?.getLogs_parameters?.group_sorting || null;
 
-  // Get access to the tab data and actions
-  const { tab: tabData } = useTab(tabId, interfaceId, projectId);
-  const context_ = tabData?.globalContext;
+  // Get access to the tab data and actions with granular access
+  const { tab: tabState, data: tabDataState } = useTab(tabId, interfaceId, projectId);
+  const context_ = tabDataState?.globalContext;
   
-  // Get access to the tile and its actions
-  const { tile: tileData, actions: tileActions } = useTile(tileId, tabId, interfaceId, projectId);
+  // Get access to the tile and its actions with granular access
+  const { 
+    tile: tileState, 
+    actions: tileActions,
+    dataActions: tileDataActions,
+    uiActions: tileUIActions 
+  } = useTile(tileId, tabId, interfaceId, projectId);
   
-  // Get access to the table tile specific data and actions
-  const { tableTile: tableData, actions: tableTileActions } = useTableTile(tileId, tabId, interfaceId, projectId);
-  const limit = tableData?.limit || 20;
-  const offset = tableData?.offset || 0;
+  // Get access to the table tile specific data and actions with granular access
+  const { tableTile, ui: tableTileUI } = useTableTile(tileId, tabId, interfaceId, projectId);
+  const limit = tableTileUI?.limit || 20;
+  const offset = tableTileUI?.offset || 0;
 
   // Get the item representation for the current tile
   const item = useMemo(() => tileActions?.asTileItem(), [tileActions]);
 
   // Use the tableDataItem from the tile's table data
-  const tableDataItem = useMemo(() => tableData?.tableDataItem || {
+  const tableDataItem = useMemo(() => tableTile?.tableDataItem || {
     columnContexts: [],
     baseIndex: undefined,
     hiddenColumns: undefined,
@@ -118,7 +125,7 @@ const LogsTable = ({
     groupedMetrics: {},
     boundaries: { minimums: {}, maximums: {} },
     metric: ""
-  } as TableDataItem, [tableData?.tableDataItem]);
+  } as TableDataItem, [tableTile?.tableDataItem]);
 
   // Create a generic updateItem function that checks property existence
   const updateItem = (item: TileProps, propName: string) => (value: any) => {
@@ -127,7 +134,7 @@ const LogsTable = ({
     }
   };
 
-  const setPending = (pending: boolean) => tileActions?.setPending(pending)
+  const setPending = (pending: boolean) => tileUIActions?.setPending(pending);
 
   const {
     fields,
@@ -148,12 +155,12 @@ const LogsTable = ({
     flatLogs.map(log => Object.entries(log.params).map(([key, value]) => paramsValues[key] = params[key][value]))
 
   // UI state from the tab
-  const interactive = tabData?.interactive || false;
-  const pending = tabData?.pending || tabData?.dataPending || tileData?.pending;
+  const interactive = tabState?.interactive || false;
+  const pending = tabState?.pending || tabState?.dataPending || tileState?.pending;
 
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false);
-  const [showSpinner, setShowSpinner] = useState(pending || !tableData?.tableDataItem?.logs);
+  const [showSpinner, setShowSpinner] = useState(pending || !tableTile?.tableDataItem?.logs);
 
   useEffect(() => {
     setShowSpinner(pending || !tableDataItem?.logs);
@@ -389,8 +396,10 @@ const LogsTable = ({
   const setState = {
     setTableDataItem: (newTableDataItem: TableDataItem) => {
       // Update tableDataItem in the store
-      if (tileActions && tableData) {
-        tableTileActions?.updateTableData({ tableDataItem: newTableDataItem });
+      if (tileDataActions && tableTile) {
+        tileDataActions.updateTableTile({ 
+          tableDataItem: newTableDataItem 
+        });
       }
     },
     setSelectedCells: (cells: string[]) =>  updateItem(item as TileProps, "selected")(cells.join(",")),
@@ -469,7 +478,9 @@ const LogsTable = ({
   // on item correctly so that the view pane can take this state and render
   // the accordions in the correct order
   useEffect(() => {
-    setColumnOrder(columnOrder, false);
+    if (!shallow(columnOrder, item?.column_order?.split(","))) {
+      setColumnOrder(columnOrder, false);
+    }
   }, []);
 
   // Then when the context changes, we reset the manual override
@@ -486,7 +497,7 @@ const LogsTable = ({
   // and if the user hasn't manually updated the column order for this context,
   // re-apply the default
   useEffect(() => {
-    if (!manualColumnOrderOverride) {
+    if (!manualColumnOrderOverride && !shallow(columnIDs, item?.column_order?.split(","))) {
       // Because user hasn't manually adjusted anything for this "fresh" context
       // we revert to the updated columnIDs if we see new columns added or removed
       setColumnOrder(columnIDs, false);
@@ -560,12 +571,14 @@ const LogsTable = ({
             updateItem={updateItem}
             setTableData={(updater) => {
               // Create an adapter that wraps our simple update function to match expected signature
-              if (tileActions && tableData && item?.i) {
+              if (tileDataActions && tableTile && item?.i) {
                 const newData = updater({
                   [item.i]: tableDataItem
                 });
                 if (newData && newData[item.i]) {
-                  tableTileActions?.updateTableData({ tableDataItem: newData[item.i] });
+                  tileDataActions.updateTableTile({ 
+                    tableDataItem: newData[item.i] 
+                  });
                 }
               }
             }}
@@ -726,12 +739,14 @@ const LogsTable = ({
                           setExpandingRowId,
                           (updater) => {
                             // Create an adapter that wraps our simple update function to match expected signature
-                            if (tileActions && tableData && item?.i) {
+                            if (tileDataActions && tableTile && item?.i) {
                               const newData = updater({
                                 [item.i]: tableDataItem
                               });
                               if (newData && newData[item.i]) {
-                                tableTileActions?.updateTableData({ tableDataItem: newData[item.i] });
+                                tileDataActions.updateTableTile({ 
+                                  tableDataItem: newData[item.i] 
+                                });
                               }
                             }
                           },
