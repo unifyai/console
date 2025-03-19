@@ -42,7 +42,8 @@ const ContextSelector = ({
     refresh: () => Promise<ResponseProps>,
     setPending: (pending: boolean) => void
 }) => {
-
+    const [open, setOpen] = useState(false);
+    const [start, setStart] = useState(true);
     const router = useRouter();
     const onDelete = () => {
         refresh().then(() => {
@@ -92,11 +93,17 @@ const ContextSelector = ({
                     size="sm"
                     disabled={!project}
                 />}
-                open={!project ? false : undefined}
+                open={!project ? false : open ? true :undefined}
+                defaultOpen={item != undefined && context == undefined}
                 setOpen={(isOpen) => {
                     if (isOpen && project && contextActions) {
                         contextActions.get(project).then(ctxs => setContexts(ctxs));
                     }
+                    if (start && isOpen && !open) {
+                        setOpen(true);
+                        setStart(false);
+                    }
+                    else setOpen(false);
                 }}
             >
                 <div className="flex flex-col gap-4">
