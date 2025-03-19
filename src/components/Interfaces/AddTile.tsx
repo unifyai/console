@@ -28,10 +28,14 @@ const AddTile = ({
             variant="outline"
             disabled={!edit || !project || pending}
             onClick={() => {
+                let initialIndex = items.length;
+                while (items.some(item => item.i == "Tile_" + initialIndex))
+                    initialIndex++;
+                const newTileName = "Tile_" + initialIndex;
                 setItems([
                     ...items,
                     {
-                        i: "Tile_" + newCounter,
+                        i: newTileName,
                         x: (() => {
                             // Group items by row
                             const rowGroups = items.reduce((acc, item) => {
@@ -109,7 +113,7 @@ const AddTile = ({
                         visible: true,
                     }
                 ]);
-                setNewCounter(newCounter + 1);
+                setNewCounter(items.length + 1);
             }}
         />
     );
