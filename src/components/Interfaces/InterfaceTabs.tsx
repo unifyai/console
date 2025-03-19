@@ -56,7 +56,7 @@ const InterfaceTabs = ({
                     {interfaces.map((int_, idx) => <TabsTrigger
                         key={idx}
                         value={int_}
-                        className="relative flex flex-row gap-2 data-[state=active]:text-accent border-primary"
+                        className="relative flex flex-row gap-2 data-[state=active]:text-accent"
                         onMouseEnter={() => setHoveredInterface(int_)}
                         onMouseLeave={() => setHoveredInterface(undefined)}
                     >
