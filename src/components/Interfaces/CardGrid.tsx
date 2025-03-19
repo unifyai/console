@@ -164,7 +164,7 @@ const CardGrid = ({
             setNewCounter(currentInterface?.new_counter || 0);
             setTempInterfaceCreated(Boolean(currentInterface));
             setPending(false);
-            setInterfaces(ints.map(int => int.name).sort());
+            setInterfaces(ints.map(int => int.name));
         });
     };
 

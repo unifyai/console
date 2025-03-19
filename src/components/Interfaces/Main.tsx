@@ -44,7 +44,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
     const interface_1 = Object.keys(interfacesTemp_).find(i => i == (interface_ || (
         project == cookiesProject ? cookiesInterface : undefined
     ))) || (
-        Object.keys(interfacesTemp_).length ? Object.keys(interfacesTemp_).sort()[0] : null
+        Object.keys(interfacesTemp_).length ? Object.keys(interfacesTemp_)[0] : null
     );
     let currentInterface = (interface_1 && interface_1 in interfacesTemp_) ? interfacesTemp_[interface_1] : null;
     if (currentInterface) {
@@ -356,7 +356,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         project_={project}
         projects_={projects}
         contexts={contexts}
-        interfaces_={Object.keys(interfacesTemp_).sort()}
+        interfaces_={Object.keys(interfacesTemp_)}
         tableNames={tableNames}
         tableData={tableData}
         tableArguments={tableArguments}
