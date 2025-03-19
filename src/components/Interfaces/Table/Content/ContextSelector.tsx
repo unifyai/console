@@ -136,7 +136,7 @@ const ContextSelector = ({
                                 setter={(ctx: string) => finalSetContext && finalSetContext(ctx)}
                                 isColumnContext={false}
                                 deleteDialog={
-                                    <div onClick={(e) => e.stopPropagation()}>
+                                    project ? <div onClick={(e) => e.stopPropagation()}>
                                         <DeleteDialog
                                             variant="warning"
                                             type="context"
@@ -145,7 +145,7 @@ const ContextSelector = ({
                                             onDelete={onDelete}
                                             className="h-fit flex items-center"
                                         />
-                                    </div>
+                                    </div> : <></>
                                 }
                             />
                         ))}
@@ -178,7 +178,7 @@ const ContextSelector = ({
                                 isColumnContext={true}
                                 setter={updateItem(item, "column_context")}
                                 deleteDialog={
-                                    <div onClick={(e) => e.stopPropagation()}>
+                                    project ? <div onClick={(e) => e.stopPropagation()}>
                                         <DeleteDialog
                                             variant="warning"
                                             type={"context"}
@@ -187,7 +187,7 @@ const ContextSelector = ({
                                             onDelete={onDelete}
                                             className="h-fit flex items-center"
                                         />
-                                    </div>
+                                    </div> : <></>
                                 }
                             />
                         ))}
