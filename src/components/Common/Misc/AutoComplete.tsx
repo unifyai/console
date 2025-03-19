@@ -2,20 +2,21 @@
 
 import * as React from "react"
 import { useEffect } from "react"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Check, ChevronsUpDown, Loader2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/UI/button"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/UI/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/UI/popover"
 
-export default function AutoComplete ({items, type, defaultValue, onSelect, isOpen, disabled, onOpen, className}: {
+export default function AutoComplete ({items, type, defaultValue, onSelect, isOpen, disabled, loading, onOpen, className}: {
     items: {value:string, label: string}[],
     type: string,
     defaultValue?: string,
     onSelect: (currentValue: string) => void,
     isOpen?: boolean,
     disabled?: boolean,
+    loading?: boolean,
     onOpen?: () => void,
     className?: string
 }) {
@@ -44,7 +45,9 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, isOp
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0">
-        <Command>
+        {loading ? <div className="h-10 flex justify-center items-center">
+            <Loader2 className="animate-spin" />
+          </div> : <Command>
           <CommandInput placeholder={`Search ${type}...`} className="h-10" disabled={disabled} />
           <CommandList>
             <CommandEmpty>{`No ${type} found.`}</CommandEmpty>
@@ -71,7 +74,7 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, isOp
               ))}
             </CommandGroup>
           </CommandList>
-        </Command>
+        </Command>}
       </PopoverContent>
     </Popover>
   )

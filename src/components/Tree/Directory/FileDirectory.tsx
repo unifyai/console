@@ -17,12 +17,13 @@ import { updateNode } from "@/utils/misc/directory";
 import CancelButton from "../../Common/Buttons/Cancel";
 import SettingButton from "../../Common/Buttons/Setting";
 
-export default function FileDirectory ({ type,  data, defaultValue, isAutocompleteOpen, disabled, setterFunction, renamingFunction, onOpen } : {
+export default function FileDirectory ({ type,  data, defaultValue, isAutocompleteOpen, disabled, loading, setterFunction, renamingFunction, onOpen } : {
   type: string, 
   data: FileProps[],
   defaultValue?: string | undefined,
   isAutocompleteOpen?: boolean,
   disabled?: boolean,
+  loading?: boolean,
   setterFunction: (x: FileProps | undefined) => void,
   renamingFunction: (name: string, newName: string) => Promise<ResponseProps>,
   onOpen?: () => void,
@@ -113,6 +114,7 @@ export default function FileDirectory ({ type,  data, defaultValue, isAutocomple
         onSelect={(currentValue: string) => handleSelection(currentValue, files)}
         onOpen={onOpen}
         disabled={disabled}
+        loading={loading}
       />
     </div>
   );
