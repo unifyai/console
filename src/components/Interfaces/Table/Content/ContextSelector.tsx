@@ -16,6 +16,7 @@ import { buildNestedDropdownTree } from "@/utils/evals/common";
 const ContextSelector = ({
     project,
     contexts_,
+    emptyLogs,
     tableDataItem,
     item,
     updateItem,
@@ -30,6 +31,7 @@ const ContextSelector = ({
 }: {
     project: string | undefined,
     contexts_: Context[],
+    emptyLogs?: boolean,
     tableDataItem?: TableDataItem,
     item?: TileProps,
     updateItem?: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
@@ -94,7 +96,7 @@ const ContextSelector = ({
                     disabled={!project}
                 />}
                 open={!project ? false : open ? true :undefined}
-                defaultOpen={item != undefined && context == undefined}
+                defaultOpen={item != undefined && context == undefined && emptyLogs}
                 setOpen={(isOpen) => {
                     if (isOpen && project && contextActions) {
                         contextActions.get(project).then(ctxs => setContexts(ctxs));

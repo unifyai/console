@@ -451,6 +451,7 @@ const LogsTable = ({
         <div className="flex flex-wrap gap-2 items-center">
           <ContextSelector
             project={project}
+            emptyLogs={logs.length == 0}
             contexts_={contexts}
             context={context_}
             tableDataItem={tableDataItem}
