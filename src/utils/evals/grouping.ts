@@ -53,13 +53,12 @@ export function maybeConvertRawToGroupedLogs(
         return [];
     }
 
-    const groupValues = rawGroupedLogs[groupingColumnId] as { [groupValue: string]: number };
+    const groups = (rawGroupedLogs[groupingColumnId] as Exclude<GroupedLogPropsRaw[keyof GroupedLogPropsRaw], number | undefined>)!.group;
 
     let groupingIndex = 0;
 
-    return Object.entries(groupValues)
-        .filter(([value]) => value !== 'group_count' && value !== 'count')
-        .map(([groupValue, count]) => {
+    return groups.map((group) => {
+            const [groupValue, count] = [group.key, group.value]
             let id = `${groupingColumnId}:${groupValue}`;
             if (parentId)
               id = `${parentId}>${id}`;
