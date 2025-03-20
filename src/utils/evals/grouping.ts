@@ -225,7 +225,8 @@ export function getGroupingFilters(
       case "int":
         return parseInt(value, 10).toString();
       case "float":
-        return parseFloat(value).toString();
+        const num = parseFloat(value);
+        return num.toString().includes('.') ? num.toString() : num.toFixed(1);
       case "timestamp":
         return value.startsWith('"') && value.endsWith('"') ? value : `"${value}"`;
       case "bool":
