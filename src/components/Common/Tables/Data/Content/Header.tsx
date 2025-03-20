@@ -83,7 +83,7 @@ const DataTableHeader = ({
   grouping: string[],
   setGrouping: (grouping: string[]) => void,
   ColumnGroupBy?: (column: Column<any | unknown>, groupLoading: boolean, setGroupLoading: (groupLoading: boolean) => void, setIsGrouped: (isGrouped: boolean) => void, setGroupSortLoading: (groupSortLoading: boolean) => void, renderMode: "button" | "menuItem") => ReactNode,
-  ColumnGroupSort?: (column: Column<any | unknown>, groupSortLoading: boolean, setGroupSortLoading: (groupSortLoading: boolean) => void, setIsGroupSorted: (isGroupSorted: boolean) => void, renderMode: "button" | "menuItem") => ReactNode,
+  ColumnGroupSort?: (column: Column<any | unknown>, groupSortLoading: boolean, setGroupSortLoading: (groupSortLoading: boolean) => void, setSortingDirection: (sortingDirection: "asc" | "desc" | false) => void, renderMode: "button" | "menuItem", direction?: "asc" | "desc") => ReactNode,
   ColumnFilters?: (column: Column<any | unknown>, filterLoading: boolean, setIsFiltered: (isFiltered: boolean) => void, setFilterLoading: (filterLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode,
   ColumnDelete?: (column: Column<any | unknown>) => ReactNode,
   ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode,
@@ -178,8 +178,8 @@ const DataTableHeader = ({
 
   // Determine which actions should be shown in dropdown vs as buttons
   const [isGrouped, setIsGrouped] = useState(false);
-  const [isSorted, setIsSorted] = useState(false);
-  const [isGroupSorted, setIsGroupSorted] = useState(false);
+  const [sortingDirection, setSortingDirection] = useState<"asc" | "desc" | false>(false);
+  const [groupSortingDirection, setGroupSortingDirection] = useState<"asc" | "desc" | false>(false);
   const [isFiltered, setIsFiltered] = useState(false);
 
   // Open states for dialogs
@@ -197,6 +197,8 @@ const DataTableHeader = ({
     }
   }, [data, groupSortLoading, groupLoading, sortLoading, filterLoading, updateLoading])
   useEffect(() => setFilterLoading(false),[data])
+  useEffect(() => setSortLoading(false),[data])
+  useEffect(() => setGroupSortLoading(false),[data])
 
   // Functions to control which buttons should be shown
   const showGroupButton = () => {
@@ -204,11 +206,11 @@ const DataTableHeader = ({
   }
 
   const showSortButton = () => {
-    return (!isParentColumn && (sortLoading || isSorted));
+    return (!isParentColumn && (sortLoading || sortingDirection != false));
   }
 
   const showGroupSortButton = () => {
-    return (!isParentColumn && grouping.length && (groupSortLoading || isGroupSorted))
+    return (!isParentColumn && grouping.length && (groupSortLoading || groupSortingDirection != false))
   }
 
   const showFilterButton = () => {
@@ -234,7 +236,7 @@ const DataTableHeader = ({
         },
       };
     });
-  }, [hasActiveActions, isGroupSorted, groupSortLoading, groupLoading, isGrouped, sortLoading, isSorted, filterLoading, isFiltered, updateLoading, data]);  
+  }, [hasActiveActions, groupSortingDirection, groupSortLoading, groupLoading, isGrouped, sortLoading, sortingDirection, filterLoading, isFiltered, updateLoading, data]);  
 
   // Handle header coloring.
   // - Applies selection (hover) background color on any column header for which all (some) cells are selected
@@ -298,7 +300,7 @@ const DataTableHeader = ({
           data={data}
           sortLoading={sortLoading}
           setSortLoading={setSortLoading}
-          setIsSorted={setIsSorted}
+          setSortingDirection={setSortingDirection}
           renderMode="button"             
         />
         )}
@@ -310,7 +312,7 @@ const DataTableHeader = ({
           header.column,
           groupSortLoading,
           setGroupSortLoading,
-          setIsGroupSorted,
+          setGroupSortingDirection,
           "button"
         )}
       </div>
@@ -491,7 +493,7 @@ const DataTableHeader = ({
                                 )}
                                 </DropdownMenuItem>
                               )}
-                              {!isSorted && (
+                              {sortingDirection != "asc" && (
                                 <DropdownMenuItem>
                                   <ColumnSort
                                     interactive={interactive}
@@ -499,20 +501,51 @@ const DataTableHeader = ({
                                     data={data}
                                     sortLoading={sortLoading}
                                     setSortLoading={setSortLoading}
-                                    setIsSorted={setIsSorted}
+                                    setSortingDirection={setSortingDirection}
+                                    direction="asc"
                                     renderMode="menuItem"
                                   />
                                 </DropdownMenuItem>
                               )}
-                              {!isGroupSorted && !isGrouped && grouping.length && isGroupSortableColumn && ColumnGroupSort 
+                              {sortingDirection != "desc" && (
+                                <DropdownMenuItem>
+                                  <ColumnSort
+                                    interactive={interactive}
+                                    column={header.column}
+                                    data={data}
+                                    sortLoading={sortLoading}
+                                    setSortLoading={setSortLoading}
+                                    setSortingDirection={setSortingDirection}
+                                    direction="desc"
+                                    renderMode="menuItem"
+                                  />
+                                </DropdownMenuItem>
+                              )}
+                              {groupSortingDirection != "asc" && !isGrouped && grouping.length && isGroupSortableColumn && ColumnGroupSort 
                                   ? (
                                       <DropdownMenuItem>
                                         {ColumnGroupSort(
                                           header.column,
                                           groupSortLoading,
                                           setGroupSortLoading,
-                                          setIsGroupSorted,
-                                          "menuItem"
+                                          setGroupSortingDirection,
+                                          "menuItem",
+                                          "asc"
+                                        )}
+                                      </DropdownMenuItem>
+                                    )
+                                  : null
+                              }
+                              {groupSortingDirection != "desc" && !isGrouped && grouping.length && isGroupSortableColumn && ColumnGroupSort 
+                                  ? (
+                                      <DropdownMenuItem>
+                                        {ColumnGroupSort(
+                                          header.column,
+                                          groupSortLoading,
+                                          setGroupSortLoading,
+                                          setGroupSortingDirection,
+                                          "menuItem",
+                                          "desc"
                                         )}
                                       </DropdownMenuItem>
                                     )
@@ -598,7 +631,7 @@ const DataTableHeader = ({
                 data={data}
                 sortLoading={sortLoading}
                 setSortLoading={setSortLoading}
-                setIsSorted={setIsSorted}
+                setSortingDirection={setSortingDirection}
                 renderMode="button"
               />
             )}
