@@ -31,87 +31,87 @@ function isParamsGroup(groupingColumnId: string): boolean {
   top level, you'll get multiple siblings in the array.
 */
 export function maybeConvertRawToGroupedLogs(
-    params: LogItemProps,
-    rawGroupedLogs: GroupedLogPropsRaw | LogProps[],
-    parentId: string | null = null
+  params: LogItemProps,
+  rawGroupedLogs: GroupedLogPropsRaw | LogProps[],
+  parentId: string | null = null
 ): GroupedLogProps[] | LogProps[] {
 
-    // If raw is an array of LogProps (no more grouping needed), return it with type "ungrouped"
-    if (Array.isArray(rawGroupedLogs)) {
-        return rawGroupedLogs.map(log => ({
-            ...log,
-            type: "ungrouped",
-        }));
-    }
+  // If raw is an array of LogProps (no more grouping needed), return it with type "ungrouped"
+  if (Array.isArray(rawGroupedLogs)) {
+      return rawGroupedLogs.map(log => ({
+          ...log,
+          type: "ungrouped",
+      }));
+  }
 
-    // Find the first grouping column in the raw data
-    const groupingColumnId = Object.keys(rawGroupedLogs).find(key => 
-        key !== 'group_count' && key !== 'count'
-    );
+  // Find the first grouping column in the raw data
+  const groupingColumnId = Object.keys(rawGroupedLogs).find(key => 
+      key !== 'group_count' && key !== 'count'
+  );
 
-    if (!groupingColumnId) {
-        return [];
-    }
+  if (!groupingColumnId) {
+      return [];
+  }
 
-    const groupValues = rawGroupedLogs[groupingColumnId] as { [groupValue: string]: number };
+  const groups = (rawGroupedLogs[groupingColumnId] as Exclude<GroupedLogPropsRaw[keyof GroupedLogPropsRaw], number | undefined>)!.group;
 
-    let groupingIndex = 0;
+  let groupingIndex = 0;
 
-    return Object.entries(groupValues)
-        .filter(([value]) => value !== 'group_count' && value !== 'count')
-        .map(([groupValue, count]) => {
-            let id = `${groupingColumnId}:${groupValue}`;
-            if (parentId)
-              id = `${parentId}>${id}`;
+  return groups
+      .map((group) => {
+          const [groupValue, count] = [group.key, group.value]
+          let id = `${groupingColumnId}:${groupValue}`;
+          if (parentId)
+            id = `${parentId}>${id}`;
 
-            const isEntries = isEntriesGroup(groupingColumnId);
-            const isParams = isParamsGroup(groupingColumnId);
+          const isEntries = isEntriesGroup(groupingColumnId);
+          const isParams = isParamsGroup(groupingColumnId);
 
-            // Assign groupingIndex for entries/params groups
-            // 1. For Entries Group, increment the arbitrarily increasing index
-            // 2. For Params Group, assign the version number as the index
+          // Assign groupingIndex for entries/params groups
+          // 1. For Entries Group, increment the arbitrarily increasing index
+          // 2. For Params Group, assign the version number as the index
 
-            // Helper to find paramVersion recursively
-            const findParamVersion = (paramsObj: any, keys: string[], value: string): string | undefined => {
-              let current = paramsObj;
-              for (const key of keys) {
-                  if (current && typeof current === "object") {
-                      current = current[key];
-                  } else {
-                      return undefined; // Key not found
-                  }
-              }
-              if (current && typeof current === "object") {
-                  const version = Object.entries(current).find(([k, v]) => v === value);
-                  return version ? version[0] : undefined;
-              }
-              return undefined;
-            };
-
-            // Calculate groupingIndex
-            let currentGroupingIndex: number | undefined = undefined;
-            if (isEntries) {
-                currentGroupingIndex = groupingIndex++;
-            } else if (isParams) {
-                const sanitizedColumn = sanitizeId(groupingColumnId); // e.g., "store_type" or "season/warm"
-                const pathKeys = sanitizedColumn.split("/");          // Handle nested params
-                const paramVersion = findParamVersion(params, pathKeys, groupValue);
-                currentGroupingIndex = paramVersion ? parseInt(paramVersion, 10) : undefined;
+          // Helper to find paramVersion recursively
+          const findParamVersion = (paramsObj: any, keys: string[], value: string): string | undefined => {
+            let current = paramsObj;
+            for (const key of keys) {
+                if (current && typeof current === "object") {
+                    current = current[key];
+                } else {
+                    return undefined; // Key not found
+                }
             }
+            if (current && typeof current === "object") {
+                const version = Object.entries(current).find(([k, v]) => v === value);
+                return version ? version[0] : undefined;
+            }
+            return undefined;
+          };
 
-            const groupNode = {
-                type: "grouped",
-                id,
-                groupingColumnId,
-                groupingIndex: currentGroupingIndex,
-                [groupingColumnId]: groupValue,
-                subRows: [],  // Initially empty, will be populated when expanded
-                isPopulated: false,
-                groupCount: count,
-            } as GroupedLogProps;
+          // Calculate groupingIndex
+          let currentGroupingIndex: number | undefined = undefined;
+          if (isEntries) {
+              currentGroupingIndex = groupingIndex++;
+          } else if (isParams) {
+              const sanitizedColumn = sanitizeId(groupingColumnId); // e.g., "store_type" or "season/warm"
+              const pathKeys = sanitizedColumn.split("/");          // Handle nested params
+              const paramVersion = findParamVersion(params, pathKeys, groupValue);
+              currentGroupingIndex = paramVersion ? parseInt(paramVersion, 10) : undefined;
+          }
 
-            return groupNode;
-        });
+          const groupNode = {
+              type: "grouped",
+              id,
+              groupingColumnId,
+              groupingIndex: currentGroupingIndex,
+              [groupingColumnId]: groupValue,
+              subRows: [],  // Initially empty, will be populated when expanded
+              isPopulated: false,
+              groupCount: count,
+          } as GroupedLogProps;
+
+          return groupNode;
+      });
 }
 
 /*
