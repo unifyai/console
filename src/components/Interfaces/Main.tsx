@@ -301,7 +301,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
             const sorting = item.sorting ?? null
             const hiddenColumns = item.hidden_columns;
 
-            const { entriesProperties, paramsProperties, logs, params, metrics, groupedMetrics, boundaries } = await getLogsDetails(
+            const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
                 item,
                 logsData,
                 fields[idx],
@@ -344,7 +344,6 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
                     logs,
                     params,
                     metrics,
-                    groupedMetrics,
                     boundaries,
                     metric: item.metric ?? "mean"
                 }
