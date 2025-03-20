@@ -4,18 +4,26 @@ import { Dispatch, SetStateAction, useState } from "react";
 import ActionButton from "../Common/Buttons/Action";
 import { Dialog, DialogContent } from "../UI/dialog";
 import { Input } from "../UI/input";
-import { TileProps } from "@/types/evals/grid";
+import { PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
 
 const EditTileName = ({
+    tableData,
+    plotData,
     items,
     editTile,
     setItems,
-    setEditTile
+    setEditTile,
+    setTableData,
+    setPlotData
 }: {
+    tableData: TableDataProps,
+    plotData: PlotDataProps,
     items: TileProps[],
     editTile: string,
     setItems: Dispatch<SetStateAction<TileProps[]>>,
-    setEditTile: Dispatch<SetStateAction<string | undefined>>
+    setEditTile: Dispatch<SetStateAction<string | undefined>>,
+    setTableData: Dispatch<SetStateAction<TableDataProps>>,
+    setPlotData: Dispatch<SetStateAction<PlotDataProps>>
 }) => {
     const [newTileName, setNewTileName] = useState<string>();
 
@@ -28,10 +36,25 @@ const EditTileName = ({
                         ? { ...item, i: newTileName }
                         : item.table == editTile
                             ? { ...item, table: newTileName }
-                            : { ...item }
+                            : (
+                                item.x_axis?.includes(editTile + ".") ||
+                                item.y_axis?.includes(editTile + ".") ||
+                                item.plot_group_by?.includes(editTile + ".")
+                            )
+                                ? {
+                                    ...item,
+                                    x_axis: item.x_axis?.replace(editTile + ".", newTileName + "."),
+                                    y_axis: item.y_axis?.replace(editTile + ".", newTileName + "."),
+                                    plot_group_by: item.plot_group_by?.replace(
+                                        editTile + ".", newTileName + "."
+                                    )
+                                }
+                                : { ...item }
                 )
             );
             setItems([...newItems]);
+            setTableData({ ...tableData, [newTileName]: tableData[editTile] });
+            setPlotData({ ...plotData, [newTileName]: plotData[editTile] });
         }
         setEditTile(undefined);
         setNewTileName(undefined);
