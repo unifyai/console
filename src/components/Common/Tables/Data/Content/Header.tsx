@@ -242,6 +242,9 @@ const DataTableHeader = ({
   // - Applies selection (hover) background color on any column header for which all (some) cells are selected
   // - Applied selection (hover) background color index column header if all (some) table cells are selected
   const [hovered, setHovered] = useState(false);
+  useEffect(() => {
+    setHovered(false);
+  }, [dropdownOpen]);
   const isAllColumnSelected = (header: Header<any, unknown>) => {
     const validCells = getCellsFromHeader(header).filter(cell => cell.getValue() !== undefined || cell.column.id === "RowNumbering")
     return validCells.length && validCells.every(cell => isCellSelected(cell))
@@ -363,7 +366,7 @@ const DataTableHeader = ({
 
         {/* Single outer div to handle hovered logic. Distinguish parent vs child inside. */}
         <div
-          onMouseEnter={() => setHovered(true)}
+          onMouseEnter={() => {if (!dropdownOpen) setHovered(true)}}
           onMouseLeave={() => setHovered(false)}
           onMouseDown={(e) => cellSelection.handleCellMouseDown(e, header)}
           onMouseUp={(e) => cellSelection.handleCellMouseUp(e, header)}
