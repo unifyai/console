@@ -570,7 +570,7 @@ const LogsTable = ({
                       renderMode={renderMode}
                     />
                   )}
-                  ColumnGroupSort={(column, groupSortLoading, setGroupSortLoading, setIsGroupSorted, renderMode = "button") => (
+                  ColumnGroupSort={(column, groupSortLoading, setGroupSortLoading, setGroupSortingDirection, renderMode = "button", direction) => (
                     <ColumnGroupSort
                       interactive={interactive}
                       column={column}
@@ -579,8 +579,9 @@ const LogsTable = ({
                       logs={logs}
                       groupSortLoading={groupSortLoading}
                       setGroupSortLoading={setGroupSortLoading}
-                      setIsGroupSorted={setIsGroupSorted}
-                      renderMode={renderMode}
+                      setGroupSortingDirection={setGroupSortingDirection}
+                      direction={direction}
+                      renderMode={renderMode as "button" | "menuItem"}
                     />
                   )}
                   ColumnFilters={(column, filterLoading, setIsFiltered, setFilterLoading, open, setOpen, renderMode = "button") => (

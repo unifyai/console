@@ -2,7 +2,7 @@ import { ColumnDef, Column, Cell, Row } from "@tanstack/react-table";
 
 import * as path from "path";
 
-import ColumnSort from "../Common/Tables/Data/Buttons/ColumnSort";
+import ColumnSort from "@/components/Common/Tables/Buttons/Sort";
 import DeleteDialog from "../Common/Dialogs/Delete";
 import RenameDialog from "../Common/Dialogs/Rename";
 
