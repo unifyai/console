@@ -30,7 +30,7 @@ export const getProjects = async (apiKey: string) => {
 
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/projects`,
-            { method: "GET", headers: { apiKey: apiKey } }
+            { method: "GET", headers: { apiKey: apiKey }, cache: "no-store" }
         );
         return await response.json();
     };
