@@ -100,7 +100,7 @@ const LogsTable = ({
   const [tableDataItem, setTableDataItem] = useState(tableDataItem_);
   const { fields, logs, params, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
   useEffect(() => {
-    setTableDataItem(tableDataItem_);
+    setTableDataItem(prev => ({ ...prev, ...tableDataItem_, groupedMetrics: { ...prev.groupedMetrics, ...tableDataItem_.groupedMetrics } }));
     getGroupedMetrics(
       project || null,
       item.context || null,
@@ -112,7 +112,7 @@ const LogsTable = ({
       fields,
       logsActions
     ).then((groupedMetrics) => {
-      setTableDataItem(prev => ({ ...prev, groupedMetrics }));
+      setTableDataItem(prev => ({ ...prev, groupedMetrics: { ...prev.groupedMetrics, ...groupedMetrics } }));
     });
   }, [tableDataItem_]);
 
