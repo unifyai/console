@@ -45,6 +45,7 @@ import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import ContextSelector from "./Content/ContextSelector";
 import ResetServerAction from "./Buttons/ResetServerAction";
 import { durationToTimeDelta, timeDeltaValueToDuration } from "@/utils/evals/format";
+import { getGroupedMetrics } from "@/utils/evals/common";
 
 const LogsTable = ({
   interactive,
@@ -100,6 +101,19 @@ const LogsTable = ({
   const { fields, logs, params, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
   useEffect(() => {
     setTableDataItem(tableDataItem_);
+    getGroupedMetrics(
+      project || null,
+      item.context || null,
+      item.column_context || null,
+      logs.length ? [...entriesProperties, ...paramsProperties] : [],
+      filterExpression,
+      groupingExpression,
+      metric,
+      fields,
+      logsActions
+    ).then((groupedMetrics) => {
+      setTableDataItem(prev => ({ ...prev, groupedMetrics }));
+    });
   }, [tableDataItem_]);
 
   // Extract params values from logs
@@ -689,10 +703,10 @@ const LogsTable = ({
                         const groupingColumnId = row.groupingColumnId;
                         const slicedRowId = row.id.split(">").slice(0, -1).join(">");
                         const groupedMetrics = (
-                          groupingColumnId in tableDataItem_.groupedMetrics ?
-                          tableDataItem_.groupedMetrics[groupingColumnId] :
-                          slicedRowId in tableDataItem_.groupedMetrics ? tableDataItem_.groupedMetrics[slicedRowId] :
-                          { [metric]: {} }
+                          tableDataItem.groupedMetrics && groupingColumnId in tableDataItem.groupedMetrics
+                            ? tableDataItem.groupedMetrics[groupingColumnId]
+                            : tableDataItem.groupedMetrics && slicedRowId in tableDataItem.groupedMetrics
+                              ? tableDataItem.groupedMetrics[slicedRowId] : { [metric]: {} }
                         )[metric] || {};
                         const newKey = key.replace("Entries/", "").replace("Parameters/", "");
                         const groupingValue = row.getValue(key) as string;
@@ -716,10 +730,10 @@ const LogsTable = ({
                         const slicedRowId = row.id.split(">").slice(0, -1).join(">");
                         const groupingColumnId = row.groupingColumnId;
                         const groupedSharedValues = (
-                          groupingColumnId in tableDataItem_.groupedMetrics ?
-                          tableDataItem_.groupedMetrics[groupingColumnId] :
-                          slicedRowId in tableDataItem_.groupedMetrics ? tableDataItem_.groupedMetrics[slicedRowId] :
-                          { ["shared_value"]: {} }
+                          tableDataItem.groupedMetrics && groupingColumnId in tableDataItem.groupedMetrics
+                            ? tableDataItem.groupedMetrics[groupingColumnId]
+                            : tableDataItem.groupedMetrics && slicedRowId in tableDataItem.groupedMetrics
+                              ? tableDataItem.groupedMetrics[slicedRowId] : { ["shared_value"]: {} }
                         )["shared_value"] || {};
                         const newKey = key.replace("Entries/", "").replace("Parameters/", "");
                         const groupingValue = row.getValue(key) as string;
