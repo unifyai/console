@@ -35,7 +35,7 @@ const CardGrid = ({
     tableNames,
     tableData: initialTableData,
     tableArguments,
-    plotData,
+    plotData: initialPlotData,
     savedInterface,
     interfaceCreated,
     tempInterfaceCreated_,
@@ -82,6 +82,7 @@ const CardGrid = ({
 
     // layout structure
     const [tableData, setTableData] = useState<TableDataProps>(initialTableData);
+    const [plotData, setPlotData] = useState<PlotDataProps>(initialPlotData);
     const [context, setContext] = useState<string>();
     const [items, setItems] = useState<TileProps[]>([]);
     const [newCounter, setNewCounter] = useState(0);
@@ -103,6 +104,7 @@ const CardGrid = ({
     const [help, setHelp] = useState(true);
     const [copied, setCopied] = useState<string>();
     const [deleting, setDeleting] = useState(false);
+
     // data fields
     const [interfaces, setInterfaces] = useState(interfaces_);
     const [projects, setProjects] = useState<string[]>(projects_ || []);
@@ -203,7 +205,8 @@ const CardGrid = ({
     // Update tableData when initialTableData changes
     useEffect(() => {
         setTableData(initialTableData);
-    }, [initialTableData]);
+        setPlotData(initialPlotData);
+    }, [initialTableData, initialPlotData]);
 
     // scroll to the bottom whenever new items are added
     useEffect(() => {
@@ -537,8 +540,12 @@ const CardGrid = ({
         </Dialog>}
         {/*  */}
         {edit && editTile && <EditTileName
+            tableData={tableData}
+            plotData={plotData}
             items={items}
             editTile={editTile}
+            setTableData={setTableData}
+            setPlotData={setPlotData}
             setItems={setItems}
             setEditTile={setEditTile}
         />}
