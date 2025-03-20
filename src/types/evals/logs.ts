@@ -27,7 +27,7 @@ export interface LogProps {
 */
 export interface GroupedLogPropsRaw {
     [key: string]: {
-        group: {key: string, value: number}[]  // Count for each group value
+        [groupValue: string]: number  // Count for each group value
         group_count: number,  // Total number of unique groups
         count: number  // Total number of logs in all groups
     } | number | undefined;  // For metadata fields
