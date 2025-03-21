@@ -99,8 +99,13 @@ const LogsTable = ({
   // extract necessary fields
   const [tableDataItem, setTableDataItem] = useState(tableDataItem_);
   const { fields, logs, params, entriesProperties, paramsProperties, metrics, logsData, totalPages, boundaries } = tableDataItem;
+  
+  // Display loaders for group metrics and shared values
+  const [loadingGroups, setLoadingGroups] = useState<Set<string>>(new Set());
+  const [loadingSubGroup, setLoadingSubGroup] = useState<boolean>(false);
   useEffect(() => {
     setTableDataItem(prev => ({ ...prev, ...tableDataItem_, groupedMetrics: { ...prev.groupedMetrics, ...tableDataItem_.groupedMetrics } }));
+    if (!loadingSubGroup) setLoadingGroups(prev => new Set(["_all_groups_"]));
     getGroupedMetrics(
       project || null,
       item.context || null,
@@ -113,6 +118,14 @@ const LogsTable = ({
       logsActions
     ).then((groupedMetrics) => {
       setTableDataItem(prev => ({ ...prev, groupedMetrics: { ...prev.groupedMetrics, ...groupedMetrics } }));
+      if (loadingSubGroup) 
+        setLoadingSubGroup(false)
+      else
+        setLoadingGroups(prev => {
+          const next = new Set(prev);
+          next.delete("_all_groups_");
+          return next;
+        })
     });
   }, [tableDataItem_]);
 
@@ -669,6 +682,8 @@ const LogsTable = ({
                       isAnimating={props.isAnimating}
                       setExpandingRowId={props.setExpandingRowId}
                       onExpand={async (groupingColumnId: string, groupingValue: string, parentId: string, setExpandingRowId: (id: string | null) => void) => {
+                        setLoadingSubGroup(true)
+                        setLoadingGroups(prev => new Set(prev).add(props.row.id));
                         await onGroupExpand(
                           props.row.id,
                           groupingColumnId,
@@ -692,11 +707,17 @@ const LogsTable = ({
                           logs,
                           logs.length ? [...entriesProperties, ...paramsProperties] : []
                         );
+                        setLoadingGroups(prev => {
+                          const next = new Set(prev);
+                          next.delete(props.row.id);
+                          return next;
+                        });
                       }}
                     />
                   )}
                   AggregatedCell={(cell, row) => (
                     <AggregatedCell
+                      isGroupLoading={loadingGroups.has(row.id) || loadingGroups.has("_all_groups_")}
                       cell={cell}
                       metric={tableDataItem_.metric}
                       getMetric={(key: string) => {
