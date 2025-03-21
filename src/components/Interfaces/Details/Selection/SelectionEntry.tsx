@@ -146,7 +146,8 @@ function getSelectionView(
   displayMode: "text" | "markdown" | "raw",
   nestingLevel: number,
   prefix: string,
-  parentPath: string
+  parentPath: string,
+  valueType: string
 ) {
   // If user wants "raw"
   if (displayMode === "raw") {
@@ -164,10 +165,8 @@ function getSelectionView(
     );
   }
 
-  // unify
-  const finalType = unifyType(val, comps);
-
-  switch (finalType) {
+  // Use the determined type instead of re-unifying
+  switch (valueType) {
     case "trace":
       return (
         <TraceView
@@ -450,7 +449,6 @@ export default function SelectionEntry({
     if (!isDictOrList || !topLevelPath) return [];
     const prefixStr = source === "entries" ? "entries" : "params";
 
-
     // In multi-mode, use gatherAllSubPathsMulti to include keys from comparables
     let paths: string[] = [];
     if (comps && comps.length > 0) {
@@ -468,7 +466,47 @@ export default function SelectionEntry({
     if (!isDictOrList || !subPaths.length) return false;
     const result = subPaths.every((p) => openKeys.has(p));
     return result;
-  }, [isDictOrList, subPaths, openKeys, property]);
+  }, [isDictOrList, subPaths, openKeys]);
+  
+  // Memoize the content to avoid unnecessary re-calculations
+  const renderedContent = useMemo(() => {
+    // Skip calculation if empty
+    if (isEmpty) return null;
+    
+    return getSelectionView(
+      rawValue,
+      comps,
+      version,
+      comparableVersions,
+      baseLogIndex,
+      comparisonLogsIndex,
+      diffMode,
+      splitView,
+      displayMode,
+      childNesting, // now always 0 if top-level
+      source === "entries" ? "entries" : "params",
+      topLevelPath, // Pass the top-level path as parentPath
+      unifiedType // Pass the unified type to avoid recalculating
+    );
+  }, [
+    rawValue,
+    comps,
+    version,
+    comparableVersions,
+    baseLogIndex,
+    comparisonLogsIndex,
+    diffMode,
+    splitView,
+    displayMode,
+    childNesting,
+    source,
+    topLevelPath,
+    unifiedType,
+    isEmpty // Add isEmpty as dependency
+  ]);
+  
+  // For the shadcn <AccordionItem>, we unify property => so the parent's "onValueChange" logic sees a simpler string
+  const itemValue = property;
   
   // Return early if empty - after all hooks have been called
   if (isEmpty) {
@@ -484,45 +522,15 @@ export default function SelectionEntry({
     e.stopPropagation();
     if (!isDictOrList) return;
 
-    // Force re-gather subpaths in case state has changed
-    const prefixStr = source === "entries" ? "entries" : "params";
-    
-    // Get the full list of paths directly
-    let paths: string[];
-    if (comps && comps.length > 0) {
-      paths = gatherAllSubPathsMulti(rawValue, comps, topLevelPath, prefixStr, 0);
-    } else {
-      paths = gatherAllSubPaths(rawValue, topLevelPath, prefixStr, 0);
-    }
-
-
+    // Use the subPaths directly
     if (allOpen) {
       // collapse everything recursively
-      collapseRecursively(paths);
+      collapseRecursively([...subPaths]);
     } else {
       // expand everything recursively
-      expandRecursively(paths);
+      expandRecursively([...subPaths]);
     }
   };
-
-  // subcomponent that actually renders the value
-  const renderedContent = getSelectionView(
-    rawValue,
-    comps,
-    version,
-    comparableVersions,
-    baseLogIndex,
-    comparisonLogsIndex,
-    diffMode,
-    splitView,
-    displayMode,
-    childNesting, // now always 0 if top-level
-    source === "entries" ? "entries" : "params",
-    topLevelPath // Pass the top-level path as parentPath
-  );
-
-  // For the shadcn <AccordionItem>, we unify property => so the parent's "onValueChange" logic sees a simpler string
-  const itemValue = property;
 
   return (
     <AccordionItem
