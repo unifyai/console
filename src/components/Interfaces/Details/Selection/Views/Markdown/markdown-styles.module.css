@@ -1,0 +1,147 @@
+/* 
+ * Markdown Styles Module
+ * This module provides comprehensive styling for proper markdown rendering
+ * with preserved whitespace, line breaks, and indentation
+ */
+
+.markdownContainer {
+  /* Base container styles */
+  width: 100%;
+  font-family: inherit;
+  /* Force all content to respect whitespace */
+  white-space: pre-wrap !important;
+  line-height: 1.4;
+}
+
+/* Apply whitespace preservation to all elements */
+.markdownContainer * {
+  white-space: pre-wrap !important;
+}
+
+/* Apply explicit whitespace preservation to all relevant elements */
+.markdownContainer p,
+.markdownContainer li,
+.markdownContainer h1,
+.markdownContainer h2,
+.markdownContainer h3,
+.markdownContainer h4,
+.markdownContainer h5,
+.markdownContainer h6,
+.markdownContainer blockquote,
+.markdownContainer span,
+.markdownContainer strong,
+.markdownContainer em,
+.markdownContainer td,
+.markdownContainer th,
+.markdownContainer pre,
+.markdownContainer code {
+  white-space: pre-wrap !important;
+}
+
+/* Special handling for inline elements */
+.markdownContainer strong,
+.markdownContainer em,
+.markdownContainer code:not(pre code),
+.markdownContainer a {
+  display: inline;
+}
+
+/* Special handling for list items to ensure bullets display */
+.markdownContainer ul,
+.markdownContainer ol {
+  list-style-position: outside !important;
+  margin-left: 0 !important;
+  padding-left: 2em !important;
+}
+
+.markdownContainer ul {
+  list-style-type: disc !important;
+}
+
+.markdownContainer ol {
+  list-style-type: decimal !important;
+}
+
+.markdownContainer li {
+  display: list-item !important;
+}
+
+/* Remove default browser margins for paragraphs */
+.markdownContainer p {
+  margin-top: 0;
+  margin-bottom: 0.5em; /* Reduced from 1em */
+}
+
+/* Ensure proper spacing for lists */
+.markdownContainer ul,
+.markdownContainer ol {
+  margin: 0.25em 0; /* Reduced from 0.5em */
+}
+
+/* Keep nested list indentation */
+.markdownContainer li > ul,
+.markdownContainer li > ol {
+  margin: 0;
+}
+
+/* List items should display as blocks to preserve indentation */
+.markdownContainer li {
+  margin-bottom: 0.2em; /* Reduced from 0.5em */
+}
+
+/* Preserve indentation in code blocks */
+.markdownContainer pre {
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  padding: 0.5em;
+  overflow-x: auto;
+  margin: 0.5em 0; /* Reduced from 1em */
+}
+
+/* Proper table formatting */
+.markdownContainer table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5em 0; /* Reduced from 1em */
+}
+
+.markdownContainer th,
+.markdownContainer td {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 0.5em;
+}
+
+/* Ensure block quotes maintain proper spacing */
+.markdownContainer blockquote {
+  border-left: 4px solid rgba(0, 0, 0, 0.1);
+  padding-left: 1em;
+  margin-left: 0;
+  margin-right: 0;
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+/* Fix for br tags to create proper line breaks without excessive spacing */
+.markdownContainer br {
+  content: "";
+  display: block;
+  margin: 0;
+  height: 0;
+  line-height: 0;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .markdownContainer pre {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .markdownContainer blockquote {
+    border-left-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  .markdownContainer th,
+  .markdownContainer td {
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+} 
