@@ -86,7 +86,6 @@ export function buildIndexToColumnsMapFromId(
 selectedCells: string[],
 sortedLogs: LogProps[]
 ): Record<number, Set<string>> {
-  
   const map: Record<number, Set<string>> = {};
   for (const token of selectedCells) {    
     const underscorePos = token.indexOf("_");

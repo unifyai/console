@@ -40,7 +40,6 @@ export default function Selection({
     newValue: string | undefined
   ) => void;
 }) {
-
   /******************************************************************************
    * Prepare sorted logs & selection data
    ******************************************************************************/
@@ -75,6 +74,53 @@ export default function Selection({
   const columnOrdering = useMemo(() => {
     return columnOrdering_ ? columnOrdering_.split(",") : [];
   }, [columnOrdering_]);
+
+  // Get all possible column names from all logs
+  const allPossibleColumns = useMemo(() => {
+    // Parse the columnOrdering_ string which contains all column names
+    if (columnOrdering_ && columnOrdering_.length > 0) {
+      const entryColumns = new Set<string>();
+      const paramColumns = new Set<string>();
+      
+      columnOrdering_.split(',').forEach(col => {
+        // Some columns might look like "Parameters/experiment" or "Entries/trace"
+        if (col.startsWith('Parameters/')) {
+          // Extract the parameter name without the "Parameters/" prefix
+          const paramName = col.substring('Parameters/'.length);
+          paramColumns.add(paramName);
+        } 
+        else if (col.startsWith('Entries/')) {
+          // Extract the entry name without the "Entries/" prefix
+          const entryName = col.substring('Entries/'.length);
+          entryColumns.add(entryName);
+        }
+        // Skip other entries like "Parameters" or "Entries" or "RowNumbering" which are categories
+      });
+      
+      return {
+        entries: Array.from(entryColumns),
+        params: Array.from(paramColumns)
+      };
+    }
+    
+    // Fallback: if no columnOrdering_, gather from logs (less reliable)
+    const entryColumns = new Set<string>();
+    const paramColumns = new Set<string>();
+    
+    logs.forEach(log => {
+      if (log.entries) {
+        Object.keys(log.entries).forEach(key => entryColumns.add(key));
+      }
+      if (log.params) {
+        Object.keys(log.params).forEach(key => paramColumns.add(key));
+      }
+    });
+    
+    return {
+      entries: Array.from(entryColumns),
+      params: Array.from(paramColumns)
+    };
+  }, [logs, columnOrdering_]);
 
   /*******************************************************************************
    * Panel Count State
@@ -134,6 +180,7 @@ export default function Selection({
               updateItem={updateItem}
               panelId={idx}
               initialBaseIndex={baseIndex_ ? parseInt(baseIndex_, 10) : 0}
+              allPossibleColumns={allPossibleColumns}
             />
           </React.Fragment>
         ))}
