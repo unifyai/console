@@ -346,11 +346,10 @@ const CardGrid = ({
                     >
                         {items.map(el => {
                             return (
-                                <div
+                                !el.visible ? <></> : <div
                                     key={el.i}
                                     data-grid={el}
                                     className="relative"
-                                    hidden={!el.visible}
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <Card
