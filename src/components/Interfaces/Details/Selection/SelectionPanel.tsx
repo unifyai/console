@@ -135,6 +135,7 @@ export default function SelectionPanel({
     item,
     updateItem,
     initialBaseIndex,
+    allPossibleColumns,
   }: {
     panelId: number;
     logs: LogProps[];
@@ -147,8 +148,8 @@ export default function SelectionPanel({
     item: TileProps;
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
     initialBaseIndex: number;
+    allPossibleColumns?: { entries: string[], params: string[] };
   }) {
-    
     // Local panel states for display options
     const [displayMode, setDisplayMode] = useState<"markdown" | "text" | "raw">("markdown");
     const [diffModeIdx, setDiffModeIdx] = useState(0);
@@ -366,20 +367,22 @@ export default function SelectionPanel({
   
     const entryKeys = useMemo(() => {
       if (!baseLog) return [];
-      return gatherUnionOfKeys(
+      const keys = gatherUnionOfKeys(
         baseLog.entries,
         comparisonLogs.map((cl) => cl.entries),
         columnOrdering
       );
+      return keys;
     }, [baseLog, comparisonLogs, columnOrdering]);
   
     const paramKeys = useMemo(() => {
       if (!baseLog) return [];
-      return gatherUnionOfKeys(
+      const keys = gatherUnionOfKeys(
         baseLog.params,
         comparisonLogs.map((cl) => cl.params),
         columnOrdering
       );
+      return keys;
     }, [baseLog, comparisonLogs, columnOrdering]);
   
     // Filter "visible" columns
@@ -410,24 +413,29 @@ export default function SelectionPanel({
       const reorder = paramOrderings[vKey];
       const fallback = visibleParams();
       
+      // Include all possible columns, not just those in the current logs
+      const allPossibleParamsCombined = allPossibleColumns?.params 
+        ? Array.from(new Set([...fallback, ...allPossibleColumns.params]))
+        : fallback;
+      
       let finalP: string[] = [];
       if (reorder && !shallowArrayEquals(reorder, paramOrder)) {
         finalP = reorder;
         setParamOrder(reorder);
-      } else if (!reorder && JSON.stringify(fallback) !== JSON.stringify(paramOrder)) {
+      } else if (!reorder && JSON.stringify(allPossibleParamsCombined) !== JSON.stringify(paramOrder)) {
         // Use columnOrdering to order the parameters if applicable
         if (columnOrdering.length > 0) {
-          // First use ordered items from columnOrdering that exist in fallback
-          const orderedItems = columnOrdering.filter(key => fallback.includes(key));
-          // Then add any fallback items not in columnOrdering
-          const remainingItems = fallback.filter(key => !columnOrdering.includes(key));
+          // First use ordered items from columnOrdering that exist in the combined params
+          const orderedItems = columnOrdering.filter(key => allPossibleParamsCombined.includes(key));
+          // Then add any remaining items not in columnOrdering
+          const remainingItems = allPossibleParamsCombined.filter(key => !columnOrdering.includes(key));
           finalP = [...orderedItems, ...remainingItems];
         } else {
-          finalP = fallback;
+          finalP = allPossibleParamsCombined;
         }
         setParamOrder(finalP);
       }
-  
+
       if (finalP.length === 0) {
         return;
       }
@@ -439,27 +447,32 @@ export default function SelectionPanel({
       if (missing.length > 0) {
         setParamOrder((prev) => [...prev, ...missing]);
       }
-    }, [panelId, paramKeys, paramsFilter, paramOrderings, visibleParamsKey, columnOrdering, paramOrder]);
+    }, [paramKeys, paramsFilter, paramOrderings, visibleParamsKey, columnOrdering, paramOrder, allPossibleColumns?.params]);
   
     useEffect(() => {
       const vKey = visibleEntriesKey();
       const reorder = entryOrderings[vKey];
       const fallback = visibleEntries();
   
+      // Include all possible columns, not just those in the current logs
+      const allPossibleEntriesCombined = allPossibleColumns?.entries 
+        ? Array.from(new Set([...fallback, ...allPossibleColumns.entries]))
+        : fallback;
+  
       let finalE: string[] = [];
       if (reorder && !shallowArrayEquals(reorder, entryOrder)) {
         finalE = reorder;
         setEntryOrder(reorder);
-      } else if (!reorder && JSON.stringify(fallback) !== JSON.stringify(entryOrder)) {
+      } else if (!reorder && JSON.stringify(allPossibleEntriesCombined) !== JSON.stringify(entryOrder)) {
         // Use columnOrdering to order the entries if applicable
         if (columnOrdering.length > 0) {
-          // First use ordered items from columnOrdering that exist in fallback
-          const orderedItems = columnOrdering.filter(key => fallback.includes(key));
-          // Then add any fallback items not in columnOrdering
-          const remainingItems = fallback.filter(key => !columnOrdering.includes(key));
+          // First use ordered items from columnOrdering that exist in the combined entries
+          const orderedItems = columnOrdering.filter(key => allPossibleEntriesCombined.includes(key));
+          // Then add any remaining items not in columnOrdering
+          const remainingItems = allPossibleEntriesCombined.filter(key => !columnOrdering.includes(key));
           finalE = [...orderedItems, ...remainingItems];
         } else {
-          finalE = fallback;
+          finalE = allPossibleEntriesCombined;
         }
         setEntryOrder(finalE);
       }
@@ -475,7 +488,7 @@ export default function SelectionPanel({
       if (missingE.length > 0) {
         setEntryOrder((prev) => [...prev, ...missingE]);
       }
-    }, [panelId, entryKeys, entriesFilter, entryOrderings, entryOrder, visibleEntriesKey, columnOrdering]);
+    }, [entryKeys, entriesFilter, entryOrderings, entryOrder, visibleEntriesKey, columnOrdering, allPossibleColumns?.entries]);
   
     const sensors = useSensors(
       useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -552,11 +565,14 @@ export default function SelectionPanel({
   
       // Visible columns
       const cols = paramOrder.filter((col) => paramsFilter[col] !== false);
+      
       const filtered = cols.filter((col) => {
         const baseVal = baseLog.params?.[col];
         const compVals = comparisonLogs.map((cl) => cl.params?.[col]);
-        return !isAllEmpty(baseVal, compVals);
+        const isEmpty = isAllEmpty(baseVal, compVals);
+        return !isEmpty;
       });
+      
       if (!filtered.length) return null;
       
       const allOpen = areAllOpenParams();
@@ -650,11 +666,14 @@ export default function SelectionPanel({
   
       // Visible columns
       const cols = entryOrder.filter((col) => entriesFilter[col] !== false);
+      
       const filtered = cols.filter((col) => {
         const baseVal = baseLog.entries?.[col];
         const compVals = comparisonLogs.map((cl) => cl.entries?.[col]);
-        return !isAllEmpty(baseVal, compVals);
+        const isEmpty = isAllEmpty(baseVal, compVals);
+        return !isEmpty;
       });
+      
       if (!filtered.length) return null;
       
       const allOpen = areAllOpenEntries();
@@ -871,6 +890,41 @@ export default function SelectionPanel({
       }
     };
   
+    // Initialize filters when allPossibleColumns changes
+    useEffect(() => {
+      if (allPossibleColumns) {
+        // Initialize entries filter
+        const newEntriesFilter: Record<string, boolean> = {...entriesFilter};
+        let entriesChanged = false;
+        
+        allPossibleColumns.entries.forEach(entry => {
+          if (newEntriesFilter[entry] === undefined) {
+            newEntriesFilter[entry] = true; // Default to visible
+            entriesChanged = true;
+          }
+        });
+        
+        if (entriesChanged) {
+          setEntriesFilter(newEntriesFilter);
+        }
+        
+        // Initialize params filter
+        const newParamsFilter: Record<string, boolean> = {...paramsFilter};
+        let paramsChanged = false;
+        
+        allPossibleColumns.params.forEach(param => {
+          if (newParamsFilter[param] === undefined) {
+            newParamsFilter[param] = true; // Default to visible
+            paramsChanged = true;
+          }
+        });
+        
+        if (paramsChanged) {
+          setParamsFilter(newParamsFilter);
+        }
+      }
+    }, [allPossibleColumns, entriesFilter, paramsFilter]);
+  
     if (!baseLog) {
       return (
         <div className="flex flex-col w-full h-full overflow-hidden bg-background">
@@ -946,19 +1000,19 @@ export default function SelectionPanel({
                     {/* Master toggle for all */}
                     <div className="flex justify-between items-center mb-5 mt-3">
                       <span className="font-bold text-sm">
-                        {entryKeys.every((k) => entriesFilter[k] !== false) &&
-                        paramKeys.every((k) => paramsFilter[k] !== false)
+                        {(allPossibleColumns?.entries || entryKeys).every((k) => entriesFilter[k] !== false) &&
+                        (allPossibleColumns?.params || paramKeys).every((k) => paramsFilter[k] !== false)
                           ? "Hide all"
                           : "Show all"}
                       </span>
                       <Switch
                         checked={
-                          entryKeys.every((k) => entriesFilter[k] !== false) &&
-                          paramKeys.every((k) => paramsFilter[k] !== false)
+                          (allPossibleColumns?.entries || entryKeys).every((k) => entriesFilter[k] !== false) &&
+                          (allPossibleColumns?.params || paramKeys).every((k) => paramsFilter[k] !== false)
                         }
                         onCheckedChange={(checked) => {
                           const newE: Record<string, boolean> = {};
-                          entryKeys.forEach((k) => {
+                          (allPossibleColumns?.entries || entryKeys).forEach((k) => {
                             newE[k] = checked;
                           });
                           if (!shallowEqualBooleanRecords(newE, entriesFilter)) {
@@ -966,7 +1020,7 @@ export default function SelectionPanel({
                           }
 
                           const newP: Record<string, boolean> = {};
-                          paramKeys.forEach((k) => {
+                          (allPossibleColumns?.params || paramKeys).forEach((k) => {
                             newP[k] = checked;
                           });
                           if (!shallowEqualBooleanRecords(newP, paramsFilter)) {
@@ -977,17 +1031,17 @@ export default function SelectionPanel({
                     </div>
 
                     {/* Params toggles */}
-                    {paramKeys.length > 0 && (
+                    {(allPossibleColumns?.params || paramKeys).length > 0 && (
                       <div className="mt-2">
                         <div className="flex justify-between items-center mb-1">
                           <p className="font-bold text-sm">Params</p>
                           <Switch
-                            checked={paramKeys.every(
+                            checked={(allPossibleColumns?.params || paramKeys).every(
                               (k) => paramsFilter[k] !== false
                             )}
                             onCheckedChange={(checked) => {
                               const newVal: Record<string, boolean> = {};
-                              paramKeys.forEach((k) => {
+                              (allPossibleColumns?.params || paramKeys).forEach((k) => {
                                 newVal[k] = checked;
                               });
                               if (!shallowEqualBooleanRecords(newVal, paramsFilter)) {
@@ -996,7 +1050,7 @@ export default function SelectionPanel({
                             }}
                           />
                         </div>
-                        {paramKeys.map((k) => (
+                        {(allPossibleColumns?.params || paramKeys).map((k) => (
                           <div
                             key={k}
                             className="flex items-center justify-between py-1 pl-4"
@@ -1026,12 +1080,12 @@ export default function SelectionPanel({
                       <div className="flex justify-between items-center mb-1">
                         <p className="font-bold text-sm">Entries</p>
                         <Switch
-                          checked={entryKeys.every(
+                          checked={(allPossibleColumns?.entries || entryKeys).every(
                             (k) => entriesFilter[k] !== false
                           )}
                           onCheckedChange={(checked) => {
                             const newVal: Record<string, boolean> = {};
-                            entryKeys.forEach((k) => {
+                            (allPossibleColumns?.entries || entryKeys).forEach((k) => {
                               newVal[k] = checked;
                             });
                             if (!shallowEqualBooleanRecords(newVal, entriesFilter)) {
@@ -1040,7 +1094,7 @@ export default function SelectionPanel({
                           }}
                         />
                       </div>
-                      {entryKeys.map((k) => (
+                      {(allPossibleColumns?.entries || entryKeys).map((k) => (
                         <div
                           key={k}
                           className="flex items-center justify-between py-1 pl-4"
