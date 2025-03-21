@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo, useEffect, useCallback } from "react";
 import {
   Accordion,
   AccordionItem,
@@ -383,333 +383,362 @@ export default function DictionaryView({
   prefix = "entries",
   parentPath = "", // new param to track parent's path
 }: DictionaryViewProps) {
-  // Use panel context selectors to only subscribe to the parts of the context we need
+  // Get openKeys and other items from context
   const openKeys = usePanelExpandContextSelector((ctx) => ctx.openKeys);
   const setOpenKeys = usePanelExpandContextSelector((ctx) => ctx.setOpenKeys);
   const forceExpandAll = usePanelExpandContextSelector((ctx) => ctx.forceExpandAll);
   const forceCollapseAll = usePanelExpandContextSelector((ctx) => ctx.forceCollapseAll);
-  // Get the expandRecursively and collapseRecursively functions from context
+  const toggleKey = usePanelExpandContextSelector((ctx) => ctx.toggleKey);
   const expandRecursively = usePanelExpandContextSelector((ctx) => ctx.expandRecursively);
   const collapseRecursively = usePanelExpandContextSelector((ctx) => ctx.collapseRecursively);
 
-  const singleMode = !comparables || comparables.length === 0;
-  
-  // Check if base is a valid dict
-  const isValidDict = isDict(value);
-  
-  // For multi-mode, check if any comparable is a valid dict
-  const hasValidComparables = !singleMode && comparables.some(comp => isDict(comp));
-  
-  // In multi-mode, we can proceed if either the base or any comparable is a valid dict
-  const canProceed = isValidDict || (!singleMode && hasValidComparables);
-
-  // gather union of all dictionary keys - without explicitly sorting
-  const { allKeys, rowIndices } = useMemo(() => {
-    if (singleMode && !isValidDict) {
-      return { allKeys: [], rowIndices: [] };
-    }
+  // Memoize recursive expand/collapse handlers to prevent recreation on displayMode changes
+  const handleRecursiveExpandCollapse = useCallback((e: React.MouseEvent, propertyKey: string, propertyValue: any, propertyComparables: any[]) => {
+    const builtPath = parentPath
+      ? parentPath + "." + sanitizePropertyKey(propertyKey)
+      : makePrefixedDictPath(prefix, nestingLevel, propertyKey);
     
-    if (singleMode) {
-      // Don't sort keys, respect original order
-      const baseObjKeys = Object.keys(value);
-      return {
-        allKeys: baseObjKeys,
-        rowIndices: [baseLogIndex],
-      };
-    } else {
-      const arr = [value, ...comparables];
-      const union = new Set<string>();
-      arr.forEach((dict) => {
-        if (dict && typeof dict === "object" && !Array.isArray(dict)) {
-          Object.keys(dict).forEach((k) => union.add(k));
-        }
-      });
-      // Don't sort keys, respect object key insertion order
-      const keys = Array.from(union);
-      return {
-        allKeys: keys,
-        rowIndices: [baseLogIndex, ...comparisonLogsIndex],
-      };
-    }
-  }, [value, comparables, singleMode, baseLogIndex, comparisonLogsIndex, isValidDict]);
+    handleRecursiveToggle(
+      e,
+      builtPath,
+      propertyValue,
+      propertyComparables,
+      prefix,
+      nestingLevel + 1,
+      expandRecursively,
+      collapseRecursively,
+      openKeys
+    );
+  }, [parentPath, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys]);
 
-  // On mount or if forceExpandAll/forceCollapseAll changes => one pass
-  // Always call useEffect, but conditionally execute its body
-  useEffect(() => {
-    if (!canProceed) return;
+  // Memoize toggle handlers to prevent recreation on displayMode changes
+  const handleToggle = useCallback((propertyKey: string) => {
+    const builtPath = parentPath
+      ? parentPath + "." + sanitizePropertyKey(propertyKey)
+      : makePrefixedDictPath(prefix, nestingLevel, propertyKey);
     
-    if (forceExpandAll || forceCollapseAll) {
-      // Use parentPath directly as the root path for gathering subpaths
-      // This ensures consistency with the top-level property path
-      if (parentPath) {
-        const newSet = new Set(openKeys);
-        
-        // Choose the appropriate path gathering function based on mode
-        let subPaths: string[];
-        if (!singleMode) {
-          // In multi-mode, use gatherAllSubPathsMulti to include keys from comparables
-          subPaths = gatherAllSubPathsMulti(value, comparables, parentPath, prefix, nestingLevel);
-        } else {
-          // In single-mode, use the original gatherAllSubPaths
-          subPaths = gatherAllSubPaths(value, parentPath, prefix, nestingLevel);
-        }
+    toggleKey(builtPath);
+  }, [parentPath, prefix, nestingLevel, toggleKey]);
 
-        if (forceExpandAll) {
-          // expand all subpaths
-          subPaths.forEach((sp) => newSet.add(sp));
-        } else {
-          // collapse all subpaths
-          subPaths.forEach((sp) => newSet.delete(sp));
-        }
+  // Extract all keys from base and comparables, filtering out ONLY undefined values
+  const allKeys = useMemo(() => {
+    const keyset = new Set<string>();
 
-        setOpenKeys(newSet);
+    // Add keys from base value if it's a valid object
+    if (value && typeof value === "object") {
+      Object.keys(value).forEach((k) => keyset.add(k));
+    }
+
+    // Add keys from comparables if they are valid objects
+    for (const comp of comparables) {
+      if (comp && typeof comp === "object") {
+        Object.keys(comp).forEach((k) => keyset.add(k));
       }
     }
-  }, [forceExpandAll, forceCollapseAll, openKeys, parentPath, prefix, nestingLevel, value, comparables, singleMode, canProceed, setOpenKeys]);
 
-  /*─────────────────────────────────────────────────────────────────────────
-    renderSingleKey => only base has data
-  ──────────────────────────────────────────────────────────────────────────*/
-  function renderSingleKey(k: string) {
-    const baseVal = (value as Record<string, unknown>)[k];
-    const type = unifyType(baseVal, []);
-    const icon = getTypeIcon(type);
+    // Convert to array and sort
+    return Array.from(keyset).sort();
+  }, [value, comparables]);
 
-    // Build a fully qualified path that includes the parent's path if present
-    const path = parentPath
-      ? parentPath + "." + sanitizePropertyKey(k) // e.g. "entries.dict.0.a.sub_question"
-      : makePrefixedDictPath(prefix, nestingLevel, k);
+  // Memoize path construction for keys to avoid recalculation on display mode changes
+  const keyPaths = useMemo(() => {
+    return allKeys.map(k => {
+      const builtPath = parentPath
+        ? parentPath + "." + sanitizePropertyKey(k)
+        : makePrefixedDictPath(prefix, nestingLevel, k);
+      
+      return {
+        key: k,
+        path: builtPath
+      };
+    });
+  }, [allKeys, parentPath, prefix, nestingLevel]);
 
-    const isOpen = openKeys.has(path);
-
-    function handleExpandToggle(e: React.MouseEvent) {
-      handleRecursiveToggle(e, path, value, comparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
-    }
-
-    // Build tooltip text
-    const isPathOpen = openKeys.has(path);
-
-    return (
-      <AccordionItem key={k} value={path}>
-        <AccordionTrigger className="relative group flex items-center justify-between">
-          <span className="inline-flex items-center gap-2">
-            {icon} {k}
-          </span>
-          {(type === "dict" || type === "list") && (
-            <div className="absolute right-5 flex gap-1 items-center">
-              <ActionButton
-                variant="ghost"
-                size="icon"
-                tooltip={isPathOpen ? "Collapse All Children" : "Expand All Children"}
-                onClick={handleExpandToggle}
-                icon={isPathOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
-              />
-            </div>
-          )}
-        </AccordionTrigger>
-
-        <AccordionContent>
-          <div className="border-l ml-4 pl-1">
-            {pickView({
-              value: baseVal,
-              comparables: [],
-              baseLogIndex,
-              comparisonLogsIndex: [],
-              version,
-              comparableVersions,
-              diffMode,
-              splitView,
-              displayMode,
-              nestingLevel: nestingLevel + 1,
-              prefix,
-              parentPath: path, // pass the newly built path on
-            })}
-          </div>
-        </AccordionContent>
-      </AccordionItem>
-    );
-  }
-
-  /*─────────────────────────────────────────────────────────────────────────
-    renderMultiKey => presence diff
-  ──────────────────────────────────────────────────────────────────────────*/
-  function renderMultiKey(k: string) {
-    const dictVals = [value, ...comparables];
-    const fieldVals = dictVals.map((d) => (d && isDict(d) ? d[k] : undefined));
-    const baseVal = fieldVals[0];
-    const compVals = fieldVals.slice(1);
-
-    const { redRows, greenRows } = presenceDiff(
-      baseVal,
-      compVals,
-      rowIndices[0],
-      rowIndices.slice(1)
-    );
-
-    // Determine if the key is present in all rows or absent in all rows
-    const allRows = [rowIndices[0], ...rowIndices.slice(1)];
-    const isAllPresent = redRows.length === 0 && greenRows.length === 0 && baseVal !== undefined;
-    const isAllAbsent = redRows.length === 0 && greenRows.length === 0 && baseVal === undefined;
-
-    let labelColor = "";
-    const baseHas = baseVal !== undefined;
-    if (baseHas && redRows.length > 0) {
-      labelColor = "text-red-600";
-    } else if (!baseHas && greenRows.length > 0) {
-      labelColor = "text-green-600";
-    }
-
-    const propType = unifyType(baseVal, compVals);
-    const icon = getTypeIcon(propType);
-
-    // Build path that includes parent.
-    const path = parentPath
-      ? parentPath + "." + sanitizePropertyKey(k)
-      : makePrefixedDictPath(prefix, nestingLevel, k);
-
-    const isOpen = openKeys.has(path);
-
-    function handleExpandToggle(e: React.MouseEvent) {
-      handleRecursiveToggle(e, path, value, comparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
-    }
-
-    // Build tooltip text
-    const isPathOpen = openKeys.has(path);
-
-    return (
-      <AccordionItem key={k} value={path}>
-        <AccordionTrigger
-          className={`relative group flex items-center justify-between ${labelColor}`}
-        >
-          <span className="inline-flex items-center gap-2">
-            {icon} {k}
-            {(redRows.length > 0 || greenRows.length > 0) ? (
-              <div className="ml-2 flex gap-1">
-                {redRows.length > 0 && <RowBadge rowNumbers={redRows} mode="delete" />}
-                {greenRows.length > 0 && <RowBadge rowNumbers={greenRows} mode="insert" />}
-              </div>
-            ) : isAllPresent && (
-              <div className="ml-2 flex gap-1">
-                <RowBadge rowNumbers={allRows} mode="none" />
-              </div>
-            )}
-          </span>
-          {(propType === "dict" || propType === "list") && (
-            <div className="absolute right-5 flex gap-1 items-center">
-              <ActionButton
-                variant="ghost"
-                size="icon"
-                tooltip={isPathOpen ? "Collapse All Children" : "Expand All Children"}
-                onClick={handleExpandToggle}
-                icon={isPathOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
-              />
-            </div>
-          )}
-        </AccordionTrigger>
-
-        <AccordionContent>
-          <div className="border-l ml-4 pl-1">
-            {pickView({
-              value: baseVal,
-              comparables: compVals,
-              baseLogIndex: rowIndices[0],
-              comparisonLogsIndex: rowIndices.slice(1),
-              version,
-              comparableVersions,
-              diffMode,
-              splitView,
-              displayMode,
-              nestingLevel: nestingLevel + 1,
-              prefix,
-              parentPath: path, // pass forward
-            })}
-          </div>
-        </AccordionContent>
-      </AccordionItem>
-    );
-  }
-
-  /*─────────────────────────────────────────────────────────────────────────
-    Build final
-  ──────────────────────────────────────────────────────────────────────────*/
-  const openValues = useMemo(() => {
-    // If not a valid dictionary, return empty array
-    if (!canProceed) return [];
-    
-    // Gather all keys => build path => check if open
-    // But we rely on the <Accordion value> = path approach:
-    // So we only keep the ones that are in openKeys
-    const paths = allKeys
-      .map((k) => {
-        // same logic as in renderSingleKey / renderMultiKey
+  // This effect shouldn't run when displayMode changes
+  useEffect(() => {
+    if (forceExpandAll) {
+      const subPaths: string[] = [];
+      for (const k of allKeys) {
         const builtPath = parentPath
           ? parentPath + "." + sanitizePropertyKey(k)
           : makePrefixedDictPath(prefix, nestingLevel, k);
-        return builtPath;
-      })
-      .filter((p) => openKeys.has(p));
-    return paths;
-  }, [allKeys, openKeys, parentPath, prefix, nestingLevel, canProceed]);
+        subPaths.push(builtPath);
 
-  // Return with conditional rendering based on canProceed
-  return (
-    <div className="flex flex-col gap-2">
-      {!canProceed ? (
-        <p className="text-red-500">
-          {singleMode 
-            ? "DictionaryView: base value is not a dictionary." 
-            : "DictionaryView: neither base nor comparables are valid dictionaries."}
-        </p>
-      ) : diffMode === "none" && !singleMode ? (
-        // No-diff mode with multiple values
-        renderNoDiffMode(
-          allKeys,
-          value,
-          comparables,
-          rowIndices,
-          openKeys,
-          setOpenKeys,
-          {
+        // Add deeper nested paths if they exist
+        const baseVal = value?.[k];
+        const comps = comparables.map((c) => c?.[k]);
+        
+        if (isDict(baseVal) || isList(baseVal)) {
+          if (comps.length > 0) {
+            const nestedPaths = gatherAllSubPathsMulti(baseVal, comps, builtPath, prefix, nestingLevel + 1);
+            subPaths.push(...nestedPaths);
+          } else {
+            const nestedPaths = gatherAllSubPaths(baseVal, builtPath, prefix, nestingLevel + 1);
+            subPaths.push(...nestedPaths);
+          }
+        }
+      }
+      
+      expandRecursively(subPaths);
+    } else if (forceCollapseAll) {
+      const subPaths: string[] = [];
+      for (const k of allKeys) {
+        const builtPath = parentPath
+          ? parentPath + "." + sanitizePropertyKey(k)
+          : makePrefixedDictPath(prefix, nestingLevel, k);
+        subPaths.push(builtPath);
+
+        // Add deeper nested paths if they exist
+        const baseVal = value?.[k];
+        const comps = comparables.map((c) => c?.[k]);
+        
+        if (isDict(baseVal) || isList(baseVal)) {
+          if (comps.length > 0) {
+            const nestedPaths = gatherAllSubPathsMulti(baseVal, comps, builtPath, prefix, nestingLevel + 1);
+            subPaths.push(...nestedPaths);
+          } else {
+            const nestedPaths = gatherAllSubPaths(baseVal, builtPath, prefix, nestingLevel + 1);
+            subPaths.push(...nestedPaths);
+          }
+        }
+      }
+      
+      collapseRecursively(subPaths);
+    }
+  }, [
+    forceExpandAll, 
+    forceCollapseAll, 
+    allKeys, 
+    expandRecursively, 
+    collapseRecursively, 
+    parentPath, 
+    prefix, 
+    nestingLevel,
+    value,
+    comparables
+    // displayMode is intentionally not a dependency 
+  ]);
+
+  // Check if we have comparables => multi-mode
+  const multiMode = comparables.some((c) => c !== undefined);
+
+  // Build the open values array for the accordion (using memoized keyPaths)
+  const openValues = useMemo(() => {
+    return keyPaths
+      .filter(({ path }) => openKeys.has(path))
+      .map(({ key }) => key);
+  }, [keyPaths, openKeys]);
+
+  // Memoize all rendered keys to prevent rerendering on display mode change
+  const renderedKeys = useMemo(() => {
+    return allKeys.map(k => {
+      const baseVal = value?.[k];
+      const comps = comparables.map((c) => c?.[k]);
+      
+      return multiMode 
+        ? renderMultiKey(k, baseVal, comps)
+        : renderSingleKey(k, baseVal);
+    });
+  }, [
+    allKeys, 
+    value, 
+    comparables, 
+    multiMode, 
+    // The state needed for rendering but explicitly NOT including displayMode
+    baseLogIndex,
+    comparisonLogsIndex,
+    diffMode,
+    splitView,
+    nestingLevel,
+    version,
+    comparableVersions,
+    // Add the missing dependencies
+    renderMultiKey,
+    renderSingleKey
+  ]);
+
+  function renderSingleKey(k: string, baseVal: any) {
+    // If undefined, skip
+    if (baseVal === undefined) return null;
+
+    const builtPath = keyPaths.find(kp => kp.key === k)?.path || '';
+    const isOpen = openKeys.has(builtPath);
+    const _valueType = getValueType(baseVal);
+    const icon = getTypeIcon(_valueType);
+    const isExpandable = isDict(baseVal) || isList(baseVal);
+
+    function handleExpandToggle(e: React.MouseEvent) {
+      e.stopPropagation();
+      handleToggle(k);
+    }
+
+    return (
+      <AccordionItem key={k} value={k} className="border-0">
+        <AccordionTrigger
+          onClick={handleExpandToggle}
+          className="py-1.5 hover:no-underline"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-primary">{icon}</span>
+            <span className="text-sm font-mono">{k}</span>
+          </div>
+          {isExpandable && (
+            <div
+              className="absolute right-5 z-10"
+              onClick={(e) => handleRecursiveExpandCollapse(e, k, baseVal, [])}
+            >
+              <ActionButton
+                variant="ghost"
+                size="sm"
+                tooltip={isOpen ? "Fold all" : "Unfold all"}
+                icon={
+                  isOpen ? (
+                    <FoldVertical className="h-3 w-3" />
+                  ) : (
+                    <UnfoldVertical className="h-3 w-3" />
+                  )
+                }
+              />
+            </div>
+          )}
+        </AccordionTrigger>
+        <AccordionContent>
+          {/* Use displayMode as a prop to child components */}
+          {pickView({
+            value: baseVal,
+            comparables: [],
             baseLogIndex,
-            comparisonLogsIndex,
+            comparisonLogsIndex: [],
+            diffMode,
+            splitView,
+            displayMode,
             version,
             comparableVersions,
-            diffMode: diffMode as "none",
-            splitView,
-            displayMode: displayMode as "text" | "markdown",
-            nestingLevel,
+            nestingLevel: nestingLevel + 1,
             prefix,
-            parentPath,
-            expandRecursively,
-            collapseRecursively,
-          }
-        )
-      ) : (
-        <Accordion
-          type="multiple"
-          value={openValues}
-          onValueChange={(newVals) => {
-            const oldSet = new Set(openValues);
-            const nextSet = new Set(newVals);
-            const changedAdded = Array.from(nextSet).filter((v) => !oldSet.has(v));
-            const changedRemoved = Array.from(oldSet).filter((v) => !nextSet.has(v));
-            setOpenKeys((prev) => {
-              const updated = new Set(prev);
-              changedAdded.forEach((v) => {
-                updated.add(v);
-              });
-              changedRemoved.forEach((v) => {
-                updated.delete(v);
-              });
-              return updated;
-            });
-          }}
+            parentPath: builtPath, // pass fully-qualified path to children
+          })}
+        </AccordionContent>
+      </AccordionItem>
+    );
+  }
+
+  function renderMultiKey(k: string, baseVal: any, comps: any[]) {
+    const builtPath = keyPaths.find(kp => kp.key === k)?.path || '';
+    const isOpen = openKeys.has(builtPath);
+    
+    // Skip completely if everyone is undefined
+    if (baseVal === undefined && comps.every((c) => c === undefined)) {
+      return null;
+    }
+
+    const isInBase = baseVal !== undefined;
+    const { redRows, greenRows } = presenceDiff(
+      baseVal,
+      comps,
+      baseLogIndex,
+      comparisonLogsIndex
+    );
+
+    // Use unifyType to decide what icon to show
+    const unifiedType = unifyType(baseVal, comps);
+    const icon = getTypeIcon(unifiedType);
+    const isExpandable = ["dict", "list"].includes(unifiedType);
+
+    function handleExpandToggle(e: React.MouseEvent) {
+      e.stopPropagation();
+      handleToggle(k);
+    }
+
+    return (
+      <AccordionItem key={k} value={k} className="border-0">
+        <AccordionTrigger
+          onClick={handleExpandToggle}
+          className="py-1.5 hover:no-underline"
         >
-          {allKeys.map((k) => (
-            singleMode ? renderSingleKey(k) : renderMultiKey(k)
-          ))}
-        </Accordion>
-      )}
-    </div>
+          <div className="flex items-center gap-2">
+            <span className="text-primary">{icon}</span>
+            <span className="text-sm font-mono">{k}</span>
+            <div className="flex items-center gap-1">
+              {isInBase ? (
+                <RowBadge rowNumbers={[baseLogIndex]} mode="base" />
+              ) : null}
+              {redRows.length > 0 && <RowBadge rowNumbers={redRows} mode="delete" />}
+              {greenRows.length > 0 && <RowBadge rowNumbers={greenRows} mode="insert" />}
+            </div>
+          </div>
+          {isExpandable && (
+            <div
+              className="absolute right-5 z-10"
+              onClick={(e) => handleRecursiveExpandCollapse(e, k, baseVal, comps)}
+            >
+              <ActionButton
+                variant="ghost"
+                size="sm"
+                tooltip={isOpen ? "Fold all" : "Unfold all"}
+                icon={
+                  isOpen ? (
+                    <FoldVertical className="h-3 w-3" />
+                  ) : (
+                    <UnfoldVertical className="h-3 w-3" />
+                  )
+                }
+              />
+            </div>
+          )}
+        </AccordionTrigger>
+        <AccordionContent>
+          {/* Use displayMode as a prop to child components */}
+          {pickView({
+            value: baseVal,
+            comparables: comps,
+            baseLogIndex,
+            comparisonLogsIndex,
+            diffMode,
+            splitView,
+            displayMode,
+            version,
+            comparableVersions,
+            nestingLevel: nestingLevel + 1,
+            prefix,
+            parentPath: builtPath, // pass fully-qualified path to children
+          })}
+        </AccordionContent>
+      </AccordionItem>
+    );
+  }
+
+  if (diffMode === "none") {
+    return renderNoDiffMode(
+      allKeys,
+      value,
+      comparables,
+      [baseLogIndex, ...comparisonLogsIndex],
+      openKeys,
+      setOpenKeys,
+      {
+        baseLogIndex,
+        comparisonLogsIndex,
+        version,
+        comparableVersions,
+        diffMode,
+        splitView,
+        displayMode,
+        nestingLevel,
+        prefix,
+        parentPath,
+        expandRecursively,
+        collapseRecursively,
+      }
+    );
+  }
+
+  // No need to add displayMode as a dependency here
+  return (
+    <Accordion type="multiple" value={openValues} onValueChange={() => {}}>
+      <div className="flex flex-col">
+        {renderedKeys}
+      </div>
+    </Accordion>
   );
 }
