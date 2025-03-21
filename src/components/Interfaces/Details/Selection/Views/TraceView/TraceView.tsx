@@ -605,7 +605,6 @@ function CollapsiblePatchLineNode({
     }
   }
 
-  console.log(node)
 
   // Get costs from LLM usage if available, otherwise use direct cost properties
   const baseCost = baseLlmUsage?.cost ?? node.baseSpanRef?.cost ?? 0;
