@@ -187,7 +187,6 @@ export default function ImageView({
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const openLightbox = useCallback((src: string) => {
-    console.log('Opening lightbox with source:', src);
     setLightboxSrc(src);
     setLightboxOpen(true);
   }, []);
