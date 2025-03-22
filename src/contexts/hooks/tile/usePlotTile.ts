@@ -1,6 +1,8 @@
 import { useMemo } from "react";
-import { TileActions, TileDataActions, useTile } from "./useTile";
-import { PlotTile, PlotTileMeta, PlotTileData, PlotTileUI } from "../slices/selectors/plotTile";
+import { TileActions, useTile } from "../tile/useTile";
+import { TileDataActions } from "../tile/useTileData";
+import { PlotTileMeta, PlotTileData, PlotTileUI } from "../../slices/selectors/plotTile";
+import { PlotDataItem } from "@/types/evals/grid";
 
 // Define the default return value for the usePlotTile hook
 const DEFAULT_USE_PLOT_TILE_RETURN = {
@@ -35,6 +37,7 @@ export interface PlotTileDataActions {
   setPlotGroupBy: (groupBy: string | undefined) => void;
   setBinCount: (binCount: string | undefined) => void;
   setRegressionLine: (regressionLine: string | undefined) => void;
+  setPlotDataItem: (plotDataItem: PlotDataItem | undefined) => void;
 }
 
 /**
@@ -167,6 +170,14 @@ export function usePlotTile(
         if (baseTileActions && hasPlotTile) {
           (baseTileActions as unknown as TileDataActions).updatePlotTile({ 
             regression_line: regressionLine 
+          });
+        }
+      },
+
+      setPlotDataItem: (plotDataItem) => {
+        if (baseTileActions && hasPlotTile) {
+          (baseTileActions as unknown as TileDataActions).updatePlotTile({ 
+            plotDataItem: plotDataItem 
           });
         }
       }

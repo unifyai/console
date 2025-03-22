@@ -59,9 +59,8 @@ import {
   gatherAllSubPaths,
   gatherAllSubPathsMulti,
 } from "@/utils/evals/pathUtils";
-import { Tile } from "@/contexts/slices/selectors/tile";
-import { TableTileData } from "@/contexts/slices/selectors/tableTile";
-import { useTile } from "@/contexts/hooks/useTile";
+
+import { useTile, useTileItem } from "@/contexts/hooks/tile";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 
 /*******************************************************************************
@@ -283,8 +282,9 @@ export default function Selection({
    * Prepare sorted logs & selection data
    ******************************************************************************/
   const { meta: tileMetaStateWithId, actions: tileActionsWithId } = useTile(tileId, tabId, interfaceId, projectId);
+  const { itemActions: tileItemActionsWithId } = useTileItem(tileId, tabId, interfaceId);
 
-  const item = useMemo(() => tileActionsWithId?.asTileItem(), [tileActionsWithId]);
+  const item = useMemo(() => tileItemActionsWithId?.asTileItem(), [tileItemActionsWithId]);
 
   // Get the table tile this selection references
   const { tile: tileStateWithTable, actions: tileActionsWithTable } = useTile(
@@ -293,11 +293,12 @@ export default function Selection({
     interfaceId, 
     projectId
   );
+  const { itemActions: tileItemActionsWithTable } = useTileItem(item?.table || "", tabId, interfaceId);
 
   // Create equivalent references to match the old pattern
-  const tableItem = useMemo(() => tileActionsWithTable?.asTileItem() || 
-    { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileActionsWithTable, item?.table]);
-  const relevantItem = useMemo(() => tileActionsWithTable?.asTileItem() || undefined, [tileActionsWithTable]);
+  const tableItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || 
+    { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileItemActionsWithTable, item?.table]);
+  const relevantItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || undefined, [tileItemActionsWithTable]);
   const tableDataItem = useMemo(() => tileStateWithTable?.tableTile?.tableDataItem || {} as TableDataItem, [tileStateWithTable]);
 
   // Create a generic updateItem function that checks property existence

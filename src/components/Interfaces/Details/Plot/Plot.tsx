@@ -17,10 +17,10 @@ import { LogsActions, FieldsActions, PlotDataItem } from "@/types/evals/grid";
 import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram, checkLogScalability, clearCanvas } from "@/utils/evals/plot";
 import PlotAxis from "./Buttons/PlotAxis";
 import { TileProps } from "@/types/evals/grid";
-import { useTab } from "@/contexts/hooks/useTab";
-import { useTile } from "@/contexts/hooks/useTile";
-import { usePlotTile } from "@/contexts/hooks/usePlotTile";
+import { usePlotTile } from "@/contexts/hooks/tile/usePlotTile";
 import { useTiles } from "@/contexts/hooks/useStore";
+import { useTile, useTileItem } from '@/contexts/hooks/tile';
+import { useTab } from '@/contexts/hooks/tab';
 
 const LogsPlot = ({ 
     tileId,
@@ -38,19 +38,14 @@ const LogsPlot = ({
     fieldsActions: FieldsActions
 }) => {
 
-    // Get access to the tab context and actions with granular access
-    const {
-        data: tabDataState,
-        ui: tabUIState 
-    } = useTab(tabId, interfaceId, projectId);
+    // Use granular hooks for better performance
+    const { ui: tileUIState, actions: tileActions } = useTile(tileId, tabId, interfaceId, projectId);
+    const { itemActions } = useTileItem(tileId, tabId, interfaceId);
+    const { dataActions: plotTileDataActions } = usePlotTile(tileId, tabId, interfaceId, projectId);
     
-    // Get access to the tile and its actions with granular access
-    const {
-        ui: tileUIState,
-        actions: tileActions,
-        dataActions: tileDataActions,
-    } = useTile(tileId, tabId, interfaceId, projectId);
-
+    // Get access to the tab context and actions with granular access
+    const { data: tabDataState, ui: tabUIState } = useTab(tabId, interfaceId, projectId);
+    
     // Get tileIds from tab data properly
     const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
     
@@ -67,7 +62,7 @@ const LogsPlot = ({
     }, [tiles]);
 
     // Get the item representation for the current tile
-    const item = useMemo(() => tileActions?.asTileItem(), [tileActions]);
+    const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
 
     // Create a generic updateItem function that checks property existence
     const updateItem = (item: TileProps, propName: string) => (value: any) => {
@@ -92,19 +87,15 @@ const LogsPlot = ({
 
     const setPlotDataItem = (newPlotDataItemOrUpdater: PlotDataItem | ((prev: PlotDataItem) => PlotDataItem)) => {
         // Update plotDataItem in the store
-        if (tileDataActions && plotTileState) {
+        if (plotTileDataActions && plotTileState) {
           if (typeof newPlotDataItemOrUpdater === 'function') {
             // Handle function updater pattern: (prev) => next
             const updaterFn = newPlotDataItemOrUpdater as (prev: PlotDataItem) => PlotDataItem;
             const newPlotDataItem = updaterFn(plotDataItem);
-            tileDataActions.updatePlotTile({ 
-                plotDataItem: newPlotDataItem 
-            });
+            plotTileDataActions.setPlotDataItem(newPlotDataItem);
           } else {
             // Handle direct value update
-            tileDataActions.updatePlotTile({ 
-                plotDataItem: newPlotDataItemOrUpdater 
-            });
+            plotTileDataActions.setPlotDataItem(newPlotDataItemOrUpdater);
           }
         }
     }

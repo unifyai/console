@@ -4,7 +4,7 @@ import { Dispatch, SetStateAction, useState } from "react";
 import ActionButton from "../Common/Buttons/Action";
 import { Dialog, DialogContent } from "../UI/dialog";
 import { Input } from "../UI/input";
-import { useTab } from "@/contexts/hooks/useTab";
+import { useTab } from "@/contexts/hooks/tab";
 
 const EditTileName = ({
     tabId,

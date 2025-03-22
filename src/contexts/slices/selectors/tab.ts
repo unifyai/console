@@ -18,6 +18,7 @@ export interface TabData {
   globalContext?: string;
   savedTab: TabProps | null; // This needs to match exactly the TabProps type from grid.ts
   tileIds: string[]; // References to tiles instead of containing them directly
+  itemsNeedRecompute: boolean; // Flag to indicate when items need recomputing
 }
 
 // Tab UI state - UI-related state
@@ -35,7 +36,6 @@ export interface TabUI {
   dataPending: boolean;
   pending: boolean;
   refreshing: boolean;
-  itemsNeedRecompute: boolean; // Flag to indicate when items need recomputing
 }
 
 // Combined Tab state definition

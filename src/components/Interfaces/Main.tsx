@@ -8,13 +8,10 @@ import { redirect } from "next/navigation";
 import { defaultNewCounter } from "@/constants/logs";
 import { defaultItems } from "@/constants/logs";
 import { IStoreState } from "@/contexts/store";
-import { StoreProvider } from "@/contexts/providers/StoreProvider";
-import StoreUpdater from "@/contexts/providers/StoreUpdater";
-import { Suspense, lazy } from "react";
+import { Suspense } from "react";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { buildInitialState } from "@/contexts/utils/stateBuilderUtils";
-
-const Interface = lazy(() => import("./Interface"));
+import { StoreInitializer } from "../../contexts/providers/StoreInitializer";
 
 const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, tabActions }: {
     tab: string | undefined,
@@ -442,27 +439,25 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
         offsets,
     );
 
+    // Initialize operations as an empty object in the initial state
+    initialState.operations = {};
+
     return (
-        <StoreProvider initialState={initialState}>
-            <StoreUpdater initialState={initialState} />
-            <div className="w-full h-full bg-white">
-                <Suspense fallback={
-                    <div className="w-full h-full flex items-center justify-center">
-                        <SkeletonLoader />
-                    </div>
-                }>
-                    <Interface
-                        interfaceId={currentInterfaceName}
-                        tabActions={tabActions}
-                        projectsActions={projectsActions}
-                        logsActions={logsActions}
-                        fieldsActions={fieldsActions}
-                        derivedEntryActions={derivedEntryActions}
-                        contextActions={contextActions}
-                    />
-                </Suspense>
+        <Suspense fallback={
+            <div className="w-full h-full flex items-center justify-center">
+                <SkeletonLoader />
             </div>
-        </StoreProvider>
+        }>
+            <StoreInitializer 
+                initialState={initialState}
+                projectsActions={projectsActions}
+                logsActions={logsActions}
+                derivedEntryActions={derivedEntryActions}
+                fieldsActions={fieldsActions}
+                contextActions={contextActions}
+                tabActions={tabActions}
+            />
+        </Suspense>
     );
 };
 

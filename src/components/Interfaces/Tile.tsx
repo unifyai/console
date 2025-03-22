@@ -1,15 +1,15 @@
 "use client";
 
-// Use correct import paths as found in Card.tsx
 import { ResponseProps } from "@/types/common";
 import { LogsActions, FieldsActions, DerivedEntryActions, TileProps, ContextActions, TabProps } from "@/types/evals/grid";
-
-// Import the new hooks
-import { useTile } from '@/contexts/hooks/useTile';
-import { ExpandProvider } from "@/contexts/ExpandContext";
 import { useEffect, useMemo, useState, Suspense, lazy } from "react";
 import { useRouter } from "next/navigation";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
+
+// Import the new hooks
+import { useTileMeta, useTileUI, useTileItem } from '@/contexts/hooks/tile';
+import { ExpandProvider } from "@/contexts/ExpandContext";
+import { useWhyDidYouUpdate } from "@/contexts/utils/sliceUtils";
 
 // Dynamically import components
 const LogsTable = lazy(() => import("@/components/Interfaces/Table/Table"));
@@ -40,25 +40,45 @@ const Tile = ({
     derivedEntryActions,
     contextActions
 }: TileComponentProps) => {
-
     const router = useRouter();
     const [initial, setInitial] = useState(true);
-    
-    // Get tile data and actions from hooks with granular access
-    const { 
-        meta: tileMetaState,
-        actions: tileActions,
-        uiActions: tileUIActions
-    } = useTile(tileId, tabId, interfaceId);
+
+    // Use granular hooks for better code organization
+    const { meta: tileMetaState } = useTileMeta(tileId, tabId, interfaceId);
+    const { uiActions: tileUIActions } = useTileUI(tileId, tabId, interfaceId);
+    const { itemActions } = useTileItem(tileId, tabId, interfaceId);
+
+    // Extract required data
+    const { type: tileType } = tileMetaState || {};
 
     // Get the item props for grid layout (position, etc)
-    const tileItem: TileProps = useMemo(() => tileActions?.asTileItem() || {
+    const tileItem: TileProps = useMemo(() => itemActions?.asTileItem() || {
         i: tileId,
         x: tileMetaState?.position?.x || 0,
         y: tileMetaState?.position?.y || 0,
         w: tileMetaState?.position?.width || 4,
         h: tileMetaState?.position?.height || 4,
-    }, [tileActions, tileMetaState]);
+    }, [itemActions, tileMetaState]);
+
+    useWhyDidYouUpdate('Tile', [
+        tileItem.tab,
+        tileItem.table_type,
+        tileItem.filters,
+        tileItem.context,
+        tileItem.column_context,
+        tileItem.common_filter,
+        tileItem.sorting,
+        tileItem.grouping,
+        tileItem.group_sorting,
+        tileItem.page_number,
+        tileItem.metric,
+        tileItem.plot_type,
+        tileItem.x_axis,
+        tileItem.y_axis,
+        tileItem.plot_group_by,
+        tileItem.auto_update,
+        tileItem.freeze
+    ]);
 
     // Use a ref to compare the needed properties so we only update if something truly changed.
     useEffect(() => {
@@ -100,7 +120,7 @@ const Tile = ({
 
     // Render based on tile type
     const renderContent = () => {
-        switch (tileMetaState?.type) {
+        switch (tileType) {
             case 'Table':
                 return (
                     <Suspense fallback={

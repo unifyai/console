@@ -9,7 +9,7 @@ import { Badge } from "../UI/badge";
 import Tooltip from "../Common/Misc/Tooltip";
 import ActionButton from "../Common/Buttons/Action";
 // import Cookies from "js-cookie";
-import { useTab } from '@/contexts/hooks/useTab';
+import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions } from "@/types/evals/grid";
 import ContextSelector from "./Table/Content/ContextSelector";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
@@ -49,13 +49,16 @@ const Tab = ({
   derivedEntryActions,
   contextActions,
 }: TabComponentProps) => {
-  // Use hooks to get tab and interface data and actions
+  // Use granular hooks instead of a general hook
   const { 
     data: tabDataState,
+    dataActions: tabDataActions
+  } = useTabData(tabId, interfaceId);
+  
+  const {
     ui: tabUIState,
-    dataActions: tabDataActions,
-    uiActions: tabUIActions,
-  } = useTab(tabId, interfaceId);
+    uiActions: tabUIActions
+  } = useTabUI(tabId, interfaceId);
 
   // Get project id and contexts from store
   const projectData = useStoreContext(state => 
@@ -69,16 +72,16 @@ const Tab = ({
   // Only subscribe to a subset of the tiles objects to incl. name, type and tableTile only
   const tiles = useTiles(tileIds, ["name", "type", "tableTile.tableDataItem"]);
 
+  // Get tile props using the getItems function from the tab data actions
+  const tileProps = useMemo(() => {
+    return (!tabDataActions) ? [] : tabDataActions.getItems();
+  }, [tabDataActions]);
+
   // Extract tableDataItems from tiles for efficient dependency tracking
   const tileTableDataItems = useMemo(() => 
     tiles.map(tile => tile?.tableTile?.tableDataItem),
     [tiles]
   );
-
-  // Get tile props using the getItems function from the tab UI actions
-  const tileProps = useMemo(() => {
-    return (!tabUIActions) ? [] : tabUIActions.getItems();
-  }, [tabUIActions]);
 
   // Add a ref to track initial mount
   const isInitialMount = useRef(true);
@@ -164,14 +167,14 @@ const Tab = ({
     return () => clearTimeout(timer);
   }, [tabUIState?.saveSuccess, tabUIActions]);
 
-  // Handle layout changes
-  const onLayoutChange = (newLayout: any) => {
-    if (!tabUIState?.pending && tabUIActions) {
-      const updatedItems = newLayout.map((item: any) => {
-        const originalItem = tileProps.find(i => i.i === item.i);
+  // Item layout change handler
+  const onLayoutChange = (newLayout: any[]) => {
+    if (!tabUIState?.pending && tabDataActions) {
+      const layoutItems = newLayout.map((item) => {
+        const originalItem = tileProps.find((t) => t.i === item.i);
         return { ...originalItem, ...item };
       });
-      tabUIActions.setItems([...updatedItems]);
+      tabDataActions.setItems(layoutItems);
     } else {
       tabUIActions?.setPending(false);
     }

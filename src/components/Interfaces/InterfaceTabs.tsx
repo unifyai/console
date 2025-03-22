@@ -7,8 +7,8 @@ import ActionButton from "../Common/Buttons/Action";
 import { TabActions, TileProps } from "@/types/evals/grid";
 import { defaultItems, defaultNewCounter } from "@/constants/logs";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
-import { useInterface } from "@/contexts/hooks/useInterface";
-import { useTab } from "@/contexts/hooks/useTab";
+import { useInterface } from "@/contexts/hooks/interface";
+import { useTab } from "@/contexts/hooks/tab";
 
 const InterfaceTabs = ({
     interfaceId,
@@ -35,7 +35,7 @@ const InterfaceTabs = ({
     const tabNames = interfaceDataActions?.getTabNames() || [];
 
     // Tab states and actions with granular access
-    const { data: tabDataState, ui: tabUIState, uiActions: tabUIActions } = useTab(tabQueryParam || "");
+    const { data: tabDataState, ui: tabUIState, uiActions: tabUIActions, dataActions: tabDataActions } = useTab(tabQueryParam || "");
     
     const context = tabDataState?.globalContext!;
     
@@ -44,8 +44,8 @@ const InterfaceTabs = ({
 
     // Convert the tiles to TileProps format for backward compatibility
     const items = useMemo(() => {
-        return !tileIds.length ? defaultItems : tabUIActions?.getItems().filter(Boolean) as TileProps[];
-    }, [tileIds.length, tabUIActions]);
+        return !tileIds.length ? defaultItems : tabDataActions?.getItems().filter(Boolean) as TileProps[];
+    }, [tileIds.length, tabDataActions]);
 
     useEffect(() => {
         setTabQueryParamState(tabQueryParam || "");

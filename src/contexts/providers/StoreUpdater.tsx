@@ -5,6 +5,8 @@ import { IStoreState } from '../store';
 import { useStoreContext } from './StoreProvider';
 import { useShallow } from 'zustand/react/shallow';
 import isEqual from 'fast-deep-equal';
+import { OPERATIONS } from '../utils/asyncUtils';
+import { useWhyDidYouUpdate } from '../utils/sliceUtils';
 
 // Component to handle store updates when initialState changes
 function StoreUpdater({ initialState }: { initialState: Partial<IStoreState> }) {
@@ -22,11 +24,18 @@ function StoreUpdater({ initialState }: { initialState: Partial<IStoreState> }) 
       updateProject: state.updateProject,
       updateInterface: state.updateInterface,
       updateTab: state.updateTab,
-      updateTile: state.updateTile
+      updateTile: state.updateTile,
+      
+      // Async tracking actions
+      trackOperation: state.trackOperation,
     }))
   );
   
+  // Get operations separately to avoid unnecessary re-renders
+  const operations = useStoreContext(state => state.operations);
+  
   const initialStateRef = useRef(initialState);
+  const operationsRef = useRef(operations);
   
   useEffect(() => {
     // Only process updates if initialState has changed
@@ -34,27 +43,60 @@ function StoreUpdater({ initialState }: { initialState: Partial<IStoreState> }) 
       return;
     }
     
-    const prevState = initialStateRef.current;
+    // Create an operation ID for this update
+    const updateOpId = OPERATIONS.STORE_UPDATE(Date.now());
     
-    // Check for major differences to determine if full reset is needed
-    const needsFullReset = !prevState 
-      || !initialState
-      || !prevState.activeProjectId 
-      || prevState.activeProjectId !== initialState.activeProjectId;
+    // Track the operation
+    storeActions.trackOperation(updateOpId, 'pending');
     
-    if (needsFullReset) {
-      // Do a full state reset
-      storeActions.resetState(initialState);
+    try {
+      const prevState = initialStateRef.current;
+      
+      // Check for major differences to determine if full reset is needed
+      const needsFullReset = !prevState 
+        || !initialState
+        || !prevState.activeProjectId 
+        || prevState.activeProjectId !== initialState.activeProjectId;
+      
+      if (needsFullReset) {
+        // Preserve operations during reset
+        storeActions.resetState({
+          ...initialState,
+          operations: operationsRef.current || {} // Preserve existing operations
+        });
+        
+        initialStateRef.current = initialState;
+        storeActions.trackOperation(updateOpId, 'success');
+        return;
+      }
+      
+      // Apply granular updates based on what has changed
+      applyGranularUpdates(prevState, initialState, storeActions);
+      
+      // Update ref to current state
       initialStateRef.current = initialState;
-      return;
+      
+      // Mark operation as successful
+      storeActions.trackOperation(updateOpId, 'success');
+    } catch (error) {
+      // Mark operation as failed
+      storeActions.trackOperation(
+        updateOpId, 
+        'error', 
+        error instanceof Error ? error.message : String(error)
+      );
+      console.error('Error updating store:', error);
     }
-    
-    // Apply granular updates based on what has changed
-    applyGranularUpdates(prevState, initialState, storeActions);
-    
-    // Update ref to current state
-    initialStateRef.current = initialState;
-  }, [initialState]);
+  }, [initialState, storeActions]);
+  
+  // Update the operations ref when operations change
+  // This allows us to preserve operations during resets
+  // but doesn't cause the main effect to re-run
+  useEffect(() => {
+    operationsRef.current = operations;
+  }, [operations]);
+
+  useWhyDidYouUpdate('StoreUpdater', [initialState, storeActions, operations]);
   
   return null; // This component doesn't render anything
 }

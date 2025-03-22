@@ -1,7 +1,7 @@
 import { TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
 import { Plus } from "lucide-react";
-import { useTab } from "@/contexts/hooks/useTab";
+import { useTab } from "@/contexts/hooks/tab";
 import { useMemo } from "react";
 
 const AddTile = ({
@@ -16,12 +16,12 @@ const AddTile = ({
     setNewCounter: (newCounter: number) => void,
 }) => {
     // Get tab data and actions using useTab hook with granular access
-    const { ui: tabUIState, dataActions: tabDataActions, uiActions: tabUIActions, exists } = useTab(tabId);
+    const { ui: tabUIState, dataActions: tabDataActions, exists } = useTab(tabId);
     
     // Use the getItems function from the useTab hook to get TileProps array
     const items = useMemo(() => {
-        return !exists || !tabUIActions ? [] : tabUIActions.getItems().filter(item => item.visible !== false);
-    }, [exists, tabUIActions]);
+        return !exists || !tabDataActions ? [] : tabDataActions.getItems().filter(item => item.visible !== false);
+    }, [exists, tabDataActions]);
 
     return (
         <ActionButton

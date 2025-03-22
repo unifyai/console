@@ -11,7 +11,7 @@ import { DerivedEntryActions, LogsActions, FieldsActions, TileProps, ContextActi
 import { Plus, X } from "lucide-react";
 import { icons } from "@/constants/logs";
 import TileCard from "./TileCard";
-import { useTab } from "@/contexts/hooks/useTab";
+import { useTab } from "@/contexts/hooks/tab";
 
 const FocusDialog = ({
     interfaceId,
@@ -36,12 +36,12 @@ const FocusDialog = ({
     getLatestTab: () => void;
     setFocusDialog: Dispatch<SetStateAction<boolean>>,
 }) => {
-    const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId, interfaceId);
+    const { ui: tabUIState, uiActions: tabUIActions, dataActions: tabDataActions } = useTab(tabId, interfaceId);
 
     // Get tile props using the getItems function from the tabActions
     const tileProps = useMemo(() => {
-        return (!tabUIActions) ? [] : tabUIActions.getItems();
-    }, [tabUIActions]);
+        return (!tabDataActions) ? [] : tabDataActions.getItems();
+    }, [tabDataActions]);
 
     const safeFocusedTileNames = useMemo(() => 
         tabUIState?.focusedTileNames ? Array.from(tabUIState.focusedTileNames) : [undefined, undefined], 

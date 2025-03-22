@@ -14,9 +14,10 @@ import Tooltip from "../Common/Misc/Tooltip";
 import AddTile from "./AddTile";
 import ContextSelector from "./Table/Content/ContextSelector";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
-import { useTab } from "@/contexts/hooks/useTab";
 import { SetStateAction, useMemo } from "react";
-import { useProject } from "@/contexts/hooks/useProject";
+
+import { useTab } from "@/contexts/hooks/tab";
+import { useProject } from "@/contexts/hooks/project";
 import { useTiles } from "@/contexts/hooks/useStore";
 
 const InterfaceButtons = ({
@@ -67,8 +68,8 @@ const InterfaceButtons = ({
 
     // Calculate derived state
     const items = useMemo(() => {
-        return !tabUIActions ? [] : tabUIActions.getItems();
-    }, [tabUIActions]);
+        return !tabDataActions ? [] : tabDataActions.getItems();
+    }, [tabDataActions]);
 
     // Get hidden items
     const hiddenItems = items.filter(item => !item.visible);

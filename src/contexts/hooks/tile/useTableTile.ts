@@ -1,6 +1,7 @@
 import { useMemo } from "react";
-import { TileActions, TileDataActions, useTile } from "./useTile";
-import { TableTile, TableTileMeta, TableTileData, TableTileUI } from "../slices/selectors/tableTile";
+import { TileActions, useTile } from "../tile/useTile";
+import { TileDataActions } from "../tile/useTileData";
+import { TableTileMeta, TableTileData, TableTileUI } from "../../slices/selectors/tableTile";
 
 // Define the default return value for the useTableTile hook
 const DEFAULT_USE_TABLE_TILE_RETURN = {

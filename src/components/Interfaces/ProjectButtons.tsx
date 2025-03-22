@@ -7,9 +7,9 @@ import DeleteDialog from "../Common/Dialogs/Delete";
 import { FileProps } from "@/types/common";
 import { TabActions, ProjectsActions } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
-import { useInterface } from "@/contexts/hooks/useInterface";
+import { useInterface } from "@/contexts/hooks/interface";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
-import { useTab } from "@/contexts/hooks/useTab";
+import { useTab } from "@/contexts/hooks/tab";
 
 const ProjectButtons = ({
     interfaceId,

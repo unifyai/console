@@ -152,6 +152,15 @@ export function deconstructHierarchicalId(hierarchicalId: string): { name: strin
 }
 
 /**
+ * A helper to get the parent id from a hierarchical id
+ * @param hierarchicalId - The hierarchical id of the slice selector
+ * @returns The parent id of the slice selector (i.e. the nearest parent id)
+ */
+export function getParentId(hierarchicalId: string): string {
+  return deconstructHierarchicalId(hierarchicalId).parentIds.join('>');
+}
+
+/**
  * Add a tile to a tab
  */
 export function addTile(

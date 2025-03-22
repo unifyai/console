@@ -10,13 +10,14 @@ import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import InterfaceButtons from "./InterfaceButtons";
 import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./ProjectButtons";
-import { useInterface } from '@/contexts/hooks/useInterface';
-import { useTab } from '@/contexts/hooks/useTab';
 import { Context, TabProps, TileProps } from "@/types/evals/grid";
 import { useQueryState } from "nuqs";
 import { ProjectsActions, TabActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions } from '@/types/evals/grid';
 import { ResponseProps } from '@/types/common';
-import { useProject } from '@/contexts/hooks/useProject';
+
+import { useInterfaceData } from '@/contexts/hooks/interface';
+import { useTabMeta, useTabData, useTabUI } from '@/contexts/hooks/tab';
+import { useProjectData, useProjectMeta } from '@/contexts/hooks/project';
 
 // Lazy load components
 const Tab = lazy(() => import('./Tab'));
@@ -50,17 +51,14 @@ const Interface = ({
   const [projectQueryParam, setProjectQueryParam] = useQueryState("project", { shallow: false });
 
   // Get interface and project data from hooks with granular access
-  const { data: projectDataState, meta: projectMetaState } = useProject(projectQueryParam || "");
-  const { dataActions: interfaceDataActions } = useInterface(interfaceId);
+  const { data: projectDataState } = useProjectData(projectQueryParam || null);
+  const { meta: projectMetaState } = useProjectMeta(projectQueryParam || null);
+  const { dataActions: interfaceDataActions } = useInterfaceData(interfaceId);
 
-  const { 
-    meta: tabMetaState,
-    data: tabDataState,
-    ui: tabUIState,
-    metaActions: tabMetaActions,
-    dataActions: tabDataActions,
-    uiActions: tabUIActions,
-  } = useTab(tabQueryParam || "", interfaceId);
+  // Use granular tab hooks for better performance
+  const { meta: tabMetaState, metaActions: tabMetaActions } = useTabMeta(tabQueryParam || "", interfaceId);
+  const { data: tabDataState, dataActions: tabDataActions } = useTabData(tabQueryParam || "", interfaceId);
+  const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabQueryParam || "", interfaceId);
 
   // Local UI state - only keeping what's absolutely necessary as local state
   const [focusDialog, setFocusDialog] = useState(false);
@@ -74,10 +72,10 @@ const Interface = ({
   // Additional data preparation
   const contexts: Context[] = useMemo(() => projectDataState?.contexts || [], [projectDataState]);
 
-  // Get tile props using the getItems function from the tabActions
+  // Get tile props using the getItems function from the tab data actions
   const tileProps = useMemo(() => {
-    return (!tabUIActions) ? [] : tabUIActions.getItems();
-  }, [tabUIActions]);
+    return (!tabDataActions) ? [] : tabDataActions.getItems();
+  }, [tabDataActions]);
 
   // Get tab names for the current interface
   const tabNames = useMemo(() => interfaceDataActions?.getTabNames() || [], [interfaceDataActions]);
@@ -91,7 +89,7 @@ const Interface = ({
     } else {
       // If an updated tileProps is provided, create a new version of tileProps with the update
       currentTileProps = updatedTileProps 
-        ? tileProps.map(tp => tp.i === updatedTileProps.i ? updatedTileProps : tp) 
+        ? tileProps.map((tp: TileProps) => tp.i === updatedTileProps.i ? updatedTileProps : tp) 
         : tileProps;
     }
     const context_1 = savedTab != null ? savedTab.context : tabDataState?.globalContext;
@@ -136,6 +134,8 @@ const Interface = ({
     serverTabActions,
     tileProps,
     newCounter,
+    tabMetaState?.name,
+    projectMetaState?.name
   ]);
 
   // Function to get the latest tab from the server and sync state
@@ -158,7 +158,7 @@ const Interface = ({
         }));
 
         // For each item in the current tab, update the tile in the store
-        tabUIActions.setItems(updatedItems);
+        tabDataActions.setItems(updatedItems);
 
         setNewCounter(currentTab.new_counter || 0);
         tabMetaActions.setTempTabCreated(Boolean(currentTab));

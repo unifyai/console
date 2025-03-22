@@ -5,13 +5,14 @@ import { Plus } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
-import { useTile } from "@/contexts/hooks/useTile";
 import { icons, tabTypes } from "@/constants/logs";
-import { useTab } from "@/contexts/hooks/useTab";
 import { ResponseProps } from "@/types/common";
 import { DerivedEntryActions, FieldsActions, ContextActions, TabProps, TileProps } from "@/types/evals/grid";
 import { LogsActions } from "@/types/evals/grid";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
+
+import { useTabData, useTabUI } from '@/contexts/hooks/tab';
+import { useTileData } from '@/contexts/hooks/tile';
 import { useLogLengths } from "@/contexts/hooks/useStore";
 
 const Tile = lazy(() => import('./Tile'));
@@ -44,30 +45,28 @@ const TileCard = ({
   contextActions,
 }: TileCardProps) => {
 
-  const { 
-    ui: tabUIState, 
-    dataActions: tabDataActions,
-    uiActions: tabUIActions
-  } = useTab(tabId, interfaceId);
+  // Use tab hooks for tab-level state
+  const { ui: tabUIState } = useTabUI(tabId, interfaceId);
+  const { dataActions: tabDataActions } = useTabData(tabId, interfaceId);
 
-  // Get tile props using the getItems function from the tabUIActions
+  // Use granular tile hooks for tile-specific state
+  const { dataActions: tileDataActions } = useTileData(tileId, tabId, interfaceId);
+
+  // Get tile props using the getItems function from the tabDataActions
   const tileProps = useMemo(() => {
-    return !tabUIActions ? [] : tabUIActions.getItems();
-  }, [tabUIActions]);
+    return !tabDataActions ? [] : tabDataActions.getItems();
+  }, [tabDataActions]);
 
   const tableNames = useMemo(() => {
     // Only return table names for table tiles
     // Return should be an array of strings only
-    return tileProps.map(item => item.tab === "Table" ? item.i : null).filter(Boolean) as string[];
+    return tileProps.map((item: TileProps) => item.tab === "Table" ? item.i : null).filter(Boolean) as string[];
   }, [tileProps]);
 
   // Get the current item based on the index prop
   const item = tileProps[index];
   const tab = item?.tab;
   
-  // Call useTile once at the top level of the component for the current item
-  const { dataActions: tileDataActions } = useTile(item?.i, tabId, interfaceId, projectId);
-
   // Define logsLengths as a computed property based on the tiles
   const logsLengths = useLogLengths();
 

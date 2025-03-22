@@ -10,10 +10,11 @@ import { ResponseProps } from "@/types/common";
 import { useRouter } from "next/navigation";
 import RenderMenuItems from "../../../Common/Dropdowns/RenderMenuItems";
 import { buildNestedDropdownTree } from "@/utils/evals/common";
-import { useTile } from "@/contexts/hooks/useTile";
-import { useTableTile } from "@/contexts/hooks/useTableTile";
 import { useMemo } from "react";
-import { useProject } from "@/contexts/hooks/useProject";
+
+import { useTile, useTileItem } from "@/contexts/hooks/tile";
+import { useTableTile } from "@/contexts/hooks/tile/useTableTile";
+import { useProjectData } from "@/contexts/hooks/project";
 
 const ContextSelector = ({
     tileId,
@@ -48,9 +49,10 @@ const ContextSelector = ({
         });
     }
 
-    const { dataActions: projectDataActions } = useProject(projectId || null);
+    const { dataActions: projectDataActions } = useProjectData(projectId || null);
 
     const { actions: tileActions, dataActions: tileDataActions } = useTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
+    const { itemActions: tileItemActions } = useTileItem(tileId || null, tabId || null, interfaceId || null);
 
     const { 
         tableTile: tableTileState,
@@ -58,7 +60,7 @@ const ContextSelector = ({
         uiActions: tableUIActions 
     } = useTableTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
 
-    const item = useMemo(() => tileActions?.asTileItem(), [tileActions]);
+    const item = useMemo(() => tileItemActions?.asTileItem(), [tileItemActions]);
     
     const finalSetContext = (tileActions && tileDataActions && tableUIActions && item != undefined) ? (ctx: string) => {
         if (ctx !== item.context) {

@@ -45,11 +45,10 @@ import ContextSelector from "./Content/ContextSelector";
 import ResetServerAction from "./Buttons/ResetServerAction";
 
 // Import new hooks
-import { useTile } from "@/contexts/hooks/useTile";
-import { useTab } from "@/contexts/hooks/useTab";
-import { useTableTile } from "@/contexts/hooks/useTableTile";
-import { useInterface } from "@/contexts/hooks/useInterface";
-import { useProject } from "@/contexts/hooks/useProject";
+import { useTab } from "@/contexts/hooks/tab";
+import { useTile, useTableTile, useTileItem } from '@/contexts/hooks/tile';
+import { useInterface } from "@/contexts/hooks/interface";
+import { useProject } from "@/contexts/hooks/project";
 
 import { shallow } from "zustand/vanilla/shallow";
 
@@ -80,7 +79,7 @@ const LogsTable = ({
   const contexts = projectDataState?.contexts || [];
 
   // Get access to the interface data and actions
-  const { data: interfaceDataState } = useInterface(interfaceId);
+  const { data: interfaceDataState } = useInterface(interfaceId, projectId);
   const tableArguments = interfaceDataState?.tableArguments as unknown as TableArguments;
   const filterExpression = tableArguments?.[tileId]?.getLogs_parameters?.filter_expr || null;
   const sortingExpression = tableArguments?.[tileId]?.getLogs_parameters?.sorting || null;
@@ -88,24 +87,25 @@ const LogsTable = ({
   const groupSortingExpression = tableArguments?.[tileId]?.getLogs_parameters?.group_sorting || null;
 
   // Get access to the tab data and actions with granular access
-  const { tab: tabState, data: tabDataState } = useTab(tabId, interfaceId, projectId);
+  const { ui: tabUIState, data: tabDataState } = useTab(tabId, interfaceId, projectId);
   const context_ = tabDataState?.globalContext;
   
-  // Get access to the tile and its actions with granular access
-  const { 
-    tile: tileState, 
-    actions: tileActions,
+  // Use granular hooks for better performance
+  const {
+    ui: tileUIState,
+    uiActions: tileUIActions,
     dataActions: tileDataActions,
-    uiActions: tileUIActions 
+    actions: tileActions
   } = useTile(tileId, tabId, interfaceId, projectId);
   
   // Get access to the table tile specific data and actions with granular access
   const { tableTile, ui: tableTileUI } = useTableTile(tileId, tabId, interfaceId, projectId);
   const limit = tableTileUI?.limit || 20;
   const offset = tableTileUI?.offset || 0;
-
+  
   // Get the item representation for the current tile
-  const item = useMemo(() => tileActions?.asTileItem(), [tileActions]);
+  const { itemActions } = useTileItem(tileId, tabId, interfaceId);
+  const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
 
   // Use the tableDataItem from the tile's table data
   const tableDataItem = useMemo(() => tableTile?.tableDataItem || {
@@ -155,8 +155,8 @@ const LogsTable = ({
     flatLogs.map(log => Object.entries(log.params).map(([key, value]) => paramsValues[key] = params[key][value]))
 
   // UI state from the tab
-  const interactive = tabState?.interactive || false;
-  const pending = tabState?.pending || tabState?.dataPending || tileState?.pending;
+  const interactive = tabUIState?.interactive || false;
+  const pending = tabUIState?.pending || tabUIState?.dataPending || tileUIState?.pending;
 
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false);

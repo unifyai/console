@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { TileActions, TileDataActions, useTile } from "./useTile";
-import { ViewTile, ViewTileMeta, ViewTileData, ViewTileUI } from "../slices/selectors/viewTile";
+import { TileActions, useTile } from "../tile/useTile";
+import { ViewTileMeta, ViewTileData, ViewTileUI } from "../../slices/selectors/viewTile";
 
 // Define the default return value for the useViewTile hook
 const DEFAULT_USE_VIEW_TILE_RETURN = {

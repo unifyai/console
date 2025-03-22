@@ -1,0 +1,157 @@
+import { useMemo } from 'react';
+import { useStoreContext } from '../../providers/StoreProvider';
+import { Tab } from '../../slices/selectors/tab';
+import { useTabMeta, TabMetaActions } from './useTabMeta';
+import { useTabData, TabDataActions } from './useTabData';
+import { useTabUI, TabUIActions } from './useTabUI';
+import { useTabOperations } from './useTabOperations';
+
+/**
+ * Default return value when no tab is specified
+ */
+export const DEFAULT_USE_TAB_RETURN = {
+  tab: null,
+  meta: null,
+  data: null,
+  ui: null,
+  metaActions: null,
+  dataActions: null,
+  uiActions: null,
+  actions: null,
+  exists: false,
+  operations: {},
+  tabId: null
+};
+
+/**
+ * Interface for all tab-related actions
+ */
+export interface TabActions {
+  // Basic tab management
+  initTab: (initialState?: Partial<Tab>) => void;
+  updateTab: (updates: Partial<Tab>) => void;
+  removeTab: () => void;
+  
+  // Categorized actions
+  meta: TabMetaActions;
+  data: TabDataActions;
+  ui: TabUIActions;
+}
+
+/**
+ * Custom hook to access all tab state and actions
+ * @param tabName The name of the tab to access
+ * @param interfaceName The name of the interface containing the tab
+ * @param projectName Optional project name (if not provided, active project will be used)
+ * @returns Object containing all tab state, actions, and existence flag
+ */
+export function useTab(
+  tabName: string | null,
+  interfaceName?: string | null,
+  projectName?: string | null
+) {
+  // Use specialized hooks
+  const {
+    meta,
+    metaActions,
+    tabId,
+    tabExists,
+    activeProjectId,
+    activeInterfaceId
+  } = useTabMeta(tabName, interfaceName, projectName);
+  
+  const {
+    data,
+    dataActions
+  } = useTabData(tabName, interfaceName, projectName);
+  
+  const {
+    ui,
+    uiActions
+  } = useTabUI(tabName, interfaceName, projectName);
+  
+  const {
+    operations,
+    operationsActions
+  } = useTabOperations(tabName, interfaceName, projectName);
+
+  // Get store actions for core tab management
+  const storeInitTab = useStoreContext(state => state.initTab);
+  const storeUpdateTab = useStoreContext(state => state.updateTab);
+  const storeRemoveTab = useStoreContext(state => state.removeTab);
+
+  // Memoize all actions to prevent unnecessary re-renders
+  const actions = useMemo<TabActions>(() => {
+    return {
+      // Basic tab management
+      initTab: (initialState) => {
+        if (activeProjectId && activeInterfaceId && tabId) {
+          storeInitTab(activeInterfaceId, tabId, {
+            id: tabId,
+            projectId: activeProjectId,
+            interfaceId: activeInterfaceId,
+            ...initialState
+          });
+        }
+      },
+      
+      updateTab: (updates) => {
+        if (tabId) {
+          storeUpdateTab(tabId, updates);
+        }
+      },
+      
+      removeTab: () => {
+        if (tabId && activeInterfaceId) {
+          storeRemoveTab(activeInterfaceId, tabId);
+        }
+      },
+      
+      // Categorized actions
+      meta: metaActions,
+      data: dataActions,
+      ui: uiActions
+    };
+  }, [
+    tabId,
+    activeInterfaceId,
+    activeProjectId,
+    metaActions,
+    dataActions,
+    uiActions,
+    storeInitTab,
+    storeUpdateTab,
+    storeRemoveTab
+  ]);
+  
+  // Build a final 'tab' object from the separate meta, data, and UI objects
+  const tab = useMemo<Partial<Tab> | null>(() => {
+    if (!meta || !data || !ui) return null;
+    
+    return {
+      ...meta,
+      ...data,
+      ...ui
+    };
+  }, [meta, data, ui]);
+
+  // Use tabId to conditionally return values, but only after all hooks are called
+  if (!tabName || !interfaceName) {
+    return DEFAULT_USE_TAB_RETURN;
+  }
+
+  return {
+    tab,
+    meta,
+    data,
+    ui,
+    metaActions,
+    dataActions,
+    uiActions,
+    operationsActions,
+    actions,
+    operations,
+    exists: tabExists,
+    tabId
+  };
+} 

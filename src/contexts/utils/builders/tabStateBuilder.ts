@@ -138,6 +138,7 @@ export function buildTabState(
     tileIds: tileIds,
     globalContext: tabData.globalContext,
     savedTab: savedTabValue,
+    itemsNeedRecompute: false,
   };
   
   // Create tab UI
@@ -153,7 +154,6 @@ export function buildTabState(
     dataPending: false,
     pending: false,
     refreshing: false,
-    itemsNeedRecompute: false,
   };
   
   // Create the complete tab
