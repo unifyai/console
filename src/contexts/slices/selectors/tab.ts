@@ -111,14 +111,23 @@ export function setTabProperty<K extends keyof Tab>(
 /**
  * Add a tile to a tab
  */
-export function addTileId(tab: Tab, tileId: string): Tab {
+export function addTileId(tab: Tab, tileId: string, insert_after?: string): Tab {
   // If the tile already exists in the tab, don't add it again
   if (tab.tileIds.includes(tileId)) {
     return tab;
   }
   
   // Create a new array with the new tile ID
-  const tileIds = [...tab.tileIds, tileId];
+  const tileIds = [...tab.tileIds];
+  if (insert_after) {
+    const index = tileIds.indexOf(insert_after);
+    if (index !== -1) {
+      tileIds.splice(index + 1, 0, tileId);
+    }
+  }
+  else {
+    tileIds.push(tileId);
+  }
   
   // Return the updated tab
   return {

@@ -75,10 +75,10 @@ export function useTile(
     uiActions
   } = useTileUI(tileName, tabName || null, interfaceName || null, projectName);
   
-  const {
-    operations,
-    operationsActions
-  } = useTileOperations(tileName, tabName || null, interfaceName || null, projectName);
+  // const {
+  //   operations,
+  //   operationsActions
+  // } = useTileOperations(tileName, tabName || null, interfaceName || null, projectName);
   
   // Get the item actions
   const {
@@ -174,8 +174,8 @@ export function useTile(
     uiActions,
     itemActions,
     actions,
-    operations,
-    operationsActions,
+    // operations,
+    // operationsActions,
     exists: tileExists,
     tileId
   };

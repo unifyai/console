@@ -194,7 +194,7 @@ export function addTile(
   }
   
     // Add the tile to the tab
-  state.tabsById[tabId] = tabLogic.addTileId(tab, newTileId);
+  state.tabsById[tabId] = tabLogic.addTileId(tab, newTileId, sourceTileId);
 }
 
 /**
@@ -281,10 +281,11 @@ export function addTab(
   const { name: newTabName } = deconstructHierarchicalId(newTabId);
 
   // Update the interface's tabIds array using the proper function
-  state.interfacesById[interfaceId] = interfaceLogic.addTabId(interfaceObj, newTabId);
+  state.interfacesById[interfaceId] = interfaceLogic.addTabId(interfaceObj, newTabId, sourceTabId);
 
   // Update the interface's tabNames array using the proper function
-  state.interfacesById[interfaceId] = interfaceLogic.addTabName(interfaceObj, newTabName);
+  const sourceTabName = sourceTab.name || "";
+  state.interfacesById[interfaceId] = interfaceLogic.addTabName(interfaceObj, newTabName, sourceTabName);
 
   // Now copy over the tiles from the source tab but with the new tile ids and names
   sourceTab.tileIds.forEach((sourceTileId, index) => {

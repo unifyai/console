@@ -26,15 +26,15 @@ function StoreUpdater({ initialState }: { initialState: Partial<IStoreState> }) 
       updateTile: state.updateTile,
       
       // Async tracking actions
-      trackOperation: state.trackOperation,
+      // trackOperation: state.trackOperation,
     }))
   );
   
-  // Get operations separately to avoid unnecessary re-renders
-  const operations = useStoreContext(state => state.operations);
+  // // Get operations separately to avoid unnecessary re-renders
+  // const operations = useStoreContext(state => state.operations);
   
   const initialStateRef = useRef(initialState);
-  const operationsRef = useRef(operations);
+  // const operationsRef = useRef(operations);
   
   useEffect(() => {
     // Only process updates if initialState has changed
@@ -45,8 +45,8 @@ function StoreUpdater({ initialState }: { initialState: Partial<IStoreState> }) 
     // Create an operation ID for this update
     const updateOpId = OPERATIONS.STORE_UPDATE(Date.now());
     
-    // Track the operation
-    storeActions.trackOperation(updateOpId, 'pending');
+    // // Track the operation
+    // storeActions.trackOperation(updateOpId, 'pending');
     
     try {
       const prevState = initialStateRef.current;
@@ -61,11 +61,11 @@ function StoreUpdater({ initialState }: { initialState: Partial<IStoreState> }) 
         // Preserve operations during reset
         storeActions.resetState({
           ...initialState,
-          operations: operationsRef.current || {} // Preserve existing operations
+          // operations: operationsRef.current || {} // Preserve existing operations
         });
         
         initialStateRef.current = initialState;
-        storeActions.trackOperation(updateOpId, 'success');
+        // storeActions.trackOperation(updateOpId, 'success');
         return;
       }
       
@@ -75,29 +75,29 @@ function StoreUpdater({ initialState }: { initialState: Partial<IStoreState> }) 
       // Update ref to current state
       initialStateRef.current = initialState;
       
-      // Mark operation as successful
-      storeActions.trackOperation(updateOpId, 'success');
+      // // Mark operation as successful
+      // storeActions.trackOperation(updateOpId, 'success');
     } catch (error) {
-      // Mark operation as failed
-      storeActions.trackOperation(
-        updateOpId, 
-        'error', 
-        error instanceof Error ? error.message : String(error)
-      );
+      // // Mark operation as failed
+      // storeActions.trackOperation(
+      //   updateOpId, 
+      //   'error', 
+      //   error instanceof Error ? error.message : String(error)
+      // );
       console.error('Error updating store:', error);
     }
   }, [initialState, storeActions]);
   
-  // Update the operations ref when operations change
-  // This allows us to preserve operations during resets
-  // but doesn't cause the main effect to re-run
-  useEffect(() => {
-    // Only process updates if initialState has changed
-    if (operationsRef.current === operations) {
-      return;
-    }
-    operationsRef.current = operations;
-  }, [operations]);
+  // // Update the operations ref when operations change
+  // // This allows us to preserve operations during resets
+  // // but doesn't cause the main effect to re-run
+  // useEffect(() => {
+  //   // Only process updates if initialState has changed
+  //   if (operationsRef.current === operations) {
+  //     return;
+  //   }
+  //   operationsRef.current = operations;
+  // }, [operations]);
   
   return null; // This component doesn't render anything
 }

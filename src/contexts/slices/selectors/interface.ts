@@ -77,14 +77,23 @@ export function setInterfaceProperty<K extends keyof Interface>(
 /**
  * Add a tab to an interface
  */
-export function addTabId(iface: Interface, tabId: string): Interface {
+export function addTabId(iface: Interface, tabId: string, insert_after?: string): Interface {
   // If the tab already exists in the interface, don't add it again
   if (iface.tabIds.includes(tabId)) {
     return iface;
   }
   
   // Create a new array with the new tab ID
-  const tabIds = [...iface.tabIds, tabId];
+  const tabIds = [...iface.tabIds];
+  if (insert_after) {
+    const index = tabIds.indexOf(insert_after);
+    if (index !== -1) {
+      tabIds.splice(index + 1, 0, tabId);
+    }
+  }
+  else {
+    tabIds.push(tabId);
+  }
   
   // Return the updated interface
   return {
@@ -119,14 +128,23 @@ export function removeTabId(iface: Interface, tabId: string): Interface {
 /**
  * Add a tab to an interface
  */
-export function addTabName(iface: Interface, tabName: string): Interface {
+export function addTabName(iface: Interface, tabName: string, insert_after?: string): Interface {
   // If the tab already exists in the interface, don't add it again
   if (iface.tabNames.includes(tabName)) {
     return iface;
   }
   
   // Create a new array with the new tab ID
-  const tabNames = [...iface.tabNames, tabName];
+  const tabNames = [...iface.tabNames];
+  if (insert_after) {
+    const index = tabNames.indexOf(insert_after);
+    if (index !== -1) {
+      tabNames.splice(index + 1, 0, tabName);
+    }
+  }
+  else {
+    tabNames.push(tabName);
+  }
   
   // Return the updated interface
   return {

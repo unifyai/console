@@ -15,7 +15,6 @@ import ContextSelector from "./Table/Content/ContextSelector";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import TutorialButton from "./TutorialButton";
 import { useTiles } from "@/contexts/hooks/useStore";
-import { useWhyDidYouUpdate } from "@/contexts/utils/sliceUtils";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 const TileCard = lazy(() => import('./TileCard'));
@@ -119,15 +118,6 @@ const Tab = ({
     })();
   }, [tileProps, tabDataState?.globalContext]);
 
-  // Track all essential dependencies for debugging render cycles
-  useWhyDidYouUpdate('Tab', [
-    tileTableDataItems,
-    tileIds,
-    tiles,
-    tileProps,
-    tabDataState?.globalContext
-  ]);
-
   // Trigger update when table data changes (server reloaded)
   useEffect(() => {
     if (!tabDataState || !tabUIActions || !tabDataActions) return;
@@ -141,8 +131,6 @@ const Tab = ({
       if (tabUIState?.refreshing === true) {
         tabUIActions.setRefreshing(false);
       }
-
-      console.log("[Tab] Updating tiles....");
 
       // // Reset pending state for all tiles
       // tiles.forEach(tile => {

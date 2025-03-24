@@ -64,10 +64,10 @@ export function useInterface(interfaceName: string | null, projectName?: string 
     activeTabId
   } = useInterfaceUI(interfaceName, projectName);
   
-  const {
-    operations,
-    operationsActions
-  } = useInterfaceOperations(interfaceName, projectName);
+  // const {
+  //   operations,
+  //   operationsActions
+  // } = useInterfaceOperations(interfaceName, projectName);
 
   // Get store actions for core interface management
   const storeInitInterface = useStoreContext(state => state.initInterface);
@@ -136,7 +136,7 @@ export function useInterface(interfaceName: string | null, projectName?: string 
     metaActions,
     dataActions,
     uiActions,
-    operationsActions,
+    // operationsActions,
     actions,
     exists: interfaceExists
   };

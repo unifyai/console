@@ -84,7 +84,6 @@ export const createTileSlice: StateCreator<
         // Filter out unchanged fields with the extended partially shallow logic
         const filteredTileUpdates = sliceUtils.filterUnchangedProps(tile, tileUpdates);
         if (Object.keys(filteredTileUpdates).length > 0) {
-          console.log("[Tile Updates]", filteredTileUpdates);
           updatedTile = tileLogic.updateTile(tile, filteredTileUpdates);
           tileUpdated = true;
 
@@ -105,7 +104,6 @@ export const createTileSlice: StateCreator<
         // Filter out unchanged fields with the extended partially shallow logic
         const filteredTableTileUpdates = sliceUtils.filterUnchangedProps(updatedTile.tableTile, tableTileUpdates);
         if (Object.keys(filteredTableTileUpdates).length > 0) {
-          console.log("[Table Tile Updates]", filteredTableTileUpdates);
           updatedTile.tableTile = tableTileLogic.updateTableTile(updatedTile.tableTile, filteredTableTileUpdates);
           tileUpdated = true;
 
@@ -126,7 +124,6 @@ export const createTileSlice: StateCreator<
         // Filter out unchanged fields with the extended partially shallow logic
         const filteredPlotTileUpdates = sliceUtils.filterUnchangedProps(updatedTile.plotTile, plotTileUpdates);
         if (Object.keys(filteredPlotTileUpdates).length > 0) {
-          console.log("[Plot Tile Updates]", filteredPlotTileUpdates);
           updatedTile.plotTile = plotTileLogic.updatePlotTile(updatedTile.plotTile, filteredPlotTileUpdates);
           tileUpdated = true;
 
@@ -147,7 +144,6 @@ export const createTileSlice: StateCreator<
         // Filter out unchanged fields with the extended partially shallow logic
         const filteredViewTileUpdates = sliceUtils.filterUnchangedProps(updatedTile.viewTile, viewTileUpdates);
         if (Object.keys(filteredViewTileUpdates).length > 0) {
-          console.log("[View Tile Updates]", filteredViewTileUpdates);
           updatedTile.viewTile = viewTileLogic.updateViewTile(updatedTile.viewTile, filteredViewTileUpdates);
           tileUpdated = true;
 

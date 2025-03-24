@@ -84,7 +84,7 @@ const InterfaceTabs = ({
                                     setTabQueryParamState(tab_);
                             }}
                             className="px-0 h-5 w-16 bg-transparent border-none outline-none focus:outline-none focus:border-none focus-visible:ring-0"
-                        /> : <div className="h-5 w-16 text-center">{tab_}</div>}
+                        /> : <div className="h-5 w-16 text-center" onClick={() => setTabQueryParam(tab_)}>{tab_}</div>}
                         <div
                             className={`z-10 absolute -top-1 -right-1 cursor-pointer mb-auto hover:text-white hover:bg-primary rounded-sm ${hoveredTab == tab_ ? "opacity-100" : "opacity-0"}`}
                             onMouseEnter={() => tabQueryParam != tab_ && tabUIActions?.setDeleting(true)}

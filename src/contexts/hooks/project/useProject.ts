@@ -74,10 +74,10 @@ export function useProject(projectName: string | null) {
     activeInterfaceId
   } = useProjectUI(projectName);
   
-  const {
-    operations,
-    operationsActions
-  } = useProjectOperations(projectName);
+  // const {
+  //   operations,
+  //   operationsActions
+  // } = useProjectOperations(projectName);
 
   // Get store actions
   const storeInitProject = useStoreContext(state => state.initProject);
@@ -151,8 +151,8 @@ export function useProject(projectName: string | null) {
     metaActions,
     dataActions,
     uiActions,
-    operationsActions,
     actions,
+    // operationsActions,
     exists: projectExists
   };
 } 

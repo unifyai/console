@@ -9,7 +9,6 @@ import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 // Import the new hooks
 import { useTileMeta, useTileUI, useTileItem } from '@/contexts/hooks/tile';
 import { ExpandProvider } from "@/contexts/ExpandContext";
-import { useWhyDidYouUpdate } from "@/contexts/utils/sliceUtils";
 
 // Dynamically import components
 const LogsTable = lazy(() => import("@/components/Interfaces/Table/Table"));
@@ -59,26 +58,6 @@ const Tile = ({
         w: tileMetaState?.position?.width || 4,
         h: tileMetaState?.position?.height || 4,
     }, [itemActions, tileMetaState]);
-
-    useWhyDidYouUpdate('Tile', [
-        tileItem.tab,
-        tileItem.table_type,
-        tileItem.filters,
-        tileItem.context,
-        tileItem.column_context,
-        tileItem.common_filter,
-        tileItem.sorting,
-        tileItem.grouping,
-        tileItem.group_sorting,
-        tileItem.page_number,
-        tileItem.metric,
-        tileItem.plot_type,
-        tileItem.x_axis,
-        tileItem.y_axis,
-        tileItem.plot_group_by,
-        tileItem.auto_update,
-        tileItem.freeze
-    ]);
 
     // Use a ref to compare the needed properties so we only update if something truly changed.
     useEffect(() => {

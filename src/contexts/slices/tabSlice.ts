@@ -63,7 +63,6 @@ export const createTabSlice: StateCreator<
       // Filter out unchanged fields with the extended partially shallow logic
       const filteredUpdates = sliceUtils.filterUnchangedProps(state.tabsById[tabId], updates);
       if (Object.keys(filteredUpdates).length === 0) return;
-      console.log("[Tab Updates]", filteredUpdates);
       state.tabsById[tabId] = tabLogic.updateTab(tab, filteredUpdates);
     }
   }),

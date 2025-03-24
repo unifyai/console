@@ -70,10 +70,10 @@ export function useTab(
     uiActions
   } = useTabUI(tabName, interfaceName, projectName);
   
-  const {
-    operations,
-    operationsActions
-  } = useTabOperations(tabName, interfaceName, projectName);
+  // const {
+  //   operations,
+  //   operationsActions
+  // } = useTabOperations(tabName, interfaceName, projectName);
 
   // Get store actions for core tab management
   const storeInitTab = useStoreContext(state => state.initTab);
@@ -136,7 +136,7 @@ export function useTab(
   }, [meta, data, ui]);
 
   // Use tabId to conditionally return values, but only after all hooks are called
-  if (!tabName || !interfaceName) {
+  if (!tabName) {
     return DEFAULT_USE_TAB_RETURN;
   }
 
@@ -148,9 +148,9 @@ export function useTab(
     metaActions,
     dataActions,
     uiActions,
-    operationsActions,
     actions,
-    operations,
+    // operationsActions,
+    // operations,
     exists: tabExists,
     tabId
   };
