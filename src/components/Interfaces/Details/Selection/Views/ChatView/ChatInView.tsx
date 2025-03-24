@@ -722,6 +722,7 @@ export default function ChatInView({
                                     oldValue={baseStr}
                                     newValue={cStr}
                                     splitView={splitView}
+                                    hideLineNumbers={!baseStr.includes('\n') && !cStr.includes('\n')}
                                     mode={diffMode}
                                   />
                                 </div>
@@ -743,6 +744,7 @@ export default function ChatInView({
                                 oldValue={baseStr}
                                 newValue=""
                                 splitView={splitView}
+                                hideLineNumbers={!baseStr.includes('\n')}
                                 mode={diffMode}
                               />
                             </div>
