@@ -28,6 +28,7 @@ import {
   sanitizePropertyKey,
 } from "@/utils/evals/pathUtils";
 import { usePanelExpandContextSelector } from "@/components/Interfaces/Details/Selection/SelectionPanel";
+import { getIndentClasses, getContentIndentClasses, getSeparatorClasses } from "./useIndentation";
 
 import { LogComparisonProps } from "./types";
 import { getValueType, getTypeIcon } from "./ViewTypes";
@@ -235,6 +236,11 @@ function renderNoDiffMode(
     expandRecursively, collapseRecursively
   } = options;
   
+  // Get indentation classes based on nesting level
+  const indentClass = getIndentClasses(nestingLevel);
+  // Always use content indent for children
+  const contentIndentClass = getContentIndentClasses(nestingLevel);
+  
   // Build the open values array for the accordion
   const openValues: string[] = [];
   for (let i = 0; i < itemCount; i++) {
@@ -316,8 +322,11 @@ function renderNoDiffMode(
           handleRecursiveToggle(e, path, firstVal, comparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
         }
         
+        // Get separator classes for this item
+        const separatorClasses = getSeparatorClasses(i, itemCount);
+        
         return (
-          <AccordionItem key={lbl} value={lbl}>
+          <AccordionItem key={lbl} value={lbl} className={separatorClasses}>
             <AccordionTrigger className="relative group flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 {icon} {lbl}
@@ -341,9 +350,9 @@ function renderNoDiffMode(
             </AccordionTrigger>
             
             <AccordionContent>
-              <div className="border-l ml-4 pl-1">
+              <div className={contentIndentClass}>
                 {groups.map((group, idx) => (
-                  <div key={idx} className="mb-2">
+                  <div key={idx} className={getSeparatorClasses(idx, groups.length)}>
                     <RowBadge rowNumbers={group.rows} mode="none" />
                     <div className="mt-1">
                       {pickView({
@@ -582,6 +591,11 @@ export default function ListView({
     const icon = getTypeIcon(valueType);
     const isExpandable = isDict(itemValue) || isList(itemValue);
     
+    // Get indentation classes based on nesting level
+    const indentClass = getIndentClasses(nestingLevel);
+    // Always use content indent for children
+    const contentIndentClass = getContentIndentClasses(nestingLevel);
+    
     function handleExpandClick(e: React.MouseEvent) {
       e.stopPropagation();
       handleToggle(index);
@@ -618,20 +632,22 @@ export default function ListView({
           )}
         </AccordionTrigger>
         <AccordionContent>
-          {pickView({
-            value: itemValue,
-            comparables: [],
-            baseLogIndex,
-            comparisonLogsIndex: [],
-            diffMode,
-            splitView,
-            displayMode,
-            version,
-            comparableVersions,
-            nestingLevel: nestingLevel + 1,
-            prefix,
-            parentPath: path,
-          })}
+          <div className={contentIndentClass}>
+            {pickView({
+              value: itemValue,
+              comparables: [],
+              baseLogIndex,
+              comparisonLogsIndex: [],
+              diffMode,
+              splitView,
+              displayMode,
+              version,
+              comparableVersions,
+              nestingLevel: nestingLevel + 1,
+              prefix,
+              parentPath: path,
+            })}
+          </div>
         </AccordionContent>
       </AccordionItem>
     );
@@ -659,6 +675,11 @@ export default function ListView({
     const unifiedType = unifyType(baseItem, compItems);
     const icon = getTypeIcon(unifiedType);
     const isExpandable = ["dict", "list"].includes(unifiedType);
+    
+    // Get indentation classes based on nesting level
+    const indentClass = getIndentClasses(nestingLevel);
+    // Always use content indent for children
+    const contentIndentClass = getContentIndentClasses(nestingLevel);
     
     function handleExpandClick(e: React.MouseEvent) {
       e.stopPropagation();
@@ -703,20 +724,22 @@ export default function ListView({
           )}
         </AccordionTrigger>
         <AccordionContent>
-          {pickView({
-            value: baseItem,
-            comparables: compItems,
-            baseLogIndex,
-            comparisonLogsIndex,
-            diffMode,
-            splitView,
-            displayMode,
-            version,
-            comparableVersions,
-            nestingLevel: nestingLevel + 1,
-            prefix,
-            parentPath: path,
-          })}
+          <div className={contentIndentClass}>
+            {pickView({
+              value: baseItem,
+              comparables: compItems,
+              baseLogIndex,
+              comparisonLogsIndex,
+              diffMode,
+              splitView,
+              displayMode,
+              version,
+              comparableVersions,
+              nestingLevel: nestingLevel + 1,
+              prefix,
+              parentPath: path,
+            })}
+          </div>
         </AccordionContent>
       </AccordionItem>
     );
@@ -761,11 +784,15 @@ export default function ListView({
     );
   }
   
-  // No need to add displayMode as a dependency here
+  // Fix for the linter error by safely handling null renderedItems
   return (
     <Accordion type="multiple" value={openValues} onValueChange={() => {}}>
       <div className="flex flex-col">
-        {renderedItems}
+        {renderedItems?.map((item, idx) => (
+          <div key={`item-wrapper-${idx}`} className={getSeparatorClasses(idx, renderedItems.length)}>
+            {item}
+          </div>
+        )) || null}
       </div>
     </Accordion>
   );
