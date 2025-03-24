@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { TileActions, useTile } from "../tile/useTile";
 import { ViewTileMeta, ViewTileData, ViewTileUI } from "../../slices/selectors/viewTile";
+import { TileDataActions } from "./useTileData";
 
 // Define the default return value for the useViewTile hook
 const DEFAULT_USE_VIEW_TILE_RETURN = {
@@ -27,6 +28,7 @@ export interface ViewTileMetaActions {
  */
 export interface ViewTileDataActions {
   // Add any other view-specific data actions here
+  setBaseIndex: (baseIndex: string | undefined) => void;
 }
 
 /**
@@ -100,8 +102,15 @@ export function useViewTile(
   const viewDataActions = useMemo<ViewTileDataActions>(() => {
     return {
       // Add view-specific data actions here
+      setBaseIndex: (baseIndex) => {
+        if (baseTileActions && hasViewTile) {
+          (baseTileActions as unknown as TileDataActions).updateViewTile({ 
+            base_index: baseIndex
+          });
+        }
+      }
     };
-  }, []);
+  }, [baseTileActions, hasViewTile]);
   
   // Create view-specific UI actions
   const viewUIActions = useMemo<ViewTileUIActions>(() => {

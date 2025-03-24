@@ -104,7 +104,6 @@ export function buildTableTileState(
     columns_pin_left: tileProps.columns_pin_left,
     columns_pin_right: tileProps.columns_pin_right,
     selected: tileProps.selected,
-    base_index: tileProps.base_index,
     tableDataItem: tableData[tileProps.i],
   };
 
@@ -197,6 +196,7 @@ export function buildViewTileState(
 
   // Build view tile data
   const viewTileData: ViewTileData = {
+    base_index: tileProps.base_index,
   };
 
   // Build view tile UI

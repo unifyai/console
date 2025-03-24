@@ -37,7 +37,6 @@ export interface TableTileDataActions {
   setColumnsPinLeft: (columnsPinLeft: string | undefined) => void;
   setColumnsPinRight: (columnsPinRight: string | undefined) => void;
   setSelected: (selected: string | undefined) => void;
-  setBaseIndex: (baseIndex: string | undefined) => void;
 }
 
 /**
@@ -183,13 +182,6 @@ export function useTableTile(
           });
         }
       },
-      setBaseIndex: (baseIndex) => {
-        if (baseTileActions && hasTableTile) {
-          (baseTileActions as unknown as TileDataActions).updateTableTile({ 
-            base_index: baseIndex
-          });
-        }
-      }
     };
   }, [baseTileActions, hasTableTile]);
   

@@ -61,7 +61,7 @@ export interface Tile extends TileMeta, TileData, TileUI {
 export const TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS: (keyof TableTile)[] = [
   "table_type", "column_context", "page_number", "metric", "column_order", 
   "hidden_columns", "sorting", "grouping", "group_sorting", 
-  "columns_pin_left", "columns_pin_right", "selected", "base_index"
+  "columns_pin_left", "columns_pin_right", "selected",
 ];
 
 // plotKeys: all keys that are used in `asTileItem` in `usePlot` hook to convert
@@ -73,7 +73,7 @@ export const PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS: (keyof PlotTile)[] = [
 
 // viewKeys: all keys that are used in `asTileItem` in `useView` hook to convert
 // a ViewTile into a ViewTileProps
-export const VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS: (keyof ViewTile)[] = [];
+export const VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS: (keyof ViewTile)[] = ["base_index"];
 
 // tileKeys: all keys that are used in `asTileItem` in `useTile` hook to convert
 // a Tile into a TileProps

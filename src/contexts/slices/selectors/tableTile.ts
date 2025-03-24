@@ -23,7 +23,6 @@ export interface TableTileData {
   columns_pin_left?: string; // Columns pinned to the left
   columns_pin_right?: string; // Columns pinned to the right
   selected?: string;       // Selected items in the table
-  base_index?: string;     // Base index for the table
 
   // Table data item
   tableDataItem?: TableDataItem;
@@ -44,7 +43,7 @@ export type TableTile = TableTileMeta & TableTileData & TableTileUI;
 export const TABLE_TILE_KEYS: (keyof TableTile)[] = [
   "table_type","metric","column_order","hidden_columns","sorting",
   "grouping","group_sorting","columns_pin_left","columns_pin_right",
-  "selected","base_index","tableDataItem","limit","offset",
+  "selected","tableDataItem","limit","offset",
   "column_context","page_number"
 ];
 
@@ -70,7 +69,6 @@ export function initTableTile(initialState: Partial<TableTile> = {}): TableTile 
     columns_pin_left: initialState.columns_pin_left,
     columns_pin_right: initialState.columns_pin_right,
     selected: initialState.selected,
-    base_index: initialState.base_index,
 
     // Fields from TableDataItem
     tableDataItem: {

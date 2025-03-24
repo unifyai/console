@@ -9,6 +9,7 @@ export interface ViewTileMeta {
 
 // View tile data - business data 
 export interface ViewTileData {
+  base_index?: string;     // Base index for the table
 }
 
 // View tile UI - UI-related state
@@ -19,7 +20,7 @@ export interface ViewTileUI {
 export type ViewTile = ViewTileMeta & ViewTileData & ViewTileUI;
 
 // viewTileKeys: all fields for ViewTile
-export const VIEW_TILE_KEYS: (keyof ViewTile)[] = [];
+export const VIEW_TILE_KEYS: (keyof ViewTile)[] = ["base_index"];
 
 
 /**
@@ -29,6 +30,9 @@ export function initViewTile(
   initialState: Partial<ViewTile> = {}
 ): ViewTile {
   return {
+    // Data
+    base_index: initialState.base_index,
+
     ...initialState,
   } as ViewTile;
 }

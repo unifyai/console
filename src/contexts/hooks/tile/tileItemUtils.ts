@@ -50,7 +50,6 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
       columns_pin_left: tile.tableTile.columns_pin_left,
       columns_pin_right: tile.tableTile.columns_pin_right,
       selected: tile.tableTile.selected,
-      base_index: tile.tableTile.base_index
     });
   } else if (tile.type === 'Plot' && tile.plotTile) {
     // Add plot-specific properties
@@ -68,6 +67,9 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
   } else if (tile.type === 'View' && tile.viewTile) {
     // Add view-specific properties
     // (Add view-specific fields here if needed)
+    Object.assign(tileProps, {
+      base_index: tile.viewTile.base_index
+    });
   }
   
   return tileProps;
@@ -130,7 +132,6 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
       columns_pin_left: tileItem.columns_pin_left,
       columns_pin_right: tileItem.columns_pin_right,
       selected: tileItem.selected,
-      base_index: tileItem.base_index
     };
   } else if (tileItem.tab === 'Plot') {
     plotTileUpdates = {
@@ -147,7 +148,9 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
   } else if (tileItem.tab === 'View') {
     // Apply view-specific updates
     // (Add view-specific updates here if needed)
-    viewTileUpdates = {} as Partial<ViewTile>;
+    viewTileUpdates = {
+      base_index: tileItem.base_index
+    } as Partial<ViewTile>;
   }
   
   return {
