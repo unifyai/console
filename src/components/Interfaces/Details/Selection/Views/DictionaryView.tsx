@@ -28,6 +28,7 @@ import {
   sanitizePropertyKey,
 } from "@/utils/evals/pathUtils";
 import { usePanelExpandContextSelector } from "@/components/Interfaces/Details/Selection/SelectionPanel";
+import { getIndentClasses, getContentIndentClasses, getSeparatorClasses } from "./useIndentation";
 
 import { LogComparisonProps } from "./types";
 import { getValueType, getTypeIcon } from "./ViewTypes";
@@ -243,6 +244,11 @@ function renderNoDiffMode(
     expandRecursively, collapseRecursively
   } = options;
   
+  // Get indentation classes based on nesting level
+  const indentClass = getIndentClasses(nestingLevel);
+  // Always use content indent for children regardless of level
+  const contentIndentClass = getContentIndentClasses(nestingLevel);
+  
   // Build the open values array for the accordion
   const openValues = allKeys
     .map((k) => {
@@ -274,7 +280,7 @@ function renderNoDiffMode(
       value={openValues}
       onValueChange={handleAccordionValueChange}
     >
-      {allKeys.map((k) => {
+      {allKeys.map((k, idx) => {
         // 1. Gather values for this key from all rows
         const rowValuePairs: { rowIndex: number, val: any }[] = [];
         
@@ -313,8 +319,11 @@ function renderNoDiffMode(
           handleRecursiveToggle(e, path, value, comparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
         }
         
+        // Get separator classes for this item
+        const separatorClasses = getSeparatorClasses(idx, allKeys.length);
+        
         return (
-          <AccordionItem key={k} value={path}>
+          <AccordionItem key={k} value={path} className={separatorClasses}>
             <AccordionTrigger className="relative group flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 {icon} {k}
@@ -338,9 +347,9 @@ function renderNoDiffMode(
             </AccordionTrigger>
             
             <AccordionContent>
-              <div className="border-l ml-4 pl-1">
+              <div className={contentIndentClass}>
                 {groups.map((group, idx) => (
-                  <div key={idx} className="mb-2">
+                  <div key={idx} className={getSeparatorClasses(idx, groups.length)}>
                     <RowBadge rowNumbers={group.rows} mode="none" />
                     <div className="mt-1">
                       {pickView({
@@ -566,6 +575,11 @@ export default function DictionaryView({
     const _valueType = getValueType(baseVal);
     const icon = getTypeIcon(_valueType);
     const isExpandable = isDict(baseVal) || isList(baseVal);
+    
+    // Get indentation classes based on nesting level
+    const indentClass = getIndentClasses(nestingLevel);
+    // Always use content indent for children
+    const contentIndentClass = getContentIndentClasses(nestingLevel);
 
     function handleExpandToggle(e: React.MouseEvent) {
       e.stopPropagation();
@@ -603,21 +617,23 @@ export default function DictionaryView({
           )}
         </AccordionTrigger>
         <AccordionContent>
-          {/* Use displayMode as a prop to child components */}
-          {pickView({
-            value: baseVal,
-            comparables: [],
-            baseLogIndex,
-            comparisonLogsIndex: [],
-            diffMode,
-            splitView,
-            displayMode,
-            version,
-            comparableVersions,
-            nestingLevel: nestingLevel + 1,
-            prefix,
-            parentPath: builtPath, // pass fully-qualified path to children
-          })}
+          <div className={contentIndentClass}>
+            {/* Use displayMode as a prop to child components */}
+            {pickView({
+              value: baseVal,
+              comparables: [],
+              baseLogIndex,
+              comparisonLogsIndex: [],
+              diffMode,
+              splitView,
+              displayMode,
+              version,
+              comparableVersions,
+              nestingLevel: nestingLevel + 1,
+              prefix,
+              parentPath: builtPath, // pass fully-qualified path to children
+            })}
+          </div>
         </AccordionContent>
       </AccordionItem>
     );
@@ -644,6 +660,11 @@ export default function DictionaryView({
     const unifiedType = unifyType(baseVal, comps);
     const icon = getTypeIcon(unifiedType);
     const isExpandable = ["dict", "list"].includes(unifiedType);
+    
+    // Get indentation classes based on nesting level
+    const indentClass = getIndentClasses(nestingLevel);
+    // Always use content indent for children
+    const contentIndentClass = getContentIndentClasses(nestingLevel);
 
     function handleExpandToggle(e: React.MouseEvent) {
       e.stopPropagation();
@@ -688,21 +709,23 @@ export default function DictionaryView({
           )}
         </AccordionTrigger>
         <AccordionContent>
-          {/* Use displayMode as a prop to child components */}
-          {pickView({
-            value: baseVal,
-            comparables: comps,
-            baseLogIndex,
-            comparisonLogsIndex,
-            diffMode,
-            splitView,
-            displayMode,
-            version,
-            comparableVersions,
-            nestingLevel: nestingLevel + 1,
-            prefix,
-            parentPath: builtPath, // pass fully-qualified path to children
-          })}
+          <div className={contentIndentClass}>
+            {/* Use displayMode as a prop to child components */}
+            {pickView({
+              value: baseVal,
+              comparables: comps,
+              baseLogIndex,
+              comparisonLogsIndex,
+              diffMode,
+              splitView,
+              displayMode,
+              version,
+              comparableVersions,
+              nestingLevel: nestingLevel + 1,
+              prefix,
+              parentPath: builtPath, // pass fully-qualified path to children
+            })}
+          </div>
         </AccordionContent>
       </AccordionItem>
     );
@@ -737,7 +760,11 @@ export default function DictionaryView({
   return (
     <Accordion type="multiple" value={openValues} onValueChange={() => {}}>
       <div className="flex flex-col">
-        {renderedKeys}
+        {renderedKeys.map((item, idx) => (
+          <div key={`key-${idx}`} className={getSeparatorClasses(idx, renderedKeys.length)}>
+            {item}
+          </div>
+        ))}
       </div>
     </Accordion>
   );

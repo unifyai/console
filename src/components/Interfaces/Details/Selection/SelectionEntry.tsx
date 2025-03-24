@@ -583,7 +583,10 @@ export default function SelectionEntry({
       </AccordionTrigger>
 
       <AccordionContent>
-        {renderedContent}
+        {/* Add a wrapper div with proper indentation for top-level items */}
+        <div className="border-l border-l-muted ml-4 pl-3 relative">
+          {renderedContent}
+        </div>
       </AccordionContent>
     </AccordionItem>
   );
