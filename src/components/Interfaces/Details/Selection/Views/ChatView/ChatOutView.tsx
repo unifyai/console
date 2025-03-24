@@ -754,6 +754,7 @@ export default function ChatOutView({
                                     oldValue={baseStr}
                                     newValue={cStr}
                                     splitView={splitView}
+                                    hideLineNumbers={!baseStr.includes('\n') && !cStr.includes('\n')}
                                     mode={diffMode}
                                   />
                                 </div>
@@ -774,6 +775,7 @@ export default function ChatOutView({
                                 oldValue={baseStr}
                                 newValue=""
                                 splitView={splitView}
+                                hideLineNumbers={!baseStr.includes('\n')}
                                 mode={diffMode}
                               />
                             </div>
@@ -817,6 +819,7 @@ export default function ChatOutView({
                                             oldValue={baseToolJSON}
                                             newValue={cTools}
                                             splitView={splitView}
+                                            hideLineNumbers={!baseToolJSON.includes('\n') && !cTools.includes('\n')}
                                             mode={diffMode}
                                           />
                                         </div>
@@ -837,6 +840,7 @@ export default function ChatOutView({
                                         oldValue={baseToolJSON}
                                         newValue=""
                                         splitView={splitView}
+                                        hideLineNumbers={!baseToolJSON.includes('\n')}
                                         mode={diffMode}
                                       />
                                     </div>

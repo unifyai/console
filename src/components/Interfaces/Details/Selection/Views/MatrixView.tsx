@@ -332,7 +332,7 @@ export default function MatrixView({
                 <DiffViewer
                   oldValue={baseStr}
                   newValue={compStr}
-                  hideLineNumbers={false}
+                  hideLineNumbers={!baseStr.includes('\n') && !compStr.includes('\n')}
                   hideMarkers
                   splitView={splitView}
                   mode={diffMode}
