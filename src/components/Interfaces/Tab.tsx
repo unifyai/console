@@ -144,12 +144,12 @@ const Tab = ({
 
       console.log("[Tab] Updating tiles....");
 
-      // Reset pending state for all tiles
-      tiles.forEach(tile => {
-        if (typeof tile === 'object' && tile !== null && 'name' in tile) {
-          tabDataActions.updateTile(tile.name || "", { pending: false });
-        }
-      });
+      // // Reset pending state for all tiles
+      // tiles.forEach(tile => {
+      //   if (typeof tile === 'object' && tile !== null && 'name' in tile) {
+      //     tabDataActions.updateTile(tile.name || "", { pending: false });
+      //   }
+      // });
 
       // If tab is pending or resetting, get latest data
       if ((tabUIState?.pending || tabUIState?.resetting) && projectId && tabId) {

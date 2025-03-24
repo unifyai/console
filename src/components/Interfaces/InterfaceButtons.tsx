@@ -57,7 +57,6 @@ const InterfaceButtons = ({
         ui: tabUIState,
         dataActions: tabDataActions,
         uiActions: tabUIActions,
-        actions: tabActions 
     } = useTab(tabQueryParam || "", interfaceId);
 
     // Get tileIds from tab data properly
@@ -80,7 +79,7 @@ const InterfaceButtons = ({
 
     // Handle context change 
     const handleContextChange = (ctx: string) => {
-        if (tabActions) {
+        if (tabDataActions && tabUIActions) {
             // First update the tab's context
             tabDataActions.setGlobalContext(ctx);
 

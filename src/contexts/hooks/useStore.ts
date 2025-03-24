@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
+import isEqual from 'fast-deep-equal';
 import { useStoreContext } from '../providers/StoreProvider';
 import { useShallow } from 'zustand/react/shallow';
 import { Project } from '../slices/selectors/project';
@@ -9,6 +10,7 @@ import { Tile } from '../slices/selectors/tile';
 // Define stable fallback references
 const EMPTY_PROJECTS: string[] = [];
 const EMPTY_TILES: Partial<Tile>[] = [];
+const EMPTY_TILES_BY_ID: Record<string, Tile> = {};
 const EMPTY_PROJECTS_ARRAY: Partial<Project>[] = [];
 const EMPTY_INTERFACES_ARRAY: Partial<Interface>[] = [];
 const EMPTY_TABS_ARRAY: Partial<Tab>[] = [];
@@ -430,13 +432,13 @@ export function useTileProperties(tileId: string | undefined, properties: string
 export function useTiles(tileIds: string[] = [], properties: string[] = []): Partial<Tile>[] {
   // Step 1: Subscribe to raw tile data using useShallow for efficient store updates
   // This will only trigger re-renders when the relevant tiles change
+  const result: Record<string, Tile> = {};
   const rawTilesById = useStoreContext(
     useShallow(state => {
       // If no tileIds provided, return empty object to avoid unnecessary processing
-      if (!tileIds.length) return {};
+      if (!tileIds.length) return EMPTY_TILES_BY_ID;
       
       // Extract only the specific tiles we care about to minimize subscriptions
-      const result: Record<string, Tile> = {};
       for (const id of tileIds) {
         if (state.tilesById[id]) {
           result[id] = state.tilesById[id];
@@ -448,12 +450,13 @@ export function useTiles(tileIds: string[] = [], properties: string[] = []): Par
   
   // Step 2: Memoize the transformation of raw data
   // This prevents creating new arrays/objects when inputs or data haven't changed
+  const resultRef = useRef<Partial<Tile>[]>([]);
   return useMemo(() => {
     // If no IDs to process, return empty array (using stable reference)
     if (!tileIds.length) return EMPTY_TILES;
     
     // Transform raw data into the expected format
-    return tileIds
+    const result = tileIds
       .filter(id => rawTilesById[id])
       .map(id => {
         const tile = rawTilesById[id];
@@ -470,8 +473,24 @@ export function useTiles(tileIds: string[] = [], properties: string[] = []): Par
             const value = getNestedProperty(tile, propPath);
             if (value !== undefined) {
               // For nested properties, only store the final property in the result
-              const lastPart = propPath.split('.').pop() as string;
-              result[lastPart] = value;
+              // but make sure it is accessible at the same nested key level by 
+              // adding the nested object to the result
+              // Create nested objects to match the property path structure
+              const parts = propPath.split('.');
+              let current = result;
+              
+              // Build the nested structure up to the parent of the final property
+              for (let i = 0; i < parts.length - 1; i++) {
+                const part = parts[i];
+                if (!current[part]) {
+                  current[part] = {};
+                }
+                current = current[part];
+              }
+              
+              // Set the final property value
+              const finalProp = parts[parts.length - 1];
+              current[finalProp] = value;
             }
           } else {
             // Handle top-level property
@@ -481,6 +500,13 @@ export function useTiles(tileIds: string[] = [], properties: string[] = []): Par
         
         return result as Partial<Tile>;
       });
+
+    // Return the old reference if the result is the same as the input
+    if (isEqual(resultRef.current, result)) {
+      return resultRef.current;
+    }
+    resultRef.current = result;
+    return result;
   }, [tileIds, properties, rawTilesById]);
 }
 

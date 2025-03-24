@@ -9,7 +9,7 @@ import { TabActions, ProjectsActions } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
 import { useInterface } from "@/contexts/hooks/interface";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
-import { useTab } from "@/contexts/hooks/tab";
+import { useTabUI } from "@/contexts/hooks/tab";
 
 const ProjectButtons = ({
     interfaceId,
@@ -45,7 +45,7 @@ const ProjectButtons = ({
     const tabNames = interfaceDataActions?.getTabNames() || [];
 
     // Tab states and actions with granular access
-    const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabQueryParam || "");
+    const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabQueryParam || "");
 
     return (
         <div className="w-fit gap-2 flex flex-row items-center px-4">

@@ -50,7 +50,7 @@ const LogsPlot = ({
     const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
     
     // Only subscribe to a subset of the tiles objects to incl. name, type and tableTile only
-    const tiles = useTiles(tileIds, ["name", "type", "tableTile.tableDataItem"]);
+    const tiles = useTiles(tileIds, ["name", "type"]);
 
     const tableNames = useMemo(() => {
         // Only return table names for table tiles

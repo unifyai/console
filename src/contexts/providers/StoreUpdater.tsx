@@ -6,7 +6,6 @@ import { useStoreContext } from './StoreProvider';
 import { useShallow } from 'zustand/react/shallow';
 import isEqual from 'fast-deep-equal';
 import { OPERATIONS } from '../utils/asyncUtils';
-import { useWhyDidYouUpdate } from '../utils/sliceUtils';
 
 // Component to handle store updates when initialState changes
 function StoreUpdater({ initialState }: { initialState: Partial<IStoreState> }) {
@@ -93,10 +92,12 @@ function StoreUpdater({ initialState }: { initialState: Partial<IStoreState> }) 
   // This allows us to preserve operations during resets
   // but doesn't cause the main effect to re-run
   useEffect(() => {
+    // Only process updates if initialState has changed
+    if (operationsRef.current === operations) {
+      return;
+    }
     operationsRef.current = operations;
   }, [operations]);
-
-  useWhyDidYouUpdate('StoreUpdater', [initialState, storeActions, operations]);
   
   return null; // This component doesn't render anything
 }
