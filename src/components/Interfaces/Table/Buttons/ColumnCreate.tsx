@@ -12,10 +12,12 @@ import FormulaInput from "@/components/Common/Input/Formula";
 import { expressionToDerivedFunction } from "@/utils/evals/derivedColumns";
 import { buildFilterExpressionArgument } from "@/utils/evals/filters";
 import { Dialog, DialogTrigger, DialogContent } from "@/components/UI/dialog";
+import { processContext, sanitizeId } from "@/utils/evals/columnOperations";
 
-const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, create, setPending, refresh, columnOrder, setColumnOrder, previousColumn, setOpen }: {
+const ColumnCreate = ({ project, context, columnContext, currentTable, tableArguments, logs, create, setPending, refresh, columnOrder, setColumnOrder, previousColumn, setOpen }: {
     project: string,
     context: string | undefined,
+    columnContext: string | undefined,
     currentTable: string,
     tableArguments: TableArguments,
     logs: LogProps[] | GroupedLogProps[],
@@ -74,6 +76,8 @@ const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, cr
 
     // Handle submission    
     const onSubmit = () => {
+
+        /* Build referenced arguments object */
         let referencedTables : (keyof TableArguments)[] = tables.filter(table => equation.includes(table))
         if (!referencedTables.length) referencedTables = [currentTable]
         const referencedArguments = Object.fromEntries(
@@ -81,8 +85,12 @@ const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, cr
                   .filter(([key, _]) => referencedTables.includes(key))
                   .map(([key, args]) => [key, buildFilterExpressionArgument(args).getLogs_parameters])
         );
+
+        /* Implicitly prepend selected column context to the name, if applicable */
+        const key = columnContext ? processContext("merge", columnContext, name) : name
+
         setLoading(true);
-        create(project, context, name, equation, referencedArguments).then(async (response: ResponseProps) => {
+        create(project, context, key, equation, referencedArguments).then(async (response: ResponseProps) => {
             if ("info" in response) {
                 
                 // Update states
@@ -91,14 +99,26 @@ const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, cr
                 setOpen(false);
 
                 // Add new column next to the previous
-                const previousIndex = columnOrder.indexOf(previousColumn);
+                const previous = columnContext && previousColumn != "RowNumbering"
+                ? previousColumn.startsWith("Parameters/") 
+                    ? `${"Parameters/"}${processContext("merge", columnContext, sanitizeId(previousColumn))}`
+                    : `${"Entries/"}${processContext("merge", columnContext, sanitizeId(previousColumn))}`
+                : previousColumn
+                const order = columnOrder.map(columnID => {
+                    if (columnID === "RowNumbering") return columnID
+                    if (!columnContext) return columnID
+                    const prefix = columnID.startsWith("Parameters/") ? "Parameters/" : "Entries/" 
+                    const contextAwareColumn = processContext("merge", columnContext, sanitizeId(columnID))
+                    return `${prefix}${contextAwareColumn}`
+                })
+                const previousIndex = order.indexOf(previous)
                 const newOrder = previousIndex !== -1 
                     ?   [
-                            ...columnOrder.slice(0, previousIndex + 1),
-                            previousColumn.includes("Parameters/") ? `Parameters/${name}` : `Entries/${name}`,
-                            ...columnOrder.slice(previousIndex + 1)
+                            ...order.slice(0, previousIndex + 1),
+                            previous.includes("Parameters/") ? `Parameters/${key}` : `Entries/${key}`,
+                            ...order.slice(previousIndex + 1)
                         ] 
-                    : columnOrder;
+                    : order;
                 setColumnOrder(newOrder);
                 
                 // Refresh page
