@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo, useEffect, useCallback, useRef, useState } from "react";
 import {
   Accordion,
   AccordionItem,
@@ -27,7 +27,9 @@ import {
   makePrefixedListPath,
   sanitizePropertyKey,
 } from "@/utils/evals/pathUtils";
-import { useExpandContextSelector } from "@/contexts/ExpandContext";
+import { usePanelExpandContextSelector } from "@/components/Interfaces/Details/Selection/SelectionPanel";
+import { getIndentClasses, getContentIndentClasses, getSeparatorClasses } from "./useIndentation";
+import { useTraceExpandContextSelector } from "./TraceView/TraceExpandContext";
 
 import { LogComparisonProps } from "./types";
 import { getValueType, getTypeIcon } from "./ViewTypes";
@@ -132,30 +134,37 @@ function presenceDiff(
   handleRecursiveToggle => expand/collapse entire sublist recursively
 ────────────────────────────────────────────────────────────────────────────*/
 function handleRecursiveToggle(
-  baseValue: unknown,
-  comparables: unknown[],
-  path: string,
-  prefix: string,
+  e: React.MouseEvent, 
+  path: string, 
+  value: any, 
+  comparables: any[], 
+  prefix: string, 
   nestingLevel: number,
-  openKeys: Set<string>,
-  setOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>
+  expandRecursively: (paths: string[]) => void,
+  collapseRecursively: (paths: string[]) => void,
+  openKeys: Set<string>
 ) {
+  e.stopPropagation();
+  
+  // Always recompute subPaths to ensure we have the latest
   let subPaths: string[];
   if (comparables && comparables.length > 0) {
-    subPaths = gatherAllSubPathsMulti(baseValue, comparables, path, prefix, nestingLevel);
+    subPaths = gatherAllSubPathsMulti(value, comparables, path, prefix, nestingLevel);
   } else {
-    subPaths = gatherAllSubPaths(baseValue, path, prefix, nestingLevel);
+    subPaths = gatherAllSubPaths(value, path, prefix, nestingLevel);
   }
+  
+  
+  // check if all are open
   const allOpen = subPaths.every((p) => openKeys.has(p));
-  setOpenKeys((prev) => {
-    const next = new Set(prev);
-    if (allOpen) {
-      subPaths.forEach((sp) => next.delete(sp));
-    } else {
-      subPaths.forEach((sp) => next.add(sp));
-    }
-    return next;
-  });
+  
+  if (allOpen) {
+    // collapse - call collapseRecursively
+    collapseRecursively(subPaths);
+  } else {
+    // expand - call expandRecursively
+    expandRecursively(subPaths);
+  }
 }
 
 /*────────────────────────────────────────────────────────────────────────────
@@ -218,12 +227,20 @@ function renderNoDiffMode(
     nestingLevel: number,
     prefix: string,
     parentPath: string,
+    expandRecursively: (paths: string[]) => void,
+    collapseRecursively: (paths: string[]) => void,
   }
 ) {
   const { 
     baseLogIndex, comparisonLogsIndex, version, comparableVersions, 
-    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath 
+    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath,
+    expandRecursively, collapseRecursively
   } = options;
+  
+  // Get indentation classes based on nesting level
+  const indentClass = getIndentClasses(nestingLevel);
+  // Always use content indent for children
+  const contentIndentClass = getContentIndentClasses(nestingLevel);
   
   // Build the open values array for the accordion
   const openValues: string[] = [];
@@ -303,30 +320,14 @@ function renderNoDiffMode(
         // 5. Setup recursive toggle handler
         const isPathOpen = openKeys.has(path);
         function handleExpandClick(e: React.MouseEvent) {
-          e.stopPropagation();
-          // Find the first value that's a complex type
-          const complexVal = rowValuePairs.find(p => {
-            const v = p.val;
-            return isDict(v) || isList(v);
-          })?.val;
-          
-          if (complexVal) {
-            // We'll use just this one value for gathering sub-paths
-            // since we only need the structure, not the actual values
-            handleRecursiveToggle(
-              complexVal,
-              [], // No comparables in this context
-              path,
-              prefix,
-              nestingLevel,
-              openKeys,
-              setOpenKeys
-            );
-          }
+          handleRecursiveToggle(e, path, firstVal, comparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
         }
         
+        // Get separator classes for this item
+        const separatorClasses = getSeparatorClasses(i, itemCount);
+        
         return (
-          <AccordionItem key={lbl} value={lbl}>
+          <AccordionItem key={lbl} value={lbl} className={separatorClasses}>
             <AccordionTrigger className="relative group flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 {icon} {lbl}
@@ -350,9 +351,9 @@ function renderNoDiffMode(
             </AccordionTrigger>
             
             <AccordionContent>
-              <div className="border-l ml-4 pl-1">
+              <div className={contentIndentClass}>
                 {groups.map((group, idx) => (
-                  <div key={idx} className="mb-2">
+                  <div key={idx} className={getSeparatorClasses(idx, groups.length)}>
                     <RowBadge rowNumbers={group.rows} mode="none" />
                     <div className="mt-1">
                       {pickView({
@@ -404,160 +405,285 @@ export default function ListView({
   prefix = "entries",
   parentPath = "",
 }: ListViewProps) {
-  // Use context selectors to only subscribe to the parts of the context we need
-  const openKeys = useExpandContextSelector(ctx => ctx.openKeys);
-  const setOpenKeys = useExpandContextSelector(ctx => ctx.setOpenKeys);
-  const forceExpandAll = useExpandContextSelector(ctx => ctx.forceExpandAll);
-  const forceCollapseAll = useExpandContextSelector(ctx => ctx.forceCollapseAll);
-
-  // Check if base is a valid list
-  const isValidList = isList(value);
+  // Add an id to track if the instance is remounted
+  const instanceId = useRef(Math.random().toString(36).substr(2, 9));
   
-  // For multi-mode, check if any comparable is a valid list
-  const multiMode = comparables && comparables.length > 0;
-  const hasValidComparables = multiMode && comparables.some(comp => isList(comp));
+  // We first need to detect if we're within a TraceView context
+  // We'll try to access the TraceExpandContext selector without throwing
+  const [inTraceView, setInTraceView] = useState(false);
   
-  // In multi-mode, we can proceed if either the base or any comparable is a valid list
-  const canProceed = isValidList || hasValidComparables;
+  // Try to use TraceExpandContext
+  const traceOpenKeys = useTraceExpandContextSelector((ctx) => {
+    return ctx?.openKeys;
+  });
+  const traceSetOpenKeys = useTraceExpandContextSelector((ctx) => ctx?.setOpenKeys);
+  const traceForceExpandAll = useTraceExpandContextSelector((ctx) => ctx?.forceExpandAll);
+  const traceForceCollapseAll = useTraceExpandContextSelector((ctx) => ctx?.forceCollapseAll);
+  const traceExpandRecursively = useTraceExpandContextSelector((ctx) => ctx?.expandRecursively);
+  const traceCollapseRecursively = useTraceExpandContextSelector((ctx) => ctx?.collapseRecursively);
+  const traceToggleKey = useTraceExpandContextSelector((ctx) => ctx?.toggleKey);
+  const traceInstanceId = useTraceExpandContextSelector((ctx) => ctx?.instanceId);
   
-  const baseArr = isValidList ? (Array.isArray(value) ? value : []) as any[] : [];
-
-  // itemCount => max length among base & comps
-  let itemCount = baseArr.length;
-  if (canProceed && multiMode) {
-    const compLens = (comparables ?? []).map((c) => (isList(c) ? c.length : 0));
-    itemCount = Math.max(itemCount, ...compLens);
-  }
-
-  // Define buildItemPath function before using it in hooks
-  function buildItemPath(i: number) {
-    if (parentPath) {
-      return parentPath + "." + i;
-    } else {
-      return makePrefixedListPath(prefix, nestingLevel, i);
-    }
-  }
-
-  // function to label => "Item 0"
-  function itemLabel(i: number) {
-    return `Item ${i}`;
-  }
-
-  // On mount or if forceExpandAll/forceCollapseAll changes => expand/collapse all
-  // Always call useEffect but conditionally execute its body
+  // Also fetch PanelExpandContext values
+  const panelOpenKeys = usePanelExpandContextSelector((ctx) => {
+    return ctx.openKeys;
+  });
+  const panelSetOpenKeys = usePanelExpandContextSelector((ctx) => ctx.setOpenKeys);
+  const panelForceExpandAll = usePanelExpandContextSelector((ctx) => ctx.forceExpandAll);
+  const panelForceCollapseAll = usePanelExpandContextSelector((ctx) => ctx.forceCollapseAll);
+  const panelExpandRecursively = usePanelExpandContextSelector((ctx) => ctx.expandRecursively);
+  const panelCollapseRecursively = usePanelExpandContextSelector((ctx) => ctx.collapseRecursively);
+  const panelToggleKey = usePanelExpandContextSelector((ctx) => ctx.toggleKey);
+  
+  // Determine which context to use based on availability
   useEffect(() => {
-    if (!canProceed || !parentPath) return; // if we don't have any valid lists or parent path, we can't proceed
+    // We're in TraceView if traceOpenKeys is defined 
+    const isInTraceView = traceOpenKeys !== undefined && traceInstanceId !== undefined;
+    setInTraceView(isInTraceView);
+  }, [traceOpenKeys, traceInstanceId, parentPath, nestingLevel]);
+
+  // Use the appropriate context values based on our environment
+  const effectiveOpenKeys = inTraceView ? traceOpenKeys : panelOpenKeys;
+  const effectiveSetOpenKeys = inTraceView ? traceSetOpenKeys : panelSetOpenKeys;
+  const effectiveForceExpandAll = inTraceView ? traceForceExpandAll : panelForceExpandAll;
+  const effectiveForceCollapseAll = inTraceView ? traceForceCollapseAll : panelForceCollapseAll;
+  const effectiveExpandRecursively = inTraceView ? traceExpandRecursively : panelExpandRecursively;
+  const effectiveCollapseRecursively = inTraceView ? traceCollapseRecursively : panelCollapseRecursively;
+  const effectiveToggleKey = inTraceView ? traceToggleKey : panelToggleKey;
+  
+  // Memoize the value and comparables array validity to avoid recalculation
+  const { isValidBase, isValidComparables, maxLength } = useMemo(() => {
+    const isBase = Array.isArray(value);
+    const hasComps = comparables && comparables.some(c => Array.isArray(c));
     
-    if (forceExpandAll || forceCollapseAll) {      
-      const newSet = new Set(openKeys);
-      
-      // Choose the appropriate path gathering function based on mode
-      let subPaths: string[];
-      if (multiMode) {
-        // In multi-mode, use gatherAllSubPathsMulti to include items from comparables
-        subPaths = gatherAllSubPathsMulti(value, comparables || [], parentPath, prefix, nestingLevel);
-      } else {
-        // In single-mode, use the original method
-        subPaths = gatherAllSubPaths(value, parentPath, prefix, nestingLevel);
-      }
-
-      if (forceExpandAll) {
-        subPaths.forEach((sp) => newSet.add(sp));
-      } else {
-        subPaths.forEach((sp) => newSet.delete(sp));
-      }
-      setOpenKeys(newSet);
+    let max = 0;
+    if (isBase) max = Math.max(max, value.length);
+    if (comparables) {
+      comparables.forEach(c => {
+        if (Array.isArray(c)) max = Math.max(max, c.length);
+      });
     }
-  }, [forceExpandAll, forceCollapseAll, parentPath, prefix, nestingLevel, openKeys, value, multiMode, comparables, canProceed, setOpenKeys]);
-
-  // We define "openValues" similarly to dictionary => which items are open
-  const openValues = useMemo(() => {
-    if (!canProceed) return [];
     
-    const arr: string[] = [];
-    for (let i = 0; i < itemCount; i++) {
-      const path = buildItemPath(i);
-      // We store the "AccordionItem value" as itemLabel(i).
-      // If openKeys.has(path) => this means we want item i open => itemLabel(i).
-      if (openKeys.has(path)) {
-        arr.push(itemLabel(i));
-      }
-    }
-    return arr;
-  }, [itemCount, openKeys, canProceed, buildItemPath]);
+    return {
+      isValidBase: isBase,
+      isValidComparables: hasComps,
+      maxLength: max
+    };
+  }, [value, comparables]);
+  
+  // Memoize the buildItemPath function to maintain consistent paths across renders
+  const buildItemPath = useCallback((i: number) => {
+    return parentPath 
+      ? `${parentPath}.${i}` 
+      : makePrefixedListPath(prefix, nestingLevel, i);
+  }, [parentPath, prefix, nestingLevel]);
+  
+  // Memoize the itemLabel function for consistent labels
+  const itemLabel = useCallback((i: number) => {
+    return `${i}`;
+  }, []);
 
-  // Early return after all hooks are called
-  if (!canProceed) {
-    return <p className="text-red-500">
-      {multiMode 
-        ? "ListView: neither base nor comparables are valid lists." 
-        : "ListView: base value is not a list."}
-    </p>;
-  }
-
-  // Transform comparables into arrays for the no-diff mode
-  const comparableArrays = multiMode 
-    ? comparables.map(c => (isList(c) ? (c as any[]) : []))
-    : [];
-
-  // For no-diff rendering, we need rowIndices
-  const rowIndices = [baseLogIndex, ...comparisonLogsIndex];
-
-  // Define the renderSingleItem function for single-mode
-  function renderSingleItem(index: number) {
-    const lbl = itemLabel(index);
-    const arrValue = baseArr[index];
-    const finalType = unifyType(arrValue, []);
-    const icon = getTypeIcon(finalType);
+  // Memoize toggle handlers to prevent recreation on displayMode changes
+  const handleToggle = useCallback((index: number) => {
     const path = buildItemPath(index);
-    const isOpen = openKeys.has(path);
+    effectiveToggleKey(path);
+  }, [effectiveToggleKey, buildItemPath]);
+  
+  // Memoize recursive expand/collapse handlers
+  const handleRecursiveExpandCollapse = useCallback((e: React.MouseEvent, index: number, itemValue: any, itemComparables: any[]) => {
+    const path = buildItemPath(index);
+    
+    handleRecursiveToggle(
+      e,
+      path,
+      itemValue,
+      itemComparables,
+      prefix,
+      nestingLevel + 1,
+      effectiveExpandRecursively,
+      effectiveCollapseRecursively,
+      effectiveOpenKeys
+    );
+  }, [buildItemPath, prefix, nestingLevel, effectiveExpandRecursively, effectiveCollapseRecursively, effectiveOpenKeys]);
+  
+  // Memoize all item paths to avoid recalculation on display mode changes
+  const itemPaths = useMemo(() => {
+    const paths = [];
+    for (let i = 0; i < maxLength; i++) {
+      paths.push({
+        index: i,
+        path: buildItemPath(i)
+      });
+    }
+    return paths;
+  }, [maxLength, buildItemPath]);
+  
+  // Memoize the open values for the accordion
+  const openValues = useMemo(() => {
+    return itemPaths
+      .filter(({ path }) => effectiveOpenKeys.has(path))
+      .map(({ index }) => itemLabel(index));
+  }, [itemPaths, effectiveOpenKeys, itemLabel]);
+  
+  // This effect shouldn't run when displayMode changes
+  useEffect(() => {
+    if (!isValidBase && !isValidComparables) return;
+    
+    if (effectiveForceExpandAll || effectiveForceCollapseAll) {
+      const paths: string[] = [];
+      
+      // Gather paths for each item and its nested content
+      for (let i = 0; i < maxLength; i++) {
+        const itemPath = buildItemPath(i);
+        paths.push(itemPath);
+        
+        // Get the value at this index
+        const itemValue = Array.isArray(value) && i < value.length ? value[i] : undefined;
+        
+        // Get comparable values at this index
+        const itemComparables = comparables ? comparables.map(c => 
+          Array.isArray(c) && i < c.length ? c[i] : undefined
+        ) : [];
+        
+        // Add nested paths if this item contains nested data
+        if (isDict(itemValue) || isList(itemValue)) {
+          if (itemComparables.length > 0) {
+            paths.push(...gatherAllSubPathsMulti(itemValue, itemComparables, itemPath, prefix, nestingLevel + 1));
+          } else {
+            paths.push(...gatherAllSubPaths(itemValue, itemPath, prefix, nestingLevel + 1));
+          }
+        }
+      }
+      
+      if (effectiveForceExpandAll) {
+        effectiveExpandRecursively(paths);
+      } else {
+        effectiveCollapseRecursively(paths);
+      }
+    }
+  }, [
+    effectiveForceExpandAll,
+    effectiveForceCollapseAll,
+    isValidBase,
+    isValidComparables,
+    maxLength,
+    buildItemPath,
+    value,
+    comparables,
+    prefix,
+    nestingLevel,
+    effectiveExpandRecursively,
+    effectiveCollapseRecursively
+    // displayMode intentionally left out of dependencies
+  ]);
 
-    function handleExpandClick(e: React.MouseEvent) {
-      e.stopPropagation();
-      handleRecursiveToggle(
-        arrValue,
-        [],
-        path,
-        prefix,
-        nestingLevel,
-        openKeys,
-        setOpenKeys
+  // Memoize all rendered items to prevent rerendering on display mode change
+  const renderedItems = useMemo(() => {
+    if (!isValidBase && !isValidComparables) {
+      return null;
+    }
+    
+    const multiMode = isValidComparables;
+    const items = [];
+    
+    for (let i = 0; i < maxLength; i++) {
+      const baseItem = Array.isArray(value) && i < value.length ? value[i] : undefined;
+      const compItems = comparables ? comparables.map(c => 
+        Array.isArray(c) && i < c.length ? c[i] : undefined
+      ) : [];
+      
+      items.push(
+        multiMode 
+          ? renderMultiItem(i, baseItem, compItems)
+          : renderSingleItem(i, baseItem)
       );
     }
+    
+    return items;
+  }, [
+    isValidBase,
+    isValidComparables,
+    maxLength,
+    value,
+    comparables,
+    // The state needed for rendering but explicitly NOT including displayMode
+    baseLogIndex,
+    comparisonLogsIndex,
+    diffMode,
+    splitView,
+    nestingLevel,
+    version,
+    comparableVersions,
+    // Add the missing dependencies
+    renderMultiItem,
+    renderSingleItem
+  ]);
 
+  function renderSingleItem(index: number, itemValue: any) {
+    // Skip undefined items
+    if (itemValue === undefined) return null;
+    
+    const path = buildItemPath(index);
+    const isOpen = effectiveOpenKeys.has(path);
+    const valueType = getValueType(itemValue);
+    const icon = getTypeIcon(valueType);
+    const isExpandable = isDict(itemValue) || isList(itemValue);
+    
+    // Get indentation classes based on nesting level
+    const indentClass = getIndentClasses(nestingLevel);
+    // Always use content indent for children
+    const contentIndentClass = getContentIndentClasses(nestingLevel);
+    
+    function handleExpandClick(e: React.MouseEvent) {
+      e.stopPropagation();
+      handleToggle(index);
+    }
+    
     return (
-      <AccordionItem key={lbl} value={lbl}>
-        <AccordionTrigger className="relative group flex items-center justify-between">
-          <span className="inline-flex items-center gap-2">
-            {icon} {lbl}
-          </span>
-          {isOpen && (finalType === "dict" || finalType === "list") && (
-            <div className="absolute right-5 flex gap-1 items-center">
+      <AccordionItem key={`item-${index}`} value={itemLabel(index)} className="border-0">
+        <AccordionTrigger
+          onClick={handleExpandClick}
+          className="py-1.5 hover:no-underline"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-primary">{icon}</span>
+            <span className="text-sm font-mono">[{index}]</span>
+          </div>
+          {isExpandable && (
+            <div
+              className="absolute right-5 z-10"
+              onClick={(e) => handleRecursiveExpandCollapse(e, index, itemValue, [])}
+            >
               <ActionButton
                 variant="ghost"
-                size="icon"
-                tooltip={isOpen ? "Collapse All Children" : "Expand All Children"}
-                onClick={handleExpandClick}
-                icon={isOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+                size="sm"
+                tooltip={isOpen ? "Fold all" : "Unfold all"}
+                icon={
+                  isOpen ? (
+                    <FoldVertical className="h-3 w-3" />
+                  ) : (
+                    <UnfoldVertical className="h-3 w-3" />
+                  )
+                }
               />
             </div>
           )}
         </AccordionTrigger>
         <AccordionContent>
-          <div className="border-l ml-4 pl-1">
+          <div className={contentIndentClass}>
             {pickView({
-              value: arrValue,
+              value: itemValue,
               comparables: [],
               baseLogIndex,
               comparisonLogsIndex: [],
               diffMode,
               splitView,
+              displayMode,
               version,
               comparableVersions,
-              displayMode,
+              nestingLevel: nestingLevel + 1,
               prefix,
               parentPath: path,
-              nestingLevel: nestingLevel + 1,
             })}
           </div>
         </AccordionContent>
@@ -565,90 +691,91 @@ export default function ListView({
     );
   }
 
-  // Define the renderMultiItem function for multi-mode
-  function renderMultiItem(index: number) {
-    const lbl = itemLabel(index);
-    const baseVal = baseArr[index];
-    const compVals = (comparables ?? []).map((c) => (isList(c) ? c[index] : undefined));
-    const finalType = unifyType(baseVal, compVals);
-    const icon = getTypeIcon(finalType);
-
-    const path = buildItemPath(index);
-    const isOpen = forceExpandAll || openKeys.has(path);
-
-    const { redRows, greenRows } = presenceDiff(baseVal, compVals, baseLogIndex, comparisonLogsIndex);
-    
-    // Determine if the item is present in all rows or absent in all rows
-    const allRows = [baseLogIndex, ...comparisonLogsIndex];
-    const isAllPresent = redRows.length === 0 && greenRows.length === 0 && baseVal !== undefined;
-    const isAllAbsent = redRows.length === 0 && greenRows.length === 0 && baseVal === undefined;
-    
-    let labelColor = "";
-    const baseHas = baseVal !== undefined;
-    if (baseHas && redRows.length > 0) {
-      labelColor = "text-red-600";
-    } else if (!baseHas && greenRows.length > 0) {
-      labelColor = "text-green-600";
+  function renderMultiItem(index: number, baseItem: any, compItems: any[]) {
+    // Skip totally undefined items
+    if (baseItem === undefined && compItems.every((c) => c === undefined)) {
+      return null;
     }
-
+    
+    const path = buildItemPath(index);
+    const isOpen = effectiveOpenKeys.has(path);
+    
+    const { redRows, greenRows } = presenceDiff(
+      baseItem,
+      compItems,
+      baseLogIndex,
+      comparisonLogsIndex
+    );
+    
+    const isInBase = baseItem !== undefined;
+    
+    // Use unifyType to decide what icon to show
+    const unifiedType = unifyType(baseItem, compItems);
+    const icon = getTypeIcon(unifiedType);
+    const isExpandable = ["dict", "list"].includes(unifiedType);
+    
+    // Get indentation classes based on nesting level
+    const indentClass = getIndentClasses(nestingLevel);
+    // Always use content indent for children
+    const contentIndentClass = getContentIndentClasses(nestingLevel);
+    
     function handleExpandClick(e: React.MouseEvent) {
       e.stopPropagation();
-      handleRecursiveToggle(
-        baseVal,
-        compVals,
-        path,
-        prefix,
-        nestingLevel,
-        openKeys,
-        setOpenKeys
-      );
+      handleToggle(index);
     }
-
+    
     return (
-      <AccordionItem key={lbl} value={lbl}>
+      <AccordionItem key={`item-${index}`} value={itemLabel(index)} className="border-0">
         <AccordionTrigger
-          className={`relative group flex items-center justify-between ${labelColor}`}
+          onClick={handleExpandClick}
+          className="py-1.5 hover:no-underline"
         >
-          <span className="inline-flex items-center gap-2">
-            {icon} {lbl}
-            {(redRows.length > 0 || greenRows.length > 0) ? (
-              <div className="ml-2 flex gap-1">
-                {redRows.length > 0 && <RowBadge rowNumbers={redRows} mode="delete" />}
-                {greenRows.length > 0 && <RowBadge rowNumbers={greenRows} mode="insert" />}
-              </div>
-            ) : isAllPresent && (
-              <div className="ml-2 flex gap-1">
-                <RowBadge rowNumbers={allRows} mode="none" />
-              </div>
-            )}
-          </span>
-          {isOpen && (finalType === "dict" || finalType === "list") && (
-            <div className="absolute right-5 flex gap-1 items-center">
+          <div className="flex items-center gap-2">
+            <span className="text-primary">{icon}</span>
+            <span className="text-sm font-mono">[{index}]</span>
+            <div className="flex items-center gap-1">
+              {isInBase ? (
+                <RowBadge rowNumbers={[baseLogIndex]} mode="base" />
+              ) : null}
+              {redRows.length > 0 && <RowBadge rowNumbers={redRows} mode="delete" />}
+              {greenRows.length > 0 && <RowBadge rowNumbers={greenRows} mode="insert" />}
+            </div>
+          </div>
+          {isExpandable && (
+            <div
+              className="absolute right-5 z-10"
+              onClick={(e) => handleRecursiveExpandCollapse(e, index, baseItem, compItems)}
+            >
               <ActionButton
                 variant="ghost"
-                size="icon"
-                tooltip={isOpen ? "Collapse All Children" : "Expand All Children"}
-                onClick={handleExpandClick}
-                icon={isOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+                size="sm"
+                tooltip={isOpen ? "Fold all" : "Unfold all"}
+                icon={
+                  isOpen ? (
+                    <FoldVertical className="h-3 w-3" />
+                  ) : (
+                    <UnfoldVertical className="h-3 w-3" />
+                  )
+                }
               />
             </div>
           )}
         </AccordionTrigger>
         <AccordionContent>
-          <div className="border-l ml-4 pl-1">
+          <div className={contentIndentClass}>
             {pickView({
-              value: baseVal,
-              comparables: compVals,
+              value: baseItem,
+              comparables: compItems,
               baseLogIndex,
               comparisonLogsIndex,
               diffMode,
               splitView,
+              displayMode,
               version,
               comparableVersions,
-              displayMode,
+              nestingLevel: nestingLevel + 1,
               prefix,
               parentPath: path,
-              nestingLevel: nestingLevel + 1,
             })}
           </div>
         </AccordionContent>
@@ -656,83 +783,55 @@ export default function ListView({
     );
   }
 
-  // Function to render all items
-  function renderAllItems() {
-    const items: JSX.Element[] = [];
-    for (let i = 0; i < itemCount; i++) {
-      if (!comparables || !comparables.length) {
-        items.push(renderSingleItem(i));
-      } else {
-        items.push(renderMultiItem(i));
+  if (diffMode === "none" && isValidComparables) {
+    // Render no-diff mode for multi-mode
+    return renderNoDiffMode(
+      maxLength,
+      Array.isArray(value) ? value : [],
+      Array.isArray(comparables[0]) ? comparables as any[][] : [],
+      [baseLogIndex, ...comparisonLogsIndex],
+      effectiveOpenKeys,
+      effectiveSetOpenKeys,
+      buildItemPath,
+      itemLabel,
+      {
+        baseLogIndex,
+        comparisonLogsIndex,
+        version,
+        comparableVersions,
+        diffMode,
+        splitView,
+        displayMode,
+        nestingLevel,
+        prefix,
+        parentPath,
+        expandRecursively: effectiveExpandRecursively,
+        collapseRecursively: effectiveCollapseRecursively
       }
-    }
-    return items;
+    );
   }
 
-  // Handle accordion value change
-  function handleAccordionValueChange(newVals: string[]) {
-    const oldSet = new Set(openValues);
-    const nextSet = new Set(newVals);
-
-    for (let i = 0; i < itemCount; i++) {
-      const lbl = itemLabel(i);
-      const had = oldSet.has(lbl);
-      const now = nextSet.has(lbl);
-      if (had !== now) {
-        const path = buildItemPath(i);
-        if (openKeys.has(path)) {
-          setOpenKeys((prev) => {
-            const updated = new Set(prev);
-            updated.delete(path);
-            return updated;
-          });
-        } else {
-          setOpenKeys((prev) => {
-            const updated = new Set(prev);
-            updated.add(path);
-            return updated;
-          });
-        }
-      }
-    }
+  // If there's nothing to render in either mode
+  if (!isValidBase && !isValidComparables) {
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="text-red-500">
+          ListView: neither base nor comparables are valid arrays
+        </p>
+      </div>
+    );
   }
-
-  // Return the appropriate view based on diffMode and multiMode
+  
+  // Fix for the linter error by safely handling null renderedItems
   return (
-    <div className="flex flex-col gap-2">
-      {diffMode === "none" && multiMode ? (
-        // No-diff mode with multiple values
-        renderNoDiffMode(
-          itemCount,
-          baseArr,
-          comparableArrays,
-          rowIndices,
-          openKeys,
-          setOpenKeys,
-          buildItemPath,
-          itemLabel,
-          {
-            baseLogIndex,
-            comparisonLogsIndex,
-            version,
-            comparableVersions,
-            diffMode: diffMode as "none",
-            splitView,
-            displayMode: displayMode as "text" | "markdown",
-            nestingLevel,
-            prefix,
-            parentPath,
-          }
-        )
-      ) : (
-        <Accordion
-          type="multiple"
-          value={openValues}
-          onValueChange={handleAccordionValueChange}
-        >
-          {renderAllItems()}
-        </Accordion>
-      )}
-    </div>
+    <Accordion type="multiple" value={openValues} onValueChange={() => {}}>
+      <div className="flex flex-col">
+        {renderedItems?.map((item, idx) => (
+          <div key={`item-wrapper-${idx}`} className={getSeparatorClasses(idx, renderedItems.length)}>
+            {item}
+          </div>
+        )) || null}
+      </div>
+    </Accordion>
   );
 }

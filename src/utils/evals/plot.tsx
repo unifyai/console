@@ -5,7 +5,7 @@ import { LogProps, LogItemProps, LogFieldsResponseProps } from "@/types/evals/lo
 import { DataLabel, DataPoint, GroupedDataPoint, GroupingColors, InfoCardData } from "@/types/evals/plot";
 import { toComputableValue, computeStatistic } from "./common";
 import { formatNumber } from "../formatNumber";
-
+import { formatTimeTypeValue, timeValueToTime, timeDeltaValueToDuration } from "./format";
 const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
 
 /** Utility functions to draw UI elements shared across plot types, including: 
@@ -70,7 +70,7 @@ const drawAxes = (
         }) as any;
     } else if (plotType === "Histogram" || plotType === "Line Chart" || plotType === "Scatter Plot") {
         xTickFormatter = d3.axisBottom(x as d3.ScaleLinear<number, number, never>).tickValues(xTicks).tickFormat(d => {
-            if (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "datetime") return formatTimeTypeValue(d as number, xType)
+            if (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "date") return formatTimeTypeValue(d as number, xType)
             return reverseX ? formatNumber(-d as number) : formatNumber(d as number)
         }) as any
     }
@@ -88,7 +88,7 @@ const drawAxes = (
             : yTicks as number[]
         )
         .tickFormat((d) => {
-            if (yType === "timestamp" || yType === "timedelta" || yType === "time" || yType === "datetime") return formatTimeTypeValue(d as number, yType)
+            if (yType === "timestamp" || yType === "timedelta" || yType === "time" || yType === "date") return formatTimeTypeValue(d as number, yType)
             let value = parseFloat(d as any)
             value = reverseY ? -value : value
             return formatNumber(value)
@@ -200,7 +200,6 @@ const positionTooltip = (event: any, target: any, tooltip: any) => {
  * Reversing the axis domain to compute log scaled values if all numbers in the range are strictly negative
  * Checking if a table's logs has values for a given axis property, and getting those values, if applicable
  * Combine plot logs data across tables
- * Formatting time values depending on the time type
  * Extracting a subset of the data if it's too large
 */
 function niceIncrement(min: number, max: number, count = 10) {
@@ -243,7 +242,7 @@ function generateTicks(min: number, max: number, count = 10, isLogScale = false)
       if (!ticks.includes(min)) ticks.unshift(min)
       if (!ticks.includes(max)) ticks.push(max)  
     }
-  
+
     return ticks;
 }
 
@@ -301,44 +300,10 @@ const getValue = (fields: LogFieldsResponseProps, axisProperty: string, log: Log
             ? (log[`${table}.params`] as LogItemProps)[axisProperty]
             : (log[`${table}.entries`] as LogItemProps)[axisProperty]
     const dataType = fields[axisProperty] ? fields[axisProperty].data_type : "float"
-    if (dataType === "timestamp" || dataType === "timedelta" || dataType === "datetime") value = new Date(value).getTime()
+    if (dataType === "timestamp" || dataType === "date") value = new Date(value).getTime()
+    if (dataType === "timedelta") value = timeDeltaValueToDuration(value)
     if (dataType === "time") value = timeValueToTime(value).getTime()
     return value
-}
-
-function durationToTimeDelta(durationInMilliseconds: number) {
-    const seconds = Math.floor(durationInMilliseconds / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-
-    const displayDays = days;
-    const displayHours = hours % 24;
-    const displayMinutes = minutes % 60;
-    const displaySeconds = seconds % 60;
-
-    return `${displayDays} days, ${displayHours}:${displayMinutes}:${displaySeconds} seconds`;
-}
-
-function timeValueToTime (value: string) {
-    const now = new Date();
-    const [hours, minutes, seconds] = value.split(":")
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), parseInt(hours), parseInt(minutes), parseInt(seconds));
-}
-
-function formatTimeTypeValue(value: number, data_type: string) {
-    switch (data_type) {
-        case "timestamp":
-            return new Date(value).toISOString().replace("Z", "").replace("T", " ")
-        case "time":
-            return new Date(value).toISOString().split("T")[1].split(".")[0]
-        case "datetime":
-            return new Date(value).toISOString().split("T")[0]
-        case "timedelta":
-            return durationToTimeDelta(value)
-        default:
-            return new Date(value).toISOString().replace("Z", "").replace("T", " ")
-    }
 }
 
 function getRandomSubset(arr: any[], size: number) {
@@ -551,7 +516,7 @@ export const drawLineChart = (
     let data : DataPoint[] | GroupedDataPoint[] = [];
     const properties = Object
             .entries(fields)
-            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp" || data_type === "time" || data_type === "timedelta" || data_type === "datetime"))
+            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp" || data_type === "time" || data_type === "timedelta" || data_type === "date"))
             .map(([name]) => name);
     const xAxisProperty = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties.at(0);
     const yAxisProperty = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : properties.at(0);
@@ -567,6 +532,7 @@ export const drawLineChart = (
         const sortedData = filteredData.sort((a, b) => {
             const valueA = getValue(fields, xAxisProperty, a, xTable)
             const valueB = getValue(fields, xAxisProperty, b, xTable)
+            if (xType === "timedelta") return valueB - valueA;
             return valueA - valueB;
         });
         const getData = (logs: LogProps[]) => logs.map(d => [
@@ -797,7 +763,7 @@ export const drawScatterPlot = (
     let data : LogProps[] = [];
     const properties = Object
             .entries(fields)
-            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp" || data_type === "time" || data_type === "timedelta" || data_type === "datetime"))
+            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp" || data_type === "time" || data_type === "timedelta" || data_type === "date"))
             .map(([name]) => name);
     const xAxisProperty = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties.at(0);
     const yAxisProperty = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : properties.at(0);
@@ -919,13 +885,13 @@ export const drawScatterPlot = (
         const hoverData : InfoCardData = {
             "x" : {
                 "name":  selectedXAxisProperty as string,
-                "value": (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "datetime")
+                "value": (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "date")
                     ? formatTimeTypeValue(getValue(fields, selectedXAxisProperty as string, data, xTable), xType)
                     : getValue(fields, selectedXAxisProperty as string, data, xTable)
             },
             "y" : {
                 "name":  selectedYAxisProperty as string, 
-                "value": (yType === "timestamp" || yType === "timedelta" || yType === "time" || yType === "datetime")
+                "value": (yType === "timestamp" || yType === "timedelta" || yType === "time" || yType === "date")
                     ? formatTimeTypeValue(getValue(fields, selectedYAxisProperty as string, data, yTable), yType)
                     : getValue(fields, selectedYAxisProperty as string, data, yTable)
             }
@@ -1326,7 +1292,7 @@ export const drawHistogram = (
     let data : number[] = [];
     const properties = Object
         .entries(fields)
-        .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp" || data_type === "time" || data_type === "timedelta" || data_type === "datetime"))
+        .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp" || data_type === "time" || data_type === "timedelta" || data_type === "date"))
         .map(([name]) => name);
     const xAxisProperty = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties.at(0);
     let xType : string | undefined;
@@ -1415,13 +1381,13 @@ export const drawHistogram = (
         const hoverData = {
           group: {
             name: "Data Range",
-            value: (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "datetime")
-              ? `Min: ${formatTimeTypeValue(minX, xType)}, Max: ${formatTimeTypeValue(maxX, xType)}`
-              : `Min: ${formatNumber(minX)}, Max: ${formatNumber(maxX)}`
+            value: (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "date")
+                ? `Min: ${formatTimeTypeValue(minX, xType)}, Max: ${formatTimeTypeValue(maxX, xType)}`
+                : `Min: ${formatNumber(minX)}, Max: ${formatNumber(maxX)}`
           },
           x: {
             name: "Bar Range",
-            value: (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "datetime")
+            value: (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "date")
               ? `${formatTimeTypeValue(bin.x0!, xType)} - ${formatTimeTypeValue(bin.x1!, xType)}`
               : `${formatNumber(bin.x0!)} - ${formatNumber(bin.x1!)}`
           },

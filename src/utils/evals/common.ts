@@ -158,6 +158,45 @@ export const getLogsDetails = async (
 
   const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
 
+  /* Handle column metrics */
+  // Getting metrics for filtered logs, and min / max values for full logs.
+  // Min / max bounds are used to set the filtering range for numeric columns
+  const [metrics, minimums, maximums] = await Promise.all([
+    getColumnMetrics(
+      project, context, column_context, columns, filterExpression, null, item.metric, logsActions
+    ) as Promise<{ [key: string]: number }>,
+    getColumnMetrics(
+      project, context, column_context, columns, null, null, "min", logsActions
+    ) as Promise<{ [key: string]: number }>,
+    getColumnMetrics(
+      project, context, column_context, columns, null, null, "max", logsActions
+    ) as Promise<{ [key: string]: number }>
+  ]);
+
+  // Min-max boundaries for numeric and time-like column filters
+  const boundaries = { minimums, maximums }
+
+  return {
+    entriesProperties,
+    paramsProperties,
+    logs,
+    params,
+    metrics,
+    boundaries
+  }
+}
+
+export const getGroupedMetrics = async (
+  project: string | null,
+  context: string | null,
+  column_context: string | null,
+  columns: string[],
+  filterExpression: string | null,
+  groupingExpression: string | null,
+  metric: string | undefined,
+  fields: LogFieldsResponseProps,
+  logsActions: LogsActions
+) => {
   let groupedMetrics: { [key: string]: { [key: string]: { [key: string]: { [key: string]: number | string } } } } = {};
   if (groupingExpression) {
     const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
@@ -183,35 +222,9 @@ export const getLogsDetails = async (
       shared_value: sharedValues
     };
   }
-
-  /* Handle column metrics */
-  // Getting metrics for filtered logs, and min / max values for full logs.
-  // Min / max bounds are used to set the filtering range for numeric columns
-  const [metrics, minimums, maximums] = await Promise.all([
-    getColumnMetrics(
-      project, context, column_context, columns, filterExpression, null, item.metric, logsActions
-    ) as Promise<{ [key: string]: number }>,
-    getColumnMetrics(
-      project, context, column_context, columns, null, null, "min", logsActions
-    ) as Promise<{ [key: string]: number }>,
-    getColumnMetrics(
-      project, context, column_context, columns, null, null, "max", logsActions
-    ) as Promise<{ [key: string]: number }>
-  ]);
-
-  // Min-max boundaries for numeric and time-like column filters
-  const boundaries = { minimums, maximums }
-
-  return {
-    entriesProperties,
-    paramsProperties,
-    logs,
-    params,
-    metrics,
-    groupedMetrics,
-    boundaries
-  }
+  return groupedMetrics;
 }
+
 
 /*
   Extracts leaf rows (LogProps) from a given row, handling multi-level grouping.

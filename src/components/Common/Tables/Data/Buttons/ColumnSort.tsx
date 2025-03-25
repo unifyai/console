@@ -12,7 +12,8 @@ type ColumnSortProps = {
     data: any[],
     sortLoading: boolean,
     setSortLoading: (sortLoading: boolean) => void,
-    setIsSorted: (isSorted: boolean) => void,
+    setSortingDirection: (sortingDirection: "asc" | "desc" | false) => void,
+    direction?: "asc" | "desc",
     renderMode: "button" | "menuItem"
 }
 
@@ -22,49 +23,42 @@ const ColumnSort = (({
     data,
     sortLoading,
     setSortLoading,
-    setIsSorted,
+    setSortingDirection,
+    direction,
     renderMode
 }: ColumnSortProps) => {
 
     /* Display loader when data updates */
-    const [spinnerColor, setSpinnerColor] = useState("white");
+    const sorting = column.getIsSorted();
+    const spinnerColor = sorting ? "white" : "primary";
     useEffect(() => {
-        setSortLoading(false);
-    },[data])
+        setSortingDirection(sorting);
+    }, [sorting])
 
-    const isSorted = column.getIsSorted() === "asc" || column.getIsSorted() === "desc";
-    useEffect(() => {
-        setIsSorted(isSorted);
-    }, [isSorted])
-
-    const states = [
-        { key: false, tooltip: "Sort descending", icon: <ArrowUpDown/> },
-        { key: "asc", tooltip: "Unsort", icon: <SortAsc/> },
-        { key: "desc", tooltip: "Sort ascending", icon: <SortDesc/> },
-    ];
-    const state = states.find(state => state.key === column.getIsSorted())!;
-    const tooltip = state.tooltip;
-    const icon = sortLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon
-    const variant = isSorted ? "primary" : undefined;
-    const onClick = () => {
-        column.toggleSorting()
+    /* Sorting menu item */
+    const onMenuItemClick = () => {
+        column.toggleSorting(direction === "desc")
         setSortLoading(true)
-        if (!column.getNextSortingOrder()) 
-            setSpinnerColor("primary") 
-        else 
-            setSpinnerColor("white")
     }
+    const menuItem = 
+    <DropdownMenuItem onClick={onMenuItemClick} className="flex items-center gap-2 cursor-pointer">
+        {direction === "asc" ? <SortAsc className="h-4 w-4"/> : <SortDesc className="h-4 w-4"/>}
+        {direction === "asc" ? <span>Sort ascending</span> : <span>Sort descending</span>}
+    </DropdownMenuItem>
 
-    return (
-        renderMode === "menuItem" ? (
-            <DropdownMenuItem onClick={onClick} className="flex items-center gap-2 cursor-pointer">
-                <ArrowUpDown className="h-4 w-4"/>
-                <span>Sort descending</span>
-            </DropdownMenuItem>
-        ) : (
-            <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={!interactive || sortLoading}/>
-        )
-    );
+    /* Undo sorting button */
+    const tooltip = "Undo sorting";
+    const icon = sortLoading 
+        ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> 
+        : sorting === "desc" ? <SortDesc/> : <SortAsc/>
+    const variant = sorting ? "primary" : undefined;
+    const onButtonClick = () => {
+        column.clearSorting()
+        setSortLoading(true)
+    }
+    const undoButton = <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onButtonClick} disabled={!interactive || sortLoading}/>
+    
+    return (renderMode === "menuItem" ? menuItem : undoButton);
 
 });
 

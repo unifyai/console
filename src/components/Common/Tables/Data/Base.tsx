@@ -34,7 +34,7 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     error?: string;
     FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>) => ReactNode; 
     ColumnGroupBy?: (column: TanstackColumn<any | unknown>, groupLoading: boolean, setGroupLoading: (groupLoading: boolean) => void, setIsGrouped: (isGrouped: boolean) => void, setGroupSortLoading: (groupSortLoading: boolean) => void, renderMode: "button" | "menuItem") => ReactNode;
-    ColumnGroupSort?: (column: TanstackColumn<any | unknown>, groupSortLoading: boolean, setGroupSortLoading: (groupSortLoading: boolean) => void, setIsGroupSorted: (isGroupSorted: boolean) => void, renderMode: "button" | "menuItem") => ReactNode;
+    ColumnGroupSort?: (column: TanstackColumn<any | unknown>, groupSortLoading: boolean, setGroupSortLoading: (groupSortLoading: boolean) => void, setSortingDirection: (sortingDirection: "asc" | "desc" | false) => void, renderMode: "button" | "menuItem", direction?: "asc" | "desc") => ReactNode;
     ColumnFilters?: (column: TanstackColumn<any | unknown>, filterLoading: boolean, setIsFiltered: (isFiltered: boolean) => void, setFilterLoading: (filterLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode;
     ColumnDelete?: (column: TanstackColumn<any | unknown>) => ReactNode;
     ColumnCreate?: (previousColumn: string, setOpen: (open: boolean) => void) => ReactNode;

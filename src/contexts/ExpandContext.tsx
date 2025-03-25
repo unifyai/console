@@ -34,10 +34,22 @@ type ExpandContextType = {
  * We're using use-context-selector to optimize re-renders.
  * Components will only re-render when the specific parts of the context they use change.
  */
-const ExpandContext = createContext<ExpandContextType>(null as any);
+const ExpandContext = createContext<ExpandContextType>({
+  openKeys: new Set(),
+  setOpenKeys: () => {},
+  forceExpandAll: false,
+  forceCollapseAll: false,
+  toggleKey: () => {},
+  expandAll: () => {},
+  collapseAll: () => {}
+});
+
+// Export ExpandContext to allow direct access when needed
+export { ExpandContext };
 
 interface ExpandProviderProps {
   children: ReactNode;
+  defaultOpenKeys?: Set<string>;
 }
 
 /**
@@ -45,9 +57,12 @@ interface ExpandProviderProps {
  *  - Wrap your <Selection> or root component with <ExpandProvider>.
  *  - Manages global expand/collapse for DictionaryView, ListView, etc.
  */
-export function ExpandProvider({ children }: ExpandProviderProps) {
+export function ExpandProvider({ 
+  children, 
+  defaultOpenKeys = new Set() 
+}: ExpandProviderProps) {
   // A set of open "paths" representing which nodes are individually expanded.
-  const [openKeys, setOpenKeys] = useState<Set<string>>(new Set());
+  const [openKeys, setOpenKeys] = useState<Set<string>>(defaultOpenKeys);
 
   // If forceExpandAll is true => everything is considered open.
   const [forceExpandAll, setForceExpandAll] = useState<boolean>(false);
@@ -63,7 +78,7 @@ export function ExpandProvider({ children }: ExpandProviderProps) {
    */
   const toggleKey = useCallback(
     (path: string) => {
-      // If we're in "forceExpandAll" or "forceCollapseAll" mode, skip toggling 
+      // If we're in "forceExpandAll" or "forceCollapseAll" mode, skip toggling
       if (forceExpandAll) {
         return;
       }
@@ -81,19 +96,17 @@ export function ExpandProvider({ children }: ExpandProviderProps) {
         return next;
       });
     },
-    [forceExpandAll, forceCollapseAll, openKeys]
+    [forceExpandAll, forceCollapseAll]
   );
 
   /**
    * expandAll: sets "forceExpandAll = true" and "forceCollapseAll = false"
    * so that all potential items are open (though for some views,
-   * we may gather all subpaths and store them in openKeys or rely on the 
-   * dictionary-level logic to do a single pass recursion).
+   * we may gather all subpaths and store them in openKeys).
    */
   const expandAll = useCallback(() => {
     setForceCollapseAll(false);
     setForceExpandAll(true);
-    setOpenKeys(new Set()); // clear openKeys, as everything is considered open anyway
   }, []);
 
   /**
@@ -107,8 +120,7 @@ export function ExpandProvider({ children }: ExpandProviderProps) {
     setOpenKeys(new Set()); // none explicitly open
   }, []);
 
-  // Memoize the context value to prevent unnecessary re-renders
-  const value = useMemo(() => ({
+  const value = {
     openKeys,
     setOpenKeys,
     forceExpandAll,
@@ -116,7 +128,7 @@ export function ExpandProvider({ children }: ExpandProviderProps) {
     toggleKey,
     expandAll,
     collapseAll,
-  }), [openKeys, setOpenKeys, forceExpandAll, forceCollapseAll, toggleKey, expandAll, collapseAll]);
+  };
 
   return (
     <ExpandContext.Provider value={value}>
@@ -135,11 +147,7 @@ export function ExpandProvider({ children }: ExpandProviderProps) {
  * @returns The selected value from the context
  */
 export function useExpandContextSelector<T>(selector: (ctx: ExpandContextType) => T): T {
-  const selected = useContextSelector(ExpandContext, selector);
-  if (selected === undefined) {
-    throw new Error("useExpandContextSelector must be used within an <ExpandProvider>.");
-  }
-  return selected;
+  return useContextSelector(ExpandContext, selector);
 }
 
 /**
@@ -149,9 +157,5 @@ export function useExpandContextSelector<T>(selector: (ctx: ExpandContextType) =
  * Prefer useExpandContextSelector when possible to minimize re-renders.
  */
 export function useExpandContext() {
-  const context = useContextSelector(ExpandContext, ctx => ctx);
-  if (!context) {
-    throw new Error("useExpandContext must be used within an <ExpandProvider>.");
-  }
-  return context;
+  return useContextSelector(ExpandContext, ctx => ctx);
 }

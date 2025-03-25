@@ -370,14 +370,19 @@ export default function StringView({
                           />
                         </div>
                         <div>
-                          <DiffViewer
-                            oldValue={oldVal}
-                            newValue={newVal}
-                            splitView={splitView}
-                            hideLineNumbers={false}
-                            hideMarkers
-                            mode={diffMode}
-                          />
+                          {(() => {
+                            const singleLineDiff = !oldVal.includes('\n') && !newVal.includes('\n');
+                            return (
+                              <DiffViewer
+                                oldValue={oldVal}
+                                newValue={newVal}
+                                splitView={splitView}
+                                hideLineNumbers={singleLineDiff}
+                                hideMarkers
+                                mode={diffMode}
+                              />
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -399,14 +404,19 @@ export default function StringView({
                 />
               </div>
               <div>
-                <DiffViewer
-                  oldValue={baseStrSafe}
-                  newValue={compStr}
-                  splitView={splitView}
-                  hideLineNumbers={false}
-                  hideMarkers
-                  mode={diffMode}
-                />
+                {(() => {
+                  const singleLineDiff = !baseStrSafe.includes('\n') && !compStr.includes('\n');
+                  return (
+                    <DiffViewer
+                      oldValue={baseStrSafe}
+                      newValue={compStr}
+                      splitView={splitView}
+                      hideLineNumbers={singleLineDiff}
+                      hideMarkers
+                      mode={diffMode}
+                    />
+                  );
+                })()}
               </div>
             </div>
             </div>

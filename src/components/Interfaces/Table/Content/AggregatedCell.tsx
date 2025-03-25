@@ -8,7 +8,8 @@ import { Cell } from "@tanstack/react-table";
 
 import { Badge } from "@/components/UI/badge";
 
-const AggregatedCell = ({cell, metric, getMetric, getSharedValue}: {
+const AggregatedCell = ({isGroupLoading, cell, metric, getMetric, getSharedValue}: {
+  isGroupLoading: boolean,
   cell: Cell<LogProps | GroupedLogProps, unknown>, 
   metric: string,
   getMetric: (key: string) => number | string | undefined,
@@ -25,7 +26,9 @@ const AggregatedCell = ({cell, metric, getMetric, getSharedValue}: {
     return (
       <div className="h-[25px] overflow-hidden text-center truncate ...">
         {!cell.getIsPlaceholder() && isNotUtilColumn ?
-          statistic ?
+          isGroupLoading 
+          ? <div className="h-4 bg-muted rounded animate-pulse mt-1"/>
+          : statistic ?
             <Tooltip content={metricTooltip}>
               <Badge variant="primary">{statistic}</Badge>
             </Tooltip>

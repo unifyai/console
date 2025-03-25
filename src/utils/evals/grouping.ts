@@ -53,13 +53,12 @@ export function maybeConvertRawToGroupedLogs(
         return [];
     }
 
-    const groupValues = rawGroupedLogs[groupingColumnId] as { [groupValue: string]: number };
+    const groups = (rawGroupedLogs[groupingColumnId] as Exclude<GroupedLogPropsRaw[keyof GroupedLogPropsRaw], number | undefined>)!.group;
 
     let groupingIndex = 0;
 
-    return Object.entries(groupValues)
-        .filter(([value]) => value !== 'group_count' && value !== 'count')
-        .map(([groupValue, count]) => {
+    return groups.map((group) => {
+            const [groupValue, count] = [group.key, group.value]
             let id = `${groupingColumnId}:${groupValue}`;
             if (parentId)
               id = `${parentId}>${id}`;
@@ -225,7 +224,8 @@ export function getGroupingFilters(
       case "int":
         return parseInt(value, 10).toString();
       case "float":
-        return parseFloat(value).toString();
+        const num = parseFloat(value);
+        return num.toString().includes('.') ? num.toString() : num.toFixed(1);
       case "timestamp":
         return value.startsWith('"') && value.endsWith('"') ? value : `"${value}"`;
       case "bool":
@@ -317,6 +317,7 @@ export function getGroupingFilters(
 }
 
 export async function onGroupExpand(
+  rowId: string,
   groupingColumnId: string,
   groupingValue: string,
   parentId: string | null,
@@ -390,16 +391,16 @@ export async function onGroupExpand(
       const metrics = Object.fromEntries(
         Object.entries(metricsData).filter(([col, _]) => numericColumns.includes(col)).map(
           ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
-            ([groupingValue, results]) => [groupingValue, results[item.metric ?? "mean"]]
+            ([groupingVal, results]) => [groupingVal, results[item.metric ?? "mean"]]
           ))]
       ));
       const sharedValues = Object.fromEntries(
         Object.entries(metricsData).map(
           ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
-            ([groupingValue, results]) => [groupingValue, results["shared_value"]]
+            ([groupingVal, results]) => [groupingVal, results["shared_value"]]
           ))]
       ));
-      groupedMetrics[groupingColumnId] = {
+      groupedMetrics[rowId] = {
         [item.metric ?? "mean"]: metrics,
         shared_value: sharedValues
       };

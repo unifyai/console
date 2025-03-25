@@ -96,7 +96,7 @@ const ColumnUpdate = ({
         );
 
         setUpdateLoading(true);
-        update(project, colId, equation, target_derived_logs, referenced_logs).then(async (response: ResponseProps) => {
+        update(project, sanitizeId(colId), equation, target_derived_logs, referenced_logs).then(async (response: ResponseProps) => {
             if ("info" in response) {
                 
                 // Update states
@@ -197,15 +197,7 @@ const ColumnUpdate = ({
                 onPointerOver={(e) => e.stopPropagation()}
                 className="sm:max-w-xl"
             >
-                <DialogHeader>
-                    <DialogTitle>Update Equation</DialogTitle>
-                    <DialogDescription>
-                        Update the derived column equation for <strong>{sanitizeId(colId)}</strong>.
-                    </DialogDescription>
-                </DialogHeader>
-
                 {body}
-
                 <DialogFooter>{footer}</DialogFooter>
             </DialogContent>
         </Dialog>

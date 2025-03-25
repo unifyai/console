@@ -30,7 +30,7 @@ export const getProjects = async (apiKey: string) => {
 
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/projects`,
-            { method: "GET", headers: { apiKey: apiKey } }
+            { method: "GET", headers: { apiKey: apiKey }, cache: "no-store" }
         );
         return await response.json();
     };
@@ -379,3 +379,27 @@ export const deleteContext = async (apiKey: string) => {
         return await response.json();
     };
 };
+
+
+// run demo
+export const runDemo = async (adminKey: string, userId: string) => {
+    return async (code: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/demo`,
+            {
+                method: "POST",
+                headers: { apiKey: adminKey },
+                body: JSON.stringify({ user_id: userId, code })
+            }
+        );
+        const responseJson = await response.json();
+        console.dir(responseJson);
+        if (!response.ok) {
+            console.error(response);
+            throw new Error("Network error");
+        }
+        return responseJson;
+    }
+}

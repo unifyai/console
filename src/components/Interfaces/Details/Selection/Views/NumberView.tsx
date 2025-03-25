@@ -76,7 +76,7 @@ function groupVersionsForRows(
 
 /**
  * Apply the selected symbol operation:
- * - For "−": result = compVal − baseVal
+ * - For "−": result = baseVal − compVal
  * - For "+": result = compVal + baseVal
  * - For "×": result = compVal × baseVal
  * - For "÷": result = compVal / baseVal   (if baseVal=0 => Infinity)
@@ -86,7 +86,7 @@ function applySymbol(baseVal: number, compVal: number, symbol: string): number {
     case "+":
       return compVal + baseVal;
     case "−":
-      return compVal - baseVal;
+      return baseVal - compVal;
     case "×":
       return compVal * baseVal;
     case "÷":

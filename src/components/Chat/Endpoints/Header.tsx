@@ -1,6 +1,6 @@
 import { Header as TableHeader, flexRender } from "@tanstack/react-table";
 import { Checkbox } from "@/components/UI/checkbox";
-import ColumnSort from "@/components/Common/Tables/Data/Buttons/ColumnSort";
+import ColumnSort from "@/components/Common/Tables/Buttons/Sort";
 import { TableHead } from "@/components/UI/table";
 import { Endpoint } from "@/types/chat/endpoints";
 import { CheckedState } from "@radix-ui/react-checkbox";

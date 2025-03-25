@@ -167,7 +167,6 @@ export const ImageDisplay = ({ value, className }: { value: string; className?: 
 
   // Render based on whether it's a base64 image or a clickable URL image
   const isBase64 = isBase64Image(value);
-  console.log("[ImageDisplay] Rendering final component. isBase64:", isBase64);
   if (isBase64) {
     return (
       <Image
