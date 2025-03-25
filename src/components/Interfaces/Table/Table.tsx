@@ -644,6 +644,7 @@ const LogsTable = ({
                     <ColumnCreate
                       project={project}
                       context={item.context}
+                      columnContext={item.column_context}
                       currentTable={item.i}
                       tableArguments={tableArguments}
                       logs={logs}

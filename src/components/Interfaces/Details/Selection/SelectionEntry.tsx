@@ -376,8 +376,6 @@ export default function SelectionEntry({
   panelOpenKeys,
   panelSetOpenKeys,
 }: SelectionEntryProps) {
-  const [hovered, setHovered] = useState(false);
-  
   // We need to access the expandRecursively and collapseRecursively functions from context
   // We use the fake usePanelExpandContextSelector function to get the right values
   const expandRecursively = useMemo(() => {
@@ -537,8 +535,6 @@ export default function SelectionEntry({
       value={itemValue}
     >
       <AccordionTrigger
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
         onClick={(evt) => {
           // if we're in edit mode, block toggling
           if (editMode) {
@@ -549,21 +545,28 @@ export default function SelectionEntry({
         className="flex items-center relative group"
       >
         <div className="inline-flex items-center gap-2">
-          <Tooltip content={hovered ? "Hide column" : unifiedType}>
-            <span
-              className="cursor-pointer inline-flex items-center transition duration-200"
-              onClick={handleDeselectColumn}
-            >
-              {hovered ? (
-                <CircleMinus className="h-4 w-4 text-muted-foreground2" />
-              ) : (
-                icon
-              )}
+          {/* Type icon */}
+          <Tooltip content={unifiedType}>
+            <span className="inline-flex items-center">
+              {icon}
             </span>
           </Tooltip>
-          <Tooltip content={unifiedType}>
-            <span>{property}</span>
-          </Tooltip>
+          
+          {/* Property name */}
+          <span className="inline-block align-middle">{property}</span>
+          
+          {/* Hide column button */}
+          <ActionButton
+            tooltip="Hide column"
+            icon={<CircleMinus className="h-3 w-3" />}
+            variant="ghost"
+            size="icon"
+            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-destructive hover:text-destructive-foreground p-0 flex items-center justify-center" 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeselectColumn();
+            }}
+          />
         </div>
 
         {!editMode && isDictOrList && subPaths.length > 0 && (
@@ -580,7 +583,10 @@ export default function SelectionEntry({
       </AccordionTrigger>
 
       <AccordionContent>
-        {renderedContent}
+        {/* Add a wrapper div with proper indentation for top-level items */}
+        <div className="border-l border-l-muted ml-4 pl-3 relative">
+          {renderedContent}
+        </div>
       </AccordionContent>
     </AccordionItem>
   );

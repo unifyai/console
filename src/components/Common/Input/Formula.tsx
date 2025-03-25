@@ -52,12 +52,12 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
       return;
     }
 
-    // Split by both spaces and operators to find current word
-    const lastWord = inputValue.split(/[\s\+\-\*\/\%\(=<>]/).pop() || ''; // Without ")"
-    if (!lastWord) {
-      return;
-    }
-
+    // Split by spaces and operators to find the current word.
+    let lastWord = inputValue.split(/[\s\+\-\*\/\%\(=<>]/).pop() || '';
+    // Remove trailing closing brackets if any.
+    lastWord = lastWord.replace(/\)+$/, '');
+    if (!lastWord) return;
+    
     // Match any segment of a path-like
     const filtered = options.filter(option =>
       option.name.split('/').some(segment => 
@@ -274,15 +274,13 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
       'gi'
     );
     const tokens = text.split(tokenRegex).filter(token => token !== undefined && token !== '');
-
-    // Process each token differently:
-    // a- If tokens are surrounded in quotes, skip highlighting, otherwise
-    // b- Highlight option tokens, provided the following and previous characters are valid delimiters
-    // c- Dots preceded by an option are highlighted in orange
-    // d- Other tokens are returned as is
+  
     return tokens.map((token, index) => {
-      if ((token.startsWith('"') && token.endsWith('"')) || (token.startsWith("'") && token.endsWith("'"))) return <span key={index}>{token}</span>;
+      // If token is wrapped in quotes, leave it unhighlighted.
+      if ((token.startsWith('"') && token.endsWith('"')) || (token.startsWith("'") && token.endsWith("'"))) return <span key={index}>{token}</span>;  
       const option = options.find(opt => opt.name.toLowerCase() === token.toLowerCase());
+  
+      // Special handling for dots to ensure proper highlighting after an option.
       if (token === '.') {
         const prevToken = tokens[index - 1];
         const parentOption = options.find(opt => opt.name === prevToken);
@@ -292,15 +290,20 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
           <span key={index}>.</span>
         );
       }
+  
       if (option) {
-        if (tokens[index-1] && !delimiters.test(tokens[index-1])) return <span key={index}>{token}</span>
-        if (tokens[index+1] && !delimiters.test(tokens[index+1])) return <span key={index}>{token}</span>
+        // Check previous token.
+        if (tokens[index-1] && !delimiters.test(tokens[index-1])) return <span key={index}>{token}</span>;
+        // Check next token:
+        // Only enforce delimiter rule if the next token isn't an opening square bracket.
+        if (tokens[index+1] && tokens[index+1] !== '[' && !delimiters.test(tokens[index+1])) return <span key={index}>{token}</span>;
         const color = colors.find(c => c.type === option.type)!.color;
         return <span key={index} style={{ color }}>{token}</span>;
       }
       return <span key={index}>{token}</span>;
     });
-  };  
+  };
+  
   const overlay = 
     <div ref={overlayRef} style={{scrollbarWidth: "none"}} className={`${sharedStyle} ${overlayStyle} p-0 leading-none box-border inline-flex items-center`}>
       {value === '' || !value ? placeholder : getHighlightedContent(value)}

@@ -4,18 +4,36 @@ import { KeyboardEventHandler, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/UI/input";
 import SubmitButton from "@/components/Common/Buttons/Submit";
+import Tooltip from "@/components/Common/Misc/Tooltip";
 import { getLogsParameters, TableArguments, LogProps, GroupedLogProps } from "@/types/evals/logs"
 import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuGroup, DropdownMenuSub, DropdownMenuPortal, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/UI/dropdown-menu";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, Info } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import FormulaInput from "@/components/Common/Input/Formula";
 import { expressionToDerivedFunction } from "@/utils/evals/derivedColumns";
 import { buildFilterExpressionArgument } from "@/utils/evals/filters";
 import { Dialog, DialogTrigger, DialogContent } from "@/components/UI/dialog";
+import { processContext, sanitizeId } from "@/utils/evals/columnOperations";
 
-const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, create, setPending, refresh, columnOrder, setColumnOrder, previousColumn, setOpen }: {
+const extractSharedPath = (firstColumnName: string, secondColumnName: string) => {
+    const firstPathParts = firstColumnName.split('/').filter(p => p !== '');
+    const secondPathParts = secondColumnName.split('/').filter(p => p !== '');
+    let commonParts: string[] = [];
+    let i = 0;
+    while (i < firstPathParts.length && i < secondPathParts.length && firstPathParts[i] === secondPathParts[i]) {
+        commonParts.push(firstPathParts[i]);
+        i++;
+    }
+    const commonRoot = commonParts.length > 0 ? commonParts.join('/') + '/' : '';
+    return commonRoot
+}
+
+const extractColumnPath = (columnName: string) => columnName.split("/").slice(1, -1).join("/")
+
+const ColumnCreate = ({ project, context, columnContext, currentTable, tableArguments, logs, create, setPending, refresh, columnOrder, setColumnOrder, previousColumn, setOpen }: {
     project: string,
     context: string | undefined,
+    columnContext: string | undefined,
     currentTable: string,
     tableArguments: TableArguments,
     logs: LogProps[] | GroupedLogProps[],
@@ -39,12 +57,35 @@ const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, cr
     const tables = options.filter(option => option.type === "Table Name").map(option => option.name)
     const columns = options.filter(option => option.type === "Column Name").map(option => option.name);
     
-    // Implicitly append column context to the name
-    let columnContextPrefix = previousColumn.split("/").slice(1, -1).join("/")
-    if (columnContextPrefix.length) columnContextPrefix += "/"
+    // Prepend column context to the order and column name, if applicable
+    const previous = columnContext && previousColumn != "RowNumbering"
+    ? previousColumn.startsWith("Parameters/") 
+        ? `${"Parameters/"}${processContext("merge", columnContext, sanitizeId(previousColumn))}`
+        : `${"Entries/"}${processContext("merge", columnContext, sanitizeId(previousColumn))}`
+    : previousColumn
+    const order = columnOrder.map(columnID => {
+        if (columnID === "RowNumbering") return columnID
+        if (!columnContext) return columnID
+        const prefix = columnID.startsWith("Parameters/") ? "Parameters/" : "Entries/" 
+        const contextAwareColumn = processContext("merge", columnContext, sanitizeId(columnID))
+        return `${prefix}${contextAwareColumn}`
+    })
 
+    // Find index of previous and next column to position the new column
+    const previousIndex = order.indexOf(previous)
+    const nextIndex = previousIndex != -1 && previousIndex < order.length - 1 ? previousIndex + 1 : previousIndex
+    const nextColumn = order.at(nextIndex) ?? previous
+
+    // Prefix derived column name with previous column prefix, if applicable
+    let previousColumnPrefix = extractColumnPath(previousColumn)
+    if (previousColumnPrefix.length) previousColumnPrefix += "/"
+    let nextColumnPrefix = extractColumnPath(nextColumn)
+    if (nextColumnPrefix.length) nextColumnPrefix += "/"
+    const commonRoot = extractSharedPath(previousColumnPrefix, nextColumnPrefix)
+    const editableInitialName = previousColumnPrefix.slice(commonRoot.length);
+    
     // State tracking
-    const [name, setName] = useState<string>(columnContextPrefix);
+    const [name, setName] = useState<string>(editableInitialName);
     const [nameError, setNameError] = useState<string>("");
     const [expression, setExpression] = useState<string>("");
     const [equation, setEquation] = useState<string>("");
@@ -58,13 +99,16 @@ const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, cr
 
     // Handle inputs
     const handleName = (value: string) => {
-        setName(value)
-        if (columns.includes(value)) {
-            setNameError(`${value} already used as a column name.`);
-            return;
+        if (commonRoot && !value.startsWith(commonRoot)) return;
+        const newValue = value.slice(commonRoot.length);
+        setName(newValue);
+        const fullName = commonRoot + newValue;
+        if (columns.includes(fullName)) {
+          setNameError(`${fullName} already used as a column name.`);
+          return;
         }
         setNameError("");
-    }
+    };
 
     const handleExpression = (value: string) => {
         setExpression(value);
@@ -74,6 +118,8 @@ const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, cr
 
     // Handle submission    
     const onSubmit = () => {
+
+        /* Build referenced arguments object */
         let referencedTables : (keyof TableArguments)[] = tables.filter(table => equation.includes(table))
         if (!referencedTables.length) referencedTables = [currentTable]
         const referencedArguments = Object.fromEntries(
@@ -81,8 +127,13 @@ const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, cr
                   .filter(([key, _]) => referencedTables.includes(key))
                   .map(([key, args]) => [key, buildFilterExpressionArgument(args).getLogs_parameters])
         );
+
+        /* Implicitly prepend selected column context to the name, if applicable */
+        let key = commonRoot ? commonRoot + name : name
+        key = columnContext ? processContext("merge", columnContext, key) : key
+
         setLoading(true);
-        create(project, context, name, equation, referencedArguments).then(async (response: ResponseProps) => {
+        create(project, context, key, equation, referencedArguments).then(async (response: ResponseProps) => {
             if ("info" in response) {
                 
                 // Update states
@@ -91,14 +142,13 @@ const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, cr
                 setOpen(false);
 
                 // Add new column next to the previous
-                const previousIndex = columnOrder.indexOf(previousColumn);
                 const newOrder = previousIndex !== -1 
                     ?   [
-                            ...columnOrder.slice(0, previousIndex + 1),
-                            previousColumn.includes("Parameters/") ? `Parameters/${name}` : `Entries/${name}`,
-                            ...columnOrder.slice(previousIndex + 1)
+                            ...order.slice(0, previousIndex + 1),
+                            previous.includes("Parameters/") ? `Parameters/${key}` : `Entries/${key}`,
+                            ...order.slice(previousIndex + 1)
                         ] 
-                    : columnOrder;
+                    : order;
                 setColumnOrder(newOrder);
                 
                 // Refresh page
@@ -118,6 +168,7 @@ const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, cr
             setErrorMessage(error);
             setTimeout(() => setErrorMessage(""), 10000);
         })
+
     }
     const onEnter : KeyboardEventHandler = (e) => {
         e.stopPropagation()
@@ -125,16 +176,18 @@ const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, cr
     }
 
     // Subcomponents
-    const column =  <Input
-                        className="w-1/2 min-w-[100px]"
-                        onClick={(event) => event.stopPropagation()}
-                        placeholder={"Enter a column name.."}
-                        value={name}
-                        onInput={(event) => handleName(event.currentTarget.value)}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onMouseMove={(e) => e.stopPropagation()}
-                        onKeyDown={onEnter}
-                    />
+    const column = <Input 
+        className="w-1/2 min-w-[100px]" 
+        onClick={(event) => event.stopPropagation()} 
+        placeholder={"Enter a column name.."} 
+        value={commonRoot + name} 
+        onInput={(event) => handleName(event.currentTarget.value)} 
+        onMouseDown={(e) => e.stopPropagation()} 
+        onMouseMove={(e) => e.stopPropagation()} 
+        onKeyDown={onEnter} 
+    />;
+
+    const info = <Tooltip content={`New columns created at this position can only belong to the ${commonRoot.slice(0, -1)} column context`}><Info size={16}/></Tooltip>
 
     const entry = <FormulaInput options={options} value={expression} setValue={handleExpression} onEnter={onEnter} className="left-8"/>
     
@@ -147,7 +200,10 @@ const ColumnCreate = ({ project, context, currentTable, tableArguments, logs, cr
 
         <div className="flex flex-col h-full">
             <DropdownMenuLabel className="text-sm font-semibold">Column name</DropdownMenuLabel>
-            {column}
+            <div className="flex flex-row gap-2">
+                {column}
+                {commonRoot && info}
+            </div>
             {nameError && warning(nameError)}
         </div>
 

@@ -321,7 +321,11 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
             tableArguments[item.i].available_fields = 
             Object.fromEntries(
                 Object.entries(fields[idx])
-                    .filter((([field, attributes]) => entriesProperties.concat(paramsProperties).includes(field)))
+                    .filter((([field, attributes]) => 
+                        entriesProperties.map(property => columnContext ? processContext("merge", columnContext, property) : property)
+                        .concat(paramsProperties.map(property => columnContext ? processContext("merge", columnContext, property) : property))
+                        .includes(field))
+                )
             )
 
             // Get other attributes shared across tables and corresponding views

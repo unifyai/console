@@ -290,14 +290,19 @@ export default function RawView({
                           <RowBadge rowNumbers={vg.rows.filter(r => r !== baseLogIndex)} mode={changed ? "insert" : "none"} />
                         </div>
                         <div>
-                          <DiffViewer
-                            oldValue={baseVer}
-                            newValue={textVal}
-                            splitView={splitView}
-                            hideLineNumbers={false}
-                            hideMarkers
-                            mode={diffMode}
-                          />
+                          {(() => {
+                            const singleLineDiff = !baseVer.includes('\n') && !textVal.includes('\n');
+                            return (
+                              <DiffViewer
+                                oldValue={baseVer}
+                                newValue={textVal}
+                                splitView={splitView}
+                                hideLineNumbers={singleLineDiff}
+                                hideMarkers
+                                mode={diffMode}
+                              />
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -317,14 +322,19 @@ export default function RawView({
                   <RowBadge rowNumbers={block.rows} mode={newMode} />
                 </div>
                 <div>
-                  <DiffViewer
-                    oldValue={baseStr}
-                    newValue={block.text}
-                    splitView={splitView}
-                    hideLineNumbers={false}
-                    hideMarkers
-                    mode={diffMode}
-                  />
+                  {(() => {
+                    const singleLineDiff = !baseStr.includes('\n') && !block.text.includes('\n');
+                    return (
+                      <DiffViewer
+                        oldValue={baseStr}
+                        newValue={block.text}
+                        splitView={splitView}
+                        hideLineNumbers={singleLineDiff}
+                        hideMarkers
+                        mode={diffMode}
+                      />
+                    );
+                  })()}
                 </div>
               </div>
             </div>
