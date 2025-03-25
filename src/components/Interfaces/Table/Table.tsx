@@ -43,6 +43,8 @@ import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data
 import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import ContextSelector from "./Content/ContextSelector";
 import ResetServerAction from "./Buttons/ResetServerAction";
+import { durationToTimeDelta, timeDeltaValueToDuration } from "@/utils/evals/format";
+import { getGroupedMetrics } from "@/utils/evals/common";
 
 // Import new hooks
 import { useTab } from "@/contexts/hooks/tab";
@@ -108,7 +110,7 @@ const LogsTable = ({
   const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
 
   // Use the tableDataItem from the tile's table data
-  const tableDataItem = useMemo(() => tableTileState?.tableDataItem || {
+  const defaultTableDataItem = useMemo(() => ({
     columnContexts: [],
     baseIndex: undefined,
     hiddenColumns: undefined,
@@ -125,7 +127,45 @@ const LogsTable = ({
     groupedMetrics: {},
     boundaries: { minimums: {}, maximums: {} },
     metric: ""
-  } as TableDataItem, [tableTileState?.tableDataItem]);
+  } as TableDataItem), []);
+  const tableDataItem = useMemo(() => tableTileState?.tableDataItem || defaultTableDataItem, [tableTileState?.tableDataItem]);
+
+  // Effect to handle table data updates and grouped metrics
+  useEffect(() => {
+    if (!tableDataItem) return;
+
+    // Handle loading states and fetch grouped metrics
+    if (!loadingSubGroup) {
+      setLoadingGroups(prev => new Set(["_all_groups_"]));
+    }
+
+    // Fetch grouped metrics
+    getGroupedMetrics(
+      projectId || null,
+      item?.context || null,
+      item?.column_context || null,
+      logs.length ? [...entriesProperties, ...paramsProperties] : [],
+      filterExpression,
+      groupingExpression,
+      metric,
+      fields,
+      logsActions
+    ).then((groupedMetrics) => {
+      // Update grouped metrics
+      tableTileActions?.updateTableDataItem({ groupedMetrics });
+
+      // Update loading states
+      if (loadingSubGroup) {
+        setLoadingSubGroup(false);
+      } else {
+        setLoadingGroups(prev => {
+          const next = new Set(prev);
+          next.delete("_all_groups_");
+          return next;
+        });
+      }
+    });
+  }, [tableDataItem]);
 
   const setPending = (pending: boolean) => tileUIActions?.setPending(pending);
 
@@ -140,6 +180,10 @@ const LogsTable = ({
     totalPages,
     boundaries
   } = useMemo(() => tableDataItem, [tableDataItem]);
+
+  // Display loaders for group metrics and shared values
+  const [loadingGroups, setLoadingGroups] = useState<Set<string>>(new Set());
+  const [loadingSubGroup, setLoadingSubGroup] = useState<boolean>(false);
 
   // Extract params values from logs
   const paramsValues: LogItemProps = {};
@@ -387,14 +431,7 @@ const LogsTable = ({
     pinningState,
   };
   const setState = {
-    setTableDataItem: (newTableDataItem: TableDataItem) => {
-      // Update tableDataItem in the store
-      if (tileDataActions && tableTileState) {
-        tileDataActions.updateTableTile({ 
-          tableDataItem: newTableDataItem 
-        });
-      }
-    },
+    setTableDataItem: (newTableDataItem: TableDataItem) => tableTileActions?.setTableDataItem(newTableDataItem),
     setSelectedCells: (cells: string[]) => tableTileActions?.setSelected(cells.join(",")),
     setMetric: (newMetric: string) => tileDataActions?.setMetric(newMetric),
     setSorting,
@@ -634,7 +671,7 @@ const LogsTable = ({
                       renderMode={renderMode}
                     />
                   )}
-                  ColumnGroupSort={(column, groupSortLoading, setGroupSortLoading, setIsGroupSorted, renderMode = "button") => (
+                  ColumnGroupSort={(column, groupSortLoading, setGroupSortLoading, setGroupSortingDirection, renderMode = "button", direction) => (
                     <ColumnGroupSort
                       interactive={interactive}
                       column={column}
@@ -643,8 +680,9 @@ const LogsTable = ({
                       logs={logs}
                       groupSortLoading={groupSortLoading}
                       setGroupSortLoading={setGroupSortLoading}
-                      setIsGroupSorted={setIsGroupSorted}
+                      setGroupSortingDirection={setGroupSortingDirection}
                       renderMode={renderMode}
+                      direction={direction}
                     />
                   )}
                   ColumnFilters={(column, filterLoading, setIsFiltered, setFilterLoading, open, setOpen, renderMode = "button") => (
@@ -680,6 +718,7 @@ const LogsTable = ({
                     <ColumnCreate
                       project={projectId}
                       context={item?.context}
+                      columnContext={item?.column_context}
                       currentTable={item?.i || ""}
                       tableArguments={tableArguments}
                       logs={logs}
@@ -718,12 +757,16 @@ const LogsTable = ({
                       isAnimating={props.isAnimating}
                       setExpandingRowId={props.setExpandingRowId}
                       onExpand={async (groupingColumnId: string, groupingValue: string, parentId: string, setExpandingRowId: (id: string | null) => void) => {
+
+                        setLoadingSubGroup(true)
+                        setLoadingGroups(prev => new Set(prev).add(props.row.id));
                         await onGroupExpand(
+                          props.row.id,
                           groupingColumnId,
                           groupingValue,
                           parentId,
                           projectId!,
-                          item?.context ?? null,
+                          item?.context || context || context_ || null,
                           item?.column_context ?? null,
                           filterExpression,
                           sortingExpression,
@@ -752,32 +795,69 @@ const LogsTable = ({
                           logs,
                           logs.length ? [...entriesProperties, ...paramsProperties] : []
                         );
+                        setLoadingGroups(prev => {
+                          const next = new Set(prev);
+                          next.delete(props.row.id);
+                          return next;
+                        });
                       }}
                     />
                   )}
                   AggregatedCell={(cell, row) => (
                     <AggregatedCell
+                      isGroupLoading={loadingGroups.has(row.id) || loadingGroups.has("_all_groups_")}
                       cell={cell}
                       metric={tableDataItem.metric}
                       getMetric={(key: string) => {
                         const groupingColumnId = row.groupingColumnId;
+                        const slicedRowId = row.id.split(">").slice(0, -1).join(">");
                         const groupedMetrics = (
-                          tableDataItem.groupedMetrics[groupingColumnId] || { [metric]: {} }
+                          tableDataItem.groupedMetrics && groupingColumnId in tableDataItem.groupedMetrics
+                            ? tableDataItem.groupedMetrics[groupingColumnId]
+                            : tableDataItem.groupedMetrics && slicedRowId in tableDataItem.groupedMetrics
+                              ? tableDataItem.groupedMetrics[slicedRowId] : { [metric]: {} }
                         )[metric] || {};
                         const newKey = key.replace("Entries/", "").replace("Parameters/", "");
                         const groupingValue = row.getValue(key) as string;
                         const value = groupedMetrics[newKey] ? groupedMetrics[newKey][groupingValue] : undefined;
-                        return typeof value === "number" ? value.toFixed(2) : value?.toString() ?? "";
+                        if (value && typeof value === "number")
+                          if (state.metric === "count")
+                            return Math.floor(value)
+                          else
+                            return value.toFixed(2)
+                        else if (value && cell.column.columnDef.meta?.dataType === "timedelta" && state.metric != "count") 
+                          try {
+                            return durationToTimeDelta(timeDeltaValueToDuration(value.toString()));
+                          } catch (error) {
+                            console.error("Error formatting timedelta:", error);
+                            return value?.toString() ?? "";
+                          }
+                        else
+                          return value?.toString() ?? ""
                       }}
                       getSharedValue={(key: string) => {
+                        const slicedRowId = row.id.split(">").slice(0, -1).join(">");
                         const groupingColumnId = row.groupingColumnId;
                         const groupedSharedValues = (
-                          tableDataItem.groupedMetrics[groupingColumnId] || { [metric]: {} }
+                          tableDataItem.groupedMetrics && groupingColumnId in tableDataItem.groupedMetrics
+                            ? tableDataItem.groupedMetrics[groupingColumnId]
+                            : tableDataItem.groupedMetrics && slicedRowId in tableDataItem.groupedMetrics
+                              ? tableDataItem.groupedMetrics[slicedRowId] : { ["shared_value"]: {} }
                         )["shared_value"] || {};
                         const newKey = key.replace("Entries/", "").replace("Parameters/", "");
                         const groupingValue = row.getValue(key) as string;
                         const value = groupedSharedValues[newKey] ? groupedSharedValues[newKey][groupingValue] : undefined;
-                        return typeof value === "number" ? value.toFixed(2) : value?.toString() ?? "";
+                        if (value && typeof value === "number") 
+                          return value.toFixed(2)
+                        else if (value && cell.column.columnDef.meta?.dataType === "timedelta") 
+                          try {
+                            return durationToTimeDelta(timeDeltaValueToDuration(value.toString()));
+                          } catch (error) {
+                            console.error("Error formatting timedelta:", error);
+                            return value?.toString() ?? "";
+                          }
+                        else
+                          return value?.toString() ?? ""
                       }}
                     />
                   )}

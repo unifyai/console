@@ -1,6 +1,6 @@
 import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, LogItemProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
-import { Context, ContextActions, DerivedEntryActions, FieldsActions, TabProps, TabActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TabsDataProps } from "@/types/evals/grid";
+import { Context, ContextActions, DerivedEntryActions, FieldsActions, TabProps, TabActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TabsDataProps, DemoActions } from "@/types/evals/grid";
 import { buildFilterExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { redirect } from "next/navigation";
@@ -13,7 +13,7 @@ import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { buildInitialState } from "@/contexts/utils/stateBuilderUtils";
 import { StoreInitializer } from "../../contexts/providers/StoreInitializer";
 
-const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, tabActions }: {
+const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, tabActions, demoActions }: {
     tab: string | undefined,
     project: string | undefined,
     projectsActions: ProjectsActions,
@@ -21,7 +21,8 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     derivedEntryActions: DerivedEntryActions,
     fieldsActions: FieldsActions,
     contextActions: ContextActions,
-    tabActions: TabActions
+    tabActions: TabActions,
+    demoActions: DemoActions
 }) => {
 
     // const cookies_ = cookies();
@@ -60,7 +61,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     const tab_1 = Object.keys(tabsTemp).find(t => t == (tab || (
         currentProject == cookiesProject ? cookiesTab : undefined
     ))) || (
-        Object.keys(tabsTemp).length ? Object.keys(tabsTemp).sort()[0] : null
+        Object.keys(tabsTemp).length ? Object.keys(tabsTemp)[0] : null
     );
 
     // Get the current tab data
@@ -323,7 +324,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
             const sorting = tile.sorting ?? null
             const hiddenColumns = tile.hidden_columns;
 
-            const { entriesProperties, paramsProperties, logs, params, metrics, groupedMetrics, boundaries } = await getLogsDetails(
+            const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
                 tile,
                 logsData,
                 fields[idx],
@@ -342,7 +343,11 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
             tableArguments[tile.i].available_fields = 
             Object.fromEntries(
                 Object.entries(fields[idx])
-                    .filter((([field, attributes]) => entriesProperties.concat(paramsProperties).includes(field)))
+                    .filter((([field, attributes]) => 
+                        entriesProperties.map(property => columnContext ? processContext("merge", columnContext, property) : property)
+                        .concat(paramsProperties.map(property => columnContext ? processContext("merge", columnContext, property) : property))
+                        .includes(field))
+                )
             )
 
             // Get other attributes shared across tables and corresponding views
@@ -366,7 +371,6 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                     logs,
                     params,
                     metrics,
-                    groupedMetrics,
                     boundaries,
                     metric: tile.metric ?? "mean"
                 }
@@ -459,6 +463,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                 fieldsActions={fieldsActions}
                 contextActions={contextActions}
                 tabActions={tabActions}
+                demoActions={demoActions}
             />
         </Suspense>
     );

@@ -12,6 +12,7 @@ export interface TableTileActions {
   // Actions
   initTableTile: (tileId: string, initialState?: Partial<tableTileLogic.TableTile>) => void;
   updateTableTile: (tileId: string, updates: Partial<tableTileLogic.TableTile>) => void;
+  updateTableDataItem: (tileId: string, updates: Partial<tableTileLogic.TableTile["tableDataItem"]>) => void;
 }
 
 export type TableTileSlice = TableTileState & TableTileActions;
@@ -73,6 +74,36 @@ export const createTableTileSlice: StateCreator<
     if (itemsNeedRecompute && tile.tabId && state.tabsById[tile.tabId] && !state.tabsById[tile.tabId].itemsNeedRecompute) {
       state.tabsById[tile.tabId].itemsNeedRecompute = true;
     }
+
+    // Apply the updated tile if needed
+    if (tileUpdated) {
+      state.tilesById[tileId] = updatedTile;
+    }
+  }),
+
+  updateTableDataItem: (tileId, updates) => set(state => {
+    // Get the tile
+    const tile = state.tilesById[tileId];
+    if (!tile || !tile.tableTile) return;
+
+    const tableDataItem = tile.tableTile.tableDataItem;
+    if (!tableDataItem) return;
+    
+    // Filter out unchanged fields with the extended partially shallow logic
+    const filteredUpdates = sliceUtils.filterUnchangedUpdates(tableDataItem, updates as Partial<typeof tableDataItem>);
+    if (Object.keys(filteredUpdates).length === 0) return;
+
+    // Update table-specific data if needed
+    let updatedTile = tile;
+    let tileUpdated = false;
+
+    if (!updatedTile.tableTile) {
+      updatedTile.tableTile = tableTileLogic.initTableTile();
+      tileUpdated = true;
+    }
+
+    updatedTile.tableTile.tableDataItem = tableTileLogic.updateTableDataItem(tableDataItem, filteredUpdates);
+    tileUpdated = true;
 
     // Apply the updated tile if needed
     if (tileUpdated) {

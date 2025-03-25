@@ -1,15 +1,15 @@
 import { StateCreator } from "zustand";
 
 // Import slices
-import { GlobalSlice, createGlobalSlice, GlobalState, GlobalActions } from "./globalSlice";
-import { ProjectSlice, createProjectSlice, ProjectState, ProjectActions } from "./projectSlice";
-import { InterfaceSlice, createInterfaceSlice, InterfaceState, InterfaceActions } from "./interfaceSlice";
-import { TabSlice, createTabSlice, TabState, TabActions } from "./tabSlice";
-import { TileSlice, createTileSlice, TileState, TileActions } from "./tileSlice";
-import { TableTileSlice, createTableTileSlice, TableTileState, TableTileActions } from "./tableTileSlice";
-import { PlotTileSlice, createPlotTileSlice, PlotTileState, PlotTileActions } from "./plotTileSlice";
-import { ViewTileSlice, createViewTileSlice, ViewTileState, ViewTileActions } from "./viewTileSlice";
-import { AsyncSlice, createAsyncSlice, AsyncState, AsyncActions } from "./asyncSlice";
+import { createGlobalSlice, GlobalState, GlobalActions } from "./globalSlice";
+import { createProjectSlice, ProjectState, ProjectActions } from "./projectSlice";
+import { createInterfaceSlice, InterfaceState, InterfaceActions } from "./interfaceSlice";
+import { createTabSlice, TabState, TabActions } from "./tabSlice";
+import { createTileSlice, TileState, TileActions } from "./tileSlice";
+import { createTableTileSlice, TableTileState, TableTileActions } from "./tableTileSlice";
+import { createPlotTileSlice, PlotTileState, PlotTileActions } from "./plotTileSlice";
+import { createViewTileSlice, ViewTileState, ViewTileActions } from "./viewTileSlice";
+import { createAsyncSlice, AsyncState, AsyncActions } from "./asyncSlice";
 
 // Re-export the types from the domain logic
 export type { Project } from "./selectors/project";

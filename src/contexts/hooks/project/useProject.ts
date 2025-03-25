@@ -3,7 +3,6 @@ import { useStoreContext } from '../../providers/StoreProvider';
 import { useProjectMeta } from './useProjectMeta';
 import { useProjectData } from './useProjectData';
 import { useProjectUI } from './useProjectUI';
-import { useProjectOperations } from './useProjectOperations';
 import { Project } from '@/contexts/slices/selectors/project';
 
 /**

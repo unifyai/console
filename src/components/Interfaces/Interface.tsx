@@ -12,7 +12,7 @@ import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./ProjectButtons";
 import { Context, TabProps, TileProps } from "@/types/evals/grid";
 import { useQueryState } from "nuqs";
-import { ProjectsActions, TabActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions } from '@/types/evals/grid';
+import { ProjectsActions, TabActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions, DemoActions } from '@/types/evals/grid';
 import { ResponseProps } from '@/types/common';
 
 import { useInterfaceData } from '@/contexts/hooks/interface';
@@ -33,6 +33,7 @@ interface InterfaceComponentProps {
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
+  demoActions: DemoActions;
 }
 
 const Interface = ({ 
@@ -42,7 +43,8 @@ const Interface = ({
   logsActions,
   fieldsActions,
   derivedEntryActions,
-  contextActions
+  contextActions,
+  demoActions
 }: InterfaceComponentProps) => {
   const router = useRouter();
 
@@ -163,7 +165,7 @@ const Interface = ({
         setNewCounter(currentTab.new_counter || 0);
         tabMetaActions.setTempTabCreated(Boolean(currentTab));
         tabUIActions.setPending(false);
-        interfaceDataActions?.setTabNames(tabProps.map(tab => tab.name).sort());
+        interfaceDataActions?.setTabNames(tabProps.map(tab => tab.name));
       }
     });
   }, [projectQueryParam, tabQueryParam, tabUIActions, tabDataActions, tabMetaActions, interfaceDataActions, contexts]);
@@ -245,6 +247,7 @@ const Interface = ({
                 projectActions={projectsActions}
                 tabActions={serverTabActions}
                 logsActions={logsActions}
+                demoActions={demoActions}
                 derivedEntryActions={derivedEntryActions}
                 setTabQueryParam={setTabQueryParam}
                 setProjectQueryParam={setProjectQueryParam}

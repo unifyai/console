@@ -32,8 +32,11 @@ const AddTile = ({
             variant="outline"
             disabled={!tabUIState?.edit || !project || tabUIState?.pending || !exists}
             onClick={() => {
-                const newTileName = "Tile_" + newCounter;
-                
+                let initialIndex = items.length;
+                while (items.some(item => item.i == "Tile_" + initialIndex))
+                    initialIndex++;
+                const newTileName = "Tile_" + initialIndex;
+
                 // Calculate the best position for the new tile
                 const position = {
                     x: (() => {
@@ -119,7 +122,7 @@ const AddTile = ({
                     visible: true,
                 });
 
-                setNewCounter(newCounter + 1);
+                setNewCounter(items.length + 1);
             }}
         />
     );

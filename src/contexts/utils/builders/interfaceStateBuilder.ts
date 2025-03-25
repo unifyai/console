@@ -89,10 +89,6 @@ export function buildInterfaceState(
       }
     }
   });
-
-  // Sort tab names and IDs
-  tabIds.sort();
-  tabNames.sort();
   
   // Create interface meta
   const interfaceMeta: InterfaceMeta = {

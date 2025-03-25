@@ -35,7 +35,7 @@ import {
   isTimestamp,
   isChat
 } from "@/utils/evals/selection";
-import { isPdf } from "./Selection";
+import { isPdf } from "./SelectionUtils";
 
 import {
   Waypoints,
@@ -50,7 +50,6 @@ import {
   FileText
 } from "lucide-react";
 
-import { useExpandContextSelector } from "@/contexts/ExpandContext";
 import {
   makePrefixedDictPath,
   makePrefixedListPath,
@@ -147,7 +146,8 @@ function getSelectionView(
   displayMode: "text" | "markdown" | "raw",
   nestingLevel: number,
   prefix: string,
-  parentPath: string
+  parentPath: string,
+  valueType: string
 ) {
   // If user wants "raw"
   if (displayMode === "raw") {
@@ -165,10 +165,8 @@ function getSelectionView(
     );
   }
 
-  // unify
-  const finalType = unifyType(val, comps);
-
-  switch (finalType) {
+  // Use the determined type instead of re-unifying
+  switch (valueType) {
     case "trace":
       return (
         <TraceView
@@ -335,11 +333,12 @@ interface SelectionEntryProps {
   comparableVersions?: string[];
   tableItem: TileProps | undefined;
   updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
-  onAccordionValueChange?: (value: string[]) => void;
   onHideColumn?: (prop: string) => void;
   editMode?: boolean;
   forceExpandAll?: boolean;
   forceCollapseAll?: boolean;
+  panelOpenKeys: Set<string>;
+  panelSetOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>;
 }
 
 /**
@@ -370,18 +369,39 @@ export default function SelectionEntry({
   comparableVersions = [],
   tableItem,
   updateItem,
-  onAccordionValueChange,
   onHideColumn,
   editMode = false,
   forceExpandAll,
   forceCollapseAll,
+  panelOpenKeys,
+  panelSetOpenKeys,
 }: SelectionEntryProps) {
-  const [hovered, setHovered] = useState(false);
-  const [prevAccordionValues, setPrevAccordionValues] = useState<string[]>([]);
+  // We need to access the expandRecursively and collapseRecursively functions from context
+  // We use the fake usePanelExpandContextSelector function to get the right values
+  const expandRecursively = useMemo(() => {
+    return (paths: string[]) => {
+      panelSetOpenKeys((prev) => {
+        const next = new Set(prev);
+        paths.forEach(path => next.add(path));
+        return next;
+      });
+    };
+  }, [panelSetOpenKeys]);
   
-  // Use context selectors to only subscribe to the parts of the context we need
-  const openKeys = useExpandContextSelector(ctx => ctx.openKeys);
-  const setOpenKeys = useExpandContextSelector(ctx => ctx.setOpenKeys);
+  const collapseRecursively = useMemo(() => {
+    return (paths: string[]) => {
+      panelSetOpenKeys((prev) => {
+        const next = new Set(prev);
+        paths.forEach(path => next.delete(path));
+        return next;
+      });
+    };
+  }, [panelSetOpenKeys]);
+  
+  // Use panel-specific props directly
+  // No type assertions needed since props are properly typed
+  const openKeys = panelOpenKeys;
+  const setOpenKeys = panelSetOpenKeys;
 
   // gather comparables
   const comps = (comparisonLogs ?? []).map((cl) => {
@@ -428,19 +448,63 @@ export default function SelectionEntry({
     const prefixStr = source === "entries" ? "entries" : "params";
 
     // In multi-mode, use gatherAllSubPathsMulti to include keys from comparables
+    let paths: string[] = [];
     if (comps && comps.length > 0) {
-      return gatherAllSubPathsMulti(rawValue, comps, topLevelPath, prefixStr, 0);
+      paths = gatherAllSubPathsMulti(rawValue, comps, topLevelPath, prefixStr, 0);
     } else {
       // In single-mode, use the original gatherAllSubPaths
-      return gatherAllSubPaths(rawValue, topLevelPath, prefixStr, 0);
+      paths = gatherAllSubPaths(rawValue, topLevelPath, prefixStr, 0);
     }
-  }, [rawValue, isDictOrList, topLevelPath, source, comps]);
+
+    return paths;
+  }, [rawValue, isDictOrList, topLevelPath, source, comps, property]);
 
   // check if all subPaths are in openKeys => allOpen
   const allOpen = useMemo(() => {
     if (!isDictOrList || !subPaths.length) return false;
-    return subPaths.every((p) => openKeys.has(p));
+    const result = subPaths.every((p) => openKeys.has(p));
+    return result;
   }, [isDictOrList, subPaths, openKeys]);
+  
+  // Memoize the content to avoid unnecessary re-calculations
+  const renderedContent = useMemo(() => {
+    // Skip calculation if empty
+    if (isEmpty) return null;
+    
+    return getSelectionView(
+      rawValue,
+      comps,
+      version,
+      comparableVersions,
+      baseLogIndex,
+      comparisonLogsIndex,
+      diffMode,
+      splitView,
+      displayMode,
+      childNesting, // now always 0 if top-level
+      source === "entries" ? "entries" : "params",
+      topLevelPath, // Pass the top-level path as parentPath
+      unifiedType // Pass the unified type to avoid recalculating
+    );
+  }, [
+    rawValue,
+    comps,
+    version,
+    comparableVersions,
+    baseLogIndex,
+    comparisonLogsIndex,
+    diffMode,
+    splitView,
+    displayMode,
+    childNesting,
+    source,
+    topLevelPath,
+    unifiedType,
+    isEmpty // Add isEmpty as dependency
+  ]);
+  
+  // For the shadcn <AccordionItem>, we unify property => so the parent's "onValueChange" logic sees a simpler string
+  const itemValue = property;
   
   // Return early if empty - after all hooks have been called
   if (isEmpty) {
@@ -456,52 +520,21 @@ export default function SelectionEntry({
     e.stopPropagation();
     if (!isDictOrList) return;
 
-    setOpenKeys((prev) => {
-      const next = new Set(prev);
-      if (allOpen) {
-        // collapse everything
-        subPaths.forEach((p) => next.delete(p));
-      } else {
-        // expand everything
-        subPaths.forEach((p) => next.add(p));
-      }
-      return next;
-    });
+    // Use the subPaths directly
+    if (allOpen) {
+      // collapse everything recursively
+      collapseRecursively([...subPaths]);
+    } else {
+      // expand everything recursively
+      expandRecursively([...subPaths]);
+    }
   };
-
-  // subcomponent that actually renders the value
-  const renderedContent = getSelectionView(
-    rawValue,
-    comps,
-    version,
-    comparableVersions,
-    baseLogIndex,
-    comparisonLogsIndex,
-    diffMode,
-    splitView,
-    displayMode,
-    childNesting, // now always 0 if top-level
-    source === "entries" ? "entries" : "params",
-    topLevelPath // Pass the top-level path as parentPath
-  );
-
-  // For the shadcn <AccordionItem>, we unify property => so the parent's "onValueChange" logic sees a simpler string
-  const itemValue = property;
 
   return (
     <AccordionItem
       value={itemValue}
-      onDragStart={() => {
-        setPrevAccordionValues([]);
-        onAccordionValueChange?.([]);
-      }}
-      onDragEnd={() => {
-        onAccordionValueChange?.(prevAccordionValues);
-      }}
     >
       <AccordionTrigger
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
         onClick={(evt) => {
           // if we're in edit mode, block toggling
           if (editMode) {
@@ -512,21 +545,28 @@ export default function SelectionEntry({
         className="flex items-center relative group"
       >
         <div className="inline-flex items-center gap-2">
-          <Tooltip content={hovered ? "Hide column" : unifiedType}>
-            <span
-              className="cursor-pointer inline-flex items-center transition duration-200"
-              onClick={handleDeselectColumn}
-            >
-              {hovered ? (
-                <CircleMinus className="h-4 w-4 text-muted-foreground2" />
-              ) : (
-                icon
-              )}
+          {/* Type icon */}
+          <Tooltip content={unifiedType}>
+            <span className="inline-flex items-center">
+              {icon}
             </span>
           </Tooltip>
-          <Tooltip content={unifiedType}>
-            <span>{property}</span>
-          </Tooltip>
+          
+          {/* Property name */}
+          <span className="inline-block align-middle">{property}</span>
+          
+          {/* Hide column button */}
+          <ActionButton
+            tooltip="Hide column"
+            icon={<CircleMinus className="h-3 w-3" />}
+            variant="ghost"
+            size="icon"
+            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-destructive hover:text-destructive-foreground p-0 flex items-center justify-center" 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeselectColumn();
+            }}
+          />
         </div>
 
         {!editMode && isDictOrList && subPaths.length > 0 && (
@@ -543,7 +583,10 @@ export default function SelectionEntry({
       </AccordionTrigger>
 
       <AccordionContent>
-        {renderedContent}
+        {/* Add a wrapper div with proper indentation for top-level items */}
+        <div className="border-l border-l-muted ml-4 pl-3 relative">
+          {renderedContent}
+        </div>
       </AccordionContent>
     </AccordionItem>
   );

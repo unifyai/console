@@ -111,7 +111,9 @@ const Tab = ({
   useEffect(() => {
     (() => {
       try {
-        updateTab(null, tileProps);
+        if (!tabUIState?.resetting) {
+          updateTab(null, tileProps);
+        }
       } catch (err) {
         console.error("updateTab failed:", err);
       }
@@ -189,11 +191,10 @@ const Tab = ({
         {/* Render tiles */}
         {tileProps.map((item: TileProps, idx: number) => {
             return (
-                <div
+                !item.visible ? <></> : <div
                     key={item.i}
                     data-grid={item}
                     className="relative"
-                    hidden={!item.visible}
                     onClick={(e) => e.stopPropagation()}
                 >
                     <Suspense fallback={

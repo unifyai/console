@@ -1,3 +1,5 @@
+"use client";
+
 import { RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import CreateProject from "./Table/Buttons/CreateProject";
@@ -7,6 +9,7 @@ import DeleteDialog from "../Common/Dialogs/Delete";
 import { FileProps } from "@/types/common";
 import { TabActions, ProjectsActions } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
+import { useState } from "react";
 import { useInterface } from "@/contexts/hooks/interface";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useTabUI } from "@/contexts/hooks/tab";
@@ -31,6 +34,7 @@ const ProjectButtons = ({
     tabActions: TabActions;
 }) => {
     const router = useRouter();
+    const [loading, setLoading] = useState(false);
 
     // Global states
     const project = projectQueryParam;
@@ -63,7 +67,14 @@ const ProjectButtons = ({
                 type="Projects"
                 defaultValue={project || undefined}
                 isAutocompleteOpen={defaultProject ? true : undefined}
-                onOpen={() => serverProjectActions.get().then(projects => setProjects(projects))}
+                onOpen={() => {
+                    setLoading(true);
+                    serverProjectActions.get().then(projects => {
+                        setProjects(projects);
+                        setLoading(false);
+                    });
+                }}
+                loading={loading}
             />
             {project && (
                 <div className="flex flex-row gap-2">

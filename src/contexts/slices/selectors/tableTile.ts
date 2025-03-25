@@ -101,3 +101,10 @@ export function updateTableTile(tableTile: TableTile, updates: Partial<TableTile
     ...updates,
   };
 }
+
+/**
+ * Update the table data item of a table tile
+ */
+export function updateTableDataItem(tableDataItem: TableDataItem, updates: Partial<TableDataItem>): TableDataItem {
+  return { ...tableDataItem, ...updates };
+}

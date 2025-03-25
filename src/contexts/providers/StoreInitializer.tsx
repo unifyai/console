@@ -7,7 +7,7 @@ import { OPERATIONS } from '@/contexts/utils/asyncUtils';
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useEffect, useRef } from "react";
 import { IStoreState } from "@/contexts/store";
-import { ProjectsActions, LogsActions, DerivedEntryActions, FieldsActions, ContextActions, TabActions } from "@/types/evals/grid";
+import { ProjectsActions, LogsActions, DerivedEntryActions, FieldsActions, ContextActions, TabActions, DemoActions } from "@/types/evals/grid";
 import { useShallow } from 'zustand/react/shallow';
 
 // Component that initializes the store with server data
@@ -18,7 +18,8 @@ export function StoreInitializer({
   derivedEntryActions, 
   fieldsActions, 
   contextActions, 
-  tabActions 
+  tabActions,
+  demoActions
 }: { 
   initialState: Partial<IStoreState>;
   projectsActions: ProjectsActions;
@@ -27,6 +28,7 @@ export function StoreInitializer({
   fieldsActions: FieldsActions;
   contextActions: ContextActions;
   tabActions: TabActions;
+  demoActions: DemoActions;
 }) {
   return (
     <StoreProvider initialState={initialState}>
@@ -38,6 +40,7 @@ export function StoreInitializer({
         fieldsActions={fieldsActions}
         contextActions={contextActions}
         tabActions={tabActions}
+        demoActions={demoActions}
       />
     </StoreProvider>
   );
@@ -51,7 +54,8 @@ function StoreInitializerContent({
   derivedEntryActions, 
   fieldsActions, 
   contextActions, 
-  tabActions
+  tabActions,
+  demoActions
 }: {
   initialState: Partial<IStoreState>;
   projectsActions: ProjectsActions;
@@ -60,16 +64,12 @@ function StoreInitializerContent({
   fieldsActions: FieldsActions;
   contextActions: ContextActions;
   tabActions: TabActions;
+  demoActions: DemoActions;
 }) {
   // Use a more selective selector to avoid re-renders on operations changes
   // Only select the specific store actions we need, not the entire state
-  const storeActions = useStoreContext(
-    useShallow(state => ({
-        // trackOperation: state.trackOperation,
-        // cleanupOperation: state.cleanupOperation,
-        // cleanupStaleOperations: state.cleanupStaleOperations,
-        activeInterfaceId: state.activeInterfaceId
-    }))
+  const activeInterfaceId = useStoreContext(
+    useShallow(state => state.activeInterfaceId)
   );
   
   // // Use a ref to track if we've initialized already
@@ -95,7 +95,7 @@ function StoreInitializerContent({
   //   };
   // }, [storeActions.trackOperation, storeActions.cleanupOperation, storeActions.cleanupStaleOperations]);
 
-  const interfaceId = storeActions.activeInterfaceId ?? "interface";
+  const interfaceId = activeInterfaceId ?? "interface";
   
   return (
     <>
@@ -108,6 +108,7 @@ function StoreInitializerContent({
         fieldsActions={fieldsActions}
         derivedEntryActions={derivedEntryActions}
         contextActions={contextActions}
+        demoActions={demoActions}
       />
     </>
   );

@@ -58,7 +58,7 @@ export interface TableDataItem {
     logs: LogProps[] | GroupedLogProps[],
     params: LogItemProps,
     metrics: { [key: string]: number },
-    groupedMetrics: { [key: string]: { [key: string]: { [key: string]: { [key: string]: number | string } } } },
+    groupedMetrics?: { [key: string]: { [key: string]: { [key: string]: { [key: string]: number | string } } } },
     boundaries: { minimums: { [key: string]: number }, maximums: { [key: string]: number } },
     metric: string
 }
@@ -176,4 +176,8 @@ export interface TabActions {
     create: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, temporary: boolean) => Promise<ResponseProps>,
     update: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, new_name: string | undefined, temporary: boolean) => Promise<ResponseProps>,
     delete: (name: string, project: string, temporary: boolean) => Promise<ResponseProps>
+}
+
+export interface DemoActions {
+    run: (code: string) => Promise<ResponseProps>
 }

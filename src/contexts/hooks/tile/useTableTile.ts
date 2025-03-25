@@ -3,6 +3,7 @@ import { useStoreContext } from "../../providers/StoreProvider";
 import { useTileMeta } from "./useTileMeta";
 import { TableTile, TableTileMeta, TableTileData, TableTileUI } from "../../slices/selectors/tableTile";
 import { useShallow } from "zustand/react/shallow";
+import { TableDataItem } from "@/types/evals/grid";
 
 /**
  * Default return value when no tile is specified or tile doesn't exist
@@ -41,6 +42,8 @@ export interface TableTileDataActions {
   setColumnsPinLeft: (columnsPinLeft: string | undefined) => void;
   setColumnsPinRight: (columnsPinRight: string | undefined) => void;
   setSelected: (selected: string | undefined) => void;
+  setTableDataItem: (tableDataItem: TableDataItem | undefined) => void;
+  updateTableDataItem: (updates: Partial<TableDataItem>) => void;
 }
 
 /**
@@ -152,7 +155,8 @@ export function useTableTile(
 
   // Get store update functions
   const storeUpdateTableTile = useStoreContext(state => state.updateTableTile);
-  
+  const storeUpdateTableDataItem = useStoreContext(state => state.updateTableDataItem);
+
   // Create memoized meta actions
   const tableMetaActions = useMemo<TableTileMetaActions | null>(() => {
     if (!isTableTile || !tileId) return null;
@@ -227,9 +231,24 @@ export function useTableTile(
           selected
         };
         storeUpdateTableTile(tileId, update);
+      },
+
+      setTableDataItem: (tableDataItem) => {
+        const update: Partial<TableTile> = { 
+          tableDataItem
+        };
+        storeUpdateTableTile(tileId, update);
+      },
+
+      updateTableDataItem: (updates) => {
+        const update: Partial<TableDataItem> = { 
+          ...tableTile?.tableDataItem,
+          ...updates
+        };
+        storeUpdateTableDataItem(tileId, update);
       }
     };
-  }, [isTableTile, tileId, storeUpdateTableTile]);
+  }, [isTableTile, tileId, storeUpdateTableDataItem]);
 
   // Create memoized UI actions
   const tableUIActions = useMemo<TableTileUIActions | null>(() => {

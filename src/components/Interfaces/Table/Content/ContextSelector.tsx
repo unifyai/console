@@ -10,7 +10,7 @@ import { ResponseProps } from "@/types/common";
 import { useRouter } from "next/navigation";
 import RenderMenuItems from "../../../Common/Dropdowns/RenderMenuItems";
 import { buildNestedDropdownTree } from "@/utils/evals/common";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { useTile, useTileItem } from "@/contexts/hooks/tile";
 import { useTableTile } from "@/contexts/hooks/tile/useTableTile";
@@ -41,6 +41,8 @@ const ContextSelector = ({
     refresh: () => Promise<ResponseProps>,
     setPending: (pending: boolean) => void
 }) => {
+    const [open, setOpen] = useState(false);
+    const [start, setStart] = useState(true);
     const router = useRouter();
     const onDelete = () => {
         refresh().then(() => {
@@ -59,6 +61,10 @@ const ContextSelector = ({
         tableTileActions,
     } = useTableTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
 
+    const emptyLogs = useMemo(() => {
+        return tableTileState?.tableDataItem?.logs?.length == 0;
+    }, [tableTileState?.tableDataItem?.logs]);
+
     const item = useMemo(() => tileItemActions?.asTileItem(), [tileItemActions]);
     
     const finalSetContext = (tileActions && tileDataActions && tableTileActions && item != undefined) ? (ctx: string) => {
@@ -76,50 +82,13 @@ const ContextSelector = ({
     // Build and render the tree
     const contextNames = contexts.map(context => context.name).sort();
 
-    // Find the largest common prefix among all contextNames
-    let largestCommonPrefix = "";
-    if (contextNames.length === 0) {
-        largestCommonPrefix = "";
-    } else if (contextNames.length === 1) {
-        largestCommonPrefix = contextNames[0];
-    } else {
-        // Split the first context by '/' to get path segments
-        const firstContextParts = contextNames[0].split('/');
-        let commonParts: string[] = [];
-
-        // Check each segment against all other contexts
-        for (let i = 0; i < firstContextParts.length; i++) {
-            let isCommon = true;
-            const currentPath = firstContextParts.slice(0, i + 1).join('/');
-            for (let j = 1; j < contextNames.length; j++) {
-                if (!contextNames[j].startsWith(currentPath + (i < firstContextParts.length - 1 ? '/' : ''))) {
-                    isCommon = false;
-                    break;
-                }
-            }
-            if (isCommon) commonParts = firstContextParts.slice(0, i + 1);
-            else break;
-        }
-        largestCommonPrefix = commonParts.join('/');
-    }
-
     // filter contexts based on the prefixes and construct the tree
-    const contextPrefix = context || largestCommonPrefix;
-    const contextTree = item == undefined
-        ? largestCommonPrefix == "" ? buildNestedDropdownTree(contextNames) : buildNestedDropdownTree(
-            contextNames.map(name => {
-                const slicedName = name.slice(largestCommonPrefix.length)
-                return slicedName == "" ? "<root>" : slicedName
-            }).sort((a, b) => {
-                if (a === "<root>") return -1;
-                if (b === "<root>") return 1;
-                return a.localeCompare(b);
-            })
-        ) : buildNestedDropdownTree(
+    const contextTree = (item == undefined || context == undefined)
+        ? buildNestedDropdownTree(contextNames) : buildNestedDropdownTree(
             contextNames.filter(
-                name => name.startsWith(contextPrefix)
+                name => name.startsWith(context)
             ).map(name => {
-                const slicedName = name.slice(contextPrefix.length)
+                const slicedName = name.slice(context.length)
                 return slicedName == "" ? "<root>" : slicedName
             }).sort((a, b) => {
                 if (a === "<root>") return -1;
@@ -128,9 +97,9 @@ const ContextSelector = ({
             })
         );
     const columnContextTree = buildNestedDropdownTree(tableTileState?.tableDataItem?.columnContexts || []);
-    const contextHeader = item != undefined ? (
-        contextPrefix == "" ? (context || "Context") : contextPrefix
-    ) : (largestCommonPrefix == "" ? "Context" : largestCommonPrefix);
+    const contextHeader = (item != undefined && context != undefined) ? (
+        context == "" ? (context || "Context") : context
+    ) : "Context";
 
     return (
         <div className="w-fit">
@@ -142,11 +111,17 @@ const ContextSelector = ({
                     size="sm"
                     disabled={!projectId}
                 />}
-                open={!projectId ? false : undefined}
+                open={!projectId ? false : open ? true :undefined}
+                defaultOpen={item != undefined && context == undefined && emptyLogs}
                 setOpen={(isOpen) => {
                     if (isOpen && projectId && contextActions) {
                         contextActions.get(projectId).then(ctxs => projectDataActions?.setContexts(ctxs));
                     }
+                    if (start && isOpen && !open) {
+                        setOpen(true);
+                        setStart(false);
+                    }
+                    else setOpen(false);
                 }}
             >
                 <div className="flex flex-col gap-4">
@@ -181,7 +156,7 @@ const ContextSelector = ({
                                 nodeName={name}
                                 isTopLevel={true}
                                 showRoot={item == undefined}
-                                prefix={item == undefined ? largestCommonPrefix : contextPrefix}
+                                prefix={item == undefined ? "" : context}
                                 attr={item != undefined ? item.context : context}
                                 setter={(ctx: string) => finalSetContext && finalSetContext(ctx)}
                                 isColumnContext={false}
@@ -189,10 +164,11 @@ const ContextSelector = ({
                                     projectId ? <div onClick={(e) => e.stopPropagation()}>
                                         <DeleteDialog
                                             variant="warning"
-                                            type={"context"}
+                                            type="context"
                                             args={[projectId, context]}
                                             deletingFunction={contextActions.delete}
                                             onDelete={onDelete}
+                                            className="h-fit flex items-center"
                                         />
                                     </div> : <></>
                                 }
@@ -234,6 +210,7 @@ const ContextSelector = ({
                                             args={[projectId, context]}
                                             deletingFunction={contextActions.delete}
                                             onDelete={onDelete}
+                                            className="h-fit flex items-center"
                                         />
                                     </div> : <></>
                                 }

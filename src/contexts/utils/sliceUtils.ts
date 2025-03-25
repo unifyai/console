@@ -325,8 +325,33 @@ export function renameTile(
 
   Object.keys(state.tilesById).forEach(id => {
     const tile = state.tilesById[id];
+
+    let updateTile = false;
+
+    // Update `table` references for View tiles
     if (tile.table === sourceTileName) {
-      state.tilesById[id].table = newTileName;
+      tile.table = newTileName;
+      updateTile = true;
+    }
+
+    // Update x_axis, y_axis, and plot_group_by references for Plot tiles
+    if (tile.type === 'Plot' && tile.plotTile) {
+      if (tile.plotTile.x_axis?.includes(sourceTileName + ".")) {
+        tile.plotTile.x_axis = tile.plotTile.x_axis?.replace(sourceTileName + ".", newTileName + ".");
+        updateTile = true;
+      }
+      if (tile.plotTile?.y_axis?.includes(sourceTileName + ".")) {
+        tile.plotTile.y_axis = tile.plotTile.y_axis?.replace(sourceTileName + ".", newTileName + ".");
+        updateTile = true;
+      }
+      if (tile.plotTile?.plot_group_by?.includes(sourceTileName + ".")) {
+        tile.plotTile.plot_group_by = tile.plotTile.plot_group_by?.replace(sourceTileName + ".", newTileName + ".");
+        updateTile = true;
+      }
+    }
+
+    if (updateTile) {
+      state.tilesById[id] = tile;
     }
   });
 

@@ -4,7 +4,6 @@ import { Tab } from '../../slices/selectors/tab';
 import { useTabMeta, TabMetaActions } from './useTabMeta';
 import { useTabData, TabDataActions } from './useTabData';
 import { useTabUI, TabUIActions } from './useTabUI';
-import { useTabOperations } from './useTabOperations';
 
 /**
  * Default return value when no tab is specified
