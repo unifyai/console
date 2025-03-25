@@ -163,3 +163,7 @@ export interface InterfaceActions {
     update: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, new_name: string | undefined, temporary: boolean) => Promise<ResponseProps>,
     delete: (name: string, project: string, temporary: boolean) => Promise<ResponseProps>
 }
+
+export interface DemoActions {
+    run: (code: string) => Promise<ResponseProps>
+}

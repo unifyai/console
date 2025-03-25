@@ -47,7 +47,7 @@ const PlotType = ({ interactive, svgRef, containerRef, plotType, setPlotType, fi
     const icon = 
     <div className="flex flex-row gap-1">
         <ChevronDown/>
-        {plotIcons[plotType as keyof typeof plotIcons].icon}
+        {plotIcons[plotType as keyof typeof plotIcons]?.icon}
     </div>
     
     return (
