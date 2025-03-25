@@ -8,7 +8,7 @@ import React, {
 import { createContext, useContextSelector } from "use-context-selector";
 
 /**
- * The shape of our ExpandContext's value. We store:
+ * The shape of our TraceExpandContext's value. We store:
  *   - openKeys: A Set of all currently expanded "path" strings.
  *   - forceExpandAll: Boolean that, when true, indicates "expand everything possible."
  *   - forceCollapseAll: Boolean that, when true, indicates "collapse everything possible."
@@ -16,8 +16,10 @@ import { createContext, useContextSelector } from "use-context-selector";
  *   - expandAll: Turns on "forceExpandAll" (and sets forceCollapseAll to false).
  *   - collapseAll: Turns on "forceCollapseAll" (and sets forceExpandAll to false).
  *   - setOpenKeys: Allows direct updates to the openKeys set.
+ *   - expandRecursively: Expands all paths in the provided array.
+ *   - collapseRecursively: Collapses all paths in the provided array.
  */
-type ExpandContextType = {
+type TraceExpandContextType = {
   openKeys: Set<string>;
   setOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>;
   forceExpandAll: boolean;
@@ -25,6 +27,9 @@ type ExpandContextType = {
   toggleKey: (path: string) => void;
   expandAll: () => void;
   collapseAll: () => void;
+  expandRecursively: (paths: string[]) => void;
+  collapseRecursively: (paths: string[]) => void;
+  instanceId: string;
 };
 
 /**
@@ -34,35 +39,42 @@ type ExpandContextType = {
  * We're using use-context-selector to optimize re-renders.
  * Components will only re-render when the specific parts of the context they use change.
  */
-const ExpandContext = createContext<ExpandContextType>({
+const TraceExpandContext = createContext<TraceExpandContextType>({
   openKeys: new Set(),
   setOpenKeys: () => {},
   forceExpandAll: false,
   forceCollapseAll: false,
   toggleKey: () => {},
   expandAll: () => {},
-  collapseAll: () => {}
+  collapseAll: () => {},
+  expandRecursively: () => {},
+  collapseRecursively: () => {},
+  instanceId: ""
 });
 
-// Export ExpandContext to allow direct access when needed
-export { ExpandContext };
+// Export TraceExpandContext to allow direct access when needed
+export { TraceExpandContext };
 
-interface ExpandProviderProps {
+interface TraceExpandProviderProps {
   children: ReactNode;
-  defaultOpenKeys?: Set<string>;
+}
+
+// Generate a random ID for debugging context instances
+function generateRandomId() {
+  return Math.random().toString(36).substring(2, 10);
 }
 
 /**
- * ExpandProvider:
- *  - Wrap your <Selection> or root component with <ExpandProvider>.
- *  - Manages global expand/collapse for DictionaryView, ListView, etc.
+ * TraceExpandProvider:
+ *  - Used specifically within TraceView
+ *  - Manages global expand/collapse for DictionaryView, ListView, etc. within traces
  */
-export function ExpandProvider({ 
-  children, 
-  defaultOpenKeys = new Set() 
-}: ExpandProviderProps) {
+export function TraceExpandProvider({ children }: TraceExpandProviderProps) {
+  // Create a stable instance ID for this context provider
+  const instanceId = useMemo(() => generateRandomId(), []);
+  
   // A set of open "paths" representing which nodes are individually expanded.
-  const [openKeys, setOpenKeys] = useState<Set<string>>(defaultOpenKeys);
+  const [openKeys, setOpenKeys] = useState<Set<string>>(new Set());
 
   // If forceExpandAll is true => everything is considered open.
   const [forceExpandAll, setForceExpandAll] = useState<boolean>(false);
@@ -78,7 +90,7 @@ export function ExpandProvider({
    */
   const toggleKey = useCallback(
     (path: string) => {
-      // If we're in "forceExpandAll" or "forceCollapseAll" mode, skip toggling
+      // If we're in "forceExpandAll" or "forceCollapseAll" mode, skip toggling 
       if (forceExpandAll) {
         return;
       }
@@ -102,11 +114,13 @@ export function ExpandProvider({
   /**
    * expandAll: sets "forceExpandAll = true" and "forceCollapseAll = false"
    * so that all potential items are open (though for some views,
-   * we may gather all subpaths and store them in openKeys).
+   * we may gather all subpaths and store them in openKeys or rely on the 
+   * dictionary-level logic to do a single pass recursion).
    */
   const expandAll = useCallback(() => {
     setForceCollapseAll(false);
     setForceExpandAll(true);
+    setOpenKeys(new Set()); // clear openKeys, as everything is considered open anyway
   }, []);
 
   /**
@@ -120,25 +134,67 @@ export function ExpandProvider({
     setOpenKeys(new Set()); // none explicitly open
   }, []);
 
-  const value = {
-    openKeys,
-    setOpenKeys,
-    forceExpandAll,
-    forceCollapseAll,
-    toggleKey,
-    expandAll,
-    collapseAll,
-  };
+  /**
+   * expandRecursively: adds all paths in the provided array to openKeys.
+   */
+  const expandRecursively = useCallback((paths: string[]) => {
+    if (paths.length === 0) return;
+    
+    setOpenKeys((prev) => {
+      const next = new Set(prev);
+      paths.forEach(p => next.add(p));
+      return next;
+    });
+  }, []);
+
+  /**
+   * collapseRecursively: removes all paths in the provided array from openKeys.
+   */
+  const collapseRecursively = useCallback((paths: string[]) => {
+    if (paths.length === 0) return;
+    
+    setOpenKeys((prev) => {
+      const next = new Set(prev);
+      paths.forEach(p => next.delete(p));
+      return next;
+    });
+  }, []);
+
+  // Memoize the context value to prevent unnecessary re-renders
+  const value = useMemo(() => {
+    return {
+      openKeys,
+      setOpenKeys,
+      forceExpandAll,
+      forceCollapseAll,
+      toggleKey,
+      expandAll,
+      collapseAll,
+      expandRecursively,
+      collapseRecursively,
+      instanceId
+    };
+  }, [
+    openKeys, 
+    forceExpandAll, 
+    forceCollapseAll, 
+    toggleKey, 
+    expandAll, 
+    collapseAll, 
+    expandRecursively, 
+    collapseRecursively,
+    instanceId
+  ]);
 
   return (
-    <ExpandContext.Provider value={value}>
+    <TraceExpandContext.Provider value={value}>
       {children}
-    </ExpandContext.Provider>
+    </TraceExpandContext.Provider>
   );
 }
 
 /**
- * useExpandContextSelector: selective context consumer hook
+ * useTraceExpandContextSelector: selective context consumer hook
  * 
  * This hook lets components subscribe to only the specific parts of the context they need,
  * reducing unnecessary re-renders when other parts of the context change.
@@ -146,16 +202,16 @@ export function ExpandProvider({
  * @param selector A function that extracts the needed value from the context
  * @returns The selected value from the context
  */
-export function useExpandContextSelector<T>(selector: (ctx: ExpandContextType) => T): T {
-  return useContextSelector(ExpandContext, selector);
+export function useTraceExpandContextSelector<T>(selector: (ctx: TraceExpandContextType) => T): T {
+  return useContextSelector(TraceExpandContext, selector);
 }
 
 /**
- * useExpandContext: consumer hook for backward compatibility
+ * useTraceExpandContext: consumer hook for backward compatibility
  * 
  * This hook returns the entire context and should be used sparingly.
- * Prefer useExpandContextSelector when possible to minimize re-renders.
+ * Prefer useTraceExpandContextSelector when possible to minimize re-renders.
  */
-export function useExpandContext() {
-  return useContextSelector(ExpandContext, ctx => ctx);
-}
+export function useTraceExpandContext() {
+  return useContextSelector(TraceExpandContext, ctx => ctx);
+} 

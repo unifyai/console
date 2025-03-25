@@ -36,7 +36,7 @@ import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/UI/h
 import TimelineViewButton from "./TimelineView";
 import { formatTime } from "@/utils/evals/format";
 import { DoublePanels } from "@/components/Common/Body/DoublePanels";
-import { ExpandProvider } from "@/contexts/ExpandContext";
+import { TraceExpandProvider } from "./TraceExpandContext";
 
 /*------------------------------------------------------------------------
   Helper functions for compressing row indices => "1-3,5,7-9", etc.
@@ -246,6 +246,39 @@ function PatchDetailPanel({
   splitView?: LogComparisonProps["splitView"];
   displayMode?: "text" | "markdown" | undefined
 }) {
+  // Store stable references to props to avoid unnecessary re-renders
+  const propsRef = React.useRef({
+    node,
+    baseRowIndex,
+    comparisonLogsIndex,
+    diffMode,
+    splitView,
+    displayMode
+  });
+  
+  // Only update the reference if important props change
+  React.useEffect(() => {
+    const currentProps = propsRef.current;
+    const nodeChanged = currentProps.node !== node && 
+                        (currentProps.node?.name !== node.name || 
+                         currentProps.node?.baseSpanRef?.id !== node.baseSpanRef?.id);
+    
+    const configChanged = currentProps.diffMode !== diffMode || 
+                          currentProps.splitView !== splitView || 
+                          currentProps.displayMode !== displayMode;
+                          
+    if (nodeChanged || configChanged) {
+      propsRef.current = {
+        node,
+        baseRowIndex,
+        comparisonLogsIndex,
+        diffMode,
+        splitView,
+        displayMode
+      };
+    }
+  }, [node, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode]);
+  
   if (!node.baseSpanRef && !node.targetSpanRef) {
     return <p className="italic text-sm">No base or target data</p>;
   }
@@ -451,24 +484,22 @@ function PatchDetailPanel({
   const showTimelineButton = allRowIndexes.length === 1 || (allTraces.length > 1 && comparisonLogsIndex.length === 0);
 
   return (
-    <ExpandProvider>
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <p className="font-bold text-sm">{node.name}</p>
-          {showTimelineButton && TimelineViewButton && <TimelineViewButton baseTrace={allTraces[0]} />}
-        </div>
-        
-        <Accordion type="multiple" defaultValue={["Inputs", "Outputs"]} className="mt-3">
-          {maybeRenderBlock("Inputs", bInputs, cInputs)}
-          {maybeRenderBlock("Outputs", bOutputs, cOutputs)}
-          {maybeRenderBlock("Code", bCode, cCode)}
-          {renderExecutionTime()}
-          {maybeRenderBlock("Errors", bErrors, cErrors)}
-          {renderCostBlock()}
-          {maybeRenderBlock("IDs", bId, cId)}
-        </Accordion>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <p className="font-bold text-sm">{node.name}</p>
+        {showTimelineButton && TimelineViewButton && <TimelineViewButton baseTrace={allTraces[0]} />}
       </div>
-    </ExpandProvider>
+      
+      <Accordion type="multiple" defaultValue={["Inputs", "Outputs"]} className="mt-3">
+        {maybeRenderBlock("Inputs", bInputs, cInputs)}
+        {maybeRenderBlock("Outputs", bOutputs, cOutputs)}
+        {maybeRenderBlock("Code", bCode, cCode)}
+        {renderExecutionTime()}
+        {maybeRenderBlock("Errors", bErrors, cErrors)}
+        {renderCostBlock()}
+        {maybeRenderBlock("IDs", bId, cId)}
+      </Accordion>
+    </div>
   );
 }
 
@@ -1049,6 +1080,78 @@ function findNodeInForest(forest: PatchDiffNode[], spanId: string): PatchDiffNod
   return null;
 }
 
+// Extract the detail panel to a separate component that can be memoized
+const MemoizedDetailPanel = React.memo(function DetailPanel({
+  selectedNode,
+  baseRowIndex,
+  comparisonLogsIndex,
+  allTraces,
+  allRowIndexes,
+  diffMode,
+  splitView,
+  displayMode
+}: {
+  selectedNode: PatchDiffNode | null;
+  baseRowIndex: number;
+  comparisonLogsIndex: number[];
+  allTraces: Span[][];
+  allRowIndexes: number[];
+  diffMode?: LogComparisonProps["diffMode"];
+  splitView?: LogComparisonProps["splitView"];
+  displayMode?: "text" | "markdown" | undefined;
+}) {
+  // Create a stable ID that persists across renders
+  const stableId = React.useRef(Math.random().toString(36).substr(2, 9)).current;
+  
+  if (!selectedNode) {
+    return <p className="text-sm italic">Select a node on the left</p>;
+  }
+
+  return (
+    <PatchDetailPanel
+      node={selectedNode}
+      baseRowIndex={baseRowIndex}
+      comparisonLogsIndex={comparisonLogsIndex}
+      allTraces={allTraces}
+      allRowIndexes={allRowIndexes}
+      diffMode={diffMode}
+      splitView={splitView}
+      displayMode={displayMode}
+    />
+  );
+}, (prevProps, nextProps) => {
+  // More robust comparison to prevent unnecessary re-renders
+  
+  // Compare basic config
+  const configsEqual = prevProps.diffMode === nextProps.diffMode && 
+    prevProps.splitView === nextProps.splitView && 
+    prevProps.displayMode === nextProps.displayMode;
+  
+  if (!configsEqual) return false;
+  
+  // Compare indices arrays by stringify
+  const prevIndices = JSON.stringify(prevProps.comparisonLogsIndex);
+  const nextIndices = JSON.stringify(nextProps.comparisonLogsIndex);
+  if (prevIndices !== nextIndices) return false;
+  
+  // Compare base index
+  if (prevProps.baseRowIndex !== nextProps.baseRowIndex) return false;
+  
+  // If either node is null, compare strict equality
+  if (!prevProps.selectedNode || !nextProps.selectedNode) {
+    return prevProps.selectedNode === nextProps.selectedNode;
+  }
+  
+  // Deep comparison of the important node properties
+  const prevNode = prevProps.selectedNode;
+  const nextNode = nextProps.selectedNode;
+  
+  return prevNode.name === nextNode.name && 
+         prevNode.marker === nextNode.marker &&
+         prevNode.baseSpanRef?.id === nextNode.baseSpanRef?.id &&
+         prevNode.targetSpanRef?.id === nextNode.targetSpanRef?.id;
+});
+
 export default function UnifiedTraceView({
   allTraces,
   rowIndexes,
@@ -1176,9 +1279,10 @@ export default function UnifiedTraceView({
     } else {
       setSelectedNode(found);
     }
-  }, [finalPatchRoot]);
+  }, [finalPatchRoot, selectedSpanId]);
 
-  function onSelectNode(n: PatchDiffNode | null) {
+  // Memoize functions to prevent recreations on each render
+  const onSelectNode = React.useCallback((n: PatchDiffNode | null) => {
     if (!n) {
       setSelectedNode(null);
       setSelectedSpanId("");
@@ -1187,14 +1291,14 @@ export default function UnifiedTraceView({
       setSelectedNode(n);
       setSelectedSpanId(newId);
     }
-  }
+  }, []);
 
-  function handleGroupChange(val: string) {
+  const handleGroupChange = React.useCallback((val: string) => {
     setGroupSignature(val);
     setCollapsedNodes({});
     setSelectedNode(null);
     setSelectedSpanId("");
-  }
+  }, []);
 
   function renderPatchTree() {
     if (!finalPatchRoot) {
@@ -1223,77 +1327,75 @@ export default function UnifiedTraceView({
     );
   }
 
-  function renderDetail() {
-    if (!selectedNode) {
-      return <p className="text-sm italic">Select a node on the left</p>;
-    }
+  // Memoize the renderDetail function to avoid recreating on each render
+  const renderDetail = React.useCallback(() => {
     return (
-      <ExpandProvider>
-        <PatchDetailPanel
-          node={selectedNode}
-          baseRowIndex={rowIndexes[0]}
-          comparisonLogsIndex={groupCompareRows}
-          allTraces={allTraces}
-          allRowIndexes={rowIndexes}
-          diffMode={diffMode}
-          splitView={splitView}
-          displayMode={displayMode}
-        />
-      </ExpandProvider>
+      <MemoizedDetailPanel
+        selectedNode={selectedNode}
+        baseRowIndex={rowIndexes[0]}
+        comparisonLogsIndex={groupCompareRows}
+        allTraces={allTraces}
+        allRowIndexes={rowIndexes}
+        diffMode={diffMode}
+        splitView={splitView}
+        displayMode={displayMode}
+      />
     );
-  }
+  }, [selectedNode, rowIndexes, groupCompareRows, allTraces, diffMode, splitView, displayMode]);
 
   return (
-    <div className="bg-background rounded-md w-full h-full p-4 flex flex-col gap-4">
-      <div style={{ height: "600px" }}>
-        <DoublePanels
-          isLoading={false}
-          defaultFirstSize={30}
-          defaultSecondSize={70}
-          first={
-            <div
-              style={{
-                height: "100%",
-                border: "1px solid var(--muted)",
-                borderRadius: "0.25rem",
-                position: "relative",
-                overflowY: "auto",
-              }}
-            >
-              {rowIndexes.length > 1 && (
-                <div className="sticky top-0 bg-background p-2 border-b border-muted space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground font-semibold block">
-                      Compare with:
-                    </span>
-                    <Combobox
-                      items={groupOptions}
-                      value={groupSignature}
-                      onValueChange={handleGroupChange}
-                      placeholder="Pick a group..."
-                      className="w-fit items-center"
-                    />
+    <TraceExpandProvider>
+      <div className="bg-background rounded-md w-full h-full p-4 flex flex-col gap-4">
+        <div style={{ height: "600px" }}>
+          <DoublePanels
+            isLoading={false}
+            defaultFirstSize={30}
+            defaultSecondSize={70}
+            first={
+              <div
+                style={{
+                  height: "100%",
+                  border: "1px solid var(--muted)",
+                  borderRadius: "0.25rem",
+                  position: "relative",
+                  overflowY: "auto",
+                }}
+              >
+                {rowIndexes.length > 1 && (
+                  <div className="sticky top-0 bg-background p-2 border-b border-muted space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground font-semibold block">
+                        Compare with:
+                      </span>
+                      <Combobox
+                        items={groupOptions}
+                        value={groupSignature}
+                        onValueChange={handleGroupChange}
+                        placeholder="Pick a group..."
+                        className="w-fit items-center"
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
-              <div className="p-2">{renderPatchTree()}</div>
-            </div>
-          }
-          second={
-            <div
-              style={{
-                height: "100%",
-                border: "1px solid var(--muted)",
-                borderRadius: "0.25rem",
-                overflowY: "auto",
-                padding: "0.5rem",
-              }}
-            >
-              {renderDetail()}
-            </div>
-          }
-        />
+                )}
+                <div className="p-2">{renderPatchTree()}</div>
+              </div>
+            }
+            second={
+              <div
+                style={{
+                  height: "100%",
+                  border: "1px solid var(--muted)",
+                  borderRadius: "0.25rem",
+                  overflowY: "auto",
+                  padding: "0.5rem",
+                }}
+              >
+                {renderDetail()}
+              </div>
+            }
+          />
+        </div>
       </div>
-    </div>
+    </TraceExpandProvider>
   );
 }
