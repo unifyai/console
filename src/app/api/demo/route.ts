@@ -4,7 +4,7 @@ import { demos } from "@/constants/logs";
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
 export async function GET() {
-    return demos;
+    return Response.json(demos);
 }
 
 export async function POST(request: NextRequest) {
