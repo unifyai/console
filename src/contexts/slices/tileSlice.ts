@@ -7,6 +7,7 @@ import * as plotTileLogic from "./selectors/plotTile";
 import * as viewTileLogic from "./selectors/viewTile";
 import * as sliceUtils from "../utils/sliceUtils";
 import { Tile } from "./selectors/tile";
+import { TableTile } from "./selectors/tableTile";
 
 export interface TileState {
   // State
@@ -81,8 +82,7 @@ export const createTileSlice: StateCreator<
       
       // Update core tile properties
       if (Object.keys(tileUpdates).length > 0) {
-        // Filter out unchanged fields with the extended partially shallow logic
-        const filteredTileUpdates = sliceUtils.filterUnchangedProps(tile, tileUpdates);
+        const filteredTileUpdates = sliceUtils.filterUnchangedUpdates(tile, tileUpdates);
         if (Object.keys(filteredTileUpdates).length > 0) {
           updatedTile = tileLogic.updateTile(tile, filteredTileUpdates);
           tileUpdated = true;
@@ -101,8 +101,7 @@ export const createTileSlice: StateCreator<
           tileUpdated = true;
         }
         
-        // Filter out unchanged fields with the extended partially shallow logic
-        const filteredTableTileUpdates = sliceUtils.filterUnchangedProps(updatedTile.tableTile, tableTileUpdates);
+        const filteredTableTileUpdates = sliceUtils.filterUnchangedUpdates(updatedTile.tableTile, tableTileUpdates);
         if (Object.keys(filteredTableTileUpdates).length > 0) {
           updatedTile.tableTile = tableTileLogic.updateTableTile(updatedTile.tableTile, filteredTableTileUpdates);
           tileUpdated = true;
@@ -121,8 +120,7 @@ export const createTileSlice: StateCreator<
           tileUpdated = true;
         }
         
-        // Filter out unchanged fields with the extended partially shallow logic
-        const filteredPlotTileUpdates = sliceUtils.filterUnchangedProps(updatedTile.plotTile, plotTileUpdates);
+        const filteredPlotTileUpdates = sliceUtils.filterUnchangedUpdates(updatedTile.plotTile, plotTileUpdates);
         if (Object.keys(filteredPlotTileUpdates).length > 0) {
           updatedTile.plotTile = plotTileLogic.updatePlotTile(updatedTile.plotTile, filteredPlotTileUpdates);
           tileUpdated = true;
@@ -141,8 +139,7 @@ export const createTileSlice: StateCreator<
           tileUpdated = true;
         }
 
-        // Filter out unchanged fields with the extended partially shallow logic
-        const filteredViewTileUpdates = sliceUtils.filterUnchangedProps(updatedTile.viewTile, viewTileUpdates);
+        const filteredViewTileUpdates = sliceUtils.filterUnchangedUpdates(updatedTile.viewTile, viewTileUpdates);
         if (Object.keys(filteredViewTileUpdates).length > 0) {
           updatedTile.viewTile = viewTileLogic.updateViewTile(updatedTile.viewTile, filteredViewTileUpdates);
           tileUpdated = true;

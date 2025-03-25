@@ -115,7 +115,7 @@ const AddTile = ({
                     position,
                     minW: undefined,
                     minH: undefined,
-                    tab: undefined,
+                    type: undefined,
                     visible: true,
                 });
 

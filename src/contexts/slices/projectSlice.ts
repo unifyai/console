@@ -96,7 +96,7 @@ export const createProjectSlice: StateCreator<
     const project = state.projectsById[projectId];
     if (project) {
       // Filter out unchanged fields with the extended partially shallow logic
-      const filteredUpdates = sliceUtils.filterUnchangedProps(state.projectsById[projectId], updates);
+      const filteredUpdates = sliceUtils.filterUnchangedUpdates(project, updates);
       if (Object.keys(filteredUpdates).length === 0) return;
       state.projectsById[projectId] = projectLogic.updateProject(project, filteredUpdates);
     }

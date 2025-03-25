@@ -3,6 +3,10 @@ import { TableTile } from "./tableTile";
 import { ViewTile } from "./viewTile";
 import { tabTypes } from "@/constants/logs";
 
+import * as tableTileLogic from "./tableTile";
+import * as plotTileLogic from "./plotTile";
+import * as viewTileLogic from "./viewTile";
+
 
 export interface TilePosition {
   x: number;
@@ -15,22 +19,23 @@ export interface TilePosition {
 export interface TileMeta {
   id: string;
   name: string;
-  type?: (typeof tabTypes)[number]; // Optional during initialization, can only be "Table", "Plot", or "View"
+  type?: (typeof tabTypes)[number] | null; // Optional during initialization, can only be "Table", "Plot", or "View"
   position: TilePosition;
-  minW?: number;
-  minH?: number;
+  minW?: number | null;
+  minH?: number | null;
   // createdAt: string;
   // updatedAt: string;
 }
 
 // Tile data - business data and relationships
 export interface TileData {
-  context?: string;
-  table?: string;
-  auto_update?: string;
-  freeze?: string;
-  filters?: string;
-  common_filter?: string;
+  context?: string | null;
+  table?: string | null;
+  auto_update?: string | null;
+  freeze?: string | null;
+  filters?: string | null;
+  common_filter?: string | null;
+  metric?: string | null;         // Current metric being displayed
 }
 
 // Tile UI state - UI-related state
@@ -59,7 +64,7 @@ export interface Tile extends TileMeta, TileData, TileUI {
 // tableKeys: all keys that are used in `asTileItem` in `useTable` hook to convert
 // a TableTile into a TableTileProps
 export const TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS: (keyof TableTile)[] = [
-  "table_type", "column_context", "page_number", "metric", "column_order", 
+  "table_type", "column_context", "page_number", "column_order", 
   "hidden_columns", "sorting", "grouping", "group_sorting", 
   "columns_pin_left", "columns_pin_right", "selected",
 ];
@@ -80,7 +85,7 @@ export const VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS: (keyof ViewTile)[] = ["base
 export const TILE_PROPS_KEYS_AS_TILE_KEYS: (keyof Tile | keyof TableTile | keyof PlotTile | keyof ViewTile)[] = [
   "id","name","type","position","minW","minH","visible","type","moved",
   "static","context","table","auto_update","freeze","filters",
-  "common_filter",
+  "common_filter", "metric",
   ...TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS,
   ...PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS,
   ...VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS,
@@ -101,38 +106,39 @@ export function initTile(tileId: string, initialState: Partial<Tile> = {}): Tile
     // Meta
     id: tileId,
     name: initialState.name || `Tile ${tileId}`,
-    type: initialState.type,
+    type: initialState.type !== undefined ? initialState.type : null,
     position: initialState.position || { x: 0, y: 0, width: 4, height: 4 },
-    minW: initialState.minW || undefined,
-    minH: initialState.minH || undefined,
+    minW: initialState.minW || null,
+    minH: initialState.minH || null,
     // createdAt: initialState.createdAt || new Date().toISOString(),
     // updatedAt: initialState.updatedAt || new Date().toISOString(),
     
     // Data
-    context: initialState.context,
-    table: initialState.table,
-    auto_update: initialState.auto_update,
-    freeze: initialState.freeze,
-    filters: initialState.filters,
-    common_filter: initialState.common_filter,
+    context: initialState.context !== undefined ? initialState.context : null,
+    table: initialState.table !== undefined ? initialState.table : null,
+    auto_update: initialState.auto_update !== undefined ? initialState.auto_update : null,
+    freeze: initialState.freeze !== undefined ? initialState.freeze : null,
+    filters: initialState.filters !== undefined ? initialState.filters : null,
+    common_filter: initialState.common_filter !== undefined ? initialState.common_filter : null,
+    metric: initialState.metric !== undefined ? initialState.metric : null,
     
     // UI
     projectId: initialState.projectId || null,
     interfaceId: initialState.interfaceId || null,
     tabId: initialState.tabId || null,
     visible: initialState.visible,
-    locked: initialState.locked,
+    locked: initialState.locked !== undefined ? initialState.locked : false,
     pending: initialState.pending !== undefined ? initialState.pending : false,
-    loading: initialState.loading,
-    error: initialState.error,
+    loading: initialState.loading !== undefined ? initialState.loading : false,
+    error: initialState.error !== undefined ? initialState.error : null,
     moved: initialState.moved,
     static: initialState.static,
     itemsNeedRecompute: initialState.itemsNeedRecompute !== undefined ? initialState.itemsNeedRecompute : false,
     
     // Type-specific data references
-    tableTile: initialState.tableTile || null,
-    plotTile: initialState.plotTile || null,
-    viewTile: initialState.viewTile || null,
+    tableTile: initialState.tableTile !== undefined ? initialState.tableTile : tableTileLogic.initTableTile(),
+    plotTile: initialState.plotTile !== undefined ? initialState.plotTile : plotTileLogic.initPlotTile(),
+    viewTile: initialState.viewTile !== undefined ? initialState.viewTile : viewTileLogic.initViewTile(),
     
     ...initialState,
   };

@@ -14,7 +14,6 @@ export interface TileUIActions {
   setError: (error?: string | null) => void;
   setMoved: (moved?: boolean) => void;
   setStatic: (static_?: boolean) => void;
-  setItemsNeedRecompute: (needsRecompute: boolean) => void;
 }
 
 /**
@@ -84,11 +83,6 @@ export function useTileUI(
     if (!tileExists || !tileId) return false;
     return !!state.tilesById[tileId].static;
   });
-  
-  const itemsNeedRecompute = useStoreContext(state => {
-    if (!tileExists || !tileId) return false;
-    return !!state.tilesById[tileId].itemsNeedRecompute;
-  });
 
   // Get store actions for UI state management
   const storeUpdateTile = useStoreContext(state => state.updateTile);
@@ -108,7 +102,6 @@ export function useTileUI(
       error,
       moved,
       static: static_,
-      itemsNeedRecompute
     };
   }, [
     tileExists,
@@ -122,7 +115,6 @@ export function useTileUI(
     error,
     moved,
     static_,
-    itemsNeedRecompute
   ]);
 
   // Memoize the UI actions to prevent unnecessary re-renders
@@ -169,11 +161,6 @@ export function useTileUI(
       }
     },
     
-    setItemsNeedRecompute: (needsRecompute) => {
-      if (tileId) {
-        storeUpdateTile(tileId, { itemsNeedRecompute: needsRecompute });
-      }
-    }
   }), [tileId, storeUpdateTile]);
 
   return {

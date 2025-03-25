@@ -42,7 +42,7 @@ export const createPlotTileSlice: StateCreator<
     if (!tile || !tile.plotTile) return;
     
     // Filter out unchanged fields with the extended partially shallow logic
-    const filteredUpdates = sliceUtils.filterUnchangedProps(tile.plotTile, updates);
+    const filteredUpdates = sliceUtils.filterUnchangedUpdates(tile.plotTile, updates);
     if (Object.keys(filteredUpdates).length === 0) return;
     
     // Update table-specific data if needed

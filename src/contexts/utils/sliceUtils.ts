@@ -21,6 +21,29 @@ import * as viewTileLogic from "../slices/selectors/viewTile";
  *  - For atomic types (string, number, boolean, null/undefined), compare by strict equality (===).
  *  - For arrays, do a shallow array compare: if they have same length and each item === the other.
  *  - For objects (non-array), compare references only. If you want a shallow compare of object keys,
+ *    you'd do something custom here. Note this is a single update version of filterUnchangedProps.
+ */
+export function filterUnchangedProp<T>(
+  current: T,
+  update: T
+): boolean {
+  let changed = false;
+
+  current = unwrapIfDraft(current);
+  update = unwrapIfDraft(update);
+  
+  if (!isEqual(current, update)) {
+    changed = true;
+  }
+
+  return changed;
+}
+
+/**
+ * A helper to do partial shallow checks:
+ *  - For atomic types (string, number, boolean, null/undefined), compare by strict equality (===).
+ *  - For arrays, do a shallow array compare: if they have same length and each item === the other.
+ *  - For objects (non-array), compare references only. If you want a shallow compare of object keys,
  *    you'd do something custom here.
  */
 export function filterUnchangedProps<T extends object>(
@@ -34,10 +57,12 @@ export function filterUnchangedProps<T extends object>(
   updates = unwrapIfDraft(updates);
 
   for (const key in updates) {
-    const oldVal = unwrapIfDraft(current[key]);
-    const newVal = unwrapIfDraft(updates[key]);
 
-    if (!isEqual(oldVal, newVal)) {
+    // Use filterUnchangedProp to check if the property has changed
+    const oldVal = current[key];
+    const newVal = updates[key];
+
+    if (filterUnchangedProp(oldVal, newVal)) {
       filtered[key] = newVal;
       changed = true;
     }
@@ -55,6 +80,48 @@ function unwrapIfDraft(value: any) {
 }
 
 /**
+ * A generic helper to filter updates for tile objects incl. TableTile, PlotTile, and ViewTile.
+ * Either pass in a single update or a record of updates. Either pass in a tile object and tile updates for comparison
+ * or pass in a table tile object and table tile updates for comparison, or a plot tile object and plot tile updates for comparison, 
+ * and so on etc.
+ *   - If `updates` has exactly 1 key, we do single-field logic with filterUnchangedProp
+ *   - Otherwise, we do the normal filterUnchangedProps.
+ * 
+ * Usage example:
+ *   const filteredTileUpdates = filterUnchangedUpdate(tile, tileUpdates);
+ *   const filteredTableTileUpdates = filterUnchangedUpdate(tableTile, tableTileUpdates);
+ */
+export function filterUnchangedUpdates<T extends object>(
+  source: T,
+  updates: Partial<T>
+): Partial<T> {
+  const keys = Object.keys(updates) as (keyof T)[];
+  
+  if (keys.length === 0) {
+    // No keys => nothing changed
+    return {} as Partial<T>;
+  }
+  
+  if (keys.length === 1) {
+    // Exactly one field in `updates`
+    const [key] = keys;
+    const newVal = updates[key];
+    const oldVal = source[key];
+    
+    // If they differ, return an object with that single field updated
+    if (filterUnchangedProp(oldVal, newVal)) {
+      return { [key]: newVal } as Partial<T>;
+    } else {
+      // They are unchanged => return empty
+      return {} as Partial<T>;
+    }
+  } else {
+    // More than one field => do the multi-field approach
+    return filterUnchangedProps(source, updates);
+  }
+}
+
+/**
  * Split tile updates into separate objects for each tile type
  * @param updates - The updates to split
  * @returns An object containing the updates for each tile type
@@ -68,9 +135,28 @@ export function splitTileUpdates(
   viewTileUpdates: Partial<ViewTile>;
 } {
   const tileUpdates: Partial<Tile> = {};
-  const tableTileUpdates: Partial<TableTile> = {};
-  const plotTileUpdates: Partial<PlotTile> = {};
-  const viewTileUpdates: Partial<ViewTile> = {};
+  let tableTileUpdates: Partial<TableTile> = {};
+  let plotTileUpdates: Partial<PlotTile> = {};
+  let viewTileUpdates: Partial<ViewTile> = {};
+
+  // Check if any of the keys in `updates` are one of ["tableTile", "plotTile", "viewTile"]
+  // If so, then we just spread the nested updates for updates[key] directly
+  // into either tableTileUpdates, plotTileUpdates, or viewTileUpdates so e.g. if the
+  // updates object has a "tableTile" key, then we spread the nested updates for tableTile
+  // into tableTileUpdates.
+  const nestedKeys = Object.keys(updates).filter(key => ["tableTile", "plotTile", "viewTile"].includes(key));
+  nestedKeys.forEach(key => {
+    if (key === "tableTile") {
+      tableTileUpdates = { ...tableTileUpdates, ...updates[key] };
+      delete updates[key];
+    } else if (key === "plotTile") {
+      plotTileUpdates = { ...plotTileUpdates, ...updates[key] };
+      delete updates[key];
+    } else if (key === "viewTile") {
+      viewTileUpdates = { ...viewTileUpdates, ...updates[key] };
+      delete updates[key];
+    }
+  });
   
   for (const key in updates) {
     if (TILE_KEYS.includes(key as keyof Tile)) {

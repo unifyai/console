@@ -18,7 +18,6 @@ const FocusDialog = ({
     projectId,
     tabId,
     updateTab,
-    getLatestTab,
     logsActions,
     fieldsActions,
     derivedEntryActions,
@@ -33,7 +32,6 @@ const FocusDialog = ({
     derivedEntryActions: DerivedEntryActions,
     contextActions: ContextActions,
     updateTab: (savedTab?: any, updatedTileProps?: any) => Promise<ResponseProps>;
-    getLatestTab: () => void;
     setFocusDialog: Dispatch<SetStateAction<boolean>>,
 }) => {
     const { ui: tabUIState, uiActions: tabUIActions, dataActions: tabDataActions } = useTab(tabId, interfaceId);
@@ -68,7 +66,6 @@ const FocusDialog = ({
                         interfaceId={interfaceId}
                         projectId={projectId}
                         updateTab={updateTab}
-                        getLatestTab={getLatestTab}
                         logsActions={logsActions}
                         fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}

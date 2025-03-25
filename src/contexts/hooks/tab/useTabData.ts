@@ -41,9 +41,9 @@ export interface TabDataActions {
   getTile: (tileName: string) => Tile | null;
   
   // Grid-related actions
-  setItemsNeedRecompute: (needsRecompute: boolean) => void;
   getItems: () => TileProps[];
   setItems: (items: TileProps[]) => void;
+  setItemsNeedRecompute: (needRecompute: boolean) => void;
 }
 
 /**
@@ -106,6 +106,7 @@ export function useTabData(
           id: tileId,
           name: tileItem.i,
           table: tileItem.table,
+          itemsNeedRecompute: itemActions.getItemsNeedRecompute(),
           // Include other necessary tile properties
         } as Tile;
       }
@@ -123,12 +124,16 @@ export function useTabData(
   const itemsRef = useRef<TileProps[]>([]);
   const items = useMemo<TileProps[]>(() => {
     // If no tab or tiles, return an empty array
-    if (!tabExists || !tabId || !tileIds.length) return EMPTY_TILE_PROPS;
+    if (!tabExists || !tabId || !Object.keys(tiles).length) return EMPTY_TILE_PROPS;
+
+    // if (!itemsNeedRecompute && itemsRef.current.length > 0) { 
+    //   return itemsRef.current;
+    // }
 
     // Build the array from each tile ID
-    const newItems = tileIds.map(tileId => {
+    const newItems = Object.values(tiles).map(tile => {
       // Extract tile name from hierarchical ID
-      const tileNameFromId = deconstructHierarchicalId(tileId).name;
+      const tileNameFromId = deconstructHierarchicalId(tile.id).name;
       
       // Get itemActions for this tile using our getter
       const itemActions = getTileItemActions(tileNameFromId, tabName, interfaceName, projectName);
@@ -151,7 +156,7 @@ export function useTabData(
     // Update the ref and return the new items
     itemsRef.current = newItems;
     return newItems;
-  }, [tabExists, tabId, tileIds, getTileItemActions, tabName, interfaceName, projectName, itemsNeedRecompute]);
+  }, [tabExists, tabId, tiles, getTileItemActions, tabName, interfaceName, projectName, itemsNeedRecompute]);
 
   // Get all the store actions needed for data
   const storeUpdateTab = useStoreContext(state => state.updateTab);
@@ -169,23 +174,6 @@ export function useTabData(
   const storeInitViewTile = useStoreContext(state => state.initViewTile);
   const storeUpdateViewTile = useStoreContext(state => state.updateViewTile);
 
-  // Reset the itemsNeedRecompute flag after computing items
-  useEffect(() => {
-    if (tabId && itemsNeedRecompute) {
-      // Reset the flag on the tab
-      storeUpdateTab(tabId, { itemsNeedRecompute: false });
-      
-      // Also reset the flag on all tiles in this tab
-      tileIds.forEach(tileId => {
-        const hierarchicalTileId = tileId.includes('>')
-          ? tileId
-          : `${tabId}>${tileId}`;
-        
-        storeUpdateTile(hierarchicalTileId, { itemsNeedRecompute: false });
-      });
-    }
-  }, [tabId, itemsNeedRecompute, tileIds, storeUpdateTab, storeUpdateTile]);
-
   // Memoize the data object
   const data = useMemo<Partial<TabData> | null>(() => {
     if (!tabExists) return null;
@@ -199,7 +187,7 @@ export function useTabData(
 
   // Define setItems as a callback to avoid dependency cycles
   const setItems = useCallback((newItems: TileProps[]) => {
-    if (!tabId || !tileIds.length) return;
+    if (!tabId || !Object.keys(tiles).length) return;
     
     newItems.forEach(item => {
       const tileItemName = item.i;
@@ -212,7 +200,7 @@ export function useTabData(
         itemActions.fromTileItem(item);
       }
     });
-  }, [tabId, tileIds, getTileItemActions, tabName, interfaceName, projectName]);
+  }, [tabId, tiles, getTileItemActions, tabName, interfaceName, projectName]);
 
   // Memoize the data actions
   const dataActions = useMemo<TabDataActions>(() => ({
@@ -410,16 +398,15 @@ export function useTabData(
       return tiles[hierarchicalTileId] || null;
     },
     
-    // Grid-related actions
-    setItemsNeedRecompute: (itemsNeedRecompute) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { itemsNeedRecompute });
-      }
-    },
-    
     getItems: () => items,
-    
+
     setItems,
+
+    setItemsNeedRecompute: (needRecompute: boolean) => {
+      if (tabId) {
+        storeUpdateTab(tabId, { itemsNeedRecompute: needRecompute });
+      }
+    }
   }), [
     tabId,
     tiles,
@@ -441,6 +428,26 @@ export function useTabData(
     storeInitViewTile,
     storeUpdateViewTile
   ]);
+
+  // Reset the itemsNeedRecompute flag after computing items
+  useEffect(() => {
+    if (tabId && itemsNeedRecompute) {
+      // Reset the flag on the tab
+      dataActions.setItemsNeedRecompute(false);
+      
+      // Also reset the flag on all tiles in this tab
+      Object.values(tiles).forEach(tile => {
+        if (tile.itemsNeedRecompute) {
+          // Extract tile name from hierarchical ID
+          const tileNameFromId = deconstructHierarchicalId(tile.id).name;
+          
+          // Get itemActions for this tile using our getter
+          const itemActions = getTileItemActions(tileNameFromId, tabName, interfaceName, projectName);
+          itemActions?.setItemsNeedRecompute(false);
+        }
+      });
+    }
+  }, [tabId, itemsNeedRecompute, tiles, dataActions, getTileItemActions, tabName, interfaceName, projectName]);
 
   return {
     data,

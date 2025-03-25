@@ -208,7 +208,6 @@ const Tab = ({
                             interfaceId={interfaceId}
                             projectId={projectId}
                             updateTab={updateTab}
-                            getLatestTab={getLatestTab}
                             logsActions={logsActions}
                             fieldsActions={fieldsActions}
                             derivedEntryActions={derivedEntryActions}

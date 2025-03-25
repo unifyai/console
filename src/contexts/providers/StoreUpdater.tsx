@@ -5,14 +5,13 @@ import { IStoreState } from '../store';
 import { useStoreContext } from './StoreProvider';
 import { useShallow } from 'zustand/react/shallow';
 import isEqual from 'fast-deep-equal';
-import { OPERATIONS } from '../utils/asyncUtils';
+// import { OPERATIONS } from '../utils/asyncUtils';
 
 // Component to handle store updates when initialState changes
 function StoreUpdater({ initialState }: { initialState: Partial<IStoreState> }) {
   const storeActions = useStoreContext(
     useShallow(state => ({
       // Global actions
-      updateState: state.updateState,
       setProjects: state.setProjects,
       setActiveProject: state.setActiveProject,
       setActiveInterface: state.setActiveInterface,
@@ -42,14 +41,17 @@ function StoreUpdater({ initialState }: { initialState: Partial<IStoreState> }) 
       return;
     }
     
-    // Create an operation ID for this update
-    const updateOpId = OPERATIONS.STORE_UPDATE(Date.now());
+    // // Create an operation ID for this update
+    // const updateOpId = OPERATIONS.STORE_UPDATE(Date.now());
     
     // // Track the operation
     // storeActions.trackOperation(updateOpId, 'pending');
     
     try {
       const prevState = initialStateRef.current;
+      
+      // Check if this is a server-side reload by looking for the stateSource property
+      const isServerReload = (initialState as any)?.stateSource === 'server';
       
       // Check for major differences to determine if full reset is needed
       const needsFullReset = !prevState 
@@ -58,19 +60,23 @@ function StoreUpdater({ initialState }: { initialState: Partial<IStoreState> }) 
         || prevState.activeProjectId !== initialState.activeProjectId;
       
       if (needsFullReset) {
-        // Preserve operations during reset
-        storeActions.resetState({
-          ...initialState,
-          // operations: operationsRef.current || {} // Preserve existing operations
-        });
-        
+        // Reset the entire state
+        storeActions.resetState(initialState);
         initialStateRef.current = initialState;
         // storeActions.trackOperation(updateOpId, 'success');
         return;
       }
-      
-      // Apply granular updates based on what has changed
-      applyGranularUpdates(prevState, initialState, storeActions);
+
+      if (isServerReload) {
+        // Apply granular updates for server-side reloads
+        applyGranularUpdates(prevState, initialState, storeActions);
+      } else {
+        // For client-side mutations, just update the entire state
+        // This avoids processing unnecessary granular updates
+        const stateWithoutSource = { ...initialState };
+        delete (stateWithoutSource as any).stateSource;
+        storeActions.resetState(stateWithoutSource);
+      }
       
       // Update ref to current state
       initialStateRef.current = initialState;

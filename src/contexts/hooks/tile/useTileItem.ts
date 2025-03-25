@@ -7,6 +7,9 @@ import { Tile } from '../../slices/selectors/tile';
 import { TileProps } from '@/types/evals/grid';
 import { constructHierarchicalId } from '@/contexts/utils/sliceUtils';
 import { convertTileToTileItem, convertTileItemToTile } from './tileItemUtils';
+import { useTableTile } from './useTableTile';
+import { usePlotTile } from './usePlotTile';
+import { useViewTile } from './useViewTile';
 
 /**
  * Interface for tile item conversion actions
@@ -14,6 +17,8 @@ import { convertTileToTileItem, convertTileItemToTile } from './tileItemUtils';
 export interface TileItemActions {
   asTileItem: () => TileProps;
   fromTileItem: (tileItem: TileProps) => boolean;
+  getItemsNeedRecompute: () => boolean;
+  setItemsNeedRecompute: (needsRecompute: boolean) => void;
 }
 
 /**
@@ -22,10 +27,7 @@ export interface TileItemActions {
 export function createTileItemActions(
   tileId: string,
   tile: Partial<Tile> | null,
-  storeUpdateTile: (id: string, updates: any) => void,
-  storeUpdateTableTile: (id: string, updates: any) => void,
-  storeUpdatePlotTile: (id: string, updates: any) => void,
-  storeUpdateViewTile: (id: string, updates: any) => void
+  storeUpdateTile: (id: string, updates: any) => void
 ): TileItemActions | null {
   if (!tileId || !tile) {
     return null;
@@ -37,22 +39,20 @@ export function createTileItemActions(
     },
     
     fromTileItem: (tileItem: TileProps) => {
-      const { tileUpdates, tableTileUpdates, plotTileUpdates, viewTileUpdates } = 
-        convertTileItemToTile(tileItem, tileId);
+      const tile = convertTileItemToTile(tileItem, tileId);
       
       // Apply all updates to the tile
-      storeUpdateTile(tileId, tileUpdates);
-      
-      // Apply type-specific updates if they exist
-      if (tableTileUpdates) {
-        storeUpdateTableTile(tileId, tableTileUpdates);
-      } else if (plotTileUpdates) {
-        storeUpdatePlotTile(tileId, plotTileUpdates);
-      } else if (viewTileUpdates) {
-        storeUpdateViewTile(tileId, viewTileUpdates);
-      }
-      
+      storeUpdateTile(tileId, tile);
+
       return true;
+    },
+
+    getItemsNeedRecompute: () => {
+      return tile?.itemsNeedRecompute || false;
+    },
+
+    setItemsNeedRecompute: (needsRecompute: boolean) => {
+      storeUpdateTile(tileId, { itemsNeedRecompute: needsRecompute });
     }
   };
 }
@@ -74,13 +74,23 @@ export function useTileItem(
   // Use the existing hooks to get all necessary tile information
   const { meta, tileId, tileExists } = useTileMeta(tileName, tabName, interfaceName, projectName);
   const { ui } = useTileUI(tileName, tabName, interfaceName, projectName);
-  const { data, tableTile, plotTile, viewTile } = useTileData(tileName, tabName, interfaceName, projectName);
+  const { data } = useTileData(tileName, tabName, interfaceName, projectName);
+
+  // Use type-specific hooks based on the tile type
+  const {
+    tableTile,
+  } = useTableTile(tileName, tabName || null, interfaceName || null, projectName);
+  
+  const {
+    plotTile,
+  } = usePlotTile(tileName, tabName || null, interfaceName || null, projectName);
+  
+  const {
+    viewTile,
+  } = useViewTile(tileName, tabName || null, interfaceName || null, projectName);
   
   // Get store actions for data management
   const storeUpdateTile = useStoreContext(state => state.updateTile);
-  const storeUpdateTableTile = useStoreContext(state => state.updateTableTile);
-  const storeUpdatePlotTile = useStoreContext(state => state.updatePlotTile);
-  const storeUpdateViewTile = useStoreContext(state => state.updateViewTile);
 
   // Combine tile data for the action creator
   const tile = useMemo<Partial<Tile> | null>(() => {
@@ -102,17 +112,11 @@ export function useTileItem(
       tileId || '',
       tile,
       storeUpdateTile,
-      storeUpdateTableTile,
-      storeUpdatePlotTile,
-      storeUpdateViewTile
     );
   }, [
     tileId,
     tile,
     storeUpdateTile,
-    storeUpdateTableTile,
-    storeUpdatePlotTile,
-    storeUpdateViewTile
   ]);
 
   return {
@@ -166,9 +170,6 @@ export function useTileItemActions() {
       resolvedTileId,
       tile,
       state.updateTile,
-      state.updateTableTile,
-      state.updatePlotTile,
-      state.updateViewTile
     );
   }, [storeApi]);
   

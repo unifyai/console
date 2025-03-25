@@ -18,20 +18,21 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
     y: tile.position?.y || 0,
     w: tile.position?.width || 2,
     h: tile.position?.height || 2,
-    minW: tile.minW,
-    minH: tile.minH,
+    minW: tile.minW || undefined,
+    minH: tile.minH || undefined,
     visible: tile.visible !== false,
     tab: tile.type as any,
     
     // Common fields shared across tile types
     moved: tile.moved,
     static: tile.static,
-    context: tile.context,
-    table: tile.table,
-    auto_update: tile.auto_update,
-    freeze: tile.freeze,
-    filters: tile.filters,
-    common_filter: tile.common_filter
+    context: tile.context || undefined,
+    table: tile.table || undefined,
+    auto_update: tile.auto_update || undefined,
+    freeze: tile.freeze || undefined,
+    filters: tile.filters || undefined,
+    common_filter: tile.common_filter || undefined,
+    metric: tile.metric || undefined,
   };
   
   // Add type-specific properties based on the tile type
@@ -41,7 +42,6 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
       table_type: tile.tableTile.table_type,
       column_context: tile.tableTile.column_context,
       page_number: tile.tableTile.page_number,
-      metric: tile.tableTile.metric,
       column_order: tile.tableTile.column_order,
       hidden_columns: tile.tableTile.hidden_columns,
       sorting: tile.tableTile.sorting,
@@ -110,7 +110,8 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
     auto_update: tileItem.auto_update,
     freeze: tileItem.freeze,
     filters: tileItem.filters,
-    common_filter: tileItem.common_filter
+    common_filter: tileItem.common_filter,
+    metric: tileItem.metric,
   };
   
   // Handle type-specific properties based on the tile type
@@ -123,7 +124,6 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
       table_type: tileItem.table_type,
       column_context: tileItem.column_context,
       page_number: tileItem.page_number,
-      metric: tileItem.metric,
       column_order: tileItem.column_order,
       hidden_columns: tileItem.hidden_columns,
       sorting: tileItem.sorting,
@@ -133,6 +133,7 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
       columns_pin_right: tileItem.columns_pin_right,
       selected: tileItem.selected,
     };
+    tileUpdates.tableTile = tableTileUpdates as TableTile;
   } else if (tileItem.tab === 'Plot') {
     plotTileUpdates = {
       plot_type: tileItem.plot_type,
@@ -145,18 +146,15 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
       bin_count: tileItem.bin_count,
       regression_line: tileItem.regression_line
     };
+    tileUpdates.plotTile = plotTileUpdates as PlotTile;
   } else if (tileItem.tab === 'View') {
     // Apply view-specific updates
     // (Add view-specific updates here if needed)
     viewTileUpdates = {
       base_index: tileItem.base_index
     } as Partial<ViewTile>;
+    tileUpdates.viewTile = viewTileUpdates as ViewTile;
   }
   
-  return {
-    tileUpdates,
-    tableTileUpdates,
-    plotTileUpdates,
-    viewTileUpdates
-  };
+  return tileUpdates as Tile;
 } 

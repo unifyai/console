@@ -9,7 +9,7 @@ export interface ViewTileMeta {
 
 // View tile data - business data 
 export interface ViewTileData {
-  base_index?: string;     // Base index for the table
+  base_index?: string | null;     // Base index for the table
 }
 
 // View tile UI - UI-related state

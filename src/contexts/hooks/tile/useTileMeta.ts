@@ -66,12 +66,12 @@ export function useTileMeta(
   });
   
   const minW = useStoreContext(state => {
-    if (!tileExists || !tileId) return undefined;
+    if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].minW;
   });
   
   const minH = useStoreContext(state => {
-    if (!tileExists || !tileId) return undefined;
+    if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].minH;
   });
 

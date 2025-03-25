@@ -14,15 +14,15 @@ export interface PlotTileData {
   // Core plot data properties
   
   // Plot-specific fields from TileProps
-  plot_type?: string;          // Used in addition to plotType for compatibility
-  plot_scale_x?: string;       // X-axis scale type (linear, log, etc.)
-  plot_scale_y?: string;       // Y-axis scale type
-  is_aggregated?: string;      // Whether the plot data is aggregated
-  x_axis?: string;             // Used in addition to xAxis for compatibility
-  y_axis?: string;             // Used in addition to yAxis for compatibility
-  plot_group_by?: string;      // Used in addition to groupBy for compatibility
-  bin_count?: string;          // Number of bins for histograms
-  regression_line?: string;    // Whether to show regression line
+  plot_type?: string | null;          // Used in addition to plotType for compatibility
+  plot_scale_x?: string | null;       // X-axis scale type (linear, log, etc.)
+  plot_scale_y?: string | null;       // Y-axis scale type
+  is_aggregated?: string | null;      // Whether the plot data is aggregated
+  x_axis?: string | null;             // Used in addition to xAxis for compatibility
+  y_axis?: string | null;             // Used in addition to yAxis for compatibility
+  plot_group_by?: string | null;      // Used in addition to groupBy for compatibility
+  bin_count?: string | null;          // Number of bins for histograms
+  regression_line?: string | null;    // Whether to show regression line
 
   // Plot data item
   plotDataItem?: PlotDataItem;

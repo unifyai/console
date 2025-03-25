@@ -46,7 +46,7 @@ import ResetServerAction from "./Buttons/ResetServerAction";
 
 // Import new hooks
 import { useTab } from "@/contexts/hooks/tab";
-import { useTile, useTableTile, useTileItem } from '@/contexts/hooks/tile';
+import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { useInterface } from "@/contexts/hooks/interface";
 import { useProject } from "@/contexts/hooks/project";
 
@@ -93,22 +93,22 @@ const LogsTable = ({
   // Use granular hooks for better performance
   const {
     ui: tileUIState,
+    tableTile: tableTileState,
     uiActions: tileUIActions,
     dataActions: tileDataActions,
-    actions: tileActions
+    tableTileActions,
   } = useTile(tileId, tabId, interfaceId, projectId);
   
   // Get access to the table tile specific data and actions with granular access
-  const { tableTile, ui: tableTileUI } = useTableTile(tileId, tabId, interfaceId, projectId);
-  const limit = tableTileUI?.limit || 20;
-  const offset = tableTileUI?.offset || 0;
+  const limit = tableTileState?.limit as number;
+  const offset = tableTileState?.offset as number;
   
   // Get the item representation for the current tile
   const { itemActions } = useTileItem(tileId, tabId, interfaceId);
   const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
 
   // Use the tableDataItem from the tile's table data
-  const tableDataItem = useMemo(() => tableTile?.tableDataItem || {
+  const tableDataItem = useMemo(() => tableTileState?.tableDataItem || {
     columnContexts: [],
     baseIndex: undefined,
     hiddenColumns: undefined,
@@ -125,14 +125,7 @@ const LogsTable = ({
     groupedMetrics: {},
     boundaries: { minimums: {}, maximums: {} },
     metric: ""
-  } as TableDataItem, [tableTile?.tableDataItem]);
-
-  // Create a generic updateItem function that checks property existence
-  const updateItem = (item: TileProps, propName: string) => (value: any) => {
-    if (tileActions) {
-      tileActions.updateTile({ [propName]: value });
-    }
-  };
+  } as TableDataItem, [tableTileState?.tableDataItem]);
 
   const setPending = (pending: boolean) => tileUIActions?.setPending(pending);
 
@@ -160,7 +153,7 @@ const LogsTable = ({
 
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false);
-  const [showSpinner, setShowSpinner] = useState(pending || !tableTile?.tableDataItem?.logs);
+  const [showSpinner, setShowSpinner] = useState(pending || !tableTileState?.tableDataItem?.logs);
 
   useEffect(() => {
     setShowSpinner(pending || !tableDataItem?.logs);
@@ -287,7 +280,7 @@ const LogsTable = ({
     if (manual) {
       setManualColumnOrderOverride(true);
     }
-    updateItem(item as TileProps, "column_order")(order.join(","))
+    tableTileActions?.setColumnOrder(order.join(","));
   };
 
   const allColumnsVisible = Object.fromEntries(columnIDs.map((x) => [x, true]));
@@ -300,13 +293,13 @@ const LogsTable = ({
 
   const setColumnVisibility = (v: { [key: string]: boolean }) => {
     const hidden = Object.keys(v).filter((k) => !v[k]);
-    updateItem(item as TileProps, "hidden_columns")(hidden.length ? hidden.join(",") : undefined);
+    tableTileActions?.setHiddenColumns(hidden.length ? hidden.join(",") : undefined);
   };
 
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const setLogsFilters = (filtersObj: FiltersByColumn) => {
     const keys = Object.keys(filtersObj);
-    updateItem(item as TileProps, "filters")(
+    tileDataActions?.setFilters(
       keys.length
         ? Object.entries(filtersObj)
           .map(([cKey, val]) =>
@@ -327,11 +320,11 @@ const LogsTable = ({
     })
     : [];
   const setSorting = (s: ColumnSort[]) =>
-    updateItem(item as TileProps, "sorting")(s.map((item) => `${sanitizeId(item?.id)}@${item?.desc}`).join(","));
+    tableTileActions?.setSorting(s.map((item) => `${sanitizeId(item?.id)}@${item?.desc}`).join(","));
 
   const grouping: GroupingState = groupingStr ? groupingStr.split(",") : [];
   const setGrouping = (g: GroupingState) =>
-    updateItem(item as TileProps, "grouping")(g.length ? g.join(",") : undefined);
+    tableTileActions?.setGrouping(g.length ? g.join(",") : undefined);
 
   const groupSorting: ColumnSort[] = groupSortingStr
     ? groupSortingStr.split(",").map((c) => {
@@ -342,15 +335,15 @@ const LogsTable = ({
     })
     : [];
   const setGroupSorting = (s: ColumnSort[]) =>
-    updateItem(item as TileProps, "group_sorting")(s.map((item) => `${sanitizeId(item.id)}@${item.desc}`).join(","));
+    tableTileActions?.setGroupSorting(s.map((item) => `${sanitizeId(item.id)}@${item.desc}`).join(","));
 
   const columnPinning: ColumnPinningState = {
     left: columnsPinLeft ? columnsPinLeft.split(",") : [indicesTitle],
     right: columnsPinRight ? columnsPinRight.split(",") : [],
   };
   const setColumnPinning = (pin: ColumnPinningState) => {
-    updateItem(item as TileProps, "columns_pin_left")(pin.left ? pin.left.join(",") : undefined);
-    updateItem(item as TileProps, "columns_pin_right")(pin.right ? pin.right.join(",") : undefined);
+    tableTileActions?.setColumnsPinLeft(pin.left ? pin.left.join(",") : undefined);
+    tableTileActions?.setColumnsPinRight(pin.right ? pin.right.join(",") : undefined);
   };
 
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(
@@ -396,14 +389,14 @@ const LogsTable = ({
   const setState = {
     setTableDataItem: (newTableDataItem: TableDataItem) => {
       // Update tableDataItem in the store
-      if (tileDataActions && tableTile) {
+      if (tileDataActions && tableTileState) {
         tileDataActions.updateTableTile({ 
           tableDataItem: newTableDataItem 
         });
       }
     },
-    setSelectedCells: (cells: string[]) =>  updateItem(item as TileProps, "selected")(cells.join(",")),
-    setMetric: (newMetric: string) => updateItem(item as TileProps, "metric")(newMetric),
+    setSelectedCells: (cells: string[]) => tableTileActions?.setSelected(cells.join(",")),
+    setMetric: (newMetric: string) => tileDataActions?.setMetric(newMetric),
     setSorting,
     setGroupSorting,
     setColumnVisibility,
@@ -412,7 +405,7 @@ const LogsTable = ({
     setGrouping,
     setColumnPinning,
     setColumnSizing,
-    setContext: (newContext: string) => updateItem(item as TileProps, "column_context")(newContext),
+    setContext: (newContext: string) => tableTileActions?.setColumnContext(newContext),
     setDraggingColumns,
     setPinningState,
   };
@@ -439,18 +432,18 @@ const LogsTable = ({
       // If base no longer valid, remove it
       const flattenedLogs = maybeFlattenGroupedLogs(logs);
       if (baseLog && !(flattenedLogs).some((l) => l.id === baseLog.id)) {
-        updateItem(item as TileProps, "selected")(selectedCells.slice(1).join(","));
+        tableTileActions?.setSelected(selectedCells.slice(1).join(","));
       }
       // If compare logs not valid, prune them
       if (comparisonLogs) {
         const ids = comparisonLogs.map(cl => cl.id);
         const validIds = ids.filter((id) => flattenedLogs.some((l) => l.id === id));
         if (!validIds.length) {
-          updateItem(item as TileProps, "selected")(
+          tableTileActions?.setSelected(
             (selectedCells.at(0) ? [selectedCells.at(0) as string] : []).join(",")
           );
         } else if (validIds.length < ids.length) {
-          updateItem(item as TileProps, "selected")(
+          tableTileActions?.setSelected(
             selectedCells.filter(cell => validIds.includes(cell.split("_").at(0)!)).join(",")
           );
         }
@@ -524,7 +517,7 @@ const LogsTable = ({
             interactive={interactive}
             logsFilters={logsFilters}
             commonFilter={commonFilter}
-            setCommonFilter={updateItem(item as TileProps, "common_filter")}
+            setCommonFilter={tileDataActions?.setCommonFilter!}
             logs={logs}
             currentTable={item?.i || ""}
             tableArguments={tableArguments}
@@ -537,7 +530,7 @@ const LogsTable = ({
           />
           <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => {setGrouping([]); setGroupSorting([])}}/>
           <ResetServerAction condition={(sorting.length > 0 || groupSorting.length > 0)} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => {setSorting([]); setGroupSorting([])}}/>
-          <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); updateItem(item as TileProps, "common_filter")(undefined)}}/>
+          <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); tileDataActions?.setCommonFilter(undefined)}}/>
         </div>
       )}
       {projectId && (
@@ -547,7 +540,7 @@ const LogsTable = ({
               interactive={interactive}
               totalPages={totalPages}
               pageNumber={pageNumber}
-              setPageNumber={updateItem(item as TileProps, "page_number")}
+              setPageNumber={tableTileActions?.setPageNumber!}
               pageLogs={logs.length}
               totalLogs={logsData.count}
               limit={limit}
@@ -555,12 +548,16 @@ const LogsTable = ({
             />
           </div>
           <FreezeLogs 
-            item={item as TileProps} 
-            updateItem={updateItem} 
+            tileId={tileId}
+            tabId={tabId}
+            interfaceId={interfaceId}
+            projectId={projectId}
           />
           <RefreshLogs
-            item={item as TileProps}
-            project={projectId}
+            tileId={tileId}
+            tabId={tabId}
+            interfaceId={interfaceId}
+            projectId={projectId}
             pending={showSpinner}
             fields={fields}
             filterExpression={filterExpression}
@@ -568,10 +565,9 @@ const LogsTable = ({
             hiddenColumns={item?.hidden_columns}
             groupingExpression={groupingExpression}
             groupSortingExpression={groupSortingExpression}
-            updateItem={updateItem}
             setTableData={(updater) => {
               // Create an adapter that wraps our simple update function to match expected signature
-              if (tileDataActions && tableTile && item?.i) {
+              if (tileDataActions && tableTileState && item?.i) {
                 const newData = updater({
                   [item.i]: tableDataItem
                 });
@@ -596,7 +592,7 @@ const LogsTable = ({
   // Handle clicking outside of the table
   const onContainerClick = (event: React.MouseEvent<HTMLElement, MouseEvent>) => {
     if (tableRef.current && !tableRef.current.contains(event.target as Node)) {
-      updateItem(item as TileProps, "selected")("");
+      tableTileActions?.setSelected("");
     }
   }
 
@@ -739,7 +735,7 @@ const LogsTable = ({
                           setExpandingRowId,
                           (updater) => {
                             // Create an adapter that wraps our simple update function to match expected signature
-                            if (tileDataActions && tableTile && item?.i) {
+                            if (tileDataActions && tableTileState && item?.i) {
                               const newData = updater({
                                 [item.i]: tableDataItem
                               });

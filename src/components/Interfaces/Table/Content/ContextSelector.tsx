@@ -56,16 +56,15 @@ const ContextSelector = ({
 
     const { 
         tableTile: tableTileState,
-        actions: tableTileActions,
-        uiActions: tableUIActions 
+        tableTileActions,
     } = useTableTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
 
     const item = useMemo(() => tileItemActions?.asTileItem(), [tileItemActions]);
     
-    const finalSetContext = (tileActions && tileDataActions && tableUIActions && item != undefined) ? (ctx: string) => {
+    const finalSetContext = (tileActions && tileDataActions && tableTileActions && item != undefined) ? (ctx: string) => {
         if (ctx !== item.context) {
             // Update the tile's column_context
-            tableUIActions.setColumnContext("");
+            tableTileActions.setColumnContext("");
 
             // Update the tile's context
             tileDataActions.setContext(ctx);
@@ -208,7 +207,7 @@ const ContextSelector = ({
                             {item.column_context && <Tooltip content="Clear Column Context">
                                 <X
                                     size={18}
-                                    onClick={() => tableUIActions?.setColumnContext("")}
+                                    onClick={() => tableTileActions?.setColumnContext("")}
                                     className="cursor-pointer hover:text-primary"
                                 />
                             </Tooltip>}
@@ -226,7 +225,7 @@ const ContextSelector = ({
                                 showRoot={true}
                                 attr={item.column_context}
                                 isColumnContext={true}
-                                setter={(value) => tableUIActions?.setColumnContext(value)}
+                                setter={(value) => tableTileActions?.setColumnContext(value)}
                                 deleteDialog={
                                     projectId ? <div onClick={(e) => e.stopPropagation()}>
                                         <DeleteDialog

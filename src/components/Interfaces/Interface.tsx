@@ -299,7 +299,6 @@ const Interface = ({
                 interfaceId={interfaceId}
                 projectId={projectQueryParam || ""}
                 updateTab={updateTab}
-                getLatestTab={getLatestTab}
                 setFocusDialog={setFocusDialog}
                 logsActions={logsActions}
                 fieldsActions={fieldsActions}

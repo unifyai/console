@@ -448,8 +448,8 @@ export function useTiles(tileIds: string[] = [], properties: string[] = []): Par
     })
   );
   
-  // Step 2: Memoize the transformation of raw data
-  // This prevents creating new arrays/objects when inputs or data haven't changed
+  // // Step 2: Memoize the transformation of raw data
+  // // This prevents creating new arrays/objects when inputs or data haven't changed
   const resultRef = useRef<Partial<Tile>[]>([]);
   return useMemo(() => {
     // If no IDs to process, return empty array (using stable reference)

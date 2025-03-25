@@ -442,6 +442,9 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     // Initialize operations as an empty object in the initial state
     initialState.operations = {};
 
+    // Mark this state as coming from the server
+    (initialState as any).stateSource = 'server';
+
     return (
         <Suspense fallback={
             <div className="w-full h-full flex items-center justify-center">

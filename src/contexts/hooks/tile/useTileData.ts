@@ -1,12 +1,10 @@
 import { useMemo } from 'react';
 import { useStoreContext } from '../../providers/StoreProvider';
 import { useTileMeta } from './useTileMeta';
-import { useShallow } from 'zustand/react/shallow';
-import { TileData } from '../../slices/selectors/tile';
+import { Tile, TileData } from '../../slices/selectors/tile';
 import { TableTile } from '../../slices/selectors/tableTile';
 import { PlotTile } from '../../slices/selectors/plotTile';
 import { ViewTile } from '../../slices/selectors/viewTile';
-import { useTileUI } from './useTileUI';
 
 /**
  * Interface for tile data-related actions
@@ -18,6 +16,7 @@ export interface TileDataActions {
    setFreeze: (freeze?: string) => void;
    setFilters: (filters?: string) => void;
    setCommonFilter: (commonFilter?: string) => void;
+   setMetric: (metric: string | undefined) => void;
    
    // Type-specific updates
    updateTableTile: (updates: Partial<TableTile>) => void;
@@ -40,66 +39,43 @@ export function useTileData(
   projectName?: string | null
 ) {
   // Use the tile meta hook to get common tile info
-  const { meta, tileId, tileExists } = useTileMeta(tileName, tabName, interfaceName, projectName);
-
-  // Use the tile UI hook to get common tile info
-  const { ui } = useTileUI(tileName, tabName, interfaceName, projectName);
+  const {tileId, tileExists } = useTileMeta(tileName, tabName, interfaceName, projectName);
 
   // Subscribe to data properties
   const context = useStoreContext(state => {
-    if (!tileExists || !tileId) return undefined;
+    if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].context;
   });
   
   const table = useStoreContext(state => {
-    if (!tileExists || !tileId) return undefined;
+    if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].table;
   });
   
   const autoUpdate = useStoreContext(state => {
-    if (!tileExists || !tileId) return undefined;
+    if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].auto_update;
   });
   
   const freeze = useStoreContext(state => {
-    if (!tileExists || !tileId) return undefined;
+    if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].freeze;
   });
   
   const filters = useStoreContext(state => {
-    if (!tileExists || !tileId) return undefined;
+    if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].filters;
   });
   
   const commonFilter = useStoreContext(state => {
-    if (!tileExists || !tileId) return undefined;
+    if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].common_filter;
   });
-  
-  // Type-specific data
-  const tableTile = useStoreContext(
-    useShallow(state => {
-      if (!tileExists || !tileId) return null;
-      if (state.tilesById[tileId].type !== 'Table') return null;
-      return state.tilesById[tileId].tableTile;
-    })
-  );
-  
-  const plotTile = useStoreContext(
-    useShallow(state => {
-      if (!tileExists || !tileId) return null;
-      if (state.tilesById[tileId].type !== 'Plot') return null;
-      return state.tilesById[tileId].plotTile;
-    })
-  );
-  
-  const viewTile = useStoreContext(
-    useShallow(state => {
-      if (!tileExists || !tileId) return null;
-      if (state.tilesById[tileId].type !== 'View') return null;
-      return state.tilesById[tileId].viewTile;
-    })
-  );
+
+  const metric = useStoreContext(state => {
+    if (!tileExists || !tileId) return null;
+    return state.tilesById[tileId].metric;
+  });
 
   // Get store actions for data management
   const storeUpdateTile = useStoreContext(state => state.updateTile);
@@ -118,9 +94,7 @@ export function useTileData(
       freeze,
       filters,
       common_filter: commonFilter,
-      tableTile,
-      plotTile,
-      viewTile
+      metric,
     };
   }, [
     tileExists, 
@@ -130,9 +104,6 @@ export function useTileData(
     freeze, 
     filters, 
     commonFilter,
-    tableTile,
-    plotTile,
-    viewTile
   ]);
 
   // Memoize the data actions to prevent unnecessary re-renders
@@ -172,6 +143,12 @@ export function useTileData(
         storeUpdateTile(tileId, { common_filter: commonFilter });
       }
     },
+
+    setMetric: (metric) => {
+      if (tileId) {
+        storeUpdateTile(tileId, { metric });
+      }
+    },
     
     // Type-specific updates
     updateTableTile: (updates) => {
@@ -202,8 +179,5 @@ export function useTileData(
   return {
     data,
     dataActions,
-    tableTile,
-    plotTile,
-    viewTile
   };
 } 

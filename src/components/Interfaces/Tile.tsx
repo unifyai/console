@@ -69,8 +69,8 @@ const Tile = ({
             });
         }
     }, [
-        tileItem.tab,
-        tileItem.table_type,
+        // tileItem.tab,
+        // tileItem.table_type,
         tileItem.filters,
         tileItem.context,
         tileItem.column_context,
@@ -91,7 +91,7 @@ const Tile = ({
     useEffect(() => {
         if (tileItem.tab != "View" && !initial)
             tileUIActions?.setPending(true);
-    }, [tileItem.tab, tileItem.table_type, tileItem.context, tileItem.column_context]);
+    }, [tileItem.context, tileItem.column_context]); // [tileItem.tab, tileItem.table_type, tileItem.context, tileItem.column_context]);
 
     useEffect(() => {
         setInitial(false);

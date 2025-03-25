@@ -4,8 +4,11 @@ import { Tile } from '../../slices/selectors/tile';
 import { useTileMeta, TileMetaActions } from './useTileMeta';
 import { useTileData, TileDataActions } from './useTileData';
 import { useTileUI, TileUIActions } from './useTileUI';
-import { useTileOperations } from './useTileOperations';
 import { useTileItem } from './useTileItem';
+import { useTableTile, TableActions } from './useTableTile';
+import { usePlotTile, PlotActions } from './usePlotTile';
+import { useViewTile, ViewActions } from './useViewTile';
+import { useShallow } from 'zustand/react/shallow';
 
 /**
  * Default return value when no tile is specified
@@ -21,8 +24,16 @@ export const DEFAULT_USE_TILE_RETURN = {
   itemActions: null,
   actions: null,
   exists: false,
-  operations: {},
-  tileId: null
+  tileId: null,
+
+  tableTile: null,
+  plotTile: null,
+  viewTile: null,
+
+  // Type specific properties and actions
+  tableTileActions: null,
+  plotTileActions: null,
+  viewTileActions: null,
 };
 
 /**
@@ -38,6 +49,11 @@ export interface TileActions {
   meta: TileMetaActions;
   data: TileDataActions;
   ui: TileUIActions;
+  
+  // Type-specific actions
+  tableTileActions?: TableActions;
+  plotTileActions?: PlotActions;
+  viewTileActions?: ViewActions;
 }
 
 /**
@@ -54,7 +70,7 @@ export function useTile(
   interfaceName?: string | null,
   projectName?: string | null
 ) {
-  // Use specialized hooks
+  // Use specialized hooks for base tile data
   const {
     meta,
     metaActions,
@@ -65,9 +81,6 @@ export function useTile(
   const {
     data,
     dataActions,
-    tableTile,
-    plotTile,
-    viewTile
   } = useTileData(tileName, tabName || null, interfaceName || null, projectName);
   
   const {
@@ -75,15 +88,29 @@ export function useTile(
     uiActions
   } = useTileUI(tileName, tabName || null, interfaceName || null, projectName);
   
-  // const {
-  //   operations,
-  //   operationsActions
-  // } = useTileOperations(tileName, tabName || null, interfaceName || null, projectName);
-  
   // Get the item actions
   const {
     itemActions
   } = useTileItem(tileName, tabName || null, interfaceName || null, projectName);
+
+  // Use type-specific hooks based on the tile type
+  const {
+    tableTile,
+    tableTileActions,
+    exists: tableExists
+  } = useTableTile(tileName, tabName || null, interfaceName || null, projectName);
+  
+  const {
+    plotTile,
+    plotTileActions,
+    exists: plotExists
+  } = usePlotTile(tileName, tabName || null, interfaceName || null, projectName);
+  
+  const {
+    viewTile,
+    viewTileActions,
+    exists: viewExists
+  } = useViewTile(tileName, tabName || null, interfaceName || null, projectName);
 
   // Get active IDs from the store context
   const activeProjectId = useStoreContext(state => state.activeProjectId);
@@ -94,12 +121,20 @@ export function useTile(
   const storeInitTile = useStoreContext(state => state.initTile);
   const storeUpdateTile = useStoreContext(state => state.updateTile);
   const storeRemoveTile = useStoreContext(state => state.removeTile);
+  
+  // Get the tile type from the store
+  const tileType = useStoreContext(
+    useShallow(state => {
+      if (!tileId) return null;
+      return state.tilesById[tileId]?.type;
+    })
+  );
 
   // Memoize all actions to prevent unnecessary re-renders
   const actions = useMemo<TileActions>(() => {
-    return {
+    const baseActions: TileActions = {
       // Basic tile management
-      initTile: (initialState) => {
+      initTile: (initialState?: Partial<Tile>) => {
         if (activeProjectId && activeInterfaceId && activeTabId && tileId) {
           storeInitTile(
             activeTabId,
@@ -115,7 +150,7 @@ export function useTile(
         }
       },
       
-      updateTile: (updates) => {
+      updateTile: (updates: Partial<Tile>) => {
         if (tileId) {
           storeUpdateTile(tileId, updates);
         }
@@ -130,8 +165,13 @@ export function useTile(
       // Categorized actions
       meta: metaActions,
       data: dataActions,
-      ui: uiActions
+      ui: uiActions,
+      tableTileActions: tableTileActions as TableActions | undefined,
+      plotTileActions: plotTileActions as PlotActions | undefined,
+      viewTileActions: viewTileActions as ViewActions | undefined
     };
+    
+    return baseActions;
   }, [
     tileId,
     activeTabId,
@@ -142,21 +182,31 @@ export function useTile(
     uiActions,
     storeInitTile,
     storeUpdateTile,
-    storeRemoveTile
+    storeRemoveTile,
+    tileType,
+    tableExists,
+    tableTileActions,
+    plotExists,
+    plotTileActions,
+    viewExists,
+    viewTileActions
   ]);
   
   // Build a final 'tile' object from the separate meta, data, and UI objects
-  const tile = useMemo<Partial<Tile> | null>(() => {
+  const combinedTile = useMemo(() => {
     if (!meta || !data || !ui) return null;
     
-    return {
+    // Create a base tile
+    const baseTile = {
       ...meta,
       ...data,
       ...ui,
-      tableTile,
-      plotTile,
-      viewTile
-    };
+      ...tableTile,
+      ...plotTile,
+      ...viewTile
+    } as Tile;
+    
+    return baseTile;
   }, [meta, data, ui, tableTile, plotTile, viewTile]);
 
   // Use tileId to conditionally return values, but only after all hooks are called
@@ -165,7 +215,7 @@ export function useTile(
   }
 
   return {
-    tile,
+    tile: combinedTile,
     meta,
     data,
     ui,
@@ -174,9 +224,16 @@ export function useTile(
     uiActions,
     itemActions,
     actions,
-    // operations,
-    // operationsActions,
     exists: tileExists,
-    tileId
+    tileId,
+    
+    // Include type-specific properties and actions for direct access
+    tableTile: tableExists ? tableTile : null,
+    plotTile: plotExists ? plotTile : null,
+    viewTile: viewExists ? viewTile : null,
+    
+    tableTileActions: tableExists ? tableTileActions : null,
+    plotTileActions: plotExists ? plotTileActions : null,
+    viewTileActions: viewExists ? viewTileActions : null,
   };
 }

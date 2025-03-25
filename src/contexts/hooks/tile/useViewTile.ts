@@ -1,60 +1,67 @@
 import { useMemo } from "react";
-import { TileActions, useTile } from "../tile/useTile";
 import { ViewTileMeta, ViewTileData, ViewTileUI } from "../../slices/selectors/viewTile";
-import { TileDataActions } from "./useTileData";
-
-// Define the default return value for the useViewTile hook
-const DEFAULT_USE_VIEW_TILE_RETURN = {
-  viewTile: null,
-  meta: null,
-  data: null,
-  ui: null,
-  metaActions: null,
-  dataActions: null,
-  uiActions: null,
-  actions: null,
-  exists: false,
-};
+import { useStoreContext } from "../../providers/StoreProvider";
+import { useTileMeta } from "./useTileMeta";
+import { ViewTile } from '../../slices/selectors/viewTile';
+import { useShallow } from "zustand/react/shallow";
 
 /**
- * Interface for view tile meta-related actions
+ * Default return value when no tile is specified or tile doesn't exist
+ */
+export const DEFAULT_USE_VIEW_TILE_RETURN = {
+  viewTile: null,
+  viewTileActions: null,
+  exists: false
+};
+
+// Default view tile meta
+export const DEFAULT_VIEW_TILE_META: ViewTileMeta = {};
+
+// Default view tile UI
+export const DEFAULT_VIEW_TILE_UI: ViewTileUI = {};
+
+// Default view tile UI actions
+export const DEFAULT_VIEW_TILE_UI_ACTIONS: ViewTileUIActions = {};
+
+// Default view tile meta actions
+export const DEFAULT_VIEW_TILE_META_ACTIONS: ViewTileMetaActions = {};
+
+/**
+ * Interface for view tile meta actions
  */
 export interface ViewTileMetaActions {
-  // Add view-specific meta actions here
+  // Meta actions will be empty as per ViewTileMeta
 }
 
 /**
- * Interface for view tile data-related actions
+ * Interface for view tile data actions
  */
 export interface ViewTileDataActions {
-  // Add any other view-specific data actions here
   setBaseIndex: (baseIndex: string | undefined) => void;
 }
 
 /**
- * Interface for view tile UI-related actions
+ * Interface for view tile UI actions
  */
 export interface ViewTileUIActions {
-  // Add any other view-specific UI actions here
+  // UI actions will be empty as per ViewTileUI
 }
 
 /**
- * Interface for all view tile-related actions
+ * Interface for view-specific actions
  */
-export interface ViewTileActions extends TileActions {
-  // View-specific actions grouped by category
-  viewMeta: ViewTileMetaActions;
-  viewData: ViewTileDataActions;
-  viewUI: ViewTileUIActions;
-}
+export interface ViewActions extends
+  ViewTileMetaActions,
+  ViewTileDataActions,
+  ViewTileUIActions {}
 
 /**
- * Custom hook to access view tile data and actions
- * @param tileName The name of the view tile to access
- * @param tabName Optional tab name
- * @param interfaceName Optional interface name
- * @param projectName Optional project name
- * @returns Object containing tile state, actions, and existence flag
+ * Custom hook to access view-specific tile state and actions
+ * @param tileName The name of the tile to access
+ * @param tabName Optional name of the tab containing the tile
+ * @param interfaceName Optional name of the interface containing the tab
+ * @param projectName Optional project name (if not provided, active project will be used)
+ * @returns Object containing view-specific tile state, actions, and existence flag
  */
 export function useViewTile(
   tileName: string | null,
@@ -62,87 +69,119 @@ export function useViewTile(
   interfaceName?: string | null,
   projectName?: string | null
 ) {
-  // Always call hooks at the top level, unconditionally
-  const {
-    tile: baseTile,
-    dataActions: baseTileActions,
-    exists,
-  } = useTile(tileName, tabName, interfaceName, projectName);
+  // Get tile meta information using the useTileMeta hook
+  const { tileId, tileExists } = useTileMeta(tileName, tabName || null, interfaceName || null, projectName || null);
+  
+  // Get the tile type to check if it's a view
+  const tileType = useStoreContext(
+    useShallow(state => {
+      if (!tileId) return null;
+      return state.tilesById[tileId]?.type;
+    })
+  );
+  
+  // Check if the tile exists and is a view
+  const isViewTile = tileExists && tileType === 'View';
 
-  // Check if this tile is a view tile
-  const hasViewTile = useMemo(() => {
-    if (!baseTile || baseTile.type !== 'View') return false;
-    return true;
-  }, [baseTile]);
-  
-  // Extract view-specific meta, data, and UI
-  const viewMeta = useMemo<ViewTileMeta | null>(() => {
-    if (!hasViewTile || !baseTile || !baseTile.viewTile) return null;
-    return baseTile.viewTile as ViewTileMeta;
-  }, [hasViewTile, baseTile]);
-  
-  const viewData = useMemo<ViewTileData | null>(() => {
-    if (!hasViewTile || !baseTile || !baseTile.viewTile) return null;
-    return baseTile.viewTile as ViewTileData;
-  }, [hasViewTile, baseTile]);
-  
-  const viewUI = useMemo<ViewTileUI | null>(() => {
-    if (!hasViewTile || !baseTile || !baseTile.viewTile) return null;
-    return baseTile.viewTile as ViewTileUI;
-  }, [hasViewTile, baseTile]);
-  
-  // Create view-specific meta actions
-  const viewMetaActions = useMemo<ViewTileMetaActions>(() => {
-    return {
-      // Add view-specific meta actions here
-    };
+  const viewTile = useStoreContext(
+    useShallow(state => {
+      if (!isViewTile || !tileId) return null;
+      return state.tilesById[tileId]?.viewTile as ViewTile;
+    })
+  );
+
+  // Access store for view-specific meta data
+  const viewMeta = useMemo(() => {
+    // Return empty object as per ViewTileMeta interface
+    return DEFAULT_VIEW_TILE_META as ViewTileMeta;
   }, []);
-  
-  // Create view-specific data actions
-  const viewDataActions = useMemo<ViewTileDataActions>(() => {
+
+  // Access store for view-specific data
+  const viewData = useMemo(() => {
+    if (!isViewTile || !tileId || !viewTile) return null;
+    
     return {
-      // Add view-specific data actions here
+      base_index: viewTile.base_index
+    } as ViewTileData;
+  }, [
+    isViewTile,
+    tileId,
+    viewTile?.base_index,
+  ]);
+
+  // Access store for view-specific UI state
+  const viewUI = useMemo(() => {
+    if (!isViewTile || !tileId) return null;
+    // Return empty object as per ViewTileUI interface
+    return DEFAULT_VIEW_TILE_UI as ViewTileUI;
+  }, [
+    isViewTile,
+    tileId,
+  ]);
+
+  // Get store update functions
+  const storeUpdateViewTile = useStoreContext(state => state.updateViewTile);
+
+  // Create memoized meta actions
+  const viewMetaActions = useMemo<ViewTileMetaActions | null>(() => {
+    if (!isViewTile || !tileId) return null;
+    
+    // Return empty object as per ViewTileMeta interface
+    return DEFAULT_VIEW_TILE_META_ACTIONS as ViewTileMetaActions;
+  }, [isViewTile, tileId]);
+
+  // Create memoized data actions
+  const viewDataActions = useMemo<ViewTileDataActions | null>(() => {
+    if (!isViewTile || !tileId) return null;
+    
+    return {
       setBaseIndex: (baseIndex) => {
-        if (baseTileActions && hasViewTile) {
-          (baseTileActions as unknown as TileDataActions).updateViewTile({ 
-            base_index: baseIndex
-          });
-        }
+        const update: Partial<ViewTile> = { 
+          base_index: baseIndex 
+        };
+        storeUpdateViewTile(tileId, update);
       }
     };
-  }, [baseTileActions, hasViewTile]);
-  
-  // Create view-specific UI actions
-  const viewUIActions = useMemo<ViewTileUIActions>(() => {
+  }, [isViewTile, tileId, storeUpdateViewTile]);
+
+  // Create memoized UI actions
+  const viewUIActions = useMemo<ViewTileUIActions | null>(() => {
+    if (!isViewTile || !tileId) return null;
+    
+    // Return empty object as per ViewTileUI interface
+    return DEFAULT_VIEW_TILE_UI_ACTIONS as ViewTileUIActions;
+  }, [isViewTile, tileId]);
+
+  // Build a final `viewTile` object from the separate meta, data, and UI objects
+  const combinedViewTile = useMemo(() => {
+    if (!viewMeta || !viewData || !viewUI) return null;
+    
     return {
-      // Add view-specific UI actions here
+      ...viewMeta,
+      ...viewData,
+      ...viewUI
     };
-  }, []);
-  
-  // Combine all actions
-  const viewActions = useMemo<ViewTileActions>(() => {
+  }, [viewMeta, viewData, viewUI]);
+
+  // Build a final `viewTileActions` object from the separate meta, data, and UI actions
+  const combinedViewTileActions = useMemo(() => {
+    if (!viewMetaActions || !viewDataActions || !viewUIActions) return null;
+    
     return {
-      ...(baseTileActions as unknown as ViewTileActions),
-      viewMeta: viewMetaActions,
-      viewData: viewDataActions,
-      viewUI: viewUIActions
+      ...viewMetaActions,
+      ...viewDataActions,
+      ...viewUIActions
     };
-  }, [baseTileActions, viewMetaActions, viewDataActions, viewUIActions]);
-  
-  // Return null if no tileId provided
-  if (tileName === null) {
+  }, [viewMetaActions, viewDataActions, viewUIActions]);
+
+  // If no tile name is provided or tile doesn't exist, return default
+  if (!tileName || !isViewTile) {
     return DEFAULT_USE_VIEW_TILE_RETURN;
   }
 
   return {
-    viewTile: hasViewTile ? baseTile?.viewTile : null,
-    meta: viewMeta,
-    data: viewData,
-    ui: viewUI,
-    metaActions: viewMetaActions,
-    dataActions: viewDataActions,
-    uiActions: viewUIActions,
-    actions: viewActions,
-    exists: exists && hasViewTile,
+    viewTile: combinedViewTile as ViewTile,
+    viewTileActions: combinedViewTileActions as ViewActions,
+    exists: isViewTile
   };
 }

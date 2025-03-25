@@ -92,7 +92,7 @@ export const createInterfaceSlice: StateCreator<
     const interfaceObj = state.interfacesById[interfaceId];
     if (interfaceObj) {
       // Filter out unchanged fields with the extended partially shallow logic
-      const filteredUpdates = sliceUtils.filterUnchangedProps(state.interfacesById[interfaceId], updates);
+      const filteredUpdates = sliceUtils.filterUnchangedUpdates(interfaceObj, updates);
       if (Object.keys(filteredUpdates).length === 0) return;  
       state.interfacesById[interfaceId] = interfaceLogic.updateInterface(interfaceObj, filteredUpdates);
     }

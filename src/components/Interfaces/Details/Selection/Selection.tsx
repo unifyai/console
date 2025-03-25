@@ -287,7 +287,7 @@ export default function Selection({
   const item = useMemo(() => tileItemActionsWithId?.asTileItem(), [tileItemActionsWithId]);
 
   // Get the table tile this selection references
-  const { tile: tileStateWithTable, actions: tileActionsWithTable } = useTile(
+  const { meta: tileMetaStateWithTable, tableTile: tableTileStateWithTable, actions: tileActionsWithTable } = useTile(
     item?.table || "", 
     tabId, 
     interfaceId, 
@@ -299,17 +299,17 @@ export default function Selection({
   const tableItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || 
     { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileItemActionsWithTable, item?.table]);
   const relevantItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || undefined, [tileItemActionsWithTable]);
-  const tableDataItem = useMemo(() => tileStateWithTable?.tableTile?.tableDataItem || {} as TableDataItem, [tileStateWithTable]);
+  const tableDataItem = useMemo(() => tableTileStateWithTable?.tableDataItem || {} as TableDataItem, [tableTileStateWithTable]);
 
   // Create a generic updateItem function that checks property existence
   const updateItem = useCallback((item: TileProps, propName: string) => (value: any) => {
     if (tileActionsWithId && item.i == tileMetaStateWithId?.name) {
       tileActionsWithId.updateTile({ [propName]: value });
     }
-    else if (tileActionsWithTable && item.table == tileStateWithTable?.name) {
+    else if (tileActionsWithTable && item.table == tileMetaStateWithTable?.name) {
       tileActionsWithTable.updateTile({ [propName]: value });
     }
-  }, [tileActionsWithId, tileActionsWithTable, tileMetaStateWithId, tileStateWithTable]);
+  }, [tileActionsWithId, tileActionsWithTable, tileMetaStateWithId, tileMetaStateWithTable]);
 
   const params = useMemo(() => tableDataItem?.params || {}, [tableDataItem, item?.table]);
   const logs = useMemo(() => maybeFlattenGroupedLogs(tableDataItem?.logs || []), [tableDataItem, item?.table]);

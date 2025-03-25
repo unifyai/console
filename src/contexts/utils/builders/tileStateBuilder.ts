@@ -42,6 +42,7 @@ export function buildTileState(
     freeze: tileProps.freeze,
     filters: tileProps.filters,
     common_filter: tileProps.common_filter,
+    metric: tileProps.metric,
   };
 
   // Build tile UI state
@@ -95,7 +96,6 @@ export function buildTableTileState(
   // Build table tile data
   const tableTileData: TableTileData = {
     table_type: tileProps.table_type,
-    metric: tileProps.metric,
     column_order: tileProps.column_order,
     hidden_columns: tileProps.hidden_columns,
     sorting: tileProps.sorting,

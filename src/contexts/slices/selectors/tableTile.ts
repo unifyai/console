@@ -13,16 +13,15 @@ export interface TableTileMeta {
 
 // Table tile data - business data
 export interface TableTileData {
-  table_type?: string;     // Type of table
-  metric?: string;         // Current metric being displayed
-  column_order?: string;   // Column ordering information
-  hidden_columns?: string; // Hidden columns configuration
-  sorting?: string;        // Sorting expression
-  grouping?: string;       // Grouping expression
-  group_sorting?: string;  // How groups are sorted
-  columns_pin_left?: string; // Columns pinned to the left
-  columns_pin_right?: string; // Columns pinned to the right
-  selected?: string;       // Selected items in the table
+  table_type?: string | null;     // Type of table
+  column_order?: string | null;   // Column ordering information
+  hidden_columns?: string | null; // Hidden columns configuration
+  sorting?: string | null;        // Sorting expression
+  grouping?: string | null;       // Grouping expression
+  group_sorting?: string | null;  // How groups are sorted
+  columns_pin_left?: string | null; // Columns pinned to the left
+  columns_pin_right?: string | null; // Columns pinned to the right
+  selected?: string | null;       // Selected items in the table
 
   // Table data item
   tableDataItem?: TableDataItem;
@@ -30,10 +29,10 @@ export interface TableTileData {
 
 // Table tile UI - UI-related state
 export interface TableTileUI {
-  limit: number;
-  offset: number;
-  column_context?: string; // Context for columns display
-  page_number?: string;    // Current page for pagination
+  limit?: number;
+  offset?: number;
+  column_context?: string | null; // Context for columns display
+  page_number?: string | null;    // Current page for pagination
 }
 
 // Combined Table tile type
@@ -41,7 +40,7 @@ export type TableTile = TableTileMeta & TableTileData & TableTileUI;
 
 // tableTileKeys: all fields for TableTile
 export const TABLE_TILE_KEYS: (keyof TableTile)[] = [
-  "table_type","metric","column_order","hidden_columns","sorting",
+  "table_type","column_order","hidden_columns","sorting",
   "grouping","group_sorting","columns_pin_left","columns_pin_right",
   "selected","tableDataItem","limit","offset",
   "column_context","page_number"
@@ -53,14 +52,13 @@ export const TABLE_TILE_KEYS: (keyof TableTile)[] = [
 export function initTableTile(initialState: Partial<TableTile> = {}): TableTile {
   return {
     // UI
-    limit: initialState.limit || 20,
-    offset: initialState.offset || 0,
+    limit: initialState.limit,
+    offset: initialState.offset,
     column_context: initialState.column_context,
     page_number: initialState.page_number,
 
     // Data
     table_type: initialState.table_type,
-    metric: initialState.metric,
     column_order: initialState.column_order,
     hidden_columns: initialState.hidden_columns,
     sorting: initialState.sorting,

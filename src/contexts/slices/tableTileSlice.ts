@@ -42,7 +42,7 @@ export const createTableTileSlice: StateCreator<
     if (!tile || !tile.tableTile) return;
     
     // Filter out unchanged fields with the extended partially shallow logic
-    const filteredUpdates = sliceUtils.filterUnchangedProps(tile.tableTile, updates);
+    const filteredUpdates = sliceUtils.filterUnchangedUpdates(tile.tableTile, updates);
     if (Object.keys(filteredUpdates).length === 0) return;
 
     // Update table-specific data if needed

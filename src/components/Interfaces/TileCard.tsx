@@ -24,7 +24,6 @@ interface TileCardProps {
   interfaceId: string;
   projectId: string;
   updateTab: (savedTab?: TabProps | null, updatedTileProps?: TileProps[] | TileProps | null) => Promise<ResponseProps>;
-  getLatestTab: () => void;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
@@ -38,7 +37,6 @@ const TileCard = ({
   interfaceId,
   projectId,
   updateTab,
-  getLatestTab,
   logsActions,
   fieldsActions,
   derivedEntryActions,
@@ -90,10 +88,16 @@ const TileCard = ({
                     key={idx}
                     onSelect={() => {
                       if (item?.i) {
-                        tabDataActions?.updateTile(item.i, { type: tabType });
+                        // If tabType is either a "Table" or "Plot" and the item.table is already set,
+                        // then we need to first mark it as null
+                        if (tabType === "Table" || tabType === "Plot" && item.table) {
+                          tileDataActions?.setTable("");
+                        }
+
                         if (item?.tab === undefined && tabType === "Table") {
                           tabDataActions?.updateTableTile(item.i, { table_type: "Data Table" });
                         }
+                        tabDataActions?.updateTile(item.i, { type: tabType });
                       }
                     }}
                     className="w-64 flex justify-between items-center"

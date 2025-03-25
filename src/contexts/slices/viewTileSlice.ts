@@ -42,7 +42,7 @@ export const createViewTileSlice: StateCreator<
     if (!tile || !tile.viewTile) return;
     
     // Filter out unchanged fields with the extended partially shallow logic
-    const filteredUpdates = sliceUtils.filterUnchangedProps(tile.viewTile, updates);
+    const filteredUpdates = sliceUtils.filterUnchangedUpdates(tile.viewTile, updates);
     if (Object.keys(filteredUpdates).length === 0) return;
     
     // Update table-specific data if needed
