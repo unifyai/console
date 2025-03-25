@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Card from "./Card";
 import { TableArguments } from "@/types/evals/logs";
 import { ResponseProps } from "@/types/common";
-import { DerivedEntryActions, Context, ContextActions, Interface, InterfaceActions, ItemType, LogsActions, FieldsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps } from "@/types/evals/grid";
+import { DerivedEntryActions, Context, ContextActions, Interface, InterfaceActions, ItemType, LogsActions, FieldsActions, PlotDataProps, ProjectsActions, TableDataProps, TileProps, DemoActions } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
 import { Braces, Copy, EyeOff, Grid2x2, Grip, Loader2, Maximize2, X } from "lucide-react";
 import { WidthProvider, Responsive } from "react-grid-layout";
@@ -52,6 +52,7 @@ const CardGrid = ({
     derivedEntryActions,
     contextActions,
     interfaceActions,
+    demoActions
 }: {
     project_: string | null,
     projects_: string[] | undefined,
@@ -76,7 +77,8 @@ const CardGrid = ({
     fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
     contextActions: ContextActions,
-    interfaceActions: InterfaceActions
+    interfaceActions: InterfaceActions,
+    demoActions: DemoActions
 }) => {
     const router = useRouter();
 
@@ -310,6 +312,7 @@ const CardGrid = ({
                 projects={projects}
                 projectActions={projectActions}
                 interfaceActions={interfaceActions}
+                demoActions={demoActions}
                 logsActions={logsActions}
                 derivedEntryActions={derivedEntryActions}
                 setInterface={setInterface}

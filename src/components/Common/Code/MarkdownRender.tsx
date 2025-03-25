@@ -25,7 +25,7 @@ const MarkdownRender = ({ content, darkOnly }: { content: string, darkOnly?: boo
     const codeContent = String(children).replace(/\n$/, "");
     return !inline ? (
       <div className="relative">
-        <div className={"absolute top-1 right-1 " + (darkOnly ? "text-muted" : "")}>
+        <div className={"absolute top-1 right-1 " + (darkOnly ? theme == "dark" ? "text-foreground" : "text-muted" : "")}>
           <CopyButton content={codeContent} copyMessage="Copied!" />
         </div>
         <SyntaxHighlighter

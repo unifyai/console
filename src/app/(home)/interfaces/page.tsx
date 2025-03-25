@@ -22,17 +22,20 @@ import {
     deleteContext,
     getContexts,
     createLogs,
+    runDemo,
 } from "./actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
 
 const InterfacesPage = async ({ searchParams }: { searchParams: { project?: string, tab?: string } }) => {
     // get user and api key
+    const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
     const user = await getCurrentUser();
     if (!user) {
         signOut();
         redirect('/login');
     }
+    const userId = user.id;
     const apiKey = user.apiKey;
 
     // get server actions
@@ -73,6 +76,10 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
         delete: await deleteInterface(apiKey),
     }
 
+    const demoActions = {
+        run: await runDemo(adminKey, userId),
+    }
+
     return (
         <div className="w-full h-full">
             <Suspense fallback={<SkeletonLoader />}>
@@ -85,6 +92,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
                     contextActions={contextActions}
                     fieldsActions={fieldsActions}
                     interfaceActions={interfaceActions}
+                    demoActions={demoActions}
                 />
             </Suspense>
         </div>

@@ -1,7 +1,7 @@
 import CardGrid from "@/components/Interfaces/CardGrid";
 import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, LogItemProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
-import { Context, ContextActions, DerivedEntryActions, FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
+import { Context, ContextActions, DemoActions, DerivedEntryActions, FieldsActions, Interface, InterfaceActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps } from "@/types/evals/grid";
 import { buildFilterExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { redirect } from "next/navigation";
@@ -9,7 +9,7 @@ import { redirect } from "next/navigation";
 import { defaultNewCounter } from "@/constants/logs";
 import { defaultItems } from "@/constants/logs";
 
-const Main = async ({ interface_, project_, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, interfaceActions }: {
+const Main = async ({ interface_, project_, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, interfaceActions, demoActions }: {
     interface_: string | undefined,
     project_: string | undefined,
     projectsActions: ProjectsActions,
@@ -17,7 +17,8 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
     derivedEntryActions: DerivedEntryActions,
     fieldsActions: FieldsActions,
     contextActions: ContextActions,
-    interfaceActions: InterfaceActions
+    interfaceActions: InterfaceActions,
+    demoActions: DemoActions
 }) => {
     // const cookies_ = cookies();
     const cookiesProject = undefined; //cookies_.get("project")?.value;
@@ -380,6 +381,7 @@ const Main = async ({ interface_, project_, projectsActions, logsActions, derive
         derivedEntryActions={derivedEntryActions}
         contextActions={contextActions}
         interfaceActions={interfaceActions}
+        demoActions={demoActions}
     />;
 };
 
