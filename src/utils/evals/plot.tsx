@@ -33,7 +33,7 @@ export function clearCanvas (svgRef: any, containerRef: any) {
     xZero.style("opacity", 0)
     yZero.style("opacity", 0)
     groupingKey.style("opacity", 0)
-}
+}  
 
 const drawAxes = (
     plotType: string,
@@ -69,8 +69,9 @@ const drawAxes = (
             return d.toString().slice(0, 10)
         }) as any;
     } else if (plotType === "Histogram" || plotType === "Line Chart" || plotType === "Scatter Plot") {
-        xTickFormatter = d3.axisBottom(x as d3.ScaleLinear<number, number, never>).tickValues(xTicks).tickFormat(d => {
-            if (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "date") return formatTimeTypeValue(d as number, xType)
+        xTickFormatter = d3.axisBottom(x as d3.ScaleLinear<number, number, never>).tickValues(xTicks).tickFormat((d, i) => {
+            const prevTick = i > 0 ? xTicks[i - 1] : undefined;
+            if (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "date") return formatTimeTypeTick(d as number, prevTick, xType)
             return reverseX ? formatNumber(-d as number) : formatNumber(d as number)
         }) as any
     }
@@ -87,8 +88,9 @@ const drawAxes = (
             ? yTicks.length > 1 ? yTicks.slice(1) : yTicks 
             : yTicks as number[]
         )
-        .tickFormat((d) => {
-            if (yType === "timestamp" || yType === "timedelta" || yType === "time" || yType === "date") return formatTimeTypeValue(d as number, yType)
+        .tickFormat((d, i) => {
+            const prevTick = i > 0 ? yTicks[i - 1] : undefined;
+            if (yType === "timestamp" || yType === "timedelta" || yType === "time" || yType === "date") return formatTimeTypeTick(d as number, prevTick, yType)
             let value = parseFloat(d as any)
             value = reverseY ? -value : value
             return formatNumber(value)
@@ -196,6 +198,7 @@ const positionTooltip = (event: any, target: any, tooltip: any) => {
 
 /** Utility functions to process plot data, including:
  * Calculating the x and y axis tick values
+ * Formatting time axis values to remove redundant components
  * Checking if an axis data range can be turned to log scale
  * Reversing the axis domain to compute log scaled values if all numbers in the range are strictly negative
  * Checking if a table's logs has values for a given axis property, and getting those values, if applicable
@@ -244,6 +247,192 @@ function generateTicks(min: number, max: number, count = 10, isLogScale = false)
     }
 
     return ticks;
+}
+
+function formatTimeTypeTick (currentTickValue: number, previousTickValue: number | undefined, dataType: string) {
+    // If no previous value, return the full formatting
+    if (!previousTickValue) return formatTimeTypeValue(currentTickValue, dataType)
+    
+    // Define time formats for each data type and each case
+    const timeFormats : {[type: typeof dataType]: {[format: string]:  (date: Date) => string}}= {
+        "timestamp": {
+            "noYear": d3.timeFormat("%m-%d %H:%M:%S.%L"),
+            "noMonth": d3.timeFormat("%d %H:%M:%S.%L"),
+            "noDay": d3.timeFormat("%H:%M:%S.%L"),
+            "noHour": d3.timeFormat("%M:%S.%L"),
+            "noMinute": d3.timeFormat("%S.%L"),
+            "noSecond": d3.timeFormat("%L")
+        },
+        "date": {
+            "noYear": d3.timeFormat("%m-%d"),
+            "noMonth": d3.timeFormat("%d")
+        },
+        "time": {
+            "noHour": d3.timeFormat("%M:%S"),
+            "noMinute": d3.timeFormat("%S")
+        },
+        "timedelta": {
+            "noDay": d3.timeFormat("%H:%M:%S"),
+            "noHour": d3.timeFormat("%M:%S"),
+            "noMinute": d3.timeFormat("%S")
+        }
+    }
+
+    // Split current and previous ticks into their respective time components and incrementally compare the corresponding components.
+    // Exclude shared components from the returned tick format or return the full format if the first component is different.
+    const [previousTickFormat, currentTickFormat] = [previousTickValue, currentTickValue].map(tick => formatTimeTypeValue(tick, dataType)) 
+    let [previousParts, currentParts] : [string[], string[]] = [[], []]
+    const currentTickDate = new Date(currentTickValue)
+    switch (dataType) {
+        case "timestamp":
+            // Split into [year, month, day, hour, minutes, seconds, milliseconds]
+            [previousParts, currentParts] = [previousTickFormat, currentTickFormat].map(tickFormat => 
+                tickFormat.split(" ").flatMap((dateOrTime, i) => i === 0 
+                    ? dateOrTime.split("-") 
+                    : dateOrTime.split(":").flatMap((timePart, i) => i === 2
+                        ? timePart.split(".")
+                        : timePart
+                    )
+                )
+            )
+            let tickFormat : string;
+            if (previousParts[0] === currentParts[0]) {
+                if (previousParts[1] === currentParts[1]) {
+                    if (previousParts[2] === currentParts[2]) {
+                        if (previousParts[3] === currentParts[3]) {
+                            if (previousParts[4] === currentParts[4]) {
+                                if (previousParts[5] === currentParts[5]) {
+                                    if (previousParts[6] === currentParts[6]) {
+                                        tickFormat = timeFormats["timestamp"]["noSecond"](currentTickDate)
+                                    }
+                                    // Same second, different millisecond
+                                    else {
+                                        tickFormat = timeFormats["timestamp"]["noSecond"](currentTickDate)
+                                    }
+                                }
+                                // Same minute, different second
+                                else {
+                                    tickFormat = timeFormats["timestamp"]["noMinute"](currentTickDate)
+                                }
+                            }
+                            // Same hour, different minute
+                            else {
+                                tickFormat = timeFormats["timestamp"]["noHour"](currentTickDate)
+                            }
+                        }
+                        // Same day, different hour
+                        else {
+                            tickFormat = timeFormats["timestamp"]["noDay"](currentTickDate)
+                        }
+                    }
+                    // Same month, different day
+                    else {
+                        tickFormat = timeFormats["timestamp"]["noMonth"](currentTickDate)
+                    }
+                }
+                // Same year, different month
+                else {
+                    tickFormat = timeFormats["timestamp"]["noYear"](currentTickDate)
+                }
+            } 
+            // Different year
+            else {
+                tickFormat = currentTickFormat
+            }
+            
+            // Remove milliseconds if zero
+            if (currentParts[6] === "000") tickFormat = tickFormat.split(".")[0]
+            return tickFormat
+        case "time":
+            // Split into [hour, minutes, seconds]
+            [previousParts, currentParts] = [previousTickFormat, currentTickFormat].map(tickFormat => tickFormat.split(":"))
+            if (previousParts[0] === currentParts[0]) {
+                if (previousParts[1] === currentParts[1]) {
+                    if (previousParts[2] === currentParts[2]) {
+                        const tickFormat = timeFormats["timestamp"]["noMinute"](currentTickDate)
+                        return tickFormat
+                    }
+                    // Same minute, different second
+                    else {
+                        const tickFormat = timeFormats["timestamp"]["noMinute"](currentTickDate)
+                        return tickFormat
+                    }
+                }
+                // Same hour, different minute
+                else {
+                    const tickFormat = timeFormats["time"]["noHour"](currentTickDate)
+                    return tickFormat
+                }
+            }
+            // Different hour
+            else {
+                return currentTickFormat
+            }
+        case "date":
+            // Split into [year, month, day]
+            [previousParts, currentParts] = [previousTickFormat, currentTickFormat].map(tickFormat => tickFormat.split("-"))
+            if (previousParts[0] === currentParts[0]) {
+                if (previousParts[1] === currentParts[1]) {
+                    if (previousParts[2] === currentParts[2]) {
+                        const tickFormat = timeFormats["date"]["noMonth"](currentTickDate)
+                        return tickFormat
+                    }
+                    // Same month, different day
+                    else {
+                        const tickFormat = timeFormats["date"]["noMonth"](currentTickDate)
+                        return tickFormat
+                    }
+                }
+                // Same year, different month
+                else {
+                    const tickFormat = timeFormats["date"]["noYear"](currentTickDate)
+                    return tickFormat
+                }
+            }
+            // Different year
+            else {
+                return currentTickFormat
+            }
+        case "timedelta":
+            // Split into [day, hour, minutes, seconds]
+            [previousParts, currentParts] = [previousTickFormat, currentTickFormat].map(tickFormat => 
+                tickFormat.split(", ").flatMap((dayOrTime, i) => i === 0 
+                    ? dayOrTime 
+                    : dayOrTime.split(":")
+                )
+            )
+            if (previousParts[0] === currentParts[0]) {
+                if (previousParts[1] === currentParts[1]) {
+                    if (previousParts[2] === currentParts[2]) {
+                        if (previousParts[3] === currentParts[3]) {
+                            const tickFormat = timeFormats["timedelta"]["noMinute"](currentTickDate)
+                            return tickFormat
+                        }
+                        // Same minute, different second
+                        else {
+                            const tickFormat = timeFormats["timedelta"]["noMinute"](currentTickDate)
+                            return tickFormat
+                        }
+                    }
+                    // Same hour, different minute
+                    else {
+                        const tickFormat = timeFormats["timedelta"]["noHour"](currentTickDate)
+                        return tickFormat
+                    }
+                }
+                // Same day, different hour
+                else {
+                    const tickFormat = timeFormats["timedelta"]["noDay"](currentTickDate)
+                    return tickFormat
+                }
+            }
+            // Different day
+            else {
+                return currentTickFormat
+            }
+        default:
+            return currentTickFormat
+    }
 }
 
 export function checkLogScalability (

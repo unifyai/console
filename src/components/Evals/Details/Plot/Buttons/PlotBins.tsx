@@ -10,20 +10,21 @@ const PlotBins = ({binCount, setBinCount, binCounts}: {
     binCounts: number[],
     setBinCount: (binCount: string) => void
 }) => {
+    const ticks = [binCounts[0], Math.min(binCounts[1], 200)]
     const button = <SettingButton icon={<ChartColumnBig/>} tooltip={"Bin count"} variant={"outline"}/>
     const setValue = (value: any) => {
         let update;
         if (typeof value === "number") {
-            if (value < binCounts[0]) update = binCounts[0]
-            else if (value > binCounts[1]) update = binCounts[1]
+            if (value < ticks[0]) update = ticks[0]
+            else if (value > ticks[1]) update = ticks[1]
             else update = value
         } 
-        else update = binCounts[0]
+        else update = ticks[0]
         setBinCount(update.toString())
     }
     return (
         <BaseDropdown button={button} side="left">
-            <SliderWithValue label="Bin count" value={binCount} setValue={setValue} ticks={binCounts}/>
+            <SliderWithValue label="Bin count" value={binCount} setValue={setValue} ticks={ticks}/>
         </BaseDropdown>
     );
 }
