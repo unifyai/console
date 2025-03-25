@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useEffect, useCallback } from "react";
+import React, { useMemo, useEffect, useCallback, useRef, useState } from "react";
 import {
   Accordion,
   AccordionItem,
@@ -29,6 +29,7 @@ import {
 } from "@/utils/evals/pathUtils";
 import { usePanelExpandContextSelector } from "@/components/Interfaces/Details/Selection/SelectionPanel";
 import { getIndentClasses, getContentIndentClasses, getSeparatorClasses } from "./useIndentation";
+import { useTraceExpandContextSelector } from "./TraceView/TraceExpandContext";
 
 import { LogComparisonProps } from "./types";
 import { getValueType, getTypeIcon } from "./ViewTypes";
@@ -404,15 +405,52 @@ export default function ListView({
   prefix = "entries",
   parentPath = "",
 }: ListViewProps) {
-  // Subscribe to context values we need
-  const openKeys = usePanelExpandContextSelector((ctx) => ctx.openKeys);
-  const setOpenKeys = usePanelExpandContextSelector((ctx) => ctx.setOpenKeys);
-  const forceExpandAll = usePanelExpandContextSelector((ctx) => ctx.forceExpandAll);
-  const forceCollapseAll = usePanelExpandContextSelector((ctx) => ctx.forceCollapseAll);
-  const toggleKey = usePanelExpandContextSelector((ctx) => ctx.toggleKey);
-  const expandRecursively = usePanelExpandContextSelector((ctx) => ctx.expandRecursively);
-  const collapseRecursively = usePanelExpandContextSelector((ctx) => ctx.collapseRecursively);
+  // Add an id to track if the instance is remounted
+  const instanceId = useRef(Math.random().toString(36).substr(2, 9));
+  
+  // We first need to detect if we're within a TraceView context
+  // We'll try to access the TraceExpandContext selector without throwing
+  const [inTraceView, setInTraceView] = useState(false);
+  
+  // Try to use TraceExpandContext
+  const traceOpenKeys = useTraceExpandContextSelector((ctx) => {
+    return ctx?.openKeys;
+  });
+  const traceSetOpenKeys = useTraceExpandContextSelector((ctx) => ctx?.setOpenKeys);
+  const traceForceExpandAll = useTraceExpandContextSelector((ctx) => ctx?.forceExpandAll);
+  const traceForceCollapseAll = useTraceExpandContextSelector((ctx) => ctx?.forceCollapseAll);
+  const traceExpandRecursively = useTraceExpandContextSelector((ctx) => ctx?.expandRecursively);
+  const traceCollapseRecursively = useTraceExpandContextSelector((ctx) => ctx?.collapseRecursively);
+  const traceToggleKey = useTraceExpandContextSelector((ctx) => ctx?.toggleKey);
+  const traceInstanceId = useTraceExpandContextSelector((ctx) => ctx?.instanceId);
+  
+  // Also fetch PanelExpandContext values
+  const panelOpenKeys = usePanelExpandContextSelector((ctx) => {
+    return ctx.openKeys;
+  });
+  const panelSetOpenKeys = usePanelExpandContextSelector((ctx) => ctx.setOpenKeys);
+  const panelForceExpandAll = usePanelExpandContextSelector((ctx) => ctx.forceExpandAll);
+  const panelForceCollapseAll = usePanelExpandContextSelector((ctx) => ctx.forceCollapseAll);
+  const panelExpandRecursively = usePanelExpandContextSelector((ctx) => ctx.expandRecursively);
+  const panelCollapseRecursively = usePanelExpandContextSelector((ctx) => ctx.collapseRecursively);
+  const panelToggleKey = usePanelExpandContextSelector((ctx) => ctx.toggleKey);
+  
+  // Determine which context to use based on availability
+  useEffect(() => {
+    // We're in TraceView if traceOpenKeys is defined 
+    const isInTraceView = traceOpenKeys !== undefined && traceInstanceId !== undefined;
+    setInTraceView(isInTraceView);
+  }, [traceOpenKeys, traceInstanceId, parentPath, nestingLevel]);
 
+  // Use the appropriate context values based on our environment
+  const effectiveOpenKeys = inTraceView ? traceOpenKeys : panelOpenKeys;
+  const effectiveSetOpenKeys = inTraceView ? traceSetOpenKeys : panelSetOpenKeys;
+  const effectiveForceExpandAll = inTraceView ? traceForceExpandAll : panelForceExpandAll;
+  const effectiveForceCollapseAll = inTraceView ? traceForceCollapseAll : panelForceCollapseAll;
+  const effectiveExpandRecursively = inTraceView ? traceExpandRecursively : panelExpandRecursively;
+  const effectiveCollapseRecursively = inTraceView ? traceCollapseRecursively : panelCollapseRecursively;
+  const effectiveToggleKey = inTraceView ? traceToggleKey : panelToggleKey;
+  
   // Memoize the value and comparables array validity to avoid recalculation
   const { isValidBase, isValidComparables, maxLength } = useMemo(() => {
     const isBase = Array.isArray(value);
@@ -433,12 +471,6 @@ export default function ListView({
     };
   }, [value, comparables]);
   
-  // Memoize toggle handlers to prevent recreation on displayMode changes
-  const handleToggle = useCallback((index: number) => {
-    const path = buildItemPath(index);
-    toggleKey(path);
-  }, [toggleKey, parentPath, prefix, nestingLevel]);
-  
   // Memoize the buildItemPath function to maintain consistent paths across renders
   const buildItemPath = useCallback((i: number) => {
     return parentPath 
@@ -450,6 +482,12 @@ export default function ListView({
   const itemLabel = useCallback((i: number) => {
     return `${i}`;
   }, []);
+
+  // Memoize toggle handlers to prevent recreation on displayMode changes
+  const handleToggle = useCallback((index: number) => {
+    const path = buildItemPath(index);
+    effectiveToggleKey(path);
+  }, [effectiveToggleKey, buildItemPath]);
   
   // Memoize recursive expand/collapse handlers
   const handleRecursiveExpandCollapse = useCallback((e: React.MouseEvent, index: number, itemValue: any, itemComparables: any[]) => {
@@ -462,11 +500,11 @@ export default function ListView({
       itemComparables,
       prefix,
       nestingLevel + 1,
-      expandRecursively,
-      collapseRecursively,
-      openKeys
+      effectiveExpandRecursively,
+      effectiveCollapseRecursively,
+      effectiveOpenKeys
     );
-  }, [buildItemPath, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys]);
+  }, [buildItemPath, prefix, nestingLevel, effectiveExpandRecursively, effectiveCollapseRecursively, effectiveOpenKeys]);
   
   // Memoize all item paths to avoid recalculation on display mode changes
   const itemPaths = useMemo(() => {
@@ -483,15 +521,15 @@ export default function ListView({
   // Memoize the open values for the accordion
   const openValues = useMemo(() => {
     return itemPaths
-      .filter(({ path }) => openKeys.has(path))
+      .filter(({ path }) => effectiveOpenKeys.has(path))
       .map(({ index }) => itemLabel(index));
-  }, [itemPaths, openKeys, itemLabel]);
+  }, [itemPaths, effectiveOpenKeys, itemLabel]);
   
   // This effect shouldn't run when displayMode changes
   useEffect(() => {
     if (!isValidBase && !isValidComparables) return;
     
-    if (forceExpandAll || forceCollapseAll) {
+    if (effectiveForceExpandAll || effectiveForceCollapseAll) {
       const paths: string[] = [];
       
       // Gather paths for each item and its nested content
@@ -517,15 +555,15 @@ export default function ListView({
         }
       }
       
-      if (forceExpandAll) {
-        expandRecursively(paths);
+      if (effectiveForceExpandAll) {
+        effectiveExpandRecursively(paths);
       } else {
-        collapseRecursively(paths);
+        effectiveCollapseRecursively(paths);
       }
     }
   }, [
-    forceExpandAll,
-    forceCollapseAll,
+    effectiveForceExpandAll,
+    effectiveForceCollapseAll,
     isValidBase,
     isValidComparables,
     maxLength,
@@ -534,8 +572,8 @@ export default function ListView({
     comparables,
     prefix,
     nestingLevel,
-    expandRecursively,
-    collapseRecursively
+    effectiveExpandRecursively,
+    effectiveCollapseRecursively
     // displayMode intentionally left out of dependencies
   ]);
 
@@ -586,7 +624,7 @@ export default function ListView({
     if (itemValue === undefined) return null;
     
     const path = buildItemPath(index);
-    const isOpen = openKeys.has(path);
+    const isOpen = effectiveOpenKeys.has(path);
     const valueType = getValueType(itemValue);
     const icon = getTypeIcon(valueType);
     const isExpandable = isDict(itemValue) || isList(itemValue);
@@ -660,7 +698,7 @@ export default function ListView({
     }
     
     const path = buildItemPath(index);
-    const isOpen = openKeys.has(path);
+    const isOpen = effectiveOpenKeys.has(path);
     
     const { redRows, greenRows } = presenceDiff(
       baseItem,
@@ -752,8 +790,8 @@ export default function ListView({
       Array.isArray(value) ? value : [],
       Array.isArray(comparables[0]) ? comparables as any[][] : [],
       [baseLogIndex, ...comparisonLogsIndex],
-      openKeys,
-      setOpenKeys,
+      effectiveOpenKeys,
+      effectiveSetOpenKeys,
       buildItemPath,
       itemLabel,
       {
@@ -767,8 +805,8 @@ export default function ListView({
         nestingLevel,
         prefix,
         parentPath,
-        expandRecursively,
-        collapseRecursively,
+        expandRecursively: effectiveExpandRecursively,
+        collapseRecursively: effectiveCollapseRecursively
       }
     );
   }

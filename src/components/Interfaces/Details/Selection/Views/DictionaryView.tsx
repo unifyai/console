@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useEffect, useCallback } from "react";
+import React, { useMemo, useEffect, useCallback, useState, useRef } from "react";
 import {
   Accordion,
   AccordionItem,
@@ -29,6 +29,7 @@ import {
 } from "@/utils/evals/pathUtils";
 import { usePanelExpandContextSelector } from "@/components/Interfaces/Details/Selection/SelectionPanel";
 import { getIndentClasses, getContentIndentClasses, getSeparatorClasses } from "./useIndentation";
+import { useTraceExpandContextSelector } from "./TraceView/TraceExpandContext";
 
 import { LogComparisonProps } from "./types";
 import { getValueType, getTypeIcon } from "./ViewTypes";
@@ -392,64 +393,81 @@ export default function DictionaryView({
   prefix = "entries",
   parentPath = "", // new param to track parent's path
 }: DictionaryViewProps) {
-  // Get openKeys and other items from context
-  const openKeys = usePanelExpandContextSelector((ctx) => ctx.openKeys);
-  const setOpenKeys = usePanelExpandContextSelector((ctx) => ctx.setOpenKeys);
-  const forceExpandAll = usePanelExpandContextSelector((ctx) => ctx.forceExpandAll);
-  const forceCollapseAll = usePanelExpandContextSelector((ctx) => ctx.forceCollapseAll);
-  const toggleKey = usePanelExpandContextSelector((ctx) => ctx.toggleKey);
-  const expandRecursively = usePanelExpandContextSelector((ctx) => ctx.expandRecursively);
-  const collapseRecursively = usePanelExpandContextSelector((ctx) => ctx.collapseRecursively);
-
-  // Memoize recursive expand/collapse handlers to prevent recreation on displayMode changes
-  const handleRecursiveExpandCollapse = useCallback((e: React.MouseEvent, propertyKey: string, propertyValue: any, propertyComparables: any[]) => {
-    const builtPath = parentPath
-      ? parentPath + "." + sanitizePropertyKey(propertyKey)
-      : makePrefixedDictPath(prefix, nestingLevel, propertyKey);
-    
-    handleRecursiveToggle(
-      e,
-      builtPath,
-      propertyValue,
-      propertyComparables,
-      prefix,
-      nestingLevel + 1,
-      expandRecursively,
-      collapseRecursively,
-      openKeys
-    );
-  }, [parentPath, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys]);
-
-  // Memoize toggle handlers to prevent recreation on displayMode changes
-  const handleToggle = useCallback((propertyKey: string) => {
-    const builtPath = parentPath
-      ? parentPath + "." + sanitizePropertyKey(propertyKey)
-      : makePrefixedDictPath(prefix, nestingLevel, propertyKey);
-    
-    toggleKey(builtPath);
-  }, [parentPath, prefix, nestingLevel, toggleKey]);
+  // Add an id to track if the instance is remounted
+  const instanceId = useRef(Math.random().toString(36).substr(2, 9));
+  
+  // We first need to detect if we're within a TraceView context
+  // We'll try to access the TraceExpandContext selector without throwing
+  const [inTraceView, setInTraceView] = useState(false);
+  
+  // Try to use TraceExpandContext
+  const traceOpenKeys = useTraceExpandContextSelector((ctx) => {
+    return ctx?.openKeys;
+  });
+  const traceSetOpenKeys = useTraceExpandContextSelector((ctx) => ctx?.setOpenKeys);
+  const traceForceExpandAll = useTraceExpandContextSelector((ctx) => ctx?.forceExpandAll);
+  const traceForceCollapseAll = useTraceExpandContextSelector((ctx) => ctx?.forceCollapseAll);
+  const traceExpandRecursively = useTraceExpandContextSelector((ctx) => ctx?.expandRecursively);
+  const traceCollapseRecursively = useTraceExpandContextSelector((ctx) => ctx?.collapseRecursively);
+  const traceToggleKey = useTraceExpandContextSelector((ctx) => ctx?.toggleKey);
+  const traceInstanceId = useTraceExpandContextSelector((ctx) => ctx?.instanceId);
+  
+  // Also fetch PanelExpandContext values
+  const panelOpenKeys = usePanelExpandContextSelector((ctx) => {
+    return ctx.openKeys;
+  });
+  const panelSetOpenKeys = usePanelExpandContextSelector((ctx) => ctx.setOpenKeys);
+  const panelForceExpandAll = usePanelExpandContextSelector((ctx) => ctx.forceExpandAll);
+  const panelForceCollapseAll = usePanelExpandContextSelector((ctx) => ctx.forceCollapseAll);
+  const panelExpandRecursively = usePanelExpandContextSelector((ctx) => ctx.expandRecursively);
+  const panelCollapseRecursively = usePanelExpandContextSelector((ctx) => ctx.collapseRecursively);
+  const panelToggleKey = usePanelExpandContextSelector((ctx) => ctx.toggleKey);
+  
+  // Determine which context to use based on availability
+  useEffect(() => {
+    // We're in TraceView if traceOpenKeys is defined 
+    const isInTraceView = traceOpenKeys !== undefined && traceInstanceId !== undefined;
+    setInTraceView(isInTraceView);
+  }, [traceOpenKeys, traceInstanceId, parentPath, nestingLevel]);
+  
+  // Use the appropriate context values based on our environment
+  const effectiveOpenKeys = inTraceView ? traceOpenKeys : panelOpenKeys;
+  const effectiveSetOpenKeys = inTraceView ? traceSetOpenKeys : panelSetOpenKeys;
+  const effectiveForceExpandAll = inTraceView ? traceForceExpandAll : panelForceExpandAll;
+  const effectiveForceCollapseAll = inTraceView ? traceForceCollapseAll : panelForceCollapseAll;
+  const effectiveExpandRecursively = inTraceView ? traceExpandRecursively : panelExpandRecursively;
+  const effectiveCollapseRecursively = inTraceView ? traceCollapseRecursively : panelCollapseRecursively;
+  const effectiveToggleKey = inTraceView ? traceToggleKey : panelToggleKey;
 
   // Extract all keys from base and comparables, filtering out ONLY undefined values
   const allKeys = useMemo(() => {
-    const keyset = new Set<string>();
+    const keys = new Set<string>();
 
-    // Add keys from base value if it's a valid object
+    // Add keys from base object (if it exists and isn't null)
     if (value && typeof value === "object") {
-      Object.keys(value).forEach((k) => keyset.add(k));
+      Object.keys(value).forEach((k) => keys.add(k));
     }
 
-    // Add keys from comparables if they are valid objects
+    // Add keys from comparable objects
     for (const comp of comparables) {
       if (comp && typeof comp === "object") {
-        Object.keys(comp).forEach((k) => keyset.add(k));
+        Object.keys(comp).forEach((k) => keys.add(k));
       }
     }
 
-    // Convert to array and sort
-    return Array.from(keyset).sort();
+    // Convert to array and sort alphabetically
+    return Array.from(keys).sort((a, b) => {
+      // Try to sort numerically if both are numeric strings
+      const aNum = Number(a);
+      const bNum = Number(b);
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        return aNum - bNum;
+      }
+      return a.localeCompare(b);
+    });
   }, [value, comparables]);
 
-  // Memoize path construction for keys to avoid recalculation on display mode changes
+  // Memoize path construction for keys to avoid recalculation
   const keyPaths = useMemo(() => {
     return allKeys.map(k => {
       const builtPath = parentPath
@@ -463,70 +481,48 @@ export default function DictionaryView({
     });
   }, [allKeys, parentPath, prefix, nestingLevel]);
 
+  // Helper function to gather all paths for expand/collapse
+  const gatherAllPaths = useCallback(() => {
+    const subPaths: string[] = [];
+    for (const k of allKeys) {
+      const builtPath = parentPath
+        ? parentPath + "." + sanitizePropertyKey(k)
+        : makePrefixedDictPath(prefix, nestingLevel, k);
+      subPaths.push(builtPath);
+
+      // Add deeper nested paths if they exist
+      const baseVal = value?.[k];
+      const comps = comparables.map((c) => c?.[k]);
+      
+      if (isDict(baseVal) || isList(baseVal)) {
+        if (comps.length > 0) {
+          const nestedPaths = gatherAllSubPathsMulti(baseVal, comps, builtPath, prefix, nestingLevel + 1);
+          subPaths.push(...nestedPaths);
+        } else {
+          const nestedPaths = gatherAllSubPaths(baseVal, builtPath, prefix, nestingLevel + 1);
+          subPaths.push(...nestedPaths);
+        }
+      }
+    }
+    return subPaths;
+  }, [allKeys, parentPath, prefix, nestingLevel, value, comparables]);
+
   // This effect shouldn't run when displayMode changes
   useEffect(() => {
-    if (forceExpandAll) {
-      const subPaths: string[] = [];
-      for (const k of allKeys) {
-        const builtPath = parentPath
-          ? parentPath + "." + sanitizePropertyKey(k)
-          : makePrefixedDictPath(prefix, nestingLevel, k);
-        subPaths.push(builtPath);
-
-        // Add deeper nested paths if they exist
-        const baseVal = value?.[k];
-        const comps = comparables.map((c) => c?.[k]);
-        
-        if (isDict(baseVal) || isList(baseVal)) {
-          if (comps.length > 0) {
-            const nestedPaths = gatherAllSubPathsMulti(baseVal, comps, builtPath, prefix, nestingLevel + 1);
-            subPaths.push(...nestedPaths);
-          } else {
-            const nestedPaths = gatherAllSubPaths(baseVal, builtPath, prefix, nestingLevel + 1);
-            subPaths.push(...nestedPaths);
-          }
-        }
-      }
-      
-      expandRecursively(subPaths);
-    } else if (forceCollapseAll) {
-      const subPaths: string[] = [];
-      for (const k of allKeys) {
-        const builtPath = parentPath
-          ? parentPath + "." + sanitizePropertyKey(k)
-          : makePrefixedDictPath(prefix, nestingLevel, k);
-        subPaths.push(builtPath);
-
-        // Add deeper nested paths if they exist
-        const baseVal = value?.[k];
-        const comps = comparables.map((c) => c?.[k]);
-        
-        if (isDict(baseVal) || isList(baseVal)) {
-          if (comps.length > 0) {
-            const nestedPaths = gatherAllSubPathsMulti(baseVal, comps, builtPath, prefix, nestingLevel + 1);
-            subPaths.push(...nestedPaths);
-          } else {
-            const nestedPaths = gatherAllSubPaths(baseVal, builtPath, prefix, nestingLevel + 1);
-            subPaths.push(...nestedPaths);
-          }
-        }
-      }
-      
-      collapseRecursively(subPaths);
+    if (!inTraceView) {
+      // When not in TraceView, rely on parent context
+      return;
     }
-  }, [
-    forceExpandAll, 
-    forceCollapseAll, 
-    allKeys, 
-    expandRecursively, 
-    collapseRecursively, 
-    parentPath, 
-    prefix, 
-    nestingLevel,
-    value,
-    comparables
-    // displayMode is intentionally not a dependency 
-  ]);
+    
+    // Handle local expand/collapse for TraceView mode
+    if (traceForceExpandAll) {
+      const paths = gatherAllPaths();  
+      effectiveExpandRecursively(paths);
+    } else if (traceForceCollapseAll) {
+      const paths = gatherAllPaths();
+      effectiveCollapseRecursively(paths);
+    }
+  }, [traceForceExpandAll, traceForceCollapseAll, inTraceView]);
 
   // Check if we have comparables => multi-mode
   const multiMode = comparables.some((c) => c !== undefined);
@@ -534,9 +530,9 @@ export default function DictionaryView({
   // Build the open values array for the accordion (using memoized keyPaths)
   const openValues = useMemo(() => {
     return keyPaths
-      .filter(({ path }) => openKeys.has(path))
+      .filter(({ path }) => effectiveOpenKeys.has(path))
       .map(({ key }) => key);
-  }, [keyPaths, openKeys]);
+  }, [keyPaths, effectiveOpenKeys]);
 
   // Memoize all rendered keys to prevent rerendering on display mode change
   const renderedKeys = useMemo(() => {
@@ -567,11 +563,10 @@ export default function DictionaryView({
   ]);
 
   function renderSingleKey(k: string, baseVal: any) {
-    // If undefined, skip
     if (baseVal === undefined) return null;
 
-    const builtPath = keyPaths.find(kp => kp.key === k)?.path || '';
-    const isOpen = openKeys.has(builtPath);
+    const path = keyPaths.find(kp => kp.key === k)?.path || '';
+    const isOpen = effectiveOpenKeys.has(path);
     const _valueType = getValueType(baseVal);
     const icon = getTypeIcon(_valueType);
     const isExpandable = isDict(baseVal) || isList(baseVal);
@@ -583,7 +578,7 @@ export default function DictionaryView({
 
     function handleExpandToggle(e: React.MouseEvent) {
       e.stopPropagation();
-      handleToggle(k);
+      handleToggle(k, path);
     }
 
     return (
@@ -631,7 +626,7 @@ export default function DictionaryView({
               comparableVersions,
               nestingLevel: nestingLevel + 1,
               prefix,
-              parentPath: builtPath, // pass fully-qualified path to children
+              parentPath: path, // pass fully-qualified path to children
             })}
           </div>
         </AccordionContent>
@@ -640,77 +635,59 @@ export default function DictionaryView({
   }
 
   function renderMultiKey(k: string, baseVal: any, comps: any[]) {
-    const builtPath = keyPaths.find(kp => kp.key === k)?.path || '';
-    const isOpen = openKeys.has(builtPath);
+    const path = keyPaths.find(kp => kp.key === k)?.path || '';
+    const isOpen = effectiveOpenKeys.has(path);
     
     // Skip completely if everyone is undefined
-    if (baseVal === undefined && comps.every((c) => c === undefined)) {
+    if (!baseVal && comps.every((c) => !c)) {
       return null;
     }
 
-    const isInBase = baseVal !== undefined;
-    const { redRows, greenRows } = presenceDiff(
-      baseVal,
-      comps,
-      baseLogIndex,
-      comparisonLogsIndex
-    );
-
-    // Use unifyType to decide what icon to show
+    // Type indicator
     const unifiedType = unifyType(baseVal, comps);
     const icon = getTypeIcon(unifiedType);
     const isExpandable = ["dict", "list"].includes(unifiedType);
-    
-    // Get indentation classes based on nesting level
+
+    // Presence/absence highlighting indicators
+    const presenceInfo = presenceDiff(baseVal, comps, baseLogIndex, comparisonLogsIndex);
+
+    // Base element present?
+    const isInBase = baseVal !== undefined;
+
+    // Indentation handling
     const indentClass = getIndentClasses(nestingLevel);
-    // Always use content indent for children
     const contentIndentClass = getContentIndentClasses(nestingLevel);
 
     function handleExpandToggle(e: React.MouseEvent) {
       e.stopPropagation();
-      handleToggle(k);
+      handleToggle(k, path);
     }
 
     return (
-      <AccordionItem key={k} value={k} className="border-0">
+      <AccordionItem className={indentClass} key={k} value={k}>
         <AccordionTrigger
-          onClick={handleExpandToggle}
-          className="py-1.5 hover:no-underline"
+          className={`text-sm ${isExpandable ? "cursor-pointer" : "cursor-default no-underline"}`}
+          onClick={isExpandable ? handleExpandToggle : undefined}
         >
-          <div className="flex items-center gap-2">
-            <span className="text-primary">{icon}</span>
-            <span className="text-sm font-mono">{k}</span>
-            <div className="flex items-center gap-1">
-              {isInBase ? (
-                <RowBadge rowNumbers={[baseLogIndex]} mode="base" />
-              ) : null}
-              {redRows.length > 0 && <RowBadge rowNumbers={redRows} mode="delete" />}
-              {greenRows.length > 0 && <RowBadge rowNumbers={greenRows} mode="insert" />}
+          <div className="flex items-center mr-auto">
+            <div className="flex items-center">
+              <span className="text-primary">{icon}</span>
+              <span className="block ml-2 font-medium">{k}</span>
+              <div className="flex items-center gap-1 ml-2">
+                {isInBase ? (
+                  <RowBadge rowNumbers={[baseLogIndex]} mode="base" />
+                ) : null}
+                {presenceInfo.redRows.length > 0 && <RowBadge rowNumbers={presenceInfo.redRows} mode="delete" />}
+                {presenceInfo.greenRows.length > 0 && <RowBadge rowNumbers={presenceInfo.greenRows} mode="insert" />}
+              </div>
             </div>
           </div>
-          {isExpandable && (
-            <div
-              className="absolute right-5 z-10"
-              onClick={(e) => handleRecursiveExpandCollapse(e, k, baseVal, comps)}
-            >
-              <ActionButton
-                variant="ghost"
-                size="sm"
-                tooltip={isOpen ? "Fold all" : "Unfold all"}
-                icon={
-                  isOpen ? (
-                    <FoldVertical className="h-3 w-3" />
-                  ) : (
-                    <UnfoldVertical className="h-3 w-3" />
-                  )
-                }
-              />
-            </div>
-          )}
         </AccordionTrigger>
-        <AccordionContent>
-          <div className={contentIndentClass}>
-            {/* Use displayMode as a prop to child components */}
+        <AccordionContent
+          className={contentIndentClass}
+          {... !isExpandable ? { forceMount: true } : {}}
+        >
+          <div className="mt-2">
             {pickView({
               value: baseVal,
               comparables: comps,
@@ -723,7 +700,7 @@ export default function DictionaryView({
               comparableVersions,
               nestingLevel: nestingLevel + 1,
               prefix,
-              parentPath: builtPath, // pass fully-qualified path to children
+              parentPath: path, // pass fully-qualified path to children
             })}
           </div>
         </AccordionContent>
@@ -731,14 +708,37 @@ export default function DictionaryView({
     );
   }
 
+  function handleToggle(propertyKey: string, builtPath: string) {
+    effectiveToggleKey(builtPath);
+  }
+
+  // Memoize recursive expand/collapse handlers to prevent recreation on displayMode changes
+  const handleRecursiveExpandCollapse = useCallback((e: React.MouseEvent, propertyKey: string, itemValue: any, itemComparables: any[]) => {
+    const path = parentPath
+      ? parentPath + "." + sanitizePropertyKey(propertyKey)
+      : makePrefixedDictPath(prefix, nestingLevel, propertyKey);
+    
+    handleRecursiveToggle(
+      e,
+      path,
+      itemValue,
+      itemComparables,
+      prefix,
+      nestingLevel + 1,
+      effectiveExpandRecursively,
+      effectiveCollapseRecursively,
+      effectiveOpenKeys
+    );
+  }, [parentPath, prefix, nestingLevel, effectiveExpandRecursively, effectiveCollapseRecursively, effectiveOpenKeys]);
+
   if (diffMode === "none") {
     return renderNoDiffMode(
       allKeys,
       value,
       comparables,
       [baseLogIndex, ...comparisonLogsIndex],
-      openKeys,
-      setOpenKeys,
+      effectiveOpenKeys,
+      effectiveSetOpenKeys,
       {
         baseLogIndex,
         comparisonLogsIndex,
@@ -750,8 +750,8 @@ export default function DictionaryView({
         nestingLevel,
         prefix,
         parentPath,
-        expandRecursively,
-        collapseRecursively,
+        expandRecursively: effectiveExpandRecursively,
+        collapseRecursively: effectiveCollapseRecursively,
       }
     );
   }

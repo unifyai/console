@@ -203,13 +203,15 @@ export default function SelectionPanel({
         }
         return next;
       });
-    }, []);
+    }, [setLocalOpenKeys]);
     
     // Implement expandRecursively and collapseRecursively functions
     const expandRecursively = useCallback((paths: string[]) => {
+      if (paths.length === 0) return;
+      
       setLocalOpenKeys((prev) => {
         const next = new Set(prev);
-        paths.forEach(path => {
+        paths.forEach((path) => {
           next.add(path);
         });
         return next;
@@ -217,9 +219,11 @@ export default function SelectionPanel({
     }, []);
     
     const collapseRecursively = useCallback((paths: string[]) => {
+      if (paths.length === 0) return;
+      
       setLocalOpenKeys((prev) => {
         const next = new Set(prev);
-        paths.forEach(path => {
+        paths.forEach((path) => {
           next.delete(path);
         });
         return next;

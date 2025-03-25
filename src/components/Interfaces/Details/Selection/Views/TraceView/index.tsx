@@ -12,7 +12,7 @@ const TraceView: React.FC<LogComparisonProps> = ({
   splitView = false,
   displayMode = "markdown",
 }) => {
-  // Ensure the base “value” is an array of spans
+  // Ensure the base "value" is an array of spans
   if (!Array.isArray(value)) {
     return (
       <p className="text-red-500">
@@ -23,7 +23,7 @@ const TraceView: React.FC<LogComparisonProps> = ({
 
   // allTraces => one element if no comparables, or multiple if comparables exist
   const allTraces = [value, ...(comparables ?? [])] as Span[][];
-  // rowIndexes => correspond to each trace’s row index
+  // rowIndexes => correspond to each trace's row index
   const rowIndexes = [baseLogIndex, ...(comparisonLogsIndex ?? [])];
 
   return (
