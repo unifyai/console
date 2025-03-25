@@ -238,45 +238,9 @@ const DataTableHeader = ({
     });
   }, [hasActiveActions, groupSortingDirection, groupSortLoading, groupLoading, isGrouped, sortLoading, sortingDirection, filterLoading, isFiltered, updateLoading, data]);  
 
-  // Handle header coloring.
-  // - Applies selection (hover) background color on any column header for which all (some) cells are selected
-  // - Applied selection (hover) background color index column header if all (some) table cells are selected
-  const [hovered, setHovered] = useState(false);
-  useEffect(() => {
-    setHovered(false);
-  }, [dropdownOpen]);
-  const isAllColumnSelected = (header: Header<any, unknown>) => {
-    const validCells = getCellsFromHeader(header).filter(cell => cell.getValue() !== undefined || cell.column.id === "RowNumbering")
-    return validCells.length && validCells.every(cell => isCellSelected(cell))
-  }
-  const isAllTableSelected = () => 
-    table.getRowModel().rows.length && 
-    getSelectableTableCells(table).every(cell => isCellSelected(cell)) && 
-    Object.entries(columnVisibility).filter(([, v]) => v).length != 1
-
-  const style: CSSProperties = {
-    boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
-    opacity: isColumnDragging ? 0.8 : 1,
-    position: isPinned ? "sticky" : "relative",
-    left: isPinned === "left" ? `${header.column.getStart("left")}px` : undefined,
-    right: isPinned === "right" ? `${header.column.getAfter("right")}px` : undefined,
-    transform: CSS.Translate.toString(appliedTransform), // translate instead of transform to avoid squishing
-    transition: appliedTransition,
-    whiteSpace: "nowrap",
-    width: `${Math.round(header.getSize())}px`,
-    minWidth: isDerivedColumn ? '150px' : undefined,
-    zIndex: isColumnDragging || isPinned ? 1 : 0,
-    borderLeft: header.column.id === "RowNumbering" ? "1px solid var(--muted)" : undefined,
-    borderRight: "1px solid var(--muted)",
-    borderTop: "1px solid var(--muted)",
-    borderBottom: header.depth >= 1 && !header.subHeaders.length ? "1px solid var(--muted)" : undefined,
-    color: isAllColumnSelected(header) ? "var(--primary-foreground)" : "",
-    backgroundColor: isNotUtilColumn
-      ? isAllColumnSelected(header) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
-      : isAllTableSelected() ? `var(--primary)` : hovered ? "var(--muted)" : "var(--background)",
-  };
-
   // Visible action buttons for active states
+  const activeActionsRef = useRef<HTMLDivElement | null>(null);
+  const actionButtonRef = useRef<HTMLButtonElement | null>(null);
   const renderVisibleActions = () => (
     <>
       {ColumnGroupBy && 
@@ -343,6 +307,45 @@ const DataTableHeader = ({
     </>
   );
 
+  // Handle header coloring.
+  // - Applies selection (hover) background color on any column header for which all (some) cells are selected
+  // - Applied selection (hover) background color index column header if all (some) table cells are selected
+  const [hovered, setHovered] = useState(false);
+  useEffect(() => {
+    setHovered(false);
+  }, [dropdownOpen]);
+  const isAllColumnSelected = (header: Header<any, unknown>) => {
+    const validCells = getCellsFromHeader(header).filter(cell => cell.getValue() !== undefined || cell.column.id === "RowNumbering")
+    return validCells.length && validCells.every(cell => isCellSelected(cell))
+  }
+  const isAllTableSelected = () => 
+    table.getRowModel().rows.length && 
+    getSelectableTableCells(table).every(cell => isCellSelected(cell)) && 
+    Object.entries(columnVisibility).filter(([, v]) => v).length != 1
+
+  const style: CSSProperties = {
+    boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
+    opacity: isColumnDragging ? 0.8 : 1,
+    position: isPinned ? "sticky" : "relative",
+    left: isPinned === "left" ? `${header.column.getStart("left")}px` : undefined,
+    right: isPinned === "right" ? `${header.column.getAfter("right")}px` : undefined,
+    transform: CSS.Translate.toString(appliedTransform), // translate instead of transform to avoid squishing
+    transition: appliedTransition,
+    whiteSpace: "nowrap",
+    width: `${Math.round(header.getSize())}px`,
+    minWidth: hasActiveActions ? activeActionsRef.current?.clientWidth : 0,
+    zIndex: isColumnDragging || isPinned ? 1 : 0,
+    borderLeft: header.column.id === "RowNumbering" ? "1px solid var(--muted)" : undefined,
+    borderRight: "1px solid var(--muted)",
+    borderTop: "1px solid var(--muted)",
+    borderBottom: header.depth >= 1 && !header.subHeaders.length ? "1px solid var(--muted)" : undefined,
+    color: isAllColumnSelected(header) ? "var(--primary-foreground)" : "",
+    backgroundColor: isNotUtilColumn
+      ? isAllColumnSelected(header) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
+      : isAllTableSelected() ? `var(--primary)` : hovered ? "var(--muted)" : "var(--background)",
+  };
+
+  const maxLabelWidth = Math.max(Number((style.width as string).split("px")[0]) - (actionButtonRef.current?.clientWidth ?? 0), 10)
   return (
     <TableHead 
       colSpan={header.colSpan} 
@@ -380,7 +383,10 @@ const DataTableHeader = ({
               {isParentColumn ? (
                 <>
                   {/* PARENT COLUMN LAYOUT */}
-                  <span className="text-center flex-shrink-0 mr-4">
+                  <span
+                    className="flex items-center justify-between cursor-pointer overflow-hidden"
+                    style={{maxWidth: maxLabelWidth}}
+                  >
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </span>
                   {/* parent inlined dropdown */}
@@ -448,14 +454,15 @@ const DataTableHeader = ({
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className="flex items-center justify-between w-full cursor-pointer">
-                            <span className="text-center flex-1">
-                              {flexRender(header.column.columnDef.header, header.getContext())}
-                            </span>
+                          <div 
+                            className="flex items-center justify-between cursor-pointer overflow-hidden"
+                            style={{maxWidth: maxLabelWidth}}
+                          >
+                            {flexRender(header.column.columnDef.header, header.getContext())}
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>type: {header.column.columnDef.meta?.dataType || "unknown"}</p>
+                          <p>{header.id.split("/").at(-1)}</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -466,6 +473,7 @@ const DataTableHeader = ({
                         <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                           <DropdownMenuTrigger asChild>
                             <ActionButton
+                              ref={actionButtonRef}
                               tooltip="Child Column Actions"
                               icon={<MoreHorizontal className="h-4 w-4" />}
                               variant="ghost"
@@ -602,6 +610,7 @@ const DataTableHeader = ({
         */}
         {!header.isPlaceholder && isNotUtilColumn && (
           <div
+            ref={activeActionsRef}
             className={`flex items-center justify-left gap-1 ${
               hasActiveActions ? "" : "hidden"
             }`}
