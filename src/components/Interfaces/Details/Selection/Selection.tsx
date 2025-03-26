@@ -48,17 +48,22 @@ export default function Selection({
   const selectedCells = useMemo(() => {
     const arr = selection_ ? selection_.split(",") : [];
     return arr.map(token => {
-      // token might look like "277932_Entries/trace"
-      // so let's rewrite the part after "_" as short.
+      // token might look like "277932_Entries/trace" or "277932_Entries/context1/fieldA"
+      // so let's rewrite the part after "_" with prefixes removed but internal slashes preserved.
       const underscorePos = token.indexOf("_");
       if (underscorePos < 1) return token;
       const rowPart = token.slice(0, underscorePos); // e.g. "277932"
-      let colPart = token.slice(underscorePos + 1);  // e.g. "Entries/trace"
+      let colPart = token.slice(underscorePos + 1);  // e.g. "Entries/trace" or "Entries/context1/fieldA"
       
-      // Remove the "Entries/" prefix if present
-      const sanitizedCol = colPart.includes("/") ? colPart.split("/").pop() || colPart : colPart;
+      // Remove only the "Entries/" or "Parameters/" prefix if present, but preserve internal slashes
+      let sanitizedCol = colPart;
+      if (colPart.startsWith("Entries/")) {
+        sanitizedCol = colPart.substring("Entries/".length);
+      } else if (colPart.startsWith("Parameters/")) {
+        sanitizedCol = colPart.substring("Parameters/".length);
+      }
       
-      return rowPart + "_" + sanitizedCol;           // => "277932_trace"
+      return rowPart + "_" + sanitizedCol; // => "277932_trace" or "277932_context1/fieldA"
     });
   }, [selection_]);
   
@@ -83,14 +88,14 @@ export default function Selection({
       const paramColumns = new Set<string>();
       
       columnOrdering_.split(',').forEach(col => {
-        // Some columns might look like "Parameters/experiment" or "Entries/trace"
+        // Some columns might look like "Parameters/experiment" or "Entries/trace" or "Entries/context1/fieldA"
         if (col.startsWith('Parameters/')) {
-          // Extract the parameter name without the "Parameters/" prefix
+          // Extract the parameter name without the "Parameters/" prefix but preserve internal slashes
           const paramName = col.substring('Parameters/'.length);
           paramColumns.add(paramName);
         } 
         else if (col.startsWith('Entries/')) {
-          // Extract the entry name without the "Entries/" prefix
+          // Extract the entry name without the "Entries/" prefix but preserve internal slashes
           const entryName = col.substring('Entries/'.length);
           entryColumns.add(entryName);
         }
@@ -104,6 +109,7 @@ export default function Selection({
     }
     
     // Fallback: if no columnOrdering_, gather from logs (less reliable)
+    // This already preserves slashes since it's just accessing object keys directly
     const entryColumns = new Set<string>();
     const paramColumns = new Set<string>();
     

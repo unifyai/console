@@ -13,10 +13,10 @@ function isList(val: any): boolean {
 /**
  * sanitizePropertyKey:
  *  - If your data can contain slashes or other special characters, we replace them.
- *  - Adjust as needed; here we allow letters, numbers, and underscores only.
+ *  - Adjusted to preserve slashes (/) but replace other special characters with underscores.
  */
 export function sanitizePropertyKey(key: string): string {
-  return key.replace(/[^a-zA-Z0-9_]/g, "_");
+  return key.replace(/[^a-zA-Z0-9_\/]/g, "_");
 }
 
 /**
