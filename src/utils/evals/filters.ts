@@ -198,7 +198,7 @@ function joinFunctionFilters (filter: string, fn: string, cKey: string, fields: 
 				joined += value.includes("true") ? `exists(${cKey})` : `not exists(${cKey})` 
 			}
 			else if (["in str", "not in str"].includes(fn)) {
-				joined += `${value} ${fn.replace(" str", "")} to_str(${cKey})`
+				joined += `${value} ${fn.replace(" str", "")} str(${cKey})`
 			}
 			else if (["in", "not in"].includes(fn)) {
 				joined += `${value} ${fn} ${cKey}`
@@ -336,7 +336,7 @@ export const buildFilterExpression = (filters: string | undefined, common_filter
 		else {
 			const validFields = Object.fromEntries(Object.entries(fields).filter(([_, attributes]) => attributes.data_type != "image")) // Exclude images
 			const filterValue = maybeWrapFilterInQuotes(commonFilterValue)
-			const processFilter = (value: string, column: string, column_context: string | undefined) => `${value} in to_str(${column_context ? processContext("merge", column_context, column) : column})`
+			const processFilter = (value: string, column: string, column_context: string | undefined) => `${value} in str(${column_context ? processContext("merge", column_context, column) : column})`
 			const filter = Object.keys(validFields).map(column => processFilter(filterValue, column, column_context)).join(" or ")
 			return filter
 		}
