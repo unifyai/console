@@ -384,7 +384,7 @@ const DataTableHeader = ({
                 <>
                   {/* PARENT COLUMN LAYOUT */}
                   <span
-                    className="flex items-center justify-between cursor-pointer overflow-hidden"
+                    className="flex items-center justify-between cursor-pointer overflow-hidden mr-4"
                     style={{maxWidth: maxLabelWidth}}
                   >
                     {flexRender(header.column.columnDef.header, header.getContext())}
@@ -462,7 +462,7 @@ const DataTableHeader = ({
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>{header.id.split("/").at(-1)}</p>
+                          <p>{`${header.id.split("/").at(-1)} : ${header.column.columnDef.meta?.dataType || "unknown"}`}</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
