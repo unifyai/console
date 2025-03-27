@@ -2,13 +2,15 @@
 
 import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { ItemType, LogsActions, FieldsActions, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
 import { getLogsParameters, GroupedLogProps, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
 import { ResponseProps } from "@/types/common";
 import { LogProps } from "@/types/evals/logs";
 import { buildFilterExpression } from "@/utils/evals/filters";
+import { useTileItem } from "@/contexts/hooks/tile/useTileItem";
+import { useTile } from "@/contexts/hooks/tile/useTile";
 
 const isGroupedLog = (log: LogProps | GroupedLogProps): log is GroupedLogProps => log.type === "grouped";
 const flattenLogs = (logs: (LogProps | GroupedLogProps)[]): LogProps[] => {
@@ -123,9 +125,11 @@ async function updateLogs (
     });
 }
 
-const RefreshLogs = ({ item, project, pending, fields, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, hiddenColumns, updateItem, setTableData, logs, logsActions, fieldsActions }: {
-    item: TileProps,
-    project: string,
+const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, hiddenColumns, updateTableDataItem, logs, logsActions, fieldsActions }: {
+    tileId: string,
+    tabId: string,
+    interfaceId: string,
+    projectId: string,
     pending: boolean,
     fields: LogFieldsResponseProps,
     filterExpression: string | null,
@@ -133,16 +137,21 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
     groupingExpression: string | null,
     groupSortingExpression: string | null,
     hiddenColumns: string | undefined,
-    updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
-    setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void,
+    updateTableDataItem: (updater: (prev: TableDataProps) => TableDataProps) => void,
     logs: LogProps[] | GroupedLogProps[],
     logsActions: LogsActions,
     fieldsActions: FieldsActions
 }) => {
 
+    // Get the item representation for the current tile
+    const { itemActions } = useTileItem(tileId, tabId, interfaceId);
+    const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
+
+    const { dataActions: tileDataActions } = useTile(tileId, tabId, interfaceId, projectId);
+
     /* Auto refresh */
     // We use timestamp to tag fetch api calls to trigger revalidation every 5 seconds.
-    const autoUpdateRef = useRef(item.auto_update === "true");
+    const autoUpdateRef = useRef(item?.auto_update === "true");
     const pendingRef = useRef(pending);
     const isMounted = useRef(false);
     const isRunning = useRef(false)
@@ -150,16 +159,16 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
 
     // Sync pending and auto update refs 
     useEffect(() => {pendingRef.current = pending}, [pending]);
-    useEffect(() => {autoUpdateRef.current = item.auto_update === "true"}, [item.auto_update]);
+    useEffect(() => {autoUpdateRef.current = item?.auto_update === "true"}, [item?.auto_update]);
     
     // Pause auto-update on server action
     useEffect(() => {
-        if (item.auto_update === "true") autoUpdateRef.current = false;
+        if (item?.auto_update === "true") autoUpdateRef.current = false;
     }, [pendingRef.current])
 
     // Restart streaming after server action ends
     useEffect(() => {
-        if (item.auto_update === "true" && !autoUpdateRef.current && !pendingRef.current) autoUpdateRef.current = true;
+        if (item?.auto_update === "true" && !autoUpdateRef.current && !pendingRef.current) autoUpdateRef.current = true;
     }, [autoUpdateRef.current])
 
     // Track component mount state
@@ -185,16 +194,16 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
 
         try {
             await updateLogs(
-                item,
+                item as TileProps,
                 sortingExpression,
                 groupingExpression,
                 groupSortingExpression,
-                project,
+                projectId,
                 logsActions,
                 fieldsActions,
                 (updateFn) => {
                     if (isMounted.current && autoUpdateRef.current) {
-                        setTableData(updateFn);
+                        updateTableDataItem(updateFn);
                     }
                 },
                 abortControllerRef.current.signal,
@@ -207,7 +216,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
             isRunning.current = false;
             abortControllerRef.current = null;
         }
-    }, [item, project, logsActions, fieldsActions, setTableData, sortingExpression, groupingExpression, groupSortingExpression]);
+    }, [item, projectId, logsActions, fieldsActions, updateTableDataItem, sortingExpression, groupingExpression, groupSortingExpression]);
 
     // Auto-refresh with recursive timeout
     const fetchWithBackoff = useCallback(async () => {
@@ -228,15 +237,15 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
         }
     }, [fetchWithBackoff]);
 
-    const onAutoClick = () => updateItem(item, "auto_update")(item.auto_update === "true" ? "false" : "true")
+    const onAutoClick = () => tileDataActions?.setAutoUpdate(item?.auto_update === "true" ? "false" : "true")
     const autoRefresh =
         <ActionButton
-            variant={item.auto_update === "true" ? "primary" : "outline"}
+            variant={item?.auto_update === "true" ? "primary" : "outline"}
             className="rounded-none rounded-tr-lg rounded-br-lg"
             icon={<Power />}
-            tooltip={item.grouping != undefined ? "Auto refresh doesn't work with grouping" : "Auto refresh every 5s"}
+            tooltip={item?.grouping != undefined ? "Auto refresh doesn't work with grouping" : "Auto refresh every 5s"}
             onClick={() => onAutoClick()}
-            disabled={item.grouping != undefined}
+            disabled={item?.grouping != undefined}
         />
 
     /* Manual refresh */
@@ -265,16 +274,16 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
     // time where we compare with the timestamp set on loading the component
     const [lastUpdated, setLastUpdated] = useState<string>("")
 
-    useEffect(() => { logsActions.getLatest(project, item.context ?? null, item.column_context ?? null, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, null, null, null, null, null, null).then(latest => setLastUpdated(latest)) }, [])
+    useEffect(() => { logsActions.getLatest(projectId, item?.context ?? null, item?.column_context ?? null, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, null, null, null, null, null, null).then(latest => setLastUpdated(latest)) }, [])
 
     const onManualClick = () => {
         setLoading(true);
         setRefreshClick(true);
-        logsActions.getLatest(project, item.context ?? null, item.column_context ?? null, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, null, null, null, null, null, null).then(latest => {
+        logsActions.getLatest(projectId, item?.context ?? null, item?.column_context ?? null, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, null, null, null, null, null, null).then(latest => {
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime();
             if (latestTs > lastCheckTs) {
-                updateLogs(item, sortingExpression, groupingExpression, groupSortingExpression, project, logsActions, fieldsActions, setTableData).then(() => {
+                updateLogs(item as TileProps, sortingExpression, groupingExpression, groupSortingExpression, projectId, logsActions, fieldsActions, updateTableDataItem).then(() => {
                     setLastUpdated(latest)
                 });
             } else {
@@ -283,7 +292,7 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
         });
     }
 
-    const icon = loading || item.auto_update === "true"
+    const icon = loading || item?.auto_update === "true"
     ? <RefreshCw className="animate-spin text-green"/> 
     : loaded
         ?   <Check className="text-green"/>
@@ -292,9 +301,9 @@ const RefreshLogs = ({ item, project, pending, fields, filterExpression, sorting
         variant="outline"
         className="rounded-none rounded-tl-lg rounded-bl-lg h-8"
         icon={icon}
-        tooltip={loading ? "Refreshing logs.." : item.grouping != undefined ? "Manual refresh doesn't work with grouping" : item.auto_update === "true" ? "Auto refreshing logs.." : "Refresh logs"}
+        tooltip={loading ? "Refreshing logs.." : item?.grouping != undefined ? "Manual refresh doesn't work with grouping" : item?.auto_update === "true" ? "Auto refreshing logs.." : "Refresh logs"}
         onClick={() => onManualClick()}
-        disabled={loading || item.grouping != undefined || item.auto_update === "true"}
+        disabled={loading || item?.grouping != undefined || item?.auto_update === "true"}
     />
 
     return (
