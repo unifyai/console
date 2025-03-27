@@ -94,6 +94,7 @@ export function gatherAllSubPaths(
         childPath = makePrefixedDictPath(prefix, nestingLevel, k);
       }
 
+      // Recursively process the value at this key
       const subPaths = gatherAllSubPaths(obj[k], childPath, prefix, nestingLevel + 1);
       result.push(...subPaths);
     }

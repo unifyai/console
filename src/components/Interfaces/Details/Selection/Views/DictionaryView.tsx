@@ -154,7 +154,6 @@ function handleRecursiveToggle(
     subPaths = gatherAllSubPaths(value, path, prefix, nestingLevel);
   }
   
-  
   // check if all are open
   const allOpen = subPaths.every((sp) => openKeys.has(sp));
   
@@ -307,6 +306,10 @@ function renderNoDiffMode(
         const path = parentPath
           ? parentPath + "." + sanitizePropertyKey(k)
           : makePrefixedDictPath(prefix, nestingLevel, k);
+
+        // get the current value for this key
+        const currentValue = value?.[k];
+        const currentComparables = comparables.map((c) => c?.[k]);
         
         // 4. Determine type and icon for the key (using the first non-undefined value)
         const firstVal = rowValuePairs.find(p => p.val !== undefined)?.val;
@@ -317,7 +320,7 @@ function renderNoDiffMode(
         const isPathOpen = openKeys.has(path);
         function handleExpandToggle(e: React.MouseEvent) {
           e.stopPropagation();
-          handleRecursiveToggle(e, path, value, comparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
+          handleRecursiveToggle(e, path, currentValue, currentComparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
         }
         
         // Get separator classes for this item
@@ -393,8 +396,6 @@ export default function DictionaryView({
   prefix = "entries",
   parentPath = "", // new param to track parent's path
 }: DictionaryViewProps) {
-  // Add an id to track if the instance is remounted
-  const instanceId = useRef(Math.random().toString(36).substr(2, 9));
   
   // We first need to detect if we're within a TraceView context
   // We'll try to access the TraceExpandContext selector without throwing
@@ -423,12 +424,17 @@ export default function DictionaryView({
   const panelCollapseRecursively = usePanelExpandContextSelector((ctx) => ctx.collapseRecursively);
   const panelToggleKey = usePanelExpandContextSelector((ctx) => ctx.toggleKey);
   
-  // Determine which context to use based on availability
+
+  // Fix the useEffect that detects if we're in TraceView context
   useEffect(() => {
-    // We're in TraceView if traceOpenKeys is defined 
-    const isInTraceView = traceOpenKeys !== undefined && traceInstanceId !== undefined;
+    // We're ONLY in TraceView if we have a real trace instance ID 
+    // AND proper trace context functions
+    const isInTraceView = Boolean(traceInstanceId) && 
+      typeof traceSetOpenKeys === 'function' && 
+      traceSetOpenKeys.toString() !== '()=>{}';
+    
     setInTraceView(isInTraceView);
-  }, [traceOpenKeys, traceInstanceId, parentPath, nestingLevel]);
+  }, [traceInstanceId, traceSetOpenKeys]);
   
   // Use the appropriate context values based on our environment
   const effectiveOpenKeys = inTraceView ? traceOpenKeys : panelOpenKeys;
@@ -717,12 +723,15 @@ export default function DictionaryView({
     const path = parentPath
       ? parentPath + "." + sanitizePropertyKey(propertyKey)
       : makePrefixedDictPath(prefix, nestingLevel, propertyKey);
+
+    const currentValue = value?.[propertyKey];
+    const currentComparables = comparables.map((c) => c?.[propertyKey]);
     
     handleRecursiveToggle(
       e,
       path,
-      itemValue,
-      itemComparables,
+      currentValue,
+      currentComparables,
       prefix,
       nestingLevel + 1,
       effectiveExpandRecursively,
