@@ -4,57 +4,27 @@ import { Dispatch, SetStateAction, useState } from "react";
 import ActionButton from "../Common/Buttons/Action";
 import { Dialog, DialogContent } from "../UI/dialog";
 import { Input } from "../UI/input";
-import { PlotDataProps, TableDataProps, TileProps } from "@/types/evals/grid";
+import { useTab } from "@/contexts/hooks/tab";
 
 const EditTileName = ({
-    tableData,
-    plotData,
-    items,
+    tabId,
     editTile,
-    setItems,
     setEditTile,
-    setTableData,
-    setPlotData
 }: {
-    tableData: TableDataProps,
-    plotData: PlotDataProps,
-    items: TileProps[],
-    editTile: string,
-    setItems: Dispatch<SetStateAction<TileProps[]>>,
+    tabId: string,
+    editTile: string | undefined,
     setEditTile: Dispatch<SetStateAction<string | undefined>>,
-    setTableData: Dispatch<SetStateAction<TableDataProps>>,
-    setPlotData: Dispatch<SetStateAction<PlotDataProps>>
 }) => {
     const [newTileName, setNewTileName] = useState<string>();
 
+    const { dataActions: tabDataActions } = useTab(tabId);
+
     // edit tile name
     const saveTileName = () => {
-        if (newTileName) {
-            const newItems = items.map(
-                item => (
-                    item.i == editTile
-                        ? { ...item, i: newTileName }
-                        : item.table == editTile
-                            ? { ...item, table: newTileName }
-                            : (
-                                item.x_axis?.includes(editTile + ".") ||
-                                item.y_axis?.includes(editTile + ".") ||
-                                item.plot_group_by?.includes(editTile + ".")
-                            )
-                                ? {
-                                    ...item,
-                                    x_axis: item.x_axis?.replace(editTile + ".", newTileName + "."),
-                                    y_axis: item.y_axis?.replace(editTile + ".", newTileName + "."),
-                                    plot_group_by: item.plot_group_by?.replace(
-                                        editTile + ".", newTileName + "."
-                                    )
-                                }
-                                : { ...item }
-                )
-            );
-            setItems([...newItems]);
-            setTableData({ ...tableData, [newTileName]: tableData[editTile] });
-            setPlotData({ ...plotData, [newTileName]: plotData[editTile] });
+        if (newTileName && editTile && tabDataActions) {
+            // Use the new renameTile method which handles both
+            // updating the tile name and updating references
+            tabDataActions.renameTile(editTile, newTileName);
         }
         setEditTile(undefined);
         setNewTileName(undefined);
@@ -72,8 +42,9 @@ const EditTileName = ({
                         value={newTileName || ""}
                         onInput={(input) => setNewTileName(input.currentTarget.value)}
                         onKeyDown={(e) => {
-                            if (e.key === "Enter")
+                            if (e.key === "Enter") {
                                 saveTileName();
+                            }
                         }}
                         className="h-8 w-48"
                     />

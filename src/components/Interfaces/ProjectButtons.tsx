@@ -7,61 +7,61 @@ import CloseProject from "./Table/Buttons/CloseProject";
 import FileDirectory from "../Tree/Directory/FileDirectory";
 import DeleteDialog from "../Common/Dialogs/Delete";
 import { FileProps } from "@/types/common";
-import { InterfaceActions, ProjectsActions } from "@/types/evals/grid";
+import { TabActions, ProjectsActions } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
-import { SetStateAction, useState } from "react";
+import { useState } from "react";
+import { useInterface } from "@/contexts/hooks/interface";
+import { useStoreContext } from "@/contexts/providers/StoreProvider";
+import { useTabUI } from "@/contexts/hooks/tab";
 
 const ProjectButtons = ({
+    interfaceId,
+    tabQueryParam,
+    projectQueryParam,
     defaultProject,
-    project,
-    projects,
-    interfaces,
-    data,
-    refreshing,
-    pending,
-    dataPending,
-    projectActions,
-    interfaceActions,
-    setRefreshing,
-    setPending,
-    setDataPending,
-    setInterfaces,
-    setProjects,
-    setInterface,
-    setProject,
+    setProjectQueryParam,
+    setTabQueryParam,
+    projectActions: serverProjectActions,
+    tabActions: serverTabActions,
 }: {
+    interfaceId: string;
+    tabQueryParam: string | null;
+    projectQueryParam: string | null;
     defaultProject: boolean,
-    project: string | null,
-    projects: string[] | undefined,
-    interfaces: string[],
-    data: FileProps[],
-    refreshing: boolean,
-    pending: boolean,
-    dataPending: boolean,
-    projectActions: ProjectsActions,
-    interfaceActions: InterfaceActions,
-    setRefreshing: (value: SetStateAction<boolean>) => void,
-    setPending: (value: SetStateAction<boolean>) => void,
-    setDataPending: (value: SetStateAction<boolean>) => void,
-    setInterfaces: (value: SetStateAction<string[]>) => void,
-    setProjects: (value: SetStateAction<string[]>) => void,
-    setInterface: (value: string | null) => void,
-    setProject: (value: string | null) => void,
+    setProjectQueryParam: (project: string | null) => void;
+    setTabQueryParam: (tab: string | null) => void;
+    projectActions: ProjectsActions;
+    tabActions: TabActions;
 }) => {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
 
+    // Global states
+    const project = projectQueryParam;
+    const projects = useStoreContext((s) => s.projects);
+    const projectsData = projects.map((p: string) => ({ path: p, type: "file" }));
+    const setProjects = useStoreContext((s) => s.setProjects);
+    const setProject = setProjectQueryParam;
+
+    // Interface states and actions with granular access
+    const { dataActions: interfaceDataActions } = useInterface(interfaceId);
+
+    const tabNames = interfaceDataActions?.getTabNames() || [];
+
+    // Tab states and actions with granular access
+    const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabQueryParam || "");
+
     return (
         <div className="w-fit gap-2 flex flex-row items-center px-4">
             <FileDirectory
-                data={data}
-                renamingFunction={projectActions.rename}
+                data={projectsData}
+                renamingFunction={serverProjectActions.rename}
                 setterFunction={(proj: FileProps | undefined) => {
                     const newProj = proj ? proj.path : null;
-                    setPending(true);
-                    setDataPending(true);
-                    setInterfaces([]);
-                    setInterface(null);
+                    tabUIActions?.setPending(true);
+                    tabUIActions?.setDataPending(true);
+                    interfaceDataActions?.setTabNames([]);
+                    setTabQueryParam(null);
                     setProject(newProj);
                 }}
                 type="Projects"
@@ -69,7 +69,7 @@ const ProjectButtons = ({
                 isAutocompleteOpen={defaultProject ? true : undefined}
                 onOpen={() => {
                     setLoading(true);
-                    projectActions.get().then(projects => {
+                    serverProjectActions.get().then(projects => {
                         setProjects(projects);
                         setLoading(false);
                     });
@@ -80,10 +80,10 @@ const ProjectButtons = ({
                 <div className="flex flex-row gap-2">
                     <CloseProject
                         onClick={() => {
-                            setPending(true);
-                            setDataPending(true);
-                            setInterface(null);
-                            setInterfaces([]);
+                            tabUIActions?.setPending(true);
+                            tabUIActions?.setDataPending(true);
+                            setTabQueryParam(null);
+                            interfaceDataActions?.setTabNames([]);
                             setProject(null);
                         }}
                     />
@@ -91,34 +91,34 @@ const ProjectButtons = ({
                         type="project"
                         args={[project]}
                         deletingFunction={async (name: string) => {
-                            await Promise.all(interfaces.map(interface_ => interfaceActions.delete(
-                                interface_, project, true
+                            await Promise.all(tabNames.map(tabName => serverTabActions.delete(
+                                tabName, project, true
                             )))
-                            await Promise.all(interfaces.map(interface_ => interfaceActions.delete(
-                                interface_, project, false
+                            await Promise.all(tabNames.map(tabName => serverTabActions.delete(
+                                tabName, project, false
                             )))
-                            return await projectActions.delete(name);
+                            return await serverProjectActions.delete(name);
                         }}
                         variant="outline"
                         onDelete={() => {
-                            setPending(true);
-                            setDataPending(true);
-                            setInterface(null);
-                            setInterfaces([]);
+                            tabUIActions?.setPending(true);
+                            tabUIActions?.setDataPending(true);
+                            setTabQueryParam(null);
+                            interfaceDataActions?.setTabNames([]);
                             setProject(null);
-                            projectActions.get().then(projects => setProjects(projects));
+                            serverProjectActions.get().then(projects => setProjects(projects));
                         }}
                     />
                 </div>
             )}
-            {projects && <CreateProject creationFunction={projectActions.create} paths={projects} />}
+            {projects && <CreateProject creationFunction={serverProjectActions.create} paths={projects} />}
             <ActionButton
                 variant="outline"
-                icon={refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
+                icon={tabUIState?.refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
                 tooltip={"Refresh Interface"}
-                disabled={!project || pending || dataPending}
+                disabled={!project ||tabUIState?.pending || tabUIState?.dataPending}
                 onClick={() => {
-                    setRefreshing(true);
+                    tabUIActions?.setRefreshing(true);
                     router.refresh();
                 }}
             />
