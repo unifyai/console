@@ -405,8 +405,6 @@ export default function ListView({
   prefix = "entries",
   parentPath = "",
 }: ListViewProps) {
-  // Add an id to track if the instance is remounted
-  const instanceId = useRef(Math.random().toString(36).substr(2, 9));
   
   // We first need to detect if we're within a TraceView context
   // We'll try to access the TraceExpandContext selector without throwing
@@ -428,19 +426,25 @@ export default function ListView({
   const panelOpenKeys = usePanelExpandContextSelector((ctx) => {
     return ctx.openKeys;
   });
-  const panelSetOpenKeys = usePanelExpandContextSelector((ctx) => ctx.setOpenKeys);
+  const panelSetOpenKeys = usePanelExpandContextSelector((ctx) => {
+    return ctx.setOpenKeys;
+  });
   const panelForceExpandAll = usePanelExpandContextSelector((ctx) => ctx.forceExpandAll);
   const panelForceCollapseAll = usePanelExpandContextSelector((ctx) => ctx.forceCollapseAll);
   const panelExpandRecursively = usePanelExpandContextSelector((ctx) => ctx.expandRecursively);
   const panelCollapseRecursively = usePanelExpandContextSelector((ctx) => ctx.collapseRecursively);
   const panelToggleKey = usePanelExpandContextSelector((ctx) => ctx.toggleKey);
   
-  // Determine which context to use based on availability
+  // Fix the useEffect that detects if we're in TraceView context
   useEffect(() => {
-    // We're in TraceView if traceOpenKeys is defined 
-    const isInTraceView = traceOpenKeys !== undefined && traceInstanceId !== undefined;
+    // We're ONLY in TraceView if we have a real trace instance ID 
+    // AND proper trace context functions
+    const isInTraceView = Boolean(traceInstanceId) && 
+      typeof traceSetOpenKeys === 'function' && 
+      traceSetOpenKeys.toString() !== '()=>{}';
+    
     setInTraceView(isInTraceView);
-  }, [traceOpenKeys, traceInstanceId, parentPath, nestingLevel]);
+  }, [traceInstanceId, traceSetOpenKeys]);
 
   // Use the appropriate context values based on our environment
   const effectiveOpenKeys = inTraceView ? traceOpenKeys : panelOpenKeys;
@@ -473,9 +477,16 @@ export default function ListView({
   
   // Memoize the buildItemPath function to maintain consistent paths across renders
   const buildItemPath = useCallback((i: number) => {
-    return parentPath 
-      ? `${parentPath}.${i}` 
-      : makePrefixedListPath(prefix, nestingLevel, i);
+    // If we have a parentPath, we should use it directly and just append the index
+    // This ensures paths like "entries.dict.0.pred_marks_split.0" work correctly
+    if (parentPath) {
+      const path = `${parentPath}.${i}`;
+      return path;
+    } 
+    
+    // Otherwise fall back to the standard list path
+    const standardPath = makePrefixedListPath(prefix, nestingLevel, i);
+    return standardPath;
   }, [parentPath, prefix, nestingLevel]);
   
   // Memoize the itemLabel function for consistent labels
@@ -518,14 +529,22 @@ export default function ListView({
     return paths;
   }, [maxLength, buildItemPath]);
   
-  // Memoize the open values for the accordion
+  // Modify openValues calculation to add more debugging
   const openValues = useMemo(() => {
-    return itemPaths
-      .filter(({ path }) => effectiveOpenKeys.has(path))
-      .map(({ index }) => itemLabel(index));
+    const values = itemPaths
+      .filter(({ path }) => {
+        const isOpen = effectiveOpenKeys.has(path);
+        return isOpen;
+      })
+      .map(({ index }) => {
+        const label = itemLabel(index);
+        return label;
+      });
+      
+    return values;
   }, [itemPaths, effectiveOpenKeys, itemLabel]);
   
-  // This effect shouldn't run when displayMode changes
+  // Update the useEffect for forceExpandAll to trigger the recursive expansion
   useEffect(() => {
     if (!isValidBase && !isValidComparables) return;
     
@@ -547,11 +566,13 @@ export default function ListView({
         
         // Add nested paths if this item contains nested data
         if (isDict(itemValue) || isList(itemValue)) {
+          let subPaths = [];
           if (itemComparables.length > 0) {
-            paths.push(...gatherAllSubPathsMulti(itemValue, itemComparables, itemPath, prefix, nestingLevel + 1));
+            subPaths = gatherAllSubPathsMulti(itemValue, itemComparables, itemPath, prefix, nestingLevel + 1);
           } else {
-            paths.push(...gatherAllSubPaths(itemValue, itemPath, prefix, nestingLevel + 1));
+            subPaths = gatherAllSubPaths(itemValue, itemPath, prefix, nestingLevel + 1);
           }
+          paths.push(...subPaths);
         }
       }
       
@@ -574,7 +595,6 @@ export default function ListView({
     nestingLevel,
     effectiveExpandRecursively,
     effectiveCollapseRecursively
-    // displayMode intentionally left out of dependencies
   ]);
 
   // Memoize all rendered items to prevent rerendering on display mode change

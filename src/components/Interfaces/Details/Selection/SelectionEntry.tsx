@@ -226,6 +226,7 @@ function getSelectionView(
           displayMode={displayMode}
           nestingLevel={nestingLevel}
           prefix={prefix}
+          parentPath={parentPath}
         />
       );
     case "pdf":
