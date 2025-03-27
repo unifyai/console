@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useId, useState } from "react";
+import { useEffect, useRef, useId, useState, useMemo } from "react";
 import * as d3 from "d3";
 
 import PlotType from "./Buttons/PlotType";
@@ -13,30 +13,73 @@ import PlotRefresh from "./Buttons/PlotRefresh";
 import PlotSort from "./Buttons/PlotSort";
 
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
-import { LogFieldsResponseProps, LogProps, PlotArguments } from "@/types/evals/logs";
 import { LogsActions, FieldsActions, PlotDataItem } from "@/types/evals/grid";
 import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram, checkLogScalability, clearCanvas } from "@/utils/evals/plot";
 import PlotAxis from "./Buttons/PlotAxis";
-import { ItemType, TileProps } from "@/types/evals/grid";
+import { useTile, useTileItem } from '@/contexts/hooks/tile';
+import { useTab } from '@/contexts/hooks/tab';
 
-const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataItem_ = {plotLogs: [], plotArguments: {}, plotFields: {}}, tableNames, logsActions, fieldsActions }: {
-    interactive: boolean,
-    item: TileProps,
-    updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
-    project: string | undefined,
-    pending: boolean,
-    tableNames: string[],
+const LogsPlot = ({ 
+    tileId,
+    tabId,
+    interfaceId,
+    projectId,
+    logsActions,
+    fieldsActions,
+}: {
+    tileId: string,
+    tabId: string,
+    interfaceId: string,
+    projectId: string,
     logsActions: LogsActions,
     fieldsActions: FieldsActions
-    plotDataItem_: { plotLogs: LogProps[]; plotArguments: PlotArguments; plotFields: LogFieldsResponseProps };
 }) => {
 
+    // Use granular hooks for better performance
+    const {
+        ui: tileUIState,
+        dataActions: tileDataActions,
+        actions: tileActions,
+        plotTile: plotTileState,
+        plotTileActions,
+    } = useTile(tileId, tabId, interfaceId, projectId);
+
+    const { itemActions } = useTileItem(tileId, tabId, interfaceId);
+    
+    // Get access to the tab context and actions with granular access
+    const { ui: tabUIState } = useTab(tabId, interfaceId, projectId);
+
+    // Get the item representation for the current tile
+    const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
+
+    // UI state from the tab
+    const interactive = tabUIState?.interactive || false;
+    const pending = tabUIState?.pending || tabUIState?.dataPending || tileUIState?.pending || false;
+
+    // Use the plotDataItem from the tile's plot data
+    const plotDataItem = useMemo(() => plotTileState?.plotDataItem || {
+        plotLogs: [],
+        plotArguments: {},
+        plotFields: {}
+    } as PlotDataItem, [plotTileState?.plotDataItem]);
+
+    const setPlotDataItem = (newPlotDataItemOrUpdater: PlotDataItem | ((prev: PlotDataItem) => PlotDataItem)) => {
+        // Update plotDataItem in the store
+        if (plotTileActions && plotTileState) {
+          if (typeof newPlotDataItemOrUpdater === 'function') {
+            // Handle function updater pattern: (prev) => next
+            const updaterFn = newPlotDataItemOrUpdater as (prev: PlotDataItem) => PlotDataItem;
+            const newPlotDataItem = updaterFn(plotDataItem);
+            plotTileActions.setPlotDataItem(newPlotDataItem);
+          } else {
+            // Handle direct value update
+            plotTileActions.setPlotDataItem(newPlotDataItemOrUpdater);
+          }
+        }
+    }
+
     // Init logs and handle local updates
-    const [plotDataItem, setPlotDataItem] = useState<PlotDataItem>(plotDataItem_);
-    const {plotLogs: logs, plotArguments: args, plotFields: fields} = plotDataItem
-    useEffect(() => {
-        if (JSON.stringify(plotDataItem_) != JSON.stringify(plotDataItem)) setPlotDataItem(plotDataItem_);
-    }, [plotDataItem_]);
+    const {plotLogs: logs, plotArguments: args, plotFields: fields} = useMemo(() => plotDataItem, [plotDataItem]);
 
     // Initialize refs and container dimensions
     let svgRef = useRef(null);
@@ -47,26 +90,26 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
     const axisPadding = 20; // Extra padding between axes borders and plot borders
 
     // Plot settings
-    let plotType = item.plot_type;
+    let plotType = item?.plot_type;
     plotType = plotType ? plotType : "Scatter Plot";    
 
-    let metric = item.metric ? item.metric : "mean";
+    let metric = item?.metric ? item?.metric : "mean";
 
-    let binCount = item.bin_count ? parseFloat(item.bin_count) : 10;
+    let binCount = item?.bin_count ? parseFloat(item?.bin_count) : 10;
     let [binCounts, setBinCounts] = useState([1, 100])
-    let showRegression = item.regression_line === "true" ? "true" : "false";
+    let showRegression = item?.regression_line === "true" ? "true" : "false";
 
-    let scaleX = item.plot_scale_x;
-    let scaleY = item.plot_scale_y;
+    let scaleX = item?.plot_scale_x;
+    let scaleY = item?.plot_scale_y;
     let [logScaleXEnabled, setLogScaleXEnabled] = useState(true);
     let [logScaleYEnabled, setLogScaleYEnabled] = useState(true);
     scaleX = scaleX ? scaleX : "linear";
     scaleY = scaleY ? scaleY : "linear";
 
     // Axes and grouping selected on the plot
-    const selectedXAxisProperty = item.x_axis;
-    const selectedYAxisProperty = item.y_axis;
-    const groupByProperty = item.plot_group_by;
+    const selectedXAxisProperty = item?.x_axis;
+    const selectedYAxisProperty = item?.y_axis;
+    const groupByProperty = item?.plot_group_by;
 
     // Sort bars for bar chart
     const [sortBars, setSortBars] = useState("asc")
@@ -104,8 +147,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
         if (plotType === "Line Chart") {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 placeholder.text("");
-                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, updateItem(item, "plot_scale_x"), setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, fields, yTable,selectedYAxisProperty, scaleY, updateItem(item, "plot_scale_y"), setLogScaleYEnabled)
+                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, plotTileActions?.setPlotScaleX!, setLogScaleXEnabled)
+                const adjustedScaleY = checkLogScalability(logs, fields, yTable,selectedYAxisProperty, scaleY, plotTileActions?.setPlotScaleY!, setLogScaleYEnabled)
                 drawLineChart(
                     container,
                     svg,
@@ -179,7 +222,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     axisPadding, 
                     selectedXAxisProperty, 
                     binCount,
-                    updateItem(item, "bin_count"),
+                    plotTileActions?.setBinCount!,
                     binCounts,
                     setBinCounts,
                     xTable,
@@ -200,8 +243,8 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
         else {
             if (logs && selectedXAxisProperty && selectedYAxisProperty) {
                 if (logs.length > 1000) placeholder.text("Too many data points. Displaying a random subset.").attr("text-anchor", "start").attr("x", `${margins.left + 10}px`).attr("y", `${dimensions.height - margins.bottom - 10}px`).attr("font-size", "10px"); else placeholder.text("");
-                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, updateItem(item, "plot_scale_x"), setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, updateItem(item, "plot_scale_y"), setLogScaleYEnabled)
+                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, plotTileActions?.setPlotScaleX!, setLogScaleXEnabled)
+                const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, plotTileActions?.setPlotScaleY!, setLogScaleYEnabled)
                 drawScatterPlot(
                     container,
                     svg,
@@ -262,13 +305,13 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     interactive={interactive}
                     pending={pending}
                     fields={fields}
-                    setAxisProperty={updateItem(item, "x_axis")}
+                    setAxisProperty={plotTileActions?.setXAxis!}
                     axis="X"
                     axisProperty={selectedXAxisProperty}
                     plotType={plotType}
                     logs={logs}
                     metric={metric}
-                    setMetric={(updateItem(item, "metric"))}
+                    setMetric={tileDataActions?.setMetric!}
                 />
             </div>
             {plotType != "Histogram" && 
@@ -277,13 +320,13 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                         interactive={interactive}
                         pending={pending}
                         fields={fields}
-                        setAxisProperty={updateItem(item, "y_axis")}
+                        setAxisProperty={plotTileActions?.setYAxis!}
                         axis="Y"
                         axisProperty={selectedYAxisProperty}
                         plotType={plotType}
                         logs={logs}
                         metric={metric}
-                        setMetric={(updateItem(item, "metric"))}
+                        setMetric={tileDataActions?.setMetric!}
                     />
                 </div>            
             }
@@ -293,12 +336,12 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                     svgRef={svgRef}
                     containerRef={containerRef}
                     plotType={plotType}
-                    setPlotType={updateItem(item, "plot_type")}
+                    setPlotType={plotTileActions?.setPlotType!}
                     fields={fields}
                     selectedXAxisProperty={selectedXAxisProperty}
-                    setSelectedXAxisProperty={updateItem(item, "x_axis")}
+                    setSelectedXAxisProperty={plotTileActions?.setXAxis!}
                     selectedYAxisProperty={selectedYAxisProperty}
-                    setSelectedYAxisProperty={updateItem(item, "y_axis")}
+                    setSelectedYAxisProperty={plotTileActions?.setYAxis!}
                 />
             </div>
 
@@ -307,30 +350,41 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                 className="absolute z-10 flex right-3 top-12 flex-col gap-1.5"
                 style={{transform: `scale(${scaleFactor}) translateX(${translateX}px) translateY(${translateY}px)`, transformOrigin: 'top left'}}
             >
-                {project &&
-                    <PlotRefresh tables={tableNames} project={project} item={item} pending={pending} args={args} setPlotDataItem={setPlotDataItem} logsActions={logsActions} fieldsActions={fieldsActions} updateItem={updateItem} logs={logs}/>
+                {projectId &&
+                    <PlotRefresh
+                        tileId={tileId}
+                        tabId={tabId}
+                        interfaceId={interfaceId}
+                        projectId={projectId}
+                        pending={pending}
+                        args={args}
+                        setPlotDataItem={setPlotDataItem}
+                        logsActions={logsActions}
+                        fieldsActions={fieldsActions}
+                        logs={logs}
+                    />
                 }
                 {((plotType === "Histogram" && selectedXAxisProperty) || (selectedXAxisProperty && selectedYAxisProperty)) &&
                     <>
                         <PlotReset
                             svgRef={svgRef}
                             containerRef={containerRef}
-                            setSelectedXAxisProperty={updateItem(item, "x_axis")}
-                            setSelectedYAxisProperty={updateItem(item, "y_axis")}
-                            setGroupByProperty={updateItem(item, "plot_group_by")}
+                            setSelectedXAxisProperty={plotTileActions?.setXAxis!}
+                            setSelectedYAxisProperty={plotTileActions?.setYAxis!}
+                            setGroupByProperty={plotTileActions?.setPlotGroupBy!}
                         />
                         {plotType === "Histogram"
-                            ?   <PlotBins binCount={binCount} binCounts={binCounts} setBinCount={updateItem(item, "bin_count")}/>
+                            ?   <PlotBins binCount={binCount} binCounts={binCounts} setBinCount={plotTileActions?.setBinCount!}/>
                             :   plotType != "Bar Chart"
-                                ?   <PlotGroupBy fields={fields} groupBy={groupByProperty} setGroupBy={updateItem(item, "plot_group_by")} logs={logs}/>
+                                ?   <PlotGroupBy fields={fields} groupBy={groupByProperty} setGroupBy={plotTileActions?.setPlotGroupBy!} logs={logs}/>
                                 :   null
                         }
                         {!["Histogram", "Bar Chart"].includes(plotType) &&
                             <PlotScale 
                                 scaleX={scaleX} 
                                 scaleY={scaleY}
-                                setScaleX={updateItem(item, "plot_scale_x")}
-                                setScaleY={updateItem(item, "plot_scale_y")} 
+                                setScaleX={plotTileActions?.setPlotScaleX!}
+                                setScaleY={plotTileActions?.setPlotScaleY!} 
                                 logScaleXEnabled={logScaleXEnabled} 
                                 logScaleYEnabled={logScaleYEnabled} 
                                 selectedXAxisProperty={selectedXAxisProperty} 
@@ -343,7 +397,7 @@ const LogsPlot = ({ interactive, item, updateItem, project, pending, plotDataIte
                         {plotType === "Scatter Plot" && 
                             <PlotRegression 
                                 showRegression={showRegression} 
-                                setShowRegression={updateItem(item, "regression_line")}
+                                setShowRegression={plotTileActions?.setRegressionLine!}
                             />
                         }
                     </>

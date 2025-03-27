@@ -2,12 +2,16 @@
 
 import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
-import { Dispatch, SetStateAction, useEffect, useState, useRef, useCallback } from "react";
-import { ItemType, LogsActions, FieldsActions, PlotDataItem, TileProps } from "@/types/evals/grid";
-import { PlotArguments, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
+import { Dispatch, SetStateAction, useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { LogsActions, FieldsActions, PlotDataItem } from "@/types/evals/grid";
+import { PlotArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import { processContext } from "@/utils/evals/columnOperations";
 import { LogProps } from "@/types/evals/logs";
 import { buildFilterExpression } from "@/utils/evals/filters";
+import { useTileItem } from "@/contexts/hooks/tile/useTileItem";
+import { useTab } from "@/contexts/hooks/tab/useTab";
+import { useTiles } from "@/contexts/hooks/useStore";
+import { useTile } from "@/contexts/hooks/tile/useTile";
 
 const fetchLatestTimestamps = async (tables: string[], args: PlotArguments, project: string, logsActions: LogsActions) => {
     const latestDates = await Promise.all(
@@ -21,7 +25,7 @@ const fetchLatestTimestamps = async (tables: string[], args: PlotArguments, proj
         })
     );
     const latestTimestamp = new Date(Math.max(...latestDates.map(t => new Date(t).getTime())))
-    const latest = latestTimestamp.toISOString()
+    const latest = latestTimestamp.toString() == "Invalid Date" ? "" : latestTimestamp.toISOString()
     return latest
 };
 
@@ -107,22 +111,47 @@ async function updatePlotLogs (
     )
 } 
 
-const PlotRefresh = ({ tables, item, project, pending, args, updateItem, setPlotDataItem, logs, logsActions, fieldsActions }: {
-    tables: string[]
-    item: TileProps,
-    project: string,
+const PlotRefresh = ({ tileId, tabId, interfaceId, projectId, pending, args, setPlotDataItem, logs, logsActions, fieldsActions }: {
+    tileId: string,
+    tabId: string,
+    interfaceId: string,
+    projectId: string,
     pending: boolean,
     args: PlotArguments,
-    updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void,
     setPlotDataItem: Dispatch<SetStateAction<PlotDataItem>>,
     logs: LogProps[] | undefined,
     logsActions: LogsActions,
     fieldsActions: FieldsActions
 }) => {
 
+    // Get access to the tab context and actions with granular access
+    const { data: tabDataState } = useTab(tabId, interfaceId, projectId);
+    
+    // Get tileIds from tab data properly
+    const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
+
+    // Only subscribe to a subset of the tiles objects to incl. name, type and tableTile only
+    const tiles = useTiles(tileIds, ["name", "type"]);
+
+    const tables = useMemo(() => {
+        // Only return table names for table tiles
+        // Return should be an array of strings only
+        return tiles
+            .filter(tile => tile.type === "Table")
+            .map(tile => tile.name)
+            .filter(Boolean) as string[];
+    }, [tiles]);
+
+    // Get the item representation for the current tile
+    const { itemActions } = useTileItem(tileId, tabId, interfaceId);
+    const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
+
+    // Get the overarching tile data actions
+    const { dataActions: tileDataActions } = useTile(tileId, tabId, interfaceId, projectId);
+
     /* Auto refresh */
     // We use timestamp to tag fetch api calls to trigger revalidation every 5 seconds
-    const autoUpdateRef = useRef(item.auto_update === "true");
+    const autoUpdateRef = useRef(item?.auto_update === "true");
     const pendingRef = useRef(pending);
     const isMounted = useRef(false);
     const isRunning = useRef(false);
@@ -132,18 +161,18 @@ const PlotRefresh = ({ tables, item, project, pending, args, updateItem, setPlot
 
     // Sync pending, auto updaten, args and tables refs 
     useEffect(() => {pendingRef.current = pending}, [pending]);
-    useEffect(() => {autoUpdateRef.current = item.auto_update === "true"}, [item.auto_update]);
+    useEffect(() => {autoUpdateRef.current = item?.auto_update === "true"}, [item?.auto_update]);
     useEffect(() => {argsRef.current = args}, [args]);
     useEffect(() => {tablesRef.current = tables}, [tables]);
 
     // Pause auto-update on server action
     useEffect(() => {
-        if (item.auto_update === "true") autoUpdateRef.current = false;
+        if (item?.auto_update === "true") autoUpdateRef.current = false;
     }, [pendingRef.current])
 
     // Restart streaming after server action ends
     useEffect(() => {
-        if (item.auto_update === "true" && !autoUpdateRef.current && !pendingRef.current) autoUpdateRef.current = true;
+        if (item?.auto_update === "true" && !autoUpdateRef.current && !pendingRef.current) autoUpdateRef.current = true;
     }, [autoUpdateRef.current])
 
     // Track component mount state
@@ -169,7 +198,7 @@ const PlotRefresh = ({ tables, item, project, pending, args, updateItem, setPlot
             await updatePlotLogs(
                 tablesRef.current,
                 argsRef.current,
-                project,
+                projectId,
                 logsActions,
                 fieldsActions,
                 (updateFn) => {
@@ -187,7 +216,7 @@ const PlotRefresh = ({ tables, item, project, pending, args, updateItem, setPlot
             isRunning.current = false;
             abortControllerRef.current = null;
         }
-    }, [item.auto_update]);
+    }, [item?.auto_update]);
 
     // Auto-refresh with recursive timeout
     const fetchWithBackoff = useCallback(async () => {
@@ -208,10 +237,10 @@ const PlotRefresh = ({ tables, item, project, pending, args, updateItem, setPlot
         }
     }, [fetchWithBackoff]);
 
-    const onAutoClick = () => updateItem(item, "auto_update")(item.auto_update === "true" ? "false" : "true")
+    const onAutoClick = () => tileDataActions?.setAutoUpdate(item?.auto_update === "true" ? "false" : "true")
     const autoRefresh =
         <ActionButton
-            variant={item.auto_update === "true" ? "primary" : "outline"}
+            variant={item?.auto_update === "true" ? "primary" : "outline"}
             className="rounded-none rounded-bl-lg rounded-br-lg"
             icon={<Power />}
             tooltip={"Auto refresh every 5s"}
@@ -245,17 +274,17 @@ const PlotRefresh = ({ tables, item, project, pending, args, updateItem, setPlot
     const [lastUpdated, setLastUpdated] = useState<string>("")
     
     useEffect(() => {
-        fetchLatestTimestamps(tables, args, project, logsActions).then(latestTimestamp => setLastUpdated(latestTimestamp));
+        fetchLatestTimestamps(tables, args, projectId, logsActions).then(latestTimestamp => setLastUpdated(latestTimestamp));
     }, [])
 
     const onManualClick = () => {
         setLoading(true);
         setRefreshClick(true);
-        fetchLatestTimestamps(tables, args, project, logsActions).then(latestTimestamp => {
+        fetchLatestTimestamps(tables, args, projectId, logsActions).then(latestTimestamp => {
             const latestTs = new Date(latestTimestamp).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime();
             if (latestTs > lastCheckTs) {
-                updatePlotLogs(tables, args, project, logsActions, fieldsActions, setPlotDataItem).then(() => {
+                updatePlotLogs(tables, args, projectId, logsActions, fieldsActions, setPlotDataItem).then(() => {
                     setLastUpdated(latestTimestamp)
                 }) 
             } else {
@@ -264,7 +293,7 @@ const PlotRefresh = ({ tables, item, project, pending, args, updateItem, setPlot
         })
     }
 
-    const icon = loading || item.auto_update === "true"
+    const icon = loading || item?.auto_update === "true"
     ? <RefreshCw className="animate-spin text-green"/> 
     : loaded
         ?   <Check className="text-green"/>
@@ -273,9 +302,9 @@ const PlotRefresh = ({ tables, item, project, pending, args, updateItem, setPlot
         variant="outline"
         className="rounded-none rounded-tr-lg rounded-tl-lg h-8"
         icon={icon}
-        tooltip={loading ? "Refreshing plot logs.." : item.auto_update === "true" ? "Auto refreshing plot logs.." : "Refresh plot logs"}
+        tooltip={loading ? "Refreshing plot logs.." : item?.auto_update === "true" ? "Auto refreshing plot logs.." : "Refresh plot logs"}
         onClick={() => onManualClick()}
-        disabled={loading || item.auto_update === "true"}
+        disabled={loading || item?.auto_update === "true"}
     />
 
     return (

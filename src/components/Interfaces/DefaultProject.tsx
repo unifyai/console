@@ -5,7 +5,7 @@ import { useTheme } from "next-themes";
 import { ExternalLink, Loader2, Play } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import MarkdownRender from "../Common/Code/MarkdownRender";
-import { DemoActions, DerivedEntryActions, InterfaceActions, LogsActions, ProjectsActions, TileProps } from "@/types/evals/grid";
+import { DerivedEntryActions, TabActions, LogsActions, ProjectsActions, TileProps, DemoActions } from "@/types/evals/grid";
 import { useEffect, useState } from "react";
 import { demos } from "@/constants/logs";
 import { useQueryState } from "nuqs";
@@ -17,26 +17,28 @@ import { getLogsParameters } from "@/types/evals/logs";
 import { Badge } from "../UI/badge";
 import { buildNestedDropdownTree } from "@/utils/evals/common";
 import RenderMenuItems from "../Common/Dropdowns/RenderMenuItems";
+import { useStoreContext } from "@/contexts/providers/StoreProvider";
 
 const DefaultProject = ({
-    projects,
     projectActions,
-    interfaceActions,
-    demoActions,
+    tabActions,
     logsActions,
+    demoActions,
     derivedEntryActions,
-    setInterface,
-    setProject
+    setTabQueryParam,
+    setProjectQueryParam
 }: {
-    projects: string[] | undefined,
     projectActions: ProjectsActions,
-    interfaceActions: InterfaceActions,
-    demoActions: DemoActions,
+    tabActions: TabActions,
     logsActions: LogsActions,
+    demoActions: DemoActions
     derivedEntryActions: DerivedEntryActions,
-    setInterface: (value: string | null) => void,
-    setProject: (value: string | null) => void,
+    setTabQueryParam: (value: string | null) => void,
+    setProjectQueryParam: (value: string | null) => void,
 }) => {
+    // Access projects getter and setter from the store
+    const projects = useStoreContext(state => state.projects);
+
     const { theme } = useTheme();
 
     const disabled = projects == undefined
@@ -79,13 +81,13 @@ const DefaultProject = ({
     ) => {
         if (projects?.includes(demoProject)) {
             setTimeout(() => {
-                setProject(demoProject);
+                setProjectQueryParam(demoProject);
                 setCreate(null);
             }, 3000);
         } else {
             setPendingLocal(true);
             demoActions.run(demoCode).then(() => {
-                interfaceActions.create(
+                tabActions.create(
                     demoName, demoProject, undefined, demoItems, demoNewCounter, true
                 ).then(() => {
                     if (demoDerivedColumns != undefined) {
@@ -98,8 +100,8 @@ const DefaultProject = ({
                         ).then(() => {
                             setTimeout(() => {
                                 setPendingLocal(false);
-                                setProject(demoProject);
-                                setInterface(demoName);
+                                setProjectQueryParam(demoProject);
+                                setTabQueryParam(demoName);
                                 setDemo(null);
                                 setCreate(null);
                             }, 3000);
@@ -107,8 +109,8 @@ const DefaultProject = ({
                     } else {
                         setTimeout(() => {
                             setPendingLocal(false);
-                            setProject(demoProject);
-                            setInterface(demoName);
+                            setProjectQueryParam(demoProject);
+                            setTabQueryParam(demoName);
                             setDemo(null);
                             setCreate(null);
                         }, 3000);

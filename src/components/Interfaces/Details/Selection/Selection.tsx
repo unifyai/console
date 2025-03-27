@@ -1,12 +1,12 @@
 import React, {
   useMemo,
   useState,
+  useCallback,
 } from "react";
-import { LogProps } from "@/types/evals/logs";
 import SelectionHints from "./Hints";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { SquareSplitHorizontal } from "lucide-react";
-import { TileProps, ItemType } from "@/types/evals/grid";
+import { TileProps, TableDataItem  } from "@/types/evals/grid";
 
 import {
   buildIndexToColumnsMapFromId,
@@ -15,34 +15,63 @@ import {
 
 import SelectionPanel from "./SelectionPanel";
 
+import { useTile, useTileItem } from "@/contexts/hooks/tile";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
+
 /*******************************************************************************
  * Main "Selection" Component
  *   - Merged logic from old & new code
  ******************************************************************************/
 export default function Selection({
-  params,
-  logs,
-  selection_,
-  baseIndex_,
-  columnOrdering_,
-  tableItem,
-  item,
-  updateItem,
+  tileId,
+  tabId,
+  interfaceId,
+  projectId,
 }: {
-  params: Record<string, unknown>;
-  logs: LogProps[];
-  selection_: string | undefined;
-  baseIndex_: string | undefined;
-  columnOrdering_: string | undefined;
-  tableItem: TileProps | undefined;
-  item: TileProps;
-  updateItem: (item: TileProps, attrName: ItemType) => (
-    newValue: string | undefined
-  ) => void;
+  tileId: string;
+  tabId: string;
+  interfaceId: string;
+  projectId: string;
 }) {
   /******************************************************************************
    * Prepare sorted logs & selection data
    ******************************************************************************/
+  const { meta: tileMetaStateWithId, actions: tileActionsWithId } = useTile(tileId, tabId, interfaceId, projectId);
+  const { itemActions: tileItemActionsWithId } = useTileItem(tileId, tabId, interfaceId);
+
+  const item = useMemo(() => tileItemActionsWithId?.asTileItem(), [tileItemActionsWithId]);
+
+  // Get the table tile this selection references
+  const { meta: tileMetaStateWithTable, tableTile: tableTileStateWithTable, actions: tileActionsWithTable } = useTile(
+    item?.table || "", 
+    tabId, 
+    interfaceId, 
+    projectId
+  );
+  const { itemActions: tileItemActionsWithTable } = useTileItem(item?.table || "", tabId, interfaceId);
+
+  // Create equivalent references to match the old pattern
+  const tableItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || 
+    { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileItemActionsWithTable, item?.table]);
+  const relevantItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || undefined, [tileItemActionsWithTable]);
+  const tableDataItem = useMemo(() => tableTileStateWithTable?.tableDataItem || {} as TableDataItem, [tableTileStateWithTable]);
+
+  // Create a generic updateItem function that checks property existence
+  const updateItem = useCallback((item: TileProps, propName: string) => (value: any) => {
+    if (tileActionsWithId && item.i == tileMetaStateWithId?.name) {
+      tileActionsWithId.updateTile({ [propName]: value });
+    }
+    else if (tileActionsWithTable && item.table == tileMetaStateWithTable?.name) {
+      tileActionsWithTable.updateTile({ [propName]: value });
+    }
+  }, [tileActionsWithId, tileActionsWithTable, tileMetaStateWithId, tileMetaStateWithTable]);
+
+  const params = useMemo(() => tableDataItem?.params || {}, [tableDataItem, item?.table]);
+  const logs = useMemo(() => maybeFlattenGroupedLogs(tableDataItem?.logs || []), [tableDataItem, item?.table]);
+  const selection_ = useMemo(() => relevantItem?.selected || undefined, [relevantItem?.selected]);
+  const columnOrdering_ = useMemo(() => relevantItem?.column_order || undefined, [relevantItem?.column_order]);
+  const baseIndex_ = useMemo(() => relevantItem?.base_index || undefined, [relevantItem?.base_index]);
+
   const sortedLogs = useMemo(() => [...logs], [logs]);
 
   const selectedCells = useMemo(() => {
@@ -182,7 +211,7 @@ export default function Selection({
               columnOrdering={columnOrdering}
               indexToColumns={indexToColumns}
               tableItem={tableItem}
-              item={item}
+              item={item as TileProps}
               updateItem={updateItem}
               panelId={idx}
               initialBaseIndex={baseIndex_ ? parseInt(baseIndex_, 10) : 0}
