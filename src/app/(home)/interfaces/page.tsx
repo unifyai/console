@@ -22,7 +22,9 @@ import {
     deleteContext,
     getContexts,
     createLogs,
-    runDemo,
+    runCode,
+    getDevbox,
+    createDevbox,
 } from "./actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -77,8 +79,13 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
         delete: await deleteInterface(apiKey),
     }
 
-    const demoActions = {
-        run: await runDemo(adminKey, userId),
+    const codeActions = {
+        run: await runCode(apiKey, userId),
+    }
+
+    const devboxActions = {
+        get: await getDevbox(apiKey, userId),
+        create: await createDevbox(apiKey, userId),
     }
 
     return (
@@ -93,7 +100,8 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
                     contextActions={contextActions}
                     fieldsActions={fieldsActions}
                     tabActions={tabActions}
-                    demoActions={demoActions}
+                    codeActions={codeActions}
+                    devboxActions={devboxActions}
                 />
             </Suspense>
         </div>

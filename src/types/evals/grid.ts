@@ -178,6 +178,11 @@ export interface TabActions {
     delete: (name: string, project: string, temporary: boolean) => Promise<ResponseProps>
 }
 
-export interface DemoActions {
+export interface CodeActions {
     run: (code: string) => Promise<ResponseProps>
+}
+
+export interface DevboxActions {
+    get: () => Promise<ResponseProps>,
+    create: () => Promise<ResponseProps>
 }

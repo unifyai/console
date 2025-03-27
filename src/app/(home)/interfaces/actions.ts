@@ -380,22 +380,63 @@ export const deleteContext = async (apiKey: string) => {
     };
 };
 
+// get devbox
+export const getDevbox = async (apiKey: string, userId: string) => {
+    return async () => {
+        "use server";
 
-// run demo
-export const runDemo = async (adminKey: string, userId: string) => {
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/devbox?user_id=${userId}`,
+            {
+                method: "GET",
+                headers: { apiKey: apiKey },
+            }
+        );
+        const responseJson = await response.json();
+        if (!response.ok) {
+            console.error(response);
+            throw new Error("Network error");
+        }
+        return responseJson;
+    }
+}
+
+// create devbox
+export const createDevbox = async (apiKey: string, userId: string) => {
+    return async () => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/devbox`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({ user_id: userId })
+            }
+        );
+        const responseJson = await response.json();
+        if (!response.ok) {
+            console.error(response);
+            throw new Error("Network error");
+        }
+        return responseJson;
+    }
+}
+
+// run code
+export const runCode = async (apiKey: string, userId: string) => {
     return async (code: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/demo`,
+            `${process.env.NEXTAUTH_URL}/api/code`,
             {
                 method: "POST",
-                headers: { apiKey: adminKey },
+                headers: { apiKey: apiKey },
                 body: JSON.stringify({ user_id: userId, code })
             }
         );
         const responseJson = await response.json();
-        console.dir(responseJson);
         if (!response.ok) {
             console.error(response);
             throw new Error("Network error");

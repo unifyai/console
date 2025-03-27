@@ -5,7 +5,7 @@ import { useTheme } from "next-themes";
 import { ExternalLink, Loader2, Play } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import MarkdownRender from "../Common/Code/MarkdownRender";
-import { DerivedEntryActions, TabActions, LogsActions, ProjectsActions, TileProps, DemoActions } from "@/types/evals/grid";
+import { DerivedEntryActions, TabActions, LogsActions, ProjectsActions, TileProps, CodeActions } from "@/types/evals/grid";
 import { useEffect, useState } from "react";
 import { demos } from "@/constants/logs";
 import { useQueryState } from "nuqs";
@@ -23,7 +23,7 @@ const DefaultProject = ({
     projectActions,
     tabActions,
     logsActions,
-    demoActions,
+    codeActions,
     derivedEntryActions,
     setTabQueryParam,
     setProjectQueryParam
@@ -31,7 +31,7 @@ const DefaultProject = ({
     projectActions: ProjectsActions,
     tabActions: TabActions,
     logsActions: LogsActions,
-    demoActions: DemoActions
+    codeActions: CodeActions
     derivedEntryActions: DerivedEntryActions,
     setTabQueryParam: (value: string | null) => void,
     setProjectQueryParam: (value: string | null) => void,
@@ -86,7 +86,7 @@ const DefaultProject = ({
             }, 3000);
         } else {
             setPendingLocal(true);
-            demoActions.run(demoCode).then(() => {
+            codeActions.run(demoCode).then(() => {
                 tabActions.create(
                     demoName, demoProject, undefined, demoItems, demoNewCounter, true
                 ).then(() => {

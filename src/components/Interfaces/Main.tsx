@@ -1,6 +1,6 @@
 import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, LogItemProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
-import { Context, ContextActions, DerivedEntryActions, FieldsActions, TabProps, TabActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TabsDataProps, DemoActions } from "@/types/evals/grid";
+import { Context, ContextActions, DerivedEntryActions, FieldsActions, TabProps, TabActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TabsDataProps, CodeActions, DevboxActions } from "@/types/evals/grid";
 import { buildFilterExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { redirect } from "next/navigation";
@@ -13,7 +13,7 @@ import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { buildInitialState } from "@/contexts/utils/stateBuilderUtils";
 import { StoreInitializer } from "../../contexts/providers/StoreInitializer";
 
-const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, tabActions, demoActions }: {
+const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, tabActions, codeActions, devboxActions }: {
     tab: string | undefined,
     project: string | undefined,
     projectsActions: ProjectsActions,
@@ -22,7 +22,8 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     fieldsActions: FieldsActions,
     contextActions: ContextActions,
     tabActions: TabActions,
-    demoActions: DemoActions
+    codeActions: CodeActions,
+    devboxActions: DevboxActions
 }) => {
 
     // const cookies_ = cookies();
@@ -37,6 +38,11 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     let contexts: Context[] = [];
     if (currentProject)
         contexts = await contextActions.get(currentProject);
+
+    // Get or create devbox
+    const devbox = await devboxActions.get();
+    if (devbox == null)
+        devboxActions.create();
 
     // Get tabs
     const getTabsFromInterface = async (temporary: boolean) => {
@@ -463,7 +469,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                 fieldsActions={fieldsActions}
                 contextActions={contextActions}
                 tabActions={tabActions}
-                demoActions={demoActions}
+                codeActions={codeActions}
             />
         </Suspense>
     );
