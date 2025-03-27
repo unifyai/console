@@ -3,15 +3,14 @@ import { demos } from "@/constants/logs";
 import { CodeSandbox } from "@codesandbox/sdk";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
-const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
 const templateId = process.env.CODESANDBOX_TEMPLATE_ID;
-console.log(process.env.CODESANDBOX_API_TOKEN, templateId);
 
 export async function GET() {
     return Response.json(demos);
 }
 
 export async function POST(request: NextRequest) {
+    const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
     const body = await request.json();
     const userId = body.user_id;
     const code = body.code;
