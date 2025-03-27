@@ -61,41 +61,17 @@ export interface Tile extends TileMeta, TileData, TileUI {
   viewTile: ViewTile | null;
 }
 
-// tableKeys: all keys that are used in `asTileItem` in `useTable` hook to convert
-// a TableTile into a TableTileProps
-export const TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS: (keyof TableTile)[] = [
-  "table_type", "column_context", "page_number", "column_order", 
-  "hidden_columns", "sorting", "grouping", "group_sorting", 
-  "columns_pin_left", "columns_pin_right", "selected",
-];
-
-// plotKeys: all keys that are used in `asTileItem` in `usePlot` hook to convert
-// a PlotTile into a PlotTileProps
-export const PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS: (keyof PlotTile)[] = [
-  "plot_type", "plot_scale_x", "plot_scale_y", "is_aggregated",
-  "x_axis", "y_axis", "plot_group_by", "bin_count", "regression_line"
-];
-
-// viewKeys: all keys that are used in `asTileItem` in `useView` hook to convert
-// a ViewTile into a ViewTileProps
-export const VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS: (keyof ViewTile)[] = ["base_index"];
-
 // tileKeys: all keys that are used in `asTileItem` in `useTile` hook to convert
 // a Tile into a TileProps
-export const TILE_PROPS_KEYS_AS_TILE_KEYS: (keyof Tile | keyof TableTile | keyof PlotTile | keyof ViewTile)[] = [
-  "id","name","type","position","minW","minH","visible","type","moved",
-  "static","context","table","auto_update","freeze","filters",
-  "common_filter", "metric",
-  ...TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS,
-  ...PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS,
-  ...VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS,
+export const TILE_PROPS_KEYS_AS_TILE_KEYS: (keyof Tile)[] = [
+  "id","name","type","position","minW","minH","context","table","auto_update",
+  "freeze","filters","common_filter","metric","visible","moved","static",
 ];
 
 export const TILE_KEYS: (keyof Tile)[] = [
-  "id","name","type","position","minW","minH","visible","locked","pending",
-  "loading", "error","moved","static","context","table","auto_update","freeze",
-  "filters","common_filter","projectId","interfaceId","tabId","itemsNeedRecompute",
-  "tableTile","plotTile","viewTile",
+  ...TILE_PROPS_KEYS_AS_TILE_KEYS,
+  "projectId","interfaceId","tabId","locked","pending","loading", "error",
+  "itemsNeedRecompute","tableTile","plotTile","viewTile",
 ];
 
 /**

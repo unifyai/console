@@ -35,10 +35,16 @@ export interface PlotTileUI {
 // Combined Plot tile type
 export type PlotTile = PlotTileMeta & PlotTileData & PlotTileUI;
 
+// plotKeys: all keys that are used in `asTileItem` in `useTileItem` hook to convert
+// a PlotTile into a TileProps
+export const PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS: (keyof PlotTile)[] = [
+  "plot_type", "plot_scale_x", "plot_scale_y", "is_aggregated",
+  "x_axis", "y_axis", "plot_group_by", "bin_count", "regression_line"
+];
+
 // plotTileKeys: all fields for PlotTile
 export const PLOT_TILE_KEYS: (keyof PlotTile)[] = [
-  "plot_type","plot_scale_x","plot_scale_y",
-  "is_aggregated","x_axis","y_axis","plot_group_by","bin_count","regression_line",
+  ...PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS,
   "plotDataItem"
 ];
 

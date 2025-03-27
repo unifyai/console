@@ -7,7 +7,6 @@ import * as plotTileLogic from "./selectors/plotTile";
 import * as viewTileLogic from "./selectors/viewTile";
 import * as sliceUtils from "../utils/sliceUtils";
 import { Tile } from "./selectors/tile";
-import { TableTile } from "./selectors/tableTile";
 
 export interface TileState {
   // State
@@ -108,7 +107,7 @@ export const createTileSlice: StateCreator<
 
           // Check if table tile updates need recompute
           itemsNeedRecompute = Object.keys(filteredTableTileUpdates).some(
-            key => tileLogic.TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS.includes(key as keyof typeof tile.tableTile)
+            key => tableTileLogic.TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS.includes(key as keyof typeof tile.tableTile)
           );
         }
       }
@@ -127,7 +126,7 @@ export const createTileSlice: StateCreator<
 
           // Check if plot tile updates need recompute
           itemsNeedRecompute = Object.keys(filteredPlotTileUpdates).some(
-            key => tileLogic.PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS.includes(key as keyof typeof tile.plotTile)
+            key => plotTileLogic.PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS.includes(key as keyof typeof tile.plotTile)
           );
         }
       }
@@ -146,19 +145,21 @@ export const createTileSlice: StateCreator<
 
           // Check if view tile updates need recompute
           itemsNeedRecompute = Object.keys(filteredViewTileUpdates).some(
-            key => tileLogic.VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS.includes(key as keyof typeof tile.viewTile)
+            key => viewTileLogic.VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS.includes(key as keyof typeof tile.viewTile)
           );
         }
       }
 
       // If we need to recompute, add the flag to the updates
-      if (itemsNeedRecompute && !updatedTile.itemsNeedRecompute) {
-        updatedTile.itemsNeedRecompute = true;
-        tileUpdated = true;
+      if (itemsNeedRecompute) {
+        if (!updatedTile.itemsNeedRecompute) {
+          updatedTile.itemsNeedRecompute = true;
+          tileUpdated = true;
+        }
 
         // Also set the tab's flag if this tile has a tabId
-        if (tile.tabId && state.tabsById[tile.tabId] && !state.tabsById[tile.tabId].itemsNeedRecompute) {
-          state.tabsById[tile.tabId].itemsNeedRecompute = true;
+        if (updatedTile.tabId && state.tabsById[updatedTile.tabId] && !state.tabsById[updatedTile.tabId].itemsNeedRecompute) {
+          state.tabsById[updatedTile.tabId].itemsNeedRecompute = true;
         }
       }
 

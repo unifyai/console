@@ -19,8 +19,15 @@ export interface ViewTileUI {
 // Combined View tile type
 export type ViewTile = ViewTileMeta & ViewTileData & ViewTileUI;
 
+
+// viewKeys: all keys that are used in `asTileItem` in `useTile` hook to convert
+// a ViewTile into a TileProps
+export const VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS: (keyof ViewTile)[] = ["base_index"];
+
 // viewTileKeys: all fields for ViewTile
-export const VIEW_TILE_KEYS: (keyof ViewTile)[] = ["base_index"];
+export const VIEW_TILE_KEYS: (keyof ViewTile)[] = [
+  ...VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS,
+];
 
 
 /**

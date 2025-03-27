@@ -332,7 +332,7 @@ export async function onGroupExpand(
   offset: number,
   logsActions: LogsActions,
   setExpandingRowId: (id: string | null) => void,
-  setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void,
+  updateTableDataItem: (updater: (prev: TableDataProps) => TableDataProps) => void,
   item: TileProps,
   dataTypes: { [key: string]: string },
   fields: LogFieldsResponseProps,
@@ -446,7 +446,7 @@ export async function onGroupExpand(
 
     // Update the table data with the processed logs
     await new Promise<void>(resolve => {
-      setTableData(prev => {
+      updateTableDataItem(prev => {
         const newState = {
           ...prev,
           [item.i]: {

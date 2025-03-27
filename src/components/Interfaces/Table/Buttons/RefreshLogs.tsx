@@ -125,7 +125,7 @@ async function updateLogs (
     });
 }
 
-const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, hiddenColumns, setTableData, logs, logsActions, fieldsActions }: {
+const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, hiddenColumns, updateTableDataItem, logs, logsActions, fieldsActions }: {
     tileId: string,
     tabId: string,
     interfaceId: string,
@@ -137,7 +137,7 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
     groupingExpression: string | null,
     groupSortingExpression: string | null,
     hiddenColumns: string | undefined,
-    setTableData: (updater: (prev: TableDataProps) => TableDataProps) => void,
+    updateTableDataItem: (updater: (prev: TableDataProps) => TableDataProps) => void,
     logs: LogProps[] | GroupedLogProps[],
     logsActions: LogsActions,
     fieldsActions: FieldsActions
@@ -203,7 +203,7 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
                 fieldsActions,
                 (updateFn) => {
                     if (isMounted.current && autoUpdateRef.current) {
-                        setTableData(updateFn);
+                        updateTableDataItem(updateFn);
                     }
                 },
                 abortControllerRef.current.signal,
@@ -216,7 +216,7 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
             isRunning.current = false;
             abortControllerRef.current = null;
         }
-    }, [item, projectId, logsActions, fieldsActions, setTableData, sortingExpression, groupingExpression, groupSortingExpression]);
+    }, [item, projectId, logsActions, fieldsActions, updateTableDataItem, sortingExpression, groupingExpression, groupSortingExpression]);
 
     // Auto-refresh with recursive timeout
     const fetchWithBackoff = useCallback(async () => {
@@ -283,7 +283,7 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime();
             if (latestTs > lastCheckTs) {
-                updateLogs(item as TileProps, sortingExpression, groupingExpression, groupSortingExpression, projectId, logsActions, fieldsActions, setTableData).then(() => {
+                updateLogs(item as TileProps, sortingExpression, groupingExpression, groupSortingExpression, projectId, logsActions, fieldsActions, updateTableDataItem).then(() => {
                     setLastUpdated(latest)
                 });
             } else {

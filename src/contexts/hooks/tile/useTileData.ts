@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useStoreContext } from '../../providers/StoreProvider';
 import { useTileMeta } from './useTileMeta';
-import { Tile, TileData } from '../../slices/selectors/tile';
+import { TileData } from '../../slices/selectors/tile';
 import { TableTile } from '../../slices/selectors/tableTile';
 import { PlotTile } from '../../slices/selectors/plotTile';
 import { ViewTile } from '../../slices/selectors/viewTile';
@@ -104,6 +104,7 @@ export function useTileData(
     freeze, 
     filters, 
     commonFilter,
+    metric,
   ]);
 
   // Memoize the data actions to prevent unnecessary re-renders

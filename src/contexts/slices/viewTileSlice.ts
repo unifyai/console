@@ -1,7 +1,6 @@
 import { StateCreator } from "zustand";
 import { StoreSlice } from "./slice";
 import * as viewTileLogic from "./selectors/viewTile";
-import * as tileLogic from "./selectors/tile";
 import * as sliceUtils from "../utils/sliceUtils";
 
 export interface ViewTileState {
@@ -60,18 +59,20 @@ export const createViewTileSlice: StateCreator<
 
     // Check if relevant fields are being updated that affect the tile item
     itemsNeedRecompute = Object.keys(filteredUpdates).some(
-      key => tileLogic.VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS.includes(key as keyof typeof tile.viewTile)
+      key => viewTileLogic.VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS.includes(key as keyof typeof tile.viewTile)
     );
 
     // If we need to recompute, add the flag to the updates
-    if (itemsNeedRecompute && !tile.itemsNeedRecompute) {
-      updatedTile.itemsNeedRecompute = true;
-      tileUpdated = true;
+    if (itemsNeedRecompute) {
+      if (!updatedTile.itemsNeedRecompute) {
+        updatedTile.itemsNeedRecompute = true;
+        tileUpdated = true;
+      }
     }
 
     // Also set the tab's flag if this tile has a tabId and needs recompute
-    if (itemsNeedRecompute && tile.tabId && state.tabsById[tile.tabId] && !state.tabsById[tile.tabId].itemsNeedRecompute) {
-      state.tabsById[tile.tabId].itemsNeedRecompute = true;
+    if (updatedTile.tabId && state.tabsById[updatedTile.tabId] && !state.tabsById[updatedTile.tabId].itemsNeedRecompute) {
+      state.tabsById[updatedTile.tabId].itemsNeedRecompute = true;
     }
 
     // Apply the updated tile if needed

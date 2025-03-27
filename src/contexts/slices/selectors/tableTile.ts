@@ -38,12 +38,18 @@ export interface TableTileUI {
 // Combined Table tile type
 export type TableTile = TableTileMeta & TableTileData & TableTileUI;
 
-// tableTileKeys: all fields for TableTile
-export const TABLE_TILE_KEYS: (keyof TableTile)[] = [
+// tableKeys: all keys that are used in `asTileItem` in `useTileItem` hook to convert
+// a TableTile into a TileProps
+export const TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS: (keyof TableTile)[] = [
   "table_type","column_order","hidden_columns","sorting",
   "grouping","group_sorting","columns_pin_left","columns_pin_right",
-  "selected","tableDataItem","limit","offset",
-  "column_context","page_number"
+  "selected","column_context","page_number"
+];
+
+// tableTileKeys: all fields for TableTile
+export const TABLE_TILE_KEYS: (keyof TableTile)[] = [
+  ...TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS,
+  "tableDataItem","limit","offset",
 ];
 
 /**
@@ -83,7 +89,7 @@ export function initTableTile(initialState: Partial<TableTile> = {}): TableTile 
       logs: initialState.tableDataItem?.logs || [],
       params: initialState.tableDataItem?.params || {},
       metrics: initialState.tableDataItem?.metrics || {},
-      groupedMetrics: initialState.tableDataItem?.groupedMetrics || {},
+      groupedMetrics: initialState.tableDataItem?.groupedMetrics,
       boundaries: initialState.tableDataItem?.boundaries || { minimums: {}, maximums: {} },
       ...initialState.tableDataItem,
     } as TableDataItem,

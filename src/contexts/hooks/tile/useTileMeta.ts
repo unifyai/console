@@ -18,15 +18,15 @@ export interface TileMetaActions {
 /**
  * Custom hook to access tile metadata and related actions
  * @param tileName The name of the tile to access
- * @param tabName The name of the tab containing the tile
- * @param interfaceName The name of the interface containing the tab
+ * @param tabName Optional name of the tab containing the tile
+ * @param interfaceName Optional name of the interface containing the tab
  * @param projectName Optional project name (if not provided, active project will be used)
  * @returns Object containing tile metadata, actions, and related IDs
  */
 export function useTileMeta(
   tileName: string | null,
   tabName: string | null,
-  interfaceName: string | null,
+  interfaceName?: string | null,
   projectName?: string | null
 ) {
   // Use the tab meta hook to get tab information

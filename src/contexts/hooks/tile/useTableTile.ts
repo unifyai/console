@@ -241,11 +241,9 @@ export function useTableTile(
       },
 
       updateTableDataItem: (updates) => {
-        const update: Partial<TableDataItem> = { 
-          ...tableTile?.tableDataItem,
-          ...updates
-        };
-        storeUpdateTableDataItem(tileId, update);
+        if (tileId) {
+          storeUpdateTableDataItem(tileId, updates);
+        }
       }
     };
   }, [isTableTile, tileId, storeUpdateTableDataItem]);

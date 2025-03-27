@@ -10,7 +10,7 @@ import {
   ColumnSizingState,
   GroupingState,
 } from "@tanstack/react-table";
-import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions } from "@/types/evals/grid";
+import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions, TableDataProps } from "@/types/evals/grid";
 import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
@@ -130,6 +130,24 @@ const LogsTable = ({
   } as TableDataItem), []);
   const tableDataItem = useMemo(() => tableTileState?.tableDataItem || defaultTableDataItem, [tableTileState?.tableDataItem]);
 
+  const setPending = (pending: boolean) => tileUIActions?.setPending(pending);
+
+  const {
+    fields,
+    logs,
+    params,
+    entriesProperties,
+    paramsProperties,
+    metrics,
+    logsData,
+    totalPages,
+    boundaries
+  } = useMemo(() => tableDataItem, [tableDataItem]);
+
+  // Display loaders for group metrics and shared values
+  const [loadingGroups, setLoadingGroups] = useState<Set<string>>(new Set());
+  const [loadingSubGroup, setLoadingSubGroup] = useState<boolean>(false);
+
   // Effect to handle table data updates and grouped metrics
   useEffect(() => {
     if (!tableDataItem) return;
@@ -166,24 +184,6 @@ const LogsTable = ({
       }
     });
   }, [tableDataItem]);
-
-  const setPending = (pending: boolean) => tileUIActions?.setPending(pending);
-
-  const {
-    fields,
-    logs,
-    params,
-    entriesProperties,
-    paramsProperties,
-    metrics,
-    logsData,
-    totalPages,
-    boundaries
-  } = useMemo(() => tableDataItem, [tableDataItem]);
-
-  // Display loaders for group metrics and shared values
-  const [loadingGroups, setLoadingGroups] = useState<Set<string>>(new Set());
-  const [loadingSubGroup, setLoadingSubGroup] = useState<boolean>(false);
 
   // Extract params values from logs
   const paramsValues: LogItemProps = {};
@@ -534,6 +534,18 @@ const LogsTable = ({
     }
   }, [columnIDs, manualColumnOrderOverride]);
 
+  const updateTableDataItemWithUpdater = (updater: (prev: TableDataProps) => TableDataProps) => {
+    // Create an adapter that wraps our simple update function to match expected signature
+    if (tableTileActions && item?.i) {
+      const newData = updater({
+        [item.i]: tableDataItem
+      });
+      if (newData && newData[item.i]) {
+        tableTileActions.updateTableDataItem(newData[item.i]);
+      }
+    }
+  }
+
   // Top area: filters, page, etc.
   const tableTop = (
     <div className="mb-2 mx-1 flex flex-wrap justify-between gap-3 LogsTablePreferences">
@@ -602,19 +614,7 @@ const LogsTable = ({
             hiddenColumns={item?.hidden_columns}
             groupingExpression={groupingExpression}
             groupSortingExpression={groupSortingExpression}
-            setTableData={(updater) => {
-              // Create an adapter that wraps our simple update function to match expected signature
-              if (tileDataActions && tableTileState && item?.i) {
-                const newData = updater({
-                  [item.i]: tableDataItem
-                });
-                if (newData && newData[item.i]) {
-                  tileDataActions.updateTableTile({ 
-                    tableDataItem: newData[item.i] 
-                  });
-                }
-              }
-            }}
+            updateTableDataItem={updateTableDataItemWithUpdater}
             logsActions={logsActions}
             fieldsActions={fieldsActions}
             logs={logs}
@@ -776,19 +776,7 @@ const LogsTable = ({
                           offset,
                           logsActions,
                           setExpandingRowId,
-                          (updater) => {
-                            // Create an adapter that wraps our simple update function to match expected signature
-                            if (tileDataActions && tableTileState && item?.i) {
-                              const newData = updater({
-                                [item.i]: tableDataItem
-                              });
-                              if (newData && newData[item.i]) {
-                                tileDataActions.updateTableTile({ 
-                                  tableDataItem: newData[item.i] 
-                                });
-                              }
-                            }
-                          },
+                          updateTableDataItemWithUpdater,
                           item as TileProps,
                           dataTypes,
                           fields,
