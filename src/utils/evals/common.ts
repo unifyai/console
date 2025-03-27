@@ -1,11 +1,11 @@
-import { LogsResponseProps, GroupedLogProps, LogProps, LogFieldsResponseProps, GroupedLogPropsRaw } from "../../types/evals/logs";
+import { LogsResponseProps, GroupedLogProps, LogProps, LogFieldsResponseProps } from "../../types/evals/logs";
 
 import _ from "lodash";
 import { formatNumber } from "../formatNumber";
 import { processContext } from "./columnOperations";
 import { LogsActions, TileProps } from "@/types/evals/grid";
 import { Row } from "@tanstack/react-table";
-import { getGroupingFilters, maybeConvertRawToGroupedLogs } from "./grouping";
+import { maybeConvertRawToGroupedLogs } from "./grouping";
 import { TreeNode } from "@/types/common";
 
 /* 

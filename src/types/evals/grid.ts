@@ -119,12 +119,26 @@ export interface Context {
     description: string
 }
 
-export interface Interface {
+export interface TabProps {
     name: string,
     project: string,
     context: string | undefined,
     items: TileProps[],
     new_counter: number,
+}
+
+export interface TabsDataProps {
+    [key: string]: {
+        name: string,
+        items: TileProps[],
+        globalContext: string | undefined,
+        tableTiles: TileProps[],
+        plotTiles: TileProps[],
+        viewTiles: TileProps[],
+        tabCreated: boolean,
+        tempTabCreated: boolean,
+        savedTab: TabProps | null,
+    }
 }
 
 export interface ProjectsActions {
@@ -157,13 +171,18 @@ export interface ContextActions {
     delete: (project: string, context: string) => Promise<ResponseProps>
 }
 
-export interface InterfaceActions {
-    get: (project: string, temporary: boolean) => Promise<Interface[]>,
+export interface TabActions {
+    get: (project: string, temporary: boolean) => Promise<TabProps[]>,
     create: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, temporary: boolean) => Promise<ResponseProps>,
     update: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, new_name: string | undefined, temporary: boolean) => Promise<ResponseProps>,
     delete: (name: string, project: string, temporary: boolean) => Promise<ResponseProps>
 }
 
-export interface DemoActions {
+export interface CodeActions {
     run: (code: string) => Promise<ResponseProps>
+}
+
+export interface DevboxActions {
+    get: () => Promise<ResponseProps>,
+    create: () => Promise<ResponseProps>
 }

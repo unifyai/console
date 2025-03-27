@@ -310,10 +310,6 @@ const DataTableHeader = ({
   // Handle header coloring.
   // - Applies selection (hover) background color on any column header for which all (some) cells are selected
   // - Applied selection (hover) background color index column header if all (some) table cells are selected
-  const [hovered, setHovered] = useState(false);
-  useEffect(() => {
-    setHovered(false);
-  }, [dropdownOpen]);
   const isAllColumnSelected = (header: Header<any, unknown>) => {
     const validCells = getCellsFromHeader(header).filter(cell => cell.getValue() !== undefined || cell.column.id === "RowNumbering")
     return validCells.length && validCells.every(cell => isCellSelected(cell))
@@ -340,18 +336,33 @@ const DataTableHeader = ({
     borderTop: "1px solid var(--muted)",
     borderBottom: header.depth >= 1 && !header.subHeaders.length ? "1px solid var(--muted)" : undefined,
     color: isAllColumnSelected(header) ? "var(--primary-foreground)" : "",
-    backgroundColor: isNotUtilColumn
-      ? isAllColumnSelected(header) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
-      : isAllTableSelected() ? `var(--primary)` : hovered ? "var(--muted)" : "var(--background)",
   };
 
+  /** Determine background color using tailwind classes, applying style in the following order of priority
+   * Selection
+   * Pinning (only if not selected)
+   * Default & Hover (only if not selected and not pinned)
+  */
+  const isSelected = isNotUtilColumn ? isAllColumnSelected(header) : isAllTableSelected();
+  const selectionClass = isSelected ? 'bg-primary' : '';
+  const pinnedClass = !isSelected && isPinned && isNotUtilColumn ? 'bg-background' : '';
+  const defaultBgClass = !isSelected && !pinnedClass ? 'bg-background' : '';
+  const hoverClass = !isSelected && !pinnedClass && !dropdownOpen ? 'hover:bg-muted' : '';
+
   const maxLabelWidth = Math.max(Number((style.width as string).split("px")[0]) - (actionButtonRef.current?.clientWidth ?? 0), 10)
+
   return (
     <TableHead 
       colSpan={header.colSpan} 
       ref={setNodeRef} 
       style={style} 
-      className={`relative px-0 py-0`}
+      className={`
+        relative px-0 py-0
+        ${selectionClass}
+        ${pinnedClass}
+        ${defaultBgClass}
+        ${hoverClass}
+      `}
       data-column-id={header.column.id}
     >
 
@@ -369,8 +380,6 @@ const DataTableHeader = ({
 
         {/* Single outer div to handle hovered logic. Distinguish parent vs child inside. */}
         <div
-          onMouseEnter={() => {if (!dropdownOpen) setHovered(true)}}
-          onMouseLeave={() => setHovered(false)}
           onMouseDown={(e) => cellSelection.handleCellMouseDown(e, header)}
           onMouseUp={(e) => cellSelection.handleCellMouseUp(e, header)}
           onMouseOver={(e) => cellSelection.handleCellMouseOver(e, header)}

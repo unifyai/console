@@ -151,7 +151,7 @@ export default function SelectionPanel({
     allPossibleColumns?: { entries: string[], params: string[] };
   }) {
     // Local panel states for display options
-    const [displayMode, setDisplayMode] = useState<"markdown" | "text" | "raw">("markdown");
+    const [displayMode, setDisplayMode] = useState<"markdown" | "text" | "raw">("text");
     const [diffModeIdx, setDiffModeIdx] = useState(0);
     const allDiffModes = ["none", "lines", "words", "characters"] as const;
     const diffMode = allDiffModes[diffModeIdx];

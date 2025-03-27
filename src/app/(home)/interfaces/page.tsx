@@ -22,7 +22,9 @@ import {
     deleteContext,
     getContexts,
     createLogs,
-    runDemo,
+    runCode,
+    getDevbox,
+    createDevbox,
 } from "./actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -69,30 +71,37 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
         delete: await deleteContext(apiKey)
     }
 
-    const interfaceActions = {
+    const tabActions = {
+        // TODO: In future versions, we'll support multiple interfaces per project
         create: await createInterface(apiKey),
         update: await updateInterface(apiKey),
         get: await getInterface(apiKey),
         delete: await deleteInterface(apiKey),
     }
 
-    const demoActions = {
-        run: await runDemo(adminKey, userId),
+    const codeActions = {
+        run: await runCode(apiKey, userId),
+    }
+
+    const devboxActions = {
+        get: await getDevbox(apiKey, userId),
+        create: await createDevbox(apiKey, userId),
     }
 
     return (
         <div className="w-full h-full">
             <Suspense fallback={<SkeletonLoader />}>
                 <Main
-                    project_={searchParams?.project}
-                    interface_={searchParams?.tab}
+                    project={searchParams?.project}
+                    tab={searchParams?.tab}
                     projectsActions={projectsActions}
                     logsActions={logsActions}
                     derivedEntryActions={derivedEntryActions}
                     contextActions={contextActions}
                     fieldsActions={fieldsActions}
-                    interfaceActions={interfaceActions}
-                    demoActions={demoActions}
+                    tabActions={tabActions}
+                    codeActions={codeActions}
+                    devboxActions={devboxActions}
                 />
             </Suspense>
         </div>
