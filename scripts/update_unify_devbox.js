@@ -62,9 +62,7 @@ async function main() {
         // Cleanup and close any open connections
         if (sdk) {
             try {
-                await sdk.dispose(); // Add this if the SDK has a dispose method
-                // or
-                process.exit(0); // Force exit if no cleanup method available
+                process.exit(0);
             } catch (error) {
                 console.error("Error during cleanup:", error);
                 process.exit(1);
