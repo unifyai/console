@@ -1,4 +1,4 @@
-name: Update unify in Devboxes
+name: Update Unify in Devboxes
 
 on:
   schedule:
