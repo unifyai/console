@@ -2,18 +2,18 @@ const { CodeSandbox } = require("@codesandbox/sdk");
 
 async function updateUnifyInDevbox(sandbox) {
     try {
-        console.log(`📦 Updating Unify in sandbox: ${sandbox.title} (${sandbox.id})`);
+        console.log(`📦 Updating Unify in sandbox: ${sandbox.id})`);
         const result = await sandbox.shells.run(
-            "pip install --force-reinstall git+https://github.com/unifyai/unify.git@devbox_testing",
+            "pip install --force-reinstall git+https://github.com/unifyai/unify.git",
             { verbose: true }
         );
         if (result.exitCode !== 0)
-            throw new Error(`Failed to update Unify in ${sandbox.title}`);
-        console.log(`✅ Successfully updated Unify in ${sandbox.title}`);
-        return { success: true, sandbox: sandbox.title };
+            throw new Error(`Failed to update Unify in ${sandbox.id}`);
+        console.log(`✅ Successfully updated Unify in ${sandbox.id}`);
+        return { success: true, sandbox: sandbox.id };
     } catch (error) {
-        console.error(`❌ Failed to update Unify in ${sandbox.title}:`, error);
-        return { success: false, sandbox: sandbox.title, error };
+        console.error(`❌ Failed to update Unify in ${sandbox.id}:`, error);
+        return { success: false, sandbox: sandbox.id, error };
     }
 }
 
