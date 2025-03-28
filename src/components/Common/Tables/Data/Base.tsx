@@ -11,7 +11,7 @@ import { DndContext, closestCenter } from "@dnd-kit/core";
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 
-import { getCoreRowModel, handleDragCancel, handleDragEnd, handleDragMove, handleDragOver, handleDragStart } from "@/utils/evals/table";
+import { getCoreRowModel, handleDragCancel, handleDragEnd, handleDragMove, handleDragOver, handleDragStart, mergeHeadersHorizontally } from "@/utils/evals/table";
 import { Table, TableHeader, TableRow, TableBody, TableCell, TableFooter } from "@/components/UI/table";
 
 import DataTableHeader from "./Content/Header";
@@ -188,16 +188,17 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                 >
                     <Table className={`relative w-full ${className}`} style={{ width: table.getTotalSize() }}>
                         <TableHeader className="sticky top-0 z-20 bg-background">
-                            {table.getHeaderGroups().map((headerGroup) => (
+                            {table.getHeaderGroups().map((headerGroup, headerGroupIndex) => (
                                 <TableRow key={headerGroup.id}>
                                     <SortableContext items={state.columnOrder} strategy={horizontalListSortingStrategy}>
-                                        {headerGroup.headers.map((header) => (
+                                        {mergeHeadersHorizontally(headerGroup).map((header) => (
                                             <DataTableHeader
                                                 key={header.id}
                                                 interactive={interactive}
                                                 auto_update={auto_update}
                                                 data={data}
                                                 header={header}
+                                                headerGroupIndex={headerGroupIndex}
                                                 table={table}
                                                 isCellSelected={isCellSelected}
                                                 cellSelection={cellSelection}
