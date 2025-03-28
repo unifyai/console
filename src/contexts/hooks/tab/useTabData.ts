@@ -8,8 +8,10 @@ import { useShallow } from 'zustand/react/shallow';
 import { useTileItemActions } from '../tile/useTileItem';
 import isEqual from 'fast-deep-equal';
 import { deconstructHierarchicalId } from '@/contexts/utils/sliceUtils';
+import { TableArguments } from '@/types/evals/logs';
 
 // Define stable fallback references
+const EMPTY_TABLE_ARGUMENTS = {};
 const EMPTY_TILE_IDS: string[] = [];
 const EMPTY_TILES: Record<string, Tile> = {};
 const EMPTY_TILE_PROPS: TileProps[] = [];
@@ -20,7 +22,8 @@ const EMPTY_TILE_PROPS: TileProps[] = [];
 export interface TabDataActions {
   setGlobalContext: (context: string | undefined) => void;
   setSavedTab: (savedTab: TabProps | null) => void;
-  
+  setTableArguments: (tableArguments: TableArguments) => void;
+
   // Tile management
   initTile: (tileName: string, initialState?: { type?: 'Table' | 'Plot' | 'View' } & any) => void;
   addTile: (tileName: string, newName: string, initialState?: Partial<Tile>) => void;
@@ -79,6 +82,13 @@ export function useTabData(
     useShallow(state => {
       if (!tabExists || !tabId) return null;
       return state.tabsById[tabId].savedTab;
+    })
+  );
+
+  const tableArguments = useStoreContext(
+    useShallow(state => {
+      if (!tabExists || !tabId) return EMPTY_TABLE_ARGUMENTS;
+      return state.tabsById[tabId].tableArguments || EMPTY_TABLE_ARGUMENTS;
     })
   );
   
@@ -181,9 +191,10 @@ export function useTabData(
     return {
       globalContext,
       savedTab,
+      tableArguments,
       tileIds
     };
-  }, [tabExists, globalContext, savedTab, tileIds]);
+  }, [tabExists, globalContext, savedTab, tileIds, tableArguments]);
 
   // Define setItems as a callback to avoid dependency cycles
   const setItems = useCallback((newItems: TileProps[]) => {
@@ -213,6 +224,12 @@ export function useTabData(
     setSavedTab: (savedTab) => {
       if (tabId) {
         storeUpdateTab(tabId, { savedTab });
+      }
+    },
+
+    setTableArguments: (tableArguments) => {
+      if (tabId) {
+        storeUpdateTab(tabId, { tableArguments });
       }
     },
     

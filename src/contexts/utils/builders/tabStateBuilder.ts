@@ -3,6 +3,7 @@ import { Tile } from "@/contexts/slices/selectors/tile";
 import { PlotDataProps, TabProps, TabsDataProps, TileProps } from "@/types/evals/grid";
 import { TableDataProps } from "@/types/evals/grid";
 import { buildPlotTileState, buildTableTileState, buildTileState, buildViewTileState } from "./tileStateBuilder";
+import { TableArguments } from "@/types/evals/logs";
 
 /**
  * Build initial state for a tab with its tiles
@@ -15,6 +16,7 @@ export function buildTabState(
   tabData: TabsDataProps[keyof TabsDataProps],
   tableData: TableDataProps = {},
   plotData: PlotDataProps = {},
+  tableArguments: TableArguments,
   limit: number,
   offsets: number[],
   isActive: boolean = false,
@@ -139,6 +141,7 @@ export function buildTabState(
     globalContext: tabData.globalContext,
     savedTab: savedTabValue,
     itemsNeedRecompute: false,
+    tableArguments: tableArguments,
   };
   
   // Create tab UI

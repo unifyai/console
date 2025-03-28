@@ -12,7 +12,6 @@ export interface InterfaceMeta {
 export interface InterfaceData {
   tabNames: string[];
   tabIds: string[];  // References to tabs instead of containing them directly
-  tableArguments: TableArguments;
 }
 
 // Interface UI state - UI-related state
@@ -38,7 +37,6 @@ export function initInterface(interfaceId: string, initialState: Partial<Interfa
     // Data
     tabNames: initialState.tabNames || [],
     tabIds: initialState.tabIds || [],
-    tableArguments: initialState.tableArguments || {},
     
     // UI
     projectId: initialState.projectId || null,

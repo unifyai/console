@@ -46,6 +46,7 @@ export function buildInterfaceState(
       tabsData[tabId],
       tableData,
       plotData,
+      tableArguments,
       limit,
       offsets,
       true, // Active
@@ -75,6 +76,7 @@ export function buildInterfaceState(
           tabData,
           tableData,
           plotData,
+          tableArguments,
           limit,
           offsets,
           false, // Not active
@@ -102,7 +104,6 @@ export function buildInterfaceState(
   const interfaceData: InterfaceData = {
     tabIds: tabIds,
     tabNames: tabNames,
-    tableArguments: tableArguments,
   };
   
   // Create interface UI
