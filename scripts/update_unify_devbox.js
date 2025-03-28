@@ -2,25 +2,26 @@ const { CodeSandbox } = require("@codesandbox/sdk");
 
 async function updateUnifyInDevbox(sandbox) {
     try {
-        console.log(`📦 Updating Unify in sandbox: ${sandbox.title} (${sandbox.id})`);
+        console.log(`📦 Updating Unify in sandbox: ${sandbox.id}`);
         const result = await sandbox.shells.run(
-            "pip install --force-reinstall git+https://github.com/unifyai/unify.git@devbox_testing",
+            "pip install --force-reinstall git+https://github.com/unifyai/unify.git",
             { verbose: true }
         );
         if (result.exitCode !== 0)
-            throw new Error(`Failed to update Unify in ${sandbox.title}`);
-        console.log(`✅ Successfully updated Unify in ${sandbox.title}`);
-        return { success: true, sandbox: sandbox.title };
+            throw new Error(`Failed to update Unify in ${sandbox.id}`);
+        console.log(`✅ Successfully updated Unify in ${sandbox.id}`);
+        return { success: true, sandbox: sandbox.id };
     } catch (error) {
-        console.error(`❌ Failed to update Unify in ${sandbox.title}:`, error);
-        return { success: false, sandbox: sandbox.title, error };
+        console.error(`❌ Failed to update Unify in ${sandbox.id}:`, error);
+        return { success: false, sandbox: sandbox.id, error };
     }
 }
 
 async function main() {
+    let sdk;
     try {
         // Initialize SDK with your token
-        const sdk = new CodeSandbox(process.env.CODESANDBOX_API_KEY);
+        sdk = new CodeSandbox(process.env.CODESANDBOX_API_KEY);
         
         console.log("🔍 Fetching sandboxes...");
         const { sandboxes } = await sdk.sandbox.list();
@@ -57,6 +58,16 @@ async function main() {
     } catch (error) {
         console.error("❌ Script failed:", error);
         process.exit(1);
+    } finally {
+        // Cleanup and close any open connections
+        if (sdk) {
+            try {
+                process.exit(0);
+            } catch (error) {
+                console.error("Error during cleanup:", error);
+                process.exit(1);
+            }
+        }
     }
 }
 

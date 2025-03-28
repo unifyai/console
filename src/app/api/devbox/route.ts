@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
 import { CodeSandbox } from "@codesandbox/sdk";
 
-const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
 const templateId = process.env.CODESANDBOX_TEMPLATE_ID;
 
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("user_id") as string;
+    const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
     const sandboxes = await sdk.sandbox.list();
     const sandbox = sandboxes.sandboxes.find(
         sandbox => sandbox.title === userId
@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     const body = await request.json();
     const userId = body.user_id as string;
+    const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
     const sandbox = await sdk.sandbox.create({
         title: userId,
         template: templateId,

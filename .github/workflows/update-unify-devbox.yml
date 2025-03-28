@@ -1,4 +1,4 @@
-name: Update unify in Devboxes
+name: Update Unify in Devboxes
 
 on:
   schedule:
@@ -23,4 +23,6 @@ jobs:
         run: npm install @codesandbox/sdk
         
       - name: Run script
-        run: node update_unify_devbox.js
+        run: node scripts/update_unify_devbox.js
+        env:
+          CODESANDBOX_API_KEY: ${{ secrets.CODESANDBOX_API_KEY }}
