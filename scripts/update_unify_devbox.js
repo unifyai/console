@@ -4,7 +4,7 @@ async function updateUnifyInDevbox(sandbox) {
     try {
         console.log(`📦 Updating Unify in sandbox: ${sandbox.title} (${sandbox.id})`);
         const result = await sandbox.shells.run(
-            "pip install --force-reinstall git+https://github.com/unifyai/unify.git",
+            "pip install --force-reinstall git+https://github.com/unifyai/unify.git@devbox_testing",
             { verbose: true }
         );
         if (result.exitCode !== 0)
