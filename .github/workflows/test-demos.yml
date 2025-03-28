@@ -1,13 +1,13 @@
-name: Update Unify in Devboxes
+name: Test Demos
 
 on:
-  schedule:
-    # Runs at 22:30 UTC every day
-    - cron: '30 22 * * *'
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
-  run-script:
+  test-demos:
     runs-on: ubuntu-latest
     
     steps:
@@ -21,8 +21,10 @@ jobs:
           
       - name: Install dependencies
         run: npm install @codesandbox/sdk
-        
-      - name: Update unify in devboxes
-        run: node scripts/update_unify_devbox.js
+
+      - name: Test demos
+        run: node scripts/test_demos_devbox.js
         env:
           CODESANDBOX_API_KEY: ${{ secrets.CODESANDBOX_API_KEY }}
+          CODESANDBOX_TEMPLATE_ID: ${{ secrets.CODESANDBOX_TEMPLATE_ID }}
+          UNIFY_KEY: ${{ secrets.USER_API_KEY }}
