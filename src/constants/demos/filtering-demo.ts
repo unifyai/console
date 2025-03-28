@@ -27,8 +27,9 @@ export default {
     ],
     new_counter: 2,
     code: `
-import unify
+from datetime import datetime, timedelta
 import random
+import unify
 
 unify.activate("filtering-demo", overwrite=True)
 
