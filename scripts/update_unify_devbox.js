@@ -2,7 +2,7 @@ const { CodeSandbox } = require("@codesandbox/sdk");
 
 async function updateUnifyInDevbox(sandbox) {
     try {
-        console.log(`📦 Updating Unify in sandbox: ${sandbox.id})`);
+        console.log(`📦 Updating Unify in sandbox: ${sandbox.id}`);
         const result = await sandbox.shells.run(
             "pip install --force-reinstall git+https://github.com/unifyai/unify.git",
             { verbose: true }
