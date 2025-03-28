@@ -17,16 +17,16 @@ async function testDemo(sandbox, demoName, demo) {
         await sandbox.fs.writeFile("main.py", demo.code);
         const result = await sandbox.shells.run("python main.py", {
             verbose: true,
-            env: {
-                UNIFY_KEY: process.env.UNIFY_KEY
-            }
+            env: { UNIFY_KEY: process.env.UNIFY_KEY }
         });
 
-        return {
-            success: result.exitCode === 0,
-            name: demoName,
-            error: result.exitCode !== 0 ? result.stderr : null
-        };
+        if (result.exitCode !== 0) {
+            console.log(`❌ Test failed for ${demoName}`);
+            console.dir(result);
+            return { success: false, name: demoName, error: result.output };
+        }
+        console.log(`✅ Test passed for ${demoName}`);
+        return { success: true, name: demoName, error: null };
     } catch (error) {
         console.error(`❌ Failed to test demo ${demoName}:`, error);
         return { success: false, name: demoName, error };
@@ -53,8 +53,8 @@ async function main() {
 
         // Test each demo serially
         const results = [];
-        for (const [demoName, demo] of Object.entries(demos)) {
-            const result = await testDemo(sandbox, demoName, demo);
+        for (const demoName of Object.keys(demos)) {
+            const result = await testDemo(sandbox, demoName, demos[demoName]);
             results.push({ value: result });
         }
 
@@ -85,6 +85,7 @@ async function main() {
     } finally {
         if (sdk) {
             try {
+                console.log("🔒 Closing devbox");
                 process.exit(0);
             } catch (error) {
                 console.error("Error during cleanup:", error);

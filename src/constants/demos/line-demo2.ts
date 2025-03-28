@@ -40,7 +40,7 @@ model_speeds = {
     "llama-3.1-70b-chat": 7,
     "llama-3.1-405b-chat": 4
 }
-while True:
+for i in range(10):
     for model, speed in model_speeds.items():
         unify.log(
             model=model,
