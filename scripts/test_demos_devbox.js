@@ -51,9 +51,12 @@ async function main() {
         console.log(`🔓 Opening devbox ${process.env.CODESANDBOX_TEMPLATE_ID}`);
         const sandbox = await sdk.sandbox.open(process.env.CODESANDBOX_TEMPLATE_ID);
 
-        // Test each demo
-        const testPromises = Object.entries(demos).map(([demoName, demo]) => testDemo(sandbox, demoName, demo));
-        const results = await Promise.allSettled(testPromises);
+        // Test each demo serially
+        const results = [];
+        for (const [demoName, demo] of Object.entries(demos)) {
+            const result = await testDemo(sandbox, demoName, demo);
+            results.push({ value: result });
+        }
 
         // Process results
         const successful = results.filter(r => r.value?.success).length;
