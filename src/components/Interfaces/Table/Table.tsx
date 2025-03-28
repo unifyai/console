@@ -80,17 +80,14 @@ const LogsTable = ({
   const { data: projectDataState } = useProject(projectId ?? null);
   const contexts = projectDataState?.contexts || [];
 
-  // Get access to the interface data and actions
-  const { data: interfaceDataState } = useInterface(interfaceId, projectId);
-  const tableArguments = interfaceDataState?.tableArguments as unknown as TableArguments;
+  // Get access to the tab data and actions with granular access
+  const { ui: tabUIState, data: tabDataState } = useTab(tabId, interfaceId, projectId);
+  const context_ = tabDataState?.globalContext;
+  const tableArguments = tabDataState?.tableArguments as unknown as TableArguments;
   const filterExpression = tableArguments?.[tileId]?.getLogs_parameters?.filter_expr || null;
   const sortingExpression = tableArguments?.[tileId]?.getLogs_parameters?.sorting || null;
   const groupingExpression = tableArguments?.[tileId]?.getLogs_parameters?.grouping || null;
   const groupSortingExpression = tableArguments?.[tileId]?.getLogs_parameters?.group_sorting || null;
-
-  // Get access to the tab data and actions with granular access
-  const { ui: tabUIState, data: tabDataState } = useTab(tabId, interfaceId, projectId);
-  const context_ = tabDataState?.globalContext;
   
   // Use granular hooks for better performance
   const {

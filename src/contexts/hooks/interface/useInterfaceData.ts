@@ -3,13 +3,11 @@ import { useStoreContext } from '../../providers/StoreProvider';
 import { InterfaceData } from '../../slices/selectors/interface';
 import { Tab } from '../../slices/selectors/tab';
 import { useShallow } from 'zustand/react/shallow';
-import { TableArguments } from '@/types/evals/logs';
 import { useInterfaceMeta } from './useInterfaceMeta';
 
 // Define stable fallback references
 const EMPTY_TAB_NAMES: string[] = [];
 const EMPTY_TAB_IDS: string[] = [];
-const EMPTY_TABLE_ARGUMENTS = {};
 
 /**
  * Interface for interface-related data actions
@@ -23,9 +21,6 @@ export interface InterfaceDataActions {
   setTabNames: (tabNames: string[]) => void;
   getTabIds: () => string[];
   setTabIds: (tabIds: string[]) => void;
-
-  // Table arguments
-  setTableArguments: (tableArguments: TableArguments) => void;
 }
 
 /**
@@ -54,13 +49,6 @@ export function useInterfaceData(interfaceName: string | null, projectName?: str
       return state.interfacesById[interfaceId].tabIds;
     })
   );
-  
-  const tableArguments = useStoreContext(
-    useShallow(state => {
-      if (!interfaceExists || !interfaceId) return EMPTY_TABLE_ARGUMENTS;
-      return state.interfacesById[interfaceId].tableArguments || EMPTY_TABLE_ARGUMENTS;
-    })
-  );
 
   // Get store actions for data management
   const storeUpdateInterface = useStoreContext(state => state.updateInterface);
@@ -77,9 +65,8 @@ export function useInterfaceData(interfaceName: string | null, projectName?: str
     return {
       tabNames: tabNames,
       tabIds,
-      tableArguments
     };
-  }, [interfaceExists, tabIds, tableArguments, tabNames]);
+  }, [interfaceExists, tabIds, tabNames]);
 
   // Memoize the data actions to prevent unnecessary re-renders
   const dataActions = useMemo<InterfaceDataActions>(() => ({
@@ -163,12 +150,7 @@ export function useInterfaceData(interfaceName: string | null, projectName?: str
         storeUpdateInterface(interfaceId, { tabIds: tabIds });
       }
     },
-    
-    setTableArguments: (tableArguments) => {
-      if (activeProjectId && interfaceId) {
-        storeUpdateInterface(interfaceId, { tableArguments });
-      }
-    }
+
   }), [
     activeProjectId, 
     interfaceId, 
