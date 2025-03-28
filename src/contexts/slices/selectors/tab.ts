@@ -1,4 +1,5 @@
 import { TabProps } from "@/types/evals/grid";
+import { TableArguments } from "@/types/evals/logs";
 
 // Tab metadata - core identifying information
 export interface TabMeta {
@@ -17,6 +18,7 @@ export interface TabMeta {
 export interface TabData {
   globalContext?: string;
   savedTab: TabProps | null; // This needs to match exactly the TabProps type from grid.ts
+  tableArguments: TableArguments;
   tileIds: string[]; // References to tiles instead of containing them directly
   itemsNeedRecompute: boolean; // Flag to indicate when items need recomputing
 }
@@ -60,6 +62,7 @@ export function initTab(tabId: string, initialState: Partial<Tab> = {}): Tab {
     // Data
     globalContext: initialState.globalContext,
     savedTab: initialState.savedTab !== undefined ? initialState.savedTab : null,
+    tableArguments: initialState.tableArguments || {},
     tileIds: initialState.tileIds || [],
     
     // UI
