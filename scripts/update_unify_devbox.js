@@ -18,9 +18,10 @@ async function updateUnifyInDevbox(sandbox) {
 }
 
 async function main() {
+    let sdk;
     try {
         // Initialize SDK with your token
-        const sdk = new CodeSandbox(process.env.CODESANDBOX_API_KEY);
+        sdk = new CodeSandbox(process.env.CODESANDBOX_API_KEY);
         
         console.log("🔍 Fetching sandboxes...");
         const { sandboxes } = await sdk.sandbox.list();
@@ -57,6 +58,18 @@ async function main() {
     } catch (error) {
         console.error("❌ Script failed:", error);
         process.exit(1);
+    } finally {
+        // Cleanup and close any open connections
+        if (sdk) {
+            try {
+                await sdk.dispose(); // Add this if the SDK has a dispose method
+                // or
+                process.exit(0); // Force exit if no cleanup method available
+            } catch (error) {
+                console.error("Error during cleanup:", error);
+                process.exit(1);
+            }
+        }
     }
 }
 
