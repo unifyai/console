@@ -59,7 +59,6 @@ async function main() {
         console.error("❌ Script failed:", error);
         process.exit(1);
     } finally {
-        // Cleanup and close any open connections
         if (sdk) {
             try {
                 process.exit(0);
