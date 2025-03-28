@@ -331,7 +331,7 @@ function renderNoDiffMode(
             <AccordionTrigger className="relative group flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 {icon} {k}
-                {allRowsForKey.length > 0 && (
+                {allRowsForKey.length > 1 && (
                   <div className="ml-2 flex gap-1">
                     <RowBadge rowNumbers={allRowsForKey} mode="none" />
                   </div>
@@ -354,7 +354,7 @@ function renderNoDiffMode(
               <div className={contentIndentClass}>
                 {groups.map((group, idx) => (
                   <div key={idx} className={getSeparatorClasses(idx, groups.length)}>
-                    <RowBadge rowNumbers={group.rows} mode="none" />
+                    {group.rows.length > 1 && <RowBadge rowNumbers={group.rows} mode="none" />}
                     <div className="mt-1">
                       {pickView({
                         value: group.value,
