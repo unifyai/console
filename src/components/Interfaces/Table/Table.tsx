@@ -45,6 +45,7 @@ import ContextSelector from "./Content/ContextSelector";
 import ResetServerAction from "./Buttons/ResetServerAction";
 import { durationToTimeDelta, timeDeltaValueToDuration } from "@/utils/evals/format";
 import { getGroupedMetrics } from "@/utils/evals/common";
+import { deselectFromClickOutside } from "@/hooks/Logs/useCellSelection";
 
 // Import new hooks
 import { useTab } from "@/contexts/hooks/tab";
@@ -545,9 +546,9 @@ const LogsTable = ({
 
   // Top area: filters, page, etc.
   const tableTop = (
-    <div className="mb-2 mx-1 flex flex-wrap justify-between gap-3 LogsTablePreferences">
+    <div className="mb-2 mx-1 flex flex-wrap justify-between gap-3">
       {projectId && columns.length > 0 && (
-        <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex flex-wrap gap-2 items-center LogsTablePreferences">
           <ContextSelector
             tileId={tileId}
             tabId={tabId}
@@ -580,7 +581,7 @@ const LogsTable = ({
         </div>
       )}
       {projectId && (
-        <div className="w-fit flex gap-2">
+        <div className="w-fit flex gap-2 LogsTablePreferences">
           <div className="scale-90">
             <PageController
               interactive={interactive}
@@ -621,17 +622,18 @@ const LogsTable = ({
     </div>
   );
 
-  const tableRef = useRef<HTMLDivElement>(null);
-
-  // Handle clicking outside of the table
+  // Handle cell deselection from clicks
+  const containerRef = useRef<HTMLDivElement>(null); 
   const onContainerClick = (event: React.MouseEvent<HTMLElement, MouseEvent>) => {
-    if (tableRef.current && !tableRef.current.contains(event.target as Node)) {
-      tableTileActions?.setSelected("");
-    }
+    if (tableTileActions) deselectFromClickOutside(event, containerRef, selectedCells, tableTileActions.setSelected, ["LogsTablePreferences"])
   }
 
   return (
-    <div className="flex-1 flex flex-col gap-4 w-full h-[80%] p-2 bg-background rounded-md" onClick={onContainerClick}>
+    <div
+      ref={containerRef} 
+      className="flex-1 flex flex-col gap-4 w-full h-[80%] p-2 bg-background rounded-md"
+      onClick={onContainerClick}
+    >
       {/* If truly pending or logs not present, show a spinner */}
       {showSpinner ? (
         <div className="flex justify-center items-center h-full w-full">
@@ -640,7 +642,7 @@ const LogsTable = ({
       ) : (
         <div className="w-full h-full flex flex-col">
           {tableTop && tableTop}
-          <div ref={tableRef} className="w-full h-fit overflow-y-auto tutorial-logs-table">
+          <div className="w-full h-fit overflow-y-auto tutorial-logs-table">
             {projectId ? (
               <div className="relative flex-col gap-2">
                 {/* "summaryPending" can optionally show a small loader over the table if you like */}
