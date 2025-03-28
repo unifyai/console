@@ -41,6 +41,7 @@ export function maybeConvertRawToGroupedLogs(
         return rawGroupedLogs.map(log => ({
             ...log,
             type: "ungrouped",
+            entries: {...log.entries, ...log.derived_entries},  // Bundle derived entries with entries
         }));
     }
 
