@@ -1,5 +1,5 @@
 const { CodeSandbox } = require("@codesandbox/sdk");
-import demos from "./src/constants/logs";
+const { demos } = require("../src/constants/logs");
 
 async function testDemo(sandbox, demoName, demo) {
     try {
