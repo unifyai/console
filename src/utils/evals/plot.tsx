@@ -2,7 +2,7 @@
 
 import * as d3 from "d3";
 import { LogProps, LogItemProps, LogFieldsResponseProps } from "@/types/evals/logs";
-import { DataLabel, DataPoint, GroupedDataPoint, GroupingColors, InfoCardData } from "@/types/evals/plot";
+import { DataRange, GroupedDataRange, GroupedBin, GroupedDataLabel, DataLabel, DataPoint, GroupedDataPoint, GroupingColors, InfoCardData } from "@/types/evals/plot";
 import { toComputableValue, computeStatistic } from "./common";
 import { formatNumber } from "../formatNumber";
 import { formatTimeTypeValue, timeValueToTime, timeDeltaValueToDuration } from "./format";
@@ -180,7 +180,7 @@ const tooltipTemplate = (data: InfoCardData) => {
 }
 
 const keyTemplate = (keys: GroupingColors) => {
-    const value = (entry: { key: string, color: string }) => entry.key.toString().replace(/^"|"$/g, '');
+    const value = (entry: { key: string | null, color: string }) => entry.key?.toString().replace(/^"|"$/g, '');
     return (`
     ${keys.map((entry, index) => `
     <div id=${entry.key} class="key flex flex-row gap-2 mt-1 items-center">
@@ -520,6 +520,7 @@ export const drawBarChart = (
     axisPadding: number,
     selectedXAxisProperty: string | undefined,
     selectedYAxisProperty: string | undefined,
+    groupByProperty: string | undefined,
     metric: string,
     sortBars: string | undefined,
     xTable: string,
@@ -544,22 +545,37 @@ export const drawBarChart = (
     const properties = Object.entries(fields).map(([name]) => name);
     const xAxisProperty = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties.at(0);
     const yAxisProperty = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : properties.at(0);
-    let data: DataLabel[] = [];
+    let data: DataLabel[] | GroupedDataLabel[] = [];
     if (xAxisProperty && yAxisProperty) {
         const filteredData = logs.filter(log => {
             const hasX = hasProperty(fields, xAxisProperty, log, xTable)
             const hasY = hasProperty(fields, yAxisProperty, log, yTable)
-            return hasX && hasY
+            const hasGroup = groupByProperty ? hasProperty(fields, groupByProperty, log, xTable) : true
+            return hasX && hasY && hasGroup
         });
         const statistic = (vals: number[]) => parseFloat(computeStatistic(metric, vals));
-        const groups = d3.rollup(
-            filteredData,
-            v => statistic(v.map(log => toComputableValue(getValue(fields, yAxisProperty, log, yTable)))),
-            d => JSON.stringify(getValue(fields, xAxisProperty, d, xTable))
-        );
-        data = Array.from(groups, ([group, value]) => [group, value]) as DataLabel[];
-        if (sortBars != "unsorted")
-            data.sort((a, b) => {
+        if (groupByProperty) {
+            const groupsMap = d3.groups(filteredData, d => getValue(fields, groupByProperty, d, xTable));
+            for (const [groupKey, groupLogs] of groupsMap) {
+                const subGroups = d3.rollup(
+                    groupLogs,
+                    v => statistic(v.map(log => toComputableValue(getValue(fields, yAxisProperty, log, yTable)))),
+                    d => JSON.stringify(getValue(fields, xAxisProperty, d, xTable))
+                );
+                for (const subGroup of Array.from(subGroups)) {
+                    (data as GroupedDataLabel[]).push([String(groupKey), subGroup]);
+                }
+            }
+        } else {
+            const groups = d3.rollup(
+                filteredData,
+                v => statistic(v.map(log => toComputableValue(getValue(fields, yAxisProperty, log, yTable)))),
+                d => JSON.stringify(getValue(fields, xAxisProperty, d, xTable))
+            );
+            data = Array.from(groups, ([group, value]) => [group, value]) as DataLabel[];
+        }
+        if (!groupByProperty && sortBars != "unsorted") {
+            (data as DataLabel[]).sort((a, b) => {
                 const yA = a[1];
                 const yB = b[1];
                 switch (sortBars) {
@@ -571,13 +587,28 @@ export const drawBarChart = (
                         return yA - yB;
                 }
             });
+        }
+        else {
+            groupByProperty
+            ?   (data as GroupedDataLabel[]).every(item => Number(item[1][0]))
+                    ? (data as GroupedDataLabel[]).sort((a, b) => Number(a[1][0]) - Number(b[1][0]))
+                    : (data as GroupedDataLabel[]).sort((a, b) => a[1][0].localeCompare(b[1][0]))
+            :   (data as GroupedDataLabel[]).every(item => Number(item[0]))
+                    ? (data as DataLabel[]).sort((a, b) => Number(a[0]) - Number(b[0]))
+                    : (data as DataLabel[]).sort((a, b) => a[0].localeCompare(b[0]))
+        }
     }
 
     // Define scales
     const [width, height] = [dimensions.width, dimensions.height];
-    const xDomain = data.map(d => d[0])
+    const xDomain = groupByProperty
+    ? Array.from(new Set((data as GroupedDataLabel[]).flatMap(d => d[1][0])))
+    : Array.from(new Set((data as DataLabel[]).map(d => d[0])))
     const xRange = [margins.left, width - margins.right]
-    let [minY, maxY] = d3.extent(data.map(d => d[1])) as [number, number];
+    const yValues = groupByProperty
+    ? (data as GroupedDataLabel[]).flatMap(d => d[1][1])
+    : (data as DataLabel[]).map(d => d[1])
+    let [minY, maxY] = d3.extent(yValues) as [number, number]
     if (minY === undefined || maxY === undefined) {
         minY = 0;
         maxY = 1;
@@ -592,8 +623,8 @@ export const drawBarChart = (
     let yDomain = [minY, maxY]
     const xScale = d3.scaleBand().domain(xDomain).range(xRange).padding(0.2);
     const yRange = [
-        height - margins.bottom - axisPadding * Number(data.some(d => d[1] < 0)), 
-        margins.top + axisPadding * Number(data.some(d => d[1] > 0))
+        height - margins.bottom - axisPadding * Number(yValues.some(d => d < 0)),
+        margins.top + axisPadding * Number(yValues.some(d => d > 0))
     ]
     const yScale = (scaleY === "log" ? d3.scaleLog() : d3.scaleLinear()).domain(yDomain).range(yRange);
 
@@ -604,68 +635,170 @@ export const drawBarChart = (
     ]
     drawAxes("Bar Chart", svg, dimensions, margins, xScale, yScale, xTicks, yTicks);
 
+    // Tooltip and grouping key
+    const tooltip = container.select(".plotTooltip").style("opacity", 0);
+    const key = container.select(".groupingKey");
+
     // Draw bars
-    g
-        .selectAll<SVGRectElement, DataLabel>("rect.bar-item")
-        .data(data as DataLabel[], d => d[0])
-        .join(
-            enter => enter.append("rect")
-                .attr("class", "bar-item")
-                .attr("x", d => xScale(d[0])!)
-                .attr("width", xScale.bandwidth())
-                .attr("y", yScale(0))
-                .attr("height", 0)
-                .attr("fill", primary)
-                .call(
-                    enter => enter.transition("enter")
+    const initialOpacity = groupByProperty ? 0.7 : 1.0;
+    if (groupByProperty){
+        const groupDomain = Array.from(new Set((data as GroupedDataLabel[]).map(d => d[0])))
+        const colorScale = d3.scaleOrdinal<string>(d3.schemeCategory10).domain(groupDomain);
+        g
+            .selectAll<SVGRectElement, GroupedDataLabel>("rect.bar-item")
+            .data((data as GroupedDataLabel[]), d => `${(d as GroupedDataLabel)[0]}-${(d as GroupedDataLabel)[1][0]}`)
+            .join(
+                enter => enter.append("rect")
+                    .attr("class", "bar-item")
+                    .attr("x", d => xScale(d[1][0])!)
+                    .attr("width", xScale.bandwidth())
+                    .attr("y", yScale(0))
+                    .attr("height", 0)
+                    .attr("fill", d => colorScale(d[0]))
+                    .style("opacity", 0)
+                    .call(enter => enter.transition("enter")
                         .duration(500)
-                        .attr("y", d => yScale(Math.max(0, d[1])))
-                        .attr("height", d => Math.abs(yScale(d[1]) - yScale(0)))
-                ),
-            update => update
-                .call(update => update.transition("update")
+                        .attr("y", d => yScale(Math.max(0, d[1][1])))
+                        .attr("height", d => Math.abs(yScale(d[1][1]) - yScale(0)))
+                        .style("opacity", initialOpacity)
+                    ),
+                update => update
+                    .call(update => update.transition("update")
+                        .duration(500)
+                        .attr("x", d => xScale(d[1][0])!)
+                        .attr("width", xScale.bandwidth())
+                        .attr("y", d => yScale(Math.max(0, d[1][1])))
+                        .attr("height", d => Math.abs(yScale(d[1][1]) - yScale(0)))
+                        .attr("fill", d => colorScale(d[0]))
+                        .style("opacity", initialOpacity)
+                    ),
+                exit => exit.transition("exit")
                     .duration(500)
+                    .attr("height", 0)
+                    .attr("y", yScale(0))
+                    .style("opacity", 0)
+                    .remove()
+        );
+        // Grouping Key
+        const colors: GroupingColors = groupDomain.map(groupKey => ({key: groupKey, color: colorScale(groupKey)}));
+        key.html(keyTemplate(colors)).style("opacity", 1);
+        key
+            .selectAll(".key")
+            .on("mouseover", (event: MouseEvent) => {
+                const target = event.currentTarget as HTMLElement;
+                const groupKey = target.id;
+                g.selectAll("rect.bar-item")
+                 .transition("opacity")
+                 .duration(200)
+                 .style("opacity", d => { return (d as GroupedDataLabel)[0] === groupKey ? 1 : 0 });
+                key.selectAll(".key")
+                   .transition("opacity").duration(200)
+                   .style("opacity", function() { return (this as any).id === groupKey ? 1 : 0.3; });
+            })
+            .on("mouseout", () => {
+                g.selectAll("rect.bar-item")
+                 .transition("opacity")
+                 .duration(200)
+                 .style("opacity", initialOpacity);
+                key.selectAll(".key")
+                   .transition("opacity")
+                   .duration(200)
+                   .style("opacity", 1);
+            });
+    }
+    else {
+        g
+            .selectAll<SVGRectElement, DataLabel>("rect.bar-item")
+            .data(data as DataLabel[], d => d[0])
+            .join(
+                enter => enter.append("rect")
+                    .attr("class", "bar-item")
                     .attr("x", d => xScale(d[0])!)
                     .attr("width", xScale.bandwidth())
-                    .attr("y", d => yScale(Math.max(0, d[1])))
-                    .attr("height", d => Math.abs(yScale(d[1]) - yScale(0)))),
-            exit => exit.transition("exit")
-                .duration(500)
-                .attr("height", 0)
-                .attr("y", yScale(0))
-                .remove()
-        );
+                    .attr("y", yScale(0))
+                    .attr("height", 0)
+                    .attr("fill", primary)
+                    .call(
+                        enter => enter.transition("enter")
+                            .duration(500)
+                            .attr("y", d => yScale(Math.max(0, d[1])))
+                            .attr("height", d => Math.abs(yScale(d[1]) - yScale(0)))
+                    ),
+                update => update
+                    .call(update => update.transition("update")
+                        .duration(500)
+                        .attr("x", d => xScale(d[0])!)
+                        .attr("width", xScale.bandwidth())
+                        .attr("y", d => yScale(Math.max(0, d[1])))
+                        .attr("height", d => Math.abs(yScale(d[1]) - yScale(0)))),
+                exit => exit.transition("exit")
+                    .duration(500)
+                    .attr("height", 0)
+                    .attr("y", yScale(0))
+                    .remove()
+            );
+    }
 
     // Hover events
-    const tooltip = container.select(".plotTooltip").style("opacity", 0);
-    const handleMouseOver = (event: any, d: DataLabel) => {
-        const currentKey = d[0];
-        tooltip.html(tooltipTemplate({
-            x: { 
-                name: xAxisProperty!, 
-                value: d[0] 
-            },
-            y: { 
-                name: `${yAxisProperty}(${metric})`,
-                value: d[1] 
-            }
-        })).transition("opacity").style("opacity", 1);
-
-        // Dim all bars except hovered one
-        g.selectAll("rect.bar-item")
-            .transition("opacity")
-            .style("opacity", bar => (bar as DataLabel)[0] === currentKey ? 1 : 0.3);
-
+    const handleMouseOver = (event: any, d: GroupedDataLabel | DataLabel) => {
+        if (groupByProperty) {
+            const group = (d as GroupedDataLabel)[0];            
+            const xValue = (d as GroupedDataLabel)[1][0];
+            const yValue = (d as GroupedDataLabel)[1][1];
+            tooltip.html(tooltipTemplate({
+                group: { 
+                    name: groupByProperty, 
+                    value: group 
+                },
+                x: { 
+                    name: xAxisProperty!, 
+                    value: xValue 
+                },
+                y: { 
+                    name: `${yAxisProperty}(${metric})`, 
+                    value: yValue 
+                }
+            })).transition("opacity").style("opacity", 1);
+            g.selectAll("rect.bar-item")
+              .transition("opacity").duration(200)
+              .style("opacity", barData => (barData as GroupedDataLabel)[0] === group ? 1 : 0);
+            key.selectAll(".key")
+                .transition("opacity")
+                .duration(200)
+                .style("opacity", function() { return (this as any).id === group ? 1 : 0.3; });
+        }
+        else {
+            const xValue = (d as DataLabel)[0];
+            const yValue = (d as DataLabel)[1];
+            tooltip.html(tooltipTemplate({
+                x: { 
+                    name: xAxisProperty!, 
+                    value: xValue 
+                },
+                y: { 
+                    name: `${yAxisProperty}(${metric})`,
+                    value: yValue
+                }
+            })).transition("opacity").style("opacity", 1);
+            g.selectAll("rect.bar-item")
+                .transition("opacity")
+                .style("opacity", bar => (bar as DataLabel)[0] === xValue ? 1 : 0.3);
+        }
+    };
+     const handleMouseMove = (event: any) => {
+        positionTooltip(event, event.currentTarget, tooltip);
     };
     const handleMouseOut = () => {
         tooltip.transition("opacity").style("opacity", 0);
-        g.selectAll("rect.bar-item").transition("opacity").style("opacity", 1);
+        g.selectAll("rect.bar-item").transition("opacity").style("opacity", initialOpacity);
+        if (groupByProperty) {
+            key.selectAll(".key").transition("opacity").duration(200).style("opacity", 1);
+        }
     };
     g.selectAll("rect.bar-item")
-        .on("mouseover", (event, d) => handleMouseOver(event, d as DataLabel))
-        .on("mousemove", (event) => positionTooltip(event, event.target, tooltip))
+        .on("mouseover", (e, d) =>handleMouseOver(e,(d as GroupedDataLabel | DataLabel)))
+        .on("mousemove", handleMouseMove)
         .on("mouseout", handleMouseOut);
-
 };
 
 export const drawLineChart = (
@@ -1457,6 +1590,7 @@ export const drawHistogram = (
     margins: {[key: string]: number},
     axisPadding: number,
     selectedXAxisProperty: string | undefined,
+    groupByProperty: string | undefined,
     binCount: number,
     setbinCount: (binCount: string) => void,
     binCounts: number[],
@@ -1478,7 +1612,7 @@ export const drawHistogram = (
     container.select(".groupingKey").style("opacity", 0)
 
     // Prepare data
-    let data : number[] = [];
+    let data : DataRange | GroupedDataRange = [];
     const properties = Object
         .entries(fields)
         .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp" || data_type === "time" || data_type === "timedelta" || data_type === "date"))
@@ -1487,8 +1621,22 @@ export const drawHistogram = (
     let xType : string | undefined;
     if (xAxisProperty) {
         xType = fields[xAxisProperty].data_type
-        const filteredData = logs.filter((log) => hasProperty(fields, xAxisProperty, log, table));
-        data = filteredData.map((log) => getValue(fields, xAxisProperty, log, table))
+        const filteredData = logs.filter((log) => {
+            const hasX = hasProperty(fields, xAxisProperty, log, table)
+            const hasGroup = groupByProperty ? hasProperty(fields, groupByProperty, log, table) : true;
+            return hasX && hasGroup
+        });
+        if (groupByProperty) {
+            data = d3
+            .groups(filteredData, d => getValue(fields, groupByProperty, d, table))
+            .map(([group, values]) => ([group, values.map(log => getValue(fields, xAxisProperty, log, table))])
+            ) as GroupedDataRange;
+        }
+        else {
+            data = filteredData.map((log) => 
+                getValue(fields, xAxisProperty, log, table)
+            ) as DataRange
+        }
     }
 
     // Define scales
@@ -1497,7 +1645,10 @@ export const drawHistogram = (
         [margins.left, width - margins.right],
         [height - margins.bottom, margins.top + 2 * axisPadding]
     ];
-    const [minX = 0, maxX = 0] = d3.extent(data);
+    const xValues = groupByProperty 
+    ? (data as GroupedDataRange).flatMap(d => d[1])
+    : (data as DataRange)
+    const [minX = 0, maxX = 0] = d3.extent(xValues);
     const [xScale, yScale] = [d3.scaleLinear, d3.scaleLinear]
     const x = xScale().domain([minX, maxX]).range(xRange)
     
@@ -1505,7 +1656,17 @@ export const drawHistogram = (
     const step = (maxX - minX)/binCount 
     const thresholds = d3.range(minX, maxX, step)
     const binGenerator = d3.bin().domain([minX, maxX]).thresholds(thresholds);
-    const buckets = binGenerator(data);
+    const buckets: d3.Bin<number, number>[] | GroupedBin[] = groupByProperty
+    ? (data as GroupedDataRange).flatMap(([group, values]) => {
+        const binsArray: d3.Bin<number, number>[] = binGenerator(values);    
+        const groupedBinsForThisGroup: GroupedBin[] = binsArray.map(bin => {
+            const groupedBin = bin as GroupedBin; // Assert the type
+            groupedBin.group = group;           // Add the property
+            return groupedBin;                  // Return the modified bin
+        });    
+        return groupedBinsForThisGroup;
+    })
+    : binGenerator(data as number[]);
     if (binCounts[1] != data.length) {
         const newBinCounts = [1, data.length]
         setbinCounts(newBinCounts)
@@ -1531,48 +1692,120 @@ export const drawHistogram = (
     ]
     drawAxes("Histogram", svg, dimensions, margins, x, y, xTicks, yTicks, false, false, xType);
 
-    // Add histogram
-    const bars = g
-    .selectAll("rect.hist-item")
-    .data(buckets, (d: any) => `${d.x0}-${d.x1}`); // Use bin boundaries as key
-    const enteringBars = bars.enter()
-        .append("rect")
-        .attr("class", "hist-item")
-        .attr("fill", primary)
-        .attr("x", d => x(d.x0 as number))
-        .attr("width", d => Math.max(0, x(d.x1 as number) - x(d.x0 as number) - 1))
-        .attr("y", y(0)) // Start at base
-        .attr("height", 0) // Start with 0 height
-        .on("mouseover", (event, d) => hoverOnHist(event, d))
-        .on("mousemove", (event, d) => moveOnHist(event, d))
-        .on("mouseout", (event, d) => leaveHist(event, d));
-    enteringBars
-        .merge(bars as any)
-        .transition("enter")
-        .duration(500)
-        .attr("x", d => x(d.x0 as number))
-        .attr("width", d => Math.max(0, x(d.x1 as number) - x(d.x0 as number) - 1))
-        .attr("y", d => y(d.length))
-        .attr("height", d => y(0) - y(d.length));
-    bars.exit()
-        .transition("exit")
-        .duration(500)
-        .attr("y", y(0))
-        .attr("height", 0)
-        .remove();
+    // Tooltip and grouping key
+    const tooltip = container.select(".plotTooltip").style("opacity", 0);
+    const key = container.select(".groupingKey");
 
-    // Add tooltip
-    const tooltip = container.select(".plotTooltip").style("opacity", 0)
+    // Add histogram
+    const initialOpacity = groupByProperty ? 0.7 : 1.0;
+    if (groupByProperty) {
+        const groupDomain = Array.from(new Set((buckets as GroupedBin[]).map(d => d.group)))
+        const colorScale = d3.scaleOrdinal<string>(d3.schemeCategory10).domain(groupDomain);
+        const bars = g
+        .selectAll("rect.hist-item")
+        .data((buckets as GroupedBin[]), (d) => `${(d as GroupedBin).group}-${(d as GroupedBin).x0}-${(d as GroupedBin).x1}`); // Use bin boundaries as key
+        const enteringBars = bars
+            .enter()
+            .append("rect")
+            .attr("class", "hist-item")
+            .attr("fill", d => colorScale(d.group))
+            .attr("x", d => x(d.x0 as number))
+            .attr("width", d => Math.max(0, x(d.x1 as number) - x(d.x0 as number) - 1))
+            .attr("y", y(0)) // Start at base
+            .attr("height", 0) // Start with 0 height
+            .style("opacity", initialOpacity)
+            .on("mouseover", (event, d) => hoverOnHist(event, d))
+            .on("mousemove", (event, d) => moveOnHist(event, d))
+            .on("mouseout", (event, d) => leaveHist(event, d));
+        enteringBars
+            .merge(bars as any)
+            .transition("enter")
+            .duration(500)
+            .attr("fill", d => colorScale(d.group))
+            .attr("x", d => x(d.x0 as number))
+            .attr("width", d => Math.max(0, x(d.x1 as number) - x(d.x0 as number) - 1))
+            .attr("y", d => y(d.length))
+            .attr("height", d => y(0) - y(d.length))
+            .style("opacity", initialOpacity);
+        bars.exit()
+            .transition("exit")
+            .duration(500)
+            .attr("y", y(0))
+            .attr("height", 0)
+            .remove();
+
+        // Grouping Key
+        const colors: GroupingColors = groupDomain.map(groupKey => ({key: groupKey, color: colorScale(groupKey)}));
+        key.html(keyTemplate(colors)).style("opacity", 1);
+        key
+            .selectAll(".key")
+            .on("mouseover", (event: MouseEvent) => {
+                const target = event.currentTarget as HTMLElement;
+                const groupKey = target.id;
+                g.selectAll("rect.hist-item")
+                 .transition("opacity")
+                 .duration(200)
+                 .style("opacity", d => { return (d as GroupedBin).group === groupKey ? 1 : 0 });
+                key.selectAll(".key")
+                   .transition("opacity").duration(200)
+                   .style("opacity", function() { return (this as any).id === groupKey ? 1 : 0.3; });
+            })
+            .on("mouseout", () => {
+                g.selectAll("rect.hist-item")
+                 .transition("opacity")
+                 .duration(200)
+                 .style("opacity", initialOpacity);
+                key.selectAll(".key")
+                   .transition("opacity")
+                   .duration(200)
+                   .style("opacity", 1);
+            });
+    }
+    else {
+        const bars = g
+        .selectAll("rect.hist-item")
+        .data((buckets as d3.Bin<number, number>[]), (d: any) => `${d.x0}-${d.x1}`); // Use bin boundaries as key
+        const enteringBars = bars.enter()
+            .append("rect")
+            .attr("class", "hist-item")
+            .attr("fill", primary)
+            .attr("x", d => x(d.x0 as number))
+            .attr("width", d => Math.max(0, x(d.x1 as number) - x(d.x0 as number) - 1))
+            .attr("y", y(0)) // Start at base
+            .attr("height", 0) // Start with 0 height
+            .style("opacity", initialOpacity)
+            .on("mouseover", (event, d) => hoverOnHist(event, d))
+            .on("mousemove", (event, d) => moveOnHist(event, d))
+            .on("mouseout", (event, d) => leaveHist(event, d));
+        enteringBars
+            .merge(bars as any)
+            .transition("enter")
+            .duration(500)
+            .attr("fill", primary)
+            .attr("x", d => x(d.x0 as number))
+            .attr("width", d => Math.max(0, x(d.x1 as number) - x(d.x0 as number) - 1))
+            .attr("y", d => y(d.length))
+            .attr("height", d => y(0) - y(d.length))
+            .style("opacity", initialOpacity)
+        bars.exit()
+            .transition("exit")
+            .duration(500)
+            .attr("y", y(0))
+            .attr("height", 0)
+            .remove();
+    }
 
     // Add mouse event handlers
-    function hoverOnHist(event: any, bin: d3.Bin<number, number>) {
-        
+    function hoverOnHist(event: any, bin: d3.Bin<number, number> | GroupedBin) {
+        const [localMinX, localMaxX] = groupByProperty // Compute group boundaries if group by is set
+        ? d3.extent((data as GroupedDataRange).filter(d => d[0] === (bin as GroupedBin).group).flatMap(d => d[1]) as DataRange)
+        : [minX, maxX]
         const hoverData = {
           group: {
             name: "Data Range",
             value: (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "date")
-                ? `Min: ${formatTimeTypeValue(minX, xType)}, Max: ${formatTimeTypeValue(maxX, xType)}`
-                : `Min: ${formatNumber(minX)}, Max: ${formatNumber(maxX)}`
+                ? `${groupByProperty ? "Group: " + (bin as GroupedBin).group + ", " : ""}Min: ${formatTimeTypeValue(localMinX as number, xType)}, Max: ${formatTimeTypeValue(localMaxX as number, xType)}`
+                : `${groupByProperty ? "Group: " + (bin as GroupedBin).group + ", " : ""}Min: ${formatNumber(minX)}, Max: ${formatNumber(maxX)}`
           },
           x: {
             name: "Bar Range",
@@ -1590,10 +1823,19 @@ export const drawHistogram = (
         positionTooltip(event, event.target, tooltip);
 
         g.selectAll("rect.hist-item")
-         .filter((d: any) => d.x0 !== bin.x0 || d.x1 !== bin.x1)
+         .filter((d: any) => groupByProperty
+            ? d.group !== (bin as GroupedBin).group
+            : d.x0 !== bin.x0 || d.x1 !== bin.x1
+         )
          .transition("opacity")
          .duration(200)
          .style("opacity", 0.5);
+        if (groupByProperty) {
+            key.selectAll(".key")
+                .transition("opacity")
+                .duration(200)
+                .style("opacity", function() { return (this as any).id === (bin as GroupedBin).group ? 1 : 0.3; });
+        }
       }
 
       function moveOnHist(event: any, bin: d3.Bin<number, number>) {
@@ -1607,6 +1849,9 @@ export const drawHistogram = (
         g.selectAll("rect.hist-item")
           .transition("opacity")
           .duration(200)
-          .style("opacity", 1);
+          .style("opacity", initialOpacity);
+        if (groupByProperty) {
+            key.selectAll(".key").transition("opacity").duration(200).style("opacity", 1);
+        }
     }
 };

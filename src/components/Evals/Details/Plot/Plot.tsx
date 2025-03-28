@@ -127,6 +127,7 @@ const LogsPlot = ({ logs, fields}: {
                     axisPadding, 
                     selectedXAxisProperty, 
                     selectedYAxisProperty, 
+                    groupByProperty ?? undefined,
                     metric as string,
                     "unsorted",
                     xTable,
@@ -160,6 +161,7 @@ const LogsPlot = ({ logs, fields}: {
                     margins, 
                     axisPadding, 
                     selectedXAxisProperty, 
+                    groupByProperty ?? undefined,
                     +binCount,
                     setBinCount,
                     binCounts,
@@ -263,16 +265,9 @@ const LogsPlot = ({ logs, fields}: {
             <div className="absolute top-12 right-3 z-10 PlotReset">
                 <PlotReset svgRef={svgRef} setSelectedXAxisProperty={setSelectedXAxisProperty} setSelectedYAxisProperty={setSelectedYAxisProperty} setGroupByProperty={setGroupByProperty}/>
             </div>
-            {plotType === "Histogram"
-                    ?   <div className="absolute top-24 right-3 z-10 PlotBins">
-                            <PlotBins binCount={+binCount} binCounts={binCounts} setBinCount={setBinCount} />
-                        </div>
-                    :   plotType != "Bar Chart"
-                        ?   <div className="absolute top-24 right-3 z-10 PlotGroupBy">
-                                <PlotGroupBy logs={logs} fields={fields} groupBy={groupByProperty} setGroupBy={setGroupByProperty}/>
-                            </div>
-                        :   null
-            }
+            <div className="absolute top-24 right-3 z-10 PlotGroupBy">
+                <PlotGroupBy logs={logs} fields={fields} groupBy={groupByProperty} setGroupBy={setGroupByProperty}/>
+            </div>
             {!["Histogram", "Bar Chart"].includes(plotType) &&
                 <div className="absolute top-36 right-3 z-10 PlotScale">
                     <PlotScale scaleX={scaleX} scaleY={scaleY} setScaleX={setScaleX} setScaleY={setScaleY} logScaleXEnabled={logScaleXEnabled} logScaleYEnabled={logScaleYEnabled} selectedXAxisProperty={selectedXAxisProperty} fields={fields}/>
@@ -284,6 +279,11 @@ const LogsPlot = ({ logs, fields}: {
                         showRegression={showRegression} 
                         setShowRegression={setShowRegression}
                     />
+                </div>
+            }
+            {plotType === "Histogram" &&
+                <div className="absolute top-60 right-3 z-10 PlotBins">
+                    <PlotBins binCount={+binCount} binCounts={binCounts} setBinCount={setBinCount} />
                 </div>
             }
         </>

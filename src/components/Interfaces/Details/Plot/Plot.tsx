@@ -190,6 +190,7 @@ const LogsPlot = ({
                     axisPadding,
                     selectedXAxisProperty,
                     selectedYAxisProperty,
+                    groupByProperty,
                     metric,
                     sortBars,
                     xTable,
@@ -221,6 +222,7 @@ const LogsPlot = ({
                     margins, 
                     axisPadding, 
                     selectedXAxisProperty, 
+                    groupByProperty,
                     binCount,
                     plotTileActions?.setBinCount!,
                     binCounts,
@@ -373,12 +375,8 @@ const LogsPlot = ({
                             setSelectedYAxisProperty={plotTileActions?.setYAxis!}
                             setGroupByProperty={plotTileActions?.setPlotGroupBy!}
                         />
-                        {plotType === "Histogram"
-                            ?   <PlotBins binCount={binCount} binCounts={binCounts} setBinCount={plotTileActions?.setBinCount!}/>
-                            :   plotType != "Bar Chart"
-                                ?   <PlotGroupBy fields={fields} groupBy={groupByProperty} setGroupBy={plotTileActions?.setPlotGroupBy!} logs={logs}/>
-                                :   null
-                        }
+                        {plotType === "Histogram" && <PlotBins binCount={binCount} binCounts={binCounts} setBinCount={plotTileActions?.setBinCount!}/>}
+                        <PlotGroupBy fields={fields} groupBy={groupByProperty} setGroupBy={plotTileActions?.setPlotGroupBy!} logs={logs}/>
                         {!["Histogram", "Bar Chart"].includes(plotType) &&
                             <PlotScale 
                                 scaleX={scaleX} 
@@ -391,7 +389,7 @@ const LogsPlot = ({
                                 fields={fields}
                             />
                         }
-                        {plotType === "Bar Chart" && 
+                        {plotType === "Bar Chart" && !groupByProperty &&
                             <PlotSort sortBars={sortBars} setSortBars={setSortBars}/>
                         }
                         {plotType === "Scatter Plot" && 
