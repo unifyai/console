@@ -1,15 +1,5 @@
 const { CodeSandbox } = require("@codesandbox/sdk");
-
-async function fetchDemos() {
-    try {
-        const response = await fetch('https://console.unify.ai/api/code');
-        const demos = await response.json();
-        return demos;
-    } catch (error) {
-        console.error('Failed to fetch demos:', error);
-        throw error;
-    }
-}
+import demos from "../src/constants/logs";
 
 async function testDemo(sandbox, demoName, demo) {
     try {
@@ -42,10 +32,6 @@ async function main() {
     let sdk;
     try {
         sdk = new CodeSandbox(process.env.CODESANDBOX_API_KEY);
-
-        // Fetch all demos
-        console.log("📚 Fetching demos...");
-        const demos = await fetchDemos();
 
         // Open the specified devbox
         console.log(`🔓 Opening devbox ${process.env.CODESANDBOX_TEMPLATE_ID}`);
