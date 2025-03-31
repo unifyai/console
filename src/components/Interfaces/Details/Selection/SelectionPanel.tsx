@@ -74,6 +74,22 @@ type PanelExpandContextType = {
   collapseRecursively: (paths: string[]) => void;
 };
 
+// Define PanelState interface to match what's in Selection.tsx
+interface PanelState {
+  displayMode: "markdown" | "text" | "raw";
+  diffModeIdx: number;
+  splitView: boolean;
+  editMode: boolean;
+  entriesFilter: Record<string, boolean>;
+  paramsFilter: Record<string, boolean>;
+  entryOrderings: { [key: string]: string[] };
+  paramOrderings: { [key: string]: string[] };
+  entryOrder: string[];
+  paramOrder: string[];
+  localOpenKeys: Set<string>;
+  savedOpenKeys: Set<string>;
+}
+
 const PanelExpandContext = createContext<PanelExpandContextType>(null as any);
 
 function PanelExpandProvider({
@@ -125,6 +141,8 @@ export function usePanelExpandContextSelector<T>(selector: (ctx: PanelExpandCont
  ******************************************************************************/
 export default function SelectionPanel({
     panelId,
+    panelState,
+    onPanelStateChange,
     logs,
     sortedLogs,
     params,
@@ -138,6 +156,8 @@ export default function SelectionPanel({
     allPossibleColumns,
   }: {
     panelId: number;
+    panelState: PanelState;
+    onPanelStateChange: (updates: Partial<PanelState>) => void;
     logs: LogProps[];
     sortedLogs: LogProps[];
     params: Record<string, unknown>;
@@ -150,34 +170,26 @@ export default function SelectionPanel({
     initialBaseIndex: number;
     allPossibleColumns?: { entries: string[], params: string[] };
   }) {
-    // Local panel states for display options
-    const [displayMode, setDisplayMode] = useState<"markdown" | "text" | "raw">("text");
-    const [diffModeIdx, setDiffModeIdx] = useState(0);
+    // Extract all values from panelState
+    const {
+      displayMode,
+      diffModeIdx,
+      splitView,
+      editMode,
+      entriesFilter,
+      paramsFilter,
+      entryOrderings,
+      paramOrderings,
+      entryOrder,
+      paramOrder,
+      localOpenKeys,
+      savedOpenKeys
+    } = panelState;
+    
     const allDiffModes = ["none", "lines", "words", "characters"] as const;
     const diffMode = allDiffModes[diffModeIdx];
-    const [splitView, setSplitView] = useState(false);
-    const [editMode, setEditMode] = useState(false);
     
-    // Local panel states for column filters
-    const [entriesFilter, setEntriesFilter] = useState<Record<string, boolean>>({});
-    const [paramsFilter, setParamsFilter] = useState<Record<string, boolean>>({});
-    
-    // Local panel states for reordering
-    const [entryOrderings, setEntryOrderings] = useState<{
-      [key: string]: string[];
-    }>({});
-    const [paramOrderings, setParamOrderings] = useState<{
-      [key: string]: string[];
-    }>({});
-    
-    // Local panel state for saved expansion keys during edit mode
-    const [savedOpenKeys, setSavedOpenKeys] = useState<Set<string>>(new Set());
-    
-    // Add versions
-    const version = "";
-    const comparableVersions: string[] = [];
-    
-    // Local baseIndex state
+    // Local baseIndex state - this still needs to be local as it's specific to the selection
     const [baseIndexParam, setBaseIndexParam] = useState(initialBaseIndex);
     
     // Check if baseIndexParam is valid in useEffect to avoid potential infinite re-render
@@ -188,47 +200,38 @@ export default function SelectionPanel({
     }, [baseIndexParam, selectedRowIndices.length]);
     
     const baseRowIndex = selectedRowIndices[baseIndexParam] ?? -1;
-  
-    // Use our own local state instead of useExpandContextSelector
-    const [localOpenKeys, setLocalOpenKeys] = useState<Set<string>>(new Set());
     
-    // Local implementation of toggleKey
+    // Local implementation of toggleKey using panelState.localOpenKeys
     const localToggleKey = useCallback((path: string) => {
-      setLocalOpenKeys((prev) => {
-        const next = new Set(prev);
-        if (next.has(path)) {
-          next.delete(path);
-        } else {
-          next.add(path);
-        }
-        return next;
-      });
-    }, [setLocalOpenKeys]);
+      const next = new Set(localOpenKeys);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      onPanelStateChange({ localOpenKeys: next });
+    }, [localOpenKeys, onPanelStateChange]);
     
     // Implement expandRecursively and collapseRecursively functions
     const expandRecursively = useCallback((paths: string[]) => {
       if (paths.length === 0) return;
       
-      setLocalOpenKeys((prev) => {
-        const next = new Set(prev);
-        paths.forEach((path) => {
-          next.add(path);
-        });
-        return next;
+      const next = new Set(localOpenKeys);
+      paths.forEach((path) => {
+        next.add(path);
       });
-    }, []);
+      onPanelStateChange({ localOpenKeys: next });
+    }, [localOpenKeys, onPanelStateChange]);
     
     const collapseRecursively = useCallback((paths: string[]) => {
       if (paths.length === 0) return;
       
-      setLocalOpenKeys((prev) => {
-        const next = new Set(prev);
-        paths.forEach((path) => {
-          next.delete(path);
-        });
-        return next;
+      const next = new Set(localOpenKeys);
+      paths.forEach((path) => {
+        next.delete(path);
       });
-    }, []);
+      onPanelStateChange({ localOpenKeys: next });
+    }, [localOpenKeys, onPanelStateChange]);
 
     // Create a local handleAccordionValueChange function
     const handleAccordionValueChange = (newVals: string[], filtered: string[], isParams: boolean) => {
@@ -247,7 +250,7 @@ export default function SelectionPanel({
         }
       });
       
-      setLocalOpenKeys(next);
+      onPanelStateChange({ localOpenKeys: next });
     };
 
     // Add the gatherSubpathsForProperty function
@@ -407,10 +410,6 @@ export default function SelectionPanel({
       return arr.join(",");
     }
   
-    // Local reorder states (the old code approach uses a global dictionary)
-    const [entryOrder, setEntryOrder] = useState<string[]>([]);
-    const [paramOrder, setParamOrder] = useState<string[]>([]);
-  
     // On mount / filter change, load from global reorder or fallback
     useEffect(() => {
       const vKey = visibleParamsKey();
@@ -425,7 +424,7 @@ export default function SelectionPanel({
       let finalP: string[] = [];
       if (reorder && !shallowArrayEquals(reorder, paramOrder)) {
         finalP = reorder;
-        setParamOrder(reorder);
+        onPanelStateChange({ paramOrder: reorder });
       } else if (!reorder && JSON.stringify(allPossibleParamsCombined) !== JSON.stringify(paramOrder)) {
         // Use columnOrdering to order the parameters if applicable
         if (columnOrdering.length > 0) {
@@ -437,7 +436,7 @@ export default function SelectionPanel({
         } else {
           finalP = allPossibleParamsCombined;
         }
-        setParamOrder(finalP);
+        onPanelStateChange({ paramOrder: finalP });
       }
 
       if (finalP.length === 0) {
@@ -449,7 +448,7 @@ export default function SelectionPanel({
       const missing = visible.filter((c) => !finalP.includes(c));
       
       if (missing.length > 0) {
-        setParamOrder((prev) => [...prev, ...missing]);
+        onPanelStateChange({ paramOrder: [...finalP, ...missing] });
       }
     }, [paramKeys, paramsFilter, paramOrderings, visibleParamsKey, columnOrdering, paramOrder, allPossibleColumns?.params]);
   
@@ -466,7 +465,7 @@ export default function SelectionPanel({
       let finalE: string[] = [];
       if (reorder && !shallowArrayEquals(reorder, entryOrder)) {
         finalE = reorder;
-        setEntryOrder(reorder);
+        onPanelStateChange({ entryOrder: reorder });
       } else if (!reorder && JSON.stringify(allPossibleEntriesCombined) !== JSON.stringify(entryOrder)) {
         // Use columnOrdering to order the entries if applicable
         if (columnOrdering.length > 0) {
@@ -478,7 +477,7 @@ export default function SelectionPanel({
         } else {
           finalE = allPossibleEntriesCombined;
         }
-        setEntryOrder(finalE);
+        onPanelStateChange({ entryOrder: finalE });
       }
   
       if (finalE.length === 0) {
@@ -490,7 +489,7 @@ export default function SelectionPanel({
       const missingE = visible.filter((c) => !finalE.includes(c));
       
       if (missingE.length > 0) {
-        setEntryOrder((prev) => [...prev, ...missingE]);
+        onPanelStateChange({ entryOrder: [...finalE, ...missingE] });
       }
     }, [entryKeys, entriesFilter, entryOrderings, entryOrder, visibleEntriesKey, columnOrdering, allPossibleColumns?.entries]);
   
@@ -502,41 +501,43 @@ export default function SelectionPanel({
     function handleParamDragEnd(event: DragEndEvent) {
       const { active, over } = event;
       if (!over || active.id === over.id) return;
-      setParamOrder((items) => {
-        const oldIndex = items.indexOf(active.id as string);
-        const newIndex = items.indexOf(over.id as string);
-        if (oldIndex === -1 || newIndex === -1) return items;
-        const reordered = arrayMove(items, oldIndex, newIndex);
-        if (!shallowArrayEquals(reordered, items)) {
-          const key = visibleParamsKey();
-          setParamOrderings((prev) => ({
-            ...prev,
-            [key]: reordered,
-          }));
-          return reordered;
-        }
-        return items;
-      });
+      
+      const oldIndex = paramOrder.indexOf(active.id as string);
+      const newIndex = paramOrder.indexOf(over.id as string);
+      if (oldIndex === -1 || newIndex === -1) return;
+      
+      const reordered = arrayMove(paramOrder, oldIndex, newIndex);
+      if (!shallowArrayEquals(reordered, paramOrder)) {
+        const key = visibleParamsKey();
+        onPanelStateChange({ 
+          paramOrder: reordered,
+          paramOrderings: {
+            ...paramOrderings,
+            [key]: reordered
+          }
+        });
+      }
     }
   
     function handleEntryDragEnd(event: DragEndEvent) {
       const { active, over } = event;
       if (!over || active.id === over.id) return;
-      setEntryOrder((items) => {
-        const oldIndex = items.indexOf(active.id as string);
-        const newIndex = items.indexOf(over.id as string);
-        if (oldIndex === -1 || newIndex === -1) return items;
-        const reordered = arrayMove(items, oldIndex, newIndex);
-        if (!shallowArrayEquals(reordered, items)) {
-          const key = visibleEntriesKey();
-          setEntryOrderings((prev) => ({
-            ...prev,
-            [key]: reordered,
-          }));
-          return reordered;
-        }
-        return items;
-      });
+      
+      const oldIndex = entryOrder.indexOf(active.id as string);
+      const newIndex = entryOrder.indexOf(over.id as string);
+      if (oldIndex === -1 || newIndex === -1) return;
+      
+      const reordered = arrayMove(entryOrder, oldIndex, newIndex);
+      if (!shallowArrayEquals(reordered, entryOrder)) {
+        const key = visibleEntriesKey();
+        onPanelStateChange({ 
+          entryOrder: reordered,
+          entryOrderings: {
+            ...entryOrderings,
+            [key]: reordered
+          }
+        });
+      }
     }
   
     /*****************************************************************************
@@ -597,6 +598,9 @@ export default function SelectionPanel({
       // Map the comparison row indices directly (they're already 0-based)
       const compIndicesForSelection = comparisonRowIndices;
       
+      const version = "";
+      const comparableVersions: string[] = [];
+      
       return (
         <div className="flex flex-col gap-2">
           <div className="sticky top-0 z-10 bg-background py-2 border-b border-muted flex items-center justify-between">
@@ -644,14 +648,16 @@ export default function SelectionPanel({
                       version={version}
                       comparableVersions={comparableVersions}
                       onHideColumn={(p) => {
-                        setParamsFilter((prev) => ({
-                          ...prev,
-                          [p]: false,
-                        }));
+                        onPanelStateChange({ paramsFilter: { ...paramsFilter, [p]: false } });
                       }}
                       editMode={editMode}
                       panelOpenKeys={localOpenKeys}
-                      panelSetOpenKeys={setLocalOpenKeys}
+                      panelSetOpenKeys={(updatedOpenKeys) => 
+                        onPanelStateChange({ localOpenKeys: typeof updatedOpenKeys === 'function' 
+                          ? updatedOpenKeys(localOpenKeys) 
+                          : updatedOpenKeys 
+                        })
+                      }
                     />
                   </SortableAccordionItem>
                 ))}
@@ -696,6 +702,9 @@ export default function SelectionPanel({
       
       // Map the comparison row indices directly (they're already 0-based)
       const compIndicesForSelection = comparisonRowIndices;
+      
+      const version = "";
+      const comparableVersions: string[] = [];
       
       return (
         <div className="flex flex-col gap-2">
@@ -744,14 +753,16 @@ export default function SelectionPanel({
                       version={version}
                       comparableVersions={comparableVersions}
                       onHideColumn={(p) => {
-                        setEntriesFilter((prev) => ({
-                          ...prev,
-                          [p]: false,
-                        }));
+                        onPanelStateChange({ entriesFilter: { ...entriesFilter, [p]: false } });
                       }}
                       editMode={editMode}
                       panelOpenKeys={localOpenKeys}
-                      panelSetOpenKeys={setLocalOpenKeys}
+                      panelSetOpenKeys={(updatedOpenKeys) => 
+                        onPanelStateChange({ localOpenKeys: typeof updatedOpenKeys === 'function' 
+                          ? updatedOpenKeys(localOpenKeys) 
+                          : updatedOpenKeys 
+                        })
+                      }
                     />
                   </SortableAccordionItem>
                 ))}
@@ -868,29 +879,31 @@ export default function SelectionPanel({
       
       const currentlyAllOpen = areAllOpenParams();
       
-      setLocalOpenKeys((prev) => {
-        const next = new Set(prev);
-        if (currentlyAllOpen) {
-          subPathSet.forEach((sp: string) => next.delete(sp));
-        } else {
-          subPathSet.forEach((sp: string) => next.add(sp));
-        }
-        return next;
-      });
+      const next = new Set(localOpenKeys);
+      if (currentlyAllOpen) {
+        subPathSet.forEach((sp: string) => next.delete(sp));
+      } else {
+        subPathSet.forEach((sp: string) => next.add(sp));
+      }
+      onPanelStateChange({ localOpenKeys: next });
     }
   
     // Function to toggle edit mode with expansion key management
     const toggleEditMode = () => {
       if (!editMode) {
         // turning ON => save current expansions, then close them all
-        setSavedOpenKeys(new Set(localOpenKeys));
-        setLocalOpenKeys(new Set()); // forcibly close all expansions
-        setEditMode(true);
+        onPanelStateChange({
+          savedOpenKeys: new Set(localOpenKeys),
+          localOpenKeys: new Set(),
+          editMode: true
+        });
       } else {
         // turning OFF => restore expansions
-        setLocalOpenKeys(savedOpenKeys);
-        setSavedOpenKeys(new Set());
-        setEditMode(false);
+        onPanelStateChange({
+          localOpenKeys: savedOpenKeys,
+          savedOpenKeys: new Set(),
+          editMode: false
+        });
       }
     };
   
@@ -909,7 +922,7 @@ export default function SelectionPanel({
         });
         
         if (entriesChanged) {
-          setEntriesFilter(newEntriesFilter);
+          onPanelStateChange({ entriesFilter: newEntriesFilter });
         }
         
         // Initialize params filter
@@ -924,7 +937,7 @@ export default function SelectionPanel({
         });
         
         if (paramsChanged) {
-          setParamsFilter(newParamsFilter);
+          onPanelStateChange({ paramsFilter: newParamsFilter });
         }
       }
     }, [allPossibleColumns, entriesFilter, paramsFilter]);
@@ -942,7 +955,12 @@ export default function SelectionPanel({
     return (
       <PanelExpandProvider
         openKeys={localOpenKeys}
-        setOpenKeys={setLocalOpenKeys}
+        setOpenKeys={(updatedOpenKeys) => 
+          onPanelStateChange({ localOpenKeys: typeof updatedOpenKeys === 'function' 
+            ? updatedOpenKeys(localOpenKeys) 
+            : updatedOpenKeys 
+          })
+        }
         forceExpandAll={false}
         forceCollapseAll={false}
         toggleKey={localToggleKey}
@@ -977,11 +995,11 @@ export default function SelectionPanel({
                   )
                 }
                 onClick={() => {
-                  setDisplayMode((prev) => {
-                    if (prev === "markdown") return "text";
-                    if (prev === "text") return "raw";
-                    return "markdown";
-                  });
+                  let newDisplayMode: "markdown" | "text" | "raw";
+                  if (displayMode === "markdown") newDisplayMode = "text";
+                  else if (displayMode === "text") newDisplayMode = "raw";
+                  else newDisplayMode = "markdown";
+                  onPanelStateChange({ displayMode: newDisplayMode });
                 }}
                 variant="ghost"
                 size="icon"
@@ -1020,7 +1038,7 @@ export default function SelectionPanel({
                             newE[k] = checked;
                           });
                           if (!shallowEqualBooleanRecords(newE, entriesFilter)) {
-                            setEntriesFilter(newE);
+                            onPanelStateChange({ entriesFilter: newE });
                           }
 
                           const newP: Record<string, boolean> = {};
@@ -1028,7 +1046,7 @@ export default function SelectionPanel({
                             newP[k] = checked;
                           });
                           if (!shallowEqualBooleanRecords(newP, paramsFilter)) {
-                            setParamsFilter(newP);
+                            onPanelStateChange({ paramsFilter: newP });
                           }
                         }}
                       />
@@ -1049,7 +1067,7 @@ export default function SelectionPanel({
                                 newVal[k] = checked;
                               });
                               if (!shallowEqualBooleanRecords(newVal, paramsFilter)) {
-                                setParamsFilter(newVal);
+                                onPanelStateChange({ paramsFilter: newVal });
                               }
                             }}
                           />
@@ -1065,13 +1083,7 @@ export default function SelectionPanel({
                             <Switch
                               checked={paramsFilter[k] !== false}
                               onCheckedChange={(checked) => {
-                                setParamsFilter((prev) => {
-                                  if (prev[k] === checked) {
-                                    return prev;
-                                  }
-                                  const newObj = { ...prev, [k]: checked };
-                                  return newObj;
-                                });
+                                onPanelStateChange({ paramsFilter: { ...paramsFilter, [k]: checked } });
                               }}
                             />
                           </div>
@@ -1093,7 +1105,7 @@ export default function SelectionPanel({
                               newVal[k] = checked;
                             });
                             if (!shallowEqualBooleanRecords(newVal, entriesFilter)) {
-                              setEntriesFilter(newVal);
+                              onPanelStateChange({ entriesFilter: newVal });
                             }
                           }}
                         />
@@ -1109,13 +1121,7 @@ export default function SelectionPanel({
                           <Switch
                             checked={entriesFilter[k] !== false}
                             onCheckedChange={(checked) => {
-                              setEntriesFilter((prev) => {
-                                if (prev[k] === checked) {
-                                  return prev;
-                                }
-                                const newObj = { ...prev, [k]: checked };
-                                return newObj;
-                              });
+                              onPanelStateChange({ entriesFilter: { ...entriesFilter, [k]: checked } });
                             }}
                           />
                         </div>
@@ -1175,7 +1181,8 @@ export default function SelectionPanel({
                       : <Pilcrow />
                   }
                   onClick={() => {
-                    setDiffModeIdx((prev) => (prev + 1) % allDiffModes.length);
+                    const newDiffModeIdx = (diffModeIdx + 1) % allDiffModes.length;
+                    onPanelStateChange({ diffModeIdx: newDiffModeIdx });
                   }}
                   variant="ghost"
                   size="icon"
@@ -1189,7 +1196,7 @@ export default function SelectionPanel({
                       <AlignJustify className="h-4 w-4" />
                     )
                   }
-                  onClick={() => setSplitView(!splitView)}
+                  onClick={() => onPanelStateChange({ splitView: !splitView })}
                   variant="ghost"
                   size="icon"
                 />
