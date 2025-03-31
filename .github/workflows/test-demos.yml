@@ -5,6 +5,8 @@ on:
     types: [cloudbuild-complete]
   workflow_dispatch:
   workflow_call:
+permissions:
+  contents: write
 
 jobs:
   test-demos:
