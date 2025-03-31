@@ -185,12 +185,81 @@ export default function ImageView({
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [lightboxLoading, setLightboxLoading] = useState(false);
+  const [lightboxError, setLightboxError] = useState<string | null>(null);
 
-  const openLightbox = useCallback((src: string) => {
-    setLightboxSrc(src);
-    setLightboxOpen(true);
+  // Helper function to check if a URL is a Google Cloud Storage URL
+  const isGCSUrl = useCallback((url: string): boolean => {
+    try {
+      const parsedUrl = new URL(url);
+      return parsedUrl.hostname === 'storage.googleapis.com';
+    } catch (e) {
+      console.error("Error parsing URL:", url, e);
+      return false;
+    }
   }, []);
 
+  // Helper function to get a signed URL for Google Cloud Storage images
+  const getSignedUrl = useCallback(async (gcsUrl: string): Promise<string> => {
+    try {
+      const parsedUrl = new URL(gcsUrl);
+      const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
+      const bucket = pathParts[0];
+      const path = pathParts.slice(1).join("/");
+      
+      const queryParams = new URLSearchParams({
+        bucket: bucket,
+        path: path
+      });
+      
+      const res = await fetch(`/api/image/get?${queryParams}`);
+      
+      if (!res.ok) {
+        throw new Error(`Failed to fetch signed URL: ${res.statusText}`);
+      }
+      
+      const data = await res.json();
+      return data.url;
+    } catch (err) {
+      console.error("Error fetching signed URL:", err);
+      throw err;
+    }
+  }, []);
+
+  /**
+   * Open the lightbox with the given image source
+   * 
+   * For Google Cloud Storage URLs, we need to fetch a signed URL first
+   * to provide temporary access to the image. This ensures the lightbox
+   * can properly display the image.
+   */
+  const openLightbox = useCallback(async (src: string) => {
+    try {
+      setLightboxLoading(true);
+      setLightboxError(null);
+      
+      let finalSrc = src;
+      // If this is a GCS URL, get a signed URL
+      if (isGCSUrl(src)) {
+        try {
+          finalSrc = await getSignedUrl(src);
+        } catch (error) {
+          setLightboxError("Failed to get signed URL for image");
+          setLightboxLoading(false);
+          return;
+        }
+      }
+      
+      setLightboxSrc(finalSrc);
+      setLightboxOpen(true);
+      setLightboxLoading(false);
+    } catch (error) {
+      console.error("Error in openLightbox:", error);
+      setLightboxError("Error opening lightbox");
+      setLightboxLoading(false);
+    }
+  }, [isGCSUrl, getSignedUrl]);
+  
   /*───────────────────────────────────────────────────────────────────────────
     SINGLE MODE: Just show the one image, optional version
   ───────────────────────────────────────────────────────────────────────────*/
@@ -237,20 +306,29 @@ export default function ImageView({
         
         {/* Render the lightbox */}
         {lightboxOpen && lightboxSrc && (
-          <Lightbox
-            open={lightboxOpen}
-            close={() => setLightboxOpen(false)}
-            slides={[{ src: lightboxSrc }]}
-            plugins={[Zoom]}
-            zoom={zoomConfig}
-            carousel={{ finite: true }}
-            animation={{ swipe: 300 }}
-            controller={{ touchAction: "pan-y" as const }}
-            render={{
-              buttonPrev: () => null,
-              buttonNext: () => null
-            }}
-          />
+          <>
+            {lightboxLoading && <div className="p-4 text-center">Loading image...</div>}
+            {lightboxError && <div className="p-4 text-center text-red-500 font-medium">Error: {lightboxError}</div>}
+            {!lightboxLoading && !lightboxError && (
+              <Lightbox
+                open={lightboxOpen}
+                close={() => {
+                  setLightboxOpen(false);
+                  setLightboxSrc(null);
+                }}
+                slides={[{ src: lightboxSrc }]}
+                plugins={[Zoom]}
+                zoom={zoomConfig}
+                carousel={{ finite: true }}
+                animation={{ swipe: 300 }}
+                controller={{ touchAction: "pan-y" as const }}
+                render={{
+                  buttonPrev: () => null,
+                  buttonNext: () => null
+                }}
+              />
+            )}
+          </>
         )}
       </div>
     );
@@ -337,20 +415,29 @@ export default function ImageView({
         
         {/* Render the lightbox */}
         {lightboxOpen && lightboxSrc && (
-          <Lightbox
-            open={lightboxOpen}
-            close={() => setLightboxOpen(false)}
-            slides={[{ src: lightboxSrc }]}
-            plugins={[Zoom]}
-            zoom={zoomConfig}
-            carousel={{ finite: true }}
-            animation={{ swipe: 300 }}
-            controller={{ touchAction: "pan-y" as const }}
-            render={{
-              buttonPrev: () => null,
-              buttonNext: () => null
-            }}
-          />
+          <>
+            {lightboxLoading && <div className="p-4 text-center">Loading image...</div>}
+            {lightboxError && <div className="p-4 text-center text-red-500 font-medium">Error: {lightboxError}</div>}
+            {!lightboxLoading && !lightboxError && (
+              <Lightbox
+                open={lightboxOpen}
+                close={() => {
+                  setLightboxOpen(false);
+                  setLightboxSrc(null);
+                }}
+                slides={[{ src: lightboxSrc }]}
+                plugins={[Zoom]}
+                zoom={zoomConfig}
+                carousel={{ finite: true }}
+                animation={{ swipe: 300 }}
+                controller={{ touchAction: "pan-y" as const }}
+                render={{
+                  buttonPrev: () => null,
+                  buttonNext: () => null
+                }}
+              />
+            )}
+          </>
         )}
       </div>
     );
@@ -495,20 +582,29 @@ export default function ImageView({
       
       {/* Render the lightbox */}
       {lightboxOpen && lightboxSrc && (
-        <Lightbox
-          open={lightboxOpen}
-          close={() => setLightboxOpen(false)}
-          slides={[{ src: lightboxSrc }]}
-          plugins={[Zoom]}
-          zoom={zoomConfig}
-          carousel={{ finite: true }}
-          animation={{ swipe: 300 }}
-          controller={{ touchAction: "pan-y" as const }}
-          render={{
-            buttonPrev: () => null,
-            buttonNext: () => null
-          }}
-        />
+        <>
+          {lightboxLoading && <div className="p-4 text-center">Loading image...</div>}
+          {lightboxError && <div className="p-4 text-center text-red-500 font-medium">Error: {lightboxError}</div>}
+          {!lightboxLoading && !lightboxError && (
+            <Lightbox
+              open={lightboxOpen}
+              close={() => {
+                setLightboxOpen(false);
+                setLightboxSrc(null);
+              }}
+              slides={[{ src: lightboxSrc }]}
+              plugins={[Zoom]}
+              zoom={zoomConfig}
+              carousel={{ finite: true }}
+              animation={{ swipe: 300 }}
+              controller={{ touchAction: "pan-y" as const }}
+              render={{
+                buttonPrev: () => null,
+                buttonNext: () => null
+              }}
+            />
+          )}
+        </>
       )}
     </div>
   );
