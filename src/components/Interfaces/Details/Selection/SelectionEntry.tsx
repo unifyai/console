@@ -561,7 +561,7 @@ export default function SelectionEntry({
             tooltip="Hide column"
             icon={<CircleMinus className="h-3 w-3" />}
             variant="ghost"
-            size="icon"
+            size="sm"
             className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-destructive hover:text-destructive-foreground p-0 flex items-center justify-center" 
             onClick={(e) => {
               e.stopPropagation();
