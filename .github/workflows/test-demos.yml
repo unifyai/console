@@ -5,6 +5,8 @@ on:
     types: [cloudbuild-complete]
   workflow_dispatch:
   workflow_call:
+permissions:
+  contents: write
 
 jobs:
   test-demos:
@@ -14,7 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.client_payload.sha }}
+          ref: ${{ github.event.client_payload.sha || github.ref }}
         
       - name: Setup Node.js
         uses: actions/setup-node@v4
