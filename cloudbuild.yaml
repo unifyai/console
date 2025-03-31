@@ -62,11 +62,15 @@ steps:
     args:
     - -c
     - |
-      curl -X POST \
-        -H "Accept: application/vnd.github.v3+json" \
-        -H "Authorization: token $$GITHUB_TOKEN" \
-        https://api.github.com/repos/unifyai/console/dispatches \
-        -d '{"event_type": "cloudbuild-complete", "client_payload": {"sha": "$COMMIT_SHA"}}'
+      if [ "$_SERVICE_NAME" = "saas-web-app" ]; then
+        curl -X POST \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization: token $$GITHUB_TOKEN" \
+          https://api.github.com/repos/unifyai/console/dispatches \
+          -d '{"event_type": "cloudbuild-complete", "client_payload": {"sha": "$COMMIT_SHA"}}'
+      else
+        echo "Skipping workflow dispatch for service $_SERVICE_NAME"
+      fi
     secretEnv: ['GITHUB_TOKEN']
 
 images:
