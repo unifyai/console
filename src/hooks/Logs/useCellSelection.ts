@@ -550,7 +550,58 @@ export const getSelectableTableCells = (table: Table<any | unknown>) => {
   return Array.from(new Set(columnCells))
 }
 
-/* 
-  Original Hook: 
-  https://gist.github.com/joshkay/fc8bab0561583dd48fecce93022fc7a2#file-usecellselection-ts-L343
-*/
+export const deselectFromClickOutside = (
+  event: React.MouseEvent<HTMLElement, MouseEvent>,
+  containerRef: React.RefObject<HTMLDivElement>,
+  selectedCells: string[],
+  setSelected: (selected: string | undefined) => void,
+  customClasses: string[] = []
+) => {
+  const target = event.target as Node;
+  const containerElement = containerRef.current;
+
+  // Ensure refs and target are valid
+  if (!containerElement || !target || !(target instanceof Element)) {
+    return;
+  }
+
+  // Selector for elements that should PREVENT deselection
+  // This includes active interactive elements AND table data cells (td)
+  const keepSelectionSelector = [
+    // === Interactive Widgets & Inputs ===
+    '[role="menu"]',                    // Radix/Shadcn Menus (the container)
+    '[role="menuitem"]',                // Radix/Shadcn Menu items
+    '[role="menuitemcheckbox"]',        // Radix/Shadcn Menu checkbox items
+    '[role="menuitemradio"]',           // Radix/Shadcn Menu radio items
+    '[role="dialog"]',                  // Radix/Shadcn Dialogs
+    '[role="alertdialog"]',             // Radix/Shadcn Alert Dialogs
+    '[data-radix-popper-content]',      // Radix general popper content (covers menus, selects, dialogs etc.)
+    'input',                            // Standard inputs
+    'textarea',                         // Text areas
+    'select',                           // Select dropdowns (native)
+    'option',                           // Options within native select
+
+    // === Table Specific Elements ===
+    'tbody td', // Allow clicks on table DATA cells (let DataTable handle selection)
+    'thead th', // Note: Excludes tfoot td (footer)
+
+    // === Specific Interactive Components by Class/Attribute (Examples) ===
+    // Add classes/ids if specific buttons/links should NOT deselect
+    // e.g., '.keep-selection-button', '[data-keep-selection="true"]'
+    [...(customClasses.map(customClass => customClass.startsWith(".") ? customClass : `.${customClass}`))]
+
+  ].join(', ');
+
+  // 1. Check if the click is on or inside an element that should PREVENT deselection
+  if (target.closest(keepSelectionSelector)) {
+    return; // Keep selection / Let the element handle its own logic
+  }
+
+  // 2. If not prevented by the check above, and the click is inside the main container, DESELECT.
+  if (containerElement.contains(target)) {
+    if (selectedCells.length > 0) {
+      setSelected("");
+    }
+  }
+  // Clicks outside the container are ignored
+}

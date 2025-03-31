@@ -34,12 +34,15 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { MoreHorizontal, Group, ArrowUpDown, Filter, FolderTree, EyeOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 
+import { shouldRenderHeader, calculateRowSpan } from "@/utils/evals/table";
+
 const DataTableHeader = ({
   interactive,
   auto_update,
   data,
   table,
   header,
+  headerGroupIndex,
   isCellSelected,
   cellSelection,
   resizeMap,
@@ -69,6 +72,7 @@ const DataTableHeader = ({
   auto_update?: boolean,
   data: any[],
   table: Table<any>,
+  headerGroupIndex: number,
   header: Header<any, unknown>,
   isCellSelected: (cell: Cell<any, any>) => boolean,
   cellSelection: {
@@ -307,6 +311,13 @@ const DataTableHeader = ({
     </>
   );
 
+  // Calculate row span for vertical merging and skip children
+  // headers whose parent are spanned vertically
+  const calculatedRowSpan = calculateRowSpan(header, table, headerGroupIndex)
+  if (!shouldRenderHeader(header, table, headerGroupIndex)) {
+      return null;
+  }
+
   // Handle header coloring.
   // - Applies selection (hover) background color on any column header for which all (some) cells are selected
   // - Applied selection (hover) background color index column header if all (some) table cells are selected
@@ -334,7 +345,8 @@ const DataTableHeader = ({
     borderLeft: header.column.id === "RowNumbering" ? "1px solid var(--muted)" : undefined,
     borderRight: "1px solid var(--muted)",
     borderTop: "1px solid var(--muted)",
-    borderBottom: header.depth >= 1 && !header.subHeaders.length ? "1px solid var(--muted)" : undefined,
+    borderBottom: (header.depth + calculatedRowSpan) >= table.getHeaderGroups().length ? "1px solid var(--muted)" : undefined,
+    verticalAlign: calculatedRowSpan > 1 ? 'middle' : undefined,
     color: isAllColumnSelected(header) ? "var(--primary-foreground)" : "",
   };
 
@@ -343,16 +355,19 @@ const DataTableHeader = ({
    * Pinning (only if not selected)
    * Default & Hover (only if not selected and not pinned)
   */
-  const isSelected = isNotUtilColumn ? isAllColumnSelected(header) : isAllTableSelected();
+  const isIndexColumn = header.column.id === "RowNumbering"
+  const isPlaceholderColumn = header.isPlaceholder
+  const isSelected = isNotUtilColumn && !isPlaceholderColumn ? isAllColumnSelected(header) : isAllTableSelected();
   const selectionClass = isSelected ? 'bg-primary' : '';
-  const pinnedClass = !isSelected && isPinned && isNotUtilColumn ? 'bg-background' : '';
+  const pinnedClass = !isSelected && isPinned && isNotUtilColumn && !isPlaceholderColumn ? 'bg-background' : '';
   const defaultBgClass = !isSelected && !pinnedClass ? 'bg-background' : '';
-  const hoverClass = !isSelected && !pinnedClass && !dropdownOpen ? 'hover:bg-muted' : '';
+  const hoverClass = !isSelected && !pinnedClass && !dropdownOpen && (!isPlaceholderColumn || isIndexColumn) ? 'hover:bg-muted' : '';
 
   const maxLabelWidth = Math.max(Number((style.width as string).split("px")[0]) - (actionButtonRef.current?.clientWidth ?? 0), 10)
 
   return (
     <TableHead 
+      rowSpan={calculatedRowSpan}
       colSpan={header.colSpan} 
       ref={setNodeRef} 
       style={style} 

@@ -487,7 +487,18 @@ function PatchDetailPanel({
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="font-bold text-sm">{node.name}</p>
-        {showTimelineButton && TimelineViewButton && <TimelineViewButton baseTrace={allTraces[0]} />}
+        { (node.baseSpanRef || node.targetSpanRef) && (
+          <TimelineViewButton
+            baseTrace={
+              node.baseSpanRef ? [node.baseSpanRef] : undefined
+            }
+            targetTrace={
+              node.targetSpanRef && node.targetSpanRef !== node.baseSpanRef
+                ? [node.targetSpanRef]
+                : undefined
+            }
+          />
+        )}
       </div>
       
       <Accordion type="multiple" defaultValue={["Inputs", "Outputs"]} className="mt-3">
@@ -1362,7 +1373,7 @@ export default function UnifiedTraceView({
                 }}
               >
                 {rowIndexes.length > 1 && (
-                  <div className="sticky top-0 bg-background p-2 border-b border-muted space-y-2">
+                  <div className="sticky top-0 bg-background p-2 border-b border-muted space-y-2 z-10">
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground font-semibold block">
                         Compare with:
@@ -1372,7 +1383,7 @@ export default function UnifiedTraceView({
                         value={groupSignature}
                         onValueChange={handleGroupChange}
                         placeholder="Pick a group..."
-                        className="w-fit items-center"
+                        className="w-fit items-center bg-background"
                       />
                     </div>
                   </div>

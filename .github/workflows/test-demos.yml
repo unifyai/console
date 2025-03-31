@@ -1,10 +1,10 @@
 name: Test Demos
 
 on:
-  push:
-    branches:
-      - main
+  repository_dispatch:
+    types: [cloudbuild-complete]
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   test-demos:
@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.sha }}
         
       - name: Setup Node.js
         uses: actions/setup-node@v4

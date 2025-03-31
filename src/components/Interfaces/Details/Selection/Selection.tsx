@@ -2,6 +2,7 @@ import React, {
   useMemo,
   useState,
   useCallback,
+  useEffect,
 } from "react";
 import SelectionHints from "./Hints";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -12,6 +13,38 @@ import {
   buildIndexToColumnsMapFromId,
   buildRowIndicesInSelectionOrder,
 } from "./SelectionUtils";
+
+// Define the PanelState interface to store panel-specific settings
+interface PanelState {
+  displayMode: "markdown" | "text" | "raw";
+  diffModeIdx: number;
+  splitView: boolean;
+  editMode: boolean;
+  entriesFilter: Record<string, boolean>;
+  paramsFilter: Record<string, boolean>;
+  entryOrderings: { [key: string]: string[] };
+  paramOrderings: { [key: string]: string[] };
+  entryOrder: string[];
+  paramOrder: string[];
+  localOpenKeys: Set<string>;
+  savedOpenKeys: Set<string>;
+}
+
+// Default values for a new panel
+const defaultPanelState: PanelState = {
+  displayMode: "text",
+  diffModeIdx: 0,
+  splitView: false,
+  editMode: false,
+  entriesFilter: {},
+  paramsFilter: {},
+  entryOrderings: {},
+  paramOrderings: {},
+  entryOrder: [],
+  paramOrder: [],
+  localOpenKeys: new Set<string>(),
+  savedOpenKeys: new Set<string>(),
+};
 
 import SelectionPanel from "./SelectionPanel";
 
@@ -161,6 +194,38 @@ export default function Selection({
    * Panel Count State
    ******************************************************************************/
   const [panelCount, setPanelCount] = useState(1);
+  
+  /*******************************************************************************
+   * Panel States - Keep track of each panel's state
+   ******************************************************************************/
+  const [panelStates, setPanelStates] = useState<Record<number, PanelState>>({
+    0: { ...defaultPanelState },
+  });
+
+  // Function to update a specific panel's state
+  const updatePanelState = useCallback((panelId: number, updates: Partial<PanelState>) => {
+    setPanelStates(prev => ({
+      ...prev,
+      [panelId]: {
+        ...prev[panelId],
+        ...updates
+      }
+    }));
+  }, []);
+  
+  // Keep panelStates in sync with panelCount
+  useEffect(() => {
+    setPanelStates(prev => {
+      const newStates = {...prev};
+      // Add any missing panel states
+      for (let i = 0; i < panelCount; i++) {
+        if (!newStates[i]) {
+          newStates[i] = {...defaultPanelState};
+        }
+      }
+      return newStates;
+    });
+  }, [panelCount]);
 
   /*******************************************************************************
    * If no rows selected, just show hints
@@ -199,26 +264,45 @@ export default function Selection({
 
       {/* Main content: multiple panels */}
       <div className="flex-1 flex flex-row overflow-hidden">
-        {Array.from({ length: panelCount }).map((_, idx) => (
-          <React.Fragment key={`panel-fragment-${idx}`}>
-            {idx > 0 && <div className="w-px bg-border self-stretch mx-1" />}
-            <SelectionPanel
-              key={`panel-${idx}`}
-              logs={logs}
-              sortedLogs={sortedLogs}
-              params={params}
-              selectedRowIndices={selectedRowIndices}
-              columnOrdering={columnOrdering}
-              indexToColumns={indexToColumns}
-              tableItem={tableItem}
-              item={item as TileProps}
-              updateItem={updateItem}
-              panelId={idx}
-              initialBaseIndex={baseIndex_ ? parseInt(baseIndex_, 10) : 0}
-              allPossibleColumns={allPossibleColumns}
-            />
-          </React.Fragment>
-        ))}
+        {Array.from({ length: panelCount }).map((_, idx) => {
+          // Get the panel state or use default if not found
+          // Use nullish coalescing instead of || to only use default when truly missing
+          const panelState = panelStates[idx] ?? { ...defaultPanelState };
+          
+          // Ensure all properties that should be objects are initialized
+          if (!panelState.localOpenKeys) panelState.localOpenKeys = new Set<string>();
+          if (!panelState.savedOpenKeys) panelState.savedOpenKeys = new Set<string>();
+          if (!panelState.entriesFilter) panelState.entriesFilter = {};
+          if (!panelState.paramsFilter) panelState.paramsFilter = {};
+          if (!panelState.entryOrderings) panelState.entryOrderings = {};
+          if (!panelState.paramOrderings) panelState.paramOrderings = {};
+          if (!panelState.entryOrder) panelState.entryOrder = [];
+          if (!panelState.paramOrder) panelState.paramOrder = [];
+          
+          return (
+            <React.Fragment key={`panel-fragment-${idx}`}>
+              {idx > 0 && <div className="w-px bg-border self-stretch mx-1" />}
+              <SelectionPanel
+                key={`panel-${idx}`}
+                panelId={idx}
+                // Pass panel state and updater function
+                panelState={panelState}
+                onPanelStateChange={(updates) => updatePanelState(idx, updates)}
+                logs={logs}
+                sortedLogs={sortedLogs}
+                params={params}
+                selectedRowIndices={selectedRowIndices}
+                columnOrdering={columnOrdering}
+                indexToColumns={indexToColumns}
+                tableItem={tableItem}
+                item={item as TileProps}
+                updateItem={updateItem}
+                initialBaseIndex={baseIndex_ ? parseInt(baseIndex_, 10) : 0}
+                allPossibleColumns={allPossibleColumns}
+              />
+            </React.Fragment>
+          );
+        })}
       </div>
     </div>
   );
