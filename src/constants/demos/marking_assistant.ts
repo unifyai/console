@@ -1,6 +1,6 @@
 export default {
     gif: "demo_set_context_to_usage",
-    link: "demo/usage_dashboard",
+    link: "case_study/usage_dashboard",
     description: "Let’s assume our app has been deployed for a few weeks now, and we’ve been tracking the daily usage coming from ~100 active users. For now, the students answer the questions, and then a human marks the questions asynchronously, but this is both timely and expensive.",
     project: "MarkingAssistant",
     name: "tab1",

@@ -91,5 +91,5 @@ export const demos: {
     "Plots/Scatter Plot/Simple": scatterDemo,
     "Plots/Scatter Plot/Gender Grouping": scatterDemo2,
     "Plots/Scatter Plot/Derived Grouping": scatterDemo3,
-    "Demos/Marking Assistant": markingAssistant,
+    "Case Study/Marking Assistant": markingAssistant,
 }
