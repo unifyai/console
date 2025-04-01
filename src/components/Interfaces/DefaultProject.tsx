@@ -19,6 +19,7 @@ import { buildNestedDropdownTree } from "@/utils/evals/common";
 import RenderMenuItems from "../Common/Dropdowns/RenderMenuItems";
 import { CopyButton } from "../Common/Buttons/Copy";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
+import CodeBlock from "./CodeBlock";
 
 const DefaultProject = ({
     projectActions,
@@ -39,8 +40,6 @@ const DefaultProject = ({
 }) => {
     // Access projects getter and setter from the store
     const projects = useStoreContext(state => state.projects);
-
-    const { theme } = useTheme();
 
     const disabled = projects == undefined
     const [pendingLocal, setPendingLocal] = useState(false);
@@ -221,43 +220,20 @@ const DefaultProject = ({
                     </div>}
 
                     <div className="relative h-[400px] w-[600px] mb-auto overflow-y-auto rounded-md border border-1 p-2">
-                        <div className="absolute z-10 top-2 right-0 px-4 py-1 rounded-md flex gap-1 text-[var(--white-smoke)]">
-                            <Link href={`https://docs.unify.ai/${demoLink}`} target="_blank">
-                                <ActionButton icon={<ExternalLink />} tooltip={"Learn more"} />
-                            </Link>
-                            <ActionButton
-                                icon={(pendingLocal || create != null)
-                                    ? <Loader2 className="animate-spin" />
-                                    : <Play />
-                                }
-                                tooltip={"Run Demo"}
-                                onClick={() => storeDemo(
-                                    demoProject,
-                                    demoName,
-                                    demoItems,
-                                    demoNewCounter,
-                                    demoDerivedColumns
-                                )}
-                                disabled={disabled}
-                            />
-                            <CopyButton content={demoCode} copyMessage="Copied!" />
-                        </div>
-                        <div className="h-full w-full">
-                            <Editor
-                                height="100%"
-                                width="100%"
-                                options={{
-                                    automaticLayout: true,
-                                    minimap: { enabled: false },
-                                    scrollBeyondLastLine: false,
-                                    wordWrap: "on",
-                                    readOnly: true,
-                                }}
-                                theme="vs-dark"
-                                defaultLanguage="python"
-                                value={demoCode}
-                            />
-                        </div>
+                        <CodeBlock
+                            code={demoCode}
+                            demoLink={demoLink}
+                            pendingLocal={pendingLocal}
+                            create={create}
+                            onRunDemo={() => storeDemo(
+                                demoProject,
+                                demoName,
+                                demoItems,
+                                demoNewCounter,
+                                demoDerivedColumns
+                            )}
+                            disabled={disabled}
+                        />
                     </div>
                 </div>
             </div>
