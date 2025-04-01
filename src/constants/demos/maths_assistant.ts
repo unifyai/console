@@ -25,8 +25,7 @@ export default {
         }
     ],
     new_counter: 2,
-    code: `
-import unify
+    code: `import unify
 from random import randint, choice
 
 # initialize project

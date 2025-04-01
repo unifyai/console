@@ -3,8 +3,8 @@
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import { ExternalLink, Loader2, Play } from "lucide-react";
+import Editor from "@monaco-editor/react";
 import ActionButton from "../Common/Buttons/Action";
-import MarkdownRender from "../Common/Code/MarkdownRender";
 import { DerivedEntryActions, TabActions, LogsActions, ProjectsActions, TileProps, CodeActions } from "@/types/evals/grid";
 import { useEffect, useState } from "react";
 import { demos } from "@/constants/logs";
@@ -17,6 +17,7 @@ import { getLogsParameters } from "@/types/evals/logs";
 import { Badge } from "../UI/badge";
 import { buildNestedDropdownTree } from "@/utils/evals/common";
 import RenderMenuItems from "../Common/Dropdowns/RenderMenuItems";
+import { CopyButton } from "../Common/Buttons/Copy";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 
 const DefaultProject = ({
@@ -218,8 +219,9 @@ const DefaultProject = ({
                             />
                         </div>
                     </div>}
-                    <div className="relative max-w-[700px] max-h-[700px] mb-auto overflow-y-auto rounded-md border border-1 p-2">
-                        <div className={"absolute z-10 top-3 right-12 flex gap-1 " + (theme == "dark" ? "text-foreground" : "text-muted")}>
+
+                    <div className="relative h-[400px] w-[600px] mb-auto overflow-y-auto rounded-md border border-1 p-2">
+                        <div className="absolute z-10 top-2 right-0 px-4 py-1 rounded-md flex gap-1 text-[var(--white-smoke)]">
                             <Link href={`https://docs.unify.ai/${demoLink}`} target="_blank">
                                 <ActionButton icon={<ExternalLink />} tooltip={"Learn more"} />
                             </Link>
@@ -238,8 +240,24 @@ const DefaultProject = ({
                                 )}
                                 disabled={disabled}
                             />
+                            <CopyButton content={demoCode} copyMessage="Copied!" />
                         </div>
-                        <MarkdownRender content={`\`\`\`python${demoCode}\`\`\``} darkOnly />
+                        <div className="h-full w-full">
+                            <Editor
+                                height="100%"
+                                width="100%"
+                                options={{
+                                    automaticLayout: true,
+                                    minimap: { enabled: false },
+                                    scrollBeyondLastLine: false,
+                                    wordWrap: "on",
+                                    readOnly: true,
+                                }}
+                                theme="vs-dark"
+                                defaultLanguage="python"
+                                value={demoCode}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>

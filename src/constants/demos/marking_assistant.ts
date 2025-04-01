@@ -17,8 +17,7 @@ export default {
         }
     ],
     new_counter: 1,
-    code: `
-import os
+    code: `import os
 import json
 import wget
 import unify

@@ -28,8 +28,7 @@ export default {
         }
     ],
     new_counter: 2,
-    code: `
-import unify
+    code: `import unify
 import random
 
 unify.activate("scatter-demo2", overwrite=True)
