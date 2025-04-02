@@ -310,7 +310,7 @@ function renderNoDiffMode(
         const path = parentPath
           ? parentPath + "." + sanitizePropertyKey(k)
           : makePrefixedDictPath(prefix, nestingLevel, k);
-        
+
         // Collect all row indices for this key to show in the accordion trigger
         const allRowsForKey = rowValuePairs.map(pair => pair.rowIndex).sort((a, b) => a - b);
         
@@ -318,8 +318,8 @@ function renderNoDiffMode(
         const isPathOpen = openKeys.has(path);
         function handleExpandToggle(e: React.MouseEvent) {
           e.stopPropagation();
-          const currentValue = value?.[k];
-          const currentComparables = comparables.map((c) => c?.[k]);
+        const currentValue = value?.[k];
+        const currentComparables = comparables.map((c) => c?.[k]);
           handleRecursiveToggle(e, path, currentValue, currentComparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
         }
         
@@ -718,7 +718,7 @@ function renderDiffMode(
             <AccordionTrigger className="relative group flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 {icon} {k}
-                <div className="ml-2 flex gap-1">
+                  <div className="ml-2 flex gap-1">
                   {(() => {
                     // Only show neutral badge if it contains rows not covered by red/green badges
                     const redGreenRows = new Set([...presenceInfo.redRows, ...presenceInfo.greenRows]);
@@ -730,7 +730,7 @@ function renderDiffMode(
                   })()}
                   {presenceInfo.redRows.length > 0 && <RowBadge rowNumbers={presenceInfo.redRows} mode="delete" />}
                   {presenceInfo.greenRows.length > 0 && <RowBadge rowNumbers={presenceInfo.greenRows} mode="insert" />}
-                </div>
+                  </div>
               </span>
               {(keyType === "dict" || keyType === "list") && (
                 <div className="absolute right-5 flex gap-1 items-center">
@@ -823,21 +823,21 @@ function renderDiffMode(
                                 <RowBadge rowNumbers={dictValues.map(d => d.rowIndex).sort((a, b) => a - b)} mode="none" />
                               </div>
                               {/* Use the first dict as the base and others as comparables */}
-                              {pickView({
+                      {pickView({
                                 value: dictValues[0].val,
                                 comparables: dictValues.slice(1).map(d => d.val),
                                 baseLogIndex: dictValues[0].rowIndex,
                                 comparisonLogsIndex: dictValues.slice(1).map(d => d.rowIndex),
-                                version,
-                                comparableVersions,
-                                diffMode,
-                                splitView,
-                                displayMode,
-                                nestingLevel: nestingLevel + 1,
-                                prefix,
-                                parentPath: path,
-                              })}
-                            </div>
+                        version,
+                        comparableVersions,
+                        diffMode,
+                        splitView,
+                        displayMode,
+                        nestingLevel: nestingLevel + 1,
+                        prefix,
+                        parentPath: path,
+                      })}
+                    </div>
                           )}
                           
                           {/* Merge all lists in a unified view */}
@@ -845,7 +845,7 @@ function renderDiffMode(
                             <div className={dictValues.length > 0 ? "mt-2 pt-2 border-t" : ""}>
                               <div className="flex gap-1 mb-1">
                                 <RowBadge rowNumbers={listValues.map(l => l.rowIndex).sort((a, b) => a - b)} mode="none" />
-                              </div>
+                  </div>
                               {/* Use the first list as the base and others as comparables */}
                               {pickView({
                                 value: listValues[0].val,
