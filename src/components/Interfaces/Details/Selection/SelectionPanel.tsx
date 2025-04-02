@@ -835,6 +835,7 @@ export default function SelectionPanel({
       
       const visibleE = entryKeys.filter((k) => entriesFilter[k] !== false);
       const subPathSet = new Set<string>();
+      const topLevelPaths: string[] = []; // Array to store just the top-level paths
       
       // Include paths for the top-level entries themselves
       const prefixStr = "entries";
@@ -842,6 +843,7 @@ export default function SelectionPanel({
         // Add the root path for this entry
         const rootPath = makePrefixedDictPath(prefixStr, 0, k);
         subPathSet.add(rootPath);
+        topLevelPaths.push(rootPath); // Store top-level paths separately
         
         // Also add all subpaths
         const spList = gatherSubpathsForProperty(false, k);
@@ -858,7 +860,9 @@ export default function SelectionPanel({
       
       if (currentlyAllOpen) {
         // Collapse all - use collapseRecursively directly
-        collapseRecursively(subPaths);
+        // When collapsing, exclude the top-level paths to keep parents open
+        const childPaths = subPaths.filter(path => !topLevelPaths.includes(path));
+        collapseRecursively(childPaths);
       } else {
         // Expand all - use expandRecursively directly
         expandRecursively(subPaths);
@@ -872,6 +876,7 @@ export default function SelectionPanel({
       
       const visibleP = paramKeys.filter((k) => paramsFilter[k] !== false);
       const subPathSet = new Set<string>();
+      const topLevelPaths: string[] = []; // Array to store just the top-level paths
       
       // Include paths for the top-level params themselves
       const prefixStr = "params";
@@ -879,6 +884,7 @@ export default function SelectionPanel({
         // Add the root path for this param
         const rootPath = makePrefixedDictPath(prefixStr, 0, k);
         subPathSet.add(rootPath);
+        topLevelPaths.push(rootPath); // Store top-level paths separately
         
         // Also add all subpaths
         const spList = gatherSubpathsForProperty(true, k);
@@ -895,7 +901,9 @@ export default function SelectionPanel({
       
       if (currentlyAllOpen) {
         // Collapse all - use collapseRecursively directly
-        collapseRecursively(subPaths);
+        // When collapsing, exclude the top-level paths to keep parents open
+        const childPaths = subPaths.filter(path => !topLevelPaths.includes(path));
+        collapseRecursively(childPaths);
       } else {
         // Expand all - use expandRecursively directly
         expandRecursively(subPaths);

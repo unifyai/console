@@ -543,7 +543,9 @@ export default function SelectionEntry({
 
     if (currentlyAllOpen) {
       // collapse everything recursively
-      collapseRecursively([...currentSubPaths]);
+      // When collapsing, exclude the parent path to keep it open
+      const childPaths = currentSubPaths.filter(path => path !== topLevelPath);
+      collapseRecursively(childPaths);
     } else {
       // expand everything recursively
       expandRecursively([...currentSubPaths]);

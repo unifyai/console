@@ -168,7 +168,9 @@ function handleRecursiveToggle(
   
   if (currentlyAllOpen) {
     // collapse - call collapseRecursively
-    collapseRecursively(subPaths);
+    // When collapsing, exclude the parent path to keep it open
+    const childPaths = subPaths.filter(subpath => subpath !== path);
+    collapseRecursively(childPaths);
   } else {
     // expand - call expandRecursively
     expandRecursively(subPaths);
@@ -1141,7 +1143,9 @@ export default function ListView({
       
       if (currentlyAllOpen) {
         // All paths are open, so collapse them
-        effectiveCollapseRecursively(currentSubPaths);
+        // When collapsing, exclude the parent path to keep it open
+        const childPaths = currentSubPaths.filter(subpath => subpath !== path);
+        effectiveCollapseRecursively(childPaths);
       } else {
         // Not all paths are open, so expand them
         effectiveExpandRecursively(currentSubPaths);
@@ -1254,7 +1258,9 @@ export default function ListView({
       
       if (currentlyAllOpen) {
         // All paths are open, so collapse them
-        effectiveCollapseRecursively(currentSubPaths);
+        // When collapsing, exclude the parent path to keep it open
+        const childPaths = currentSubPaths.filter(subpath => subpath !== path);
+        effectiveCollapseRecursively(childPaths);
       } else {
         // Not all paths are open, so expand them
         effectiveExpandRecursively(currentSubPaths);

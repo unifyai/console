@@ -163,7 +163,9 @@ function handleRecursiveToggle(
   
   if (currentlyAllOpen) {
     // collapse - call collapseRecursively
-    collapseRecursively(subPaths);
+    // When collapsing, exclude the parent path to keep it open
+    const childPaths = subPaths.filter(subpath => subpath !== path);
+    collapseRecursively(childPaths);
   } else {
     // expand - call expandRecursively
     expandRecursively(subPaths);
