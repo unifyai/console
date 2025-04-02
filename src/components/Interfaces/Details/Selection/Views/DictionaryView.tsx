@@ -296,30 +296,30 @@ function renderNoDiffMode(
           }
         });
         
-        // 2. Group identical values
-        const groups = groupRowsByValue(rowValuePairs);
+        // Skip if no values found
+        if (rowValuePairs.length === 0) {
+          return null;
+        }
         
-        // Collect all row indices for this key to show in the accordion trigger
-        const allRowsForKey = rowValuePairs.map(pair => pair.rowIndex).sort((a, b) => a - b);
+        // 2. Determine type based on the values we have
+        const firstVal = rowValuePairs.find(p => p.val !== undefined)?.val;
+        const keyType = getValueType(firstVal);
+        const icon = getTypeIcon(keyType);
         
         // 3. Create the path for this key
         const path = parentPath
           ? parentPath + "." + sanitizePropertyKey(k)
           : makePrefixedDictPath(prefix, nestingLevel, k);
-
-        // get the current value for this key
-        const currentValue = value?.[k];
-        const currentComparables = comparables.map((c) => c?.[k]);
         
-        // 4. Determine type and icon for the key (using the first non-undefined value)
-        const firstVal = rowValuePairs.find(p => p.val !== undefined)?.val;
-        const keyType = getValueType(firstVal);
-        const icon = getTypeIcon(keyType);
+        // Collect all row indices for this key to show in the accordion trigger
+        const allRowsForKey = rowValuePairs.map(pair => pair.rowIndex).sort((a, b) => a - b);
         
-        // 5. Setup recursive toggle handler
+        // 4. Setup recursive toggle handler
         const isPathOpen = openKeys.has(path);
         function handleExpandToggle(e: React.MouseEvent) {
           e.stopPropagation();
+          const currentValue = value?.[k];
+          const currentComparables = comparables.map((c) => c?.[k]);
           handleRecursiveToggle(e, path, currentValue, currentComparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
         }
         
@@ -331,11 +331,9 @@ function renderNoDiffMode(
             <AccordionTrigger className="relative group flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 {icon} {k}
-                {allRowsForKey.length > 1 && (
-                  <div className="ml-2 flex gap-1">
-                    <RowBadge rowNumbers={allRowsForKey} mode="none" />
-                  </div>
-                )}
+                <div className="ml-2 flex gap-1">
+                  <RowBadge rowNumbers={allRowsForKey} mode="none" />
+                </div>
               </span>
               {(keyType === "dict" || keyType === "list") && (
                 <div className="absolute right-5 flex gap-1 items-center">
@@ -352,27 +350,642 @@ function renderNoDiffMode(
             
             <AccordionContent>
               <div className={contentIndentClass}>
-                {groups.map((group, idx) => (
-                  <div key={idx} className={getSeparatorClasses(idx, groups.length)}>
-                    {group.rows.length > 1 && <RowBadge rowNumbers={group.rows} mode="none" />}
-                    <div className="mt-1">
-                      {pickView({
-                        value: group.value,
-                        comparables: [], // No comparables since we're showing a single unified value
-                        baseLogIndex: group.rows[0], // Use the first row as the base
-                        comparisonLogsIndex: [], // No comparison indices
-                        version,
-                        comparableVersions,
-                        diffMode,
-                        splitView,
-                        displayMode,
-                        nestingLevel: nestingLevel + 1,
-                        prefix,
-                        parentPath: path,
-                      })}
-                    </div>
-                  </div>
-                ))}
+                {(() => {
+                  // For ALL types, treat the first value as base and rest as comparables
+                  // Extract the base value (from first rowValue pair)
+                  const baseVal = rowValuePairs[0]?.val;
+                  // Extract comparable values (all but the first)
+                  const compVals = rowValuePairs.slice(1).map(p => p.val);
+                  
+                  // Create row indices arrays
+                  const baseIdx = rowValuePairs[0]?.rowIndex || baseLogIndex;
+                  const compIdxs = rowValuePairs.slice(1).map(p => p.rowIndex);
+                  
+                  // Single row case - we need to explicitly show which row it belongs to
+                  if (rowValuePairs.length === 1) {
+                    return pickView({
+                      value: baseVal,
+                      comparables: [],
+                      baseLogIndex: baseIdx,
+                      comparisonLogsIndex: [],
+                      version,
+                      comparableVersions,
+                      diffMode: "none", // Force no-diff mode for single values
+                      splitView,
+                      displayMode,
+                      nestingLevel: nestingLevel + 1,
+                      prefix,
+                      parentPath: path,
+                    });
+                  }
+                  
+                  // For complex types like dict or list, ensure consistent structure
+                  if (keyType === "dict" || keyType === "list") {
+                    // Check if we have type mismatches among the available values
+                    const allValues = rowValuePairs.map(p => p.val).filter(v => v !== undefined);
+                    const allTypes = new Set(allValues.map(getValueType));
+                    
+                    // If we have multiple distinct types, including some that are dicts/lists and some that aren't,
+                    // we should group by type and render separately to allow direct comparison
+                    if (allTypes.size > 1) {
+                      // First, extract values by their primary type
+                      const dictValues: {val: any, rowIndex: number}[] = [];
+                      const listValues: {val: any, rowIndex: number}[] = [];
+                      const otherValues: {val: any, rowIndex: number, type: string}[] = [];
+                      
+                      rowValuePairs.forEach(({val, rowIndex}) => {
+                        const valType = getValueType(val);
+                        if (valType === "dict") {
+                          dictValues.push({val, rowIndex});
+                        } else if (valType === "list") {
+                          listValues.push({val, rowIndex});
+                        } else {
+                          otherValues.push({val, rowIndex, type: valType});
+                        }
+                      });
+                      
+                      // Render all components
+                      return (
+                        <div className="space-y-2">
+                          {/* Merge all dicts in a unified view */}
+                          {dictValues.length > 0 && (
+                            <div>
+                              <div className="flex gap-1 mb-1">
+                                <RowBadge rowNumbers={dictValues.map(d => d.rowIndex).sort((a, b) => a - b)} mode="none" />
+                              </div>
+                              {/* Use the first dict as the base and others as comparables */}
+                              {pickView({
+                                value: dictValues[0].val,
+                                comparables: dictValues.slice(1).map(d => d.val),
+                                baseLogIndex: dictValues[0].rowIndex,
+                                comparisonLogsIndex: dictValues.slice(1).map(d => d.rowIndex),
+                                version,
+                                comparableVersions,
+                                diffMode,
+                                splitView,
+                                displayMode,
+                                nestingLevel: nestingLevel + 1,
+                                prefix,
+                                parentPath: path,
+                              })}
+                            </div>
+                          )}
+                          
+                          {/* Merge all lists in a unified view */}
+                          {listValues.length > 0 && (
+                            <div className={dictValues.length > 0 ? "mt-2 pt-2 border-t" : ""}>
+                              <div className="flex gap-1 mb-1">
+                                <RowBadge rowNumbers={listValues.map(l => l.rowIndex).sort((a, b) => a - b)} mode="none" />
+                              </div>
+                              {/* Use the first list as the base and others as comparables */}
+                              {pickView({
+                                value: listValues[0].val,
+                                comparables: listValues.slice(1).map(l => l.val),
+                                baseLogIndex: listValues[0].rowIndex,
+                                comparisonLogsIndex: listValues.slice(1).map(l => l.rowIndex),
+                                version,
+                                comparableVersions,
+                                diffMode,
+                                splitView,
+                                displayMode,
+                                nestingLevel: nestingLevel + 1,
+                                prefix,
+                                parentPath: path,
+                              })}
+                            </div>
+                          )}
+                          
+                          {/* Group other values by exact structure */}
+                          {otherValues.length > 0 && (
+                            <>
+                              {/* Group primitives by their type and value */}
+                              {(() => {
+                                const groups: {val: any, rows: number[]}[] = [];
+                                
+                                otherValues.forEach(({val, rowIndex}) => {
+                                  let found = false;
+                                  for (const group of groups) {
+                                    // For primitives, we can use direct equality
+                                    if (val === group.val || 
+                                        (typeof val === 'object' && typeof group.val === 'object' && 
+                                         JSON.stringify(val) === JSON.stringify(group.val))) {
+                                      group.rows.push(rowIndex);
+                                      found = true;
+                                      break;
+                                    }
+                                  }
+                                  
+                                  if (!found) {
+                                    groups.push({val, rows: [rowIndex]});
+                                  }
+                                });
+                                
+                                return groups.map((group, i) => (
+                                  <div key={i} className={(dictValues.length > 0 || listValues.length > 0 || i > 0) ? "mt-2 pt-2 border-t" : ""}>
+                                    <div className="flex gap-1 mb-1">
+                                      <RowBadge rowNumbers={group.rows.sort((a, b) => a - b)} mode="none" />
+                                    </div>
+                                    {pickView({
+                                      value: group.val,
+                                      comparables: [],
+                                      baseLogIndex: group.rows[0],
+                                      comparisonLogsIndex: [],
+                                      version,
+                                      comparableVersions,
+                                      diffMode,
+                                      splitView,
+                                      displayMode,
+                                      nestingLevel: nestingLevel + 1,
+                                      prefix,
+                                      parentPath: path,
+                                    })}
+                                  </div>
+                                ));
+                              })()}
+                            </>
+                          )}
+                        </div>
+                      );
+                    }
+                  } else {
+                    // For primitive types, also check if we have different representations
+                    // that should be grouped separately
+                    const allValues = rowValuePairs.map(p => p.val).filter(v => v !== undefined);
+                    if (allValues.length > 1) {
+                      // Try to group by JSON representation
+                      const groups: {val: any, rows: number[]}[] = [];
+                      
+                      rowValuePairs.forEach(({val, rowIndex}) => {
+                        let found = false;
+                        for (const group of groups) {
+                          // For primitives, we can use direct equality
+                          if (val === group.val || 
+                              (typeof val === 'object' && typeof group.val === 'object' && 
+                               JSON.stringify(val) === JSON.stringify(group.val))) {
+                            group.rows.push(rowIndex);
+                            found = true;
+                            break;
+                          }
+                        }
+                        
+                        if (!found) {
+                          groups.push({val, rows: [rowIndex]});
+                        }
+                      });
+                      
+                      // If we have multiple groups, render each separately
+                      if (groups.length > 1) {
+                        return (
+                          <div className="space-y-2">
+                            {groups.map((group, i) => (
+                              <div key={i} className={i > 0 ? "mt-2 pt-2 border-t" : ""}>
+                                <div className="flex gap-1 mb-1">
+                                  <RowBadge rowNumbers={group.rows} mode="none" />
+                                </div>
+                                {pickView({
+                                  value: group.val,
+                                  comparables: [],
+                                  baseLogIndex: group.rows[0],
+                                  comparisonLogsIndex: [],
+                                  version,
+                                  comparableVersions,
+                                  diffMode,
+                                  splitView,
+                                  displayMode,
+                                  nestingLevel: nestingLevel + 1,
+                                  prefix,
+                                  parentPath: path,
+                                })}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }
+                    }
+                  }
+                  
+                  // Multi-row case with compatible types - use standard unified view
+                  return pickView({
+                    value: baseVal,
+                    comparables: compVals,
+                    baseLogIndex: baseIdx,
+                    comparisonLogsIndex: compIdxs,
+                    version,
+                    comparableVersions,
+                    diffMode,
+                    splitView,
+                    displayMode,
+                    nestingLevel: nestingLevel + 1,
+                    prefix,
+                    parentPath: path,
+                  });
+                })()}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        );
+      })}
+    </Accordion>
+  );
+}
+
+/*─────────────────────────────────────────────────────────────────────────
+  renderDiffMode => render in diff mode (lines, words, characters) with specialized diff handling
+──────────────────────────────────────────────────────────────────────────*/
+function renderDiffMode(
+  allKeys: string[], 
+  value: any, 
+  comparables: any[], 
+  rowIndices: number[],
+  openKeys: Set<string>,
+  setOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>,
+  options: {
+    baseLogIndex: number,
+    comparisonLogsIndex: number[],
+    version: string,
+    comparableVersions: string[],
+    diffMode: "lines" | "words" | "characters",
+    splitView: boolean,
+    displayMode: "text" | "markdown",
+    nestingLevel: number,
+    prefix: string,
+    parentPath: string,
+    expandRecursively: (paths: string[]) => void,
+    collapseRecursively: (paths: string[]) => void,
+  }
+) {
+  const { 
+    baseLogIndex, comparisonLogsIndex, version, comparableVersions, 
+    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath,
+    expandRecursively, collapseRecursively
+  } = options;
+  
+  // Get indentation classes based on nesting level
+  const indentClass = getIndentClasses(nestingLevel);
+  // Always use content indent for children regardless of level
+  const contentIndentClass = getContentIndentClasses(nestingLevel);
+  
+  // Build the open values array for the accordion
+  const openValues = allKeys
+    .map((k) => {
+      const builtPath = parentPath
+        ? parentPath + "." + sanitizePropertyKey(k)
+        : makePrefixedDictPath(prefix, nestingLevel, k);
+      return openKeys.has(builtPath) ? builtPath : null;
+    })
+    .filter(Boolean) as string[];
+
+  // Function to handle accordion value change
+  function handleAccordionValueChange(newVals: string[]) {
+    const oldSet = new Set(openValues);
+    const nextSet = new Set(newVals);
+    const changedAdded = Array.from(nextSet).filter((v) => !oldSet.has(v));
+    const changedRemoved = Array.from(oldSet).filter((v) => !nextSet.has(v));
+    
+    setOpenKeys((prev) => {
+      const updated = new Set(prev);
+      changedAdded.forEach((v) => updated.add(v));
+      changedRemoved.forEach((v) => updated.delete(v));
+      return updated;
+    });
+  }
+
+  return (
+    <Accordion
+      type="multiple"
+      value={openValues}
+      onValueChange={handleAccordionValueChange}
+    >
+      {allKeys.map((k, idx) => {
+        // 1. Gather values for this key from all rows
+        const baseVal = value && isDict(value) && Object.prototype.hasOwnProperty.call(value, k)
+          ? value[k]
+          : undefined;
+        
+        // Create array of comparable values, preserving their row indices
+        const compVals: { val: any; rowIndex: number }[] = [];
+        comparables.forEach((compDict, i) => {
+          if (compDict && isDict(compDict) && Object.prototype.hasOwnProperty.call(compDict, k)) {
+            compVals.push({ val: compDict[k], rowIndex: comparisonLogsIndex[i] });
+          }
+        });
+        
+        // Skip if no values found
+        if (baseVal === undefined && compVals.length === 0) {
+          return null;
+        }
+        
+        // 2. Determine type based on available values
+        const firstVal = baseVal !== undefined ? baseVal : compVals[0]?.val;
+        const keyType = getValueType(firstVal);
+        const icon = getTypeIcon(keyType);
+        
+        // 3. Prepare presence info for row badges
+        const basePresent = baseVal !== undefined;
+        
+        // 4. Create the path for this key
+        const path = parentPath
+          ? parentPath + "." + sanitizePropertyKey(k)
+          : makePrefixedDictPath(prefix, nestingLevel, k);
+        
+        // 5. Collect all row indices for this key to show in the accordion trigger
+        const baseRows = basePresent ? [baseLogIndex] : [];
+        const compRows = compVals.map(cv => cv.rowIndex);
+        const allRowsForKey = [...baseRows, ...compRows].sort((a, b) => a - b);
+        
+        // 6. Setup recursive toggle handler
+        const isPathOpen = openKeys.has(path);
+        function handleExpandToggle(e: React.MouseEvent) {
+          e.stopPropagation();
+          const currentValue = value?.[k];
+          const currentComparables = comparables.map((c) => c?.[k]);
+          handleRecursiveToggle(e, path, currentValue, currentComparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
+        }
+        
+        // Get separator classes for this item
+        const separatorClasses = getSeparatorClasses(idx, allKeys.length);
+        
+        // Presence/absence highlighting
+        const presenceInfo = presenceDiff(
+          baseVal, 
+          compVals.map(cv => cv.val), 
+          baseLogIndex, 
+          compVals.map(cv => cv.rowIndex)
+        );
+        
+        return (
+          <AccordionItem key={k} value={path} className={separatorClasses}>
+            <AccordionTrigger className="relative group flex items-center justify-between">
+              <span className="inline-flex items-center gap-2">
+                {icon} {k}
+                <div className="ml-2 flex gap-1">
+                  {(() => {
+                    // Only show neutral badge if it contains rows not covered by red/green badges
+                    const redGreenRows = new Set([...presenceInfo.redRows, ...presenceInfo.greenRows]);
+                    const uniqueNeutralRows = allRowsForKey.filter(row => !redGreenRows.has(row));
+                    
+                    return uniqueNeutralRows.length > 0 ? 
+                      <RowBadge rowNumbers={uniqueNeutralRows} mode="none" /> : 
+                      null;
+                  })()}
+                  {presenceInfo.redRows.length > 0 && <RowBadge rowNumbers={presenceInfo.redRows} mode="delete" />}
+                  {presenceInfo.greenRows.length > 0 && <RowBadge rowNumbers={presenceInfo.greenRows} mode="insert" />}
+                </div>
+              </span>
+              {(keyType === "dict" || keyType === "list") && (
+                <div className="absolute right-5 flex gap-1 items-center">
+                  <ActionButton
+                    variant="ghost"
+                    size="icon"
+                    tooltip={isPathOpen ? "Collapse All Children" : "Expand All Children"}
+                    onClick={handleExpandToggle}
+                    icon={isPathOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
+                  />
+                </div>
+              )}
+            </AccordionTrigger>
+            
+            <AccordionContent>
+              <div className={contentIndentClass}>
+                {(() => {
+                  // Single row case - only one source contains this key
+                  if ((basePresent && compVals.length === 0) || (!basePresent && compVals.length === 1)) {
+                    // Get the value and row index from whichever source has it
+                    const singleVal = basePresent ? baseVal : compVals[0].val;
+                    const singleIdx = basePresent ? baseLogIndex : compVals[0].rowIndex;
+                    
+                    return pickView({
+                      value: singleVal,
+                      comparables: [],
+                      baseLogIndex: singleIdx,
+                      comparisonLogsIndex: [],
+                      version,
+                      comparableVersions,
+                      diffMode: "none", // Force no-diff mode for single values
+                      splitView,
+                      displayMode,
+                      nestingLevel: nestingLevel + 1,
+                      prefix,
+                      parentPath: path,
+                    });
+                  }
+                  
+                  // For complex types like dict or list, ensure consistent structure before diffing
+                  if (keyType === "dict" || keyType === "list") {
+                    // Check if we have type mismatches among the available values
+                    const allVals = [baseVal, ...compVals.map(cv => cv.val)].filter(v => v !== undefined);
+                    const allTypes = new Set(allVals.map(getValueType));
+                    
+                    // If we have multiple distinct types or mixed with undefined values,
+                    // we'll use a similar approach to no-diff mode to show a unified view
+                    if (allTypes.size > 1 || 
+                        (baseVal === undefined && compVals.some(cv => isDict(cv.val) || isList(cv.val))) ||
+                        ((isDict(baseVal) || isList(baseVal)) && compVals.some(cv => cv.val === undefined))) {
+                      
+                      // First, extract values by their primary type
+                      const dictValues: {val: any, rowIndex: number}[] = [];
+                      const listValues: {val: any, rowIndex: number}[] = [];
+                      const otherValues: {val: any, rowIndex: number, type: string}[] = [];
+                      
+                      // Add base value if present
+                      if (basePresent) {
+                        const valType = getValueType(baseVal);
+                        if (valType === "dict") {
+                          dictValues.push({val: baseVal, rowIndex: baseLogIndex});
+                        } else if (valType === "list") {
+                          listValues.push({val: baseVal, rowIndex: baseLogIndex});
+                        } else if (baseVal !== undefined) {
+                          otherValues.push({val: baseVal, rowIndex: baseLogIndex, type: valType});
+                        }
+                      }
+                      
+                      // Add comparable values
+                      compVals.forEach(({val, rowIndex}) => {
+                        if (val === undefined) return;
+                        
+                        const valType = getValueType(val);
+                        if (valType === "dict") {
+                          dictValues.push({val, rowIndex});
+                        } else if (valType === "list") {
+                          listValues.push({val, rowIndex});
+                        } else {
+                          otherValues.push({val, rowIndex, type: valType});
+                        }
+                      });
+                      
+                      // Render all components
+                      return (
+                        <div className="space-y-2">
+                          {/* Merge all dicts in a unified view */}
+                          {dictValues.length > 0 && (
+                            <div>
+                              <div className="flex gap-1 mb-1">
+                                <RowBadge rowNumbers={dictValues.map(d => d.rowIndex).sort((a, b) => a - b)} mode="none" />
+                              </div>
+                              {/* Use the first dict as the base and others as comparables */}
+                              {pickView({
+                                value: dictValues[0].val,
+                                comparables: dictValues.slice(1).map(d => d.val),
+                                baseLogIndex: dictValues[0].rowIndex,
+                                comparisonLogsIndex: dictValues.slice(1).map(d => d.rowIndex),
+                                version,
+                                comparableVersions,
+                                diffMode,
+                                splitView,
+                                displayMode,
+                                nestingLevel: nestingLevel + 1,
+                                prefix,
+                                parentPath: path,
+                              })}
+                            </div>
+                          )}
+                          
+                          {/* Merge all lists in a unified view */}
+                          {listValues.length > 0 && (
+                            <div className={dictValues.length > 0 ? "mt-2 pt-2 border-t" : ""}>
+                              <div className="flex gap-1 mb-1">
+                                <RowBadge rowNumbers={listValues.map(l => l.rowIndex).sort((a, b) => a - b)} mode="none" />
+                              </div>
+                              {/* Use the first list as the base and others as comparables */}
+                              {pickView({
+                                value: listValues[0].val,
+                                comparables: listValues.slice(1).map(l => l.val),
+                                baseLogIndex: listValues[0].rowIndex,
+                                comparisonLogsIndex: listValues.slice(1).map(l => l.rowIndex),
+                                version,
+                                comparableVersions,
+                                diffMode,
+                                splitView,
+                                displayMode,
+                                nestingLevel: nestingLevel + 1,
+                                prefix,
+                                parentPath: path,
+                              })}
+                            </div>
+                          )}
+                          
+                          {/* Group other values by exact structure */}
+                          {otherValues.length > 0 && (
+                            <>
+                              {/* Group primitives by their type and value */}
+                              {(() => {
+                                // Group strings for diffing if possible
+                                const stringValues = otherValues.filter(v => typeof v.val === 'string');
+                                const nonStringValues = otherValues.filter(v => typeof v.val !== 'string');
+                                
+                                // If we only have string values and more than one, diff them
+                                if (stringValues.length > 1 && nonStringValues.length === 0) {
+                                  const baseStringVal = stringValues[0].val;
+                                  const compStringVals = stringValues.slice(1).map(v => v.val);
+                                  
+                                  return (
+                                    <div>
+                                      <div className="flex gap-1 mb-1">
+                                        <RowBadge rowNumbers={stringValues.map(s => s.rowIndex).sort((a, b) => a - b)} mode="none" />
+                                      </div>
+                                      {pickView({
+                                        value: baseStringVal,
+                                        comparables: compStringVals,
+                                        baseLogIndex: stringValues[0].rowIndex,
+                                        comparisonLogsIndex: stringValues.slice(1).map(s => s.rowIndex),
+                                        version,
+                                        comparableVersions,
+                                        diffMode, // Use actual diff mode for strings
+                                        splitView,
+                                        displayMode,
+                                        nestingLevel: nestingLevel + 1,
+                                        prefix,
+                                        parentPath: path,
+                                      })}
+                                    </div>
+                                  );
+                                }
+                                
+                                // Otherwise, group non-strings by their value
+                                const groups: {val: any, rows: number[]}[] = [];
+                                
+                                otherValues.forEach(({val, rowIndex}) => {
+                                  let found = false;
+                                  for (const group of groups) {
+                                    // For primitives, we can use direct equality
+                                    if (val === group.val || 
+                                        (typeof val === 'object' && typeof group.val === 'object' && 
+                                         JSON.stringify(val) === JSON.stringify(group.val))) {
+                                      group.rows.push(rowIndex);
+                                      found = true;
+                                      break;
+                                    }
+                                  }
+                                  
+                                  if (!found) {
+                                    groups.push({val, rows: [rowIndex]});
+                                  }
+                                });
+                                
+                                return groups.map((group, i) => (
+                                  <div key={i} className={(dictValues.length > 0 || listValues.length > 0 || i > 0) ? "mt-2 pt-2 border-t" : ""}>
+                                    <div className="flex gap-1 mb-1">
+                                      <RowBadge rowNumbers={group.rows.sort((a, b) => a - b)} mode="none" />
+                                    </div>
+                                    {pickView({
+                                      value: group.val,
+                                      comparables: [],
+                                      baseLogIndex: group.rows[0],
+                                      comparisonLogsIndex: [],
+                                      version,
+                                      comparableVersions,
+                                      diffMode,
+                                      splitView,
+                                      displayMode,
+                                      nestingLevel: nestingLevel + 1,
+                                      prefix,
+                                      parentPath: path,
+                                    })}
+                                  </div>
+                                ));
+                              })()}
+                            </>
+                          )}
+                        </div>
+                      );
+                    }
+                  }
+                  
+                  // Also check if we have strings that can be diffed together
+                  if (typeof baseVal === 'string' && compVals.every(cv => typeof cv.val === 'string')) {
+                    // All strings, use normal diffing
+                    return pickView({
+                      value: baseVal,
+                      comparables: compVals.map(cv => cv.val),
+                      baseLogIndex,
+                      comparisonLogsIndex: compVals.map(cv => cv.rowIndex),
+                      version,
+                      comparableVersions,
+                      diffMode,
+                      splitView,
+                      displayMode,
+                      nestingLevel: nestingLevel + 1,
+                      prefix,
+                      parentPath: path,
+                    });
+                  }
+                  
+                  // Standard diffing for compatible types
+                  return pickView({
+                    value: baseVal,
+                    comparables: compVals.map(cv => cv.val),
+                    baseLogIndex,
+                    comparisonLogsIndex: compVals.map(cv => cv.rowIndex),
+                    version,
+                    comparableVersions,
+                    diffMode,
+                    splitView,
+                    displayMode,
+                    nestingLevel: nestingLevel + 1,
+                    prefix,
+                    parentPath: path,
+                  });
+                })()}
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -765,16 +1378,27 @@ export default function DictionaryView({
     );
   }
 
-  // No need to add displayMode as a dependency here
-  return (
-    <Accordion type="multiple" value={openValues} onValueChange={() => {}}>
-      <div className="flex flex-col">
-        {renderedKeys.map((item, idx) => (
-          <div key={`key-${idx}`} className={getSeparatorClasses(idx, renderedKeys.length)}>
-            {item}
-          </div>
-        ))}
-      </div>
-    </Accordion>
+  // Use renderDiffMode for all other diff modes (lines, words, characters)
+  return renderDiffMode(
+    allKeys,
+    value,
+    comparables,
+    [baseLogIndex, ...comparisonLogsIndex],
+    effectiveOpenKeys,
+    effectiveSetOpenKeys,
+    {
+      baseLogIndex,
+      comparisonLogsIndex,
+      version,
+      comparableVersions,
+      diffMode,
+      splitView,
+      displayMode,
+      nestingLevel,
+      prefix,
+      parentPath,
+      expandRecursively: effectiveExpandRecursively,
+      collapseRecursively: effectiveCollapseRecursively,
+    }
   );
 }
