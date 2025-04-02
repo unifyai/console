@@ -796,6 +796,7 @@ export default function SelectionPanel({
         spList.forEach((sp) => subPathSet.add(sp));
       });
       
+      // Consistent with SelectionEntry: check both for non-empty paths and that all are open
       const allOpen = subPathSet.size > 0 && Array.from(subPathSet).every((sp) => localOpenKeys.has(sp));
       return allOpen;
     }
@@ -823,6 +824,7 @@ export default function SelectionPanel({
         spList.forEach((sp: string) => subPathSet.add(sp));
       });
       
+      // Consistent with SelectionEntry: check both for non-empty paths and that all are open
       return subPathSet.size > 0 && Array.from(subPathSet).every((sp: string) => localOpenKeys.has(sp));
     }
     
@@ -846,14 +848,20 @@ export default function SelectionPanel({
         spList.forEach((sp) => subPathSet.add(sp));
       });
       
-      const currentlyAllOpen = areAllOpenEntries();
+      // Convert to array for the recursive functions
+      const subPaths = Array.from(subPathSet);
+      if (subPaths.length === 0) return;
+      
+      // Directly calculate if all are open rather than using areAllOpenEntries
+      // This ensures we're using the exact same paths we're about to expand/collapse
+      const currentlyAllOpen = subPaths.every(path => localOpenKeys.has(path));
       
       if (currentlyAllOpen) {
-        // Collapse all
-        collapseRecursively(Array.from(subPathSet));
+        // Collapse all - use collapseRecursively directly
+        collapseRecursively(subPaths);
       } else {
-        // Expand all
-        expandRecursively(Array.from(subPathSet));
+        // Expand all - use expandRecursively directly
+        expandRecursively(subPaths);
       }
     }
     
@@ -877,15 +885,21 @@ export default function SelectionPanel({
         spList.forEach((sp: string) => subPathSet.add(sp));
       });
       
-      const currentlyAllOpen = areAllOpenParams();
+      // Convert to array for the recursive functions
+      const subPaths = Array.from(subPathSet);
+      if (subPaths.length === 0) return;
       
-      const next = new Set(localOpenKeys);
+      // Directly calculate if all are open rather than using areAllOpenParams
+      // This ensures we're using the exact same paths we're about to expand/collapse
+      const currentlyAllOpen = subPaths.every(path => localOpenKeys.has(path));
+      
       if (currentlyAllOpen) {
-        subPathSet.forEach((sp: string) => next.delete(sp));
+        // Collapse all - use collapseRecursively directly
+        collapseRecursively(subPaths);
       } else {
-        subPathSet.forEach((sp: string) => next.add(sp));
+        // Expand all - use expandRecursively directly
+        expandRecursively(subPaths);
       }
-      onPanelStateChange({ localOpenKeys: next });
     }
   
     // Function to toggle edit mode with expansion key management

@@ -154,10 +154,14 @@ function handleRecursiveToggle(
     subPaths = gatherAllSubPaths(value, path, prefix, nestingLevel);
   }
   
-  // check if all are open
-  const allOpen = subPaths.every((sp) => openKeys.has(sp));
+  // Skip if no paths to process
+  if (subPaths.length === 0) return;
   
-  if (allOpen) {
+  // Check if all subpaths are in openKeys => allOpen
+  // This matches SelectionEntry's approach
+  const currentlyAllOpen = subPaths.every((sp) => openKeys.has(sp));
+  
+  if (currentlyAllOpen) {
     // collapse - call collapseRecursively
     collapseRecursively(subPaths);
   } else {
@@ -315,13 +319,30 @@ function renderNoDiffMode(
         const allRowsForKey = rowValuePairs.map(pair => pair.rowIndex).sort((a, b) => a - b);
         
         // 4. Setup recursive toggle handler
-        const isPathOpen = openKeys.has(path);
-        function handleExpandToggle(e: React.MouseEvent) {
-          e.stopPropagation();
         const currentValue = value?.[k];
         const currentComparables = comparables.map((c) => c?.[k]);
-          handleRecursiveToggle(e, path, currentValue, currentComparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
+        
+        // Calculate all subpaths for this key to determine if all are open
+        let keySubPaths: string[] = [];
+        
+        // Only gather subpaths for dict or list types
+        if (keyType === "dict" || keyType === "list") {
+          // Add the path itself
+          keySubPaths.push(path);
+          
+          // Add all nested paths
+          if (currentComparables && currentComparables.length > 0) {
+            const nestedPaths = gatherAllSubPathsMulti(currentValue, currentComparables, path, prefix, nestingLevel);
+            keySubPaths.push(...nestedPaths);
+          } else {
+            const nestedPaths = gatherAllSubPaths(currentValue, path, prefix, nestingLevel);
+            keySubPaths.push(...nestedPaths);
+          }
         }
+        
+        // Determine if all subpaths are open (not just the path itself)
+        const isPathOpen = keySubPaths.length > 0 && 
+                          keySubPaths.every(subpath => openKeys.has(subpath));
         
         // Get separator classes for this item
         const separatorClasses = getSeparatorClasses(idx, allKeys.length);
@@ -341,7 +362,7 @@ function renderNoDiffMode(
                     variant="ghost"
                     size="icon"
                     tooltip={isPathOpen ? "Collapse All Children" : "Expand All Children"}
-                    onClick={handleExpandToggle}
+                    onClick={(e) => handleRecursiveToggle(e, path, currentValue, currentComparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys)}
                     icon={isPathOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
                   />
                 </div>
@@ -694,13 +715,30 @@ function renderDiffMode(
         const allRowsForKey = [...baseRows, ...compRows].sort((a, b) => a - b);
         
         // 6. Setup recursive toggle handler
-        const isPathOpen = openKeys.has(path);
-        function handleExpandToggle(e: React.MouseEvent) {
-          e.stopPropagation();
-          const currentValue = value?.[k];
-          const currentComparables = comparables.map((c) => c?.[k]);
-          handleRecursiveToggle(e, path, currentValue, currentComparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys);
+        const currentValue = value?.[k];
+        const currentComparables = comparables.map((c) => c?.[k]);
+        
+        // Calculate all subpaths for this key to determine if all are open
+        let keySubPaths: string[] = [];
+        
+        // Only gather subpaths for dict or list types
+        if (keyType === "dict" || keyType === "list") {
+          // Add the path itself
+          keySubPaths.push(path);
+          
+          // Add all nested paths
+          if (currentComparables && currentComparables.length > 0) {
+            const nestedPaths = gatherAllSubPathsMulti(currentValue, currentComparables, path, prefix, nestingLevel);
+            keySubPaths.push(...nestedPaths);
+          } else {
+            const nestedPaths = gatherAllSubPaths(currentValue, path, prefix, nestingLevel);
+            keySubPaths.push(...nestedPaths);
+          }
         }
+        
+        // Determine if all subpaths are open (not just the path itself)
+        const isPathOpen = keySubPaths.length > 0 && 
+                          keySubPaths.every(subpath => openKeys.has(subpath));
         
         // Get separator classes for this item
         const separatorClasses = getSeparatorClasses(idx, allKeys.length);
@@ -738,7 +776,7 @@ function renderDiffMode(
                     variant="ghost"
                     size="icon"
                     tooltip={isPathOpen ? "Collapse All Children" : "Expand All Children"}
-                    onClick={handleExpandToggle}
+                    onClick={(e) => handleRecursiveToggle(e, path, currentValue, currentComparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys)}
                     icon={isPathOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
                   />
                 </div>
@@ -1333,25 +1371,55 @@ export default function DictionaryView({
 
   // Memoize recursive expand/collapse handlers to prevent recreation on displayMode changes
   const handleRecursiveExpandCollapse = useCallback((e: React.MouseEvent, propertyKey: string, itemValue: any, itemComparables: any[]) => {
+    e.stopPropagation();
+    
+    // Build the path for this property
     const path = parentPath
       ? parentPath + "." + sanitizePropertyKey(propertyKey)
       : makePrefixedDictPath(prefix, nestingLevel, propertyKey);
-
+    
+    // Recalculate paths every time to ensure fresh data
+    let currentSubPaths: string[] = [];
+    
+    // Add the root path itself
+    currentSubPaths.push(path);
+    
+    // Get the value and comparables for this key
     const currentValue = value?.[propertyKey];
     const currentComparables = comparables.map((c) => c?.[propertyKey]);
     
-    handleRecursiveToggle(
-      e,
-      path,
-      currentValue,
-      currentComparables,
-      prefix,
-      nestingLevel + 1,
-      effectiveExpandRecursively,
-      effectiveCollapseRecursively,
-      effectiveOpenKeys
-    );
-  }, [parentPath, prefix, nestingLevel, effectiveExpandRecursively, effectiveCollapseRecursively, effectiveOpenKeys]);
+    // Add all subpaths
+    if (currentComparables && currentComparables.length > 0) {
+      const nestedPaths = gatherAllSubPathsMulti(currentValue, currentComparables, path, prefix, nestingLevel + 1);
+      currentSubPaths.push(...nestedPaths);
+    } else {
+      const nestedPaths = gatherAllSubPaths(currentValue, path, prefix, nestingLevel + 1);
+      currentSubPaths.push(...nestedPaths);
+    }
+    
+    // Skip if no paths to process
+    if (currentSubPaths.length === 0) return;
+    
+    // Check if all subpaths are currently open
+    const currentlyAllOpen = currentSubPaths.every(subpath => effectiveOpenKeys.has(subpath));
+    
+    if (currentlyAllOpen) {
+      // All paths are open, so collapse them
+      effectiveCollapseRecursively(currentSubPaths);
+    } else {
+      // Not all paths are open, so expand them
+      effectiveExpandRecursively(currentSubPaths);
+    }
+  }, [
+    parentPath, 
+    prefix, 
+    nestingLevel, 
+    value, 
+    comparables, 
+    effectiveOpenKeys, 
+    effectiveExpandRecursively, 
+    effectiveCollapseRecursively
+  ]);
 
   if (diffMode === "none") {
     return renderNoDiffMode(

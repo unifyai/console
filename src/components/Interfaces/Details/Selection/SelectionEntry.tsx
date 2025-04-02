@@ -461,11 +461,14 @@ export default function SelectionEntry({
   }, [rawValue, isDictOrList, topLevelPath, source, comps, property]);
 
   // check if all subPaths are in openKeys => allOpen
+  // IMPORTANT: We need to recompute this whenever openKeys changes
   const allOpen = useMemo(() => {
     if (!isDictOrList || !subPaths.length) return false;
-    const result = subPaths.every((p) => openKeys.has(p));
-    return result;
-  }, [isDictOrList, subPaths, openKeys]);
+    
+    // Paths must be non-empty and every path must be in openKeys
+    // This is the critical check that determines if "Expand All" or "Collapse All" should be shown
+    return subPaths.every(path => panelOpenKeys.has(path));
+  }, [isDictOrList, subPaths, panelOpenKeys]); // Must depend on panelOpenKeys
   
   // Memoize the content to avoid unnecessary re-calculations
   const renderedContent = useMemo(() => {
@@ -521,13 +524,29 @@ export default function SelectionEntry({
     e.stopPropagation();
     if (!isDictOrList) return;
 
-    // Use the subPaths directly
-    if (allOpen) {
+    // Always recalculate subPaths to ensure the most current state
+    // This fixes issues where the button action doesn't match its label
+    let currentSubPaths: string[] = [];
+    if (comps && comps.length > 0) {
+      currentSubPaths = gatherAllSubPathsMulti(rawValue, comps, topLevelPath, 
+        source === "entries" ? "entries" : "params", 0);
+    } else {
+      currentSubPaths = gatherAllSubPaths(rawValue, topLevelPath, 
+        source === "entries" ? "entries" : "params", 0);
+    }
+    
+    // Check if any paths to process
+    if (currentSubPaths.length === 0) return;
+
+    // Recalculate allOpen state using fresh paths
+    const currentlyAllOpen = currentSubPaths.every(path => panelOpenKeys.has(path));
+
+    if (currentlyAllOpen) {
       // collapse everything recursively
-      collapseRecursively([...subPaths]);
+      collapseRecursively([...currentSubPaths]);
     } else {
       // expand everything recursively
-      expandRecursively([...subPaths]);
+      expandRecursively([...currentSubPaths]);
     }
   };
 
