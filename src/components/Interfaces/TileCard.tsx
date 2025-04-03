@@ -5,7 +5,7 @@ import { Plus } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
-import { icons, tabTypes } from "@/constants/logs";
+import { fileTypes, icons, tabTypes } from "@/constants/logs";
 import { ResponseProps } from "@/types/common";
 import { DerivedEntryActions, FieldsActions, ContextActions, TabProps, TileProps } from "@/types/evals/grid";
 import { LogsActions } from "@/types/evals/grid";
@@ -129,6 +129,26 @@ const TileCard = ({
                   >
                     {tile}
                     {logsLengths[tile] ? "" : " (empty table)"}
+                  </DropdownMenuItem>
+                )
+              })}
+            </BaseDropdown>
+          </div>}
+          {tab && tabUIState?.edit && tab === "Editor" && <div className="w-fit">
+            <BaseDropdown
+              button={<ActionButton
+                tooltip="Select File Type"
+                text={item?.file_type || "Select File Type"}
+                variant="outline"
+                size="default"
+              />}
+            >
+              {fileTypes.map((fileType, idx) => {
+                return (
+                  <DropdownMenuItem key={idx} onSelect={() => {
+                    tileDataActions?.updateEditorTile({ file_type: fileType as "py" | "txt" | "json" });
+                  }}>
+                    {fileType}
                   </DropdownMenuItem>
                 )
               })}

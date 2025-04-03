@@ -1,28 +1,52 @@
+"use client";
+
 import Link from "next/link";
-import { ExternalLink, Loader2, Play } from "lucide-react";
+import { ExternalLink, Loader2, Play, Save } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import { CopyButton } from "../Common/Buttons/Copy";
 import { Editor } from "@monaco-editor/react";
+import { useState, useEffect } from "react";
+import { DoublePanels } from "../Common/Body/DoublePanels";
 
 const CodeBlock = ({
     code,
-    language = "python",
+    language,
     demoLink,
     pendingLocal,
     create,
+    disabled,
+    readOnly,
     onRunDemo,
-    disabled
+    onSave,
 }: {
     code: string;
-    language?: string;
+    language: string | undefined;
     demoLink?: string;
     pendingLocal: boolean;
     create: string | null;
-    onRunDemo: () => void;
     disabled: boolean;
+    readOnly?: boolean;
+    onRunDemo: () => void;
+    onSave?: (value: string | undefined) => void;
 }) => {
+    const [tempCode, setTempCode] = useState(code);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                if (!readOnly && onSave) {
+                    onSave(tempCode);
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [tempCode, readOnly, onSave]);
+
     return (<>
-        <div className="absolute z-10 top-2 right-0 px-4 py-1 rounded-md flex gap-1 text-[var(--white-smoke)]">
+        <div className="absolute z-10 top-2 right-3 py-1 rounded-md flex gap-1 text-[var(--white-smoke)]">
             {demoLink && <Link href={`https://docs.unify.ai/${demoLink}`} target="_blank">
                 <ActionButton icon={<ExternalLink />} tooltip={"Learn more"} />
             </Link>}
@@ -35,23 +59,94 @@ const CodeBlock = ({
                 onClick={onRunDemo}
                 disabled={disabled}
             />
+            <ActionButton
+                icon={<Save />}
+                tooltip={"Save"}
+                onClick={() => onSave != undefined && onSave(tempCode)}
+            />
             <CopyButton content={code} copyMessage="Copied!" />
         </div>
-        <div className="h-full w-full">
-            <Editor
-                height="100%"
-                width="100%"
+        <div className="h-full w-full p-4">
+            {readOnly ? <Editor
                 options={{
-                    automaticLayout: true,
                     minimap: { enabled: false },
                     scrollBeyondLastLine: false,
                     wordWrap: "on",
-                    readOnly: true,
+                    readOnly: readOnly,
+                    padding: {
+                        top: 24,
+                        bottom: 24,
+                    },
+                    fontSize: !readOnly ? 14 : undefined
                 }}
                 theme="vs-dark"
                 language={language}
                 value={code}
-            />
+                onChange={(value) => setTempCode(value || "")}
+            /> : <DoublePanels
+                isLoading={false}
+                direction="vertical"
+                defaultSecondSize={5.3}
+                first={<Editor
+                    options={{
+                        minimap: { enabled: false },
+                        scrollBeyondLastLine: false,
+                        wordWrap: "on",
+                        readOnly: readOnly,
+                        padding: {
+                            top: 24,
+                            bottom: 24,
+                        },
+                        fontSize: !readOnly ? 14 : undefined
+                    }}
+                    theme="vs-dark"
+                    language={language}
+                    value={code}
+                    onChange={(value) => setTempCode(value || "")}
+                />}
+                second={<div className="pt-2 h-full w-full flex flex-col gap-2">
+                    <div className="font-semibold text-gray-400">Output</div>
+                    <div className="h-full w-full">
+                        <Editor
+                            options={{
+                                minimap: { enabled: false },
+                                scrollBeyondLastLine: false,
+                                wordWrap: "on",
+                                lineNumbers: "off",
+                                readOnly: true,
+                                padding: {
+                                    top: 12,
+                                    bottom: 12,
+                                },
+                                fontSize: 14,
+                                renderLineHighlight: "none",
+                                hideCursorInOverviewRuler: true,
+                                overviewRulerBorder: false,
+                                overviewRulerLanes: 0,
+                                scrollbar: {
+                                    vertical: "hidden",
+                                    horizontal: "hidden",
+                                    useShadows: false,
+                                    verticalScrollbarSize: 0,
+                                    horizontalScrollbarSize: 0
+                                },
+                                glyphMargin: false,
+                                folding: false,
+                                lineDecorationsWidth: 20,
+                                lineNumbersMinChars: 0,
+                                guides: {
+                                    indentation: false,
+                                    highlightActiveIndentation: false
+                                },
+                                cursorStyle: "line-thin",
+                                cursorBlinking: "solid"
+                            }}
+                            theme="vs-dark"
+                            value={code}
+                        />
+                    </div>
+                </div>}
+            />}
         </div>
     </>);
 }

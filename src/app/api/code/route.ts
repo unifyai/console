@@ -34,10 +34,36 @@ export async function POST(request: NextRequest) {
             UNIFY_BASE_URL: baseUrl
         };
     }
-    const res = await sandbox.shells.run("python main.py", {
+
+    // create command to run code
+    const command = sandbox.shells.run("python main.py", {
         env: envVars
     });
-    if (res.exitCode !== 0)
+
+    try {
+        // Create a promise that rejects after 40 seconds
+        const timeout = new Promise((_, reject) => {
+            setTimeout(() => {
+                command.kill();
+                reject(new Error('Execution timed out'));
+            }, 100000);
+        });
+
+        // Race between the command execution and timeout
+        const res: any = await Promise.race([command, timeout]);
+
+        // If the command failed, return an error
+        if (res.exitCode !== 0)
+            return Response.json({ detail: "Failed to run code" }, { status: 500 });
+
+        // If the command succeeded, return the output
+        return Response.json(res);
+    } catch (error: any) {
+        // If the command timed out, return a timeout error
+        if (error.message === "Execution timed out")
+            return Response.json({ detail: "Code execution timed out" }, { status: 408 });
+
+        // If the command failed, return an error
         return Response.json({ detail: "Failed to run code" }, { status: 500 });
-    return Response.json(res);
+    }
 }

@@ -3,6 +3,7 @@ import { TableTile, TableTileData, TableTileMeta, TableTileUI } from '@/contexts
 import { PlotTile, PlotTileData, PlotTileMeta, PlotTileUI } from '@/contexts/slices/selectors/plotTile';
 import { ViewTile, ViewTileMeta, ViewTileData, ViewTileUI } from '@/contexts/slices/selectors/viewTile';
 import { PlotDataProps, TableDataProps, TileProps } from '@/types/evals/grid';
+import { EditorTile, EditorTileData, EditorTileMeta, EditorTileUI } from '@/contexts/slices/selectors/editorTile';
 
 /**
  * Build a generic tile state object
@@ -12,7 +13,7 @@ export function buildTileState(
   interfaceId: string | null = null,
   projectId: string | null = null,
   tileProps: TileProps,
-  type: "Table" | "Plot" | "View" = "Table",
+  type: "Table" | "Plot" | "View" | "Editor" = "Table",
 ): Tile {
   // Generate the hierarchical tile ID
   const tileId = `${tabId}>${tileProps.i}`;
@@ -68,6 +69,7 @@ export function buildTileState(
     tableTile: null,
     plotTile: null,
     viewTile: null,
+    editorTile: null,
   };
 
   return tile;
@@ -214,5 +216,45 @@ export function buildViewTileState(
   return {
     ...tile,
     viewTile,
+  };
+}
+
+/**
+ * Build editor tile state
+ */
+export function buildEditorTileState(
+  tabId: string | null = null,
+  interfaceId: string | null = null,
+  projectId: string | null = null,
+  tileProps: TileProps,
+): Tile {
+  // Create the base tile
+  const tile = buildTileState(tabId, interfaceId, projectId, tileProps, "Editor");
+  
+  // Build editor tile meta
+  const editorTileMeta: EditorTileMeta = {
+  };
+
+  // Build editor tile data
+  const editorTileData: EditorTileData = {
+    file_type: tileProps.file_type,
+    content: tileProps.content,
+  };
+
+  // Build editor tile UI
+  const editorTileUI: EditorTileUI = {
+  };
+
+  // Build the complete editor tile
+  const editorTile: EditorTile = {
+    ...editorTileMeta,
+    ...editorTileData,
+    ...editorTileUI,
+  };
+  
+  // Return the complete tile with editor-specific data
+  return {
+    ...tile,
+    editorTile,
   };
 }

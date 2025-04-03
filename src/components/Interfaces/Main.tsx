@@ -102,6 +102,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     let tableTiles = (currentTab?.items || []).filter(item => item.tab == "Table");
     let plotTiles = (currentTab?.items || []).filter(item => item.tab == "Plot");
     let viewTiles = (currentTab?.items || []).filter(item => item.tab == "View");
+    let editorTiles = (currentTab?.items || []).filter(item => item.tab == "Editor");
 
     // Get fields
     const fields: LogFieldsResponseProps[] = await Promise.all(
@@ -410,6 +411,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
             tableTiles: tableTiles,
             plotTiles: plotTiles,
             viewTiles: viewTiles,
+            editorTiles: editorTiles,
             tabCreated: tabCreated,
             tempTabCreated: tempTabCreated,
             savedTab: savedTab,
@@ -428,6 +430,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                     tableTiles: [],
                     plotTiles: [],
                     viewTiles: [],
+                    editorTiles: [],
                     tabCreated: true,
                     tempTabCreated: true,
                     savedTab: tabs[name],

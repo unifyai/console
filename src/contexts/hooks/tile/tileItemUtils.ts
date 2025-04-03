@@ -2,6 +2,7 @@ import { Tile } from '../../slices/selectors/tile';
 import { TableTile } from '../../slices/selectors/tableTile';
 import { PlotTile } from '../../slices/selectors/plotTile';
 import { ViewTile } from '../../slices/selectors/viewTile';
+import { EditorTile } from '../../slices/selectors/editorTile';
 import { TileProps } from '@/types/evals/grid';
 import { constructHierarchicalId, getParentId } from '@/contexts/utils/sliceUtils';
 
@@ -70,6 +71,12 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
     Object.assign(tileProps, {
       base_index: tile.viewTile.base_index
     });
+  } else if (tile.type === 'Editor' && tile.editorTile) {
+    // Add editor-specific properties
+    Object.assign(tileProps, {
+      file_type: tile.editorTile.file_type,
+      content: tile.editorTile.content
+    });
   }
   
   return tileProps;
@@ -100,7 +107,7 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
     minW: tileItem.minW,
     minH: tileItem.minH,
     visible: tileItem.visible,
-    type: tileItem.tab as any,  // 'Table' | 'Plot' | 'View'
+    type: tileItem.tab as any,  // 'Table' | 'Plot' | 'View' | 'Editor'
     
     // Common fields shared across tile types
     moved: tileItem.moved,
@@ -118,6 +125,7 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
   let tableTileUpdates: Partial<TableTile> | null = null;
   let plotTileUpdates: Partial<PlotTile> | null = null;
   let viewTileUpdates: Partial<ViewTile> | null = null;
+  let editorTileUpdates: Partial<EditorTile> | null = null;
   
   if (tileItem.tab === 'Table') {
     tableTileUpdates = {
@@ -154,6 +162,12 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
       base_index: tileItem.base_index
     } as Partial<ViewTile>;
     tileUpdates.viewTile = viewTileUpdates as ViewTile;
+  } else if (tileItem.tab === 'Editor') {
+    editorTileUpdates = {
+      file_type: tileItem.file_type,
+      content: tileItem.content
+    } as Partial<EditorTile>;
+    tileUpdates.editorTile = editorTileUpdates as EditorTile;
   }
   
   return tileUpdates as Tile;

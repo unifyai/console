@@ -2,7 +2,7 @@ import { Tab, TabMeta, TabData, TabUI } from "@/contexts/slices/selectors/tab";
 import { Tile } from "@/contexts/slices/selectors/tile";
 import { PlotDataProps, TabProps, TabsDataProps, TileProps } from "@/types/evals/grid";
 import { TableDataProps } from "@/types/evals/grid";
-import { buildPlotTileState, buildTableTileState, buildTileState, buildViewTileState } from "./tileStateBuilder";
+import { buildEditorTileState, buildPlotTileState, buildTableTileState, buildTileState, buildViewTileState } from "./tileStateBuilder";
 import { TableArguments } from "@/types/evals/logs";
 
 /**
@@ -98,6 +98,21 @@ export function buildTabState(
       );
     });
   }
+
+  // Process editor tiles
+  if (Array.isArray(tabData.editorTiles)) {
+    tabData.editorTiles.forEach((tileProps: TileProps) => {
+      const tileId = createTileId(tileProps);
+      tileIds.push(tileId);
+      
+      tilesById[tileId] = buildEditorTileState(
+        tabId,
+        interfaceId,
+        projectId,
+        tileProps,
+      );
+    });
+  }
   
   // Process tiles from items array if present
   if (tabData.items) {
@@ -109,7 +124,7 @@ export function buildTabState(
         tileIds.push(tileId);
         
         // Determine tile type
-        const tileType = tileProps.tab as "Table" | "Plot" | "View" | undefined;
+        const tileType = tileProps.tab as "Table" | "Plot" | "View" | "Editor" | undefined;
         
         tilesById[tileId] = buildTileState(
           tabId,

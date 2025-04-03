@@ -9,6 +9,7 @@ import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 // Import the new hooks
 import { useTileMeta, useTileUI, useTileItem } from '@/contexts/hooks/tile';
 import { ExpandProvider } from "@/contexts/ExpandContext";
+import Editor from "./Details/Editor/Editor";
 
 // Dynamically import components
 const LogsTable = lazy(() => import("@/components/Interfaces/Table/Table"));
@@ -155,6 +156,17 @@ const Tile = ({
                                 />
                             </Suspense>
                         </ExpandProvider>
+                    </div>
+                );
+            case 'Editor':
+                return (
+                    <div className="w-full h-full overflow-y-auto">
+                        <Editor
+                            tileId={tileId}
+                            tabId={tabId}
+                            interfaceId={interfaceId}
+                            projectId={projectId}
+                        />
                     </div>
                 );
             default:

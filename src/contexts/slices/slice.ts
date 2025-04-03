@@ -9,6 +9,7 @@ import { createTileSlice, TileState, TileActions } from "./tileSlice";
 import { createTableTileSlice, TableTileState, TableTileActions } from "./tableTileSlice";
 import { createPlotTileSlice, PlotTileState, PlotTileActions } from "./plotTileSlice";
 import { createViewTileSlice, ViewTileState, ViewTileActions } from "./viewTileSlice";
+import { createEditorTileSlice, EditorTileState, EditorTileActions } from "./editorTileSlice";
 import { createAsyncSlice, AsyncState, AsyncActions } from "./asyncSlice";
 
 // Re-export the types from the domain logic
@@ -26,6 +27,7 @@ export interface StoreState extends
   TableTileState,
   PlotTileState,
   ViewTileState,
+  EditorTileState,
   AsyncState {}
 
 // Combined actions interface
@@ -38,6 +40,7 @@ export interface StoreActions extends
   TableTileActions,
   PlotTileActions,
   ViewTileActions,
+  EditorTileActions,
   AsyncActions {}
 
 // Combined slice type
@@ -58,5 +61,6 @@ export const createStoreSlice: StateCreator<
   ...createTableTileSlice(...a),
   ...createPlotTileSlice(...a),
   ...createViewTileSlice(...a),
+  ...createEditorTileSlice(...a),
   ...createAsyncSlice(...a),
 }); 

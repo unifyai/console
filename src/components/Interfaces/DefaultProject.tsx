@@ -222,6 +222,7 @@ const DefaultProject = ({
                     <div className="relative h-[400px] w-[600px] mb-auto overflow-y-auto rounded-md border border-1 p-2">
                         <CodeBlock
                             code={demoCode}
+                            language="python"
                             demoLink={demoLink}
                             pendingLocal={pendingLocal}
                             create={create}
@@ -233,6 +234,7 @@ const DefaultProject = ({
                                 demoDerivedColumns
                             )}
                             disabled={disabled}
+                            readOnly={true}
                         />
                     </div>
                 </div>

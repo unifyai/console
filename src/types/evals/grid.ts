@@ -42,6 +42,8 @@ export interface TileProps {
     plot_group_by?: string;
     bin_count?: string;
     regression_line?: string;
+    file_type?: "py" | "txt" | "json";
+    content?: string;
 }
 
 export interface TableDataItem {
@@ -81,6 +83,13 @@ export interface PlotDataProps {
     }
 }
 
+export interface EditorDataProps {
+    [key: string]: {
+        file_type: "py" | "txt" | "json",
+        content: string,
+    }
+}
+
 export type ItemType =
     | "tab"
     | "bin_count"
@@ -112,7 +121,9 @@ export type ItemType =
     | "auto_update"
     | "freeze"
     | "visible"
-    | "table_type";
+    | "table_type"
+    | "file_type"
+    | "content";
 
 export interface Context {
     name: string,
@@ -135,6 +146,7 @@ export interface TabsDataProps {
         tableTiles: TileProps[],
         plotTiles: TileProps[],
         viewTiles: TileProps[],
+        editorTiles: TileProps[],
         tabCreated: boolean,
         tempTabCreated: boolean,
         savedTab: TabProps | null,

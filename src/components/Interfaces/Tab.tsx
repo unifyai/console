@@ -222,6 +222,7 @@ const Tab = ({
                             url={
                                 item.tab === "Plot" ? "https://docs.unify.ai/interfaces/plots" :
                                 item.tab === "View" ? "https://docs.unify.ai/interfaces/views" :
+                                item.tab === "Editor" ? "https://docs.unify.ai/interfaces/views" :
                                 "https://docs.unify.ai/interfaces/tables"
                             }
                         />}

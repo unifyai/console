@@ -5,6 +5,7 @@ import { TileData } from '../../slices/selectors/tile';
 import { TableTile } from '../../slices/selectors/tableTile';
 import { PlotTile } from '../../slices/selectors/plotTile';
 import { ViewTile } from '../../slices/selectors/viewTile';
+import { EditorTile } from '../../slices/selectors/editorTile';
 
 /**
  * Interface for tile data-related actions
@@ -22,6 +23,7 @@ export interface TileDataActions {
    updateTableTile: (updates: Partial<TableTile>) => void;
    updatePlotTile: (updates: Partial<PlotTile>) => void;
    updateViewTile: (updates: Partial<ViewTile>) => void;
+   updateEditorTile: (updates: Partial<EditorTile>) => void;
   }
 
 /**
@@ -82,6 +84,7 @@ export function useTileData(
   const storeUpdateTableTile = useStoreContext(state => state.updateTableTile);
   const storeUpdatePlotTile = useStoreContext(state => state.updatePlotTile);
   const storeUpdateViewTile = useStoreContext(state => state.updateViewTile);
+  const storeUpdateEditorTile = useStoreContext(state => state.updateEditorTile);
 
   // Memoize the data object to prevent unnecessary rerenders
   const data = useMemo<Partial<TileData> | null>(() => {
@@ -168,13 +171,20 @@ export function useTileData(
       if (tileId) {
         storeUpdateViewTile(tileId, updates);
       }
-    }
+    },
+
+    updateEditorTile: (updates) => {
+      if (tileId) {
+        storeUpdateEditorTile(tileId, updates);
+      }
+    },
   }), [
     tileId,
     storeUpdateTile, 
     storeUpdateTableTile, 
     storeUpdatePlotTile, 
-    storeUpdateViewTile
+    storeUpdateViewTile,
+    storeUpdateEditorTile
   ]);
 
   return {
