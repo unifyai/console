@@ -84,6 +84,7 @@ const Tile = ({
         tileItem.x_axis,
         tileItem.y_axis,
         tileItem.plot_group_by,
+        tileItem.is_aggregated,
         tileItem.auto_update,
         tileItem.freeze
     ]);
