@@ -15,6 +15,7 @@ import ListView from "./Views/ListView";
 import MatrixView from "./Views/MatrixView";
 import StringView from "./Views/StringView";
 import TraceView from "./Views/TraceView";
+import { PersistedTraceViewState } from "./Views/TraceView/TraceView";
 import NumberView from "./Views/NumberView";
 import TimestampView from "./Views/TimestampView";
 import ChatOutView from "./Views/ChatView/ChatOutView";
@@ -147,7 +148,8 @@ function getSelectionView(
   nestingLevel: number,
   prefix: string,
   parentPath: string,
-  valueType: string
+  valueType: string,
+  persistedTraceState?: PersistedTraceViewState
 ) {
   // If user wants "raw"
   if (displayMode === "raw") {
@@ -179,6 +181,7 @@ function getSelectionView(
           version={version}
           comparableVersions={vers}
           displayMode={displayMode}
+          persistedState={persistedTraceState}
         />
       );
     case "chat":
@@ -340,6 +343,7 @@ interface SelectionEntryProps {
   forceCollapseAll?: boolean;
   panelOpenKeys: Set<string>;
   panelSetOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>;
+  externalTraceState?: PersistedTraceViewState;
 }
 
 /**
@@ -376,9 +380,9 @@ export default function SelectionEntry({
   forceCollapseAll,
   panelOpenKeys,
   panelSetOpenKeys,
+  externalTraceState,
 }: SelectionEntryProps) {
   // We need to access the expandRecursively and collapseRecursively functions from context
-  // We use the fake usePanelExpandContextSelector function to get the right values
   const expandRecursively = useMemo(() => {
     return (paths: string[]) => {
       panelSetOpenKeys((prev) => {
@@ -400,7 +404,6 @@ export default function SelectionEntry({
   }, [panelSetOpenKeys]);
   
   // Use panel-specific props directly
-  // No type assertions needed since props are properly typed
   const openKeys = panelOpenKeys;
   const setOpenKeys = panelSetOpenKeys;
 
@@ -461,15 +464,61 @@ export default function SelectionEntry({
   }, [rawValue, isDictOrList, topLevelPath, source, comps, property]);
 
   // check if all subPaths are in openKeys => allOpen
-  // IMPORTANT: We need to recompute this whenever openKeys changes
   const allOpen = useMemo(() => {
     if (!isDictOrList || !subPaths.length) return false;
     
     // Paths must be non-empty and every path must be in openKeys
-    // This is the critical check that determines if "Expand All" or "Collapse All" should be shown
     return subPaths.every(path => panelOpenKeys.has(path));
-  }, [isDictOrList, subPaths, panelOpenKeys]); // Must depend on panelOpenKeys
+  }, [isDictOrList, subPaths, panelOpenKeys]);
   
+  // Lift the trace view state here
+  const [traceCollapsedNodes, setTraceCollapsedNodes] = useState<Record<string, boolean>>({});
+  const [traceSelectedNode, setTraceSelectedNode] = useState<any | null>(null);
+  const [traceSelectedSpanId, setTraceSelectedSpanId] = useState<string>("");
+  const [traceGroupSignature, setTraceGroupSignature] = useState<string>("");
+  const [traceExpandOpenKeys, setTraceExpandOpenKeys] = useState<Set<string>>(new Set());
+  const [leftScrollPosition, setLeftScrollPosition] = useState<number>(0);
+  const [rightScrollPosition, setRightScrollPosition] = useState<number>(0);
+
+  // Memoize the persisted state object to prevent unnecessary re-renders
+  const persistedTraceState = useMemo(
+    () => {
+      // If external trace state is provided, use it
+      if (externalTraceState) {
+        return externalTraceState;
+      }
+      
+      // Otherwise, use our local state implementation
+      return {
+        collapsedNodes: traceCollapsedNodes,
+        setCollapsedNodes: setTraceCollapsedNodes,
+        selectedNode: traceSelectedNode,
+        setSelectedNode: setTraceSelectedNode,
+        selectedSpanId: traceSelectedSpanId,
+        setSelectedSpanId: setTraceSelectedSpanId,
+        groupSignature: traceGroupSignature,
+        setGroupSignature: setTraceGroupSignature,
+        traceExpandOpenKeys: traceExpandOpenKeys,
+        setTraceExpandOpenKeys: setTraceExpandOpenKeys,
+        leftScrollPosition: leftScrollPosition,
+        setLeftScrollPosition: setLeftScrollPosition,
+        rightScrollPosition: rightScrollPosition,
+        setRightScrollPosition: setRightScrollPosition,
+      }
+    },
+    [
+      traceCollapsedNodes, 
+      traceSelectedNode, 
+      traceSelectedSpanId, 
+      traceGroupSignature,
+      traceExpandOpenKeys,
+      leftScrollPosition,
+      rightScrollPosition,
+      externalTraceState, 
+      property
+    ]
+  );
+
   // Memoize the content to avoid unnecessary re-calculations
   const renderedContent = useMemo(() => {
     // Skip calculation if empty
@@ -488,7 +537,8 @@ export default function SelectionEntry({
       childNesting, // now always 0 if top-level
       source === "entries" ? "entries" : "params",
       topLevelPath, // Pass the top-level path as parentPath
-      unifiedType // Pass the unified type to avoid recalculating
+      unifiedType, // Pass the unified type to avoid recalculating
+      persistedTraceState // Pass the persisted trace state
     );
   }, [
     rawValue,
@@ -504,7 +554,8 @@ export default function SelectionEntry({
     source,
     topLevelPath,
     unifiedType,
-    isEmpty // Add isEmpty as dependency
+    isEmpty, // Add isEmpty as dependency
+    persistedTraceState // Use the memoized object instead of individual state values
   ]);
   
   // For the shadcn <AccordionItem>, we unify property => so the parent's "onValueChange" logic sees a simpler string

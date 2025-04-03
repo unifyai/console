@@ -38,6 +38,24 @@ import { formatTime } from "@/utils/evals/format";
 import { DoublePanels } from "@/components/Common/Body/DoublePanels";
 import { TraceExpandProvider } from "./TraceExpandContext";
 
+// --- Added types for lifted state ---
+export interface PersistedTraceViewState {
+  collapsedNodes: Record<string, boolean>;
+  setCollapsedNodes: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  selectedNode: PatchDiffNode | null;
+  setSelectedNode: React.Dispatch<React.SetStateAction<PatchDiffNode | null>>;
+  selectedSpanId: string;
+  setSelectedSpanId: React.Dispatch<React.SetStateAction<string>>;
+  groupSignature: string;
+  setGroupSignature: React.Dispatch<React.SetStateAction<string>>;
+  traceExpandOpenKeys: Set<string>;
+  setTraceExpandOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>;
+  leftScrollPosition: number;
+  setLeftScrollPosition: React.Dispatch<React.SetStateAction<number>>;
+  rightScrollPosition: number;
+  setRightScrollPosition: React.Dispatch<React.SetStateAction<number>>;
+}
+
 /*------------------------------------------------------------------------
   Helper functions for compressing row indices => "1-3,5,7-9", etc.
 ------------------------------------------------------------------------*/
@@ -554,7 +572,12 @@ function CollapsiblePatchLineNode({
     " ": "",
   };
 
-  const isSelected = selectedNode === node;
+  const isSelected = selectedNode ? (
+    node.name === selectedNode.name && 
+    node.baseSpanRef?.id === selectedNode.baseSpanRef?.id &&
+    node.targetSpanRef?.id === selectedNode.targetSpanRef?.id
+  ) : false;
+
   const nodeId = `${node.name}_${node.baseSpanRef?.id ?? ""}_${node.targetSpanRef?.id ?? ""}`;
   const hasChildren = children.length > 0;
   const isCollapsed = collapsedNodes[nodeId] === true;
@@ -1066,7 +1089,9 @@ interface UnifiedTraceViewProps {
   rowIndexes: number[];
   diffMode?: LogComparisonProps["diffMode"];
   splitView?: LogComparisonProps["splitView"];
-  displayMode?: "text" | "markdown" | undefined
+  displayMode?: "text" | "markdown" | undefined;
+  // New prop for persisted state (optional)
+  persistedState?: PersistedTraceViewState;
 }
 
 function flattenRootNode(root: PatchDiffNode | null): PatchDiffNode[] {
@@ -1169,11 +1194,129 @@ export default function UnifiedTraceView({
   diffMode = "none",
   splitView = false,
   displayMode = "markdown",
+  persistedState,
 }: UnifiedTraceViewProps) {
-  const [collapsedNodes, setCollapsedNodes] = useState<Record<string, boolean>>({});
+  // If the persisted state is not provided, fall back to local state
+  const [localCollapsedNodes, setLocalCollapsedNodes] = useState<Record<string, boolean>>({});
+  const [localSelectedNode, setLocalSelectedNode] = useState<PatchDiffNode | null>(null);
+  const [localSelectedSpanId, setLocalSelectedSpanId] = useState<string>("");
+  const [localGroupSignature, setLocalGroupSignature] = useState("");
+  // State for trace expand keys and scroll positions
+  const [localTraceExpandOpenKeys, setLocalTraceExpandOpenKeys] = useState<Set<string>>(new Set());
+  const [localLeftScrollPosition, setLocalLeftScrollPosition] = useState<number>(0);
+  const [localRightScrollPosition, setLocalRightScrollPosition] = useState<number>(0);
 
-  const [selectedNode, setSelectedNode] = useState<PatchDiffNode | null>(null);
-  const [selectedSpanId, setSelectedSpanId] = useState<string>("");
+  // Use persisted state if provided, otherwise use local state
+  const collapsedNodes = persistedState ? persistedState.collapsedNodes : localCollapsedNodes;
+  const setCollapsedNodes = persistedState ? persistedState.setCollapsedNodes : setLocalCollapsedNodes;
+
+  const selectedNode = persistedState ? persistedState.selectedNode : localSelectedNode;
+  const setSelectedNode = persistedState ? persistedState.setSelectedNode : setLocalSelectedNode;
+
+  const selectedSpanId = persistedState ? persistedState.selectedSpanId : localSelectedSpanId;
+  const setSelectedSpanId = persistedState ? persistedState.setSelectedSpanId : setLocalSelectedSpanId;
+
+  const groupSignature = persistedState ? persistedState.groupSignature : localGroupSignature;
+  const setGroupSignature = persistedState ? persistedState.setGroupSignature : setLocalGroupSignature;
+  
+  // Get trace expand keys from persisted state if available
+  const traceExpandOpenKeys = persistedState ? persistedState.traceExpandOpenKeys : localTraceExpandOpenKeys;
+  const setTraceExpandOpenKeys = persistedState ? persistedState.setTraceExpandOpenKeys : setLocalTraceExpandOpenKeys;
+  
+  // Get scroll positions from persisted state if available
+  const leftScrollPosition = persistedState ? persistedState.leftScrollPosition : localLeftScrollPosition;
+  const setLeftScrollPosition = persistedState ? persistedState.setLeftScrollPosition : setLocalLeftScrollPosition;
+  
+  const rightScrollPosition = persistedState ? persistedState.rightScrollPosition : localRightScrollPosition;
+  const setRightScrollPosition = persistedState ? persistedState.setRightScrollPosition : setLocalRightScrollPosition;
+  
+  // Create refs for left and right scroll containers
+  const leftScrollRef = useRef<HTMLDivElement>(null);
+  const rightScrollRef = useRef<HTMLDivElement>(null);
+  
+  // Add flags to prevent scroll restoration during manual scrolling
+  const isManuallyScrollingLeft = useRef(false);
+  const isManuallyScrollingRight = useRef(false);
+  const scrollLeftTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollRightTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Flag to track initial render
+  const initialRenderCompleted = useRef(false);
+
+  // Restore scroll positions on initial mount only
+  useEffect(() => {
+    if (!initialRenderCompleted.current) {
+      if (leftScrollRef.current) {
+        leftScrollRef.current.scrollTop = leftScrollPosition;
+      }
+      if (rightScrollRef.current) {
+        rightScrollRef.current.scrollTop = rightScrollPosition;
+      }
+      initialRenderCompleted.current = true;
+    }
+  }, [leftScrollPosition, rightScrollPosition]);
+
+  // Clean up timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollLeftTimeoutRef.current) {
+        clearTimeout(scrollLeftTimeoutRef.current);
+      }
+      if (scrollRightTimeoutRef.current) {
+        clearTimeout(scrollRightTimeoutRef.current);
+      }
+    };
+  }, []);
+  
+  // Handlers to update scroll positions on scroll events with debouncing
+  const handleLeftScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    // Set flag to indicate we're manually scrolling
+    isManuallyScrollingLeft.current = true;
+    
+    // Get the current scroll position
+    const newScrollTop = (e.target as HTMLDivElement).scrollTop;
+    
+    // Clear any existing timeout
+    if (scrollLeftTimeoutRef.current) {
+      clearTimeout(scrollLeftTimeoutRef.current);
+    }
+    
+    // Set a new timeout to update the state after scrolling stops
+    scrollLeftTimeoutRef.current = setTimeout(() => {
+      // Only update if the value changed
+      if (newScrollTop !== leftScrollPosition) {
+        setLeftScrollPosition(newScrollTop);
+      }
+      
+      // Reset the flag
+      isManuallyScrollingLeft.current = false;
+      scrollLeftTimeoutRef.current = null;
+    }, 150); // Wait for scrolling to stop
+  };
+  
+  const handleRightScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    // Set flag to indicate we're manually scrolling
+    isManuallyScrollingRight.current = true;
+    
+    // Get the current scroll position
+    const newScrollTop = (e.target as HTMLDivElement).scrollTop;
+    
+    // Clear any existing timeout
+    if (scrollRightTimeoutRef.current) {
+      clearTimeout(scrollRightTimeoutRef.current);
+    }
+    
+    // Set a new timeout to update the state after scrolling stops
+    scrollRightTimeoutRef.current = setTimeout(() => {
+      // Only update if the value changed
+      if (newScrollTop !== rightScrollPosition) {
+        setRightScrollPosition(newScrollTop);
+      }
+      
+      // Reset the flag
+      isManuallyScrollingRight.current = false;
+      scrollRightTimeoutRef.current = null;
+    }, 150); // Wait for scrolling to stop
+  };
 
   const multiMode = rowIndexes.length > 1;
 
@@ -1181,8 +1324,6 @@ export default function UnifiedTraceView({
     if (!allTraces.length) return [];
     return allTraces[0] ?? [];
   }, [allTraces]);
-
-  const [groupSignature, setGroupSignature] = useState("");
 
   function minimalSpanHierarchy(span: Span): any {
     return {
@@ -1262,11 +1403,12 @@ export default function UnifiedTraceView({
     if (!finalPatchRoot) return;
 
     const forest = flattenRootNode(finalPatchRoot);
-
+    
     if (!selectedSpanId) {
       if (forest.length > 0) {
         const candidate = forest[0];
-        const newId = candidate.baseSpanRef?.id ?? candidate.targetSpanRef?.id ?? "";
+        // Use candidate.name as a fallback if no id is present
+        const newId = candidate.baseSpanRef?.id || candidate.targetSpanRef?.id || candidate.name;
         setSelectedNode(candidate);
         setSelectedSpanId(newId);
       } else {
@@ -1277,10 +1419,12 @@ export default function UnifiedTraceView({
     }
 
     const found = findNodeInForest(forest, selectedSpanId);
+    
     if (!found) {
       if (forest.length > 0) {
         const candidate = forest[0];
-        const newId = candidate.baseSpanRef?.id ?? candidate.targetSpanRef?.id ?? "";
+        // Use candidate.name as a fallback if no id is present
+        const newId = candidate.baseSpanRef?.id || candidate.targetSpanRef?.id || candidate.name;
         setSelectedNode(candidate);
         setSelectedSpanId(newId);
       } else {
@@ -1288,28 +1432,32 @@ export default function UnifiedTraceView({
         setSelectedSpanId("");
       }
     } else {
+      // Always update the selectedNode with the found node to ensure proper rendering
       setSelectedNode(found);
     }
-  }, [finalPatchRoot, selectedSpanId]);
+  }, [finalPatchRoot, selectedSpanId, setSelectedNode, setSelectedSpanId]);
 
   // Memoize functions to prevent recreations on each render
   const onSelectNode = React.useCallback((n: PatchDiffNode | null) => {
     if (!n) {
       setSelectedNode(null);
       setSelectedSpanId("");
-    } else {
-      const newId = n.baseSpanRef?.id ?? n.targetSpanRef?.id ?? "";
-      setSelectedNode(n);
-      setSelectedSpanId(newId);
+      return;
     }
-  }, []);
+    
+    // Use node name as fallback if no ID exists
+    const newId = n.baseSpanRef?.id || n.targetSpanRef?.id || n.name;
+    // Always update both the selected node and the span ID to keep them in sync
+    setSelectedNode(n);
+    setSelectedSpanId(newId);
+  }, [setSelectedNode, setSelectedSpanId]);
 
   const handleGroupChange = React.useCallback((val: string) => {
     setGroupSignature(val);
     setCollapsedNodes({});
     setSelectedNode(null);
     setSelectedSpanId("");
-  }, []);
+  }, [setGroupSignature, setCollapsedNodes, setSelectedNode, setSelectedSpanId]);
 
   function renderPatchTree() {
     if (!finalPatchRoot) {
@@ -1319,8 +1467,11 @@ export default function UnifiedTraceView({
     if (!forest.length) {
       return <p className="text-sm italic text-muted-foreground mt-2">No top-level spans</p>;
     }
+    
+    // Add a key with selectedNode state to force remounting when selection changes
+    // This ensures highlighting is properly updated
     return (
-      <>
+      <React.Fragment key={`trace-tree-${selectedSpanId}`}>
         {forest.map((oneRoot, i) => (
           <CollapsiblePatchLineNode
             key={i}
@@ -1334,7 +1485,7 @@ export default function UnifiedTraceView({
             multiMode={multiMode}
           />
         ))}
-      </>
+      </React.Fragment>
     );
   }
 
@@ -1355,7 +1506,10 @@ export default function UnifiedTraceView({
   }, [selectedNode, rowIndexes, groupCompareRows, allTraces, diffMode, splitView, displayMode]);
 
   return (
-    <TraceExpandProvider>
+    <TraceExpandProvider
+      externalOpenKeys={traceExpandOpenKeys}
+      setExternalOpenKeys={setTraceExpandOpenKeys}
+    >
       <div className="bg-background rounded-md w-full h-full p-4 flex flex-col gap-4">
         <div style={{ height: "600px" }}>
           <DoublePanels
@@ -1364,6 +1518,8 @@ export default function UnifiedTraceView({
             defaultSecondSize={70}
             first={
               <div
+                ref={leftScrollRef}
+                onScroll={handleLeftScroll}
                 style={{
                   height: "100%",
                   border: "1px solid var(--muted)",
@@ -1393,6 +1549,8 @@ export default function UnifiedTraceView({
             }
             second={
               <div
+                ref={rightScrollRef}
+                onScroll={handleRightScroll}
                 style={{
                   height: "100%",
                   border: "1px solid var(--muted)",

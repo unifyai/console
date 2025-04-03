@@ -57,9 +57,12 @@ export { TraceExpandContext };
 
 interface TraceExpandProviderProps {
   children: ReactNode;
+  // Add optional props for external state
+  externalOpenKeys?: Set<string>;
+  setExternalOpenKeys?: React.Dispatch<React.SetStateAction<Set<string>>>;
 }
 
-// Generate a random ID for debugging context instances
+// Generate a random ID for instance identification
 function generateRandomId() {
   return Math.random().toString(36).substring(2, 10);
 }
@@ -69,12 +72,21 @@ function generateRandomId() {
  *  - Used specifically within TraceView
  *  - Manages global expand/collapse for DictionaryView, ListView, etc. within traces
  */
-export function TraceExpandProvider({ children }: TraceExpandProviderProps) {
+export function TraceExpandProvider({ 
+  children, 
+  externalOpenKeys, 
+  setExternalOpenKeys 
+}: TraceExpandProviderProps) {
   // Create a stable instance ID for this context provider
   const instanceId = useMemo(() => generateRandomId(), []);
   
   // A set of open "paths" representing which nodes are individually expanded.
-  const [openKeys, setOpenKeys] = useState<Set<string>>(new Set());
+  // Use external state if provided, otherwise use local state
+  const [localOpenKeys, setLocalOpenKeys] = useState<Set<string>>(new Set());
+  
+  // Determine which state to use - external or local
+  const openKeys = externalOpenKeys !== undefined ? externalOpenKeys : localOpenKeys;
+  const setOpenKeys = setExternalOpenKeys !== undefined ? setExternalOpenKeys : setLocalOpenKeys;
 
   // If forceExpandAll is true => everything is considered open.
   const [forceExpandAll, setForceExpandAll] = useState<boolean>(false);
