@@ -2,10 +2,10 @@
 
 import ActionButton from "@/components/Common/Buttons/Action";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
-import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuGroup } from "@/components/UI/dropdown-menu";
+import { DropdownMenuItem, DropdownMenuGroup } from "@/components/UI/dropdown-menu";
 import { Table, Header } from "@tanstack/react-table";
 import { CirclePlus } from "lucide-react";
-import { getImmediateHiddenSiblings, getImmediateSiblings, updateColumnVisibility } from "@/utils/evals/columnOperations";
+import { getImmediateRightNeighbors, getImmediateHiddenSiblings, updateColumnVisibility, sanitizeId, isLastSameParentColumnInColumnOrder } from "@/utils/evals/columnOperations";
 import { getColumnGroupIDs, moveGroupInColumnOrder } from "@/utils/evals/table";
 import { ReactNode, useState } from "react";
 
@@ -21,79 +21,45 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
     const [open, setOpen] = useState<boolean>(false);
     const isParentColumn = header.column.columnDef.meta?.isParent;
     const columnType = header.column.columnDef.meta?.columnType;
-    const currentDepth = header.column.columnDef.meta?.renderedDepth;
     const isUtilColumn = header.column.columnDef.meta?.columnType === "util";
+    const currentDepth = isUtilColumn ? header.depth: header.column.columnDef.meta?.renderedDepth;
 
     // Store both all immediate right neighbors and hidden ones
     let immediateRightNeighborIds: string[] = [];
     let hiddenImmediateRightNeighborIds: string[] = [];
 
     const rawHiddenColumns = (() => {
-        // Get the immediate parent column for the current column
-        const immediateParent = header.column.parent;
-
         // Initialize array to store hidden columns
         let hidden: string[] = [];
 
         // Get hidden siblings of current column
-        if (immediateParent && currentDepth !== undefined) {
+        if (currentDepth !== undefined) {
             const currentHiddenSiblings = getImmediateHiddenSiblings(
                 header.column,
                 currentDepth,
                 columnOrder,
                 columnVisibility,
+                table,
             );
             hidden.push(...currentHiddenSiblings);
         }
 
-        // Find the immediate right neighbors at the same depth that are hidden
-        const currentColumnIndex = columnOrder.indexOf(header.column.id);
-        if (currentColumnIndex !== -1) {
-            // Look at columns to the right of the current column in the columnOrder array
-            const allColumns = table.getAllFlatColumns();
-            for (let i = currentColumnIndex; i < columnOrder.length; i++) {
-                const colId = columnOrder[i];
-                const col = allColumns.find(c => c.id === colId);
+        // Find the immediate right neighbors at the same depth that are hidden only if
+        // the current column is the last column in the columnOrder array after which we switch to some other parent column
+        if (currentDepth !== undefined && isLastSameParentColumnInColumnOrder(header.column, columnOrder, columnVisibility)) {
+            const immediateRightNeighbors = getImmediateRightNeighbors(
+                header.column,
+                currentDepth,
+                columnOrder,
+                table,
+            );
+            immediateRightNeighborIds.push(...immediateRightNeighbors);
 
-                // Skip if column or its metadata is not found
-                if (!col || !col.columnDef.meta?.renderedDepth) continue;
-
-                // If we find a column at the same depth
-                const depth = isUtilColumn ? header.depth - 1 : currentDepth;  // Adjust depth for util columns
-
-                // If no parent, check for hidden columns at the root level
-                if (!col.parent?.id) {
-                    const hiddenColumns = allColumns
-                        .filter(c => c.columnDef.meta?.renderedDepth === depth && !columnVisibility[c.id])
-                        .map(c => c.id)
-                    hidden.push(...hiddenColumns)
-                    break;
-                }
-
-                if (col.columnDef.meta.renderedDepth === depth) {
-                    // Only consider as immediate right neighbor if it has a different parent
-                    if (col.parent?.id !== header.column.parent?.id) {
-                        // Get all siblings of this column (including itself)
-                        const siblingIds = getImmediateSiblings(col, depth, columnOrder);
-                        // Store all immediate right neighbors
-                        immediateRightNeighborIds.push(...siblingIds);
-
-                        // Get hidden siblings and store them separately
-                        const hiddenSiblings = getImmediateHiddenSiblings(
-                            col,
-                            depth,
-                            columnOrder,
-                            columnVisibility,
-                        );
-                        hidden.push(...hiddenSiblings);
-                        hiddenImmediateRightNeighborIds.push(...hiddenSiblings);
-                    }
-
-                    // Whether siblings were found or not, we break as we found the first column at our depth
-                    break;
-                }
-            }
-        }
+            // Find the immediate right neighbors at the same depth that are hidden
+            const hiddenImmediateRightNeighbors = immediateRightNeighbors.filter((neighbor) => !columnVisibility[neighbor]);
+            hidden.push(...hiddenImmediateRightNeighbors);
+            hiddenImmediateRightNeighborIds.push(...hiddenImmediateRightNeighbors);
+        }    
 
         return hidden;
     })();
@@ -179,7 +145,9 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
                             <DropdownMenuItem key={index} onClick={() => {
                                 displayColumn(column);
                             }}>
-                                {column.split("/")[column.split("/").length - 1]}
+                                {/* Display only the last "/" joined string of the column ID */}
+                                {/* e.g. "params/param1/param2" -> "param1/param2" */}
+                                {sanitizeId(column).split("/").slice(-2).join("/")}
                             </DropdownMenuItem>
                         )}
                     </DropdownMenuGroup>

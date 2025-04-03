@@ -16,6 +16,52 @@ import { Column, ColumnDef, Table } from "@tanstack/react-table";
 }
 
 /*
+  Utility function to extract the parent ID from a column ID.
+  Returns undefined if the column ID is the root column. The function
+  respects both sanitized and non-sanitized column IDs.
+*/
+export const getParentID = (columnID: string): string | undefined => {
+    const parentID = columnID.split("/").slice(0, -1).join("/") || undefined;
+    return parentID;
+};
+
+/*
+  Utility function to compare two column IDs and return true if they have the
+  same parent ID.
+*/
+export const hasSameParent = (columnID1: string, columnID2: string): boolean => {
+    const parentID1 = getParentID(columnID1);
+    const parentID2 = getParentID(columnID2);
+    return parentID1 === parentID2;
+};
+
+/*
+  Utility function to check if a column is the last column in the columnOrder array
+  after which we switch to some other parent column. We do this by looking to the 
+  right after the current column in the columnOrder array and checking if the parent
+  ID of the next column is different from the parent ID of the current column.
+*/
+export const isLastSameParentColumnInColumnOrder = (
+    column: Column<any, unknown>,
+    columnOrder: string[],
+    columnVisibility: { [key: string]: boolean }
+): boolean => {
+    const currentIndex = columnOrder.indexOf(column.id);
+    if (currentIndex === -1 || currentIndex === columnOrder.length - 1) return false;
+
+    // We loop over the columnOrder array to the right of the current column
+    // and find the next visible column
+    for (let i = currentIndex + 1; i < columnOrder.length; i++) {
+        const nextColumn = columnOrder[i];
+        if (columnVisibility[nextColumn]) {
+            return getParentID(nextColumn) !== getParentID(column.id);
+        }
+    }
+
+    return false;
+};
+
+/*
   Utility function to handle splitting and merging of context and column keys.
   Respects leading/trailing "/" gracefully and handles null/undefined inputs.
 */
@@ -171,24 +217,66 @@ export const updateColumnVisibility = (
 };
 
 /*
+  Utility function to get the immediate right parent of a column
+*/
+export const getImmediateRightParent = (
+    column: Column<any, unknown>,
+    currentDepth: number,
+    columnOrder: string[],
+    table: Table<any>
+): string | undefined => {
+    const currentColumnIndex = columnOrder.indexOf(column.id);
+    if (currentColumnIndex === -1 || currentColumnIndex === columnOrder.length - 1) return undefined;
+
+    // Extract the parent ID from the current column ID
+    const currentColumnParentID = getParentID(column.id);
+
+    // If the current column is the root column, return undefined
+    // Handle special case where e.g. RowNumbering is a root column but maybe
+    // it is followed by a parent column e.g. student/gender etc.
+    if (!currentColumnParentID) {
+        const nextColumn = getNextColumnAtSameDepth(column, currentDepth, columnOrder, table);
+        const neighborParentID = nextColumn ? getParentID(nextColumn.id) : undefined;
+        if (neighborParentID !== undefined && neighborParentID !== currentColumnParentID) {
+            return neighborParentID;
+        }
+        return undefined;
+    }
+
+    // Find the immediate right parent in the columnOrder array.
+    // Loop over the columnOrder array to the right of currentColumnIndex
+    // and return the first column ID that is different from currentColumnParentID
+    for (let i = currentColumnIndex + 1; i < columnOrder.length; i++) {
+        const neighborID = columnOrder[i];
+        const neighborParentID = getParentID(neighborID);
+        if (neighborParentID !== undefined && neighborParentID !== currentColumnParentID) {
+            return neighborID;
+        }
+    }
+    return undefined;
+};
+
+
+/*
   Utility function to get immediate siblings for a column. The returned
   siblings respect the order defined in the columnOrder array.
 */
 export const getImmediateSiblings = (
     column: Column<any, unknown>,
     currentDepth: number,
-    columnOrder: string[]
+    columnOrder: string[],
+    table: Table<any>
 ): string[] => {
-    if (!column.parent) return [];
+    const currentParentID = getParentID(column.id);
+    if (!currentParentID) return [];
 
-    const siblingColumns = column.parent.columns;
-    return siblingColumns
-        .filter((siblingCol: Column<any, unknown>) => 
-            siblingCol.columnDef.meta?.renderedDepth === currentDepth && 
-            columnOrder.includes(siblingCol.id as string)
-        )
+    const allColumns = table.getAllFlatColumns();
+    const siblingColumns = allColumns
+        .filter((col) => col.id !== column.id && hasSameParent(col.id, column.id) && col.columnDef.meta?.renderedDepth === currentDepth)
         .map((siblingCol: Column<any, unknown>) => siblingCol.id as string)
         .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));  // Sort based on columnOrder indices
+
+    return siblingColumns;
 };
 
 /*
@@ -198,12 +286,66 @@ export const getImmediateHiddenSiblings = (
     column: Column<any, unknown>,
     currentDepth: number,
     columnOrder: string[],
-    columnVisibility: { [key: string]: boolean }
+    columnVisibility: { [key: string]: boolean },
+    table: Table<any>
 ): string[] => {
-    if (!column.parent) return [];
-
-    const immediateSiblings = getImmediateSiblings(column, currentDepth, columnOrder);
+    const immediateSiblings = getImmediateSiblings(column, currentDepth, columnOrder, table);
     return immediateSiblings.filter((sibling) => !columnVisibility[sibling]);
+};
+
+/*
+  Utility function to get the immediate right neighbors (columns at the same
+  rendered depth but from the immediate next parent) of a column e.g.
+  [student/gender, student/age, student/name, question/question_number, question/question_text]
+  the immediate right neighbors of the `student/gender`, `student/age`, `student/name` columns are 
+  the `question/question_number`, `question/question_text` columns because student is a different
+  parent from question.
+*/
+export const getImmediateRightNeighbors = (
+    column: Column<any, unknown>,
+    currentDepth: number,
+    columnOrder: string[],
+    table: Table<any>
+): string[] => {
+    const currentIndex = columnOrder.indexOf(column.id);
+    if (currentIndex === -1 || currentIndex === columnOrder.length - 1) return [];
+
+    // Find the immediate right parent (if exists) for the current column in the columnOrder array
+    const immediateRightParentID = getImmediateRightParent(column, currentDepth, columnOrder, table);
+
+    const allColumns = table.getAllFlatColumns();
+
+    // If there was no immediate right parent, that means we are at the rightmost column already
+    if (!immediateRightParentID) {
+        return [];
+    }
+
+    // If there was an immediate right parent, return all columns that have the same parent ID as
+    // the immediate right parent and are at the same rendered depth
+    const immediateRightNeighbors = allColumns
+        .filter((col) => {
+            const parentID = getParentID(col.id);
+            return col.id !== column.id && parentID === immediateRightParentID && col.columnDef.meta?.renderedDepth === currentDepth;
+        })
+        .map((col) => col.id as string)
+        .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));  // Sort based on columnOrder indices
+
+    return immediateRightNeighbors;
+};
+
+
+/*
+  Utility function to get the immediate hidden right neighbors of a column
+*/
+export const getImmediateHiddenRightNeighbors = (
+    column: Column<any, unknown>,
+    currentDepth: number,
+    columnOrder: string[],
+    columnVisibility: { [key: string]: boolean },
+    table: Table<any>
+): string[] => {
+    const immediateRightNeighbors = getImmediateRightNeighbors(column, currentDepth, columnOrder, table);
+    return immediateRightNeighbors.filter((neighbor) => neighbor !== column.id && !columnVisibility[neighbor]);
 };
 
 /*
@@ -211,15 +353,15 @@ export const getImmediateHiddenSiblings = (
 */
 export const getNextColumnAtSameDepth = (
     column: Column<any, unknown>,
+    currentDepth: number,
     columnOrder: string[],
     table: Table<any>
 ): Column<any, unknown> | undefined => {
-    const currentDepth = column.columnDef.meta?.renderedDepth;
     const currentIndex = columnOrder.indexOf(column.id);
     
     if (currentIndex === -1 || currentDepth === undefined) return undefined;
 
-    const allColumns = table.getAllColumns();
+    const allColumns = table.getAllFlatColumns();
     
     // Look through columns after the current one
     for (let i = currentIndex + 1; i < columnOrder.length; i++) {
@@ -239,15 +381,15 @@ export const getNextColumnAtSameDepth = (
 */
 export const getPreviousColumnAtSameDepth = (
     column: Column<any, unknown>,
+    currentDepth: number,
     columnOrder: string[],
     table: Table<any>
 ): Column<any, unknown> | undefined => {
-    const currentDepth = column.columnDef.meta?.renderedDepth;
     const currentIndex = columnOrder.indexOf(column.id);
     
     if (currentIndex === -1 || currentDepth === undefined) return undefined;
 
-    const allColumns = table.getAllColumns();
+    const allColumns = table.getAllFlatColumns();
 
     // Look through columns before the current one
     for (let i = currentIndex - 1; i >= 0; i--) {
