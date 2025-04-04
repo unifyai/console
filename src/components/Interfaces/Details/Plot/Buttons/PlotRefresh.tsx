@@ -4,7 +4,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { TileProps, LogsActions, FieldsActions, PlotDataItem } from "@/types/evals/grid";
-import { PlotArguments, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
+import { PlotArguments, LogFieldsResponseProps, LogsResponseProps, GroupedMetrics } from "@/types/evals/logs";
 import { replaceParamsIndicesWithValues, convertMetricsToLogs } from "@/utils/evals/common";
 import { processContext } from "@/utils/evals/columnOperations";
 import { LogProps } from "@/types/evals/logs";
@@ -89,10 +89,15 @@ const fetchAndMergeLogs = async (tables: string[], item: TileProps | undefined, 
             const tableGrouping = tableArgs ? tableArgs["grouping"] : null;
             const tableMetric = tableArgs ? tableArgs["metric"] ? tableArgs["metric"] : "mean" : "mean";
             let tableData: LogsResponseProps = { params: {}, logs: [], count: 0, groups: [] };
-            if (item?.is_aggregated === "true" && tableGrouping && tableSubset) {
-                const groupField = tableGrouping.split(",")[0] 
-                const metrics = await logsActions.getMetrics(project, tableContext, tableFilters, groupField, tableMetric, tableSubset.split("&"))
-                tableData.logs = convertMetricsToLogs(groupField, tableMetric, tableFields, metrics as {[key: string]: {[key: string]: {[key: string]: number}}})
+            if (
+                (item?.is_aggregated && item.is_aggregated.split(".").length > 1)
+                && item.is_aggregated.split(".")[0] === table
+                && tableGrouping
+                && tableSubset
+            ) {
+                const groupFields = tableGrouping.split(",").slice(0, tableGrouping.split(",").indexOf(item.is_aggregated.split(".")[1]) + 1)
+                const metrics = await logsActions.getMetrics(project, tableContext, tableFilters, groupFields.join(","), tableMetric, tableSubset.split("&"))
+                tableData.logs = convertMetricsToLogs(groupFields, tableMetric, tableFields, metrics as GroupedMetrics)
             }
             else {
                 const rawData = await logsActions.get(project, tableContext, tableColumnContext, tableFilters, null, null, null, tableSubset, null, null, null, null, null, Date.now().toString());

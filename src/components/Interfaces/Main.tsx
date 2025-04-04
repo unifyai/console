@@ -1,4 +1,4 @@
-import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, LogItemProps } from "@/types/evals/logs";
+import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedMetrics } from "@/types/evals/logs";
 import { getLogsDetails, replaceParamsIndicesWithValues, convertMetricsToLogs } from "@/utils/evals/common";
 import { Context, ContextActions, DerivedEntryActions, FieldsActions, TabProps, TabActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TabsDataProps, CodeActions, DevboxActions } from "@/types/evals/grid";
 import { buildFilterExpression } from "@/utils/evals/filters";
@@ -272,10 +272,14 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                     if (subset) plotArguments[table.i]["subset"] = subset
 
                     /* Get raw logs values or grouped metrics as logs */
-                    if (tile.is_aggregated === "true" && grouping) {
-                        const groupField = grouping.split(",")[0] 
-                        const metrics = await logsActions.getMetrics(currentProject, context ?? null, filterExpression, groupField,metric ? metric : "mean",subset.split("&"))
-                        data.logs = convertMetricsToLogs(groupField, metric ? metric : "mean", fields[tableIdx], metrics as {[key: string]: {[key: string]: {[key: string]: number}}})
+                    if (
+                        (tile.is_aggregated && tile.is_aggregated.split(".").length > 1) // `is_aggregated` has the format `table.column`
+                        && tile.is_aggregated.split(".")[0] === table.i                  // `table` in `is_aggregated` is the current table name
+                        && grouping                                                      // the current table has grouping applied
+                    ) {
+                        const groupFields = grouping.split(",").slice(0, grouping.split(",").indexOf(tile.is_aggregated.split(".")[1]) + 1)
+                        const metrics = await logsActions.getMetrics(currentProject, context ?? null, filterExpression, groupFields.join(","), metric ? metric : "mean",subset.split("&"))
+                        data.logs = convertMetricsToLogs(groupFields, metric ? metric : "mean", fields[tableIdx], metrics as GroupedMetrics)
                     }
                     else {
                         const rawData = await logsActions.get(currentProject, context ?? null, columnContext ?? null, filterExpression, null, null, null, subset, null, null, null, null, null, Date.now().toString());

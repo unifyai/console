@@ -161,9 +161,7 @@ export const getLogMetrics = async (apiKey: string) => {
                 + (context ? `&context=${context}` : "")
                 + `&key=${JSON.stringify(sanitizedKeyNames)}`
                 + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
-                + (groupingExpression ? groupingExpression.split(",").map(
-                    expr => `&group_by=${encodeURIComponent(expr.trim())}`
-                ).join("") : "")
+                + (groupingExpression ? `&group_by=${encodeURIComponent(JSON.stringify(groupingExpression.split(",")))}` : "")
             ),
             { method: "GET", headers: { apiKey: apiKey } }
         );
