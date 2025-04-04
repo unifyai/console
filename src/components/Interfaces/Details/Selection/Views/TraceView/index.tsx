@@ -1,9 +1,13 @@
 import React from "react";
 import { Span } from "@/types/evals/traces";
 import { LogComparisonProps } from "../types";
-import UnifiedTraceView from "./TraceView";
+import UnifiedTraceView, { PersistedTraceViewState } from "./TraceView";
 
-const TraceView: React.FC<LogComparisonProps> = ({
+interface TraceViewProps extends LogComparisonProps {
+  persistedState?: PersistedTraceViewState;
+}
+
+const TraceView: React.FC<TraceViewProps> = ({
   value,
   comparables,
   baseLogIndex,
@@ -11,6 +15,7 @@ const TraceView: React.FC<LogComparisonProps> = ({
   diffMode = "none",
   splitView = false,
   displayMode = "markdown",
+  persistedState,
 }) => {
   // Ensure the base "value" is an array of spans
   if (!Array.isArray(value)) {
@@ -33,6 +38,7 @@ const TraceView: React.FC<LogComparisonProps> = ({
       diffMode={diffMode}
       splitView={splitView}
       displayMode={displayMode}
+      persistedState={persistedState}
     />
   );
 };

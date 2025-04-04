@@ -7,7 +7,8 @@ import {
   AccordionContent,
 } from "@/components/UI/accordion";
 import { Combobox } from "@/components/UI/Combobox";
-import { ChevronDown, ChevronRight, Clock, Code, DollarSign, AlertTriangle, FileInput, FileOutput, IdCard } from "lucide-react";
+import { ChevronDown, ChevronRight, Clock, Code, DollarSign, AlertTriangle, FileInput, FileOutput, IdCard, FoldVertical, UnfoldVertical, Copy } from "lucide-react";
+import ActionButton from "@/components/Common/Buttons/Action";
 
 import { Span } from "@/types/evals/traces";
 import {
@@ -28,6 +29,7 @@ import TimestampView from "../TimestampView";
 import ExecutionTimeView from "../ExecutionTimeView";
 
 import { isDict, isList, isMatrix, isImage, isNumber, isTimestamp, isChat } from "@/utils/evals/selection";
+import { gatherAllSubPaths } from "@/utils/evals/pathUtils";
 
 import { LogComparisonProps } from "../types";
 import Tooltip from "@/components/Common/Misc/Tooltip";
@@ -37,6 +39,25 @@ import TimelineViewButton from "./TimelineView";
 import { formatTime } from "@/utils/evals/format";
 import { DoublePanels } from "@/components/Common/Body/DoublePanels";
 import { TraceExpandProvider } from "./TraceExpandContext";
+import { CopyButton } from "@/components/Common/Buttons/Copy";
+
+// --- Added types for lifted state ---
+export interface PersistedTraceViewState {
+  collapsedNodes: Record<string, boolean>;
+  setCollapsedNodes: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  selectedNode: PatchDiffNode | null;
+  setSelectedNode: React.Dispatch<React.SetStateAction<PatchDiffNode | null>>;
+  selectedSpanId: string;
+  setSelectedSpanId: React.Dispatch<React.SetStateAction<string>>;
+  groupSignature: string;
+  setGroupSignature: React.Dispatch<React.SetStateAction<string>>;
+  traceExpandOpenKeys: Set<string>;
+  setTraceExpandOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>;
+  leftScrollPosition: number;
+  setLeftScrollPosition: React.Dispatch<React.SetStateAction<number>>;
+  rightScrollPosition: number;
+  setRightScrollPosition: React.Dispatch<React.SetStateAction<number>>;
+}
 
 /*------------------------------------------------------------------------
   Helper functions for compressing row indices => "1-3,5,7-9", etc.
@@ -227,6 +248,226 @@ function pickView(
   );
 }
 
+// Define DictionarySectionItem component to handle dictionary-type sections
+function DictionarySectionItem({
+  title,
+  baseVal,
+  comps,
+  baseLogIndex,
+  comparisonLogsIndex,
+  diffMode,
+  splitView,
+  displayMode,
+  persistedState,
+  openSections,
+  setOpenSections,
+  sectionIcons,
+}: {
+  title: string;
+  baseVal: any;
+  comps: any[];
+  baseLogIndex: number;
+  comparisonLogsIndex: number[];
+  diffMode?: LogComparisonProps["diffMode"];
+  splitView?: LogComparisonProps["splitView"];
+  displayMode?: "text" | "markdown" | undefined;
+  persistedState?: PersistedTraceViewState;
+  openSections: string[];
+  setOpenSections: React.Dispatch<React.SetStateAction<string[]>>;
+  sectionIcons: Record<string, JSX.Element>;
+}) {
+  // Create a custom icon mapping for the DictionaryView
+  const customIconMapping: Record<string, JSX.Element> = {};
+  
+  // IMPORTANT: Declare hooks before any conditional returns
+  // This ensures hooks are always called in the same order
+  const [allExpanded, setAllExpanded] = useState<boolean>(false);
+  const dictionaryRef = useRef<HTMLDivElement>(null);
+
+  // Add custom icons for specific keys
+  if (title === "Inputs") {
+    // Common input keys with appropriate icons
+    customIconMapping["query"] = <span className="text-primary">Q</span>;
+    customIconMapping["prompt"] = <span className="text-primary">P</span>;
+    customIconMapping["text"] = <span className="text-primary">T</span>;
+    customIconMapping["messages"] = <span className="text-primary">M</span>;
+    customIconMapping["context"] = <span className="text-primary">C</span>;
+    customIconMapping["documents"] = <span className="text-primary">D</span>;
+    customIconMapping["parameters"] = <span className="text-primary">π</span>;
+    customIconMapping["options"] = <span className="text-primary">O</span>;
+    customIconMapping["system_prompt"] = <span className="text-primary">S</span>;
+  } else if (title === "Outputs") {
+    // Common output keys with appropriate icons
+    customIconMapping["result"] = <span className="text-primary">R</span>;
+    customIconMapping["response"] = <span className="text-primary">R</span>;
+    customIconMapping["completion"] = <span className="text-primary">C</span>;
+    customIconMapping["answer"] = <span className="text-primary">A</span>;
+    customIconMapping["generated_text"] = <span className="text-primary">G</span>;
+    customIconMapping["message"] = <span className="text-primary">M</span>;
+    customIconMapping["content"] = <span className="text-primary">C</span>;
+    customIconMapping["choices"] = <span className="text-primary">C</span>;
+    customIconMapping["error"] = <span className="text-red-500">E</span>;
+  }
+  
+  // Effect to update allExpanded state based on actual paths
+  useEffect(() => {
+    if (!persistedState) return; // Early return if no persistedState
+    
+    const parentPath = title.toLowerCase();
+    const allKeys = Object.keys(baseVal || {});
+    let allPaths: string[] = [];
+    
+    // Gather all paths
+    for (const key of allKeys) {
+      const keyPath = `${parentPath}.${key}`;
+      allPaths.push(keyPath);
+      
+      // Get nested paths if the value is a dict or list
+      const value = baseVal[key];
+      if (isDict(value) || isList(value)) {
+        const nestedPaths = gatherAllSubPaths(value, keyPath, parentPath, 1);
+        allPaths.push(...nestedPaths);
+      }
+    }
+    
+    // Check if all paths are expanded
+    const allPathsExpanded = allPaths.length > 0 && 
+      allPaths.every(path => persistedState.traceExpandOpenKeys.has(path));
+    
+    setAllExpanded(allPathsExpanded);
+  }, [persistedState?.traceExpandOpenKeys, title, baseVal]);
+
+  // Handlers for expand/collapse actions
+  const handleExpandAll = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent accordion from toggling
+    
+    if (!persistedState) return; // Early return if no persistedState
+    
+    setAllExpanded(true);
+    
+    // Ensure the parent accordion item is open
+    if (!openSections.includes(title)) {
+      setOpenSections(prev => [...prev, title]);
+    }
+    
+    // Get all subpaths and expand them
+    // Use TraceExpandContext for persisted state
+    const parentPath = title.toLowerCase();
+    let subPaths: string[] = [];
+    
+    // Add the parent path itself to ensure it's opened
+    subPaths.push(parentPath);
+    
+    // Gather all keys
+    const allKeys = Object.keys(baseVal || {});
+    
+    // Add paths for all keys
+    for (const key of allKeys) {
+      const keyPath = `${parentPath}.${key}`;
+      subPaths.push(keyPath);
+      
+      // Get nested paths if the value is a dict or list
+      const value = baseVal[key];
+      if (isDict(value) || isList(value)) {
+        // Add deeper nested paths
+        const nestedPaths = gatherAllSubPaths(value, keyPath, parentPath, 1);
+        subPaths.push(...nestedPaths);
+      }
+    }
+    
+    // Expand all paths
+    persistedState.setTraceExpandOpenKeys(prev => {
+      const newSet = new Set(prev);
+      subPaths.forEach(path => newSet.add(path));
+      return newSet;
+    });
+  };
+  
+  const handleCollapseAll = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent accordion from toggling
+    
+    if (!persistedState) return; // Early return if no persistedState
+    
+    setAllExpanded(false);
+    
+    // Get all subpaths and collapse them
+    // Use TraceExpandContext for persisted state
+    const parentPath = title.toLowerCase();
+    let subPaths: string[] = [];
+    
+    // Gather all keys
+    const allKeys = Object.keys(baseVal || {});
+    
+    // Add paths for all keys
+    for (const key of allKeys) {
+      const keyPath = `${parentPath}.${key}`;
+      subPaths.push(keyPath);
+      
+      // Get nested paths if the value is a dict or list
+      const value = baseVal[key];
+      if (isDict(value) || isList(value)) {
+        // Add deeper nested paths
+        const nestedPaths = gatherAllSubPaths(value, keyPath, parentPath, 1);
+        subPaths.push(...nestedPaths);
+      }
+    }
+    
+    // Get only child paths (keep the parent path open)
+    const childPaths = subPaths.filter(path => path !== parentPath);
+    
+    // Collapse all paths
+    persistedState.setTraceExpandOpenKeys(prev => {
+      const newSet = new Set(prev);
+      childPaths.forEach(path => newSet.delete(path));
+      return newSet;
+    });
+  };
+  
+  return (
+    <AccordionItem key={title} value={title}>
+      <AccordionTrigger className="relative group flex items-center justify-between">
+        <span className="inline-flex items-center gap-2">
+          {sectionIcons[title] || null}<span>{title}</span>
+        </span>
+        {persistedState && (
+          <div className="absolute right-5 flex gap-1 items-center">
+            <ActionButton
+              variant="ghost"
+              size="sm"
+              tooltip={allExpanded ? "Collapse All" : "Expand All"}
+              onClick={allExpanded ? handleCollapseAll : handleExpandAll}
+              icon={
+                allExpanded ? (
+                  <FoldVertical className="h-3 w-3" />
+                ) : (
+                  <UnfoldVertical className="h-3 w-3" />
+                )
+              }
+            />
+          </div>
+        )}
+      </AccordionTrigger>
+      <AccordionContent>
+        <div className="border-l ml-4 pl-1" ref={dictionaryRef}>
+          <DictionaryView
+            value={baseVal}
+            comparables={comps}
+            baseLogIndex={baseLogIndex}
+            comparisonLogsIndex={comparisonLogsIndex}
+            diffMode={diffMode ?? "none"}
+            splitView={splitView ?? false}
+            displayMode={displayMode ?? "markdown"}
+            nestingLevel={1}
+            prefix={title.toLowerCase()} // Use lowercase section name as prefix
+            parentPath={title.toLowerCase()} // Use lowercase section name as parent path
+            customIconMapping={customIconMapping}
+          />
+        </div>
+      </AccordionContent>
+    </AccordionItem>
+  );
+}
+
 function PatchDetailPanel({
   node,
   baseRowIndex,
@@ -236,6 +477,7 @@ function PatchDetailPanel({
   diffMode,
   splitView,
   displayMode,
+  persistedState,
 }: {
   node: PatchDiffNode;
   baseRowIndex: number;
@@ -244,8 +486,14 @@ function PatchDetailPanel({
   allRowIndexes: number[];
   diffMode?: LogComparisonProps["diffMode"];
   splitView?: LogComparisonProps["splitView"];
-  displayMode?: "text" | "markdown" | undefined
+  displayMode?: "text" | "markdown" | undefined;
+  persistedState?: PersistedTraceViewState;
 }) {
+  // IMPORTANT: Declare ALL hooks at the top level before any conditional logic
+  
+  // Track which accordion items are open
+  const [openSections, setOpenSections] = useState<string[]>(["Inputs", "Outputs"]);
+  
   // Store stable references to props to avoid unnecessary re-renders
   const propsRef = React.useRef({
     node,
@@ -260,12 +508,12 @@ function PatchDetailPanel({
   React.useEffect(() => {
     const currentProps = propsRef.current;
     const nodeChanged = currentProps.node !== node && 
-                        (currentProps.node?.name !== node.name || 
-                         currentProps.node?.baseSpanRef?.id !== node.baseSpanRef?.id);
+                       (currentProps.node?.name !== node.name || 
+                        currentProps.node?.baseSpanRef?.id !== node.baseSpanRef?.id);
     
     const configChanged = currentProps.diffMode !== diffMode || 
-                          currentProps.splitView !== splitView || 
-                          currentProps.displayMode !== displayMode;
+                         currentProps.splitView !== splitView || 
+                         currentProps.displayMode !== displayMode;
                           
     if (nodeChanged || configChanged) {
       propsRef.current = {
@@ -279,9 +527,11 @@ function PatchDetailPanel({
     }
   }, [node, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode]);
   
+  // Early return after all hooks are declared
   if (!node.baseSpanRef && !node.targetSpanRef) {
     return <p className="italic text-sm">No base or target data</p>;
   }
+  
   const mainSpan = node.baseSpanRef || node.targetSpanRef;
   const spanId = mainSpan?.id ?? "(no id)";
 
@@ -353,10 +603,51 @@ function PatchDetailPanel({
 
   // Helper to render a standard accordion item
   function maybeRenderBlock(title: string, baseVal: any, comps: any[]): JSX.Element | null {
-    if (allEmpty(baseVal, comps)) {
+    // Determine if we should render anything by checking emptiness first
+    const isEmpty = allEmpty(baseVal, comps);
+    if (isEmpty) {
       return null;
     }
 
+    // Special handling for "Inputs" and "Outputs" sections
+    if (title === "Inputs" || title === "Outputs") {
+      // If it's not a dictionary, fall back to standard rendering
+      if (!isDict(baseVal)) {
+        const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown");
+        return (
+          <AccordionItem key={title} value={title}>
+            <AccordionTrigger className="relative group flex items-center justify-between">
+              <span className="inline-flex items-center gap-2">
+                {sectionIcons[title] || null}<span>{title}</span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="border-l ml-4 pl-1">{view}</div>
+            </AccordionContent>
+          </AccordionItem>
+        );
+      }
+
+      // Use a dedicated component for dictionary inputs/outputs to encapsulate hooks
+      return (
+        <DictionarySectionItem 
+          title={title}
+          baseVal={baseVal}
+          comps={comps}
+          baseLogIndex={baseRowIndex}
+          comparisonLogsIndex={comparisonLogsIndex}
+          diffMode={diffMode}
+          splitView={splitView}
+          displayMode={displayMode}
+          persistedState={persistedState}
+          openSections={openSections}
+          setOpenSections={setOpenSections}
+          sectionIcons={sectionIcons}
+        />
+      );
+    }
+
+    // Standard rendering for other sections
     const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown");
 
     return (
@@ -373,120 +664,25 @@ function PatchDetailPanel({
     );
   }
 
-  // Specialized renderer for execution time
-  function renderExecutionTime(): JSX.Element | null {
-    if (allEmpty(bExecTime, cExecTime)) return null;
-    return (
-      <AccordionItem key="Execution Time" value="Execution Time">
-        <AccordionTrigger className="relative group flex items-center justify-between">
-          <span className="inline-flex items-center gap-2">
-            {sectionIcons["Execution Time"]} <span>Execution Time</span>
-          </span>
-        </AccordionTrigger>
-        <AccordionContent>
-          <div className="border-l ml-4 pl-1">
-            <ExecutionTimeView
-              value={bExecTime}
-              comparables={cExecTime}
-              baseLogIndex={baseRowIndex}
-              comparisonLogsIndex={comparisonLogsIndex}
-              diffMode={diffMode}
-              splitView={splitView}
-              displayMode={displayMode}
-            />
-          </div>
-        </AccordionContent>
-      </AccordionItem>
-    );
-  }
-
-  // Specialized renderer for cost section
-  function renderCostBlock(): JSX.Element | null {
-    if (allEmpty(bCost, cCost) && allEmpty(bCostIncCache, cCostIncCache)) return null;
-    const content = (
-      <div className="flex flex-col gap-2">
-        <div>
-          <p className="font-semibold text-sm mb-2">Cost ($)</p>
-          <div className="border border-muted p-2 rounded">
-            <NumberView
-              value={bCost}
-              comparables={cCost}
-              baseLogIndex={baseRowIndex}
-              comparisonLogsIndex={comparisonLogsIndex}
-              diffMode={diffMode}
-              splitView={splitView}
-              scientificNotation={true}
-              displayMode={displayMode}
-            />
-          </div>
-        </div>
-        <div>
-          <p className="font-semibold text-sm mb-2">Cost including cache ($)</p>
-          <div className="border border-muted p-2 rounded">
-            <NumberView
-              value={bCostIncCache}
-              comparables={cCostIncCache}
-              baseLogIndex={baseRowIndex}
-              comparisonLogsIndex={comparisonLogsIndex}
-              diffMode={diffMode}
-              splitView={splitView}
-              scientificNotation={true}
-              displayMode={displayMode}
-            />
-          </div>
-        </div>
-      </div>
-    );
-    return (
-      <AccordionItem key="Cost" value="Cost">
-        <AccordionTrigger className="relative group flex items-center justify-between">
-          <span className="inline-flex items-center gap-2">
-            {sectionIcons["Cost"]} <span>Cost</span>
-          </span>
-        </AccordionTrigger>
-        <AccordionContent>
-          <div className="border-l ml-4 pl-1">{content}</div>
-        </AccordionContent>
-      </AccordionItem>
-    );
-  }
-
-  // Get all field values
-  const { baseVal: bInputs, comps: cInputs } = gatherField("inputs");
-  const { baseVal: bOutputs, comps: cOutputs } = gatherField("outputs");
-  const { baseVal: bCode, comps: cCode } = gatherField("code");
-  const { baseVal: bErrors, comps: cErrors } = gatherField("errors");
-  const { baseVal: bExecTime, comps: cExecTime } = gatherField("exec_time");
-  const { baseVal: bCost, comps: cCost } = gatherField("cost");
-  const { baseVal: bCostIncCache, comps: cCostIncCache } = gatherField("cost_inc_cache");
-
-  function gatherID() {
-    const bSpan = node.baseSpanRef;
-    const tSpan = node.targetSpanRef;
-    if (bSpan && tSpan && bSpan === tSpan) {
-      return { baseVal: bSpan.id ?? "", comps: [] };
-    }
-    if (comparisonLogsIndex.length <= 1) {
-      const bId = bSpan?.id ?? "";
-      const tId = tSpan?.id ?? "";
-      return tId ? { baseVal: bId, comps: [tId] } : { baseVal: bId, comps: [] };
-    }
-    const realName = bSpan?.span_name || tSpan?.span_name || node.name;
-    const bId = bSpan?.id ?? "";
-    const compsArr = comparisonLogsIndex.map((r) => {
-      const match = findSpanByNameInRow(allTraces, allRowIndexes, r, realName);
-      return match?.id ?? "";
-    });
-    return { baseVal: bId, comps: compsArr };
-  }
-  const { baseVal: bId, comps: cId } = gatherID();
-
-  const showTimelineButton = allRowIndexes.length === 1 || (allTraces.length > 1 && comparisonLogsIndex.length === 0);
-
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <p className="font-bold text-sm">{node.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="font-bold text-sm">{node.name}</p>
+          {node.baseSpanRef?.id && (
+            <CopyButton
+              content={node.baseSpanRef?.id ?? ""}
+              copyMessage={
+                node.baseSpanRef?.parent_span_id ? "Copied span ID" : "Copied trace ID"
+              }
+              tooltipContent={
+                node.baseSpanRef?.parent_span_id ? 
+                "Copy span ID" : 
+                "Copy trace ID"
+              }
+            />
+          )}
+        </div>
         { (node.baseSpanRef || node.targetSpanRef) && (
           <TimelineViewButton
             baseTrace={
@@ -501,14 +697,111 @@ function PatchDetailPanel({
         )}
       </div>
       
-      <Accordion type="multiple" defaultValue={["Inputs", "Outputs"]} className="mt-3">
-        {maybeRenderBlock("Inputs", bInputs, cInputs)}
-        {maybeRenderBlock("Outputs", bOutputs, cOutputs)}
-        {maybeRenderBlock("Code", bCode, cCode)}
-        {renderExecutionTime()}
-        {maybeRenderBlock("Errors", bErrors, cErrors)}
-        {renderCostBlock()}
-        {maybeRenderBlock("IDs", bId, cId)}
+      <Accordion 
+        type="multiple" 
+        defaultValue={["Inputs", "Outputs"]} 
+        value={openSections}
+        onValueChange={setOpenSections}
+        className="mt-3"
+      >
+        {(() => {
+          const { baseVal: bInputs, comps: cInputs } = gatherField("inputs");
+          const { baseVal: bOutputs, comps: cOutputs } = gatherField("outputs");
+          const { baseVal: bCode, comps: cCode } = gatherField("code");
+          const { baseVal: bExecTime, comps: cExecTime } = gatherField("exec_time");
+          const { baseVal: bErrors, comps: cErrors } = gatherField("errors");
+          const { baseVal: bCost, comps: cCost } = gatherField("cost");
+          const { baseVal: bCostIncCache, comps: cCostIncCache } = gatherField("cost_inc_cache");
+          
+          // Gather IDs
+          function gatherID() {
+            const bSpan = node.baseSpanRef;
+            const tSpan = node.targetSpanRef;
+            if (bSpan && tSpan && bSpan === tSpan) {
+              return { baseVal: bSpan.id ?? "", comps: [] };
+            }
+            if (comparisonLogsIndex.length <= 1) {
+              const bId = bSpan?.id ?? "";
+              const tId = tSpan?.id ?? "";
+              return tId ? { baseVal: bId, comps: [tId] } : { baseVal: bId, comps: [] };
+            }
+            const realName = bSpan?.span_name || tSpan?.span_name || node.name;
+            const bId = bSpan?.id ?? "";
+            const compsArr = comparisonLogsIndex.map((r) => {
+              const match = findSpanByNameInRow(allTraces, allRowIndexes, r, realName);
+              return match?.id ?? "";
+            });
+            return { baseVal: bId, comps: compsArr };
+          }
+          const { baseVal: bId, comps: cId } = gatherID();
+          
+          // Specialized renderer for cost section
+          function renderCostBlock(): JSX.Element | null {
+            const isEmpty = allEmpty(bCost, cCost) && allEmpty(bCostIncCache, cCostIncCache);
+            if (isEmpty) return null;
+            
+            const content = (
+              <div className="flex flex-col gap-2">
+                <div>
+                  <p className="font-semibold text-sm mb-2">Cost ($)</p>
+                  <div className="border border-muted p-2 rounded">
+                    <NumberView
+                      value={bCost}
+                      comparables={cCost}
+                      baseLogIndex={baseRowIndex}
+                      comparisonLogsIndex={comparisonLogsIndex}
+                      diffMode={diffMode}
+                      splitView={splitView}
+                      scientificNotation={true}
+                      displayMode={displayMode}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <p className="font-semibold text-sm mb-2">Cost including cache ($)</p>
+                  <div className="border border-muted p-2 rounded">
+                    <NumberView
+                      value={bCostIncCache}
+                      comparables={cCostIncCache}
+                      baseLogIndex={baseRowIndex}
+                      comparisonLogsIndex={comparisonLogsIndex}
+                      diffMode={diffMode}
+                      splitView={splitView}
+                      scientificNotation={true}
+                      displayMode={displayMode}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+            
+            return (
+              <AccordionItem key="Cost" value="Cost">
+                <AccordionTrigger className="relative group flex items-center justify-between">
+                  <span className="inline-flex items-center gap-2">
+                    {sectionIcons["Cost"]} <span>Cost</span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="border-l ml-4 pl-1">{content}</div>
+                </AccordionContent>
+              </AccordionItem>
+            );
+          }
+          
+          // Return all accordion sections
+          return (
+            <>
+              {maybeRenderBlock("Inputs", bInputs, cInputs)}
+              {maybeRenderBlock("Outputs", bOutputs, cOutputs)}
+              {maybeRenderBlock("Code", bCode, cCode)}
+              {maybeRenderBlock("Execution Time", bExecTime, cExecTime)}
+              {maybeRenderBlock("Errors", bErrors, cErrors)}
+              {renderCostBlock()}
+              {maybeRenderBlock("IDs", bId, cId)}
+            </>
+          );
+        })()}
       </Accordion>
     </div>
   );
@@ -554,7 +847,12 @@ function CollapsiblePatchLineNode({
     " ": "",
   };
 
-  const isSelected = selectedNode === node;
+  const isSelected = selectedNode ? (
+    node.name === selectedNode.name && 
+    node.baseSpanRef?.id === selectedNode.baseSpanRef?.id &&
+    node.targetSpanRef?.id === selectedNode.targetSpanRef?.id
+  ) : false;
+
   const nodeId = `${node.name}_${node.baseSpanRef?.id ?? ""}_${node.targetSpanRef?.id ?? ""}`;
   const hasChildren = children.length > 0;
   const isCollapsed = collapsedNodes[nodeId] === true;
@@ -1066,7 +1364,9 @@ interface UnifiedTraceViewProps {
   rowIndexes: number[];
   diffMode?: LogComparisonProps["diffMode"];
   splitView?: LogComparisonProps["splitView"];
-  displayMode?: "text" | "markdown" | undefined
+  displayMode?: "text" | "markdown" | undefined;
+  // New prop for persisted state (optional)
+  persistedState?: PersistedTraceViewState;
 }
 
 function flattenRootNode(root: PatchDiffNode | null): PatchDiffNode[] {
@@ -1100,7 +1400,8 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
   allRowIndexes,
   diffMode,
   splitView,
-  displayMode
+  displayMode,
+  persistedState
 }: {
   selectedNode: PatchDiffNode | null;
   baseRowIndex: number;
@@ -1110,12 +1411,14 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
   diffMode?: LogComparisonProps["diffMode"];
   splitView?: LogComparisonProps["splitView"];
   displayMode?: "text" | "markdown" | undefined;
+  persistedState?: PersistedTraceViewState;
 }) {
-  // Create a stable ID that persists across renders
-  const stableId = React.useRef(Math.random().toString(36).substr(2, 9)).current;
-  
   if (!selectedNode) {
-    return <p className="text-sm italic">Select a node on the left</p>;
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-sm text-muted-foreground italic">Select a trace span to view details</p>
+      </div>
+    );
   }
 
   return (
@@ -1128,6 +1431,7 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
       diffMode={diffMode}
       splitView={splitView}
       displayMode={displayMode}
+      persistedState={persistedState}
     />
   );
 }, (prevProps, nextProps) => {
@@ -1169,11 +1473,129 @@ export default function UnifiedTraceView({
   diffMode = "none",
   splitView = false,
   displayMode = "markdown",
+  persistedState,
 }: UnifiedTraceViewProps) {
-  const [collapsedNodes, setCollapsedNodes] = useState<Record<string, boolean>>({});
+  // If the persisted state is not provided, fall back to local state
+  const [localCollapsedNodes, setLocalCollapsedNodes] = useState<Record<string, boolean>>({});
+  const [localSelectedNode, setLocalSelectedNode] = useState<PatchDiffNode | null>(null);
+  const [localSelectedSpanId, setLocalSelectedSpanId] = useState<string>("");
+  const [localGroupSignature, setLocalGroupSignature] = useState("");
+  // State for trace expand keys and scroll positions
+  const [localTraceExpandOpenKeys, setLocalTraceExpandOpenKeys] = useState<Set<string>>(new Set());
+  const [localLeftScrollPosition, setLocalLeftScrollPosition] = useState<number>(0);
+  const [localRightScrollPosition, setLocalRightScrollPosition] = useState<number>(0);
 
-  const [selectedNode, setSelectedNode] = useState<PatchDiffNode | null>(null);
-  const [selectedSpanId, setSelectedSpanId] = useState<string>("");
+  // Use persisted state if provided, otherwise use local state
+  const collapsedNodes = persistedState ? persistedState.collapsedNodes : localCollapsedNodes;
+  const setCollapsedNodes = persistedState ? persistedState.setCollapsedNodes : setLocalCollapsedNodes;
+
+  const selectedNode = persistedState ? persistedState.selectedNode : localSelectedNode;
+  const setSelectedNode = persistedState ? persistedState.setSelectedNode : setLocalSelectedNode;
+
+  const selectedSpanId = persistedState ? persistedState.selectedSpanId : localSelectedSpanId;
+  const setSelectedSpanId = persistedState ? persistedState.setSelectedSpanId : setLocalSelectedSpanId;
+
+  const groupSignature = persistedState ? persistedState.groupSignature : localGroupSignature;
+  const setGroupSignature = persistedState ? persistedState.setGroupSignature : setLocalGroupSignature;
+  
+  // Get trace expand keys from persisted state if available
+  const traceExpandOpenKeys = persistedState ? persistedState.traceExpandOpenKeys : localTraceExpandOpenKeys;
+  const setTraceExpandOpenKeys = persistedState ? persistedState.setTraceExpandOpenKeys : setLocalTraceExpandOpenKeys;
+  
+  // Get scroll positions from persisted state if available
+  const leftScrollPosition = persistedState ? persistedState.leftScrollPosition : localLeftScrollPosition;
+  const setLeftScrollPosition = persistedState ? persistedState.setLeftScrollPosition : setLocalLeftScrollPosition;
+  
+  const rightScrollPosition = persistedState ? persistedState.rightScrollPosition : localRightScrollPosition;
+  const setRightScrollPosition = persistedState ? persistedState.setRightScrollPosition : setLocalRightScrollPosition;
+  
+  // Create refs for left and right scroll containers
+  const leftScrollRef = useRef<HTMLDivElement>(null);
+  const rightScrollRef = useRef<HTMLDivElement>(null);
+  
+  // Add flags to prevent scroll restoration during manual scrolling
+  const isManuallyScrollingLeft = useRef(false);
+  const isManuallyScrollingRight = useRef(false);
+  const scrollLeftTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollRightTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Flag to track initial render
+  const initialRenderCompleted = useRef(false);
+
+  // Restore scroll positions on initial mount only
+  useEffect(() => {
+    if (!initialRenderCompleted.current) {
+      if (leftScrollRef.current) {
+        leftScrollRef.current.scrollTop = leftScrollPosition;
+      }
+      if (rightScrollRef.current) {
+        rightScrollRef.current.scrollTop = rightScrollPosition;
+      }
+      initialRenderCompleted.current = true;
+    }
+  }, [leftScrollPosition, rightScrollPosition]);
+
+  // Clean up timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollLeftTimeoutRef.current) {
+        clearTimeout(scrollLeftTimeoutRef.current);
+      }
+      if (scrollRightTimeoutRef.current) {
+        clearTimeout(scrollRightTimeoutRef.current);
+      }
+    };
+  }, []);
+  
+  // Handlers to update scroll positions on scroll events with debouncing
+  const handleLeftScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    // Set flag to indicate we're manually scrolling
+    isManuallyScrollingLeft.current = true;
+    
+    // Get the current scroll position
+    const newScrollTop = (e.target as HTMLDivElement).scrollTop;
+    
+    // Clear any existing timeout
+    if (scrollLeftTimeoutRef.current) {
+      clearTimeout(scrollLeftTimeoutRef.current);
+    }
+    
+    // Set a new timeout to update the state after scrolling stops
+    scrollLeftTimeoutRef.current = setTimeout(() => {
+      // Only update if the value changed
+      if (newScrollTop !== leftScrollPosition) {
+        setLeftScrollPosition(newScrollTop);
+      }
+      
+      // Reset the flag
+      isManuallyScrollingLeft.current = false;
+      scrollLeftTimeoutRef.current = null;
+    }, 150); // Wait for scrolling to stop
+  };
+  
+  const handleRightScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    // Set flag to indicate we're manually scrolling
+    isManuallyScrollingRight.current = true;
+    
+    // Get the current scroll position
+    const newScrollTop = (e.target as HTMLDivElement).scrollTop;
+    
+    // Clear any existing timeout
+    if (scrollRightTimeoutRef.current) {
+      clearTimeout(scrollRightTimeoutRef.current);
+    }
+    
+    // Set a new timeout to update the state after scrolling stops
+    scrollRightTimeoutRef.current = setTimeout(() => {
+      // Only update if the value changed
+      if (newScrollTop !== rightScrollPosition) {
+        setRightScrollPosition(newScrollTop);
+      }
+      
+      // Reset the flag
+      isManuallyScrollingRight.current = false;
+      scrollRightTimeoutRef.current = null;
+    }, 150); // Wait for scrolling to stop
+  };
 
   const multiMode = rowIndexes.length > 1;
 
@@ -1181,8 +1603,6 @@ export default function UnifiedTraceView({
     if (!allTraces.length) return [];
     return allTraces[0] ?? [];
   }, [allTraces]);
-
-  const [groupSignature, setGroupSignature] = useState("");
 
   function minimalSpanHierarchy(span: Span): any {
     return {
@@ -1262,11 +1682,12 @@ export default function UnifiedTraceView({
     if (!finalPatchRoot) return;
 
     const forest = flattenRootNode(finalPatchRoot);
-
+    
     if (!selectedSpanId) {
       if (forest.length > 0) {
         const candidate = forest[0];
-        const newId = candidate.baseSpanRef?.id ?? candidate.targetSpanRef?.id ?? "";
+        // Use candidate.name as a fallback if no id is present
+        const newId = candidate.baseSpanRef?.id || candidate.targetSpanRef?.id || candidate.name;
         setSelectedNode(candidate);
         setSelectedSpanId(newId);
       } else {
@@ -1277,10 +1698,12 @@ export default function UnifiedTraceView({
     }
 
     const found = findNodeInForest(forest, selectedSpanId);
+    
     if (!found) {
       if (forest.length > 0) {
         const candidate = forest[0];
-        const newId = candidate.baseSpanRef?.id ?? candidate.targetSpanRef?.id ?? "";
+        // Use candidate.name as a fallback if no id is present
+        const newId = candidate.baseSpanRef?.id || candidate.targetSpanRef?.id || candidate.name;
         setSelectedNode(candidate);
         setSelectedSpanId(newId);
       } else {
@@ -1288,28 +1711,32 @@ export default function UnifiedTraceView({
         setSelectedSpanId("");
       }
     } else {
+      // Always update the selectedNode with the found node to ensure proper rendering
       setSelectedNode(found);
     }
-  }, [finalPatchRoot, selectedSpanId]);
+  }, [finalPatchRoot, selectedSpanId, setSelectedNode, setSelectedSpanId]);
 
   // Memoize functions to prevent recreations on each render
   const onSelectNode = React.useCallback((n: PatchDiffNode | null) => {
     if (!n) {
       setSelectedNode(null);
       setSelectedSpanId("");
-    } else {
-      const newId = n.baseSpanRef?.id ?? n.targetSpanRef?.id ?? "";
-      setSelectedNode(n);
-      setSelectedSpanId(newId);
+      return;
     }
-  }, []);
+    
+    // Use node name as fallback if no ID exists
+    const newId = n.baseSpanRef?.id || n.targetSpanRef?.id || n.name;
+    // Always update both the selected node and the span ID to keep them in sync
+    setSelectedNode(n);
+    setSelectedSpanId(newId);
+  }, [setSelectedNode, setSelectedSpanId]);
 
   const handleGroupChange = React.useCallback((val: string) => {
     setGroupSignature(val);
     setCollapsedNodes({});
     setSelectedNode(null);
     setSelectedSpanId("");
-  }, []);
+  }, [setGroupSignature, setCollapsedNodes, setSelectedNode, setSelectedSpanId]);
 
   function renderPatchTree() {
     if (!finalPatchRoot) {
@@ -1319,8 +1746,11 @@ export default function UnifiedTraceView({
     if (!forest.length) {
       return <p className="text-sm italic text-muted-foreground mt-2">No top-level spans</p>;
     }
+    
+    // Add a key with selectedNode state to force remounting when selection changes
+    // This ensures highlighting is properly updated
     return (
-      <>
+      <React.Fragment key={`trace-tree-${selectedSpanId}`}>
         {forest.map((oneRoot, i) => (
           <CollapsiblePatchLineNode
             key={i}
@@ -1334,7 +1764,7 @@ export default function UnifiedTraceView({
             multiMode={multiMode}
           />
         ))}
-      </>
+      </React.Fragment>
     );
   }
 
@@ -1350,12 +1780,16 @@ export default function UnifiedTraceView({
         diffMode={diffMode}
         splitView={splitView}
         displayMode={displayMode}
+        persistedState={persistedState}
       />
     );
-  }, [selectedNode, rowIndexes, groupCompareRows, allTraces, diffMode, splitView, displayMode]);
+  }, [selectedNode, rowIndexes, groupCompareRows, allTraces, diffMode, splitView, displayMode, persistedState]);
 
   return (
-    <TraceExpandProvider>
+    <TraceExpandProvider
+      externalOpenKeys={traceExpandOpenKeys}
+      setExternalOpenKeys={setTraceExpandOpenKeys}
+    >
       <div className="bg-background rounded-md w-full h-full p-4 flex flex-col gap-4">
         <div style={{ height: "600px" }}>
           <DoublePanels
@@ -1364,6 +1798,8 @@ export default function UnifiedTraceView({
             defaultSecondSize={70}
             first={
               <div
+                ref={leftScrollRef}
+                onScroll={handleLeftScroll}
                 style={{
                   height: "100%",
                   border: "1px solid var(--muted)",
@@ -1393,6 +1829,8 @@ export default function UnifiedTraceView({
             }
             second={
               <div
+                ref={rightScrollRef}
+                onScroll={handleRightScroll}
                 style={{
                   height: "100%",
                   border: "1px solid var(--muted)",

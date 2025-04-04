@@ -15,6 +15,7 @@ import ListView from "./Views/ListView";
 import MatrixView from "./Views/MatrixView";
 import StringView from "./Views/StringView";
 import TraceView from "./Views/TraceView";
+import { PersistedTraceViewState } from "./Views/TraceView/TraceView";
 import NumberView from "./Views/NumberView";
 import TimestampView from "./Views/TimestampView";
 import ChatOutView from "./Views/ChatView/ChatOutView";
@@ -147,7 +148,8 @@ function getSelectionView(
   nestingLevel: number,
   prefix: string,
   parentPath: string,
-  valueType: string
+  valueType: string,
+  persistedTraceState?: PersistedTraceViewState
 ) {
   // If user wants "raw"
   if (displayMode === "raw") {
@@ -179,6 +181,7 @@ function getSelectionView(
           version={version}
           comparableVersions={vers}
           displayMode={displayMode}
+          persistedState={persistedTraceState}
         />
       );
     case "chat":
@@ -340,6 +343,7 @@ interface SelectionEntryProps {
   forceCollapseAll?: boolean;
   panelOpenKeys: Set<string>;
   panelSetOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>;
+  externalTraceState?: PersistedTraceViewState;
 }
 
 /**
@@ -376,9 +380,9 @@ export default function SelectionEntry({
   forceCollapseAll,
   panelOpenKeys,
   panelSetOpenKeys,
+  externalTraceState,
 }: SelectionEntryProps) {
   // We need to access the expandRecursively and collapseRecursively functions from context
-  // We use the fake usePanelExpandContextSelector function to get the right values
   const expandRecursively = useMemo(() => {
     return (paths: string[]) => {
       panelSetOpenKeys((prev) => {
@@ -400,7 +404,6 @@ export default function SelectionEntry({
   }, [panelSetOpenKeys]);
   
   // Use panel-specific props directly
-  // No type assertions needed since props are properly typed
   const openKeys = panelOpenKeys;
   const setOpenKeys = panelSetOpenKeys;
 
@@ -463,10 +466,98 @@ export default function SelectionEntry({
   // check if all subPaths are in openKeys => allOpen
   const allOpen = useMemo(() => {
     if (!isDictOrList || !subPaths.length) return false;
-    const result = subPaths.every((p) => openKeys.has(p));
-    return result;
-  }, [isDictOrList, subPaths, openKeys]);
+    
+    // Paths must be non-empty and every path must be in openKeys
+    return subPaths.every(path => panelOpenKeys.has(path));
+  }, [isDictOrList, subPaths, panelOpenKeys]);
   
+  // Lift the trace view state here
+  // Separate UI state (stable) from scroll state (frequently changing)
+  // UI state for selections, expansions, etc.
+  const [traceUIState, setTraceUIState] = useState({
+    collapsedNodes: {} as Record<string, boolean>,
+    selectedNode: null as any | null,
+    selectedSpanId: "",
+    groupSignature: "",
+    traceExpandOpenKeys: new Set<string>(),
+  });
+  
+  // Separate scroll state that changes frequently
+  const [traceScrollState, setTraceScrollState] = useState({
+    leftScrollPosition: 0,
+    rightScrollPosition: 0,
+  });
+
+  // Memoize the persisted state object to prevent unnecessary re-renders
+  const persistedTraceState = useMemo(
+    () => {
+      // If external trace state is provided, use it
+      if (externalTraceState) {
+        return externalTraceState;
+      }
+      
+      // Otherwise, use our local state implementation with split state management
+      return {
+        // UI state elements
+        collapsedNodes: traceUIState.collapsedNodes,
+        setCollapsedNodes: (value: React.SetStateAction<Record<string, boolean>>) =>
+          setTraceUIState(prev => ({ 
+            ...prev, 
+            collapsedNodes: typeof value === "function" ? value(prev.collapsedNodes) : value 
+          })),
+        
+        selectedNode: traceUIState.selectedNode,
+        setSelectedNode: (value: React.SetStateAction<any | null>) =>
+          setTraceUIState(prev => ({ 
+            ...prev, 
+            selectedNode: typeof value === "function" ? value(prev.selectedNode) : value 
+          })),
+        
+        selectedSpanId: traceUIState.selectedSpanId,
+        setSelectedSpanId: (value: React.SetStateAction<string>) =>
+          setTraceUIState(prev => ({ 
+            ...prev, 
+            selectedSpanId: typeof value === "function" ? value(prev.selectedSpanId) : value 
+          })),
+        
+        groupSignature: traceUIState.groupSignature,
+        setGroupSignature: (value: React.SetStateAction<string>) =>
+          setTraceUIState(prev => ({ 
+            ...prev, 
+            groupSignature: typeof value === "function" ? value(prev.groupSignature) : value 
+          })),
+        
+        traceExpandOpenKeys: traceUIState.traceExpandOpenKeys,
+        setTraceExpandOpenKeys: (value: React.SetStateAction<Set<string>>) =>
+          setTraceUIState(prev => ({ 
+            ...prev, 
+            traceExpandOpenKeys: typeof value === "function" ? value(prev.traceExpandOpenKeys) : value 
+          })),
+        
+        // Scroll state elements
+        leftScrollPosition: traceScrollState.leftScrollPosition,
+        setLeftScrollPosition: (value: React.SetStateAction<number>) =>
+          setTraceScrollState(prev => ({ 
+            ...prev, 
+            leftScrollPosition: typeof value === "function" ? value(prev.leftScrollPosition) : value 
+          })),
+        
+        rightScrollPosition: traceScrollState.rightScrollPosition,
+        setRightScrollPosition: (value: React.SetStateAction<number>) =>
+          setTraceScrollState(prev => ({ 
+            ...prev, 
+            rightScrollPosition: typeof value === "function" ? value(prev.rightScrollPosition) : value 
+          })),
+      }
+    },
+    [
+      traceUIState, // Only depends on the UI state object
+      traceScrollState, // And the scroll state object
+      externalTraceState, 
+      property
+    ]
+  );
+
   // Memoize the content to avoid unnecessary re-calculations
   const renderedContent = useMemo(() => {
     // Skip calculation if empty
@@ -485,7 +576,8 @@ export default function SelectionEntry({
       childNesting, // now always 0 if top-level
       source === "entries" ? "entries" : "params",
       topLevelPath, // Pass the top-level path as parentPath
-      unifiedType // Pass the unified type to avoid recalculating
+      unifiedType, // Pass the unified type to avoid recalculating
+      persistedTraceState // Pass the persisted trace state
     );
   }, [
     rawValue,
@@ -501,7 +593,8 @@ export default function SelectionEntry({
     source,
     topLevelPath,
     unifiedType,
-    isEmpty // Add isEmpty as dependency
+    isEmpty, // Add isEmpty as dependency
+    persistedTraceState // Use the memoized object instead of individual state values
   ]);
   
   // For the shadcn <AccordionItem>, we unify property => so the parent's "onValueChange" logic sees a simpler string
@@ -521,13 +614,31 @@ export default function SelectionEntry({
     e.stopPropagation();
     if (!isDictOrList) return;
 
-    // Use the subPaths directly
-    if (allOpen) {
+    // Always recalculate subPaths to ensure the most current state
+    // This fixes issues where the button action doesn't match its label
+    let currentSubPaths: string[] = [];
+    if (comps && comps.length > 0) {
+      currentSubPaths = gatherAllSubPathsMulti(rawValue, comps, topLevelPath, 
+        source === "entries" ? "entries" : "params", 0);
+    } else {
+      currentSubPaths = gatherAllSubPaths(rawValue, topLevelPath, 
+        source === "entries" ? "entries" : "params", 0);
+    }
+    
+    // Check if any paths to process
+    if (currentSubPaths.length === 0) return;
+
+    // Recalculate allOpen state using fresh paths
+    const currentlyAllOpen = currentSubPaths.every(path => panelOpenKeys.has(path));
+
+    if (currentlyAllOpen) {
       // collapse everything recursively
-      collapseRecursively([...subPaths]);
+      // When collapsing, exclude the parent path to keep it open
+      const childPaths = currentSubPaths.filter(path => path !== topLevelPath);
+      collapseRecursively(childPaths);
     } else {
       // expand everything recursively
-      expandRecursively([...subPaths]);
+      expandRecursively([...currentSubPaths]);
     }
   };
 

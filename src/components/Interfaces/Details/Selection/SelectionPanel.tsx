@@ -8,6 +8,8 @@ import React, {
   import SelectionEntry from "./SelectionEntry";
   import { Accordion } from "@/components/UI/accordion";
   import ActionButton from "@/components/Common/Buttons/Action";
+  import { PersistedTraceViewState } from "./Views/TraceView/TraceView";
+  import { PatchDiffNode } from "./Views/TraceView/computeDiff";
 
   import {
     FoldVertical,
@@ -191,6 +193,287 @@ export default function SelectionPanel({
     
     // Local baseIndex state - this still needs to be local as it's specific to the selection
     const [baseIndexParam, setBaseIndexParam] = useState(initialBaseIndex);
+    
+    // Add a state to store trace view state for each property
+    // DEPRECATED: Keeping for backward compatibility, but using the new separated state approach
+    const [traceStateMap, setTraceStateMap] = useState<Record<string, {
+      collapsedNodes: Record<string, boolean>;
+      selectedNode: PatchDiffNode | null;
+      selectedSpanId: string;
+      groupSignature: string;
+      traceExpandOpenKeys: Set<string>;
+      leftScrollPosition: number;
+      rightScrollPosition: number;
+    }>>({});
+    
+    // Refactored: Separate UI state from scroll state by using two distinct state maps
+    const [traceUIStateMap, setTraceUIStateMap] = useState<Record<string, {
+      collapsedNodes: Record<string, boolean>;
+      selectedNode: PatchDiffNode | null;
+      selectedSpanId: string;
+      groupSignature: string;
+      traceExpandOpenKeys: Set<string>;
+    }>>({});
+    
+    const [traceScrollStateMap, setTraceScrollStateMap] = useState<Record<string, {
+      leftScrollPosition: number;
+      rightScrollPosition: number;
+    }>>({});
+    
+    // Sync the old traceStateMap with the new split state for backward compatibility
+    // This ensures any legacy code still works while we transition to the new approach
+    useEffect(() => {
+      // Only update when necessary to avoid loops
+      let needsUpdate = false;
+      const updatedMap: typeof traceStateMap = {};
+      
+      // Check if we need to sync any properties
+      Object.keys({...traceUIStateMap, ...traceScrollStateMap}).forEach(prop => {
+        const uiState = traceUIStateMap[prop] || {
+          collapsedNodes: {},
+          selectedNode: null,
+          selectedSpanId: "",
+          groupSignature: "",
+          traceExpandOpenKeys: new Set<string>(),
+        };
+        
+        const scrollState = traceScrollStateMap[prop] || {
+          leftScrollPosition: 0,
+          rightScrollPosition: 0
+        };
+        
+        // If this property doesn't exist in traceStateMap or its values differ
+        if (!traceStateMap[prop] || 
+            traceStateMap[prop].leftScrollPosition !== scrollState.leftScrollPosition ||
+            traceStateMap[prop].rightScrollPosition !== scrollState.rightScrollPosition) {
+          needsUpdate = true;
+          updatedMap[prop] = {
+            ...uiState,
+            ...scrollState
+          };
+        }
+      });
+      
+      // Update the legacy map only if changes were detected
+      if (needsUpdate) {
+        setTraceStateMap(prev => ({
+          ...prev,
+          ...updatedMap
+        }));
+      }
+    }, [traceUIStateMap, traceScrollStateMap, traceStateMap]);
+    
+    // Function to get or create trace state for a property
+    const getTraceStateFor = useCallback((prop: string): PersistedTraceViewState => {
+      // Create UI state if it doesn't exist yet
+      if (!traceUIStateMap[prop]) {
+        setTraceUIStateMap(prev => ({
+          ...prev,
+          [prop]: {
+            // UI state
+            collapsedNodes: {},
+            selectedNode: null,
+            selectedSpanId: "",
+            groupSignature: "",
+            traceExpandOpenKeys: new Set<string>(),
+          }
+        }));
+      }
+      
+      // Create scroll state if it doesn't exist yet
+      if (!traceScrollStateMap[prop]) {
+        setTraceScrollStateMap(prev => ({
+          ...prev,
+          [prop]: {
+            // Scroll state
+            leftScrollPosition: 0,
+            rightScrollPosition: 0
+          }
+        }));
+      }
+      
+      // Return the persisted state with getters and setters that affect separate state slices
+      return {
+        // UI state getters and setters
+        collapsedNodes: traceUIStateMap[prop]?.collapsedNodes || {},
+        setCollapsedNodes: (value) => {
+          setTraceUIStateMap(prev => {
+            const propState = prev[prop] || { 
+              collapsedNodes: {}, 
+              selectedNode: null, 
+              selectedSpanId: "", 
+              groupSignature: "",
+              traceExpandOpenKeys: new Set<string>(),
+            };
+            const newCollapsedNodes = typeof value === "function" 
+              ? value(propState.collapsedNodes) 
+              : value;
+            
+            return {
+              ...prev,
+              [prop]: {
+                ...propState,
+                collapsedNodes: newCollapsedNodes
+              }
+            };
+          });
+        },
+        selectedNode: traceUIStateMap[prop]?.selectedNode || null,
+        setSelectedNode: (node) => {
+          setTraceUIStateMap(prev => {
+            const propState = prev[prop] || { 
+              collapsedNodes: {}, 
+              selectedNode: null, 
+              selectedSpanId: "", 
+              groupSignature: "",
+              traceExpandOpenKeys: new Set<string>(),
+            };
+            
+            // Handle function updater
+            const newNode = typeof node === "function" ? node(propState.selectedNode) : node;
+            
+            // Skip update if same node
+            if (newNode === propState.selectedNode) {
+              return prev;
+            }
+            
+            // Skip update if equivalent node
+            if (newNode && propState.selectedNode && 
+                newNode.name === propState.selectedNode.name &&
+                ((newNode.baseSpanRef?.id === propState.selectedNode.baseSpanRef?.id) || 
+                  (!newNode.baseSpanRef && !propState.selectedNode.baseSpanRef)) &&
+                ((newNode.targetSpanRef?.id === propState.selectedNode.targetSpanRef?.id) || 
+                  (!newNode.targetSpanRef && !propState.selectedNode.targetSpanRef))) {
+              return prev;
+            }
+            
+            return {
+              ...prev,
+              [prop]: {
+                ...propState,
+                selectedNode: newNode
+              }
+            };
+          });
+        },
+        selectedSpanId: traceUIStateMap[prop]?.selectedSpanId || "",
+        setSelectedSpanId: (id) => {
+          setTraceUIStateMap(prev => {
+            const propState = prev[prop] || { 
+              collapsedNodes: {}, 
+              selectedNode: null, 
+              selectedSpanId: "", 
+              groupSignature: "",
+              traceExpandOpenKeys: new Set<string>(),
+            };
+            const newId = typeof id === "function" ? id(propState.selectedSpanId) : id;
+            return {
+              ...prev,
+              [prop]: {
+                ...propState,
+                selectedSpanId: newId
+              }
+            };
+          });
+        },
+        groupSignature: traceUIStateMap[prop]?.groupSignature || "",
+        setGroupSignature: (sig) => {
+          setTraceUIStateMap(prev => {
+            const propState = prev[prop] || { 
+              collapsedNodes: {}, 
+              selectedNode: null, 
+              selectedSpanId: "", 
+              groupSignature: "",
+              traceExpandOpenKeys: new Set<string>(),
+            };
+            const newSig = typeof sig === "function" ? sig(propState.groupSignature) : sig;
+            return {
+              ...prev,
+              [prop]: {
+                ...propState,
+                groupSignature: newSig
+              }
+            };
+          });
+        },
+        traceExpandOpenKeys: traceUIStateMap[prop]?.traceExpandOpenKeys || new Set<string>(),
+        setTraceExpandOpenKeys: (value) => {
+          setTraceUIStateMap(prev => {
+            const propState = prev[prop] || { 
+              collapsedNodes: {}, 
+              selectedNode: null, 
+              selectedSpanId: "", 
+              groupSignature: "",
+              traceExpandOpenKeys: new Set<string>(),
+            };
+            const newKeys = typeof value === "function" 
+              ? value(propState.traceExpandOpenKeys) 
+              : value;
+            return {
+              ...prev,
+              [prop]: {
+                ...propState,
+                traceExpandOpenKeys: newKeys
+              }
+            };
+          });
+        },
+
+        // Scroll state getters and setters (updating only the scroll state slice)
+        leftScrollPosition: traceScrollStateMap[prop]?.leftScrollPosition || 0,
+        setLeftScrollPosition: (value) => {
+          setTraceScrollStateMap(prev => {
+            const propState = prev[prop] || { 
+              leftScrollPosition: 0,
+              rightScrollPosition: 0
+            };
+            const newPosition = typeof value === "function" 
+              ? value(propState.leftScrollPosition) 
+              : value;
+              
+            // Avoid updating if scroll position hasn't changed
+            if (newPosition === propState.leftScrollPosition) {
+              return prev;
+            }
+            
+            // Only update the scroll position in the scroll state map
+            return {
+              ...prev,
+              [prop]: {
+                ...propState,
+                leftScrollPosition: newPosition
+              }
+            };
+          });
+        },
+        rightScrollPosition: traceScrollStateMap[prop]?.rightScrollPosition || 0,
+        setRightScrollPosition: (value) => {
+          setTraceScrollStateMap(prev => {
+            const propState = prev[prop] || { 
+              leftScrollPosition: 0,
+              rightScrollPosition: 0
+            };
+            const newPosition = typeof value === "function" 
+              ? value(propState.rightScrollPosition) 
+              : value;
+              
+            // Avoid updating if scroll position hasn't changed
+            if (newPosition === propState.rightScrollPosition) {
+              return prev;
+            }
+            
+            // Only update the scroll position in the scroll state map
+            return {
+              ...prev,
+              [prop]: {
+                ...propState,
+                rightScrollPosition: newPosition
+              }
+            };
+          });
+        }
+      };
+    }, [traceUIStateMap, traceScrollStateMap]);
     
     // Check if baseIndexParam is valid in useEffect to avoid potential infinite re-render
     useEffect(() => {
@@ -562,112 +845,143 @@ export default function SelectionPanel({
       return false;
     }
   
-    /*****************************************************************************
-     * ParamSection Component - Converted from buildParamSection function
-     *****************************************************************************/
-    function ParamSection() {
-      if (!baseLog) return null;
-  
-      // Visible columns
-      const cols = paramOrder.filter((col) => paramsFilter[col] !== false);
+    // Function to determine if all entries are expanded
+    function areAllOpenEntries(): boolean {
+      if (editMode) return false;
+      if (!baseLog) return false;
       
-      const filtered = cols.filter((col) => {
-        const baseVal = baseLog.params?.[col];
-        const compVals = comparisonLogs.map((cl) => cl.params?.[col]);
-        const isEmpty = isAllEmpty(baseVal, compVals);
-        return !isEmpty;
+      const visibleE = entryKeys.filter((k) => entriesFilter[k] !== false);
+      if (!visibleE.length) return false;
+      
+      // Check both the top-level items and their subpaths
+      const subPathSet = new Set<string>();
+      
+      // Include paths for the top-level entries themselves
+      const prefixStr = "entries";
+      visibleE.forEach((k) => {
+        // Add the root path for this entry
+        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
+        subPathSet.add(rootPath);
+        
+        // Also add all subpaths
+        const spList = gatherSubpathsForProperty(false, k);
+        spList.forEach((sp) => subPathSet.add(sp));
       });
       
-      if (!filtered.length) return null;
-      
-      const allOpen = areAllOpenParams();
-  
-      // Calculate accordionValue based on only the root paths of each property
-      const accordionValue = filtered.filter((prop) => {
-        // Check if the root path itself is in openKeys (for shallow toggling)
-        const prefixStr = "params";
-        const rootPath = makePrefixedDictPath(prefixStr, 0, prop);
-        return localOpenKeys.has(rootPath);
-      });
-
-      
-      // IMPORTANT: We need to pass the actual row indices to SelectionEntry
-      // baseRowIndex is already the 0-based row index, so no need to subtract 1
-      const baseIndexForSelection = baseRowIndex; // Don't subtract 1, it's already 0-based
-      
-      // Map the comparison row indices directly (they're already 0-based)
-      const compIndicesForSelection = comparisonRowIndices;
-      
-      const version = "";
-      const comparableVersions: string[] = [];
-      
-      return (
-        <div className="flex flex-col gap-2">
-          <div className="sticky top-0 z-10 bg-background py-2 border-b border-muted flex items-center justify-between">
-            <p className="font-bold text-lg">Params</p>
-            <ActionButton
-              variant="ghost"
-              size="icon"
-              tooltip={allOpen ? "Collapse All" : "Expand All"}
-              onClick={onParamsExpandToggle}
-              icon={allOpen ? <FoldVertical /> : <UnfoldVertical />}
-            />
-          </div>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleParamDragEnd}
-          >
-            <SortableContext items={filtered} strategy={verticalListSortingStrategy}>
-              <Accordion 
-                type="multiple"
-                value={accordionValue}
-                onValueChange={(newValues) => {
-                  handleAccordionValueChange(newValues, filtered, true);
-                }}
-              >
-                {filtered.map((prop) => (
-                  <SortableAccordionItem
-                    key={prop}
-                    id={prop}
-                    editMode={editMode}
-                  >
-                    <SelectionEntry
-                      source="params"
-                      property={prop}
-                      value={baseLog.params?.[prop]}
-                      baseLog={baseLog}
-                      baseLogIndex={baseIndexForSelection}
-                      comparisonLogs={comparisonLogs}
-                      comparisonLogsIndex={compIndicesForSelection}
-                      diffMode={diffMode}
-                      splitView={splitView}
-                      displayMode={displayMode}
-                      tableItem={tableItem}
-                      updateItem={updateItem}
-                      version={version}
-                      comparableVersions={comparableVersions}
-                      onHideColumn={(p) => {
-                        onPanelStateChange({ paramsFilter: { ...paramsFilter, [p]: false } });
-                      }}
-                      editMode={editMode}
-                      panelOpenKeys={localOpenKeys}
-                      panelSetOpenKeys={(updatedOpenKeys) => 
-                        onPanelStateChange({ localOpenKeys: typeof updatedOpenKeys === 'function' 
-                          ? updatedOpenKeys(localOpenKeys) 
-                          : updatedOpenKeys 
-                        })
-                      }
-                    />
-                  </SortableAccordionItem>
-                ))}
-              </Accordion>
-            </SortableContext>
-          </DndContext>
-        </div>
-      );
+      // Consistent with SelectionEntry: check both for non-empty paths and that all are open
+      const allOpen = subPathSet.size > 0 && Array.from(subPathSet).every((sp) => localOpenKeys.has(sp));
+      return allOpen;
     }
-  
+    
+    // Function to expand/collapse all entries
+    function onEntriesExpandToggle() {
+      if (editMode) return;
+      if (!baseLog) return;
+      
+      const visibleE = entryKeys.filter((k) => entriesFilter[k] !== false);
+      const subPathSet = new Set<string>();
+      const topLevelPaths: string[] = []; // Array to store just the top-level paths
+      
+      // Include paths for the top-level entries themselves
+      const prefixStr = "entries";
+      visibleE.forEach((k) => {
+        // Add the root path for this entry
+        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
+        subPathSet.add(rootPath);
+        topLevelPaths.push(rootPath); // Store top-level paths separately
+        
+        // Also add all subpaths
+        const spList = gatherSubpathsForProperty(false, k);
+        spList.forEach((sp) => subPathSet.add(sp));
+      });
+      
+      // Convert to array for the recursive functions
+      const subPaths = Array.from(subPathSet);
+      if (subPaths.length === 0) return;
+      
+      // Directly calculate if all are open rather than using areAllOpenEntries
+      // This ensures we're using the exact same paths we're about to expand/collapse
+      const currentlyAllOpen = subPaths.every(path => localOpenKeys.has(path));
+      
+      if (currentlyAllOpen) {
+        // Collapse all - use collapseRecursively directly
+        // When collapsing, exclude the top-level paths to keep parents open
+        const childPaths = subPaths.filter(path => !topLevelPaths.includes(path));
+        collapseRecursively(childPaths);
+      } else {
+        // Expand all - use expandRecursively directly
+        expandRecursively(subPaths);
+      }
+    }
+    
+    // Function to determine if all params are expanded
+    function areAllOpenParams(): boolean {
+      if (editMode) return false;
+      if (!baseLog) return false;
+      
+      const visibleP = paramKeys.filter((k) => paramsFilter[k] !== false);
+      if (!visibleP.length) return false;
+      
+      // Check both the top-level items and their subpaths
+      const subPathSet = new Set<string>();
+      
+      // Include paths for the top-level params themselves
+      const prefixStr = "params";
+      visibleP.forEach((k) => {
+        // Add the root path for this param
+        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
+        subPathSet.add(rootPath);
+        
+        // Also add all subpaths
+        const spList = gatherSubpathsForProperty(true, k);
+        spList.forEach((sp: string) => subPathSet.add(sp));
+      });
+      
+      // Consistent with SelectionEntry: check both for non-empty paths and that all are open
+      return subPathSet.size > 0 && Array.from(subPathSet).every((sp: string) => localOpenKeys.has(sp));
+    }
+    
+    // Function to expand/collapse all params
+    function onParamsExpandToggle() {
+      if (editMode) return;
+      if (!baseLog) return;
+      
+      const visibleP = paramKeys.filter((k) => paramsFilter[k] !== false);
+      const subPathSet = new Set<string>();
+      const topLevelPaths: string[] = []; // Array to store just the top-level paths
+      
+      // Include paths for the top-level params themselves
+      const prefixStr = "params";
+      visibleP.forEach((k) => {
+        // Add the root path for this param
+        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
+        subPathSet.add(rootPath);
+        topLevelPaths.push(rootPath); // Store top-level paths separately
+        
+        // Also add all subpaths
+        const spList = gatherSubpathsForProperty(true, k);
+        spList.forEach((sp: string) => subPathSet.add(sp));
+      });
+      
+      // Convert to array for the recursive functions
+      const subPaths = Array.from(subPathSet);
+      if (subPaths.length === 0) return;
+      
+      // Directly calculate if all are open rather than using areAllOpenParams
+      // This ensures we're using the exact same paths we're about to expand/collapse
+      const currentlyAllOpen = subPaths.every(path => localOpenKeys.has(path));
+      
+      if (currentlyAllOpen) {
+        // Collapse all - use collapseRecursively directly
+        // When collapsing, exclude the top-level paths to keep parents open
+        const childPaths = subPaths.filter(path => !topLevelPaths.includes(path));
+        collapseRecursively(childPaths);
+      } else {
+        // Expand all - use expandRecursively directly
+        expandRecursively(subPaths);
+      }
+    }
+
     /*****************************************************************************
      * EntriesSection Component - Converted from buildEntriesSection function
      *****************************************************************************/
@@ -703,8 +1017,50 @@ export default function SelectionPanel({
       // Map the comparison row indices directly (they're already 0-based)
       const compIndicesForSelection = comparisonRowIndices;
       
-      const version = "";
-      const comparableVersions: string[] = [];
+      // Create the entry components
+      const entryComponentsToRender = filtered.map((entryKey) => {
+        const baseEntryVal = baseLog.entries?.[entryKey];
+        
+        // Get persisted trace state for this entry if needed
+        const traceState = getTraceStateFor(`entries-${entryKey}`);
+        
+        return (
+          <SortableAccordionItem
+            key={entryKey}
+            id={entryKey}
+            editMode={editMode}
+          >
+            <SelectionEntry
+              property={entryKey}
+              source="entries"
+              value={baseEntryVal}
+              baseLog={baseLog}
+              baseLogIndex={baseIndexForSelection}
+              comparisonLogs={comparisonLogs}
+              comparisonLogsIndex={compIndicesForSelection}
+              diffMode={diffMode}
+              splitView={splitView}
+              displayMode={displayMode}
+              version=""
+              comparableVersions={[]}
+              tableItem={tableItem}
+              updateItem={updateItem}
+              onHideColumn={(p) => {
+                onPanelStateChange({ entriesFilter: { ...entriesFilter, [p]: false } });
+              }}
+              editMode={editMode}
+              panelOpenKeys={localOpenKeys}
+              panelSetOpenKeys={(updatedOpenKeys) => 
+                onPanelStateChange({ localOpenKeys: typeof updatedOpenKeys === 'function' 
+                  ? updatedOpenKeys(localOpenKeys) 
+                  : updatedOpenKeys 
+                })
+              }
+              externalTraceState={traceState}
+            />
+          </SortableAccordionItem>
+        );
+      });
       
       return (
         <div className="flex flex-col gap-2">
@@ -731,41 +1087,7 @@ export default function SelectionPanel({
                   handleAccordionValueChange(newValues, filtered, false);
                 }}
               >
-                {filtered.map((prop) => (
-                  <SortableAccordionItem
-                    key={prop}
-                    id={prop}
-                    editMode={editMode}
-                  >
-                    <SelectionEntry
-                      source="entries"
-                      property={prop}
-                      value={baseLog.entries?.[prop]}
-                      baseLog={baseLog}
-                      baseLogIndex={baseIndexForSelection}
-                      comparisonLogs={comparisonLogs}
-                      comparisonLogsIndex={compIndicesForSelection}
-                      diffMode={diffMode}
-                      splitView={splitView}
-                      displayMode={displayMode}
-                      tableItem={tableItem}
-                      updateItem={updateItem}
-                      version={version}
-                      comparableVersions={comparableVersions}
-                      onHideColumn={(p) => {
-                        onPanelStateChange({ entriesFilter: { ...entriesFilter, [p]: false } });
-                      }}
-                      editMode={editMode}
-                      panelOpenKeys={localOpenKeys}
-                      panelSetOpenKeys={(updatedOpenKeys) => 
-                        onPanelStateChange({ localOpenKeys: typeof updatedOpenKeys === 'function' 
-                          ? updatedOpenKeys(localOpenKeys) 
-                          : updatedOpenKeys 
-                        })
-                      }
-                    />
-                  </SortableAccordionItem>
-                ))}
+                {entryComponentsToRender}
               </Accordion>
             </SortableContext>
           </DndContext>
@@ -773,175 +1095,120 @@ export default function SelectionPanel({
       );
     }
   
-    // Function to determine if all entries are expanded
-    function areAllOpenEntries(): boolean {
-      if (editMode) return false;
-      if (!baseLog) return false;
+    /*****************************************************************************
+     * ParamSection Component - Converted from buildParamSection function
+     *****************************************************************************/
+    function ParamSection() {
+      if (!baseLog) return null;
+
+      // Visible columns
+      const cols = paramOrder.filter((col) => paramsFilter[col] !== false);
       
-      const visibleE = entryKeys.filter((k) => entriesFilter[k] !== false);
-      if (!visibleE.length) return false;
-      
-      // Check both the top-level items and their subpaths
-      const subPathSet = new Set<string>();
-      
-      // Include paths for the top-level entries themselves
-      const prefixStr = "entries";
-      visibleE.forEach((k) => {
-        // Add the root path for this entry
-        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
-        subPathSet.add(rootPath);
-        
-        // Also add all subpaths
-        const spList = gatherSubpathsForProperty(false, k);
-        spList.forEach((sp) => subPathSet.add(sp));
+      const filtered = cols.filter((col) => {
+        const baseVal = baseLog.params?.[col];
+        const compVals = comparisonLogs.map((cl) => cl.params?.[col]);
+        const isEmpty = isAllEmpty(baseVal, compVals);
+        return !isEmpty;
       });
       
-      const allOpen = subPathSet.size > 0 && Array.from(subPathSet).every((sp) => localOpenKeys.has(sp));
-      return allOpen;
-    }
-    
-    // Function to determine if all params are expanded
-    function areAllOpenParams(): boolean {
-      if (editMode) return false;
-      if (!baseLog) return false;
+      if (!filtered.length) return null;
       
-      const visibleP = paramKeys.filter((k) => paramsFilter[k] !== false);
-      if (!visibleP.length) return false;
+      const allOpen = areAllOpenParams();
+
+      // Calculate accordionValue based on only the root paths of each property
+      const accordionValue = filtered.filter((prop) => {
+        // Check if the root path itself is in openKeys (for shallow toggling)
+        const prefixStr = "params";
+        const rootPath = makePrefixedDictPath(prefixStr, 0, prop);
+        return localOpenKeys.has(rootPath);
+      });
+
       
-      // Check both the top-level items and their subpaths
-      const subPathSet = new Set<string>();
+      // IMPORTANT: We need to pass the actual row indices to SelectionEntry
+      // baseRowIndex is already the 0-based row index, so no need to subtract 1
+      const baseIndexForSelection = baseRowIndex; // Don't subtract 1, it's already 0-based
       
-      // Include paths for the top-level params themselves
-      const prefixStr = "params";
-      visibleP.forEach((k) => {
-        // Add the root path for this param
-        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
-        subPathSet.add(rootPath);
+      // Map the comparison row indices directly (they're already 0-based)
+      const compIndicesForSelection = comparisonRowIndices;
+      
+      // Create the param components with their own trace state if needed
+      const paramComponentsToRender = filtered.map((paramKey) => {
+        const baseParamVal = baseLog.params?.[paramKey];
         
-        // Also add all subpaths
-        const spList = gatherSubpathsForProperty(true, k);
-        spList.forEach((sp: string) => subPathSet.add(sp));
+        // Get persisted trace state for this param if needed
+        const traceState = getTraceStateFor(`params-${paramKey}`);
+        
+        return (
+          <SortableAccordionItem
+            key={paramKey}
+            id={paramKey}
+            editMode={editMode}
+          >
+            <SelectionEntry
+              source="params"
+              property={paramKey}
+              value={baseParamVal}
+              baseLog={baseLog}
+              baseLogIndex={baseIndexForSelection}
+              comparisonLogs={comparisonLogs}
+              comparisonLogsIndex={compIndicesForSelection}
+              diffMode={diffMode}
+              splitView={splitView}
+              displayMode={displayMode}
+              tableItem={tableItem}
+              updateItem={updateItem}
+              version=""
+              comparableVersions={[]}
+              onHideColumn={(p) => {
+                onPanelStateChange({ paramsFilter: { ...paramsFilter, [p]: false } });
+              }}
+              editMode={editMode}
+              panelOpenKeys={localOpenKeys}
+              panelSetOpenKeys={(updatedOpenKeys) => 
+                onPanelStateChange({ localOpenKeys: typeof updatedOpenKeys === 'function' 
+                  ? updatedOpenKeys(localOpenKeys) 
+                  : updatedOpenKeys 
+                })
+              }
+              externalTraceState={traceState}
+            />
+          </SortableAccordionItem>
+        );
       });
       
-      return subPathSet.size > 0 && Array.from(subPathSet).every((sp: string) => localOpenKeys.has(sp));
+      return (
+        <div className="flex flex-col gap-2">
+          <div className="sticky top-0 z-10 bg-background py-2 border-b border-muted flex items-center justify-between">
+            <p className="font-bold text-lg">Params</p>
+            <ActionButton
+              variant="ghost"
+              size="icon"
+              tooltip={allOpen ? "Collapse All" : "Expand All"}
+              onClick={onParamsExpandToggle}
+              icon={allOpen ? <FoldVertical /> : <UnfoldVertical />}
+            />
+          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleParamDragEnd}
+          >
+            <SortableContext items={filtered} strategy={verticalListSortingStrategy}>
+              <Accordion 
+                type="multiple"
+                value={accordionValue}
+                onValueChange={(newValues) => {
+                  handleAccordionValueChange(newValues, filtered, true);
+                }}
+              >
+                {paramComponentsToRender}
+              </Accordion>
+            </SortableContext>
+          </DndContext>
+        </div>
+      );
     }
-    
-    // Function to expand/collapse all entries
-    function onEntriesExpandToggle() {
-      if (editMode) return;
-      if (!baseLog) return;
-      
-      const visibleE = entryKeys.filter((k) => entriesFilter[k] !== false);
-      const subPathSet = new Set<string>();
-      
-      // Include paths for the top-level entries themselves
-      const prefixStr = "entries";
-      visibleE.forEach((k) => {
-        // Add the root path for this entry
-        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
-        subPathSet.add(rootPath);
-        
-        // Also add all subpaths
-        const spList = gatherSubpathsForProperty(false, k);
-        spList.forEach((sp) => subPathSet.add(sp));
-      });
-      
-      const currentlyAllOpen = areAllOpenEntries();
-      
-      if (currentlyAllOpen) {
-        // Collapse all
-        collapseRecursively(Array.from(subPathSet));
-      } else {
-        // Expand all
-        expandRecursively(Array.from(subPathSet));
-      }
-    }
-    
-    // Function to expand/collapse all params
-    function onParamsExpandToggle() {
-      if (editMode) return;
-      if (!baseLog) return;
-      
-      const visibleP = paramKeys.filter((k) => paramsFilter[k] !== false);
-      const subPathSet = new Set<string>();
-      
-      // Include paths for the top-level params themselves
-      const prefixStr = "params";
-      visibleP.forEach((k) => {
-        // Add the root path for this param
-        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
-        subPathSet.add(rootPath);
-        
-        // Also add all subpaths
-        const spList = gatherSubpathsForProperty(true, k);
-        spList.forEach((sp: string) => subPathSet.add(sp));
-      });
-      
-      const currentlyAllOpen = areAllOpenParams();
-      
-      const next = new Set(localOpenKeys);
-      if (currentlyAllOpen) {
-        subPathSet.forEach((sp: string) => next.delete(sp));
-      } else {
-        subPathSet.forEach((sp: string) => next.add(sp));
-      }
-      onPanelStateChange({ localOpenKeys: next });
-    }
-  
-    // Function to toggle edit mode with expansion key management
-    const toggleEditMode = () => {
-      if (!editMode) {
-        // turning ON => save current expansions, then close them all
-        onPanelStateChange({
-          savedOpenKeys: new Set(localOpenKeys),
-          localOpenKeys: new Set(),
-          editMode: true
-        });
-      } else {
-        // turning OFF => restore expansions
-        onPanelStateChange({
-          localOpenKeys: savedOpenKeys,
-          savedOpenKeys: new Set(),
-          editMode: false
-        });
-      }
-    };
-  
-    // Initialize filters when allPossibleColumns changes
-    useEffect(() => {
-      if (allPossibleColumns) {
-        // Initialize entries filter
-        const newEntriesFilter: Record<string, boolean> = {...entriesFilter};
-        let entriesChanged = false;
-        
-        allPossibleColumns.entries.forEach(entry => {
-          if (newEntriesFilter[entry] === undefined) {
-            newEntriesFilter[entry] = true; // Default to visible
-            entriesChanged = true;
-          }
-        });
-        
-        if (entriesChanged) {
-          onPanelStateChange({ entriesFilter: newEntriesFilter });
-        }
-        
-        // Initialize params filter
-        const newParamsFilter: Record<string, boolean> = {...paramsFilter};
-        let paramsChanged = false;
-        
-        allPossibleColumns.params.forEach(param => {
-          if (newParamsFilter[param] === undefined) {
-            newParamsFilter[param] = true; // Default to visible
-            paramsChanged = true;
-          }
-        });
-        
-        if (paramsChanged) {
-          onPanelStateChange({ paramsFilter: newParamsFilter });
-        }
-      }
-    }, [allPossibleColumns, entriesFilter, paramsFilter]);
-  
+
     if (!baseLog) {
       return (
         <div className="flex flex-col w-full h-full overflow-hidden bg-background">
@@ -1139,7 +1406,23 @@ export default function SelectionPanel({
                     : "Activate edit mode for sorting"
                 }
                 icon={<Grab className="h-4 w-4" />}
-                onClick={toggleEditMode}
+                onClick={() => {
+                  if (!editMode) {
+                    // turning ON => save current expansions, then close them all
+                    onPanelStateChange({
+                      savedOpenKeys: new Set(localOpenKeys),
+                      localOpenKeys: new Set(),
+                      editMode: true
+                    });
+                  } else {
+                    // turning OFF => restore expansions
+                    onPanelStateChange({
+                      localOpenKeys: savedOpenKeys,
+                      savedOpenKeys: new Set(),
+                      editMode: false
+                    });
+                  }
+                }}
                 variant={editMode ? "primary" : "ghost"}
                 size="icon"
               />
@@ -1205,8 +1488,8 @@ export default function SelectionPanel({
           )}
           
           <div className="flex-1 overflow-y-auto px-5 min-h-0 space-y-6">
-            <ParamSection />
-            <EntriesSection />
+            {EntriesSection()}
+            {ParamSection()}
           </div>
         </div>
       </PanelExpandProvider>
