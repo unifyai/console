@@ -65,7 +65,7 @@ const CodeBlock = ({
                 onClick={onRunDemo}
                 disabled={disabled}
             />
-            <ActionButton
+            {!readOnly && <ActionButton
                 icon={<Save />}
                 tooltip={"Save"}
                 onClick={() => {
@@ -74,7 +74,7 @@ const CodeBlock = ({
                         setSaved(true);
                     }
                 }}
-            />
+            />}
             <CopyButton content={code} copyMessage="Copied!" />
         </div>
         <div className={`h-full w-full ${!readOnly ? "p-4" : ""}`}>
