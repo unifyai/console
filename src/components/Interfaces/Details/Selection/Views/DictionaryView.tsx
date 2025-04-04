@@ -217,6 +217,7 @@ interface DictionaryViewProps extends LogComparisonProps {
   prefix?: string;
   parentPath?: string;        // The parent's fully qualified path (e.g. "entries.dict.0.a")
   nestingLevel?: number;
+  customIconMapping?: Record<string, JSX.Element>; // New prop for custom icons
 }
 
 /*─────────────────────────────────────────────────────────────────────────
@@ -242,12 +243,13 @@ function renderNoDiffMode(
     parentPath: string,
     expandRecursively: (paths: string[]) => void,
     collapseRecursively: (paths: string[]) => void,
+    customIconMapping?: Record<string, JSX.Element>, // Add custom icon mapping to options
   }
 ) {
   const { 
     baseLogIndex, comparisonLogsIndex, version, comparableVersions, 
     diffMode, splitView, displayMode, nestingLevel, prefix, parentPath,
-    expandRecursively, collapseRecursively
+    expandRecursively, collapseRecursively, customIconMapping
   } = options;
   
   // Get indentation classes based on nesting level
@@ -310,7 +312,8 @@ function renderNoDiffMode(
         // 2. Determine type based on the values we have
         const firstVal = rowValuePairs.find(p => p.val !== undefined)?.val;
         const keyType = getValueType(firstVal);
-        const icon = getTypeIcon(keyType);
+        // Use custom icon if available, otherwise use default
+        const icon = customIconMapping?.[k] || getTypeIcon(keyType);
         
         // 3. Create the path for this key
         const path = parentPath
@@ -635,12 +638,13 @@ function renderDiffMode(
     parentPath: string,
     expandRecursively: (paths: string[]) => void,
     collapseRecursively: (paths: string[]) => void,
+    customIconMapping?: Record<string, JSX.Element>, // Add custom icon mapping to options
   }
 ) {
   const { 
     baseLogIndex, comparisonLogsIndex, version, comparableVersions, 
     diffMode, splitView, displayMode, nestingLevel, prefix, parentPath,
-    expandRecursively, collapseRecursively
+    expandRecursively, collapseRecursively, customIconMapping
   } = options;
   
   // Get indentation classes based on nesting level
@@ -701,7 +705,8 @@ function renderDiffMode(
         // 2. Determine type based on available values
         const firstVal = baseVal !== undefined ? baseVal : compVals[0]?.val;
         const keyType = getValueType(firstVal);
-        const icon = getTypeIcon(keyType);
+        // Use custom icon if available, otherwise use default
+        const icon = customIconMapping?.[k] || getTypeIcon(keyType);
         
         // 3. Prepare presence info for row badges
         const basePresent = baseVal !== undefined;
@@ -1048,6 +1053,7 @@ export default function DictionaryView({
   nestingLevel = 0,
   prefix = "entries",
   parentPath = "", // new param to track parent's path
+  customIconMapping, // New prop for custom icons
 }: DictionaryViewProps) {
   
   // We first need to detect if we're within a TraceView context
@@ -1227,7 +1233,7 @@ export default function DictionaryView({
     const path = keyPaths.find(kp => kp.key === k)?.path || '';
     const isOpen = effectiveOpenKeys.has(path);
     const _valueType = getValueType(baseVal);
-    const icon = getTypeIcon(_valueType);
+    const icon = customIconMapping?.[k] || getTypeIcon(_valueType);
     const isExpandable = isDict(baseVal) || isList(baseVal);
     
     // Get indentation classes based on nesting level
@@ -1304,7 +1310,7 @@ export default function DictionaryView({
 
     // Type indicator
     const unifiedType = unifyType(baseVal, comps);
-    const icon = getTypeIcon(unifiedType);
+    const icon = customIconMapping?.[k] || getTypeIcon(unifiedType);
     const isExpandable = ["dict", "list"].includes(unifiedType);
 
     // Presence/absence highlighting indicators
@@ -1444,6 +1450,7 @@ export default function DictionaryView({
         parentPath,
         expandRecursively: effectiveExpandRecursively,
         collapseRecursively: effectiveCollapseRecursively,
+        customIconMapping,
       }
     );
   }
@@ -1469,6 +1476,7 @@ export default function DictionaryView({
       parentPath,
       expandRecursively: effectiveExpandRecursively,
       collapseRecursively: effectiveCollapseRecursively,
+      customIconMapping,
     }
   );
 }

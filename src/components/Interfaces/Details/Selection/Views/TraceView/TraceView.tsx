@@ -7,7 +7,8 @@ import {
   AccordionContent,
 } from "@/components/UI/accordion";
 import { Combobox } from "@/components/UI/Combobox";
-import { ChevronDown, ChevronRight, Clock, Code, DollarSign, AlertTriangle, FileInput, FileOutput, IdCard } from "lucide-react";
+import { ChevronDown, ChevronRight, Clock, Code, DollarSign, AlertTriangle, FileInput, FileOutput, IdCard, FoldVertical, UnfoldVertical } from "lucide-react";
+import ActionButton from "@/components/Common/Buttons/Action";
 
 import { Span } from "@/types/evals/traces";
 import {
@@ -28,6 +29,7 @@ import TimestampView from "../TimestampView";
 import ExecutionTimeView from "../ExecutionTimeView";
 
 import { isDict, isList, isMatrix, isImage, isNumber, isTimestamp, isChat } from "@/utils/evals/selection";
+import { gatherAllSubPaths } from "@/utils/evals/pathUtils";
 
 import { LogComparisonProps } from "../types";
 import Tooltip from "@/components/Common/Misc/Tooltip";
@@ -254,6 +256,7 @@ function PatchDetailPanel({
   diffMode,
   splitView,
   displayMode,
+  persistedState,
 }: {
   node: PatchDiffNode;
   baseRowIndex: number;
@@ -262,7 +265,8 @@ function PatchDetailPanel({
   allRowIndexes: number[];
   diffMode?: LogComparisonProps["diffMode"];
   splitView?: LogComparisonProps["splitView"];
-  displayMode?: "text" | "markdown" | undefined
+  displayMode?: "text" | "markdown" | undefined;
+  persistedState?: PersistedTraceViewState;
 }) {
   // Store stable references to props to avoid unnecessary re-renders
   const propsRef = React.useRef({
@@ -369,12 +373,226 @@ function PatchDetailPanel({
     "IDs": <IdCard className="h-4 w-4 text-primary" />,
   };
 
+  // Add state to track which accordion items are open
+  const [openSections, setOpenSections] = useState<string[]>(["Inputs", "Outputs"]);
+
   // Helper to render a standard accordion item
   function maybeRenderBlock(title: string, baseVal: any, comps: any[]): JSX.Element | null {
     if (allEmpty(baseVal, comps)) {
       return null;
     }
 
+    // Special handling for "Inputs" and "Outputs" sections
+    if (title === "Inputs" || title === "Outputs") {
+      // If it's not a dictionary, fall back to standard rendering
+      if (!isDict(baseVal)) {
+        const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown");
+        return (
+          <AccordionItem key={title} value={title}>
+            <AccordionTrigger className="relative group flex items-center justify-between">
+              <span className="inline-flex items-center gap-2">
+                {sectionIcons[title] || null}<span>{title}</span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="border-l ml-4 pl-1">{view}</div>
+            </AccordionContent>
+          </AccordionItem>
+        );
+      }
+
+      // Create a custom icon mapping for the DictionaryView
+      const customIconMapping: Record<string, JSX.Element> = {};
+      
+      // Add custom icons for specific keys
+      if (title === "Inputs") {
+        // Common input keys with appropriate icons
+        customIconMapping["query"] = <span className="text-primary">Q</span>;
+        customIconMapping["prompt"] = <span className="text-primary">P</span>;
+        customIconMapping["text"] = <span className="text-primary">T</span>;
+        customIconMapping["messages"] = <span className="text-primary">M</span>;
+        customIconMapping["context"] = <span className="text-primary">C</span>;
+        customIconMapping["documents"] = <span className="text-primary">D</span>;
+        customIconMapping["parameters"] = <span className="text-primary">π</span>;
+        customIconMapping["options"] = <span className="text-primary">O</span>;
+        customIconMapping["system_prompt"] = <span className="text-primary">S</span>;
+      } else if (title === "Outputs") {
+        // Common output keys with appropriate icons
+        customIconMapping["result"] = <span className="text-primary">R</span>;
+        customIconMapping["response"] = <span className="text-primary">R</span>;
+        customIconMapping["completion"] = <span className="text-primary">C</span>;
+        customIconMapping["answer"] = <span className="text-primary">A</span>;
+        customIconMapping["generated_text"] = <span className="text-primary">G</span>;
+        customIconMapping["message"] = <span className="text-primary">M</span>;
+        customIconMapping["content"] = <span className="text-primary">C</span>;
+        customIconMapping["choices"] = <span className="text-primary">C</span>;
+        customIconMapping["error"] = <span className="text-red-500">E</span>;
+      }
+      
+      // Reference to track Dictionary's internal expand/collapse state
+      const [allExpanded, setAllExpanded] = useState<boolean>(false);
+      const dictionaryRef = useRef<HTMLDivElement>(null);
+
+      // Effect to update allExpanded state based on actual paths
+      useEffect(() => {
+        if (!persistedState) return; // Early return if no persistedState
+        
+        const parentPath = title.toLowerCase();
+        const allKeys = Object.keys(baseVal || {});
+        let allPaths: string[] = [];
+        
+        // Gather all paths
+        for (const key of allKeys) {
+          const keyPath = `${parentPath}.${key}`;
+          allPaths.push(keyPath);
+          
+          // Get nested paths if the value is a dict or list
+          const value = baseVal[key];
+          if (isDict(value) || isList(value)) {
+            const nestedPaths = gatherAllSubPaths(value, keyPath, parentPath, 1);
+            allPaths.push(...nestedPaths);
+          }
+        }
+        
+        // Check if all paths are expanded
+        const allPathsExpanded = allPaths.length > 0 && 
+          allPaths.every(path => persistedState.traceExpandOpenKeys.has(path));
+        
+        setAllExpanded(allPathsExpanded);
+      }, [persistedState?.traceExpandOpenKeys, title, baseVal]);
+
+      // Handlers for expand/collapse actions
+      const handleExpandAll = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent accordion from toggling
+        
+        if (!persistedState) return; // Early return if no persistedState
+        
+        setAllExpanded(true);
+        
+        // Ensure the parent accordion item is open
+        if (!openSections.includes(title)) {
+          setOpenSections(prev => [...prev, title]);
+        }
+        
+        // Get all subpaths and expand them
+        // Use TraceExpandContext for persisted state
+        const parentPath = title.toLowerCase();
+        let subPaths: string[] = [];
+        
+        // Add the parent path itself to ensure it's opened
+        subPaths.push(parentPath);
+        
+        // Gather all keys
+        const allKeys = Object.keys(baseVal || {});
+        
+        // Add paths for all keys
+        for (const key of allKeys) {
+          const keyPath = `${parentPath}.${key}`;
+          subPaths.push(keyPath);
+          
+          // Get nested paths if the value is a dict or list
+          const value = baseVal[key];
+          if (isDict(value) || isList(value)) {
+            // Add deeper nested paths
+            const nestedPaths = gatherAllSubPaths(value, keyPath, parentPath, 1);
+            subPaths.push(...nestedPaths);
+          }
+        }
+        
+        // Expand all paths
+        persistedState.setTraceExpandOpenKeys(prev => {
+          const newSet = new Set(prev);
+          subPaths.forEach(path => newSet.add(path));
+          return newSet;
+        });
+      };
+      
+      const handleCollapseAll = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent accordion from toggling
+        
+        if (!persistedState) return; // Early return if no persistedState
+        
+        setAllExpanded(false);
+        
+        // Get all subpaths and collapse them
+        // Use TraceExpandContext for persisted state
+        const parentPath = title.toLowerCase();
+        let subPaths: string[] = [];
+        
+        // Gather all keys
+        const allKeys = Object.keys(baseVal || {});
+        
+        // Add paths for all keys
+        for (const key of allKeys) {
+          const keyPath = `${parentPath}.${key}`;
+          subPaths.push(keyPath);
+          
+          // Get nested paths if the value is a dict or list
+          const value = baseVal[key];
+          if (isDict(value) || isList(value)) {
+            // Add deeper nested paths
+            const nestedPaths = gatherAllSubPaths(value, keyPath, parentPath, 1);
+            subPaths.push(...nestedPaths);
+          }
+        }
+        
+        // Get only child paths (keep the parent path open)
+        const childPaths = subPaths.filter(path => path !== parentPath);
+        
+        // Collapse all paths
+        persistedState.setTraceExpandOpenKeys(prev => {
+          const newSet = new Set(prev);
+          childPaths.forEach(path => newSet.delete(path));
+          return newSet;
+        });
+      };
+      
+      return (
+        <AccordionItem key={title} value={title}>
+          <AccordionTrigger className="relative group flex items-center justify-between">
+            <span className="inline-flex items-center gap-2">
+              {sectionIcons[title] || null}<span>{title}</span>
+            </span>
+            {persistedState && (
+              <div className="absolute right-5 flex gap-1 items-center">
+                <ActionButton
+                  variant="ghost"
+                  size="sm"
+                  tooltip={allExpanded ? "Collapse All" : "Expand All"}
+                  onClick={allExpanded ? handleCollapseAll : handleExpandAll}
+                  icon={
+                    allExpanded ? (
+                      <FoldVertical className="h-3 w-3" />
+                    ) : (
+                      <UnfoldVertical className="h-3 w-3" />
+                    )
+                  }
+                />
+              </div>
+            )}
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="border-l ml-4 pl-1" ref={dictionaryRef}>
+              <DictionaryView
+                value={baseVal}
+                comparables={comps}
+                baseLogIndex={baseRowIndex}
+                comparisonLogsIndex={comparisonLogsIndex}
+                diffMode={diffMode ?? "none"}
+                splitView={splitView ?? false}
+                displayMode={displayMode ?? "markdown"}
+                nestingLevel={1}
+                prefix={title.toLowerCase()} // Use lowercase section name as prefix
+                parentPath={title.toLowerCase()} // Use lowercase section name as parent path
+                customIconMapping={customIconMapping}
+              />
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      );
+    }
+
+    // Standard rendering for other sections
     const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown");
 
     return (
@@ -519,7 +737,13 @@ function PatchDetailPanel({
         )}
       </div>
       
-      <Accordion type="multiple" defaultValue={["Inputs", "Outputs"]} className="mt-3">
+      <Accordion 
+        type="multiple" 
+        defaultValue={["Inputs", "Outputs"]} 
+        value={openSections}
+        onValueChange={setOpenSections}
+        className="mt-3"
+      >
         {maybeRenderBlock("Inputs", bInputs, cInputs)}
         {maybeRenderBlock("Outputs", bOutputs, cOutputs)}
         {maybeRenderBlock("Code", bCode, cCode)}
@@ -1125,7 +1349,8 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
   allRowIndexes,
   diffMode,
   splitView,
-  displayMode
+  displayMode,
+  persistedState
 }: {
   selectedNode: PatchDiffNode | null;
   baseRowIndex: number;
@@ -1135,12 +1360,14 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
   diffMode?: LogComparisonProps["diffMode"];
   splitView?: LogComparisonProps["splitView"];
   displayMode?: "text" | "markdown" | undefined;
+  persistedState?: PersistedTraceViewState;
 }) {
-  // Create a stable ID that persists across renders
-  const stableId = React.useRef(Math.random().toString(36).substr(2, 9)).current;
-  
   if (!selectedNode) {
-    return <p className="text-sm italic">Select a node on the left</p>;
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-sm text-muted-foreground italic">Select a trace span to view details</p>
+      </div>
+    );
   }
 
   return (
@@ -1153,6 +1380,7 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
       diffMode={diffMode}
       splitView={splitView}
       displayMode={displayMode}
+      persistedState={persistedState}
     />
   );
 }, (prevProps, nextProps) => {
@@ -1501,9 +1729,10 @@ export default function UnifiedTraceView({
         diffMode={diffMode}
         splitView={splitView}
         displayMode={displayMode}
+        persistedState={persistedState}
       />
     );
-  }, [selectedNode, rowIndexes, groupCompareRows, allTraces, diffMode, splitView, displayMode]);
+  }, [selectedNode, rowIndexes, groupCompareRows, allTraces, diffMode, splitView, displayMode, persistedState]);
 
   return (
     <TraceExpandProvider
