@@ -284,6 +284,7 @@ const Interface = ({
                     fieldsActions={fieldsActions}
                     derivedEntryActions={derivedEntryActions}
                     contextActions={contextActions}
+                    codeActions={codeActions}
                   />
                 </Suspense>
               )}
@@ -307,6 +308,7 @@ const Interface = ({
                 fieldsActions={fieldsActions}
                 derivedEntryActions={derivedEntryActions}
                 contextActions={contextActions}
+                codeActions={codeActions}
               />
             </Suspense>
           </DialogContent>

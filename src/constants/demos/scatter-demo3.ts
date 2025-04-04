@@ -38,8 +38,7 @@ export default {
             }
         }
     },
-    code: `
-import unify
+    code: `import unify
 import random
 
 unify.activate("scatter-demo3", overwrite=True)

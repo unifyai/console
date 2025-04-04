@@ -37,8 +37,7 @@ export default {
             }
         }
     },
-    code: `
-import unify
+    code: `import unify
 import random
 
 unify.activate("derived-columns-demo", overwrite=True)

@@ -26,8 +26,7 @@ export default {
         }
     ],
     new_counter: 2,
-    code: `
-import unify
+    code: `import unify
 from datetime import datetime
 
 unify.activate("diffs-demo", overwrite=True)

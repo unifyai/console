@@ -8,7 +8,7 @@ import { TileMeta, TilePosition } from '../../slices/selectors/tile';
  */
 export interface TileMetaActions {
    setName: (name: string) => void;
-   setType: (type: 'Table' | 'Plot' | 'View') => void;
+   setType: (type: 'Table' | 'Plot' | 'View' | 'Editor') => void;
    setPosition: (position: Partial<TilePosition>) => void;
    setMinW: (minW?: number) => void;
    setMinH: (minH?: number) => void;

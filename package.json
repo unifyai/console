@@ -20,6 +20,7 @@
     "@google-cloud/storage": "^7.15.1",
     "@hookform/resolvers": "^3.9.1",
     "@mailchimp/mailchimp_marketing": "^3.0.80",
+    "@monaco-editor/react": "^4.7.0",
     "@mui/icons-material": "^6.1.6",
     "@mui/material": "^6.1.6",
     "@nextui-org/input": "^2.2.5",

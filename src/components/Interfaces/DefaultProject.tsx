@@ -3,8 +3,8 @@
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import { ExternalLink, Loader2, Play } from "lucide-react";
+import Editor from "@monaco-editor/react";
 import ActionButton from "../Common/Buttons/Action";
-import MarkdownRender from "../Common/Code/MarkdownRender";
 import { DerivedEntryActions, TabActions, LogsActions, ProjectsActions, TileProps, CodeActions } from "@/types/evals/grid";
 import { useEffect, useState } from "react";
 import { demos } from "@/constants/logs";
@@ -17,7 +17,9 @@ import { getLogsParameters } from "@/types/evals/logs";
 import { Badge } from "../UI/badge";
 import { buildNestedDropdownTree } from "@/utils/evals/common";
 import RenderMenuItems from "../Common/Dropdowns/RenderMenuItems";
+import { CopyButton } from "../Common/Buttons/Copy";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
+import CodeBlock from "./CodeBlock";
 
 const DefaultProject = ({
     projectActions,
@@ -38,8 +40,6 @@ const DefaultProject = ({
 }) => {
     // Access projects getter and setter from the store
     const projects = useStoreContext(state => state.projects);
-
-    const { theme } = useTheme();
 
     const disabled = projects == undefined
     const [pendingLocal, setPendingLocal] = useState(false);
@@ -86,7 +86,7 @@ const DefaultProject = ({
             }, 3000);
         } else {
             setPendingLocal(true);
-            codeActions.run(demoCode).then(() => {
+            codeActions.run({ "main.py": demoCode }, "main.py").then(() => {
                 tabActions.create(
                     demoName, demoProject, undefined, demoItems, demoNewCounter, true
                 ).then(() => {
@@ -218,28 +218,24 @@ const DefaultProject = ({
                             />
                         </div>
                     </div>}
-                    <div className="relative max-w-[700px] max-h-[700px] mb-auto overflow-y-auto rounded-md border border-1 p-2">
-                        <div className={"absolute z-10 top-3 right-12 flex gap-1 " + (theme == "dark" ? "text-foreground" : "text-muted")}>
-                            <Link href={`https://docs.unify.ai/${demoLink}`} target="_blank">
-                                <ActionButton icon={<ExternalLink />} tooltip={"Learn more"} />
-                            </Link>
-                            <ActionButton
-                                icon={(pendingLocal || create != null)
-                                    ? <Loader2 className="animate-spin" />
-                                    : <Play />
-                                }
-                                tooltip={"Run Demo"}
-                                onClick={() => storeDemo(
-                                    demoProject,
-                                    demoName,
-                                    demoItems,
-                                    demoNewCounter,
-                                    demoDerivedColumns
-                                )}
-                                disabled={disabled}
-                            />
-                        </div>
-                        <MarkdownRender content={`\`\`\`python${demoCode}\`\`\``} darkOnly />
+
+                    <div className="relative h-[400px] w-[600px] mb-auto overflow-y-auto rounded-md border border-1 p-2">
+                        <CodeBlock
+                            code={demoCode}
+                            language="python"
+                            demoLink={demoLink}
+                            pending={pendingLocal}
+                            create={create}
+                            onRun={(_: string) => storeDemo(
+                                demoProject,
+                                demoName,
+                                demoItems,
+                                demoNewCounter,
+                                demoDerivedColumns
+                            )}
+                            disabled={disabled}
+                            readOnly={true}
+                        />
                     </div>
                 </div>
             </div>

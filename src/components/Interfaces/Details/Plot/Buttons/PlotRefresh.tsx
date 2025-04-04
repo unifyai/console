@@ -3,8 +3,9 @@
 import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { LogsActions, FieldsActions, PlotDataItem } from "@/types/evals/grid";
-import { PlotArguments, LogFieldsResponseProps } from "@/types/evals/logs";
+import { TileProps, LogsActions, FieldsActions, PlotDataItem } from "@/types/evals/grid";
+import { PlotArguments, LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
+import { replaceParamsIndicesWithValues, convertMetricsToLogs } from "@/utils/evals/common";
 import { processContext } from "@/utils/evals/columnOperations";
 import { LogProps } from "@/types/evals/logs";
 import { buildFilterExpression } from "@/utils/evals/filters";
@@ -75,7 +76,7 @@ const fetchAndMergeFields = async (tables: string[], args: PlotArguments, projec
     return plotFields
 }
 
-const fetchAndMergeLogs = async (tables: string[], args: PlotArguments, project: string, logsActions: LogsActions, plotFields: LogFieldsResponseProps) => {
+const fetchAndMergeLogs = async (tables: string[], item: TileProps | undefined, args: PlotArguments, project: string, logsActions: LogsActions, plotFields: LogFieldsResponseProps) => {
     const data : {[table: string]: {plotLogs: LogProps[]}}= {};
     await Promise.all(
         tables.map(async (table) => {
@@ -85,7 +86,18 @@ const fetchAndMergeLogs = async (tables: string[], args: PlotArguments, project:
             const tableFields = Object.fromEntries(Object.entries(plotFields).filter(([field, _]) => field.startsWith(table)).map(([field, attributes]) => [field.split(".").slice(1).join("."), attributes]))
             const tableFilters = tableArgs ? buildFilterExpression(tableArgs["column_filters"], tableArgs["common_filter"], tableArgs["column_context"], tableArgs["freeze"], tableFields) : null;
             const tableSubset = tableArgs ? tableArgs["subset"] : null;
-            const tableData = await logsActions.get(project, tableContext, tableColumnContext, tableFilters, null, null, null, tableSubset, null, 0, null, null, null, Date.now().toString())
+            const tableGrouping = tableArgs ? tableArgs["grouping"] : null;
+            const tableMetric = tableArgs ? tableArgs["metric"] ? tableArgs["metric"] : "mean" : "mean";
+            let tableData: LogsResponseProps = { params: {}, logs: [], count: 0, groups: [] };
+            if (item?.is_aggregated === "true" && tableGrouping && tableSubset) {
+                const groupField = tableGrouping.split(",")[0] 
+                const metrics = await logsActions.getMetrics(project, tableContext, tableFilters, groupField, tableMetric, tableSubset.split("&"))
+                tableData.logs = convertMetricsToLogs(groupField, tableMetric, tableFields, metrics as {[key: string]: {[key: string]: {[key: string]: number}}})
+            }
+            else {
+                const rawData = await logsActions.get(project, tableContext, tableColumnContext, tableFilters, null, null, null, tableSubset, null, null, null, null, null, Date.now().toString());
+                tableData = replaceParamsIndicesWithValues(rawData)    
+            }
             const tableLogs = tableData.logs as LogProps[]
             data[table] = {plotLogs: tableLogs}
         })
@@ -99,13 +111,14 @@ async function updatePlotLogs (
     args: PlotArguments, 
     project: string, 
     logsActions: LogsActions, 
-    fieldsActions: FieldsActions, 
+    fieldsActions: FieldsActions,
+    item: TileProps | undefined, 
     updatePlot: (updateFn: (prev: PlotDataItem) => PlotDataItem) => void,
     signal?:  AbortSignal
 ) {
     if (signal?.aborted) return;
     fetchAndMergeFields(tables, args, project, fieldsActions).then(async (plotFields: LogFieldsResponseProps) => 
-        fetchAndMergeLogs(tables, args, project, logsActions, plotFields).then(async (logs) => {
+        fetchAndMergeLogs(tables, item, args, project, logsActions, plotFields).then(async (logs) => {
             updatePlot((plotDataItem: PlotDataItem) => ({...plotDataItem, plotLogs: logs as LogProps[], plotFields}));
         })
     )
@@ -201,6 +214,7 @@ const PlotRefresh = ({ tileId, tabId, interfaceId, projectId, pending, args, set
                 projectId,
                 logsActions,
                 fieldsActions,
+                item,
                 (updateFn) => {
                     if (isMounted.current && autoUpdateRef.current) {
                         setPlotDataItem(updateFn);
@@ -284,7 +298,7 @@ const PlotRefresh = ({ tileId, tabId, interfaceId, projectId, pending, args, set
             const latestTs = new Date(latestTimestamp).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime();
             if (latestTs > lastCheckTs) {
-                updatePlotLogs(tables, args, projectId, logsActions, fieldsActions, setPlotDataItem).then(() => {
+                updatePlotLogs(tables, args, projectId, logsActions, fieldsActions, item, setPlotDataItem).then(() => {
                     setLastUpdated(latestTimestamp)
                 }) 
             } else {

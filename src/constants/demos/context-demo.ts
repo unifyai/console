@@ -40,8 +40,7 @@ export default {
         }
     ],
     new_counter: 3,
-    code: `
-import unify
+    code: `import unify
 
 unify.activate("context-demo", overwrite=True)
 

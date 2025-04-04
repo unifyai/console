@@ -27,8 +27,7 @@ export default {
         }
     ],
     new_counter: 2,
-    code: `
-from datetime import date
+    code: `from datetime import date
 import random
 import unify
 

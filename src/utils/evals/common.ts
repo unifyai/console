@@ -1,5 +1,4 @@
-import { LogsResponseProps, GroupedLogProps, LogProps, LogFieldsResponseProps } from "../../types/evals/logs";
-
+import { LogItemProps, LogsResponseProps, GroupedLogProps, LogProps, LogFieldsResponseProps } from "../../types/evals/logs";
 import _ from "lodash";
 import { formatNumber } from "../formatNumber";
 import { processContext } from "./columnOperations";
@@ -285,3 +284,85 @@ export const buildNestedDropdownTree = (paths: string[]) => {
 
   return root;
 };
+
+
+/**
+ * Replaces parameter indices within log entries with their corresponding actual values
+ * from a central parameter map.
+ *
+ * @param {LogsResponseProps} data - The input log response object from get_logs.
+ * @returns {LogsResponseProps} The modified `data` object. The `logs` array within
+ *   this object will contain log entries where the `params` object now holds the actual
+ *   resolved values instead of indices.
+ *   If the initial `data.logs` or `data.params` is empty (or evaluates to empty via
+ *   Object.entries), the original `data` object is returned unmodified.
+ */
+export const replaceParamsIndicesWithValues = (data: LogsResponseProps) => {
+  const params = data.params
+  const logs = data.logs as LogProps[]
+  if (!Object.entries(logs).length || !Object.entries(params).length) return data;
+  data.logs = logs.map(log => {
+      const logParams: LogItemProps = {};
+      Object.entries(log.params).map(([key, value]) => logParams[key] = params[key][value]);
+      return {...log, params: logParams}
+  })
+  return data
+}
+
+
+/**
+ * Converts aggregated metric data into an array of artificial log entries.
+ *
+ * This function takes pre-computed metrics, grouped by a specific field (`groupKey`),
+ * and transforms them into a LogProps item. Each resulting
+ * "log" represents one unique value of the `groupKey` and contains the specified
+ * metric values for various columns. The placement of these values within the log
+ * structure (params, derived_entries, entries) is determined by the field_type
+ * provided in the `fields` object.
+ *
+ * @param groupKey - The name of the field used to group the metrics.
+ * @param metric - The specific metric to extract from the aggregated data (e.g., 'mean', 'count', 'p95').
+ * @param fields - An object containing the metadata for all the project's fields. Dictates where each field's value should be
+ *                 placed in the log 
+ * @param columnMetrics - A nested object containing the aggregated metric values.
+ *                        Structure: { columnName -> { groupValue -> { metricName -> value, shared_value? -> value } } }
+ *                        Example: { 'response_time': { 'user_a': { 'mean': 150, 'count': 10 }, 'user_b': { 'mean': 200, 'count': 5 } } }
+ *                        `shared_value` is used as the value if present, otherwise the value for the specified `metric` is used.
+ * @returns An array of `LogProps` objects, where each object simulates a log entry
+ *          representing one group value and its associated metric data.
+ */
+export const convertMetricsToLogs = (
+  groupKey: string, 
+  metric: string, 
+  fields: LogFieldsResponseProps,
+  columnMetrics: {[key: string]: {[key: string]: {[key: string]: number;}}}
+) => {
+  // Get all fields for which the metrics are computed
+  const columns = Object.keys(columnMetrics);
+  
+  // Get all group values for the grouped field
+  const groupValues = Object.keys(columnMetrics[columns[0]]);
+
+  // Construct an artificial log entry for each metric value
+  const metricLogs = groupValues.map((groupValue) => {
+    // Add the grouped field and its respective value to the params, derived entries or entries depending on the field type
+    const metricLog: LogProps = { id: `${groupKey}-${metric}-${groupValue}`, ts: Date.now().toString(), type: "ungrouped", params: {}, derived_entries: {}, clipped_fields: {}, entries: {}};
+    if (fields[groupKey]) {
+      if (fields[groupKey].field_type === "param") metricLog.params[groupKey] = groupValue
+      else if (fields[groupKey].field_type === "derived_entry") metricLog.derived_entries[groupKey] = groupValue
+      else metricLog.entries[groupKey] = groupValue
+    }
+    // Add the column fields and their respective value to the params, derived entries or entries depending on the field type
+    columns.forEach(field => {
+        const fieldNode = columnMetrics[field][groupValue];
+        const fieldValue= fieldNode.shared_value ? fieldNode.shared_value : fieldNode[metric]; 
+        if (fields[field]) {
+          if (fields[field].field_type === "param") metricLog.params[field] = fieldValue
+          else if (fields[field].field_type === "derived_entry") metricLog.derived_entries[field] = fieldValue
+          else metricLog.entries[field] = fieldValue
+        }
+    });
+    return metricLog;
+  });
+  return metricLogs
+}

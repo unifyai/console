@@ -1,4 +1,4 @@
-import { ChartLine, Eye, Table } from "lucide-react";
+import { ChartLine, Code, Eye, Table } from "lucide-react";
 import { TileProps } from "@/types/evals/grid";
 import { getLogsParameters } from "@/types/evals/logs";
 import mathsAssistant from "./demos/maths_assistant";
@@ -51,10 +51,13 @@ export const defaultNewCounter = 2;
 export const icons = {
     "Table": <Table />,
     "View": <Eye />,
-    "Plot": <ChartLine />
+    "Plot": <ChartLine />,
+    "Editor": <Code />
 };
 
-export const tabTypes = ["Table", "Plot", "View"];
+export const tabTypes = ["Table", "Plot", "View", "Editor"];
+
+export const fileTypes = ["py", "txt", "json"];
 
 export const demos: {
     [key: string]: {
