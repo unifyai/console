@@ -436,11 +436,10 @@ export const runCode = async (apiKey: string, userId: string) => {
                 body: JSON.stringify({ user_id: userId, code })
             }
         );
-        const responseJson = await response.json();
         if (!response.ok) {
             console.error(response);
             throw new Error("Network error");
         }
-        return responseJson;
+        return await response.json();
     }
 }

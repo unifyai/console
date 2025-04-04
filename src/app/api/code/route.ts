@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
             setTimeout(() => {
                 command.kill();
                 reject(new Error('Execution timed out'));
-            }, 100000);
+            }, 300000);
         });
 
         // Race between the command execution and timeout
