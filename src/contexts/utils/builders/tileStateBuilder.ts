@@ -237,6 +237,7 @@ export function buildEditorTileState(
 
   // Build editor tile data
   const editorTileData: EditorTileData = {
+    file_name: tileProps.file_name,
     file_type: tileProps.file_type,
     content: tileProps.content,
   };

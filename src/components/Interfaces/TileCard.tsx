@@ -134,26 +134,6 @@ const TileCard = ({
               })}
             </BaseDropdown>
           </div>}
-          {tab && tabUIState?.edit && tab === "Editor" && <div className="w-fit">
-            <BaseDropdown
-              button={<ActionButton
-                tooltip="Select File Type"
-                text={item?.file_type || "Select File Type"}
-                variant="outline"
-                size="default"
-              />}
-            >
-              {fileTypes.map((fileType, idx) => {
-                return (
-                  <DropdownMenuItem key={idx} onSelect={() => {
-                    tileDataActions?.updateEditorTile({ file_type: fileType as "py" | "txt" | "json" });
-                  }}>
-                    {fileType}
-                  </DropdownMenuItem>
-                )
-              })}
-            </BaseDropdown>
-          </div>}
         </div>
 
         {/* Tile content */}

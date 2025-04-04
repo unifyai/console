@@ -37,6 +37,7 @@ export interface EditorTileMetaActions {
  * Interface for editor tile data actions
  */
 export interface EditorTileDataActions {
+  setFileName: (fileName: string | undefined) => void;
   setFileType: (fileType: "py" | "txt" | "json" | undefined) => void;
   setContent: (content: string) => void;
 }
@@ -102,12 +103,14 @@ export function useEditorTile(
     if (!isEditorTile || !tileId || !editorTile) return null;
     
     return {
+      file_name: editorTile.file_name,
       file_type: editorTile.file_type,
       content: editorTile.content
     } as EditorTileData;
   }, [
     isEditorTile,
     tileId,
+    editorTile?.file_name,
     editorTile?.file_type,
     editorTile?.content,
   ]);
@@ -138,6 +141,12 @@ export function useEditorTile(
     if (!isEditorTile || !tileId) return null;
     
     return {
+      setFileName: (fileName) => {
+        const update: Partial<EditorTile> = { 
+          file_name: fileName,
+        };
+        storeUpdateEditorTile(tileId, update);
+      },
       setFileType: (fileType) => {
         const update: Partial<EditorTile> = { 
           file_type: fileType,

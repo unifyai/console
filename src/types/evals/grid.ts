@@ -42,6 +42,7 @@ export interface TileProps {
     plot_group_by?: string;
     bin_count?: string;
     regression_line?: string;
+    file_name?: string;
     file_type?: "py" | "txt" | "json";
     content?: string;
 }
@@ -85,6 +86,7 @@ export interface PlotDataProps {
 
 export interface EditorDataProps {
     [key: string]: {
+        file_name: string,
         file_type: "py" | "txt" | "json",
         content: string,
     }
@@ -122,6 +124,7 @@ export type ItemType =
     | "freeze"
     | "visible"
     | "table_type"
+    | "file_name"
     | "file_type"
     | "content";
 

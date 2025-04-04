@@ -74,6 +74,7 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
   } else if (tile.type === 'Editor' && tile.editorTile) {
     // Add editor-specific properties
     Object.assign(tileProps, {
+      file_name: tile.editorTile.file_name,
       file_type: tile.editorTile.file_type,
       content: tile.editorTile.content
     });
@@ -164,6 +165,7 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
     tileUpdates.viewTile = viewTileUpdates as ViewTile;
   } else if (tileItem.tab === 'Editor') {
     editorTileUpdates = {
+      file_name: tileItem.file_name,
       file_type: tileItem.file_type,
       content: tileItem.content
     } as Partial<EditorTile>;
