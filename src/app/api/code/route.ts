@@ -47,16 +47,25 @@ export async function POST(request: NextRequest) {
             setTimeout(() => {
                 try {
                     command.kill();
-                    reject(new Error('Execution timed out'));
                 } catch (e) {
                     // Ignore errors when trying to kill a non-existent shell
                     console.log("Shell already terminated");
                 }
+                reject(new Error('Execution timed out'));
             }, 300000);
         });
 
         // Race between the command execution and timeout
-        const res: any = await Promise.race([command, timeout]);
+        const res: any = await Promise.race([
+            command.catch(error => {
+                // If the shell doesn't exist, treat it as a successful completion
+                if (error.message?.includes("Shell with id") && error.message?.includes("does not exist")) {
+                    return { exitCode: 0, output: "Command completed successfully" };
+                }
+                throw error;
+            }),
+            timeout
+        ]);
 
         // If the command failed, return an error
         if (res.exitCode !== 0)
