@@ -14,6 +14,15 @@ export default {
             tab: "Table",
             table_type: "Data Table",
             context: "Usage"
+        },
+        {
+            i: "View",
+            x: 7.0,
+            y: 0.0,
+            w: 5.0,
+            h: 8.0,
+            tab: "View",
+            table: "Table"
         }
     ],
     new_counter: 1,
