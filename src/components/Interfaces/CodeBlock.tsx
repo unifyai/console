@@ -77,7 +77,7 @@ const CodeBlock = ({
             />
             <CopyButton content={code} copyMessage="Copied!" />
         </div>
-        <div className="h-full w-full p-4">
+        <div className={`h-full w-full ${!readOnly ? "p-4" : ""}`}>
             {readOnly ? <Editor
                 options={{
                     minimap: { enabled: false },
