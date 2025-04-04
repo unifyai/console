@@ -42,9 +42,10 @@ export async function POST(request: NextRequest) {
     });
 
     try {
+        let timeoutId: NodeJS.Timeout | undefined;
         // Create a promise that rejects after 40 seconds
         const timeout = new Promise((_, reject) => {
-            setTimeout(() => {
+            timeoutId = setTimeout(() => {
                 try {
                     command.kill();
                 } catch (e) {
@@ -58,6 +59,8 @@ export async function POST(request: NextRequest) {
         // Race between the command execution and timeout
         const res: any = await Promise.race([
             command.catch(error => {
+                // Clear the timeout since the command has completed
+                if (timeoutId) clearTimeout(timeoutId);
                 // If the shell doesn't exist, treat it as a successful completion
                 if (error.message?.includes("Shell with id") && error.message?.includes("does not exist")) {
                     return { exitCode: 0, output: "Command completed successfully" };
@@ -66,6 +69,9 @@ export async function POST(request: NextRequest) {
             }),
             timeout
         ]);
+
+        // Clear the timeout since we have a result
+        if (timeoutId) clearTimeout(timeoutId);
 
         // If the command failed, return an error
         if (res.exitCode !== 0)
