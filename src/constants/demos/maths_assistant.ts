@@ -1,5 +1,5 @@
 export default {
-    gif: "line_group_dark",
+    gif: "quick_start",
     link: "basics/quickstart",
     description: "Run your first eval ⬇️, and then check out the logs in your first interface 📊",
     project: "Maths Assistant",
