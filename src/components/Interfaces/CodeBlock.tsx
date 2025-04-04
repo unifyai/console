@@ -10,23 +10,25 @@ import { DoublePanels } from "../Common/Body/DoublePanels";
 
 const CodeBlock = ({
     code,
+    output,
     language,
     demoLink,
-    pendingLocal,
+    pending,
     create,
     disabled,
     readOnly,
-    onRunDemo,
+    onRun,
     onSave,
 }: {
     code: string;
+    output?: string;
     language: string | undefined;
     demoLink?: string;
-    pendingLocal: boolean;
+    pending: boolean;
     create: string | null;
     disabled: boolean;
     readOnly?: boolean;
-    onRunDemo: () => void;
+    onRun: (code: string) => void;
     onSave?: (value: string | undefined) => void;
 }) => {
     const [tempCode, setTempCode] = useState(code);
@@ -51,13 +53,13 @@ const CodeBlock = ({
                 <ActionButton icon={<ExternalLink />} tooltip={"Learn more"} />
             </Link>}
             <ActionButton
-                icon={(pendingLocal || create != null)
+                icon={(pending || create != null)
                     ? <Loader2 className="animate-spin" />
                     : <Play />
                 }
                 tooltip={"Run Demo"}
-                onClick={onRunDemo}
-                disabled={disabled}
+                onClick={() => onRun(tempCode)}
+                disabled={disabled || pending}
             />
             {!readOnly && <ActionButton
                 icon={<Save />}
@@ -109,7 +111,10 @@ const CodeBlock = ({
                     onChange={(value) => setTempCode(value || "")}
                 />}
                 second={<div className="pt-2 h-full w-full flex flex-col gap-2">
-                    <div className="font-semibold text-gray-400">Output</div>
+                    <div className="flex gap-4 items-center">
+                        <div className="font-semibold text-gray-400">Output</div>
+                        {pending && <Loader2 className="animate-spin" />}
+                    </div>
                     <div className="h-full w-full">
                         <Editor
                             options={{
@@ -146,7 +151,7 @@ const CodeBlock = ({
                                 cursorBlinking: "solid"
                             }}
                             theme="vs-dark"
-                            value={code}
+                            value={output}
                         />
                     </div>
                 </div>}

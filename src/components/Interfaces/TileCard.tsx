@@ -7,7 +7,7 @@ import BaseDropdown from "../Common/Dropdowns/Base";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
 import { fileTypes, icons, tabTypes } from "@/constants/logs";
 import { ResponseProps } from "@/types/common";
-import { DerivedEntryActions, FieldsActions, ContextActions, TabProps, TileProps } from "@/types/evals/grid";
+import { DerivedEntryActions, FieldsActions, ContextActions, TabProps, TileProps, CodeActions } from "@/types/evals/grid";
 import { LogsActions } from "@/types/evals/grid";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 
@@ -28,6 +28,7 @@ interface TileCardProps {
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
+  codeActions: CodeActions;
 }
 
 const TileCard = ({
@@ -41,6 +42,7 @@ const TileCard = ({
   fieldsActions,
   derivedEntryActions,
   contextActions,
+  codeActions,
 }: TileCardProps) => {
 
   // Use tab hooks for tab-level state
@@ -152,6 +154,7 @@ const TileCard = ({
               fieldsActions={fieldsActions}
               derivedEntryActions={derivedEntryActions}
               contextActions={contextActions}
+              codeActions={codeActions}
           />
         </Suspense>
 

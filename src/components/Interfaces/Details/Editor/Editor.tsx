@@ -8,24 +8,29 @@ import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { fileTypes } from "@/constants/logs";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
+import { CodeActions } from "@/types/evals/grid";
 
 const Editor = ({
     tileId,
     tabId,
     interfaceId,
     projectId,
+    codeActions
 }: {
     tileId: string,
     tabId: string,
     interfaceId: string,
     projectId: string,
+    codeActions: CodeActions
 }) => {
     const {
         editorTile: editorTileState,
         editorTileActions,
     } = useTile(tileId, tabId, interfaceId, projectId);
-    const [tempFileName, setTempFileName] = useState(editorTileState?.file_name || "");
+    const [tempFileName, setTempFileName] = useState(editorTileState?.file_name || "main");
     const [saved, setSaved] = useState(false);
+    const [pending, setPending] = useState(false);
+    const [output, setOutput] = useState("");
 
     const language = (
         editorTileState?.file_type == "py" ? "python" :
@@ -74,11 +79,24 @@ const Editor = ({
             </div>
             <CodeBlock
                 code={editorTileState?.content || ""}
+                output={output}
                 language={language}
-                pendingLocal={false}
+                pending={pending}
                 create={null}
-                onRunDemo={() => { }}
-                disabled={true}
+                disabled={false}
+                onRun={(code: string) => {
+                    setPending(true);
+                    editorTileActions?.setFileName(tempFileName);
+                    editorTileActions?.setContent(code);
+                    codeActions.run(code, tempFileName).then((result: any) => {
+                        if (result.exitCode == 0)
+                            setOutput(result.output);
+                        setPending(false);
+                    }).catch((error: Error) => {
+                        setOutput(error.message);
+                        setPending(false);
+                    });
+                }}
                 readOnly={false}
                 onSave={(value: string | undefined) => {
                     if (value != undefined) {

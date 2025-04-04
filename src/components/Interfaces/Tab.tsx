@@ -10,7 +10,7 @@ import Tooltip from "../Common/Misc/Tooltip";
 import ActionButton from "../Common/Buttons/Action";
 // import Cookies from "js-cookie";
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
-import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions } from "@/types/evals/grid";
+import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions, CodeActions } from "@/types/evals/grid";
 import ContextSelector from "./Table/Content/ContextSelector";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import TutorialButton from "./TutorialButton";
@@ -32,6 +32,7 @@ interface TabComponentProps {
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
+  codeActions: CodeActions;
 }
 
 const Tab = ({
@@ -47,6 +48,7 @@ const Tab = ({
   fieldsActions,
   derivedEntryActions,
   contextActions,
+  codeActions,
 }: TabComponentProps) => {
   // Use granular hooks instead of a general hook
   const { 
@@ -213,6 +215,7 @@ const Tab = ({
                             fieldsActions={fieldsActions}
                             derivedEntryActions={derivedEntryActions}
                             contextActions={contextActions}
+                            codeActions={codeActions}
                         />
                     </Suspense>
 

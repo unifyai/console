@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const userId = body.user_id;
     const code = body.code;
+    const fileName = body.file_name + ".py";
     const sandboxList = await sdk.sandbox.list();
     let sandboxId = sandboxList.sandboxes.find(sandbox => sandbox.title === userId)?.id;
     if (sandboxId == null) {
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
         sandboxId = sandbox.id;
     }
     const sandbox = await sdk.sandbox.open(sandboxId);
-    await sandbox.fs.writeFile("main.py", code);
+    await sandbox.fs.writeFile(fileName, code);
     let envVars: { [key: string]: string } = {
         UNIFY_KEY: request.headers.get("apiKey") as string,
     };
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     // create command to run code
-    const command = sandbox.shells.run("python main.py", {
+    const command = sandbox.shells.run(`python ${fileName}`, {
         env: envVars
     });
 
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
 
         // If the command failed, return an error
         if (res.exitCode !== 0)
-            return Response.json({ detail: "Failed to run code" }, { status: 500 });
+            return Response.json({ detail: "Failed to run code", output: res.output }, { status: 500 });
 
         // If the command succeeded, return the output
         return Response.json(res);

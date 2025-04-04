@@ -1,7 +1,7 @@
 "use client";
 
 import { ResponseProps } from "@/types/common";
-import { LogsActions, FieldsActions, DerivedEntryActions, TileProps, ContextActions, TabProps } from "@/types/evals/grid";
+import { LogsActions, FieldsActions, DerivedEntryActions, TileProps, ContextActions, TabProps, CodeActions } from "@/types/evals/grid";
 import { useEffect, useMemo, useState, Suspense, lazy } from "react";
 import { useRouter } from "next/navigation";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
@@ -27,6 +27,7 @@ interface TileComponentProps {
     fieldsActions: FieldsActions;
     derivedEntryActions: DerivedEntryActions;
     contextActions: ContextActions;
+    codeActions: CodeActions;
 }
 
 const Tile = ({
@@ -38,7 +39,8 @@ const Tile = ({
     logsActions,
     fieldsActions,
     derivedEntryActions,
-    contextActions
+    contextActions,
+    codeActions
 }: TileComponentProps) => {
     const router = useRouter();
     const [initial, setInitial] = useState(true);
@@ -166,6 +168,7 @@ const Tile = ({
                             tabId={tabId}
                             interfaceId={interfaceId}
                             projectId={projectId}
+                            codeActions={codeActions}
                         />
                     </div>
                 );

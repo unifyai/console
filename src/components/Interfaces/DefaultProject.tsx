@@ -86,7 +86,7 @@ const DefaultProject = ({
             }, 3000);
         } else {
             setPendingLocal(true);
-            codeActions.run(demoCode).then(() => {
+            codeActions.run(demoCode, "main").then(() => {
                 tabActions.create(
                     demoName, demoProject, undefined, demoItems, demoNewCounter, true
                 ).then(() => {
@@ -224,9 +224,9 @@ const DefaultProject = ({
                             code={demoCode}
                             language="python"
                             demoLink={demoLink}
-                            pendingLocal={pendingLocal}
+                            pending={pendingLocal}
                             create={create}
-                            onRunDemo={() => storeDemo(
+                            onRun={(_: string) => storeDemo(
                                 demoProject,
                                 demoName,
                                 demoItems,
