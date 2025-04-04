@@ -30,14 +30,13 @@ const CodeBlock = ({
     onSave?: (value: string | undefined) => void;
 }) => {
     const [tempCode, setTempCode] = useState(code);
-    const [saved, setSaved] = useState(false);
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                 e.preventDefault();
                 if (!readOnly && onSave) {
                     onSave(tempCode);
-                    setSaved(true);
                 }
             }
         };
@@ -45,11 +44,6 @@ const CodeBlock = ({
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [tempCode, readOnly, onSave]);
-
-    useEffect(() => {
-        if (saved)
-            setTimeout(() => setSaved(false), 2000);
-    }, [saved]);
 
     return (<>
         <div className="absolute z-10 top-2 right-3 py-1 rounded-md flex gap-1 text-[var(--white-smoke)]">
@@ -71,7 +65,6 @@ const CodeBlock = ({
                 onClick={() => {
                     if (onSave != undefined) {
                         onSave(tempCode);
-                        setSaved(true);
                     }
                 }}
             />}
@@ -94,73 +87,70 @@ const CodeBlock = ({
                 language={language}
                 value={code}
                 onChange={(value) => setTempCode(value || "")}
-            /> : <>
-                {saved && <div className="text-primary text-sm font-semibold">Saved!</div>}
-                <DoublePanels
-                    isLoading={false}
-                    direction="vertical"
-                    defaultSecondSize={5.3}
-                    first={<Editor
-                        options={{
-                            minimap: { enabled: false },
-                            scrollBeyondLastLine: false,
-                            wordWrap: "on",
-                            readOnly: readOnly,
-                            padding: {
-                                top: 24,
-                                bottom: 24,
-                            },
-                            fontSize: !readOnly ? 14 : undefined
-                        }}
-                        theme="vs-dark"
-                        language={language}
-                        value={code}
-                        onChange={(value) => setTempCode(value || "")}
-                    />}
-                    second={<div className="pt-2 h-full w-full flex flex-col gap-2">
-                        <div className="font-semibold text-gray-400">Output</div>
-                        <div className="h-full w-full">
-                            <Editor
-                                options={{
-                                    minimap: { enabled: false },
-                                    scrollBeyondLastLine: false,
-                                    wordWrap: "on",
-                                    lineNumbers: "off",
-                                    readOnly: true,
-                                    padding: {
-                                        top: 12,
-                                        bottom: 12,
-                                    },
-                                    fontSize: 14,
-                                    renderLineHighlight: "none",
-                                    hideCursorInOverviewRuler: true,
-                                    overviewRulerBorder: false,
-                                    overviewRulerLanes: 0,
-                                    scrollbar: {
-                                        vertical: "hidden",
-                                        horizontal: "hidden",
-                                        useShadows: false,
-                                        verticalScrollbarSize: 0,
-                                        horizontalScrollbarSize: 0
-                                    },
-                                    glyphMargin: false,
-                                    folding: false,
-                                    lineDecorationsWidth: 20,
-                                    lineNumbersMinChars: 0,
-                                    guides: {
-                                        indentation: false,
-                                        highlightActiveIndentation: false
-                                    },
-                                    cursorStyle: "line-thin",
-                                    cursorBlinking: "solid"
-                                }}
-                                theme="vs-dark"
-                                value={code}
-                            />
-                        </div>
-                    </div>}
-                />
-            </>}
+            /> : <DoublePanels
+                isLoading={false}
+                direction="vertical"
+                defaultSecondSize={5.3}
+                first={<Editor
+                    options={{
+                        minimap: { enabled: false },
+                        scrollBeyondLastLine: false,
+                        wordWrap: "on",
+                        readOnly: readOnly,
+                        padding: {
+                            top: 24,
+                            bottom: 24,
+                        },
+                        fontSize: !readOnly ? 14 : undefined
+                    }}
+                    theme="vs-dark"
+                    language={language}
+                    value={code}
+                    onChange={(value) => setTempCode(value || "")}
+                />}
+                second={<div className="pt-2 h-full w-full flex flex-col gap-2">
+                    <div className="font-semibold text-gray-400">Output</div>
+                    <div className="h-full w-full">
+                        <Editor
+                            options={{
+                                minimap: { enabled: false },
+                                scrollBeyondLastLine: false,
+                                wordWrap: "on",
+                                lineNumbers: "off",
+                                readOnly: true,
+                                padding: {
+                                    top: 12,
+                                    bottom: 12,
+                                },
+                                fontSize: 14,
+                                renderLineHighlight: "none",
+                                hideCursorInOverviewRuler: true,
+                                overviewRulerBorder: false,
+                                overviewRulerLanes: 0,
+                                scrollbar: {
+                                    vertical: "hidden",
+                                    horizontal: "hidden",
+                                    useShadows: false,
+                                    verticalScrollbarSize: 0,
+                                    horizontalScrollbarSize: 0
+                                },
+                                glyphMargin: false,
+                                folding: false,
+                                lineDecorationsWidth: 20,
+                                lineNumbersMinChars: 0,
+                                guides: {
+                                    indentation: false,
+                                    highlightActiveIndentation: false
+                                },
+                                cursorStyle: "line-thin",
+                                cursorBlinking: "solid"
+                            }}
+                            theme="vs-dark"
+                            value={code}
+                        />
+                    </div>
+                </div>}
+            />}
         </div>
     </>);
 }
