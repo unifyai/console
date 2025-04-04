@@ -472,13 +472,21 @@ export default function SelectionEntry({
   }, [isDictOrList, subPaths, panelOpenKeys]);
   
   // Lift the trace view state here
-  const [traceCollapsedNodes, setTraceCollapsedNodes] = useState<Record<string, boolean>>({});
-  const [traceSelectedNode, setTraceSelectedNode] = useState<any | null>(null);
-  const [traceSelectedSpanId, setTraceSelectedSpanId] = useState<string>("");
-  const [traceGroupSignature, setTraceGroupSignature] = useState<string>("");
-  const [traceExpandOpenKeys, setTraceExpandOpenKeys] = useState<Set<string>>(new Set());
-  const [leftScrollPosition, setLeftScrollPosition] = useState<number>(0);
-  const [rightScrollPosition, setRightScrollPosition] = useState<number>(0);
+  // Separate UI state (stable) from scroll state (frequently changing)
+  // UI state for selections, expansions, etc.
+  const [traceUIState, setTraceUIState] = useState({
+    collapsedNodes: {} as Record<string, boolean>,
+    selectedNode: null as any | null,
+    selectedSpanId: "",
+    groupSignature: "",
+    traceExpandOpenKeys: new Set<string>(),
+  });
+  
+  // Separate scroll state that changes frequently
+  const [traceScrollState, setTraceScrollState] = useState({
+    leftScrollPosition: 0,
+    rightScrollPosition: 0,
+  });
 
   // Memoize the persisted state object to prevent unnecessary re-renders
   const persistedTraceState = useMemo(
@@ -488,32 +496,63 @@ export default function SelectionEntry({
         return externalTraceState;
       }
       
-      // Otherwise, use our local state implementation
+      // Otherwise, use our local state implementation with split state management
       return {
-        collapsedNodes: traceCollapsedNodes,
-        setCollapsedNodes: setTraceCollapsedNodes,
-        selectedNode: traceSelectedNode,
-        setSelectedNode: setTraceSelectedNode,
-        selectedSpanId: traceSelectedSpanId,
-        setSelectedSpanId: setTraceSelectedSpanId,
-        groupSignature: traceGroupSignature,
-        setGroupSignature: setTraceGroupSignature,
-        traceExpandOpenKeys: traceExpandOpenKeys,
-        setTraceExpandOpenKeys: setTraceExpandOpenKeys,
-        leftScrollPosition: leftScrollPosition,
-        setLeftScrollPosition: setLeftScrollPosition,
-        rightScrollPosition: rightScrollPosition,
-        setRightScrollPosition: setRightScrollPosition,
+        // UI state elements
+        collapsedNodes: traceUIState.collapsedNodes,
+        setCollapsedNodes: (value: React.SetStateAction<Record<string, boolean>>) =>
+          setTraceUIState(prev => ({ 
+            ...prev, 
+            collapsedNodes: typeof value === "function" ? value(prev.collapsedNodes) : value 
+          })),
+        
+        selectedNode: traceUIState.selectedNode,
+        setSelectedNode: (value: React.SetStateAction<any | null>) =>
+          setTraceUIState(prev => ({ 
+            ...prev, 
+            selectedNode: typeof value === "function" ? value(prev.selectedNode) : value 
+          })),
+        
+        selectedSpanId: traceUIState.selectedSpanId,
+        setSelectedSpanId: (value: React.SetStateAction<string>) =>
+          setTraceUIState(prev => ({ 
+            ...prev, 
+            selectedSpanId: typeof value === "function" ? value(prev.selectedSpanId) : value 
+          })),
+        
+        groupSignature: traceUIState.groupSignature,
+        setGroupSignature: (value: React.SetStateAction<string>) =>
+          setTraceUIState(prev => ({ 
+            ...prev, 
+            groupSignature: typeof value === "function" ? value(prev.groupSignature) : value 
+          })),
+        
+        traceExpandOpenKeys: traceUIState.traceExpandOpenKeys,
+        setTraceExpandOpenKeys: (value: React.SetStateAction<Set<string>>) =>
+          setTraceUIState(prev => ({ 
+            ...prev, 
+            traceExpandOpenKeys: typeof value === "function" ? value(prev.traceExpandOpenKeys) : value 
+          })),
+        
+        // Scroll state elements
+        leftScrollPosition: traceScrollState.leftScrollPosition,
+        setLeftScrollPosition: (value: React.SetStateAction<number>) =>
+          setTraceScrollState(prev => ({ 
+            ...prev, 
+            leftScrollPosition: typeof value === "function" ? value(prev.leftScrollPosition) : value 
+          })),
+        
+        rightScrollPosition: traceScrollState.rightScrollPosition,
+        setRightScrollPosition: (value: React.SetStateAction<number>) =>
+          setTraceScrollState(prev => ({ 
+            ...prev, 
+            rightScrollPosition: typeof value === "function" ? value(prev.rightScrollPosition) : value 
+          })),
       }
     },
     [
-      traceCollapsedNodes, 
-      traceSelectedNode, 
-      traceSelectedSpanId, 
-      traceGroupSignature,
-      traceExpandOpenKeys,
-      leftScrollPosition,
-      rightScrollPosition,
+      traceUIState, // Only depends on the UI state object
+      traceScrollState, // And the scroll state object
       externalTraceState, 
       property
     ]

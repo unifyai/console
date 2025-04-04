@@ -195,6 +195,7 @@ export default function SelectionPanel({
     const [baseIndexParam, setBaseIndexParam] = useState(initialBaseIndex);
     
     // Add a state to store trace view state for each property
+    // DEPRECATED: Keeping for backward compatibility, but using the new separated state approach
     const [traceStateMap, setTraceStateMap] = useState<Record<string, {
       collapsedNodes: Record<string, boolean>;
       selectedNode: PatchDiffNode | null;
@@ -205,37 +206,104 @@ export default function SelectionPanel({
       rightScrollPosition: number;
     }>>({});
     
-    // Function to get or create trace state for a property
-    const getTraceStateFor = useCallback((prop: string): PersistedTraceViewState => {
-      // Create the trace state if it doesn't exist yet
-      if (!traceStateMap[prop]) {
+    // Refactored: Separate UI state from scroll state by using two distinct state maps
+    const [traceUIStateMap, setTraceUIStateMap] = useState<Record<string, {
+      collapsedNodes: Record<string, boolean>;
+      selectedNode: PatchDiffNode | null;
+      selectedSpanId: string;
+      groupSignature: string;
+      traceExpandOpenKeys: Set<string>;
+    }>>({});
+    
+    const [traceScrollStateMap, setTraceScrollStateMap] = useState<Record<string, {
+      leftScrollPosition: number;
+      rightScrollPosition: number;
+    }>>({});
+    
+    // Sync the old traceStateMap with the new split state for backward compatibility
+    // This ensures any legacy code still works while we transition to the new approach
+    useEffect(() => {
+      // Only update when necessary to avoid loops
+      let needsUpdate = false;
+      const updatedMap: typeof traceStateMap = {};
+      
+      // Check if we need to sync any properties
+      Object.keys({...traceUIStateMap, ...traceScrollStateMap}).forEach(prop => {
+        const uiState = traceUIStateMap[prop] || {
+          collapsedNodes: {},
+          selectedNode: null,
+          selectedSpanId: "",
+          groupSignature: "",
+          traceExpandOpenKeys: new Set<string>(),
+        };
+        
+        const scrollState = traceScrollStateMap[prop] || {
+          leftScrollPosition: 0,
+          rightScrollPosition: 0
+        };
+        
+        // If this property doesn't exist in traceStateMap or its values differ
+        if (!traceStateMap[prop] || 
+            traceStateMap[prop].leftScrollPosition !== scrollState.leftScrollPosition ||
+            traceStateMap[prop].rightScrollPosition !== scrollState.rightScrollPosition) {
+          needsUpdate = true;
+          updatedMap[prop] = {
+            ...uiState,
+            ...scrollState
+          };
+        }
+      });
+      
+      // Update the legacy map only if changes were detected
+      if (needsUpdate) {
         setTraceStateMap(prev => ({
           ...prev,
+          ...updatedMap
+        }));
+      }
+    }, [traceUIStateMap, traceScrollStateMap, traceStateMap]);
+    
+    // Function to get or create trace state for a property
+    const getTraceStateFor = useCallback((prop: string): PersistedTraceViewState => {
+      // Create UI state if it doesn't exist yet
+      if (!traceUIStateMap[prop]) {
+        setTraceUIStateMap(prev => ({
+          ...prev,
           [prop]: {
+            // UI state
             collapsedNodes: {},
             selectedNode: null,
             selectedSpanId: "",
             groupSignature: "",
             traceExpandOpenKeys: new Set<string>(),
+          }
+        }));
+      }
+      
+      // Create scroll state if it doesn't exist yet
+      if (!traceScrollStateMap[prop]) {
+        setTraceScrollStateMap(prev => ({
+          ...prev,
+          [prop]: {
+            // Scroll state
             leftScrollPosition: 0,
             rightScrollPosition: 0
           }
         }));
       }
       
-      // Return the persisted state with getters and setters
+      // Return the persisted state with getters and setters that affect separate state slices
       return {
-        collapsedNodes: traceStateMap[prop]?.collapsedNodes || {},
+        // UI state getters and setters
+        collapsedNodes: traceUIStateMap[prop]?.collapsedNodes || {},
         setCollapsedNodes: (value) => {
-          setTraceStateMap(prev => {
+          setTraceUIStateMap(prev => {
             const propState = prev[prop] || { 
               collapsedNodes: {}, 
               selectedNode: null, 
               selectedSpanId: "", 
               groupSignature: "",
               traceExpandOpenKeys: new Set<string>(),
-              leftScrollPosition: 0,
-              rightScrollPosition: 0
             };
             const newCollapsedNodes = typeof value === "function" 
               ? value(propState.collapsedNodes) 
@@ -250,17 +318,15 @@ export default function SelectionPanel({
             };
           });
         },
-        selectedNode: traceStateMap[prop]?.selectedNode || null,
+        selectedNode: traceUIStateMap[prop]?.selectedNode || null,
         setSelectedNode: (node) => {
-          setTraceStateMap(prev => {
+          setTraceUIStateMap(prev => {
             const propState = prev[prop] || { 
               collapsedNodes: {}, 
               selectedNode: null, 
               selectedSpanId: "", 
               groupSignature: "",
               traceExpandOpenKeys: new Set<string>(),
-              leftScrollPosition: 0,
-              rightScrollPosition: 0
             };
             
             // Handle function updater
@@ -290,17 +356,15 @@ export default function SelectionPanel({
             };
           });
         },
-        selectedSpanId: traceStateMap[prop]?.selectedSpanId || "",
+        selectedSpanId: traceUIStateMap[prop]?.selectedSpanId || "",
         setSelectedSpanId: (id) => {
-          setTraceStateMap(prev => {
+          setTraceUIStateMap(prev => {
             const propState = prev[prop] || { 
               collapsedNodes: {}, 
               selectedNode: null, 
               selectedSpanId: "", 
               groupSignature: "",
               traceExpandOpenKeys: new Set<string>(),
-              leftScrollPosition: 0,
-              rightScrollPosition: 0
             };
             const newId = typeof id === "function" ? id(propState.selectedSpanId) : id;
             return {
@@ -312,17 +376,15 @@ export default function SelectionPanel({
             };
           });
         },
-        groupSignature: traceStateMap[prop]?.groupSignature || "",
+        groupSignature: traceUIStateMap[prop]?.groupSignature || "",
         setGroupSignature: (sig) => {
-          setTraceStateMap(prev => {
+          setTraceUIStateMap(prev => {
             const propState = prev[prop] || { 
               collapsedNodes: {}, 
               selectedNode: null, 
               selectedSpanId: "", 
               groupSignature: "",
               traceExpandOpenKeys: new Set<string>(),
-              leftScrollPosition: 0,
-              rightScrollPosition: 0
             };
             const newSig = typeof sig === "function" ? sig(propState.groupSignature) : sig;
             return {
@@ -334,17 +396,15 @@ export default function SelectionPanel({
             };
           });
         },
-        traceExpandOpenKeys: traceStateMap[prop]?.traceExpandOpenKeys || new Set<string>(),
+        traceExpandOpenKeys: traceUIStateMap[prop]?.traceExpandOpenKeys || new Set<string>(),
         setTraceExpandOpenKeys: (value) => {
-          setTraceStateMap(prev => {
+          setTraceUIStateMap(prev => {
             const propState = prev[prop] || { 
               collapsedNodes: {}, 
               selectedNode: null, 
               selectedSpanId: "", 
               groupSignature: "",
               traceExpandOpenKeys: new Set<string>(),
-              leftScrollPosition: 0,
-              rightScrollPosition: 0
             };
             const newKeys = typeof value === "function" 
               ? value(propState.traceExpandOpenKeys) 
@@ -358,21 +418,25 @@ export default function SelectionPanel({
             };
           });
         },
-        leftScrollPosition: traceStateMap[prop]?.leftScrollPosition || 0,
+
+        // Scroll state getters and setters (updating only the scroll state slice)
+        leftScrollPosition: traceScrollStateMap[prop]?.leftScrollPosition || 0,
         setLeftScrollPosition: (value) => {
-          setTraceStateMap(prev => {
+          setTraceScrollStateMap(prev => {
             const propState = prev[prop] || { 
-              collapsedNodes: {}, 
-              selectedNode: null, 
-              selectedSpanId: "", 
-              groupSignature: "",
-              traceExpandOpenKeys: new Set<string>(),
               leftScrollPosition: 0,
               rightScrollPosition: 0
             };
             const newPosition = typeof value === "function" 
               ? value(propState.leftScrollPosition) 
               : value;
+              
+            // Avoid updating if scroll position hasn't changed
+            if (newPosition === propState.leftScrollPosition) {
+              return prev;
+            }
+            
+            // Only update the scroll position in the scroll state map
             return {
               ...prev,
               [prop]: {
@@ -382,21 +446,23 @@ export default function SelectionPanel({
             };
           });
         },
-        rightScrollPosition: traceStateMap[prop]?.rightScrollPosition || 0,
+        rightScrollPosition: traceScrollStateMap[prop]?.rightScrollPosition || 0,
         setRightScrollPosition: (value) => {
-          setTraceStateMap(prev => {
+          setTraceScrollStateMap(prev => {
             const propState = prev[prop] || { 
-              collapsedNodes: {}, 
-              selectedNode: null, 
-              selectedSpanId: "", 
-              groupSignature: "",
-              traceExpandOpenKeys: new Set<string>(),
               leftScrollPosition: 0,
               rightScrollPosition: 0
             };
             const newPosition = typeof value === "function" 
               ? value(propState.rightScrollPosition) 
               : value;
+              
+            // Avoid updating if scroll position hasn't changed
+            if (newPosition === propState.rightScrollPosition) {
+              return prev;
+            }
+            
+            // Only update the scroll position in the scroll state map
             return {
               ...prev,
               [prop]: {
@@ -407,7 +473,7 @@ export default function SelectionPanel({
           });
         }
       };
-    }, [traceStateMap]);
+    }, [traceUIStateMap, traceScrollStateMap]);
     
     // Check if baseIndexParam is valid in useEffect to avoid potential infinite re-render
     useEffect(() => {
@@ -779,6 +845,143 @@ export default function SelectionPanel({
       return false;
     }
   
+    // Function to determine if all entries are expanded
+    function areAllOpenEntries(): boolean {
+      if (editMode) return false;
+      if (!baseLog) return false;
+      
+      const visibleE = entryKeys.filter((k) => entriesFilter[k] !== false);
+      if (!visibleE.length) return false;
+      
+      // Check both the top-level items and their subpaths
+      const subPathSet = new Set<string>();
+      
+      // Include paths for the top-level entries themselves
+      const prefixStr = "entries";
+      visibleE.forEach((k) => {
+        // Add the root path for this entry
+        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
+        subPathSet.add(rootPath);
+        
+        // Also add all subpaths
+        const spList = gatherSubpathsForProperty(false, k);
+        spList.forEach((sp) => subPathSet.add(sp));
+      });
+      
+      // Consistent with SelectionEntry: check both for non-empty paths and that all are open
+      const allOpen = subPathSet.size > 0 && Array.from(subPathSet).every((sp) => localOpenKeys.has(sp));
+      return allOpen;
+    }
+    
+    // Function to expand/collapse all entries
+    function onEntriesExpandToggle() {
+      if (editMode) return;
+      if (!baseLog) return;
+      
+      const visibleE = entryKeys.filter((k) => entriesFilter[k] !== false);
+      const subPathSet = new Set<string>();
+      const topLevelPaths: string[] = []; // Array to store just the top-level paths
+      
+      // Include paths for the top-level entries themselves
+      const prefixStr = "entries";
+      visibleE.forEach((k) => {
+        // Add the root path for this entry
+        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
+        subPathSet.add(rootPath);
+        topLevelPaths.push(rootPath); // Store top-level paths separately
+        
+        // Also add all subpaths
+        const spList = gatherSubpathsForProperty(false, k);
+        spList.forEach((sp) => subPathSet.add(sp));
+      });
+      
+      // Convert to array for the recursive functions
+      const subPaths = Array.from(subPathSet);
+      if (subPaths.length === 0) return;
+      
+      // Directly calculate if all are open rather than using areAllOpenEntries
+      // This ensures we're using the exact same paths we're about to expand/collapse
+      const currentlyAllOpen = subPaths.every(path => localOpenKeys.has(path));
+      
+      if (currentlyAllOpen) {
+        // Collapse all - use collapseRecursively directly
+        // When collapsing, exclude the top-level paths to keep parents open
+        const childPaths = subPaths.filter(path => !topLevelPaths.includes(path));
+        collapseRecursively(childPaths);
+      } else {
+        // Expand all - use expandRecursively directly
+        expandRecursively(subPaths);
+      }
+    }
+    
+    // Function to determine if all params are expanded
+    function areAllOpenParams(): boolean {
+      if (editMode) return false;
+      if (!baseLog) return false;
+      
+      const visibleP = paramKeys.filter((k) => paramsFilter[k] !== false);
+      if (!visibleP.length) return false;
+      
+      // Check both the top-level items and their subpaths
+      const subPathSet = new Set<string>();
+      
+      // Include paths for the top-level params themselves
+      const prefixStr = "params";
+      visibleP.forEach((k) => {
+        // Add the root path for this param
+        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
+        subPathSet.add(rootPath);
+        
+        // Also add all subpaths
+        const spList = gatherSubpathsForProperty(true, k);
+        spList.forEach((sp: string) => subPathSet.add(sp));
+      });
+      
+      // Consistent with SelectionEntry: check both for non-empty paths and that all are open
+      return subPathSet.size > 0 && Array.from(subPathSet).every((sp: string) => localOpenKeys.has(sp));
+    }
+    
+    // Function to expand/collapse all params
+    function onParamsExpandToggle() {
+      if (editMode) return;
+      if (!baseLog) return;
+      
+      const visibleP = paramKeys.filter((k) => paramsFilter[k] !== false);
+      const subPathSet = new Set<string>();
+      const topLevelPaths: string[] = []; // Array to store just the top-level paths
+      
+      // Include paths for the top-level params themselves
+      const prefixStr = "params";
+      visibleP.forEach((k) => {
+        // Add the root path for this param
+        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
+        subPathSet.add(rootPath);
+        topLevelPaths.push(rootPath); // Store top-level paths separately
+        
+        // Also add all subpaths
+        const spList = gatherSubpathsForProperty(true, k);
+        spList.forEach((sp: string) => subPathSet.add(sp));
+      });
+      
+      // Convert to array for the recursive functions
+      const subPaths = Array.from(subPathSet);
+      if (subPaths.length === 0) return;
+      
+      // Directly calculate if all are open rather than using areAllOpenParams
+      // This ensures we're using the exact same paths we're about to expand/collapse
+      const currentlyAllOpen = subPaths.every(path => localOpenKeys.has(path));
+      
+      if (currentlyAllOpen) {
+        // Collapse all - use collapseRecursively directly
+        // When collapsing, exclude the top-level paths to keep parents open
+        const childPaths = subPaths.filter(path => !topLevelPaths.includes(path));
+        collapseRecursively(childPaths);
+      } else {
+        // Expand all - use expandRecursively directly
+        expandRecursively(subPaths);
+      }
+    }
+
     /*****************************************************************************
      * EntriesSection Component - Converted from buildEntriesSection function
      *****************************************************************************/
@@ -891,129 +1094,6 @@ export default function SelectionPanel({
         </div>
       );
     }
-  
-    // Function to determine if all entries are expanded
-    function areAllOpenEntries(): boolean {
-      if (editMode) return false;
-      if (!baseLog) return false;
-      
-      const visibleE = entryKeys.filter((k) => entriesFilter[k] !== false);
-      if (!visibleE.length) return false;
-      
-      // Check both the top-level items and their subpaths
-      const subPathSet = new Set<string>();
-      
-      // Include paths for the top-level entries themselves
-      const prefixStr = "entries";
-      visibleE.forEach((k) => {
-        // Add the root path for this entry
-        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
-        subPathSet.add(rootPath);
-        
-        // Also add all subpaths
-        const spList = gatherSubpathsForProperty(false, k);
-        spList.forEach((sp) => subPathSet.add(sp));
-      });
-      
-      // Consistent with SelectionEntry: check both for non-empty paths and that all are open
-      const allOpen = subPathSet.size > 0 && Array.from(subPathSet).every((sp) => localOpenKeys.has(sp));
-      return allOpen;
-    }
-    
-    // Function to expand/collapse all entries
-    function onEntriesExpandToggle() {
-      if (editMode) return;
-      if (!baseLog) return;
-      
-      const visibleE = entryKeys.filter((k) => entriesFilter[k] !== false);
-      const subPathSet = new Set<string>();
-      const topLevelPaths: string[] = []; // Array to store just the top-level paths
-      
-      // Include paths for the top-level entries themselves
-      const prefixStr = "entries";
-      visibleE.forEach((k) => {
-        // Add the root path for this entry
-        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
-        subPathSet.add(rootPath);
-        topLevelPaths.push(rootPath); // Store top-level paths separately
-        
-        // Also add all subpaths
-        const spList = gatherSubpathsForProperty(false, k);
-        spList.forEach((sp) => subPathSet.add(sp));
-      });
-      
-      // Convert to array for the recursive functions
-      const subPaths = Array.from(subPathSet);
-      if (subPaths.length === 0) return;
-      
-      // Directly calculate if all are open rather than using areAllOpenEntries
-      // This ensures we're using the exact same paths we're about to expand/collapse
-      const currentlyAllOpen = subPaths.every(path => localOpenKeys.has(path));
-      
-      if (currentlyAllOpen) {
-        // Collapse all - use collapseRecursively directly
-        // When collapsing, exclude the top-level paths to keep parents open
-        const childPaths = subPaths.filter(path => !topLevelPaths.includes(path));
-        collapseRecursively(childPaths);
-      } else {
-        // Expand all - use expandRecursively directly
-        expandRecursively(subPaths);
-      }
-    }
-  
-    // Function to toggle edit mode with expansion key management
-    const toggleEditMode = () => {
-      if (!editMode) {
-        // turning ON => save current expansions, then close them all
-        onPanelStateChange({
-          savedOpenKeys: new Set(localOpenKeys),
-          localOpenKeys: new Set(),
-          editMode: true
-        });
-      } else {
-        // turning OFF => restore expansions
-        onPanelStateChange({
-          localOpenKeys: savedOpenKeys,
-          savedOpenKeys: new Set(),
-          editMode: false
-        });
-      }
-    };
-  
-    // Initialize filters when allPossibleColumns changes
-    useEffect(() => {
-      if (allPossibleColumns) {
-        // Initialize entries filter
-        const newEntriesFilter: Record<string, boolean> = {...entriesFilter};
-        let entriesChanged = false;
-        
-        allPossibleColumns.entries.forEach(entry => {
-          if (newEntriesFilter[entry] === undefined) {
-            newEntriesFilter[entry] = true; // Default to visible
-            entriesChanged = true;
-          }
-        });
-        
-        if (entriesChanged) {
-          onPanelStateChange({ entriesFilter: newEntriesFilter });
-        }
-        
-        // Initialize params filter
-        const newParamsFilter: Record<string, boolean> = {...paramsFilter};
-        let paramsChanged = false;
-        
-        allPossibleColumns.params.forEach(param => {
-          if (newParamsFilter[param] === undefined) {
-            newParamsFilter[param] = true; // Default to visible
-            paramsChanged = true;
-          }
-        });
-        
-        if (paramsChanged) {
-          onPanelStateChange({ paramsFilter: newParamsFilter });
-        }
-      }
-    }, [allPossibleColumns, entriesFilter, paramsFilter]);
   
     /*****************************************************************************
      * ParamSection Component - Converted from buildParamSection function
@@ -1128,75 +1208,7 @@ export default function SelectionPanel({
         </div>
       );
     }
-    
-    // Function to determine if all params are expanded
-    function areAllOpenParams(): boolean {
-      if (editMode) return false;
-      if (!baseLog) return false;
-      
-      const visibleP = paramKeys.filter((k) => paramsFilter[k] !== false);
-      if (!visibleP.length) return false;
-      
-      // Check both the top-level items and their subpaths
-      const subPathSet = new Set<string>();
-      
-      // Include paths for the top-level params themselves
-      const prefixStr = "params";
-      visibleP.forEach((k) => {
-        // Add the root path for this param
-        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
-        subPathSet.add(rootPath);
-        
-        // Also add all subpaths
-        const spList = gatherSubpathsForProperty(true, k);
-        spList.forEach((sp: string) => subPathSet.add(sp));
-      });
-      
-      // Consistent with SelectionEntry: check both for non-empty paths and that all are open
-      return subPathSet.size > 0 && Array.from(subPathSet).every((sp: string) => localOpenKeys.has(sp));
-    }
-    
-    // Function to expand/collapse all params
-    function onParamsExpandToggle() {
-      if (editMode) return;
-      if (!baseLog) return;
-      
-      const visibleP = paramKeys.filter((k) => paramsFilter[k] !== false);
-      const subPathSet = new Set<string>();
-      const topLevelPaths: string[] = []; // Array to store just the top-level paths
-      
-      // Include paths for the top-level params themselves
-      const prefixStr = "params";
-      visibleP.forEach((k) => {
-        // Add the root path for this param
-        const rootPath = makePrefixedDictPath(prefixStr, 0, k);
-        subPathSet.add(rootPath);
-        topLevelPaths.push(rootPath); // Store top-level paths separately
-        
-        // Also add all subpaths
-        const spList = gatherSubpathsForProperty(true, k);
-        spList.forEach((sp: string) => subPathSet.add(sp));
-      });
-      
-      // Convert to array for the recursive functions
-      const subPaths = Array.from(subPathSet);
-      if (subPaths.length === 0) return;
-      
-      // Directly calculate if all are open rather than using areAllOpenParams
-      // This ensures we're using the exact same paths we're about to expand/collapse
-      const currentlyAllOpen = subPaths.every(path => localOpenKeys.has(path));
-      
-      if (currentlyAllOpen) {
-        // Collapse all - use collapseRecursively directly
-        // When collapsing, exclude the top-level paths to keep parents open
-        const childPaths = subPaths.filter(path => !topLevelPaths.includes(path));
-        collapseRecursively(childPaths);
-      } else {
-        // Expand all - use expandRecursively directly
-        expandRecursively(subPaths);
-      }
-    }
-  
+
     if (!baseLog) {
       return (
         <div className="flex flex-col w-full h-full overflow-hidden bg-background">
@@ -1394,7 +1406,23 @@ export default function SelectionPanel({
                     : "Activate edit mode for sorting"
                 }
                 icon={<Grab className="h-4 w-4" />}
-                onClick={toggleEditMode}
+                onClick={() => {
+                  if (!editMode) {
+                    // turning ON => save current expansions, then close them all
+                    onPanelStateChange({
+                      savedOpenKeys: new Set(localOpenKeys),
+                      localOpenKeys: new Set(),
+                      editMode: true
+                    });
+                  } else {
+                    // turning OFF => restore expansions
+                    onPanelStateChange({
+                      localOpenKeys: savedOpenKeys,
+                      savedOpenKeys: new Set(),
+                      editMode: false
+                    });
+                  }
+                }}
                 variant={editMode ? "primary" : "ghost"}
                 size="icon"
               />
@@ -1460,8 +1488,8 @@ export default function SelectionPanel({
           )}
           
           <div className="flex-1 overflow-y-auto px-5 min-h-0 space-y-6">
-            <EntriesSection />
-            <ParamSection />
+            {EntriesSection()}
+            {ParamSection()}
           </div>
         </div>
       </PanelExpandProvider>
