@@ -381,8 +381,9 @@ const LogsPlot = ({
                         />
                         {plotType === "Histogram" && <PlotBins binCount={binCount} binCounts={binCounts} setBinCount={plotTileActions?.setBinCount!}/>}
                         <PlotGroupBy fields={fields} groupBy={groupByProperty} setGroupBy={plotTileActions?.setPlotGroupBy!} logs={logs}/>
-                        {Object.values(groupings).length && 
-                            <PlotAggregate groupings={groupings} isAggregated={isAggregated} setIsAggregated={plotTileActions?.setIsAggregated!} logs={logs}/>
+                        {Object.values(groupings).length 
+                            ? <PlotAggregate groupings={groupings} isAggregated={isAggregated} setIsAggregated={plotTileActions?.setIsAggregated!} logs={logs}/>
+                            : null
                         }
                         {!["Histogram", "Bar Chart"].includes(plotType) &&
                             <PlotScale 
