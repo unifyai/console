@@ -7,7 +7,7 @@ import {
   AccordionContent,
 } from "@/components/UI/accordion";
 import { Combobox } from "@/components/UI/Combobox";
-import { ChevronDown, ChevronRight, Clock, Code, DollarSign, AlertTriangle, FileInput, FileOutput, IdCard, FoldVertical, UnfoldVertical } from "lucide-react";
+import { ChevronDown, ChevronRight, Clock, Code, DollarSign, AlertTriangle, FileInput, FileOutput, IdCard, FoldVertical, UnfoldVertical, Copy } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
 
 import { Span } from "@/types/evals/traces";
@@ -39,6 +39,7 @@ import TimelineViewButton from "./TimelineView";
 import { formatTime } from "@/utils/evals/format";
 import { DoublePanels } from "@/components/Common/Body/DoublePanels";
 import { TraceExpandProvider } from "./TraceExpandContext";
+import { CopyButton } from "@/components/Common/Buttons/Copy";
 
 // --- Added types for lifted state ---
 export interface PersistedTraceViewState {
@@ -247,6 +248,226 @@ function pickView(
   );
 }
 
+// Define DictionarySectionItem component to handle dictionary-type sections
+function DictionarySectionItem({
+  title,
+  baseVal,
+  comps,
+  baseLogIndex,
+  comparisonLogsIndex,
+  diffMode,
+  splitView,
+  displayMode,
+  persistedState,
+  openSections,
+  setOpenSections,
+  sectionIcons,
+}: {
+  title: string;
+  baseVal: any;
+  comps: any[];
+  baseLogIndex: number;
+  comparisonLogsIndex: number[];
+  diffMode?: LogComparisonProps["diffMode"];
+  splitView?: LogComparisonProps["splitView"];
+  displayMode?: "text" | "markdown" | undefined;
+  persistedState?: PersistedTraceViewState;
+  openSections: string[];
+  setOpenSections: React.Dispatch<React.SetStateAction<string[]>>;
+  sectionIcons: Record<string, JSX.Element>;
+}) {
+  // Create a custom icon mapping for the DictionaryView
+  const customIconMapping: Record<string, JSX.Element> = {};
+  
+  // IMPORTANT: Declare hooks before any conditional returns
+  // This ensures hooks are always called in the same order
+  const [allExpanded, setAllExpanded] = useState<boolean>(false);
+  const dictionaryRef = useRef<HTMLDivElement>(null);
+
+  // Add custom icons for specific keys
+  if (title === "Inputs") {
+    // Common input keys with appropriate icons
+    customIconMapping["query"] = <span className="text-primary">Q</span>;
+    customIconMapping["prompt"] = <span className="text-primary">P</span>;
+    customIconMapping["text"] = <span className="text-primary">T</span>;
+    customIconMapping["messages"] = <span className="text-primary">M</span>;
+    customIconMapping["context"] = <span className="text-primary">C</span>;
+    customIconMapping["documents"] = <span className="text-primary">D</span>;
+    customIconMapping["parameters"] = <span className="text-primary">π</span>;
+    customIconMapping["options"] = <span className="text-primary">O</span>;
+    customIconMapping["system_prompt"] = <span className="text-primary">S</span>;
+  } else if (title === "Outputs") {
+    // Common output keys with appropriate icons
+    customIconMapping["result"] = <span className="text-primary">R</span>;
+    customIconMapping["response"] = <span className="text-primary">R</span>;
+    customIconMapping["completion"] = <span className="text-primary">C</span>;
+    customIconMapping["answer"] = <span className="text-primary">A</span>;
+    customIconMapping["generated_text"] = <span className="text-primary">G</span>;
+    customIconMapping["message"] = <span className="text-primary">M</span>;
+    customIconMapping["content"] = <span className="text-primary">C</span>;
+    customIconMapping["choices"] = <span className="text-primary">C</span>;
+    customIconMapping["error"] = <span className="text-red-500">E</span>;
+  }
+  
+  // Effect to update allExpanded state based on actual paths
+  useEffect(() => {
+    if (!persistedState) return; // Early return if no persistedState
+    
+    const parentPath = title.toLowerCase();
+    const allKeys = Object.keys(baseVal || {});
+    let allPaths: string[] = [];
+    
+    // Gather all paths
+    for (const key of allKeys) {
+      const keyPath = `${parentPath}.${key}`;
+      allPaths.push(keyPath);
+      
+      // Get nested paths if the value is a dict or list
+      const value = baseVal[key];
+      if (isDict(value) || isList(value)) {
+        const nestedPaths = gatherAllSubPaths(value, keyPath, parentPath, 1);
+        allPaths.push(...nestedPaths);
+      }
+    }
+    
+    // Check if all paths are expanded
+    const allPathsExpanded = allPaths.length > 0 && 
+      allPaths.every(path => persistedState.traceExpandOpenKeys.has(path));
+    
+    setAllExpanded(allPathsExpanded);
+  }, [persistedState?.traceExpandOpenKeys, title, baseVal]);
+
+  // Handlers for expand/collapse actions
+  const handleExpandAll = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent accordion from toggling
+    
+    if (!persistedState) return; // Early return if no persistedState
+    
+    setAllExpanded(true);
+    
+    // Ensure the parent accordion item is open
+    if (!openSections.includes(title)) {
+      setOpenSections(prev => [...prev, title]);
+    }
+    
+    // Get all subpaths and expand them
+    // Use TraceExpandContext for persisted state
+    const parentPath = title.toLowerCase();
+    let subPaths: string[] = [];
+    
+    // Add the parent path itself to ensure it's opened
+    subPaths.push(parentPath);
+    
+    // Gather all keys
+    const allKeys = Object.keys(baseVal || {});
+    
+    // Add paths for all keys
+    for (const key of allKeys) {
+      const keyPath = `${parentPath}.${key}`;
+      subPaths.push(keyPath);
+      
+      // Get nested paths if the value is a dict or list
+      const value = baseVal[key];
+      if (isDict(value) || isList(value)) {
+        // Add deeper nested paths
+        const nestedPaths = gatherAllSubPaths(value, keyPath, parentPath, 1);
+        subPaths.push(...nestedPaths);
+      }
+    }
+    
+    // Expand all paths
+    persistedState.setTraceExpandOpenKeys(prev => {
+      const newSet = new Set(prev);
+      subPaths.forEach(path => newSet.add(path));
+      return newSet;
+    });
+  };
+  
+  const handleCollapseAll = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent accordion from toggling
+    
+    if (!persistedState) return; // Early return if no persistedState
+    
+    setAllExpanded(false);
+    
+    // Get all subpaths and collapse them
+    // Use TraceExpandContext for persisted state
+    const parentPath = title.toLowerCase();
+    let subPaths: string[] = [];
+    
+    // Gather all keys
+    const allKeys = Object.keys(baseVal || {});
+    
+    // Add paths for all keys
+    for (const key of allKeys) {
+      const keyPath = `${parentPath}.${key}`;
+      subPaths.push(keyPath);
+      
+      // Get nested paths if the value is a dict or list
+      const value = baseVal[key];
+      if (isDict(value) || isList(value)) {
+        // Add deeper nested paths
+        const nestedPaths = gatherAllSubPaths(value, keyPath, parentPath, 1);
+        subPaths.push(...nestedPaths);
+      }
+    }
+    
+    // Get only child paths (keep the parent path open)
+    const childPaths = subPaths.filter(path => path !== parentPath);
+    
+    // Collapse all paths
+    persistedState.setTraceExpandOpenKeys(prev => {
+      const newSet = new Set(prev);
+      childPaths.forEach(path => newSet.delete(path));
+      return newSet;
+    });
+  };
+  
+  return (
+    <AccordionItem key={title} value={title}>
+      <AccordionTrigger className="relative group flex items-center justify-between">
+        <span className="inline-flex items-center gap-2">
+          {sectionIcons[title] || null}<span>{title}</span>
+        </span>
+        {persistedState && (
+          <div className="absolute right-5 flex gap-1 items-center">
+            <ActionButton
+              variant="ghost"
+              size="sm"
+              tooltip={allExpanded ? "Collapse All" : "Expand All"}
+              onClick={allExpanded ? handleCollapseAll : handleExpandAll}
+              icon={
+                allExpanded ? (
+                  <FoldVertical className="h-3 w-3" />
+                ) : (
+                  <UnfoldVertical className="h-3 w-3" />
+                )
+              }
+            />
+          </div>
+        )}
+      </AccordionTrigger>
+      <AccordionContent>
+        <div className="border-l ml-4 pl-1" ref={dictionaryRef}>
+          <DictionaryView
+            value={baseVal}
+            comparables={comps}
+            baseLogIndex={baseLogIndex}
+            comparisonLogsIndex={comparisonLogsIndex}
+            diffMode={diffMode ?? "none"}
+            splitView={splitView ?? false}
+            displayMode={displayMode ?? "markdown"}
+            nestingLevel={1}
+            prefix={title.toLowerCase()} // Use lowercase section name as prefix
+            parentPath={title.toLowerCase()} // Use lowercase section name as parent path
+            customIconMapping={customIconMapping}
+          />
+        </div>
+      </AccordionContent>
+    </AccordionItem>
+  );
+}
+
 function PatchDetailPanel({
   node,
   baseRowIndex,
@@ -268,6 +489,11 @@ function PatchDetailPanel({
   displayMode?: "text" | "markdown" | undefined;
   persistedState?: PersistedTraceViewState;
 }) {
+  // IMPORTANT: Declare ALL hooks at the top level before any conditional logic
+  
+  // Track which accordion items are open
+  const [openSections, setOpenSections] = useState<string[]>(["Inputs", "Outputs"]);
+  
   // Store stable references to props to avoid unnecessary re-renders
   const propsRef = React.useRef({
     node,
@@ -282,12 +508,12 @@ function PatchDetailPanel({
   React.useEffect(() => {
     const currentProps = propsRef.current;
     const nodeChanged = currentProps.node !== node && 
-                        (currentProps.node?.name !== node.name || 
-                         currentProps.node?.baseSpanRef?.id !== node.baseSpanRef?.id);
+                       (currentProps.node?.name !== node.name || 
+                        currentProps.node?.baseSpanRef?.id !== node.baseSpanRef?.id);
     
     const configChanged = currentProps.diffMode !== diffMode || 
-                          currentProps.splitView !== splitView || 
-                          currentProps.displayMode !== displayMode;
+                         currentProps.splitView !== splitView || 
+                         currentProps.displayMode !== displayMode;
                           
     if (nodeChanged || configChanged) {
       propsRef.current = {
@@ -301,9 +527,11 @@ function PatchDetailPanel({
     }
   }, [node, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode]);
   
+  // Early return after all hooks are declared
   if (!node.baseSpanRef && !node.targetSpanRef) {
     return <p className="italic text-sm">No base or target data</p>;
   }
+  
   const mainSpan = node.baseSpanRef || node.targetSpanRef;
   const spanId = mainSpan?.id ?? "(no id)";
 
@@ -373,12 +601,11 @@ function PatchDetailPanel({
     "IDs": <IdCard className="h-4 w-4 text-primary" />,
   };
 
-  // Add state to track which accordion items are open
-  const [openSections, setOpenSections] = useState<string[]>(["Inputs", "Outputs"]);
-
   // Helper to render a standard accordion item
   function maybeRenderBlock(title: string, baseVal: any, comps: any[]): JSX.Element | null {
-    if (allEmpty(baseVal, comps)) {
+    // Determine if we should render anything by checking emptiness first
+    const isEmpty = allEmpty(baseVal, comps);
+    if (isEmpty) {
       return null;
     }
 
@@ -401,194 +628,22 @@ function PatchDetailPanel({
         );
       }
 
-      // Create a custom icon mapping for the DictionaryView
-      const customIconMapping: Record<string, JSX.Element> = {};
-      
-      // Add custom icons for specific keys
-      if (title === "Inputs") {
-        // Common input keys with appropriate icons
-        customIconMapping["query"] = <span className="text-primary">Q</span>;
-        customIconMapping["prompt"] = <span className="text-primary">P</span>;
-        customIconMapping["text"] = <span className="text-primary">T</span>;
-        customIconMapping["messages"] = <span className="text-primary">M</span>;
-        customIconMapping["context"] = <span className="text-primary">C</span>;
-        customIconMapping["documents"] = <span className="text-primary">D</span>;
-        customIconMapping["parameters"] = <span className="text-primary">π</span>;
-        customIconMapping["options"] = <span className="text-primary">O</span>;
-        customIconMapping["system_prompt"] = <span className="text-primary">S</span>;
-      } else if (title === "Outputs") {
-        // Common output keys with appropriate icons
-        customIconMapping["result"] = <span className="text-primary">R</span>;
-        customIconMapping["response"] = <span className="text-primary">R</span>;
-        customIconMapping["completion"] = <span className="text-primary">C</span>;
-        customIconMapping["answer"] = <span className="text-primary">A</span>;
-        customIconMapping["generated_text"] = <span className="text-primary">G</span>;
-        customIconMapping["message"] = <span className="text-primary">M</span>;
-        customIconMapping["content"] = <span className="text-primary">C</span>;
-        customIconMapping["choices"] = <span className="text-primary">C</span>;
-        customIconMapping["error"] = <span className="text-red-500">E</span>;
-      }
-      
-      // Reference to track Dictionary's internal expand/collapse state
-      const [allExpanded, setAllExpanded] = useState<boolean>(false);
-      const dictionaryRef = useRef<HTMLDivElement>(null);
-
-      // Effect to update allExpanded state based on actual paths
-      useEffect(() => {
-        if (!persistedState) return; // Early return if no persistedState
-        
-        const parentPath = title.toLowerCase();
-        const allKeys = Object.keys(baseVal || {});
-        let allPaths: string[] = [];
-        
-        // Gather all paths
-        for (const key of allKeys) {
-          const keyPath = `${parentPath}.${key}`;
-          allPaths.push(keyPath);
-          
-          // Get nested paths if the value is a dict or list
-          const value = baseVal[key];
-          if (isDict(value) || isList(value)) {
-            const nestedPaths = gatherAllSubPaths(value, keyPath, parentPath, 1);
-            allPaths.push(...nestedPaths);
-          }
-        }
-        
-        // Check if all paths are expanded
-        const allPathsExpanded = allPaths.length > 0 && 
-          allPaths.every(path => persistedState.traceExpandOpenKeys.has(path));
-        
-        setAllExpanded(allPathsExpanded);
-      }, [persistedState?.traceExpandOpenKeys, title, baseVal]);
-
-      // Handlers for expand/collapse actions
-      const handleExpandAll = (e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent accordion from toggling
-        
-        if (!persistedState) return; // Early return if no persistedState
-        
-        setAllExpanded(true);
-        
-        // Ensure the parent accordion item is open
-        if (!openSections.includes(title)) {
-          setOpenSections(prev => [...prev, title]);
-        }
-        
-        // Get all subpaths and expand them
-        // Use TraceExpandContext for persisted state
-        const parentPath = title.toLowerCase();
-        let subPaths: string[] = [];
-        
-        // Add the parent path itself to ensure it's opened
-        subPaths.push(parentPath);
-        
-        // Gather all keys
-        const allKeys = Object.keys(baseVal || {});
-        
-        // Add paths for all keys
-        for (const key of allKeys) {
-          const keyPath = `${parentPath}.${key}`;
-          subPaths.push(keyPath);
-          
-          // Get nested paths if the value is a dict or list
-          const value = baseVal[key];
-          if (isDict(value) || isList(value)) {
-            // Add deeper nested paths
-            const nestedPaths = gatherAllSubPaths(value, keyPath, parentPath, 1);
-            subPaths.push(...nestedPaths);
-          }
-        }
-        
-        // Expand all paths
-        persistedState.setTraceExpandOpenKeys(prev => {
-          const newSet = new Set(prev);
-          subPaths.forEach(path => newSet.add(path));
-          return newSet;
-        });
-      };
-      
-      const handleCollapseAll = (e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent accordion from toggling
-        
-        if (!persistedState) return; // Early return if no persistedState
-        
-        setAllExpanded(false);
-        
-        // Get all subpaths and collapse them
-        // Use TraceExpandContext for persisted state
-        const parentPath = title.toLowerCase();
-        let subPaths: string[] = [];
-        
-        // Gather all keys
-        const allKeys = Object.keys(baseVal || {});
-        
-        // Add paths for all keys
-        for (const key of allKeys) {
-          const keyPath = `${parentPath}.${key}`;
-          subPaths.push(keyPath);
-          
-          // Get nested paths if the value is a dict or list
-          const value = baseVal[key];
-          if (isDict(value) || isList(value)) {
-            // Add deeper nested paths
-            const nestedPaths = gatherAllSubPaths(value, keyPath, parentPath, 1);
-            subPaths.push(...nestedPaths);
-          }
-        }
-        
-        // Get only child paths (keep the parent path open)
-        const childPaths = subPaths.filter(path => path !== parentPath);
-        
-        // Collapse all paths
-        persistedState.setTraceExpandOpenKeys(prev => {
-          const newSet = new Set(prev);
-          childPaths.forEach(path => newSet.delete(path));
-          return newSet;
-        });
-      };
-      
+      // Use a dedicated component for dictionary inputs/outputs to encapsulate hooks
       return (
-        <AccordionItem key={title} value={title}>
-          <AccordionTrigger className="relative group flex items-center justify-between">
-            <span className="inline-flex items-center gap-2">
-              {sectionIcons[title] || null}<span>{title}</span>
-            </span>
-            {persistedState && (
-              <div className="absolute right-5 flex gap-1 items-center">
-                <ActionButton
-                  variant="ghost"
-                  size="sm"
-                  tooltip={allExpanded ? "Collapse All" : "Expand All"}
-                  onClick={allExpanded ? handleCollapseAll : handleExpandAll}
-                  icon={
-                    allExpanded ? (
-                      <FoldVertical className="h-3 w-3" />
-                    ) : (
-                      <UnfoldVertical className="h-3 w-3" />
-                    )
-                  }
-                />
-              </div>
-            )}
-          </AccordionTrigger>
-          <AccordionContent>
-            <div className="border-l ml-4 pl-1" ref={dictionaryRef}>
-              <DictionaryView
-                value={baseVal}
-                comparables={comps}
-                baseLogIndex={baseRowIndex}
-                comparisonLogsIndex={comparisonLogsIndex}
-                diffMode={diffMode ?? "none"}
-                splitView={splitView ?? false}
-                displayMode={displayMode ?? "markdown"}
-                nestingLevel={1}
-                prefix={title.toLowerCase()} // Use lowercase section name as prefix
-                parentPath={title.toLowerCase()} // Use lowercase section name as parent path
-                customIconMapping={customIconMapping}
-              />
-            </div>
-          </AccordionContent>
-        </AccordionItem>
+        <DictionarySectionItem 
+          title={title}
+          baseVal={baseVal}
+          comps={comps}
+          baseLogIndex={baseRowIndex}
+          comparisonLogsIndex={comparisonLogsIndex}
+          diffMode={diffMode}
+          splitView={splitView}
+          displayMode={displayMode}
+          persistedState={persistedState}
+          openSections={openSections}
+          setOpenSections={setOpenSections}
+          sectionIcons={sectionIcons}
+        />
       );
     }
 
@@ -609,120 +664,25 @@ function PatchDetailPanel({
     );
   }
 
-  // Specialized renderer for execution time
-  function renderExecutionTime(): JSX.Element | null {
-    if (allEmpty(bExecTime, cExecTime)) return null;
-    return (
-      <AccordionItem key="Execution Time" value="Execution Time">
-        <AccordionTrigger className="relative group flex items-center justify-between">
-          <span className="inline-flex items-center gap-2">
-            {sectionIcons["Execution Time"]} <span>Execution Time</span>
-          </span>
-        </AccordionTrigger>
-        <AccordionContent>
-          <div className="border-l ml-4 pl-1">
-            <ExecutionTimeView
-              value={bExecTime}
-              comparables={cExecTime}
-              baseLogIndex={baseRowIndex}
-              comparisonLogsIndex={comparisonLogsIndex}
-              diffMode={diffMode}
-              splitView={splitView}
-              displayMode={displayMode}
-            />
-          </div>
-        </AccordionContent>
-      </AccordionItem>
-    );
-  }
-
-  // Specialized renderer for cost section
-  function renderCostBlock(): JSX.Element | null {
-    if (allEmpty(bCost, cCost) && allEmpty(bCostIncCache, cCostIncCache)) return null;
-    const content = (
-      <div className="flex flex-col gap-2">
-        <div>
-          <p className="font-semibold text-sm mb-2">Cost ($)</p>
-          <div className="border border-muted p-2 rounded">
-            <NumberView
-              value={bCost}
-              comparables={cCost}
-              baseLogIndex={baseRowIndex}
-              comparisonLogsIndex={comparisonLogsIndex}
-              diffMode={diffMode}
-              splitView={splitView}
-              scientificNotation={true}
-              displayMode={displayMode}
-            />
-          </div>
-        </div>
-        <div>
-          <p className="font-semibold text-sm mb-2">Cost including cache ($)</p>
-          <div className="border border-muted p-2 rounded">
-            <NumberView
-              value={bCostIncCache}
-              comparables={cCostIncCache}
-              baseLogIndex={baseRowIndex}
-              comparisonLogsIndex={comparisonLogsIndex}
-              diffMode={diffMode}
-              splitView={splitView}
-              scientificNotation={true}
-              displayMode={displayMode}
-            />
-          </div>
-        </div>
-      </div>
-    );
-    return (
-      <AccordionItem key="Cost" value="Cost">
-        <AccordionTrigger className="relative group flex items-center justify-between">
-          <span className="inline-flex items-center gap-2">
-            {sectionIcons["Cost"]} <span>Cost</span>
-          </span>
-        </AccordionTrigger>
-        <AccordionContent>
-          <div className="border-l ml-4 pl-1">{content}</div>
-        </AccordionContent>
-      </AccordionItem>
-    );
-  }
-
-  // Get all field values
-  const { baseVal: bInputs, comps: cInputs } = gatherField("inputs");
-  const { baseVal: bOutputs, comps: cOutputs } = gatherField("outputs");
-  const { baseVal: bCode, comps: cCode } = gatherField("code");
-  const { baseVal: bErrors, comps: cErrors } = gatherField("errors");
-  const { baseVal: bExecTime, comps: cExecTime } = gatherField("exec_time");
-  const { baseVal: bCost, comps: cCost } = gatherField("cost");
-  const { baseVal: bCostIncCache, comps: cCostIncCache } = gatherField("cost_inc_cache");
-
-  function gatherID() {
-    const bSpan = node.baseSpanRef;
-    const tSpan = node.targetSpanRef;
-    if (bSpan && tSpan && bSpan === tSpan) {
-      return { baseVal: bSpan.id ?? "", comps: [] };
-    }
-    if (comparisonLogsIndex.length <= 1) {
-      const bId = bSpan?.id ?? "";
-      const tId = tSpan?.id ?? "";
-      return tId ? { baseVal: bId, comps: [tId] } : { baseVal: bId, comps: [] };
-    }
-    const realName = bSpan?.span_name || tSpan?.span_name || node.name;
-    const bId = bSpan?.id ?? "";
-    const compsArr = comparisonLogsIndex.map((r) => {
-      const match = findSpanByNameInRow(allTraces, allRowIndexes, r, realName);
-      return match?.id ?? "";
-    });
-    return { baseVal: bId, comps: compsArr };
-  }
-  const { baseVal: bId, comps: cId } = gatherID();
-
-  const showTimelineButton = allRowIndexes.length === 1 || (allTraces.length > 1 && comparisonLogsIndex.length === 0);
-
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <p className="font-bold text-sm">{node.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="font-bold text-sm">{node.name}</p>
+          {node.baseSpanRef?.id && (
+            <CopyButton
+              content={node.baseSpanRef?.id ?? ""}
+              copyMessage={
+                node.baseSpanRef?.parent_span_id ? "Copied span ID" : "Copied trace ID"
+              }
+              tooltipContent={
+                node.baseSpanRef?.parent_span_id ? 
+                "Copy span ID" : 
+                "Copy trace ID"
+              }
+            />
+          )}
+        </div>
         { (node.baseSpanRef || node.targetSpanRef) && (
           <TimelineViewButton
             baseTrace={
@@ -744,13 +704,104 @@ function PatchDetailPanel({
         onValueChange={setOpenSections}
         className="mt-3"
       >
-        {maybeRenderBlock("Inputs", bInputs, cInputs)}
-        {maybeRenderBlock("Outputs", bOutputs, cOutputs)}
-        {maybeRenderBlock("Code", bCode, cCode)}
-        {renderExecutionTime()}
-        {maybeRenderBlock("Errors", bErrors, cErrors)}
-        {renderCostBlock()}
-        {maybeRenderBlock("IDs", bId, cId)}
+        {(() => {
+          const { baseVal: bInputs, comps: cInputs } = gatherField("inputs");
+          const { baseVal: bOutputs, comps: cOutputs } = gatherField("outputs");
+          const { baseVal: bCode, comps: cCode } = gatherField("code");
+          const { baseVal: bExecTime, comps: cExecTime } = gatherField("exec_time");
+          const { baseVal: bErrors, comps: cErrors } = gatherField("errors");
+          const { baseVal: bCost, comps: cCost } = gatherField("cost");
+          const { baseVal: bCostIncCache, comps: cCostIncCache } = gatherField("cost_inc_cache");
+          
+          // Gather IDs
+          function gatherID() {
+            const bSpan = node.baseSpanRef;
+            const tSpan = node.targetSpanRef;
+            if (bSpan && tSpan && bSpan === tSpan) {
+              return { baseVal: bSpan.id ?? "", comps: [] };
+            }
+            if (comparisonLogsIndex.length <= 1) {
+              const bId = bSpan?.id ?? "";
+              const tId = tSpan?.id ?? "";
+              return tId ? { baseVal: bId, comps: [tId] } : { baseVal: bId, comps: [] };
+            }
+            const realName = bSpan?.span_name || tSpan?.span_name || node.name;
+            const bId = bSpan?.id ?? "";
+            const compsArr = comparisonLogsIndex.map((r) => {
+              const match = findSpanByNameInRow(allTraces, allRowIndexes, r, realName);
+              return match?.id ?? "";
+            });
+            return { baseVal: bId, comps: compsArr };
+          }
+          const { baseVal: bId, comps: cId } = gatherID();
+          
+          // Specialized renderer for cost section
+          function renderCostBlock(): JSX.Element | null {
+            const isEmpty = allEmpty(bCost, cCost) && allEmpty(bCostIncCache, cCostIncCache);
+            if (isEmpty) return null;
+            
+            const content = (
+              <div className="flex flex-col gap-2">
+                <div>
+                  <p className="font-semibold text-sm mb-2">Cost ($)</p>
+                  <div className="border border-muted p-2 rounded">
+                    <NumberView
+                      value={bCost}
+                      comparables={cCost}
+                      baseLogIndex={baseRowIndex}
+                      comparisonLogsIndex={comparisonLogsIndex}
+                      diffMode={diffMode}
+                      splitView={splitView}
+                      scientificNotation={true}
+                      displayMode={displayMode}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <p className="font-semibold text-sm mb-2">Cost including cache ($)</p>
+                  <div className="border border-muted p-2 rounded">
+                    <NumberView
+                      value={bCostIncCache}
+                      comparables={cCostIncCache}
+                      baseLogIndex={baseRowIndex}
+                      comparisonLogsIndex={comparisonLogsIndex}
+                      diffMode={diffMode}
+                      splitView={splitView}
+                      scientificNotation={true}
+                      displayMode={displayMode}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+            
+            return (
+              <AccordionItem key="Cost" value="Cost">
+                <AccordionTrigger className="relative group flex items-center justify-between">
+                  <span className="inline-flex items-center gap-2">
+                    {sectionIcons["Cost"]} <span>Cost</span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="border-l ml-4 pl-1">{content}</div>
+                </AccordionContent>
+              </AccordionItem>
+            );
+          }
+          
+          // Return all accordion sections
+          return (
+            <>
+              {maybeRenderBlock("Inputs", bInputs, cInputs)}
+              {maybeRenderBlock("Outputs", bOutputs, cOutputs)}
+              {maybeRenderBlock("Code", bCode, cCode)}
+              {maybeRenderBlock("Execution Time", bExecTime, cExecTime)}
+              {maybeRenderBlock("Errors", bErrors, cErrors)}
+              {renderCostBlock()}
+              {maybeRenderBlock("IDs", bId, cId)}
+            </>
+          );
+        })()}
       </Accordion>
     </div>
   );
