@@ -425,7 +425,7 @@ export const createDevbox = async (apiKey: string, userId: string) => {
 
 // run code
 export const runCode = async (apiKey: string, userId: string) => {
-    return async (code: string, fileName: string) => {
+    return async (files: { [fileName: string]: string }, filePath: string) => {
         "use server";
 
         const response = await fetch(
@@ -433,14 +433,14 @@ export const runCode = async (apiKey: string, userId: string) => {
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ user_id: userId, code, file_name: fileName })
+                body: JSON.stringify({ user_id: userId, files, file_path: filePath })
             }
         );
         const responseJson = await response.json();
         if (!response.ok) {
             // If there's an error message in the output field, use that
             if (responseJson.output) {
-                throw new Error(responseJson.output.replace("/project/sandbox/", ""));
+                throw new Error(responseJson.output.replaceAll("/project/sandbox/", ""));
             }
             // Otherwise use the detail field or default message
             throw new Error(responseJson.detail || "Network error");

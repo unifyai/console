@@ -9,6 +9,8 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { fileTypes } from "@/constants/logs";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { CodeActions } from "@/types/evals/grid";
+import { useTab, useTabData } from "@/contexts/hooks/tab";
+import { useTiles } from "@/contexts/hooks";
 
 const Editor = ({
     tileId,
@@ -23,10 +25,14 @@ const Editor = ({
     projectId: string,
     codeActions: CodeActions
 }) => {
-    const {
-        editorTile: editorTileState,
-        editorTileActions,
-    } = useTile(tileId, tabId, interfaceId, projectId);
+    const { editorTile: editorTileState, editorTileActions } = useTile(tileId, tabId, interfaceId, projectId);
+    const { data: tabData } = useTabData(tabId, interfaceId, projectId);
+    const tileIds = tabData?.tileIds;
+    const tiles = useTiles(tileIds);
+    const editorTiles = tiles.filter((tile) => tile.type == "Editor");
+    const allFiles = editorTiles.map((tile) => {
+        return { [`${tile.editorTile?.file_name}.${tile.editorTile?.file_type}`]: tile.editorTile?.content || "" };
+    }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
     const [tempFileName, setTempFileName] = useState(editorTileState?.file_name || "main");
     const [saved, setSaved] = useState(false);
     const [pending, setPending] = useState(false);
@@ -88,7 +94,9 @@ const Editor = ({
                     setPending(true);
                     editorTileActions?.setFileName(tempFileName);
                     editorTileActions?.setContent(code);
-                    codeActions.run(code, tempFileName).then((result: any) => {
+                    const tempFilePath = `${tempFileName}.${editorTileState?.file_type}`;
+                    allFiles[tempFilePath] = code;
+                    codeActions.run(allFiles, tempFilePath).then((result: any) => {
                         if (result.exitCode == 0)
                             setOutput(result.output);
                         setPending(false);

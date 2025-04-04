@@ -73,7 +73,7 @@ const CodeBlock = ({
             <CopyButton content={code} copyMessage="Copied!" />
         </div>
         <div className={`h-full w-full ${!readOnly ? "p-4" : ""}`}>
-            {readOnly ? <Editor
+            {(readOnly || language != "python") ? <Editor
                 options={{
                     minimap: { enabled: false },
                     scrollBeyondLastLine: false,

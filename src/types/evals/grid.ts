@@ -194,7 +194,7 @@ export interface TabActions {
 }
 
 export interface CodeActions {
-    run: (code: string, fileName: string) => Promise<ResponseProps>
+    run: (files: { [fileName: string]: string }, filePath: string) => Promise<ResponseProps>
 }
 
 export interface DevboxActions {

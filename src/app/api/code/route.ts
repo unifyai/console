@@ -13,8 +13,8 @@ export async function POST(request: NextRequest) {
     const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
     const body = await request.json();
     const userId = body.user_id;
-    const code = body.code;
-    const fileName = body.file_name + ".py";
+    const filePath = body.file_path;
+    const files = body.files as { [fileName: string]: any };
     const sandboxList = await sdk.sandbox.list();
     let sandboxId = sandboxList.sandboxes.find(sandbox => sandbox.title === userId)?.id;
     if (sandboxId == null) {
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
         sandboxId = sandbox.id;
     }
     const sandbox = await sdk.sandbox.open(sandboxId);
-    await sandbox.fs.writeFile(fileName, code);
+    await Promise.all(Object.entries(files).map(([fileName, code]) => sandbox.fs.writeFile(fileName, code)));
     let envVars: { [key: string]: string } = {
         UNIFY_KEY: request.headers.get("apiKey") as string,
     };
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     // create command to run code
-    const command = sandbox.shells.run(`python ${fileName}`, {
+    const command = sandbox.shells.run(`python ${filePath}`, {
         env: envVars
     });
 
@@ -45,8 +45,13 @@ export async function POST(request: NextRequest) {
         // Create a promise that rejects after 40 seconds
         const timeout = new Promise((_, reject) => {
             setTimeout(() => {
-                command.kill();
-                reject(new Error('Execution timed out'));
+                try {
+                    command.kill();
+                    reject(new Error('Execution timed out'));
+                } catch (e) {
+                    // Ignore errors when trying to kill a non-existent shell
+                    console.log("Shell already terminated");
+                }
             }, 300000);
         });
 
