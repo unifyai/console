@@ -1,5 +1,5 @@
-import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, LogItemProps } from "@/types/evals/logs";
-import { getLogsDetails } from "@/utils/evals/common";
+import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedMetrics } from "@/types/evals/logs";
+import { getLogsDetails, replaceParamsIndicesWithValues, convertMetricsToLogs } from "@/utils/evals/common";
 import { Context, ContextActions, DerivedEntryActions, FieldsActions, TabProps, TabActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TabsDataProps, CodeActions, DevboxActions } from "@/types/evals/grid";
 import { buildFilterExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
@@ -102,6 +102,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     let tableTiles = (currentTab?.items || []).filter(item => item.tab == "Table");
     let plotTiles = (currentTab?.items || []).filter(item => item.tab == "Plot");
     let viewTiles = (currentTab?.items || []).filter(item => item.tab == "View");
+    let editorTiles = (currentTab?.items || []).filter(item => item.tab == "Editor");
 
     // Get fields
     const fields: LogFieldsResponseProps[] = await Promise.all(
@@ -236,6 +237,10 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                 const freeze = table?.freeze
                 const commonFilter = table?.common_filter
                 const filters = table?.filters
+                const metric = table?.metric
+                const grouping = table?.grouping
+                if (metric) plotArguments[table.i]["metric"] = metric
+                if (grouping) plotArguments[table.i]["grouping"] = grouping
                 if (filters) plotArguments[table.i]["column_filters"] = filters
                 if (commonFilter) plotArguments[table.i]["common_filter"] = commonFilter
                 if (freeze) plotArguments[table.i]["freeze"] = freeze
@@ -243,12 +248,14 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                 if (columnContext) plotArguments[table.i]["column_context"] = columnContext;
 
                 const filterExpression = filterExpressions[tableIdx];
-                
+
                 // get plot data
                 let data: LogsResponseProps = { params: {}, logs: [], count: 0, groups: [] };
                 let [xAxis, yAxis, group] = [tile.x_axis, tile.y_axis, tile.plot_group_by];
                 let subset = null;
                 if (xAxis && xAxis.split(".").length > 1) {
+
+                    /* Extract required fields */
                     xAxis = xAxis.split(".")[1]
                     xAxis = columnContext ? processContext("merge", columnContext, xAxis) : xAxis;
                     subset = xAxis
@@ -264,20 +271,21 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                     }
                     if (subset) plotArguments[table.i]["subset"] = subset
 
-                    data = await logsActions.get(currentProject, context ?? null, columnContext ?? null, filterExpression, null, null, null, subset, null, null, null, null, null, Date.now().toString());
-
-                    /* Replace param indices with actual param values */
-                    if (Object.entries(data.logs).length && Object.entries(data.params).length) {
-                        const params = data.params
-                        const logs = data.logs as LogProps[]
-                        data.logs = logs.map(log => {
-                            const logParams: LogItemProps = {};
-                            Object.entries(log.params).map(([key, value]) => logParams[key] = params[key][value]);
-                            return {...log, params: logParams}
-                        })
-
+                    /* Get raw logs values or grouped metrics as logs */
+                    if (
+                        (tile.is_aggregated && tile.is_aggregated.split(".").length > 1) // `is_aggregated` has the format `table.column`
+                        && tile.is_aggregated.split(".")[0] === table.i                  // `table` in `is_aggregated` is the current table name
+                        && grouping                                                      // the current table has grouping applied
+                    ) {
+                        const groupFields = grouping.split(",").slice(0, grouping.split(",").indexOf(tile.is_aggregated.split(".")[1]) + 1)
+                        const metrics = await logsActions.getMetrics(currentProject, context ?? null, filterExpression, groupFields.join(","), metric ? metric : "mean",subset.split("&"))
+                        data.logs = convertMetricsToLogs(groupFields, metric ? metric : "mean", fields[tableIdx], metrics as GroupedMetrics)
                     }
-                    
+                    else {
+                        const rawData = await logsActions.get(currentProject, context ?? null, columnContext ?? null, filterExpression, null, null, null, subset, null, null, null, null, null, Date.now().toString());
+                        data = replaceParamsIndicesWithValues(rawData)    
+                    }
+
                 }
                 return { [table.i]: {
                     plotLogs: data.logs as LogProps[] || [],
@@ -407,6 +415,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
             tableTiles: tableTiles,
             plotTiles: plotTiles,
             viewTiles: viewTiles,
+            editorTiles: editorTiles,
             tabCreated: tabCreated,
             tempTabCreated: tempTabCreated,
             savedTab: savedTab,
@@ -425,6 +434,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                     tableTiles: [],
                     plotTiles: [],
                     viewTiles: [],
+                    editorTiles: [],
                     tabCreated: true,
                     tempTabCreated: true,
                     savedTab: tabs[name],

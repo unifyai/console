@@ -36,7 +36,7 @@ const PlotAxis = ({ interactive, pending, fields, axisProperty, setAxisProperty,
     } else if (plotType === "Histogram" || plotType === "Line Chart" || "Scatter Plot") {
         properties = Object
             .entries(fields)
-            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp" || data_type === "time" || data_type === "timedelta" || data_type === "date"))
+            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp" || data_type === "time" || data_type === "timedelta" || data_type === "date" || data_type === "bool"))
             .map(([name]) => name);
     } else {
         properties = Object

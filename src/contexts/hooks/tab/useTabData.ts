@@ -25,7 +25,7 @@ export interface TabDataActions {
   setTableArguments: (tableArguments: TableArguments) => void;
 
   // Tile management
-  initTile: (tileName: string, initialState?: { type?: 'Table' | 'Plot' | 'View' } & any) => void;
+  initTile: (tileName: string, initialState?: { type?: 'Table' | 'Plot' | 'View' | 'Editor' } & any) => void;
   addTile: (tileName: string, newName: string, initialState?: Partial<Tile>) => void;
   removeTile: (tileName: string) => void;
   updateTile: (tileName: string, updates: any) => void;
@@ -38,6 +38,8 @@ export interface TabDataActions {
   updatePlotTile: (tileName: string, updates: any) => void;
   initViewTile: (tileName: string, initialState?: any) => void;
   updateViewTile: (tileName: string, updates: any) => void;
+  initEditorTile: (tileName: string, initialState?: any) => void;
+  updateEditorTile: (tileName: string, updates: any) => void;
   
   // Helper methods for tiles
   getTileIds: () => string[];
@@ -183,6 +185,8 @@ export function useTabData(
   const storeUpdatePlotTile = useStoreContext(state => state.updatePlotTile);
   const storeInitViewTile = useStoreContext(state => state.initViewTile);
   const storeUpdateViewTile = useStoreContext(state => state.updateViewTile);
+  const storeInitEditorTile = useStoreContext(state => state.initEditorTile);
+  const storeUpdateEditorTile = useStoreContext(state => state.updateEditorTile);
 
   // Memoize the data object
   const data = useMemo<Partial<TabData> | null>(() => {
@@ -402,7 +406,30 @@ export function useTabData(
         storeUpdateViewTile(hierarchicalTileId, updates);
       }
     },
+
+    // Editor tile specific actions
+    initEditorTile: (tileName, initialState = {}) => {
+      if (activeProjectId && activeInterfaceId && tabId) {
+        // Check if tileId is already hierarchical
+        const hierarchicalTileId = tileName.includes('>')
+          ? tileName
+          : `${tabId}>${tileName}`;
+        
+        storeInitEditorTile(hierarchicalTileId, initialState);
+      }
+    },
     
+    updateEditorTile: (tileName, updates) => {
+      if (activeProjectId && activeInterfaceId && tabId) {
+        // Check if tileId is already hierarchical
+        const hierarchicalTileId = tileName.includes('>')
+          ? tileName
+          : `${tabId}>${tileName}`;
+        
+        storeUpdateEditorTile(hierarchicalTileId, updates);
+      }
+    },
+
     // Helper methods for tiles
     getTileIds: () => tileIds,
     
@@ -443,7 +470,9 @@ export function useTabData(
     storeInitPlotTile,
     storeUpdatePlotTile,
     storeInitViewTile,
-    storeUpdateViewTile
+    storeUpdateViewTile,
+    storeInitEditorTile,
+    storeUpdateEditorTile
   ]);
 
   // Reset the itemsNeedRecompute flag after computing items

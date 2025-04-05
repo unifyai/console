@@ -26,8 +26,7 @@ export default {
         }
     ],
     new_counter: 2,
-    code: `
-from datetime import datetime, timedelta
+    code: `from datetime import datetime, timedelta
 import random
 import unify
 

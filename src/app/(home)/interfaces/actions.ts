@@ -161,9 +161,7 @@ export const getLogMetrics = async (apiKey: string) => {
                 + (context ? `&context=${context}` : "")
                 + `&key=${JSON.stringify(sanitizedKeyNames)}`
                 + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
-                + (groupingExpression ? groupingExpression.split(",").map(
-                    expr => `&group_by=${encodeURIComponent(expr.trim())}`
-                ).join("") : "")
+                + (groupingExpression ? `&group_by=${encodeURIComponent(JSON.stringify(groupingExpression.split(",")))}` : "")
             ),
             { method: "GET", headers: { apiKey: apiKey } }
         );
@@ -425,7 +423,7 @@ export const createDevbox = async (apiKey: string, userId: string) => {
 
 // run code
 export const runCode = async (apiKey: string, userId: string) => {
-    return async (code: string) => {
+    return async (files: { [fileName: string]: string }, filePath: string) => {
         "use server";
 
         const response = await fetch(
@@ -433,13 +431,17 @@ export const runCode = async (apiKey: string, userId: string) => {
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ user_id: userId, code })
+                body: JSON.stringify({ user_id: userId, files, file_path: filePath })
             }
         );
         const responseJson = await response.json();
         if (!response.ok) {
-            console.error(response);
-            throw new Error("Network error");
+            // If there's an error message in the output field, use that
+            if (responseJson.output) {
+                throw new Error(responseJson.output.replaceAll("/project/sandbox/", ""));
+            }
+            // Otherwise use the detail field or default message
+            throw new Error(responseJson.detail || "Network error");
         }
         return responseJson;
     }

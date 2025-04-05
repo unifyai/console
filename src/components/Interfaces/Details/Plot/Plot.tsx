@@ -18,6 +18,7 @@ import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogra
 import PlotAxis from "./Buttons/PlotAxis";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { useTab } from '@/contexts/hooks/tab';
+import PlotAggregate from "./Buttons/PlotAggregate";
 
 const LogsPlot = ({ 
     tileId,
@@ -94,7 +95,9 @@ const LogsPlot = ({
     plotType = plotType ? plotType : "Scatter Plot";    
 
     let metric = item?.metric ? item?.metric : "mean";
-
+    let isAggregated = item?.is_aggregated;
+    const groupings = Object.fromEntries(Object.entries(args).filter(([_, tableArgs]) => tableArgs.grouping).map(([table, tableArgs]) => ([table, tableArgs.grouping.split(",")])));
+    
     let binCount = item?.bin_count ? parseFloat(item?.bin_count) : 10;
     let [binCounts, setBinCounts] = useState([1, 100])
     let showRegression = item?.regression_line === "true" ? "true" : "false";
@@ -289,7 +292,8 @@ const LogsPlot = ({
         metric,
         binCount,
         binCounts,
-        showRegression
+        showRegression,
+        isAggregated
     ]);
 
 
@@ -377,6 +381,10 @@ const LogsPlot = ({
                         />
                         {plotType === "Histogram" && <PlotBins binCount={binCount} binCounts={binCounts} setBinCount={plotTileActions?.setBinCount!}/>}
                         <PlotGroupBy fields={fields} groupBy={groupByProperty} setGroupBy={plotTileActions?.setPlotGroupBy!} logs={logs}/>
+                        {Object.values(groupings).length 
+                            ? <PlotAggregate groupings={groupings} isAggregated={isAggregated} setIsAggregated={plotTileActions?.setIsAggregated!} logs={logs}/>
+                            : null
+                        }
                         {!["Histogram", "Bar Chart"].includes(plotType) &&
                             <PlotScale 
                                 scaleX={scaleX} 

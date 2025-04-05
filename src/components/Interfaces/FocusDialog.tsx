@@ -7,7 +7,7 @@ import BaseDropdown from "../Common/Dropdowns/Base";
 import { Badge } from "../UI/badge";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
 import { ResponseProps } from "@/types/common";
-import { DerivedEntryActions, LogsActions, FieldsActions, TileProps, ContextActions } from "@/types/evals/grid";
+import { DerivedEntryActions, LogsActions, FieldsActions, TileProps, ContextActions, CodeActions } from "@/types/evals/grid";
 import { Plus, X } from "lucide-react";
 import { icons } from "@/constants/logs";
 import TileCard from "./TileCard";
@@ -22,6 +22,7 @@ const FocusDialog = ({
     fieldsActions,
     derivedEntryActions,
     contextActions,
+    codeActions,
     setFocusDialog,
 }: {
     interfaceId: string;
@@ -31,6 +32,7 @@ const FocusDialog = ({
     fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
     contextActions: ContextActions,
+    codeActions: CodeActions,
     updateTab: (savedTab?: any, updatedTileProps?: any) => Promise<ResponseProps>;
     setFocusDialog: Dispatch<SetStateAction<boolean>>,
 }) => {
@@ -70,6 +72,7 @@ const FocusDialog = ({
                         fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}
                         contextActions={contextActions}
+                        codeActions={codeActions}
                     />
                     <div className={"w-full px-2 transition-all absolute -top-1 flex justify-between " + (tabUIState?.edit ? "h-20" : "h-10")}>
                         <div>

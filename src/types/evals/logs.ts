@@ -72,6 +72,19 @@ export interface LogFieldsResponseProps {
     [name: string]: {data_type: string, field_type: "entry" | "param" | "derived_entry", artifacts: string}
 }
 
+export interface GroupedMetricNode {
+    [groupValue: string]: GroupedMetricNode | GroupedMetricLeaf;
+};
+
+export interface GroupedMetricLeaf {
+    [metricName: string]: number | null;
+    shared_value: any | null;
+};
+
+export interface GroupedMetrics {
+    [columnName: string]: GroupedMetricNode;
+};
+
 export interface HeaderNode {
     name: string;
     path: string;

@@ -5,6 +5,7 @@ import * as tabLogic from "./selectors/tab";
 import * as tableTileLogic from "./selectors/tableTile";
 import * as plotTileLogic from "./selectors/plotTile";
 import * as viewTileLogic from "./selectors/viewTile";
+import * as editorTileLogic from "./selectors/editorTile";
 import * as sliceUtils from "../utils/sliceUtils";
 import { Tile } from "./selectors/tile";
 
@@ -50,6 +51,8 @@ export const createTileSlice: StateCreator<
         state.tilesById[tileId].plotTile = plotTileLogic.initPlotTile();
       } else if (newTile.type === 'View') {
         state.tilesById[tileId].viewTile = viewTileLogic.initViewTile();
+      } else if (newTile.type === 'Editor') {
+        state.tilesById[tileId].editorTile = editorTileLogic.initEditorTile();
       }
       
       // Add the tile to the tab
@@ -73,7 +76,7 @@ export const createTileSlice: StateCreator<
     const tile = state.tilesById[tileId];
 
     if (tile) {
-      const { tileUpdates, tableTileUpdates, plotTileUpdates, viewTileUpdates } = sliceUtils.splitTileUpdates(updates);
+      const { tileUpdates, tableTileUpdates, plotTileUpdates, viewTileUpdates, editorTileUpdates } = sliceUtils.splitTileUpdates(updates);
 
       let updatedTile = tile;
       let tileUpdated = false;
@@ -146,6 +149,25 @@ export const createTileSlice: StateCreator<
           // Check if view tile updates need recompute
           itemsNeedRecompute = Object.keys(filteredViewTileUpdates).some(
             key => viewTileLogic.VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS.includes(key as keyof typeof tile.viewTile)
+          );
+        }
+      }
+
+      // Update editor-specific data if needed
+      if (Object.keys(editorTileUpdates).length > 0) {
+        if (!updatedTile.editorTile) {
+          updatedTile.editorTile = editorTileLogic.initEditorTile();
+          tileUpdated = true;
+        }
+
+        const filteredEditorTileUpdates = sliceUtils.filterUnchangedUpdates(updatedTile.editorTile, editorTileUpdates);
+        if (Object.keys(filteredEditorTileUpdates).length > 0) {
+          updatedTile.editorTile = editorTileLogic.updateEditorTile(updatedTile.editorTile, filteredEditorTileUpdates);
+          tileUpdated = true;
+
+          // Check if editor tile updates need recompute
+          itemsNeedRecompute = Object.keys(filteredEditorTileUpdates).some(
+            key => editorTileLogic.EDITOR_TILE_PROPS_KEYS_AS_EDITOR_TILE_KEYS.includes(key as keyof typeof tile.editorTile)
           );
         }
       }

@@ -10,4 +10,5 @@ export * from './useTileItem';
 export * from './useTile';
 export { useTableTile } from './useTableTile';
 export { usePlotTile } from './usePlotTile';
-export { useViewTile } from './useViewTile'; 
+export { useViewTile } from './useViewTile';
+export { useEditorTile } from './useEditorTile';

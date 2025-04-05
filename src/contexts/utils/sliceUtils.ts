@@ -4,6 +4,7 @@ import { Tile, TILE_KEYS } from "../slices/selectors/tile";
 import { PLOT_TILE_KEYS, PlotTile } from "../slices/selectors/plotTile";
 import { VIEW_TILE_KEYS, ViewTile } from "../slices/selectors/viewTile";
 import { TABLE_TILE_KEYS, TableTile } from "../slices/selectors/tableTile";
+import { EDITOR_TILE_KEYS, EditorTile } from "../slices/selectors/editorTile";
 import { useRef } from "react";
 import { useEffect } from "react";
 import { StoreSlice, Tab } from "../slices/slice";
@@ -15,7 +16,7 @@ import * as tileLogic from "../slices/selectors/tile";
 import * as tableTileLogic from "../slices/selectors/tableTile";
 import * as plotTileLogic from "../slices/selectors/plotTile";
 import * as viewTileLogic from "../slices/selectors/viewTile";
-
+import * as editorTileLogic from "../slices/selectors/editorTile";
 /**
  * A helper to do partial shallow checks:
  *  - For atomic types (string, number, boolean, null/undefined), compare by strict equality (===).
@@ -80,7 +81,7 @@ function unwrapIfDraft(value: any) {
 }
 
 /**
- * A generic helper to filter updates for tile objects incl. TableTile, PlotTile, and ViewTile.
+ * A generic helper to filter updates for tile objects incl. TableTile, PlotTile, ViewTile, and EditorTile.
  * Either pass in a single update or a record of updates. Either pass in a tile object and tile updates for comparison
  * or pass in a table tile object and table tile updates for comparison, or a plot tile object and plot tile updates for comparison, 
  * and so on etc.
@@ -133,18 +134,19 @@ export function splitTileUpdates(
   tableTileUpdates: Partial<TableTile>;
   plotTileUpdates: Partial<PlotTile>;
   viewTileUpdates: Partial<ViewTile>;
+  editorTileUpdates: Partial<EditorTile>;
 } {
   const tileUpdates: Partial<Tile> = {};
   let tableTileUpdates: Partial<TableTile> = {};
   let plotTileUpdates: Partial<PlotTile> = {};
   let viewTileUpdates: Partial<ViewTile> = {};
-
-  // Check if any of the keys in `updates` are one of ["tableTile", "plotTile", "viewTile"]
+  let editorTileUpdates: Partial<EditorTile> = {};
+  // Check if any of the keys in `updates` are one of ["tableTile", "plotTile", "viewTile", "editorTile"]
   // If so, then we just spread the nested updates for updates[key] directly
   // into either tableTileUpdates, plotTileUpdates, or viewTileUpdates so e.g. if the
   // updates object has a "tableTile" key, then we spread the nested updates for tableTile
   // into tableTileUpdates.
-  const nestedKeys = Object.keys(updates).filter(key => ["tableTile", "plotTile", "viewTile"].includes(key));
+  const nestedKeys = Object.keys(updates).filter(key => ["tableTile", "plotTile", "viewTile", "editorTile"].includes(key));
   nestedKeys.forEach(key => {
     if (key === "tableTile") {
       tableTileUpdates = { ...tableTileUpdates, ...updates[key] };
@@ -154,6 +156,9 @@ export function splitTileUpdates(
       delete updates[key];
     } else if (key === "viewTile") {
       viewTileUpdates = { ...viewTileUpdates, ...updates[key] };
+      delete updates[key];
+    } else if (key === "editorTile") {
+      editorTileUpdates = { ...editorTileUpdates, ...updates[key] };
       delete updates[key];
     }
   });
@@ -174,13 +179,17 @@ export function splitTileUpdates(
     if (VIEW_TILE_KEYS.includes(key as keyof ViewTile)) {
       viewTileUpdates[key as keyof ViewTile] = updates[key] as never;
     }
+
+    if (EDITOR_TILE_KEYS.includes(key as keyof EditorTile)) {
+      editorTileUpdates[key as keyof EditorTile] = updates[key] as never;
+    }
     
-    if (!tileUpdates && !tableTileUpdates && !plotTileUpdates && !viewTileUpdates) {
-      console.warn(`Unknown property '${key}' not in Tile or TableTile or PlotTile or ViewTile.`);
+    if (!tileUpdates && !tableTileUpdates && !plotTileUpdates && !viewTileUpdates && !editorTileUpdates) {
+      console.warn(`Unknown property '${key}' not in Tile or TableTile or PlotTile or ViewTile or EditorTile.`);
     }
   }
 
-  return { tileUpdates, tableTileUpdates, plotTileUpdates, viewTileUpdates };
+  return { tileUpdates, tableTileUpdates, plotTileUpdates, viewTileUpdates, editorTileUpdates };
 }
 
 /**
@@ -276,6 +285,8 @@ export function addTile(
       state.tilesById[newTileId].plotTile = plotTileLogic.initPlotTile();
     } else if (newTile.type === 'View' && !newTile.viewTile) {
       state.tilesById[newTileId].viewTile = viewTileLogic.initViewTile();
+    } else if (newTile.type === 'Editor' && !newTile.editorTile) {
+      state.tilesById[newTileId].editorTile = editorTileLogic.initEditorTile();
     }
   }
   
@@ -417,6 +428,8 @@ export function addTab(
         state.tilesById[newTileId].plotTile = plotTileLogic.initPlotTile();
       } else if (tile.type === 'View' && !tile.viewTile) {
         state.tilesById[newTileId].viewTile = viewTileLogic.initViewTile();
+      } else if (tile.type === 'Editor' && !tile.editorTile) {
+        state.tilesById[newTileId].editorTile = editorTileLogic.initEditorTile();
       }
     }
   });
@@ -444,6 +457,7 @@ export function removeTab(
         if (tile.type === 'Table') state.tilesById[tileId].tableTile = null;
         else if (tile.type === 'Plot') state.tilesById[tileId].plotTile = null;
         else if (tile.type === 'View') state.tilesById[tileId].viewTile = null;
+        else if (tile.type === 'Editor') state.tilesById[tileId].editorTile = null;
       }
       // Remove the tile
       delete state.tilesById[tileId];
