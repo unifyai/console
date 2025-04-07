@@ -1,6 +1,6 @@
 "use client";
 
-import { TabProps, ContextActions, TileProps } from "@/types/evals/grid";
+import { TabProps, ContextActions, TileProps, LogsActions } from "@/types/evals/grid";
 import { Eye, Hammer, SquareMousePointer, Info } from "lucide-react";
 import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
@@ -30,6 +30,7 @@ const InterfaceButtons = ({
     setFocusDialog,
     saveDialog,
     setSaveDialog,
+    logsActions,
     contextActions,
 }: {
     interfaceId: string,
@@ -41,6 +42,7 @@ const InterfaceButtons = ({
     setFocusDialog: (value: SetStateAction<boolean>) => void,
     saveDialog: boolean,
     setSaveDialog: (value: SetStateAction<boolean>) => void,
+    logsActions: LogsActions,
     contextActions: ContextActions,
 }) => {
     const router = useRouter();
@@ -145,10 +147,13 @@ const InterfaceButtons = ({
             />
             
             <ContextSelector
+                tabId={tabQueryParam || undefined}
+                interfaceId={interfaceId}
                 projectId={project || undefined}
                 context={tabDataState?.globalContext}
                 contexts={contexts}
                 setContext={handleContextChange}
+                logsActions={logsActions}
                 contextActions={contextActions}
                 refresh={() => updateTab()}
                 setPending={tabUIActions?.setPending!}

@@ -3,18 +3,20 @@
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ActionButton from "../../../Common/Buttons/Action";
 import BaseDropdown from "../../../Common/Dropdowns/Base";
-import { Context, ContextActions } from "@/types/evals/grid";
+import { Context, ContextActions, LogsActions } from "@/types/evals/grid";
+import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { Braces, FolderTree, Grid2x2, X } from "lucide-react";
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { ResponseProps } from "@/types/common";
 import { useRouter } from "next/navigation";
 import RenderMenuItems from "../../../Common/Dropdowns/RenderMenuItems";
-import { buildNestedDropdownTree } from "@/utils/evals/common";
+import { buildNestedDropdownTree, getFieldsByColumnContext } from "@/utils/evals/common";
 import { useMemo, useState } from "react";
 
 import { useTile, useTileItem } from "@/contexts/hooks/tile";
 import { useTableTile } from "@/contexts/hooks/tile/useTableTile";
 import { useProjectData } from "@/contexts/hooks/project";
+import { useTabData } from "@/contexts/hooks/tab";
 
 const ContextSelector = ({
     tileId,
@@ -25,6 +27,7 @@ const ContextSelector = ({
     context,
     setContext,
     button,
+    logsActions,
     contextActions,
     refresh,
     setPending
@@ -37,6 +40,7 @@ const ContextSelector = ({
     context?: string,
     setContext?: (context: string) => void,
     button?: React.ReactNode,
+    logsActions: LogsActions,
     contextActions: ContextActions,
     refresh: () => Promise<ResponseProps>,
     setPending: (pending: boolean) => void
@@ -44,15 +48,9 @@ const ContextSelector = ({
     const [open, setOpen] = useState(false);
     const [start, setStart] = useState(true);
     const router = useRouter();
-    const onDelete = () => {
-        refresh().then(() => {
-            router.refresh();
-            setPending(true);
-        });
-    }
 
     const { dataActions: projectDataActions } = useProjectData(projectId || null);
-
+    const { dataActions: tabDataActions } = useTabData(tabId || null, interfaceId || null, projectId || null);
     const { actions: tileActions, dataActions: tileDataActions } = useTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
     const { itemActions: tileItemActions } = useTileItem(tileId || null, tabId || null, interfaceId || null);
 
@@ -101,13 +99,24 @@ const ContextSelector = ({
         context == "" ? (context || "Context") : context
     ) : "Context";
 
+    const onDelete = (ctx: string) => {
+        if (ctx) {
+            tabDataActions?.removeContextFromTab(ctx);
+        }
+
+        refresh().then(() => {
+            router.refresh();
+            setPending(true);
+        });
+    }
+
     return (
         <div className="w-fit">
             <BaseDropdown
                 button={button || <ActionButton
                     tooltip={item == undefined ? "Edit Global Context" : "Edit Context and Column Context"}
                     icon={<FolderTree />}
-                    variant={item == undefined && context ? "primary" : "outline"}
+                    variant={context ? "primary" : "outline"}
                     size="sm"
                     disabled={!projectId}
                 />}
@@ -165,9 +174,9 @@ const ContextSelector = ({
                                         <DeleteDialog
                                             variant="warning"
                                             type="context"
-                                            args={[projectId, context]}
+                                            args={[projectId, name !== "<root>" ? name : context ?? ""]}
                                             deletingFunction={contextActions.delete}
-                                            onDelete={onDelete}
+                                            onDelete={() => onDelete(name !== "<root>" ? name : context ?? "")}
                                             className="h-fit flex items-center"
                                         />
                                     </div> : <></>
@@ -207,9 +216,18 @@ const ContextSelector = ({
                                         <DeleteDialog
                                             variant="warning"
                                             type={"context"}
-                                            args={[projectId, context]}
-                                            deletingFunction={contextActions.delete}
-                                            onDelete={onDelete}
+                                            args={
+                                                [
+                                                    projectId,
+                                                    context,
+                                                    getFieldsByColumnContext(
+                                                        tableTileState?.tableDataItem?.fields as LogFieldsResponseProps,
+                                                        name !== "<root>" ? name : context ?? ""
+                                                    ).map(field => [null, field])
+                                                ]
+                                            }
+                                            deletingFunction={logsActions.delete}
+                                            onDelete={() => onDelete(name !== "<root>" ? name : context ?? "")}
                                             className="h-fit flex items-center"
                                         />
                                     </div> : <></>

@@ -555,7 +555,8 @@ const LogsTable = ({
             interfaceId={interfaceId}
             projectId={projectId}
             contexts={contexts}
-            context={context_}
+            context={item?.context || context_}
+            logsActions={logsActions}
             contextActions={contextActions}
             refresh={() => updateTab()}
             setPending={setPending}

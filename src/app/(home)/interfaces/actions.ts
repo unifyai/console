@@ -368,7 +368,7 @@ export const deleteContext = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/context/${project}/${context}`,
+            `${process.env.NEXTAUTH_URL}/api/context/${project}/${encodeURIComponent(context)}`,
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey }
