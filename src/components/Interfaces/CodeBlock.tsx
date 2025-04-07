@@ -17,6 +17,7 @@ const CodeBlock = ({
     create,
     disabled,
     readOnly,
+    setTempCode,
     onRun,
     onSave,
 }: {
@@ -28,24 +29,23 @@ const CodeBlock = ({
     create: string | null;
     disabled: boolean;
     readOnly?: boolean;
+    setTempCode?: (code: string) => void;
     onRun: (code: string) => void;
     onSave?: (value: string | undefined) => void;
 }) => {
-    const [tempCode, setTempCode] = useState(code);
-
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                 e.preventDefault();
                 if (!readOnly && onSave) {
-                    onSave(tempCode);
+                    onSave(code);
                 }
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [tempCode, readOnly, onSave]);
+    }, [code, readOnly, onSave]);
 
     return (<>
         <div className="absolute z-10 top-2 right-3 py-1 rounded-md flex gap-1 text-[var(--white-smoke)]">
@@ -58,16 +58,15 @@ const CodeBlock = ({
                     : <Play />
                 }
                 tooltip={"Run Demo"}
-                onClick={() => onRun(tempCode)}
+                onClick={() => onRun(code)}
                 disabled={disabled || pending}
             />
             {!readOnly && <ActionButton
                 icon={<Save />}
                 tooltip={"Save"}
                 onClick={() => {
-                    if (onSave != undefined) {
-                        onSave(tempCode);
-                    }
+                    if (onSave != undefined)
+                        onSave(code);
                 }}
             />}
             <CopyButton content={code} copyMessage="Copied!" />
@@ -88,7 +87,7 @@ const CodeBlock = ({
                 theme="vs-dark"
                 language={language}
                 value={code}
-                onChange={(value) => setTempCode(value || "")}
+                onChange={(value) => setTempCode && setTempCode(value || "")}
             /> : <DoublePanels
                 isLoading={false}
                 direction="vertical"
@@ -108,7 +107,7 @@ const CodeBlock = ({
                     theme="vs-dark"
                     language={language}
                     value={code}
-                    onChange={(value) => setTempCode(value || "")}
+                    onChange={(value) => setTempCode && setTempCode(value || "")}
                 />}
                 second={<div className="pt-2 h-full w-full flex flex-col gap-2">
                     <div className="flex gap-4 items-center">

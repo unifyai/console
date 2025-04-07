@@ -34,6 +34,7 @@ const Editor = ({
         return { [`${tile.editorTile?.file_name}.${tile.editorTile?.file_type}`]: tile.editorTile?.content || "" };
     }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
     const [tempFileName, setTempFileName] = useState(editorTileState?.file_name || "main");
+    const [tempCode, setTempCode] = useState(editorTileState?.content || "");
     const [saved, setSaved] = useState(false);
     const [pending, setPending] = useState(false);
     const [output, setOutput] = useState("");
@@ -74,6 +75,7 @@ const Editor = ({
                     {fileTypes.map((fileType, idx) => {
                         return (
                             <DropdownMenuItem key={idx} onSelect={() => {
+                                editorTileActions?.setContent(tempCode);
                                 editorTileActions?.setFileType(fileType as "py" | "txt" | "json");
                             }}>
                                 {fileType}
@@ -84,12 +86,13 @@ const Editor = ({
                 {saved && <div className="text-primary text-sm font-semibold">File saved!</div>}
             </div>
             <CodeBlock
-                code={editorTileState?.content || ""}
+                code={tempCode}
                 output={output}
                 language={language}
                 pending={pending}
                 create={null}
                 disabled={false}
+                setTempCode={setTempCode}
                 onRun={(code: string) => {
                     setPending(true);
                     editorTileActions?.setFileName(tempFileName);
