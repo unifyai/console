@@ -528,7 +528,8 @@ export const drawBarChart = (
     yTable: string,
     logs: LogProps[],
     fields: LogFieldsResponseProps,
-    zoomRef: any
+    zoomRef: any,
+    interactive: boolean = true
 ) => {
 
     // Clear previous elements
@@ -817,7 +818,8 @@ export const drawLineChart = (
   yTable: string,
   logs: LogProps[],
   fields: LogFieldsResponseProps,
-  zoomRef: any
+  zoomRef: any,
+  interactive: boolean = true
 ) => {
 
     // Remove drawings from previous plots
@@ -992,7 +994,15 @@ export const drawLineChart = (
 
     // Handle panning and zooming
     const initialX = x.copy();
-    const zoomContainer = svg.select(".zoom-layer").attr("x", 0).attr("y", 0).attr("width", dimensions.width).attr("height", dimensions.height).style("fill", "none").style("pointer-events", "all").lower();
+    const zoomContainer = svg
+        .select(".zoom-layer")
+        .attr("x", 0)
+        .attr("y", 0)
+        .attr("width", dimensions.width)
+        .attr("height", dimensions.height)
+        .style("fill", "none")
+        .style("pointer-events", interactive ? "all" : "none")
+        .lower();
     zoomContainer.on("wheel", (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -1070,7 +1080,8 @@ export const drawScatterPlot = (
   yTable: string,
   logs: LogProps[],
   fields: LogFieldsResponseProps,
-  zoomRef: any
+  zoomRef: any,
+  interactive: boolean = true
 ) => {
   
     // Remove drawings from previous plots
@@ -1451,7 +1462,16 @@ export const drawScatterPlot = (
     // Handle panning and zooming
     const initialX = x.copy();
     const initialY = y.copy();
-    const zoomContainer = svg.select(".zoom-layer").attr("x", 0).attr("y", 0).attr("width", dimensions.width).attr("height", dimensions.height).style("fill", "none").style("pointer-events", "all").lower();
+    const zoomContainer = svg
+        .select(".zoom-layer")
+        .attr("x", 0)
+        .attr("y", 0)
+        .attr("width", dimensions.width)
+        .attr("height", dimensions.height)
+        .style("fill", "none")
+        .style("pointer-events", interactive ? "all" : "none")
+        .lower();
+    
     zoomContainer.on("wheel", (event) => {
         event.preventDefault();
         event.stopPropagation();

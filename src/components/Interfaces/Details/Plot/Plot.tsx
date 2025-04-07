@@ -167,7 +167,8 @@ const LogsPlot = ({
                     yTable,
                     logs,
                     fields,
-                    zoomRef
+                    zoomRef,
+                    interactive
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
@@ -200,7 +201,8 @@ const LogsPlot = ({
                     yTable,
                     logs,
                     fields,
-                    zoomRef
+                    zoomRef,
+                    interactive
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
@@ -266,7 +268,8 @@ const LogsPlot = ({
                     yTable,
                     logs,
                     fields,
-                    zoomRef
+                    zoomRef,
+                    interactive
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
@@ -293,7 +296,8 @@ const LogsPlot = ({
         binCount,
         binCounts,
         showRegression,
-        isAggregated
+        isAggregated,
+        interactive
     ]);
 
 
