@@ -12,8 +12,8 @@ const AggregatedCell = ({isGroupLoading, cell, metric, getMetric, getSharedValue
   isGroupLoading: boolean,
   cell: Cell<LogProps | GroupedLogProps, unknown>, 
   metric: string,
-  getMetric: (key: string) => number | string | undefined,
-  getSharedValue: (key: string) => number | string | undefined
+  getMetric: (key: string) => React.ReactNode,
+  getSharedValue: (key: string) => React.ReactNode
 }) => {
     const columnID = cell.column.columnDef.id!;
     const metricTooltip = `${metric} ${["dict", "list", "tuple", "str"].includes(cell.column.columnDef.meta?.dataType!) ? "length" : "value"}`;
