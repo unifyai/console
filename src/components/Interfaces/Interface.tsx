@@ -228,10 +228,9 @@ const Interface = ({
             newCounter={newCounter}
             setNewCounter={setNewCounter}
             updateTab={updateTab}
-            focusDialog={focusDialog}
             setFocusDialog={setFocusDialog}
-            saveDialog={saveDialog}
             setSaveDialog={setSaveDialog}
+            logsActions={logsActions}
             contextActions={contextActions}
           />
         </div>
