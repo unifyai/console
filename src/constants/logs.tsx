@@ -57,7 +57,27 @@ export const icons = {
 
 export const tabTypes = ["Table", "Plot", "View", "Editor"];
 
-export const fileTypes = ["py", "txt", "json"];
+export const fileTypes: { [key: string]: string } = {
+    "py": "python",
+    "txt": "text",
+    "json": "json",
+    "js": "javascript",
+    "ts": "typescript",
+    "jsx": "javascript",
+    "tsx": "typescript",
+    "html": "html",
+    "css": "css",
+    "scss": "scss",
+    "md": "markdown",
+    "yaml": "yaml",
+    "yml": "yaml",
+    "xml": "xml",
+    "toml": "toml",
+    "ini": "ini",
+    "conf": "conf",
+    "sql": "sql",
+    "sh": "bash"
+}
 
 export const demos: {
     [key: string]: {

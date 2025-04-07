@@ -48,6 +48,8 @@ async function updateLogs (
     sortingExpression: string | null,
     groupingExpression: string | null,
     groupSortingExpression: string | null,
+    limit: number,
+    offset: number,
     project: string, 
     logsActions: LogsActions, 
     fieldsActions: FieldsActions,
@@ -83,8 +85,8 @@ async function updateLogs (
             groupSortingExpression,
             null, 
             null, 
-            20, // Hardcoded limit value (20) will need to be passed down from Main
-            (item.page_number ? parseInt(item.page_number) : 0) * 20, // Hardcoded limit value (20) will need to be passed down from Main
+            limit,
+            offset,
             groupingExpression ? 0 : null,
             null,
             Date.now().toString()
@@ -147,7 +149,9 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
     const { itemActions } = useTileItem(tileId, tabId, interfaceId);
     const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
 
-    const { dataActions: tileDataActions } = useTile(tileId, tabId, interfaceId, projectId);
+    const { tableTile: tableTileState, dataActions: tileDataActions } = useTile(tileId, tabId, interfaceId, projectId);
+    const limit = tableTileState?.limit as number;
+    const offset = tableTileState?.offset as number;
 
     /* Auto refresh */
     // We use timestamp to tag fetch api calls to trigger revalidation every 5 seconds.
@@ -198,6 +202,8 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
                 sortingExpression,
                 groupingExpression,
                 groupSortingExpression,
+                limit,
+                offset,
                 projectId,
                 logsActions,
                 fieldsActions,
@@ -243,9 +249,8 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
             variant={item?.auto_update === "true" ? "primary" : "outline"}
             className="rounded-none rounded-tr-lg rounded-br-lg"
             icon={<Power />}
-            tooltip={item?.grouping != undefined ? "Auto refresh doesn't work with grouping" : "Auto refresh every 5s"}
+            tooltip={"Auto refresh every 5s"}
             onClick={() => onAutoClick()}
-            disabled={item?.grouping != undefined}
         />
 
     /* Manual refresh */
@@ -283,7 +288,7 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
             const latestTs = new Date(latest).getTime();
             const lastCheckTs = new Date(lastUpdated).getTime();
             if (latestTs > lastCheckTs) {
-                updateLogs(item as TileProps, sortingExpression, groupingExpression, groupSortingExpression, projectId, logsActions, fieldsActions, updateTableDataItem).then(() => {
+                updateLogs(item as TileProps, sortingExpression, groupingExpression, groupSortingExpression, limit, offset, projectId, logsActions, fieldsActions, updateTableDataItem).then(() => {
                     setLastUpdated(latest)
                 });
             } else {
@@ -301,9 +306,9 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
         variant="outline"
         className="rounded-none rounded-tl-lg rounded-bl-lg h-8"
         icon={icon}
-        tooltip={loading ? "Refreshing logs.." : item?.grouping != undefined ? "Manual refresh doesn't work with grouping" : item?.auto_update === "true" ? "Auto refreshing logs.." : "Refresh logs"}
+        tooltip={loading ? "Refreshing logs.." : item?.auto_update === "true" ? "Auto refreshing logs.." : "Refresh logs"}
         onClick={() => onManualClick()}
-        disabled={loading || item?.grouping != undefined || item?.auto_update === "true"}
+        disabled={loading || item?.auto_update === "true"}
     />
 
     return (

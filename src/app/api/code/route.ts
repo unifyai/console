@@ -73,10 +73,6 @@ export async function POST(request: NextRequest) {
         // Clear the timeout since we have a result
         if (timeoutId) clearTimeout(timeoutId);
 
-        // If the command failed, return an error
-        if (res.exitCode !== 0)
-            return Response.json({ detail: "Failed to run code", output: res.output }, { status: 500 });
-
         // If the command succeeded, return the output
         return Response.json(res);
     } catch (error: any) {

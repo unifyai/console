@@ -10,7 +10,7 @@ export interface EditorTileMeta {
 // Editor tile data - business data 
 export interface EditorTileData {
   file_name?: string; // name of the file
-  file_type?: "py" | "txt" | "json"; // type of file
+  file_type?: string; // type of file
   content?: string | null; // content of the file
 }
 

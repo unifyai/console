@@ -43,7 +43,7 @@ export interface TileProps {
     bin_count?: string;
     regression_line?: string;
     file_name?: string;
-    file_type?: "py" | "txt" | "json";
+    file_type?: string;
     content?: string;
 }
 
@@ -87,7 +87,7 @@ export interface PlotDataProps {
 export interface EditorDataProps {
     [key: string]: {
         file_name: string,
-        file_type: "py" | "txt" | "json",
+        file_type: string,
         content: string,
     }
 }

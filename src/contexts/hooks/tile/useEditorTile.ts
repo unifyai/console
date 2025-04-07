@@ -38,7 +38,7 @@ export interface EditorTileMetaActions {
  */
 export interface EditorTileDataActions {
   setFileName: (fileName: string | undefined) => void;
-  setFileType: (fileType: "py" | "txt" | "json" | undefined) => void;
+  setFileType: (fileType: string | undefined) => void;
   setContent: (content: string) => void;
 }
 

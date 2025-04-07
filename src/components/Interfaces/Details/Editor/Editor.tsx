@@ -34,16 +34,13 @@ const Editor = ({
         return { [`${tile.editorTile?.file_name}.${tile.editorTile?.file_type}`]: tile.editorTile?.content || "" };
     }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
     const [tempFileName, setTempFileName] = useState(editorTileState?.file_name || "main");
+    const [tempFileType, setTempFileType] = useState(editorTileState?.file_type || "txt");
+    const [tempCode, setTempCode] = useState(editorTileState?.content || "");
     const [saved, setSaved] = useState(false);
     const [pending, setPending] = useState(false);
     const [output, setOutput] = useState("");
 
-    const language = (
-        editorTileState?.file_type == "py" ? "python" :
-            editorTileState?.file_type == "json" ? "json" :
-                editorTileState?.file_type == "txt" ? "text" :
-                    undefined
-    );
+    const language = fileTypes[editorTileState?.file_type || "txt"] || "text";
 
     useEffect(() => {
         if (saved)
@@ -63,47 +60,35 @@ const Editor = ({
                     placeholder="File Name"
                     className="text-sm w-24"
                 />
-                <BaseDropdown
-                    button={<ActionButton
-                        tooltip="Select File Type"
-                        text={editorTileState?.file_type || "Select File Type"}
-                        variant="outline"
-                        size="default"
-                    />}
-                >
-                    {fileTypes.map((fileType, idx) => {
-                        return (
-                            <DropdownMenuItem key={idx} onSelect={() => {
-                                editorTileActions?.setFileType(fileType as "py" | "txt" | "json");
-                            }}>
-                                {fileType}
-                            </DropdownMenuItem>
-                        )
-                    })}
-                </BaseDropdown>
+                <Input
+                    value={tempFileType}
+                    onChange={(e) => setTempFileType(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter")
+                            editorTileActions?.setFileType(tempFileType);
+                    }}
+                    placeholder="File Type"
+                    className="text-sm w-24"
+                />
                 {saved && <div className="text-primary text-sm font-semibold">File saved!</div>}
             </div>
             <CodeBlock
-                code={editorTileState?.content || ""}
+                code={tempCode}
                 output={output}
                 language={language}
                 pending={pending}
                 create={null}
                 disabled={false}
+                setTempCode={setTempCode}
                 onRun={(code: string) => {
                     setPending(true);
                     editorTileActions?.setFileName(tempFileName);
                     editorTileActions?.setContent(code);
                     const tempFilePath = `${tempFileName}.${editorTileState?.file_type}`;
                     allFiles[tempFilePath] = code;
-                    codeActions.run(allFiles, tempFilePath).then((result: any) => {
-                        if (result.exitCode == 0)
-                            setOutput(result.output);
-                        setPending(false);
-                    }).catch((error: Error) => {
-                        setOutput(error.message);
-                        setPending(false);
-                    });
+                    codeActions.run(allFiles, tempFilePath).then(
+                        (result: any) => setOutput(result.output.replaceAll("/project/sandbox/", ""))
+                    ).finally(() => setPending(false));
                 }}
                 readOnly={false}
                 onSave={(value: string | undefined) => {
