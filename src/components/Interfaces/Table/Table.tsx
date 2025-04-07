@@ -50,7 +50,6 @@ import { deselectFromClickOutside } from "@/hooks/Logs/useCellSelection";
 // Import new hooks
 import { useTab } from "@/contexts/hooks/tab";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
-import { useInterface } from "@/contexts/hooks/interface";
 import { useProject } from "@/contexts/hooks/project";
 
 import { shallow } from "zustand/vanilla/shallow";
@@ -126,7 +125,7 @@ const LogsTable = ({
     boundaries: { minimums: {}, maximums: {} },
     metric: ""
   } as TableDataItem), []);
-  const tableDataItem = useMemo(() => tableTileState?.tableDataItem || defaultTableDataItem, [tableTileState?.tableDataItem]);
+  const tableDataItem = tableTileState?.tableDataItem || defaultTableDataItem;
 
   const setPending = (pending: boolean) => tileUIActions?.setPending(pending);
 
@@ -140,7 +139,7 @@ const LogsTable = ({
     logsData,
     totalPages,
     boundaries
-  } = useMemo(() => tableDataItem, [tableDataItem]);
+  } = tableDataItem;
 
   // Display loaders for group metrics and shared values
   const [loadingGroups, setLoadingGroups] = useState<Set<string>>(new Set());
@@ -152,7 +151,14 @@ const LogsTable = ({
 
     // Handle loading states and fetch grouped metrics
     if (!loadingSubGroup) {
-      setLoadingGroups(prev => new Set(["_all_groups_"]));
+      setLoadingGroups((prev) => {
+        // If `prev` is already the single-element set we want, just reuse it:
+        if (prev.size === 1 && prev.has("_all_groups_")) {
+          return prev; // same reference => no state update => no re-render
+        }
+        // Otherwise create a new set
+        return new Set(["_all_groups_"]);
+      });
     }
 
     // Fetch grouped metrics
@@ -181,7 +187,7 @@ const LogsTable = ({
         });
       }
     });
-  }, [tableDataItem]);
+  }, [tableDataItem.logs, loadingSubGroup]);
 
   // Extract params values from logs
   const paramsValues: LogItemProps = {};
