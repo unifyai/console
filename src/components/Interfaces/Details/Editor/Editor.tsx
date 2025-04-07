@@ -86,7 +86,7 @@ const Editor = ({
                     editorTileActions?.setContent(code);
                     const tempFilePath = `${tempFileName}.${editorTileState?.file_type}`;
                     allFiles[tempFilePath] = code;
-                    codeActions.run(allFiles, tempFilePath).then(
+                    codeActions.run(allFiles, tempFilePath, projectId).then(
                         (result: any) => setOutput(result.output.replaceAll("/project/sandbox/", ""))
                     ).finally(() => setPending(false));
                 }}
