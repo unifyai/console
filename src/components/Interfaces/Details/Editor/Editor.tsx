@@ -75,7 +75,6 @@ const Editor = ({
                     {fileTypes.map((fileType, idx) => {
                         return (
                             <DropdownMenuItem key={idx} onSelect={() => {
-                                editorTileActions?.setContent(tempCode);
                                 editorTileActions?.setFileType(fileType as "py" | "txt" | "json");
                             }}>
                                 {fileType}
