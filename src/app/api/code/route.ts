@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
     const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
     const body = await request.json();
     const userId = body.user_id;
+    const project = body.project;
     const filePath = body.file_path;
     const files = body.files as { [fileName: string]: any };
     const sandboxList = await sdk.sandbox.list();
@@ -28,6 +29,7 @@ export async function POST(request: NextRequest) {
     await Promise.all(Object.entries(files).map(([fileName, code]) => sandbox.fs.writeFile(fileName, code)));
     let envVars: { [key: string]: string } = {
         UNIFY_KEY: request.headers.get("apiKey") as string,
+        UNIFY_PROJECT: project
     };
     if (baseUrl.includes("staging")) {
         envVars = {

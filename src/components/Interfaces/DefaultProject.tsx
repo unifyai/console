@@ -86,7 +86,7 @@ const DefaultProject = ({
             }, 3000);
         } else {
             setPendingLocal(true);
-            codeActions.run({ "main.py": demoCode }, "main.py").then(() => {
+            codeActions.run({ "main.py": demoCode }, "main.py", "").then(() => {
                 tabActions.create(
                     demoName, demoProject, undefined, demoItems, demoNewCounter, true
                 ).then(() => {

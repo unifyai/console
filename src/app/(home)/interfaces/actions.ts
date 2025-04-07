@@ -423,7 +423,7 @@ export const createDevbox = async (apiKey: string, userId: string) => {
 
 // run code
 export const runCode = async (apiKey: string, userId: string) => {
-    return async (files: { [fileName: string]: string }, filePath: string) => {
+    return async (files: { [fileName: string]: string }, filePath: string, project: string) => {
         "use server";
 
         const response = await fetch(
@@ -431,7 +431,7 @@ export const runCode = async (apiKey: string, userId: string) => {
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ user_id: userId, files, file_path: filePath })
+                body: JSON.stringify({ user_id: userId, files, file_path: filePath, project })
             }
         );
         const responseJson = await response.json();
