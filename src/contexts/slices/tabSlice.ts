@@ -17,6 +17,7 @@ export interface TabActions {
   renameTab: (interfaceId: string, sourceTabId: string, newTabId: string, initialState?: Partial<tabLogic.Tab>) => void;
   updateTab: (tabId: string, updates: Partial<tabLogic.Tab>) => void;
   setActiveTab: (interfaceId: string, tabId: string | null) => void;
+  removeContextFromTab: (tabId: string, context: string) => void;
 }
 
 export type TabSlice = TabState & TabActions;
@@ -88,5 +89,9 @@ export const createTabSlice: StateCreator<
         state.tabsById[tabId].active = true;
       }
     }
+  }),
+
+  removeContextFromTab: (tabId, context) => set(state => {
+    sliceUtils.removeContextFromTab(state, tabId, context);
   }),
 }); 
