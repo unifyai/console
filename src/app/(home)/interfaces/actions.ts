@@ -436,11 +436,6 @@ export const runCode = async (apiKey: string, userId: string) => {
         );
         const responseJson = await response.json();
         if (!response.ok) {
-            // If there's an error message in the output field, use that
-            if (responseJson.output) {
-                throw new Error(responseJson.output.replaceAll("/project/sandbox/", ""));
-            }
-            // Otherwise use the detail field or default message
             throw new Error(responseJson.detail || "Network error");
         }
         return responseJson;

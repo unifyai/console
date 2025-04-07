@@ -86,14 +86,9 @@ const Editor = ({
                     editorTileActions?.setContent(code);
                     const tempFilePath = `${tempFileName}.${editorTileState?.file_type}`;
                     allFiles[tempFilePath] = code;
-                    codeActions.run(allFiles, tempFilePath).then((result: any) => {
-                        if (result.exitCode == 0)
-                            setOutput(result.output);
-                        setPending(false);
-                    }).catch((error: Error) => {
-                        setOutput(error.message);
-                        setPending(false);
-                    });
+                    codeActions.run(allFiles, tempFilePath).then(
+                        (result: any) => setOutput(result.output.replaceAll("/project/sandbox/", ""))
+                    ).finally(() => setPending(false));
                 }}
                 readOnly={false}
                 onSave={(value: string | undefined) => {
