@@ -405,6 +405,103 @@ export function extractParamsValues(entriesParams: LogItemProps, params: LogItem
 	return newEntriesParams;
 }
 
+/**
+ * Format a single cell value based on the dataType.
+ * Return a ReactNode (JSX or string).
+ */
+export function formatCellValue(
+	rawValue: unknown,
+	dataType: string,
+	exclude_undefined: boolean = false,
+	exclude_nulls: boolean = false
+): React.ReactNode {
+	// If cellValue is undefined or null, handle that up front
+	if (rawValue === undefined) {
+		if (exclude_undefined) {
+			return null;
+		}
+	  return " ";
+	}
+	if (rawValue === null) {
+		if (exclude_nulls) {
+			return null;
+		}
+	  return "-";
+	}
+  
+	switch (dataType) {
+	  case "image": {
+		if (typeof rawValue === "string") {
+		  let value = rawValue.trim();
+		  if (value.startsWith('"') && value.endsWith('"')) {
+			// Trim the outer quotes if they exist
+			value = value.slice(1, -1);
+		  }
+		  return <ImageDisplay value={value} className="object-scale-down h-5 w-5" />;
+		}
+		// If not a string, fallback
+		return "Invalid Image";
+	  }
+  
+	  case "int":
+	  case "float": {
+		// Safely parse to float, if invalid or NaN display fallback
+		const numericValue = parseFloat(String(rawValue));
+		if (isNaN(numericValue)) {
+			if (exclude_nulls) {
+				return null;
+			}
+		  return "–";
+		}
+		return formatNumber(numericValue);
+	  }
+  
+	  case "timedelta": {
+		try {
+		  const duration = timeDeltaValueToDuration(String(rawValue));
+		  const delta = durationToTimeDelta(duration);
+		  return delta;
+		} catch (error) {
+		  console.error("Error formatting timedelta:", error);
+		  return String(rawValue);
+		}
+	  }
+  
+	  case "timestamp":
+	  case "time":
+	  case "date":
+	  case "str": {
+		// For timestamps or generally string data, handle leading/trailing quotes
+		let value = (typeof rawValue === "string") ? rawValue.trim() : String(rawValue);
+		if (value.startsWith('"') && value.endsWith('"')) {
+		  value = value.slice(1, -1);
+		}
+		if (value.length > 20) value = value.slice(0, 20) + '...';
+		return value;
+	  }
+  
+	  default: {
+		// Fallback for unrecognized data types
+		// If it's an object, try JSON stringify or just display as string
+		if (typeof rawValue === "object") {
+		  try {
+			let value = JSON.stringify(rawValue);
+			if (value.length > 20) value = value.slice(0, 20) + "...";
+			return value;
+		  } catch {
+			let value = String(rawValue);
+			if (value.length > 20) value = value.slice(0, 20) + "...";
+			return value;
+		  }
+		}
+		// If it's anything else, just convert to string
+		let value = String(rawValue);
+		if (value.length > 20) value = value.slice(0, 20) + "...";
+		return value;
+	  }
+	}
+}
+
 /* 
   Build column structure including handling nested column headers, and define cell content more robustly.
   This version gracefully handles:
@@ -476,91 +573,8 @@ export const nestedColumns = (
 					cellValue = data.params?.[node.path]?.[cellValue as string] ?? cellValue;
 				}
 
-				// If cellValue itself is undefined or null, display a fallback
-				if (cellValue === undefined) {
-					return " ";
-				}
-
-				if (cellValue === null) {
-					return "-";
-				}
-
-				// Depending on the dataType, format the incoming value
-				switch (dataType) {
-					case "image": {
-						if (typeof cellValue === "string") {
-							let value = cellValue.trim();
-							if (value.startsWith('"') && value.endsWith('"')) {
-								// Trim the outer quotes if they exist
-								value = value.slice(1, -1);
-							}
-							return <ImageDisplay value={value} className="object-scale-down h-5 w-5" />;
-						}
-						// If not a string, fallback
-						return "Invalid Image";
-					}
-
-					case "int":
-					case "float": {
-						// Safely parse to float, if invalid or NaN display fallback
-						const numericValue = parseFloat(String(cellValue));
-						if (isNaN(numericValue)) {
-							return "–";
-						}
-						// Use a numeric formatting function if desired
-						return formatNumber(numericValue);
-					}
-
-					case "timedelta": {
-						try {
-							const duration = timeDeltaValueToDuration(String(cellValue))
-							const delta = durationToTimeDelta(duration)
-							return delta;
-						} catch (error) {
-							console.error("Error formatting timedelta:", error);
-							return String(cellValue);
-						}
-					}
-					
-					case "timestamp":
-					case "time":
-					case "date":
-					case "str": {
-						// For timestamps or generally string data, handle leading/trailing quotes
-						if (typeof cellValue === "string") {
-							let value = cellValue.trim();
-							if (value.startsWith('"') && value.endsWith('"')) {
-								value = value.slice(1, -1);
-							}
-							if (value.length > 20) value = value.slice(0, 20) + "..."
-							return value;
-						}
-						// If not a string, at least convert to string
-						let value = String(cellValue)
-						if (value.length > 20) value = value.slice(0, 20) + "..."
-						return value;
-					}
-
-					default: {
-						// Fallback for unrecognized data types
-						// If it's an object, try JSON stringify or just display as string
-					if (typeof cellValue === "object") {
-							try {
-								let value = JSON.stringify(cellValue)
-								if (value.length > 20) value = value.slice(0, 20) + "..."
-								return value;
-							} catch {
-							let value = String(cellValue)
-							if (value.length > 20) value = value.slice(0, 20) + "..."
-							return value;
-							}
-						}
-						// If it's anything else, just convert to string
-						let value = String(cellValue)
-						if (value.length > 20) value = value.slice(0, 20) + "..."
-						return value;
-					}
-				}
+				// Now call our utility for final formatting
+				return formatCellValue(cellValue, dataType);
 			},
 			meta: {
 				dataType: dataType,
