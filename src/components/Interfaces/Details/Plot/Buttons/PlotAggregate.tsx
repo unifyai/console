@@ -22,16 +22,16 @@ const PlotAggregate = ({
   logs: LogProps[] | undefined;
 }) => {
 
-  // Only render aggregation selector if at least one table has group by applied
-  if (!Object.values(groupings).length) {
-    return null;
-  }
-
   /* Display loader when data updates */
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     setLoading(false);
   }, [logs]);
+  
+  // Only render aggregation selector if at least one table has group by applied
+  if (!Object.values(groupings).length) {
+    return null;
+  }
 
   /* Available options */
   const choices = { ...groupings };
@@ -45,6 +45,7 @@ const PlotAggregate = ({
 
   const hasChoices = Object.keys(choices).length > 0;
 
+  
   return (
     <AccordionItem value="plot-aggregate" disabled={loading || !interactive}>
       <AccordionTrigger disabled={loading || !interactive}>
