@@ -6,7 +6,11 @@ import { DataRange, GroupedDataRange, GroupedBin, GroupedDataLabel, DataLabel, D
 import { toComputableValue, computeStatistic } from "./common";
 import { formatNumber } from "../formatNumber";
 import { formatTimeTypeValue, timeValueToTime, timeDeltaValueToDuration } from "./format";
+
 const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
+const copyIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
+const closeIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+const copiedIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>`;
 
 /** Utility functions to draw UI elements shared across plot types, including: 
  * X and Y axes and ticks
@@ -103,7 +107,7 @@ const drawAxes = (
     xAxis.select("path").style("opacity", 0);
     yAxis.select("path").style("opacity", 0);
     xAxis.style("opacity", 1)
-    
+
     if (plotType === "Bar Chart") xAxis.style("opacity", 0)         // (Temporary: Hide x axis for bar charts)
 
     /* Add x = 0 and / or y = 0 line, if applicable */
@@ -158,6 +162,99 @@ export const drawBorders = (
       .attr("y2", margins.top)
 };
 
+/**
+ * Clears the content and hides the fixed tooltip container.
+ */
+export function clearFixedTooltip() {
+    const container = d3.select(".fixedPlotTooltip");
+    container.datum(null).html('').classed('hidden', true);
+}
+
+/**
+ * Renders the content of the fixed tooltip based on the bound datum.
+ * @param container d3.Selection of the fixed tooltip div.
+ */
+function renderFixedTooltipContent(container: d3.Selection<HTMLDivElement, InfoCardData | null, HTMLElement, any>) {
+    const data = container.datum(); // Get the bound data
+
+    if (!data) {
+        clearFixedTooltip(); // Ensure it's cleared and hidden if no data
+        return;
+    }
+
+    container.html('').classed('hidden', false); // Clear previous content and ensure visible
+
+    // Add Close Button
+    container.append('button')
+        .attr('class', 'absolute top-1 right-1 p-0.5 rounded hover:bg-muted focus:outline-none focus:ring-1 focus:ring-ring')
+        .attr('aria-label', 'Close tooltip')
+        .html(closeIconSVG)
+        .on('click', (event) => {
+            event.stopPropagation(); // Prevent plot background click if tooltip overlaps
+            clearFixedTooltip();
+        });
+
+    const contentWrapper = container.append('div')
+        .attr('class', 'flex flex-col gap-2 mt-1'); // Add margin top for close button space
+
+
+    // Helper function to add an item with a copy button
+    const addItem = (label: string, value: string | number) => {
+        const itemDiv = contentWrapper.append('div').attr('class', 'flex items-center justify-between gap-2');
+        const textDiv = itemDiv.append('div').attr('class', 'flex-1 overflow-hidden');
+        textDiv.append('p').attr('class', 'text-xs text-muted-foreground truncate').text(label);
+        textDiv.append('p').attr('class', 'font-semibold truncate').text(value);
+
+        const copyButton = itemDiv.append('button')
+            .attr('class', 'p-1 rounded hover:bg-muted focus:outline-none focus:ring-1 focus:ring-ring copy-button shrink-0')
+            .attr('aria-label', `Copy ${label}`)
+            .html(copyIconSVG);
+
+        copyButton.on('click', function(event) {
+            event.stopPropagation();
+            const button = d3.select(this);
+            navigator.clipboard.writeText(String(value)).then(() => {
+                button.html(copiedIconSVG);
+                setTimeout(() => {button.html(copyIconSVG)}, 1500);
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+            });
+        });
+    };
+
+    // Add Group Item (if exists)
+    if (data.group) {
+        addItem(data.group.name, data.group.value);
+        contentWrapper.append('div').attr('class', 'border-b border-border my-1'); // Divider
+    }
+
+    // Add X Item
+    addItem(data.x.name, data.x.value);
+
+    // Add Y Item
+    if (data.y) {
+        contentWrapper.append('div').attr('class', 'border-b border-border my-1'); // Divider
+        addItem(data.y.name, data.y.value);
+    }
+}
+
+/**
+ * Generic click handler for plot elements (bars, points, hist bins) to handle fixed tooltip .
+ * @param event The click event.
+ * @param data The data associated with the clicked element (InfoCardData structure).
+ */
+function showFixedTooltip(event: MouseEvent, data: InfoCardData | null) {
+    event.stopPropagation();
+    const fixedTooltipContainer = d3.select<HTMLDivElement, InfoCardData | null>(".fixedPlotTooltip");
+    fixedTooltipContainer.datum(data); // Bind the new data
+    renderFixedTooltipContent(fixedTooltipContainer); // Render with new data
+}
+
+/**
+ * Generates the HTML content for the hover tooltip.
+ * @param data The data for the hovered element.
+ * @returns HTML string for the tooltip.
+*/
 const tooltipTemplate = (data: InfoCardData) => {
     let template = `
     <p>${data.x.name}</p>
@@ -174,6 +271,16 @@ const tooltipTemplate = (data: InfoCardData) => {
         `
         template = groupTemplate + template
     }
+
+    // Instructions to pin the tooltip
+    template += `
+        <div class="border-b border-border my-2"></div>
+        <p class="text-xs text-muted-foreground flex items-center gap-1">
+            <span class="inline-block" aria-hidden="true">ⓘ</span>
+            <span class="italic">Click to pin in the foldable menu</span>
+        </p>
+    `;
+
     return template
 }
 
@@ -188,10 +295,67 @@ const keyTemplate = (keys: GroupingColors) => {
     `).join("\n")}`)
 }
 
-
+/**
+ * Positions the hover tooltip relative to the mouse cursor,
+ * ensuring it stays within the viewport boundaries.
+ *
+ * IMPORTANT: This function should be called *after* the tooltip's
+ * content has been updated (e.g., via .html()) so that its
+ * dimensions can be measured correctly.
+ *
+ * @param event The mouse event (used for cursor position).
+ * @param target The container to use as reference for positioning (not used)
+ * @param tooltip The D3 selection of the tooltip element.
+ */
 const positionTooltip = (event: any, target: any, tooltip: any) => {
-    const [x, y] = d3.pointer(event, target);  
-    tooltip.style("left", `${x - 100}px`).style("top", `${y - 50}px`)
+    const node = tooltip.node();
+    if (!node) return;
+
+    // --- 1. Get Dimensions ---
+    const tooltipRect = node.getBoundingClientRect();
+    const tooltipWidth = tooltipRect.width;
+    const tooltipHeight = tooltipRect.height;
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // --- 2. Get Cursor Position & Define Offset ---
+    const cursorX = event.pageX;
+    const cursorY = event.pageY;
+    const offsetX = 5; // Horizontal gap from cursor
+    const offsetY = 5; // Vertical gap from cursor
+    const boundaryPadding = 5; // Minimum space from viewport edges
+
+    // --- 3. Calculate Preferred Position (Bottom-Right of cursor) ---
+    let targetX = cursorX + offsetX;
+    let targetY = cursorY + offsetY;
+
+    // --- 4. Check Boundaries and Adjust ---
+
+    // Check RIGHT boundary first (for preferred bottom-right position)
+    if (targetX + tooltipWidth > viewportWidth - boundaryPadding) {
+        // Preferred position is off-screen right. Flip to the LEFT of the cursor.
+        targetX = cursorX - tooltipWidth - offsetX;
+        // Check if the flipped position now goes off the LEFT edge
+        if (targetX < boundaryPadding) {
+            targetX = boundaryPadding; // Clamp to left edge
+        }
+    }
+
+    // Check BOTTOM boundary first (for preferred bottom-right position)
+    if (targetY + tooltipHeight > viewportHeight - boundaryPadding) {
+        // Preferred position is off-screen bottom. Flip ABOVE the cursor.
+        targetY = cursorY - tooltipHeight - offsetY;
+        // Check if the flipped position now goes off the TOP edge
+        if (targetY < boundaryPadding) {
+            targetY = boundaryPadding; // Clamp to top edge
+        }
+    }
+
+    // --- 5. Apply Final Position ---
+    tooltip
+        .style("left", `${targetX}px`)
+        .style("top", `${targetY}px`);
 };
 
 /** Utility functions to process plot data, including:
@@ -656,6 +820,7 @@ export const drawBarChart = (
                     .attr("height", 0)
                     .attr("fill", d => colorScale(d[0]))
                     .style("opacity", 0)
+                    .style("cursor", "pointer")
                     .call(enter => enter.transition("enter")
                         .duration(500)
                         .attr("y", d => yScale(Math.max(0, d[1][1])))
@@ -718,6 +883,7 @@ export const drawBarChart = (
                     .attr("y", yScale(0))
                     .attr("height", 0)
                     .attr("fill", primary)
+                    .style("cursor", "pointer")
                     .call(
                         enter => enter.transition("enter")
                             .duration(500)
@@ -739,13 +905,13 @@ export const drawBarChart = (
             );
     }
 
-    // Hover events
-    const handleMouseOver = (event: any, d: GroupedDataLabel | DataLabel) => {
+    // Events
+    const getTooltipData = (groupByProperty: string | undefined, d: GroupedDataLabel | DataLabel) => {
         if (groupByProperty) {
             const group = (d as GroupedDataLabel)[0];            
             const xValue = (d as GroupedDataLabel)[1][0];
             const yValue = (d as GroupedDataLabel)[1][1];
-            tooltip.html(tooltipTemplate({
+            const data = {
                 group: { 
                     name: groupByProperty, 
                     value: group 
@@ -758,7 +924,29 @@ export const drawBarChart = (
                     name: `${yAxisProperty}(${metric})`, 
                     value: yValue 
                 }
-            })).transition("opacity").style("opacity", 1);
+            }
+            return data
+        }
+        else {
+            const xValue = (d as DataLabel)[0];
+            const yValue = (d as DataLabel)[1];
+            const data = {
+                x: { 
+                    name: xAxisProperty!, 
+                    value: xValue 
+                },
+                y: { 
+                    name: `${yAxisProperty}(${metric})`,
+                    value: yValue
+                }
+            }
+            return data
+        }
+    }
+    const handleMouseOver = (event: any, d: GroupedDataLabel | DataLabel) => {
+        if (groupByProperty) {
+            const group = (d as GroupedDataLabel)[0];            
+            tooltip.html(tooltipTemplate(getTooltipData(groupByProperty, d))).transition("opacity").style("opacity", 1);
             g.selectAll("rect.bar-item")
               .transition("opacity").duration(200)
               .style("opacity", barData => (barData as GroupedDataLabel)[0] === group ? 1 : 0);
@@ -769,17 +957,7 @@ export const drawBarChart = (
         }
         else {
             const xValue = (d as DataLabel)[0];
-            const yValue = (d as DataLabel)[1];
-            tooltip.html(tooltipTemplate({
-                x: { 
-                    name: xAxisProperty!, 
-                    value: xValue 
-                },
-                y: { 
-                    name: `${yAxisProperty}(${metric})`,
-                    value: yValue
-                }
-            })).transition("opacity").style("opacity", 1);
+            tooltip.html(tooltipTemplate(getTooltipData(groupByProperty, d))).transition("opacity").style("opacity", 1);
             g.selectAll("rect.bar-item")
                 .transition("opacity")
                 .style("opacity", bar => (bar as DataLabel)[0] === xValue ? 1 : 0.3);
@@ -798,7 +976,8 @@ export const drawBarChart = (
     g.selectAll("rect.bar-item")
         .on("mouseover", (e, d) =>handleMouseOver(e,(d as GroupedDataLabel | DataLabel)))
         .on("mousemove", handleMouseMove)
-        .on("mouseout", handleMouseOut);
+        .on("mouseout", handleMouseOut)
+        .on("click", (e,d) => showFixedTooltip(e, getTooltipData(groupByProperty, (d as GroupedDataLabel | DataLabel))));
 };
 
 export const drawLineChart = (
@@ -1169,7 +1348,7 @@ export const drawScatterPlot = (
     const points = g
         .selectAll("circle.data-point")
         .data(data, (d: unknown) => (d as LogProps).id); // Use unique identifier to track point transitions
-        const enteringPoints = points
+    const enteringPoints = points
         .enter()
         .append("circle")
         .attr("class", "data-point")
@@ -1178,8 +1357,11 @@ export const drawScatterPlot = (
         .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable)) : getValue(fields, xAxisProperty as string, d, xTable)))
         .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable)) : getValue(fields, yAxisProperty as string, d, yTable)))
         .attr("r", 0)
+        .style("cursor", "pointer")
         .on("mouseover", (event, data) => hoverOnPoint(event, data, xTable, yTable))
-        .on("mouseout", (event, data) => leavePoint(event, data));    
+        .on("mousemove", (event, data) => moveOnPoint(event, data))
+        .on("mouseout", (event, data) => leavePoint(event, data))
+        .on("click", (event, data) => showFixedTooltip(event, getTooltipData(data, xTable, yTable)));
     enteringPoints
         .merge(points as any)
         .transition("enter")
@@ -1200,9 +1382,11 @@ export const drawScatterPlot = (
         .selectAll("circle.hover-area")
         .data(data)
         .join("circle")
+        .style("cursor", "pointer")
         .on("mouseover", (event, data) => hoverOnPoint(event, data, xTable, yTable))
         .on("mousemove", (event, data) => moveOnPoint(event, data))
         .on("mouseout", (event, data) => leavePoint(event, data))
+        .on("click", (event, data) => showFixedTooltip(event, getTooltipData(data, xTable, yTable)))
         .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable) as number) : getValue(fields, xAxisProperty as string, d, xTable) as number))
         .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable) as number) : getValue(fields, yAxisProperty as string, d, yTable) as number))
         .attr("r", 10)
@@ -1214,8 +1398,7 @@ export const drawScatterPlot = (
     // When hovering on point.
     // - Set info card position and content
     // - If grouping is set, lower the opacity and radius of all points and groupding keys that don't belong to the same category
-    function hoverOnPoint (event: any, data: LogProps, xTable: string, yTable: string) {
-
+    const getTooltipData = (data: LogProps, xTable: string, yTable: string) => {
         const hoverData : InfoCardData = {
             "x" : {
                 "name":  selectedXAxisProperty as string,
@@ -1234,8 +1417,11 @@ export const drawScatterPlot = (
             "name": groupBy, 
             value: getValue(fields, groupBy as string, data, xTable)
         }
+        return hoverData
+    }
+    function hoverOnPoint (event: any, data: LogProps, xTable: string, yTable: string) {
 
-        tooltip.html(tooltipTemplate(hoverData)).transition("opacity").style("opacity", 1)
+        tooltip.html(tooltipTemplate(getTooltipData(data, xTable, yTable))).transition("opacity").style("opacity", 1)
         positionTooltip(event, event.target, tooltip);
 
         if (groupBy) {
@@ -1736,9 +1922,11 @@ export const drawHistogram = (
             .attr("y", y(0)) // Start at base
             .attr("height", 0) // Start with 0 height
             .style("opacity", initialOpacity)
+            .style("cursor", "pointer")
             .on("mouseover", (event, d) => hoverOnHist(event, d))
             .on("mousemove", (event, d) => moveOnHist(event, d))
-            .on("mouseout", (event, d) => leaveHist(event, d));
+            .on("mouseout", (event, d) => leaveHist(event, d))
+            .on("click", (event, d) => showFixedTooltip(event, getTooltipData(d)));
         enteringBars
             .merge(bars as any)
             .transition("enter")
@@ -1796,9 +1984,11 @@ export const drawHistogram = (
             .attr("y", y(0)) // Start at base
             .attr("height", 0) // Start with 0 height
             .style("opacity", initialOpacity)
+            .style("cursor", "pointer")
             .on("mouseover", (event, d) => hoverOnHist(event, d))
             .on("mousemove", (event, d) => moveOnHist(event, d))
-            .on("mouseout", (event, d) => leaveHist(event, d));
+            .on("mouseout", (event, d) => leaveHist(event, d))
+            .on("click", (event, d) => showFixedTooltip(event, getTooltipData(d)));
         enteringBars
             .merge(bars as any)
             .transition("enter")
@@ -1818,30 +2008,33 @@ export const drawHistogram = (
     }
 
     // Add mouse event handlers
-    function hoverOnHist(event: any, bin: d3.Bin<number, number> | GroupedBin) {
+    const getTooltipData = (bin: d3.Bin<number, number> | GroupedBin) => {
         const [localMinX, localMaxX] = groupByProperty // Compute group boundaries if group by is set
         ? d3.extent((data as GroupedDataRange).filter(d => d[0] === (bin as GroupedBin).group).flatMap(d => d[1]) as DataRange)
         : [minX, maxX]
         const hoverData = {
-          group: {
-            name: "Data Range",
-            value: (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "date")
-                ? `${groupByProperty ? "Group: " + (bin as GroupedBin).group + ", " : ""}Min: ${formatTimeTypeValue(localMinX as number, xType)}, Max: ${formatTimeTypeValue(localMaxX as number, xType)}`
-                : `${groupByProperty ? "Group: " + (bin as GroupedBin).group + ", " : ""}Min: ${formatNumber(minX)}, Max: ${formatNumber(maxX)}`
-          },
-          x: {
-            name: "Bar Range",
-            value: (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "date")
-              ? `${formatTimeTypeValue(bin.x0!, xType)} - ${formatTimeTypeValue(bin.x1!, xType)}`
-              : `${formatNumber(bin.x0!)} - ${formatNumber(bin.x1!)}`
-          },
-          y: {
-            name: "Bar Count",
-            value: bin.length
-          }
+            group: {
+              name: "Data Range",
+              value: (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "date")
+                  ? `${groupByProperty ? "Group: " + (bin as GroupedBin).group + ", " : ""}Min: ${formatTimeTypeValue(localMinX as number, xType)}, Max: ${formatTimeTypeValue(localMaxX as number, xType)}`
+                  : `${groupByProperty ? "Group: " + (bin as GroupedBin).group + ", " : ""}Min: ${formatNumber(minX)}, Max: ${formatNumber(maxX)}`
+            },
+            x: {
+              name: "Bar Range",
+              value: (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "date")
+                ? `${formatTimeTypeValue(bin.x0!, xType)} - ${formatTimeTypeValue(bin.x1!, xType)}`
+                : `${formatNumber(bin.x0!)} - ${formatNumber(bin.x1!)}`
+            },
+            y: {
+              name: "Bar Count",
+              value: bin.length
+            }
         };
-  
-        tooltip.html(tooltipTemplate(hoverData)).transition("opacity").style("opacity", 1);
+        return hoverData        
+    }
+    function hoverOnHist(event: any, bin: d3.Bin<number, number> | GroupedBin) {
+
+        tooltip.html(tooltipTemplate(getTooltipData(bin))).transition("opacity").style("opacity", 1);
         positionTooltip(event, event.target, tooltip);
 
         g.selectAll("rect.hist-item")

@@ -2,7 +2,7 @@
 
 import { ChartScatter, ChartLine, ChartColumn, ChartColumnBig } from "lucide-react";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
-import { clearCanvas } from "@/utils/evals/plot";
+import { clearCanvas, clearFixedTooltip } from "@/utils/evals/plot";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/UI/accordion";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { Button } from "@/components/UI/button";
@@ -35,8 +35,14 @@ const PlotType = ({ interactive = true, svgRef, containerRef, plotType, setPlotT
         setPlotType(type)
         const yAxis = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : undefined;
         const xAxis = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : undefined;
-        if (type === "Histogram" && !xAxis) clearCanvas(svgRef, containerRef)
-        if (type != "Histogram" && [xAxis, yAxis].some(v => !v)) clearCanvas(svgRef, containerRef) 
+        if (type === "Histogram" && !xAxis) {
+            clearCanvas(svgRef, containerRef)
+            clearFixedTooltip()
+        }
+        if (type != "Histogram" && [xAxis, yAxis].some(v => !v)) {
+            clearCanvas(svgRef, containerRef)
+            clearFixedTooltip()
+        } 
         setXAxis(xAxis)
         setYAxis(yAxis)
     } 

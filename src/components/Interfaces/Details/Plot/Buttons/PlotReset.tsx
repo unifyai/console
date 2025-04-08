@@ -1,7 +1,7 @@
 "use client";
 
 import ActionButton from "@/components/Common/Buttons/Action";
-import { clearCanvas } from "@/utils/evals/plot";
+import { clearCanvas, clearFixedTooltip } from "@/utils/evals/plot";
 import { GrClearOption } from "react-icons/gr";
 
 const PlotReset = ({svgRef, containerRef, setXAxis, setYAxis, setGroupBy, setIsAggregated}: {
@@ -17,7 +17,8 @@ const PlotReset = ({svgRef, containerRef, setXAxis, setYAxis, setGroupBy, setIsA
         if (setYAxis) setYAxis(undefined);
         if (setGroupBy) setGroupBy(undefined);
         if (setIsAggregated) setIsAggregated(undefined);
-        clearCanvas(svgRef, containerRef)
+        clearCanvas(svgRef, containerRef);
+        clearFixedTooltip();
     };
     return (
         <ActionButton
