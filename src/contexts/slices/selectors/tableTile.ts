@@ -109,8 +109,52 @@ export function updateTableTile(tableTile: TableTile, updates: Partial<TableTile
 }
 
 /**
- * Update the table data item of a table tile
+ * Updates a table data item with the given updates
+ * @param tableDataItem The current table data item
+ * @param updates The updates to apply
+ * @returns The updated table data item
  */
-export function updateTableDataItem(tableDataItem: TableDataItem, updates: Partial<TableDataItem>): TableDataItem {
-  return { ...tableDataItem, ...updates };
+export function updateTableDataItem<T extends TableDataItem>(
+  tableDataItem: T,
+  updates: Partial<T>
+): T {
+  return {
+    ...tableDataItem,
+    ...updates
+  };
+}
+
+/**
+ * Merges updates into a table data item, merging each field individually
+ * @param tableDataItem The current table data item
+ * @param updates The updates to merge
+ * @returns The updated table data item
+ */
+export function mergeUpdatesIntoTableDataItem<T extends TableDataItem>(
+  tableDataItem: T,
+  updates: Partial<T>
+): T {
+  // Create a new object to start with
+  const result = { ...tableDataItem };
+  
+  // Handle each update field individually
+  Object.keys(updates).forEach(key => {
+    const updateKey = key as keyof T;
+    const updateValue = updates[updateKey];
+    const currentValue = tableDataItem[updateKey];
+    
+    // If both values exist, merge them by spreading
+    if (currentValue && updateValue) {
+      // Merge by spreading the current value first, then the update
+      result[updateKey] = {
+        ...currentValue,
+        ...updateValue
+      } as any;
+    } else {
+      // If either value is missing, use the update value
+      result[updateKey] = updateValue as any;
+    }
+  });
+  
+  return result;
 }

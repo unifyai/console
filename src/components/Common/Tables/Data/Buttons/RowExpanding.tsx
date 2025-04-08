@@ -36,7 +36,8 @@ const RowExpanding = ({
 
     const handleInitialExpand = async () => {
         if (isExpanded && !row.original.isPopulated) {
-            handleOnExpand();
+            // await handleOnExpand();
+            row.toggleExpanded(false);
         }
     };
 
@@ -54,7 +55,7 @@ const RowExpanding = ({
             
             if (!row.original.isPopulated) {
                 // Only fetch data when we haven't populated this group's data before
-                handleOnExpand();
+                await handleOnExpand();
             }
 
             // Simply toggle this row's expanded state

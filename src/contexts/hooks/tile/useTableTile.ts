@@ -44,6 +44,7 @@ export interface TableTileDataActions {
   setSelected: (selected: string | undefined) => void;
   setTableDataItem: (tableDataItem: TableDataItem | undefined) => void;
   updateTableDataItem: (updates: Partial<TableDataItem>) => void;
+  mergeUpdatesIntoTableDataItem: (updates: Partial<TableDataItem>) => void;
 }
 
 /**
@@ -156,6 +157,7 @@ export function useTableTile(
   // Get store update functions
   const storeUpdateTableTile = useStoreContext(state => state.updateTableTile);
   const storeUpdateTableDataItem = useStoreContext(state => state.updateTableDataItem);
+  const storeMergeUpdatesIntoTableDataItem = useStoreContext(state => state.mergeUpdatesIntoTableDataItem);
 
   // Create memoized meta actions
   const tableMetaActions = useMemo<TableTileMetaActions | null>(() => {
@@ -244,9 +246,15 @@ export function useTableTile(
         if (tileId) {
           storeUpdateTableDataItem(tileId, updates);
         }
+      },
+
+      mergeUpdatesIntoTableDataItem: (updates) => {
+        if (tileId) {
+          storeMergeUpdatesIntoTableDataItem(tileId, updates);
+        }
       }
     };
-  }, [isTableTile, tileId, storeUpdateTableDataItem]);
+  }, [isTableTile, tileId, storeUpdateTableDataItem, storeMergeUpdatesIntoTableDataItem]);
 
   // Create memoized UI actions
   const tableUIActions = useMemo<TableTileUIActions | null>(() => {
