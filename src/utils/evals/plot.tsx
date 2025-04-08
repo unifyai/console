@@ -24,15 +24,12 @@ export function clearCanvas (svgRef: any, containerRef: any) {
     const xZero = svg.select(".x-zero")
     const yZero = svg.select(".y-zero")
 
-    const container = d3.select(containerRef.current)
-    const groupingKey = container.select(".groupingKey")
-
     g.selectAll("*").remove();
     xAxis.selectAll("*").remove();
     yAxis.selectAll("*").remove();
     xZero.style("opacity", 0)
     yZero.style("opacity", 0)
-    groupingKey.style("opacity", 0)
+
 }  
 
 const drawAxes = (
@@ -105,6 +102,7 @@ const drawAxes = (
     yAxis.selectAll("text").attr("stroke", "black") .attr("stroke-width", 0.1).attr("text-anchor", "end").attr("font-size", `10px`);
     xAxis.select("path").style("opacity", 0);
     yAxis.select("path").style("opacity", 0);
+    xAxis.style("opacity", 1)
     
     if (plotType === "Bar Chart") xAxis.style("opacity", 0)         // (Temporary: Hide x axis for bar charts)
 
@@ -514,6 +512,7 @@ function getRandomSubset(arr: any[], size: number) {
 export const drawBarChart = (
     container: d3.Selection<null, unknown, null, undefined>,
     svg: d3.Selection<null, unknown, null, undefined>,
+    settings: d3.Selection<null, unknown, null, undefined>,
     scaleX: string,
     scaleY: string,
     dimensions: {width: number, height: number},
@@ -541,7 +540,6 @@ export const drawBarChart = (
     g.selectAll("text.correlation").remove();
     g.selectAll("text.correlation-group").remove();
     g.selectAll("path.best-fit").remove()
-    container.select(".groupingKey").style("opacity", 0)
 
     // Prepare data
     const properties = Object.entries(fields).map(([name]) => name);
@@ -639,7 +637,7 @@ export const drawBarChart = (
 
     // Tooltip and grouping key
     const tooltip = container.select(".plotTooltip").style("opacity", 0);
-    const key = container.select(".groupingKey");
+    const key = settings.select(".groupingKey");
 
     // Draw bars
     const initialOpacity = groupByProperty ? 0.7 : 1.0;
@@ -806,6 +804,7 @@ export const drawBarChart = (
 export const drawLineChart = (
   container: d3.Selection<null, unknown, null, undefined>,
   svg: d3.Selection<null, unknown, null, undefined>,
+  settings: d3.Selection<null, unknown, null, undefined>,
   scaleX: string,
   scaleY: string,
   dimensions: {width: number, height: number},
@@ -914,7 +913,7 @@ export const drawLineChart = (
     drawAxes("Line Chart", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY, xType);
 
     // Add grouping key and hide tooltip
-    const key = container.select(".groupingKey").style("opacity", 0)
+    const key = settings.select(".groupingKey")
     const tooltip = container.select(".plotTooltip").style("opacity", 0)
 
     // Plot lines.
@@ -1067,6 +1066,7 @@ export const drawLineChart = (
 export const drawScatterPlot = (
   container: d3.Selection<null, unknown, null, undefined>,
   svg: d3.Selection<null, unknown, null, undefined>,
+  settings: d3.Selection<null, unknown, null, undefined>,
   scaleX: string,
   scaleY: string,
   dimensions: {width: number, height: number},
@@ -1148,7 +1148,7 @@ export const drawScatterPlot = (
 
     // Add tooltip and grouping key
     const tooltip = container.select(".plotTooltip").style("opacity", 0)
-    const key = container.select(".groupingKey").style("opacity", 0)
+    const key = settings.select(".groupingKey")
 
     // Add data points
     // If grouping is set:
@@ -1605,6 +1605,7 @@ export const drawScatterPlot = (
 export const drawHistogram = (
     container: d3.Selection<null, unknown, null, undefined>,
     svg: d3.Selection<null, unknown, null, undefined>,
+    settings: d3.Selection<null, unknown, null, undefined>,
     scaleX: string,
     scaleY: string,
     dimensions: {width: number, height: number},
@@ -1630,7 +1631,7 @@ export const drawHistogram = (
     g.selectAll("text.correlation").remove();
     g.selectAll("text.correlation-group").remove();
     g.selectAll("path.best-fit").remove();
-    container.select(".groupingKey").style("opacity", 0)
+    container.select(".groupingKey")
 
     // Prepare data
     let data : DataRange | GroupedDataRange = [];
@@ -1715,7 +1716,7 @@ export const drawHistogram = (
 
     // Tooltip and grouping key
     const tooltip = container.select(".plotTooltip").style("opacity", 0);
-    const key = container.select(".groupingKey");
+    const key = settings.select(".groupingKey");
 
     // Add histogram
     const initialOpacity = groupByProperty ? 0.7 : 1.0;

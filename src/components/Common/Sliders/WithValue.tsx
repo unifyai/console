@@ -3,11 +3,12 @@ import { Input } from "@/components/UI/input";
 import { Slider } from "@/components/UI/slider";
 import { useState, useEffect, useRef } from "react";
 
-const SliderWithValue = ({label, ticks, value: initialValue, setValue, max, min}: {
+const SliderWithValue = ({label, ticks, value: initialValue, setValue, max, min, disabled = false}: {
     label: string
     ticks: number[],
     value: number,
     setValue: (value: number | undefined) => void
+    disabled?: boolean,
     max?: number,
     min?: number
 }) => {
@@ -92,6 +93,7 @@ const SliderWithValue = ({label, ticks, value: initialValue, setValue, max, min}
               onChange={onChangeInput} // Now handle validation in onChangeInput
               onBlur={handleBlur}      // Keep blur for final check and empty input
               className="h-8 max-w-[80px]"
+              disabled={disabled}
             />
         </div>
         <div className="flex flex-col grow w-full px-2">
@@ -109,6 +111,7 @@ const SliderWithValue = ({label, ticks, value: initialValue, setValue, max, min}
                 min={minimum}
                 max={maximum}
                 aria-label="Slider with input"
+                disabled={disabled}
             />
         </div>
     </div>

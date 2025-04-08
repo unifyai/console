@@ -259,8 +259,8 @@ const PlotRefresh = ({ tileId, tabId, interfaceId, projectId, pending, args, set
     const onAutoClick = () => tileDataActions?.setAutoUpdate(item?.auto_update === "true" ? "false" : "true")
     const autoRefresh =
         <ActionButton
-            variant={item?.auto_update === "true" ? "primary" : "outline"}
-            className="rounded-none rounded-bl-lg rounded-br-lg"
+            variant={item?.auto_update === "true" ? "primary" : "ghost"}
+            className="rounded-sm"
             icon={<Power />}
             tooltip={"Auto refresh every 5s"}
             onClick={() => onAutoClick()}
@@ -318,8 +318,7 @@ const PlotRefresh = ({ tileId, tabId, interfaceId, projectId, pending, args, set
         ?   <Check className="text-green"/>
         :   <RefreshCw/>
     const manualRefresh = <ActionButton 
-        variant="outline"
-        className="rounded-none rounded-tr-lg rounded-tl-lg h-8"
+        className="rounded-sm h-8"
         icon={icon}
         tooltip={loading ? "Refreshing plot logs.." : item?.auto_update === "true" ? "Auto refreshing plot logs.." : "Refresh plot logs"}
         onClick={() => onManualClick()}
