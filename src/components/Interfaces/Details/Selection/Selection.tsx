@@ -28,6 +28,7 @@ interface PanelState {
   paramOrder: string[];
   localOpenKeys: Set<string>;
   savedOpenKeys: Set<string>;
+  viewTracesAsDict: boolean;  // New state for trace view mode
 }
 
 // Default values for a new panel
@@ -44,6 +45,7 @@ const defaultPanelState: PanelState = {
   paramOrder: [],
   localOpenKeys: new Set<string>(),
   savedOpenKeys: new Set<string>(),
+  viewTracesAsDict: false,  // Default to standard TraceView
 };
 
 import SelectionPanel from "./SelectionPanel";
@@ -243,25 +245,6 @@ export default function Selection({
    ******************************************************************************/
   return (
     <div className="flex flex-col w-full h-full overflow-hidden bg-background rounded-md">
-      {/* Top bar for panel count control */}
-      <div className="p-2 border-b border-muted flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          Selected {selectedRowIndices.length} row(s)
-        </p>
-        <div className="flex items-center gap-2">
-          {/* Cycle panel count */}
-          <ActionButton
-            tooltip={`Cycle panel count (currently: ${panelCount})`}
-            icon={<SquareSplitHorizontal className="h-4 w-4" />}
-            onClick={() => {
-              setPanelCount((prev) => (prev === 2 ? 1 : prev + 1));
-            }}
-            variant="ghost"
-            size="icon"
-          />
-        </div>
-      </div>
-
       {/* Main content: multiple panels */}
       <div className="flex-1 flex flex-row overflow-hidden">
         {Array.from({ length: panelCount }).map((_, idx) => {
@@ -278,6 +261,7 @@ export default function Selection({
           if (!panelState.paramOrderings) panelState.paramOrderings = {};
           if (!panelState.entryOrder) panelState.entryOrder = [];
           if (!panelState.paramOrder) panelState.paramOrder = [];
+          if (panelState.viewTracesAsDict === undefined) panelState.viewTracesAsDict = false; // Initialize if missing
           
           return (
             <React.Fragment key={`panel-fragment-${idx}`}>
@@ -299,6 +283,10 @@ export default function Selection({
                 updateItem={updateItem}
                 initialBaseIndex={baseIndex_ ? parseInt(baseIndex_, 10) : 0}
                 allPossibleColumns={allPossibleColumns}
+                // Pass down selection/panel info
+                selectedRowCount={selectedRowIndices.length}
+                currentPanelCount={panelCount}
+                onPanelCountChange={setPanelCount}
               />
             </React.Fragment>
           );

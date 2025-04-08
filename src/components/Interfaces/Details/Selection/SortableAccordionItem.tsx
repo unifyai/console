@@ -1,3 +1,4 @@
+import React from 'react';
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
@@ -11,7 +12,14 @@ export default function SortableAccordionItem({
     children: React.ReactNode;
     editMode?: boolean;
   }) {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    const { 
+      attributes, 
+      listeners, 
+      setNodeRef, 
+      transform, 
+      transition, 
+      isDragging
+    } = useSortable({
       id,
     });
     const style = {
@@ -23,11 +31,19 @@ export default function SortableAccordionItem({
     return (
       <div ref={setNodeRef} style={style} className="flex items-center">
         {editMode && (
-          <div className="drag-handle p-2 cursor-grab" {...attributes} {...listeners}>
-            <GripVertical className="h-4 w-4 text-primary" />
+          <div className="p-2">
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
           </div>
         )}
-        <div className={editMode ? "flex-1 ml-0" : "flex-1 ml-2"}>{children}</div>
+        <div 
+          // Apply cursor-grabbing when dragging, cursor-grab when editable but not dragging
+          className={`flex-1 ${editMode ? (isDragging ? 'cursor-grabbing ml-0' : 'cursor-grab ml-0') : 'ml-2'}`}
+        >
+          {React.cloneElement(
+            children as React.ReactElement, 
+            editMode ? { dragAttributes: attributes, dragListeners: listeners } : {}
+          )}
+        </div>
       </div>
     );
   }

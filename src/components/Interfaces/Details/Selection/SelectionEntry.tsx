@@ -60,6 +60,10 @@ import {
 
 import { ItemType, TileProps } from "@/types/evals/grid";
 
+import { createContext, useContextSelector } from "use-context-selector";
+import type { DraggableAttributes } from '@dnd-kit/core';
+import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
+
 //////////////////////////////////////////////////////////////////////////////
 // Type definitions
 //////////////////////////////////////////////////////////////////////////////
@@ -149,6 +153,7 @@ function getSelectionView(
   prefix: string,
   parentPath: string,
   valueType: string,
+  viewTracesAsDict?: boolean,
   persistedTraceState?: PersistedTraceViewState
 ) {
   // If user wants "raw"
@@ -164,6 +169,28 @@ function getSelectionView(
         diffMode={diffMode}
         splitView={splitView}
       />
+    );
+  }
+
+  // Check if we should override trace view
+  if (valueType === "trace" && viewTracesAsDict) {
+    // When viewTracesAsDict is true, render the trace as a dictionary
+    return (
+      <DictionaryView
+          value={val}
+          comparables={comps}
+          baseLogIndex={baseLogIndex}
+          comparisonLogsIndex={compLogIndex}
+          diffMode={diffMode}
+          splitView={splitView}
+          version={version}
+          comparableVersions={vers}
+          displayMode={displayMode}
+          nestingLevel={nestingLevel}
+          prefix={prefix}
+          parentPath={parentPath}
+          viewTracesAsDict={viewTracesAsDict}
+        />
     );
   }
 
@@ -213,6 +240,7 @@ function getSelectionView(
           nestingLevel={nestingLevel}
           prefix={prefix}
           parentPath={parentPath}
+          viewTracesAsDict={viewTracesAsDict}
         />
       );
     case "list":
@@ -230,6 +258,7 @@ function getSelectionView(
           nestingLevel={nestingLevel}
           prefix={prefix}
           parentPath={parentPath}
+          viewTracesAsDict={viewTracesAsDict}
         />
       );
     case "pdf":
@@ -343,7 +372,10 @@ interface SelectionEntryProps {
   forceCollapseAll?: boolean;
   panelOpenKeys: Set<string>;
   panelSetOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>;
+  viewTracesAsDict?: boolean;
   externalTraceState?: PersistedTraceViewState;
+  dragAttributes?: DraggableAttributes;
+  dragListeners?: SyntheticListenerMap;
 }
 
 /**
@@ -380,7 +412,10 @@ export default function SelectionEntry({
   forceCollapseAll,
   panelOpenKeys,
   panelSetOpenKeys,
+  viewTracesAsDict = false,
   externalTraceState,
+  dragAttributes,
+  dragListeners,
 }: SelectionEntryProps) {
   // We need to access the expandRecursively and collapseRecursively functions from context
   const expandRecursively = useMemo(() => {
@@ -431,24 +466,24 @@ export default function SelectionEntry({
   const unifiedType = !isEmpty ? unifyType(rawValue, comps) : "";
   const icon = !isEmpty ? getTypeIcon(unifiedType) : null;
   
-  // is it dict/list? - moved before early return
-  const isDictOrList = !isEmpty && (unifiedType === "dict" || unifiedType === "list");
+  // is it dict/list OR a trace viewed as dict?
+  const isTopLevelExpandable = !isEmpty && (unifiedType === "dict" || unifiedType === "list" || (unifiedType === "trace" && viewTracesAsDict));
 
   // We'll pass nestingLevel=0 for top-level
   const childNesting = 0;
 
   // Build the top-level path for dictionaries/lists - moved before early return
   const topLevelPath = useMemo(() => {
-    if (!isDictOrList) return "";
+    if (!isTopLevelExpandable) return ""; // Use updated condition
     const prefixStr = source === "entries" ? "entries" : "params";
     // at top-level, we keep nestingLevel = 0
     return makePrefixedDictPath(prefixStr, 0, property);
-  }, [isDictOrList, property, source]);
+  }, [isTopLevelExpandable, property, source]); // Use updated condition
 
   // We'll gather all subpaths for a fully recursive approach
   // when user clicks the global expand button (the "FoldVertical / UnfoldVertical").
   const subPaths = useMemo(() => {
-    if (!isDictOrList || !topLevelPath) return [];
+    if (!isTopLevelExpandable || !topLevelPath) return []; // Use updated condition
     const prefixStr = source === "entries" ? "entries" : "params";
 
     // In multi-mode, use gatherAllSubPathsMulti to include keys from comparables
@@ -461,15 +496,15 @@ export default function SelectionEntry({
     }
 
     return paths;
-  }, [rawValue, isDictOrList, topLevelPath, source, comps, property]);
+  }, [rawValue, isTopLevelExpandable, topLevelPath, source, comps, property]); // Use updated condition
 
   // check if all subPaths are in openKeys => allOpen
   const allOpen = useMemo(() => {
-    if (!isDictOrList || !subPaths.length) return false;
+    if (!isTopLevelExpandable || !subPaths.length) return false; // Use updated condition
     
     // Paths must be non-empty and every path must be in openKeys
     return subPaths.every(path => panelOpenKeys.has(path));
-  }, [isDictOrList, subPaths, panelOpenKeys]);
+  }, [isTopLevelExpandable, subPaths, panelOpenKeys]); // Use updated condition
   
   // Lift the trace view state here
   // Separate UI state (stable) from scroll state (frequently changing)
@@ -577,6 +612,7 @@ export default function SelectionEntry({
       source === "entries" ? "entries" : "params",
       topLevelPath, // Pass the top-level path as parentPath
       unifiedType, // Pass the unified type to avoid recalculating
+      viewTracesAsDict, // Now comes after valueType
       persistedTraceState // Pass the persisted trace state
     );
   }, [
@@ -593,8 +629,9 @@ export default function SelectionEntry({
     source,
     topLevelPath,
     unifiedType,
-    isEmpty, // Add isEmpty as dependency
-    persistedTraceState // Use the memoized object instead of individual state values
+    isEmpty,
+    viewTracesAsDict,
+    persistedTraceState
   ]);
   
   // For the shadcn <AccordionItem>, we unify property => so the parent's "onValueChange" logic sees a simpler string
@@ -612,7 +649,7 @@ export default function SelectionEntry({
   // global expand/collapse => fully recursive
   const handleGlobalExpandToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!isDictOrList) return;
+    if (!isTopLevelExpandable) return; // Use updated condition
 
     // Always recalculate subPaths to ensure the most current state
     // This fixes issues where the button action doesn't match its label
@@ -647,6 +684,7 @@ export default function SelectionEntry({
       value={itemValue}
     >
       <AccordionTrigger
+        {...(dragAttributes ? { ...dragAttributes, ...dragListeners } : {})}
         onClick={(evt) => {
           // if we're in edit mode, block toggling
           if (editMode) {
@@ -681,7 +719,7 @@ export default function SelectionEntry({
           />
         </div>
 
-        {!editMode && isDictOrList && subPaths.length > 0 && (
+        {!editMode && isTopLevelExpandable && subPaths.length > 0 && ( // Use updated condition
           <div className="absolute right-5 flex gap-1 items-center">
             <ActionButton
               variant="ghost"

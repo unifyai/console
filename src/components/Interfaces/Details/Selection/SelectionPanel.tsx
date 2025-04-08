@@ -10,6 +10,7 @@ import React, {
   import ActionButton from "@/components/Common/Buttons/Action";
   import { PersistedTraceViewState } from "./Views/TraceView/TraceView";
   import { PatchDiffNode } from "./Views/TraceView/computeDiff";
+  import { Label } from "@/components/UI/label";
 
   import {
     FoldVertical,
@@ -26,6 +27,9 @@ import React, {
     Rows3,
     Grab,
     ChevronsUpDown,
+    Binary,
+    Settings,
+    SquareSplitHorizontal,
   } from "lucide-react";
   
   import {
@@ -60,6 +64,13 @@ import React, {
   import { BasePopover } from "@/components/Common/Popovers/Base";
   import { Switch } from "@/components/UI/switch";
   import { Button } from "@/components/UI/button";
+  import { 
+    Select, 
+    SelectTrigger, 
+    SelectValue, 
+    SelectContent, 
+    SelectItem 
+  } from "@/components/UI/select";
 
   import { createContext, useContextSelector } from "use-context-selector";
 
@@ -74,6 +85,8 @@ type PanelExpandContextType = {
   collapseAll: () => void;
   expandRecursively: (paths: string[]) => void;
   collapseRecursively: (paths: string[]) => void;
+  viewTracesAsDict: boolean;
+  setViewTracesAsDict: (value: boolean) => void;
 };
 
 // Define PanelState interface to match what's in Selection.tsx
@@ -90,6 +103,7 @@ interface PanelState {
   paramOrder: string[];
   localOpenKeys: Set<string>;
   savedOpenKeys: Set<string>;
+  viewTracesAsDict: boolean;
 }
 
 const PanelExpandContext = createContext<PanelExpandContextType>(null as any);
@@ -105,6 +119,8 @@ function PanelExpandProvider({
   collapseAll,
   expandRecursively,
   collapseRecursively,
+  viewTracesAsDict,
+  setViewTracesAsDict,
 }: React.PropsWithChildren<PanelExpandContextType>) {
   const value = useMemo(
     () => ({
@@ -117,8 +133,10 @@ function PanelExpandProvider({
       collapseAll,
       expandRecursively,
       collapseRecursively,
+      viewTracesAsDict,
+      setViewTracesAsDict,
     }),
-    [openKeys, setOpenKeys, forceExpandAll, forceCollapseAll, toggleKey, expandAll, collapseAll, expandRecursively, collapseRecursively]
+    [openKeys, setOpenKeys, forceExpandAll, forceCollapseAll, toggleKey, expandAll, collapseAll, expandRecursively, collapseRecursively, viewTracesAsDict, setViewTracesAsDict]
   );
 
   return (
@@ -156,6 +174,9 @@ export default function SelectionPanel({
     updateItem,
     initialBaseIndex,
     allPossibleColumns,
+    selectedRowCount,
+    currentPanelCount,
+    onPanelCountChange,
   }: {
     panelId: number;
     panelState: PanelState;
@@ -171,6 +192,9 @@ export default function SelectionPanel({
     updateItem: (item: TileProps, attrName: ItemType) => (newValue: string | undefined) => void;
     initialBaseIndex: number;
     allPossibleColumns?: { entries: string[], params: string[] };
+    selectedRowCount: number;
+    currentPanelCount: number;
+    onPanelCountChange: React.Dispatch<React.SetStateAction<number>>;
   }) {
     // Extract all values from panelState
     const {
@@ -185,7 +209,8 @@ export default function SelectionPanel({
       entryOrder,
       paramOrder,
       localOpenKeys,
-      savedOpenKeys
+      savedOpenKeys,
+      viewTracesAsDict,
     } = panelState;
     
     const allDiffModes = ["none", "lines", "words", "characters"] as const;
@@ -1057,6 +1082,7 @@ export default function SelectionPanel({
                 })
               }
               externalTraceState={traceState}
+              viewTracesAsDict={viewTracesAsDict}
             />
           </SortableAccordionItem>
         );
@@ -1171,6 +1197,7 @@ export default function SelectionPanel({
                 })
               }
               externalTraceState={traceState}
+              viewTracesAsDict={viewTracesAsDict}
             />
           </SortableAccordionItem>
         );
@@ -1235,257 +1262,302 @@ export default function SelectionPanel({
         collapseAll={() => {}}
         expandRecursively={expandRecursively}
         collapseRecursively={collapseRecursively}
+        viewTracesAsDict={viewTracesAsDict}
+        setViewTracesAsDict={(value) => onPanelStateChange({ viewTracesAsDict: value })}
       >
         <div className="flex flex-col w-full h-full overflow-hidden">
           {/* Panel-specific controls */}
           <div className="p-2 border-b border-muted flex items-center justify-between">
+            {/* Left side: Selected Row Count */}
             <div className="text-sm text-muted-foreground">
-              {/* Panel ID text removed as requested */}
+              Selected {selectedRowCount} row(s)
             </div>
+            {/* Right side: Controls */}
             <div className="flex items-center gap-2">
-              {/* Cycle display mode */}
-              <ActionButton
-                tooltip={
-                  displayMode === "raw"
-                    ? "Viewing as raw"
-                    : displayMode === "markdown"
-                    ? "Viewing as markdown"
-                    : "Viewing as text"
-                }
-                icon={
-                  displayMode === "raw" ? (
-                    <Code className="h-4 w-4" />
-                  ) : displayMode === "markdown" ? (
-                    <Type className="h-4 w-4" />
-                  ) : (
-                    <RemoveFormatting className="h-4 w-4" />
-                  )
-                }
-                onClick={() => {
-                  let newDisplayMode: "markdown" | "text" | "raw";
-                  if (displayMode === "markdown") newDisplayMode = "text";
-                  else if (displayMode === "text") newDisplayMode = "raw";
-                  else newDisplayMode = "markdown";
-                  onPanelStateChange({ displayMode: newDisplayMode });
-                }}
-                variant="ghost"
-                size="icon"
-              />
+              {/* Base row selection (Moved here) - Conditional on diffMode !== 'none' */}
+              {selectedRowIndices.length > 1 && diffMode !== 'none' && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Base:</span>
+                  <Combobox
+                    items={selectedRowIndices.map((rIdx, i) => ({
+                      value: String(i),
+                      label: `Row ${rIdx + 1}`,
+                      dataIndex: i,
+                    }))}
+                    value={String(baseIndexParam)}
+                    onValueChange={(newVal) => {
+                      const idx = parseInt(newVal, 10);
+                      if (!isNaN(idx)) {
+                        setBaseIndexParam(idx);
+                      }
+                    }}
+                    placeholder="Pick base row"
+                    className="w-[110px]"
+                  />
+                </div>
+              )}
               
-              {/* Show/Hide columns Popover */}
+              {/* Column Visibility Popover (Moved Here) */}
+              <BasePopover
+                 button={
+                   <ActionButton
+                     tooltip="Show / hide columns"
+                     icon={<Rows3 className="h-4 w-4" />}
+                     variant="ghost"
+                     size="icon"
+                   />
+                 }
+               >
+                 <div className="flex flex-col gap-1 p-3">
+                   <p className="font-bold text-medium pb-1">Select visible columns</p>
+                   <div className="max-h-[60vh] overflow-y-auto pr-2">
+                     {/* Master toggle for all */}
+                     <div className="flex justify-between items-center mb-5 mt-3">
+                       <span className="font-bold text-sm">
+                         {(allPossibleColumns?.entries || entryKeys).every((k) => entriesFilter[k] !== false) &&
+                         (allPossibleColumns?.params || paramKeys).every((k) => paramsFilter[k] !== false)
+                           ? "Hide all"
+                           : "Show all"}
+                       </span>
+                       <Switch
+                         checked={
+                           (allPossibleColumns?.entries || entryKeys).every((k) => entriesFilter[k] !== false) &&
+                           (allPossibleColumns?.params || paramKeys).every((k) => paramsFilter[k] !== false)
+                         }
+                         onCheckedChange={(checked) => {
+                           const newE: Record<string, boolean> = {};
+                           (allPossibleColumns?.entries || entryKeys).forEach((k) => {
+                             newE[k] = checked;
+                           });
+                           if (!shallowEqualBooleanRecords(newE, entriesFilter)) {
+                             onPanelStateChange({ entriesFilter: newE });
+                           }
+ 
+                           const newP: Record<string, boolean> = {};
+                           (allPossibleColumns?.params || paramKeys).forEach((k) => {
+                             newP[k] = checked;
+                           });
+                           if (!shallowEqualBooleanRecords(newP, paramsFilter)) {
+                             onPanelStateChange({ paramsFilter: newP });
+                           }
+                         }}
+                       />
+                     </div>
+ 
+                     {/* Params toggles */}
+                     {(allPossibleColumns?.params || paramKeys).length > 0 && (
+                       <div className="mt-2">
+                         <div className="flex justify-between items-center mb-1">
+                           <p className="font-bold text-sm">Params</p>
+                           <Switch
+                             checked={(allPossibleColumns?.params || paramKeys).every(
+                               (k) => paramsFilter[k] !== false
+                             )}
+                             onCheckedChange={(checked) => {
+                               const newVal: Record<string, boolean> = {};
+                               (allPossibleColumns?.params || paramKeys).forEach((k) => {
+                                 newVal[k] = checked;
+                               });
+                               if (!shallowEqualBooleanRecords(newVal, paramsFilter)) {
+                                 onPanelStateChange({ paramsFilter: newVal });
+                               }
+                             }}
+                           />
+                         </div>
+                         {(allPossibleColumns?.params || paramKeys).map((k) => (
+                           <div
+                             key={k}
+                             className="flex items-center justify-between py-1 pl-4"
+                           >
+                             <span className="text-sm w-[180px] truncate pr-2" title={k}>
+                               {k}
+                             </span>
+                             <Switch
+                               checked={paramsFilter[k] !== false}
+                               onCheckedChange={(checked) => {
+                                 onPanelStateChange({ paramsFilter: { ...paramsFilter, [k]: checked } });
+                               }}
+                             />
+                           </div>
+                         ))}
+                       </div>
+                     )}
+ 
+                     {/* Entries toggles */}
+                     <div className="mt-4">
+                       <div className="flex justify-between items-center mb-1">
+                         <p className="font-bold text-sm">Entries</p>
+                         <Switch
+                           checked={(allPossibleColumns?.entries || entryKeys).every(
+                             (k) => entriesFilter[k] !== false
+                           )}
+                           onCheckedChange={(checked) => {
+                             const newVal: Record<string, boolean> = {};
+                             (allPossibleColumns?.entries || entryKeys).forEach((k) => {
+                               newVal[k] = checked;
+                             });
+                             if (!shallowEqualBooleanRecords(newVal, entriesFilter)) {
+                               onPanelStateChange({ entriesFilter: newVal });
+                             }
+                           }}
+                         />
+                       </div>
+                       {(allPossibleColumns?.entries || entryKeys).map((k) => (
+                         <div
+                           key={k}
+                           className="flex items-center justify-between py-1 pl-4"
+                         >
+                           <span className="text-sm w-[180px] truncate pr-2" title={k}>
+                             {k}
+                           </span>
+                           <Switch
+                             checked={entriesFilter[k] !== false}
+                             onCheckedChange={(checked) => {
+                               onPanelStateChange({ entriesFilter: { ...entriesFilter, [k]: checked } });
+                             }}
+                           />
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                 </div>
+               </BasePopover>
+              
+              {/* Settings Popover */}
               <BasePopover
                 button={
                   <ActionButton
-                    tooltip="Show / hide columns"
-                    icon={<Rows3 className="h-4 w-4" />}
+                    tooltip="View Settings"
+                    icon={<Settings className="h-4 w-4" />}
                     variant="ghost"
                     size="icon"
                   />
                 }
               >
-                <div className="flex flex-col gap-1 p-3">
-                  <p className="font-bold text-medium pb-1">Select visible columns</p>
-                  <div className="max-h-[60vh] overflow-y-auto pr-2">
-                    {/* Master toggle for all */}
-                    <div className="flex justify-between items-center mb-5 mt-3">
-                      <span className="font-bold text-sm">
-                        {(allPossibleColumns?.entries || entryKeys).every((k) => entriesFilter[k] !== false) &&
-                        (allPossibleColumns?.params || paramKeys).every((k) => paramsFilter[k] !== false)
-                          ? "Hide all"
-                          : "Show all"}
-                      </span>
-                      <Switch
-                        checked={
-                          (allPossibleColumns?.entries || entryKeys).every((k) => entriesFilter[k] !== false) &&
-                          (allPossibleColumns?.params || paramKeys).every((k) => paramsFilter[k] !== false)
-                        }
-                        onCheckedChange={(checked) => {
-                          const newE: Record<string, boolean> = {};
-                          (allPossibleColumns?.entries || entryKeys).forEach((k) => {
-                            newE[k] = checked;
-                          });
-                          if (!shallowEqualBooleanRecords(newE, entriesFilter)) {
-                            onPanelStateChange({ entriesFilter: newE });
-                          }
+                <div className="flex flex-col gap-4 p-4 w-64">
+                  <h4 className="font-medium leading-none text-center mb-2">View Settings</h4>
+                  
+                  {/* Display Mode */}
+                  <div className="flex items-center justify-between">
+                    <Label>Display As</Label>
+                    <Select
+                      value={displayMode}
+                      onValueChange={(value: "markdown" | "text" | "raw") => {
+                        onPanelStateChange({ displayMode: value });
+                      }}
+                    >
+                      <SelectTrigger className="w-[110px]">
+                        <SelectValue placeholder="Select mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="markdown">Markdown</SelectItem>
+                        <SelectItem value="text">Text</SelectItem>
+                        <SelectItem value="raw">Raw</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Trace View Mode */}
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor={`trace-view-mode-${panelId}`}>Trace View</Label>
+                    {/* Use Select instead of Switch */}
+                    <Select
+                      value={String(viewTracesAsDict)} // Convert boolean to string for value
+                      onValueChange={(value) => {
+                        onPanelStateChange({ viewTracesAsDict: value === 'true' }); // Convert string back to boolean
+                      }}
+                    >
+                      <SelectTrigger className="w-[110px]">
+                        <SelectValue placeholder="Select mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="false">Specialized</SelectItem>
+                        <SelectItem value="true">Dictionary</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                          const newP: Record<string, boolean> = {};
-                          (allPossibleColumns?.params || paramKeys).forEach((k) => {
-                            newP[k] = checked;
-                          });
-                          if (!shallowEqualBooleanRecords(newP, paramsFilter)) {
-                            onPanelStateChange({ paramsFilter: newP });
-                          }
-                        }}
-                      />
-                    </div>
-
-                    {/* Params toggles */}
-                    {(allPossibleColumns?.params || paramKeys).length > 0 && (
-                      <div className="mt-2">
-                        <div className="flex justify-between items-center mb-1">
-                          <p className="font-bold text-sm">Params</p>
-                          <Switch
-                            checked={(allPossibleColumns?.params || paramKeys).every(
-                              (k) => paramsFilter[k] !== false
-                            )}
-                            onCheckedChange={(checked) => {
-                              const newVal: Record<string, boolean> = {};
-                              (allPossibleColumns?.params || paramKeys).forEach((k) => {
-                                newVal[k] = checked;
-                              });
-                              if (!shallowEqualBooleanRecords(newVal, paramsFilter)) {
-                                onPanelStateChange({ paramsFilter: newVal });
-                              }
-                            }}
-                          />
-                        </div>
-                        {(allPossibleColumns?.params || paramKeys).map((k) => (
-                          <div
-                            key={k}
-                            className="flex items-center justify-between py-1 pl-4"
-                          >
-                            <span className="text-sm w-[180px] truncate pr-2" title={k}>
-                              {k}
-                            </span>
-                            <Switch
-                              checked={paramsFilter[k] !== false}
-                              onCheckedChange={(checked) => {
-                                onPanelStateChange({ paramsFilter: { ...paramsFilter, [k]: checked } });
-                              }}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Entries toggles */}
-                    <div className="mt-4">
-                      <div className="flex justify-between items-center mb-1">
-                        <p className="font-bold text-sm">Entries</p>
-                        <Switch
-                          checked={(allPossibleColumns?.entries || entryKeys).every(
-                            (k) => entriesFilter[k] !== false
-                          )}
-                          onCheckedChange={(checked) => {
-                            const newVal: Record<string, boolean> = {};
-                            (allPossibleColumns?.entries || entryKeys).forEach((k) => {
-                              newVal[k] = checked;
-                            });
-                            if (!shallowEqualBooleanRecords(newVal, entriesFilter)) {
-                              onPanelStateChange({ entriesFilter: newVal });
+                  {/* Diff Controls (Conditional) */}
+                  {selectedRowIndices.length > 1 && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        {/* Re-enable Label, remove conditional class */}
+                        <Label>Diff Mode</Label>
+                        <Select
+                          value={String(diffModeIdx)}
+                          onValueChange={(value) => {
+                            const newIndex = parseInt(value, 10);
+                            if (!isNaN(newIndex) && newIndex >= 0 && newIndex < allDiffModes.length) {
+                              onPanelStateChange({ diffModeIdx: newIndex });
                             }
                           }}
+                        >
+                          <SelectTrigger className="w-[110px]">
+                            <SelectValue placeholder="Select mode" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {allDiffModes.map((mode, index) => (
+                              <SelectItem key={mode} value={String(index)}>
+                                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        {/* Disable Label when diffMode is none */}
+                        <Label htmlFor={`split-view-${panelId}`} className={diffMode === 'none' ? 'text-muted-foreground' : ''}>Split View</Label>
+                        <Switch
+                          id={`split-view-${panelId}`}
+                          checked={splitView}
+                          onCheckedChange={(checked) => onPanelStateChange({ splitView: checked })}
+                          disabled={diffMode === 'none'} // Disable Switch when diffMode is none
                         />
                       </div>
-                      {(allPossibleColumns?.entries || entryKeys).map((k) => (
-                        <div
-                          key={k}
-                          className="flex items-center justify-between py-1 pl-4"
-                        >
-                          <span className="text-sm w-[180px] truncate pr-2" title={k}>
-                            {k}
-                          </span>
-                          <Switch
-                            checked={entriesFilter[k] !== false}
-                            onCheckedChange={(checked) => {
-                              onPanelStateChange({ entriesFilter: { ...entriesFilter, [k]: checked } });
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </div>
+                    </>
+                  )}
+                  
+                  {/* Edit Mode */}
+                  <div className="flex items-center justify-between">
+                     <Label htmlFor={`edit-mode-${panelId}`}>Sort Mode</Label>
+                     <Switch
+                        id={`edit-mode-${panelId}`}
+                        checked={editMode}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            // turning ON => save current expansions, then close them all
+                            onPanelStateChange({
+                              savedOpenKeys: new Set(localOpenKeys),
+                              localOpenKeys: new Set(),
+                              editMode: true
+                            });
+                          } else {
+                            // turning OFF => restore expansions
+                            onPanelStateChange({
+                              localOpenKeys: savedOpenKeys,
+                              savedOpenKeys: new Set(),
+                              editMode: false
+                            });
+                          }
+                        }}
+                     />
                   </div>
                 </div>
               </BasePopover>
-              
-              {/* Toggle Edit Mode */}
+
+              {/* Panel Count Cycle Button */}
               <ActionButton
-                tooltip={
-                  editMode
-                    ? "Edit mode active – drag and drop"
-                    : "Activate edit mode for sorting"
-                }
-                icon={<Grab className="h-4 w-4" />}
+                tooltip={`Cycle panel count (currently: ${currentPanelCount})`}
+                icon={<SquareSplitHorizontal className="h-4 w-4" />}
                 onClick={() => {
-                  if (!editMode) {
-                    // turning ON => save current expansions, then close them all
-                    onPanelStateChange({
-                      savedOpenKeys: new Set(localOpenKeys),
-                      localOpenKeys: new Set(),
-                      editMode: true
-                    });
-                  } else {
-                    // turning OFF => restore expansions
-                    onPanelStateChange({
-                      localOpenKeys: savedOpenKeys,
-                      savedOpenKeys: new Set(),
-                      editMode: false
-                    });
-                  }
+                  onPanelCountChange((prev) => (prev === 2 ? 1 : prev + 1));
                 }}
-                variant={editMode ? "primary" : "ghost"}
+                variant="ghost"
                 size="icon"
               />
             </div>
           </div>
-          
-          {/* Base row selection & diff controls */}
-          {selectedRowIndices.length > 1 && (
-            <div className="border-b border-muted bg-background px-3 py-2 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Base:</span>
-                <Combobox
-                  items={selectedRowIndices.map((rIdx, i) => ({
-                    value: String(i),
-                    label: `Row ${rIdx + 1}`,
-                    dataIndex: i,
-                  }))}
-                  value={String(baseIndexParam)}
-                  onValueChange={(newVal) => {
-                    const idx = parseInt(newVal, 10);
-                    if (!isNaN(idx)) {
-                      setBaseIndexParam(idx);
-                    }
-                  }}
-                  placeholder="Pick base row"
-                  className="w-[110px]"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <ActionButton
-                  tooltip={`Cycle diff mode (current: ${diffMode})`}
-                  icon={
-                    diffMode === "none"
-                      ? <SquareSlash />
-                      : diffMode === "lines"
-                      ? <FileText />
-                      : diffMode === "words"
-                      ? <CaseLower />
-                      : <Pilcrow />
-                  }
-                  onClick={() => {
-                    const newDiffModeIdx = (diffModeIdx + 1) % allDiffModes.length;
-                    onPanelStateChange({ diffModeIdx: newDiffModeIdx });
-                  }}
-                  variant="ghost"
-                  size="icon"
-                />
-                <ActionButton
-                  tooltip={splitView ? "Switch to Inline View" : "Switch to Split View"}
-                  icon={
-                    splitView ? (
-                      <Columns className="h-4 w-4" />
-                    ) : (
-                      <AlignJustify className="h-4 w-4" />
-                    )
-                  }
-                  onClick={() => onPanelStateChange({ splitView: !splitView })}
-                  variant="ghost"
-                  size="icon"
-                />
-              </div>
-            </div>
-          )}
           
           <div className="flex-1 overflow-y-auto px-5 min-h-0 space-y-6">
             {EntriesSection()}
