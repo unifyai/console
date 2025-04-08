@@ -90,12 +90,12 @@ const fetchAndMergeLogs = async (tables: string[], item: TileProps | undefined, 
             const tableMetric = tableArgs ? tableArgs["metric"] ? tableArgs["metric"] : "mean" : "mean";
             let tableData: LogsResponseProps = { params: {}, logs: [], count: 0, groups: [] };
             if (
-                (item?.is_aggregated && item.is_aggregated.split(".").length > 1)
-                && item.is_aggregated.split(".")[0] === table
+                (item?.plot_aggregate && item.plot_aggregate.split(".").length > 1)
+                && item.plot_aggregate.split(".")[0] === table
                 && tableGrouping
                 && tableSubset
             ) {
-                const groupFields = tableGrouping.split(",").slice(0, tableGrouping.split(",").indexOf(item.is_aggregated.split(".")[1]) + 1)
+                const groupFields = tableGrouping.split(",").slice(0, tableGrouping.split(",").indexOf(item.plot_aggregate.split(".")[1]) + 1)
                 const metrics = await logsActions.getMetrics(project, tableContext, tableFilters, groupFields.join(","), tableMetric, tableSubset.split("&"))
                 tableData.logs = convertMetricsToLogs(groupFields, tableMetric, tableFields, metrics as GroupedMetrics)
             }

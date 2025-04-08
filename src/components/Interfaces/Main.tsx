@@ -273,11 +273,11 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
 
                     /* Get raw logs values or grouped metrics as logs */
                     if (
-                        (tile.is_aggregated && tile.is_aggregated.split(".").length > 1) // `is_aggregated` has the format `table.column`
-                        && tile.is_aggregated.split(".")[0] === table.i                  // `table` in `is_aggregated` is the current table name
+                        (tile.plot_aggregate && tile.plot_aggregate.split(".").length > 1) // `plot_aggregate` has the format `table.column`
+                        && tile.plot_aggregate.split(".")[0] === table.i                  // `table` in `plot_aggregate` is the current table name
                         && grouping                                                      // the current table has grouping applied
                     ) {
-                        const groupFields = grouping.split(",").slice(0, grouping.split(",").indexOf(tile.is_aggregated.split(".")[1]) + 1)
+                        const groupFields = grouping.split(",").slice(0, grouping.split(",").indexOf(tile.plot_aggregate.split(".")[1]) + 1)
                         const metrics = await logsActions.getMetrics(currentProject, context ?? null, filterExpression, groupFields.join(","), metric ? metric : "mean",subset.split("&"))
                         data.logs = convertMetricsToLogs(groupFields, metric ? metric : "mean", fields[tableIdx], metrics as GroupedMetrics)
                     }

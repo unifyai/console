@@ -36,7 +36,7 @@ export interface TileProps {
     plot_type?: string;
     plot_scale_x?: string;
     plot_scale_y?: string;
-    is_aggregated?: string;
+    plot_aggregate?: string;
     x_axis?: string;
     y_axis?: string;
     plot_group_by?: string;
@@ -99,7 +99,7 @@ export type ItemType =
     | "plot_type"
     | "plot_scale_x"
     | "plot_scale_y"
-    | "is_aggregated"
+    | "plot_aggregate"
     | "x_axis"
     | "y_axis"
     | "plot_group_by"
