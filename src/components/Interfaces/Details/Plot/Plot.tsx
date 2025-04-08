@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useId, useState, useMemo } from "react";
 import * as d3 from "d3";
-import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { LogsActions, FieldsActions, PlotDataItem } from "@/types/evals/grid";
-import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram, checkLogScalability, clearCanvas } from "@/utils/evals/plot";
+import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram, checkLogScalability, clearCanvas, clearFixedTooltip } from "@/utils/evals/plot";
+import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { useTab } from '@/contexts/hooks/tab';
 import PlotSettings from "./Sidebar";
@@ -110,7 +110,8 @@ const LogsPlot = ({
     // Track zoom level and reset when changing plot type or axes
     let zoomRef = useRef(d3.zoomIdentity);
     useEffect(() => {
-        zoomRef.current = d3.zoomIdentity
+        zoomRef.current = d3.zoomIdentity;
+        clearFixedTooltip();
     }, [selectedXAxisProperty, selectedYAxisProperty, plotType])
 
     // Draw plot
@@ -164,6 +165,7 @@ const LogsPlot = ({
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
+                clearFixedTooltip()
             }
         } 
         
@@ -193,6 +195,7 @@ const LogsPlot = ({
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
+                clearFixedTooltip()
             }
         } 
         
@@ -220,6 +223,7 @@ const LogsPlot = ({
                 )
             } else {
                 clearCanvas(svgRef, containerRef)
+                clearFixedTooltip()
             }
         } 
         
@@ -250,6 +254,7 @@ const LogsPlot = ({
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
+                clearFixedTooltip()
             }
         }
 

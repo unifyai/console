@@ -1,10 +1,15 @@
 "use client";
 
 import React, { useState, useMemo, Dispatch, SetStateAction } from 'react';
-import { LuPanelLeftOpen, LuPanelRightOpen, LuActivity } from 'react-icons/lu';
+import { LuPanelLeftOpen, LuPanelRightOpen } from 'react-icons/lu';
+
 import { Button } from "@/components/UI/button";
 import { Accordion } from "@/components/UI/accordion";
+import Tooltip from "@/components/Common/Misc/Tooltip";
+
 import { LogFieldsResponseProps, LogProps, PlotArguments } from '@/types/evals/logs';
+import { FieldsActions, LogsActions, PlotDataItem } from '@/types/evals/grid';
+
 import { PlotActions } from '@/contexts/hooks/tile/usePlotTile';
 import { TileDataActions } from '@/contexts/hooks';
 
@@ -18,7 +23,7 @@ import PlotAggregate from './Buttons/PlotAggregate';
 import PlotRegression from './Buttons/PlotRegression';
 import PlotRefresh from './Buttons/PlotRefresh';
 import PlotReset from './Buttons/PlotReset';
-import { FieldsActions, LogsActions, PlotDataItem } from '@/types/evals/grid';
+
 
 const PlotSettings = ({
   interactive,
@@ -139,7 +144,7 @@ const PlotSettings = ({
   const setMetric = tileDataActions?.setMetric;
 
   // Show fixed tooltip / grouping key
-  const showFixedTooltip = false;
+  const showFixedTooltip = true;
   const showGroupByKey = groupByProperty != undefined && groupByProperty != "None";
 
   return (
@@ -154,15 +159,17 @@ const PlotSettings = ({
 
       {/* Toggle Button */}
       <div className={`flex ${isOpen ? 'justify-end' : 'justify-center'} p-2 border-t border-border`}>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleSidebar}
-          aria-label={isOpen ? 'Collapse settings' : 'Expand settings'}
-          className="h-8 w-8"
-        >
-          {isOpen ? <LuPanelLeftOpen size={18} /> : <LuPanelRightOpen size={18} />}
-        </Button>
+        <Tooltip content={isOpen ? "Hide settings" : "Show settings"} side="left">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            aria-label={isOpen ? 'Collapse settings' : 'Expand settings'}
+            className="h-8 w-8"
+          >
+            {isOpen ? <LuPanelLeftOpen size={18} /> : <LuPanelRightOpen size={18} />}
+          </Button>
+        </Tooltip>
       </div>
 
       {/* Settings Content Area */}
@@ -279,13 +286,9 @@ const PlotSettings = ({
             { (showFixedTooltip || showGroupByKey) && <hr className="mx-3 my-3 border-border" /> }
 
             {/* Fixed Tooltip and Grouping Key */}
-            <div className="px-3 pb-4 space-y-3">
+            <div className="flex flex-col gap-2 px-3 pb-4 space-y-3">
               {showFixedTooltip && (
-                <div>
-                  <Button variant="outline" className="w-full justify-start text-left h-auto py-2 text-sm">
-                    Fixed tooltip
-                  </Button>
-                </div>
+                <div className="fixedPlotTooltip relative p-3 border border-muted rounded-md hidden text-sm"></div>
               )}
               {showGroupByKey && (
                 <div
