@@ -532,12 +532,17 @@ const LogsTable = ({
     }
   }
 
+  // Helper function to safely access the property
+  function safeUpdatedFilterExpression(item: TableDataItem): boolean {
+    return (item as any).updatedFilterExpression;
+  }
+
   // Effect to handle table data updates and grouped metrics
   useEffect(() => {
     if (!logs.length) return;
 
     // Handle loading states and fetch grouped metrics
-    if (!loadingSubGroup) {
+    if (!loadingSubGroup && !safeUpdatedFilterExpression(tableDataItem)) {
       setLoadingGroups((prev) => {
         // If `prev` is already the single-element set we want, just reuse it:
         if (prev.size === 1 && prev.has("_all_groups_")) {
@@ -582,7 +587,8 @@ const LogsTable = ({
     projectId,
     item?.context,
     item?.column_context,
-    logs,
+    logs.length,
+    safeUpdatedFilterExpression(tableDataItem),
     filterExpression,
     groupingExpression,
     metric,

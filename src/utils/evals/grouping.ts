@@ -363,6 +363,7 @@ export async function onGroupExpand(
     
     // Get the remaining grouping columns after the current one
     const remainingGrouping = currentGrouping.slice(currentIndex + 1);
+    const updatedGroupingExpression = remainingGrouping.length > 0 ? remainingGrouping.join(",") : null;
 
     setExpandingRowId(currentId);
 
@@ -373,7 +374,7 @@ export async function onGroupExpand(
       columnContext,
       updatedFilterExpression,
       sortingExpression,
-      remainingGrouping.length > 0 ? remainingGrouping.join(",") : null,
+      updatedGroupingExpression,
       groupSortingExpression,
       null,
       null,
@@ -385,7 +386,6 @@ export async function onGroupExpand(
     );
 
     let groupedMetrics: { [key: string]: { [key: string]: { [key: string]: { [key: string]: number | string } } } } = {};
-    const updatedGroupingExpression = remainingGrouping.length > 0 ? remainingGrouping.join(",") : null;
     if (updatedGroupingExpression) {
       const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
       const groupingColumnId = updatedGroupingExpression.split(",")[0];
@@ -458,12 +458,15 @@ export async function onGroupExpand(
 
     // Update the table data with the processed logs.
     await new Promise<void>(resolve => {
-      updateTableDataItem(
-        undefined,
-        { logs: updatedLogs },
-        false
-      );
-      resolve();
+      updateTableDataItem((prev: TableDataItem) => {
+        const newState = {
+          ...prev,
+          logs: updatedLogs,
+          updatedFilterExpression: updatedFilterExpression
+        }
+        resolve();
+        return newState;
+      });
     });
 
     // Merge the groupedMetrics with the previous groupedMetrics
