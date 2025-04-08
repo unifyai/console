@@ -67,13 +67,14 @@ function unifyType(baseVal: any, comps: any[]): string {
 /*────────────────────────────────────────────────────────────────────────────
   pickView => specialized child rendering
 ────────────────────────────────────────────────────────────────────────────*/
-function pickView(props: LogComparisonProps & { prefix?: string; parentPath?: string; nestingLevel?: number }) {
-  const { value } = props;
+function pickView(props: LogComparisonProps & { prefix?: string; parentPath?: string; nestingLevel?: number; viewTracesAsDict?: boolean }) {
+  const { value, viewTracesAsDict } = props;
 
-  if (isTrace(value)) {
-    const arr = Array.isArray(value) ? value : [value];
-    return <TraceView {...props} value={arr} />;
+  // Handle trace rendering based on viewTracesAsDict flag
+  if (isTrace(value) && !viewTracesAsDict) {
+    return <TraceView {...props} />;
   }
+  
   if (isChat(value)) {
     return <ChatView {...props} />;
   }
@@ -239,11 +240,12 @@ function renderNoDiffMode(
     parentPath: string,
     expandRecursively: (paths: string[]) => void,
     collapseRecursively: (paths: string[]) => void,
+    viewTracesAsDict?: boolean,
   }
 ) {
   const { 
     baseLogIndex, comparisonLogsIndex, version, comparableVersions, 
-    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath,
+    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
     expandRecursively, collapseRecursively
   } = options;
   
@@ -380,7 +382,7 @@ function renderNoDiffMode(
               <AccordionTrigger className="relative group flex items-center justify-between">
                 <span className="inline-flex items-center gap-2">
                   {icon} {lbl}
-                  <div className="ml-2 flex gap-1">
+                  <div className="ml-2 flex gap-1 items-center">
                     {/* Show presence diff badges in no-diff mode (matching Dictionary View) */}
                     {(() => {
                       // Only show neutral badge if it contains rows not covered by red/green badges
@@ -433,6 +435,7 @@ function renderNoDiffMode(
                     nestingLevel: nestingLevel + 1,
                     prefix,
                     parentPath: path,
+                    viewTracesAsDict,
                   })}
                 </div>
               </AccordionContent>
@@ -445,7 +448,7 @@ function renderNoDiffMode(
             <AccordionTrigger className="relative group flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 {icon} {lbl}
-                <div className="ml-2 flex gap-1">
+                <div className="ml-2 flex gap-1 items-center">
                   {/* Show presence diff badges in no-diff mode (matching Dictionary View) */}
                   {(() => {
                     // Only show neutral badge if it contains rows not covered by red/green badges
@@ -502,6 +505,7 @@ function renderNoDiffMode(
                         nestingLevel: nestingLevel + 1,
                         prefix,
                         parentPath: path,
+                        viewTracesAsDict,
                       })}
                     </div>
                   </div>
@@ -540,11 +544,12 @@ function renderDiffMode(
     parentPath: string,
     expandRecursively: (paths: string[]) => void,
     collapseRecursively: (paths: string[]) => void,
+    viewTracesAsDict?: boolean,
   }
 ) {
   const { 
     baseLogIndex, comparisonLogsIndex, version, comparableVersions, 
-    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath,
+    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
     expandRecursively, collapseRecursively
   } = options;
   
@@ -670,7 +675,7 @@ function renderDiffMode(
             <AccordionTrigger className="relative group flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 {icon} {lbl}
-                <div className="ml-2 flex gap-1">
+                <div className="ml-2 flex gap-1 items-center">
                   {(() => {
                     // Only show neutral badge if it contains rows not covered by red/green badges
                     const redGreenRows = new Set([...presenceInfo.redRows, ...presenceInfo.greenRows]);
@@ -729,6 +734,7 @@ function renderDiffMode(
                       nestingLevel: nestingLevel + 1,
                       prefix,
                       parentPath: path,
+                      viewTracesAsDict,
                     });
                   }
                   
@@ -798,6 +804,7 @@ function renderDiffMode(
                                 nestingLevel: nestingLevel + 1,
                                 prefix,
                                 parentPath: path,
+                                viewTracesAsDict,
                               })}
                             </div>
                           )}
@@ -822,6 +829,7 @@ function renderDiffMode(
                                 nestingLevel: nestingLevel + 1,
                                 prefix,
                                 parentPath: path,
+                                viewTracesAsDict,
                               })}
                             </div>
                           )}
@@ -858,6 +866,7 @@ function renderDiffMode(
                                         nestingLevel: nestingLevel + 1,
                                         prefix,
                                         parentPath: path,
+                                        viewTracesAsDict,
                                       })}
                                     </div>
                                   );
@@ -902,6 +911,7 @@ function renderDiffMode(
                                       nestingLevel: nestingLevel + 1,
                                       prefix,
                                       parentPath: path,
+                                      viewTracesAsDict,
                                     })}
                                   </div>
                                 ));
@@ -929,6 +939,7 @@ function renderDiffMode(
                       nestingLevel: nestingLevel + 1,
                       prefix,
                       parentPath: path,
+                      viewTracesAsDict,
                     });
                   }
                   
@@ -952,6 +963,7 @@ function renderDiffMode(
                       nestingLevel: nestingLevel + 1,
                       prefix,
                       parentPath: path,
+                      viewTracesAsDict,
                     });
                   }
                   
@@ -969,6 +981,7 @@ function renderDiffMode(
                     nestingLevel: nestingLevel + 1,
                     prefix,
                     parentPath: path,
+                    viewTracesAsDict,
                   });
                 })()}
               </div>
@@ -987,6 +1000,7 @@ interface ListViewProps extends LogComparisonProps {
   prefix?: string;
   parentPath?: string;    // parent's fully qualified path
   nestingLevel?: number;
+  viewTracesAsDict?: boolean;
 }
 
 export default function ListView({
@@ -1002,6 +1016,7 @@ export default function ListView({
   nestingLevel = 0,
   prefix = "entries",
   parentPath = "",
+  viewTracesAsDict,
 }: ListViewProps) {
   
   // We first need to detect if we're within a TraceView context
@@ -1187,6 +1202,7 @@ export default function ListView({
               nestingLevel: nestingLevel + 1,
               prefix,
               parentPath: path,
+              viewTracesAsDict,
             })}
           </div>
         </AccordionContent>
@@ -1272,7 +1288,7 @@ export default function ListView({
         <AccordionTrigger className="relative group flex items-center justify-between">
           <span className="inline-flex items-center gap-2">
             {icon} {lbl}
-            <div className="ml-2 flex gap-1">
+            <div className="ml-2 flex gap-1 items-center">
               {(() => {
                 // Only show neutral badge if it contains rows not covered by red/green badges
                 const redGreenRows = new Set([...presenceInfo.redRows, ...presenceInfo.greenRows]);
@@ -1322,6 +1338,7 @@ export default function ListView({
                     nestingLevel: nestingLevel + 1,
                     prefix,
                     parentPath: path,
+                    viewTracesAsDict,
                   });
                 }
                 
@@ -1339,6 +1356,7 @@ export default function ListView({
                   nestingLevel: nestingLevel + 1,
                   prefix,
                   parentPath: path,
+                  viewTracesAsDict,
                 });
               }
               
@@ -1377,6 +1395,7 @@ export default function ListView({
                       nestingLevel: nestingLevel + 1,
                       prefix,
                       parentPath: path,
+                      viewTracesAsDict,
                     })}
                   </div>
                 </div>
@@ -1520,7 +1539,8 @@ export default function ListView({
           prefix,
           parentPath,
           expandRecursively: effectiveExpandRecursively,
-          collapseRecursively: effectiveCollapseRecursively
+          collapseRecursively: effectiveCollapseRecursively,
+          viewTracesAsDict,
         }
       );
     }
@@ -1565,7 +1585,8 @@ export default function ListView({
           prefix,
           parentPath,
           expandRecursively: effectiveExpandRecursively,
-          collapseRecursively: effectiveCollapseRecursively
+          collapseRecursively: effectiveCollapseRecursively,
+          viewTracesAsDict,
         }
       );
     }

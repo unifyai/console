@@ -67,13 +67,14 @@ function unifyType(baseVal: any, comps: any[]): string {
 /*────────────────────────────────────────────────────────────────────────────
   pickView => specialized child rendering
 ────────────────────────────────────────────────────────────────────────────*/
-function pickView(props: LogComparisonProps & { prefix?: string; parentPath?: string }) {
-  const { value, parentPath = "", prefix = "", nestingLevel = 0 } = props;
+function pickView(props: LogComparisonProps & { prefix?: string; parentPath?: string; viewTracesAsDict?: boolean }) {
+  const { value, parentPath = "", prefix = "", nestingLevel = 0, viewTracesAsDict } = props;
 
-  if (isTrace(value)) {
-    const arr = Array.isArray(value) ? value : [value];
-    return <TraceView {...props} value={arr} />;
+  // Handle trace rendering based on viewTracesAsDict flag
+  if (isTrace(value) && !viewTracesAsDict) {
+    return <TraceView {...props} />;
   }
+  // For non-trace types, continue normal rendering
   if (isChat(value)) {
     return <ChatView {...props} />;
   }
@@ -218,6 +219,7 @@ interface DictionaryViewProps extends LogComparisonProps {
   parentPath?: string;        // The parent's fully qualified path (e.g. "entries.dict.0.a")
   nestingLevel?: number;
   customIconMapping?: Record<string, JSX.Element>; // New prop for custom icons
+  viewTracesAsDict?: boolean; // Add prop to pass down the setting
 }
 
 /*─────────────────────────────────────────────────────────────────────────
@@ -244,11 +246,12 @@ function renderNoDiffMode(
     expandRecursively: (paths: string[]) => void,
     collapseRecursively: (paths: string[]) => void,
     customIconMapping?: Record<string, JSX.Element>, // Add custom icon mapping to options
+    viewTracesAsDict?: boolean, // Receive the trace view setting
   }
 ) {
   const { 
     baseLogIndex, comparisonLogsIndex, version, comparableVersions, 
-    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath,
+    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
     expandRecursively, collapseRecursively, customIconMapping
   } = options;
   
@@ -361,7 +364,8 @@ function renderNoDiffMode(
                   <RowBadge rowNumbers={allRowsForKey} mode="none" />
                 </div>
               </span>
-              {(keyType === "dict" || keyType === "list") && (
+              {/* Show button if dict/list OR if trace rendered as dict */}
+              {(keyType === "dict" || keyType === "list" || (keyType === "trace" && viewTracesAsDict)) && (
                 <div className="absolute right-5 flex gap-1 items-center">
                   <ActionButton
                     variant="ghost"
@@ -402,6 +406,7 @@ function renderNoDiffMode(
                       nestingLevel: nestingLevel + 1,
                       prefix,
                       parentPath: path,
+                      viewTracesAsDict,
                     });
                   }
                   
@@ -453,6 +458,7 @@ function renderNoDiffMode(
                                 nestingLevel: nestingLevel + 1,
                                 prefix,
                                 parentPath: path,
+                                viewTracesAsDict,
                               })}
                             </div>
                           )}
@@ -477,6 +483,7 @@ function renderNoDiffMode(
                                 nestingLevel: nestingLevel + 1,
                                 prefix,
                                 parentPath: path,
+                                viewTracesAsDict,
                               })}
                             </div>
                           )}
@@ -524,6 +531,7 @@ function renderNoDiffMode(
                                       nestingLevel: nestingLevel + 1,
                                       prefix,
                                       parentPath: path,
+                                      viewTracesAsDict,
                                     })}
                                   </div>
                                 ));
@@ -581,6 +589,7 @@ function renderNoDiffMode(
                                   nestingLevel: nestingLevel + 1,
                                   prefix,
                                   parentPath: path,
+                                  viewTracesAsDict,
                                 })}
                               </div>
                             ))}
@@ -604,6 +613,7 @@ function renderNoDiffMode(
                     nestingLevel: nestingLevel + 1,
                     prefix,
                     parentPath: path,
+                    viewTracesAsDict,
                   });
                 })()}
               </div>
@@ -639,11 +649,12 @@ function renderDiffMode(
     expandRecursively: (paths: string[]) => void,
     collapseRecursively: (paths: string[]) => void,
     customIconMapping?: Record<string, JSX.Element>, // Add custom icon mapping to options
+    viewTracesAsDict?: boolean, // Receive the trace view setting
   }
 ) {
   const { 
     baseLogIndex, comparisonLogsIndex, version, comparableVersions, 
-    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath,
+    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
     expandRecursively, collapseRecursively, customIconMapping
   } = options;
   
@@ -777,7 +788,8 @@ function renderDiffMode(
                   {presenceInfo.greenRows.length > 0 && <RowBadge rowNumbers={presenceInfo.greenRows} mode="insert" />}
                   </div>
               </span>
-              {(keyType === "dict" || keyType === "list") && (
+              {/* Show button if dict/list OR if trace rendered as dict */}
+              {(keyType === "dict" || keyType === "list" || (keyType === "trace" && viewTracesAsDict)) && (
                 <div className="absolute right-5 flex gap-1 items-center">
                   <ActionButton
                     variant="ghost"
@@ -812,6 +824,7 @@ function renderDiffMode(
                       nestingLevel: nestingLevel + 1,
                       prefix,
                       parentPath: path,
+                      viewTracesAsDict,
                     });
                   }
                   
@@ -881,6 +894,7 @@ function renderDiffMode(
                         nestingLevel: nestingLevel + 1,
                         prefix,
                         parentPath: path,
+                        viewTracesAsDict,
                       })}
                     </div>
                           )}
@@ -905,6 +919,7 @@ function renderDiffMode(
                                 nestingLevel: nestingLevel + 1,
                                 prefix,
                                 parentPath: path,
+                                viewTracesAsDict,
                               })}
                             </div>
                           )}
@@ -941,6 +956,7 @@ function renderDiffMode(
                                         nestingLevel: nestingLevel + 1,
                                         prefix,
                                         parentPath: path,
+                                        viewTracesAsDict,
                                       })}
                                     </div>
                                   );
@@ -985,6 +1001,7 @@ function renderDiffMode(
                                       nestingLevel: nestingLevel + 1,
                                       prefix,
                                       parentPath: path,
+                                      viewTracesAsDict,
                                     })}
                                   </div>
                                 ));
@@ -1012,6 +1029,7 @@ function renderDiffMode(
                       nestingLevel: nestingLevel + 1,
                       prefix,
                       parentPath: path,
+                      viewTracesAsDict,
                     });
                   }
                   
@@ -1029,6 +1047,7 @@ function renderDiffMode(
                     nestingLevel: nestingLevel + 1,
                     prefix,
                     parentPath: path,
+                    viewTracesAsDict,
                   });
                 })()}
               </div>
@@ -1054,8 +1073,9 @@ export default function DictionaryView({
   prefix = "entries",
   parentPath = "", // new param to track parent's path
   customIconMapping, // New prop for custom icons
+  viewTracesAsDict, // Receive the prop
 }: DictionaryViewProps) {
-  
+
   // We first need to detect if we're within a TraceView context
   // We'll try to access the TraceExpandContext selector without throwing
   const [inTraceView, setInTraceView] = useState(false);
@@ -1292,6 +1312,7 @@ export default function DictionaryView({
               nestingLevel: nestingLevel + 1,
               prefix,
               parentPath: path, // pass fully-qualified path to children
+              viewTracesAsDict,
             })}
           </div>
         </AccordionContent>
@@ -1366,6 +1387,7 @@ export default function DictionaryView({
               nestingLevel: nestingLevel + 1,
               prefix,
               parentPath: path, // pass fully-qualified path to children
+              viewTracesAsDict,
             })}
           </div>
         </AccordionContent>
@@ -1451,6 +1473,7 @@ export default function DictionaryView({
         expandRecursively: effectiveExpandRecursively,
         collapseRecursively: effectiveCollapseRecursively,
         customIconMapping,
+        viewTracesAsDict,
       }
     );
   }
@@ -1477,6 +1500,7 @@ export default function DictionaryView({
       expandRecursively: effectiveExpandRecursively,
       collapseRecursively: effectiveCollapseRecursively,
       customIconMapping,
+      viewTracesAsDict,
     }
   );
 }

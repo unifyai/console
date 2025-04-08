@@ -27,9 +27,27 @@ export function isPdf(val: any): boolean {
   const pdfRegex = /\.pdf(\?.*)?$/i;  // matches "myfile.pdf?version=123" and .PDF
   return pdfRegex.test(val.trim());
 }
-export function isTrace(val: any): boolean {
-// originally always false in old code
-  return false;
+export function isTrace(val: any): boolean {  
+  // Check if the value is an object
+  if (!val || typeof val !== "object" || Array.isArray(val)) {
+    return false;
+  }
+
+  // Check for trace-specific fields
+  const hasTraceId = Boolean(val.id && typeof val.id === "string");
+  const hasType = Boolean(val.type && typeof val.type === "string");
+  const hasSpanName = Boolean(val.span_name && typeof val.span_name === "string");
+  const hasExecTime = Boolean(val.exec_time !== undefined);
+  const hasTimestamp = Boolean(val.timestamp && typeof val.timestamp === "string");
+  const hasChildSpans = Boolean(val.child_spans && Array.isArray(val.child_spans));
+  
+  // Main trace characteristics
+  const isMainTrace = hasTraceId && hasType && hasSpanName && hasTimestamp;
+  // Additional signals that strongly indicate trace data
+  const hasTraceIndicators = hasExecTime || hasChildSpans;
+  
+  const result = isMainTrace && hasTraceIndicators;
+  return result;
 }
 export function isNumber(val: any): boolean {
   return typeof val === "number" || val instanceof Number;
