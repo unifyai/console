@@ -2,23 +2,12 @@
 
 import { useEffect, useRef, useId, useState, useMemo } from "react";
 import * as d3 from "d3";
-
-import PlotType from "./Buttons/PlotType";
-import PlotScale from "./Buttons/PlotScale";
-import PlotRegression from "./Buttons/PlotRegression";
-import PlotGroupBy from "./Buttons/PlotGroupBy";
-import PlotReset from "./Buttons/PlotReset";
-import PlotBins from "./Buttons/PlotBins";
-import PlotRefresh from "./Buttons/PlotRefresh";
-import PlotSort from "./Buttons/PlotSort";
-
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { LogsActions, FieldsActions, PlotDataItem } from "@/types/evals/grid";
 import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram, checkLogScalability, clearCanvas } from "@/utils/evals/plot";
-import PlotAxis from "./Buttons/PlotAxis";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { useTab } from '@/contexts/hooks/tab';
-import PlotAggregate from "./Buttons/PlotAggregate";
+import PlotSettings from "./Sidebar";
 
 const LogsPlot = ({ 
     tileId,
@@ -85,9 +74,10 @@ const LogsPlot = ({
     // Initialize refs and container dimensions
     let svgRef = useRef(null);
     let containerRef = useRef(null);
+    let settingsRef = useRef(null);
     const clipId = useId();
     const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
-    const margins = { top: 35, right: 100, bottom: 65, left: 60 } // Margin on the sides
+    const margins = { top: 0, right: 10, bottom: 65, left: 60 } // Margin on the sides
     const axisPadding = 20; // Extra padding between axes borders and plot borders
 
     // Plot settings
@@ -132,6 +122,7 @@ const LogsPlot = ({
             .attr("width", dimensions.width)
             .attr("height", dimensions.height)
             .attr("viewBox", [0, 0, dimensions.width, dimensions.height]);
+        const settings = d3.select(settingsRef.current)
 
         // Update clipbox dimensions
         svg.select("#clip-rect")
@@ -155,6 +146,7 @@ const LogsPlot = ({
                 drawLineChart(
                     container,
                     svg,
+                    settings,
                     adjustedScaleX,
                     adjustedScaleY,
                     dimensions,
@@ -172,12 +164,6 @@ const LogsPlot = ({
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
-                placeholder
-                .attr("x", "50%")
-                .attr("y", "50%")
-                .attr("text-anchor", "middle")
-                .attr("font-size", "16px")
-                .text("Select two numeric properties to plot");
             }
         } 
         
@@ -187,6 +173,7 @@ const LogsPlot = ({
                 drawBarChart(
                     container,
                     svg,
+                    settings,
                     "linear",
                     "linear",
                     dimensions,
@@ -206,12 +193,6 @@ const LogsPlot = ({
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
-                placeholder
-                .attr("x", "50%")
-                .attr("y", "50%")
-                .attr("text-anchor", "middle")
-                .attr("font-size", "16px")
-                .text("Select a property and a reduction metric to plot ");    
             }
         } 
         
@@ -221,6 +202,7 @@ const LogsPlot = ({
                 drawHistogram(
                     container,
                     svg, 
+                    settings,
                     "linear",
                     "linear",
                     dimensions, 
@@ -238,12 +220,6 @@ const LogsPlot = ({
                 )
             } else {
                 clearCanvas(svgRef, containerRef)
-                placeholder
-                .attr("x", "50%")
-                .attr("y", "50%")
-                .attr("text-anchor", "middle")
-                .attr("font-size", "16px")
-                .text("Select a numeric or time property to plot");    
             }
         } 
         
@@ -255,6 +231,7 @@ const LogsPlot = ({
                 drawScatterPlot(
                     container,
                     svg,
+                    settings,
                     adjustedScaleX,
                     adjustedScaleY,
                     dimensions,
@@ -273,12 +250,6 @@ const LogsPlot = ({
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
-                placeholder
-                .attr("x", "50%")
-                .attr("y", "50%")
-                .attr("text-anchor", "middle")
-                .attr("font-size", "16px")
-                .text("Select two numeric properties to plot");    
             }
         }
 
@@ -300,163 +271,74 @@ const LogsPlot = ({
         interactive
     ]);
 
-
-    // Adjust customization button size to card size
-    const scaleFactor = Math.min(1, Math.max(0.5, dimensions.height / 500));
-    const translateX = Math.max(0, (1200 - dimensions.height) * 0.01) / scaleFactor;
-    const translateY = Math.max(0, (200 - dimensions.height) * 0.01) / scaleFactor;
-
-    return (
-        <div className="flex w-full h-full bg-background rounded-md relative my-2 LogsPlot" ref={containerRef}>
-
-            {/* Axes and type */}
-            <div className="absolute bottom-6 right-1 z-10">
-                <PlotAxis
-                    interactive={interactive}
-                    pending={pending}
-                    fields={fields}
-                    setAxisProperty={plotTileActions?.setXAxis!}
-                    axis="X"
-                    axisProperty={selectedXAxisProperty}
-                    plotType={plotType}
-                    logs={logs}
-                    metric={metric}
-                    setMetric={tileDataActions?.setMetric!}
-                />
-            </div>
-            {plotType != "Histogram" && 
-                <div className="absolute top-0 left-1 z-10">
-                    <PlotAxis
-                        interactive={interactive}
-                        pending={pending}
-                        fields={fields}
-                        setAxisProperty={plotTileActions?.setYAxis!}
-                        axis="Y"
-                        axisProperty={selectedYAxisProperty}
-                        plotType={plotType}
-                        logs={logs}
-                        metric={metric}
-                        setMetric={tileDataActions?.setMetric!}
-                    />
-                </div>            
-            }
-            <div className="absolute top-0 right-1 z-10">
-                <PlotType
-                    interactive={interactive}
-                    svgRef={svgRef}
-                    containerRef={containerRef}
-                    plotType={plotType}
-                    setPlotType={plotTileActions?.setPlotType!}
-                    fields={fields}
-                    selectedXAxisProperty={selectedXAxisProperty}
-                    setSelectedXAxisProperty={plotTileActions?.setXAxis!}
-                    selectedYAxisProperty={selectedYAxisProperty}
-                    setSelectedYAxisProperty={plotTileActions?.setYAxis!}
-                />
-            </div>
-
-            {/* Customization */}
-            <div 
-                className="absolute z-10 flex right-3 top-12 flex-col gap-1.5"
-                style={{transform: `scale(${scaleFactor}) translateX(${translateX}px) translateY(${translateY}px)`, transformOrigin: 'top left'}}
-            >
-                {projectId &&
-                    <PlotRefresh
-                        tileId={tileId}
-                        tabId={tabId}
-                        interfaceId={interfaceId}
-                        projectId={projectId}
-                        pending={pending}
-                        args={args}
-                        setPlotDataItem={setPlotDataItem}
-                        logsActions={logsActions}
-                        fieldsActions={fieldsActions}
-                        logs={logs}
-                    />
-                }
-                {((plotType === "Histogram" && selectedXAxisProperty) || (selectedXAxisProperty && selectedYAxisProperty)) &&
-                    <>
-                        <PlotReset
-                            svgRef={svgRef}
-                            containerRef={containerRef}
-                            setSelectedXAxisProperty={plotTileActions?.setXAxis!}
-                            setSelectedYAxisProperty={plotTileActions?.setYAxis!}
-                            setGroupByProperty={plotTileActions?.setPlotGroupBy!}
-                            setIsAggregated={plotTileActions?.setIsAggregated!}
-                        />
-                        {plotType === "Histogram" && <PlotBins binCount={binCount} binCounts={binCounts} setBinCount={plotTileActions?.setBinCount!}/>}
-                        <PlotGroupBy fields={fields} groupBy={groupByProperty} setGroupBy={plotTileActions?.setPlotGroupBy!} logs={logs}/>
-                        {Object.values(groupings).length 
-                            ? <PlotAggregate groupings={groupings} isAggregated={isAggregated} setIsAggregated={plotTileActions?.setIsAggregated!} logs={logs}/>
-                            : null
-                        }
-                        {!["Histogram", "Bar Chart"].includes(plotType) &&
-                            <PlotScale 
-                                scaleX={scaleX} 
-                                scaleY={scaleY}
-                                setScaleX={plotTileActions?.setPlotScaleX!}
-                                setScaleY={plotTileActions?.setPlotScaleY!} 
-                                logScaleXEnabled={logScaleXEnabled} 
-                                logScaleYEnabled={logScaleYEnabled} 
-                                selectedXAxisProperty={selectedXAxisProperty} 
-                                fields={fields}
-                            />
-                        }
-                        {plotType === "Bar Chart" && !groupByProperty &&
-                            <PlotSort sortBars={sortBars} setSortBars={setSortBars}/>
-                        }
-                        {plotType === "Scatter Plot" && 
-                            <PlotRegression 
-                                showRegression={showRegression} 
-                                setShowRegression={plotTileActions?.setRegressionLine!}
-                            />
-                        }
-                    </>
-                }
-            </div>
-
-            {/* Chart */}
-            <svg ref={svgRef} className="flex w-full h-full absolute z-0">
-                <defs>
-                    <clipPath id={clipId}>
-                        <rect id={"clip-rect"}/>
-                    </clipPath>
-                </defs>
-                <rect className="zoom-layer"/>
-                <g className="plotData" clipPath={`url(#${clipId})`}/>
-                <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="placeholderText" stroke="var(--foreground)" stroke-width="0.1" style={{"fill": "var(--foreground)"}}/>
-                <line className="bottomLine" stroke="var(--foreground)" stroke-width="0.5"/>
-                <line className="leftLine" stroke="var(--foreground)" stroke-width="0.5"/>
-                <line className="topLine" stroke="var(--foreground)" stroke-width="0.5"/>
-                <line className="x-zero" stroke="var(--foreground)" stroke-width="1" stroke-dasharray="5.5" style={{opacity: 0}}/>
-                <line className="y-zero" stroke="var(--foreground)" stroke-width="1" stroke-dasharray="5.5" style={{opacity: 0}}/>
-                <g className="xAxis" transform={`translate(0, ${dimensions.height - margins.bottom})`}/>
-                <g className="yAxis" transform={`translate(${margins.left}, 0)`}/>
-            </svg>
-            <div
-                style={{
-                    position: "fixed",
-                    minWidth: "160px",
-                    maxWidth: "300px",
-                    pointerEvents: "none",
-                    background: "var(--background)",
-                    border: "1px solid var(--foreground)",
-                    padding: "8px",
-                    borderRadius: "4px",
-                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                    transition: "opacity 0.2s",
-                    fontSize: "14px",
-                    opacity: 0,
-                    zIndex: 1000
-                }}
-                className="plotTooltip gap-2 overflow-hidden"
-            />
-            <div
-                style={{opacity: 0, "scrollbar-width": "none", backgroundColor: "var(--background)"} as React.CSSProperties} 
-                className="groupingKey absolute bottom-20 right-2 z-5 py-2 px-3 flex flex-col gap-1 overflow-auto w-[100px] h-[150px] rounded-md border-2 border-muted"
-            />
-        </div>
-    );
+return (
+    <div className="flex flex-row w-full h-full">
+  
+      {/* Chart Container */}
+      <div
+        className="flex flex-1 h-full bg-background relative border-t border-border"
+        ref={containerRef}
+      >
+        {/* SVG content*/}
+        <svg ref={svgRef} className="flex w-full h-full absolute z-0">
+           <defs>
+             <clipPath id={clipId}>
+               <rect id={"clip-rect"} />
+             </clipPath>
+           </defs>
+           <rect className="zoom-layer" />
+           <g className="plotData" clipPath={`url(#${clipId})`} />
+           <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="placeholderText" stroke="var(--foreground)" strokeWidth="0.1" style={{ "fill": "var(--foreground)" }} />
+           <line className="bottomLine" stroke="var(--foreground)" stroke-width="0.5"/>
+           <line className="leftLine" stroke="var(--foreground)" stroke-width="0.5"/>
+           <line className="x-zero" stroke="var(--foreground)" strokeWidth="1" strokeDasharray="5,5" style={{ opacity: 0 }} />
+           <line className="y-zero" stroke="var(--foreground)" strokeWidth="1" strokeDasharray="5,5" style={{ opacity: 0 }} />
+           <g className="xAxis" transform={`translate(0, ${dimensions.height - margins.bottom})`} />
+           <g className="yAxis" transform={`translate(${margins.left}, 0)`} />
+        </svg>
+        {/* Hover Tooltip */}
+        <div style={{ position: "fixed", minWidth: "160px", maxWidth: "300px", pointerEvents: "none", background: "var(--background)", border: "1px solid var(--foreground)", padding: "8px", borderRadius: "4px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", transition: "opacity 0.2s", fontSize: "14px", opacity: 0, zIndex: 1000 }} className="plotTooltip gap-2 overflow-hidden" />
+      </div>
+  
+      {/* Settings Panel */}
+      <PlotSettings
+            interactive={interactive}
+            pending={pending}
+            svgRef={svgRef}
+            containerRef={containerRef}
+            settingsRef={settingsRef}
+            plotType={plotType}
+            fields={fields}
+            selectedXAxisProperty={selectedXAxisProperty}
+            selectedYAxisProperty={selectedYAxisProperty}
+            logs={logs}
+            metric={metric}
+            scaleX={scaleX} 
+            scaleY={scaleY}
+            logScaleXEnabled={logScaleXEnabled} 
+            logScaleYEnabled={logScaleYEnabled}
+            groupByProperty={groupByProperty}
+            binCounts={binCounts}
+            binCount={binCount}
+            sortBars={sortBars}
+            setSortBars={setSortBars}
+            groupings={groupings}
+            isAggregated={isAggregated}
+            showRegression={showRegression}
+            tileId={tileId}
+            tabId={tabId}
+            interfaceId={interfaceId}
+            projectId={projectId}
+            args={args}
+            setPlotDataItem={setPlotDataItem}
+            logsActions={logsActions}
+            fieldsActions={fieldsActions}
+            plotTileActions={plotTileActions}
+            tileDataActions={tileDataActions}
+        />
+  
+    </div>
+  );
 };
 
 export default LogsPlot;

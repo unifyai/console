@@ -1,22 +1,26 @@
 "use client";
 
-import SettingButton from "@/components/Common/Buttons/Setting";
-import ActionButton from "@/components/Common/Buttons/Action";
-import BaseDropdown from "@/components/Common/Dropdowns/Base";
-import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
-import { ChevronDown, Scale3d } from "lucide-react";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/UI/accordion";
+import { Button } from "@/components/UI/button";
+import { Scale3d } from "lucide-react";
+import Tooltip from "@/components/Common/Misc/Tooltip";
 
-const PlotScale = ({scaleX, scaleY, setScaleX, setScaleY, logScaleXEnabled, logScaleYEnabled, selectedXAxisProperty, fields}: {
+const PlotScale = ({interactive = true, plotType, scaleX, scaleY, setScaleX, setScaleY, logScaleXEnabled, logScaleYEnabled, selectedXAxisProperty, fields}: {
+    interactive: boolean,
+    plotType: string,
     scaleX: string, 
     scaleY: string,
-    setScaleX: (x: string | undefined) => void,
-    setScaleY: (y: string | undefined) => void,
-    selectedXAxisProperty: string | null,
+    selectedXAxisProperty: string | undefined,
     fields: LogFieldsResponseProps,
     logScaleXEnabled: boolean,
     logScaleYEnabled: boolean
+    setScaleX: ((x: string | undefined) => void) | undefined,
+    setScaleY: ((y: string | undefined) => void) | undefined,
 }) => {
+
+    // Don't render scale selector for certain plot types
+    if (["Histogram", "Bar Chart"].includes(plotType)) return null;
 
     // Check available options depending on data type and values
     let [optionsY, optionsX] = [["linear"], ["linear"]]
@@ -26,43 +30,90 @@ const PlotScale = ({scaleX, scaleY, setScaleX, setScaleY, logScaleXEnabled, logS
     else
         if (logScaleXEnabled) optionsX.push("log")
 
-    // Axis selector
-    const selector = (axis: "X" | "Y") => {
+    // Selection handler
+    const onSelect = (option: string, setScale: ((x: string | undefined) => void) | undefined) => {
+        if (!setScale || !interactive) return;
+        setScale(option)
+    }
 
-        // Handle X or Y Axis
+    // Helper to get scale options and setter for a given axis
+    const getAxisConfig = (axis: "X" | "Y") => {
         const scale = axis === "X" ? scaleX : scaleY;
         const setScale = axis === "X" ? setScaleX : setScaleY;
         const options = axis === "X" ? optionsX : optionsY;
-        
-        // Display dropdown or static text depending on length of options list
-        const disabled = options.length === 1;
-        const icon = disabled ? null : <ChevronDown/>
-        const tooltip = disabled ? `Log scale not available for ${axis} data range`: `Select ${axis} axis scale`
-        const button = <ActionButton tooltip={tooltip} icon={icon} text={scale} disabled={disabled}/>;
-        const open = disabled ? false : undefined
-        const choices =
-            <BaseDropdown button={button} open={open}>
-                {options.map((option: string, index: number) => <DropdownMenuItem key={index} onSelect={() => setScale(option)}>{option}</DropdownMenuItem>)}
-            </BaseDropdown>
-        
-        return (choices);
-    }
+        const disabled = options.length === 1 || !setScale || !interactive; // Disable if only one option, no setter, or not interactive
+        return { scale, setScale, options, disabled };
+    };
 
-    // Main component
-    const button = <SettingButton tooltip={"Set axes scales"} icon={<Scale3d/>}/>
+    // Determine text for the trigger
+    const triggerText = () => {
+        if (!scaleX && !scaleY) return "Scale";
+        if (scaleX && !scaleY) return `Scale: X (${scaleX})`
+        if (!scaleX && scaleY) return `Scale: Y (${scaleY})`
+        return `Scale: X (${scaleX}) Y (${scaleY})`;
+    };
+
     return (
-        <BaseDropdown button={button}>
-            <div className="flex flex-col gap-3 p-2">
-                <div className="flex flex-row justify-between gap-3 items-center">
-                    <p className="font-bold text-sm">X Axis</p>
-                    {selector("X")}
+        <AccordionItem value="plot-scale">
+        <AccordionTrigger disabled={!interactive}>
+            <Tooltip content="Log scale can only be applied when all the axes' values are all positive or all negative." side="left">
+                <div className="flex flex-row items-center gap-2">
+                    <Scale3d size={20}/>
+                    {triggerText()}
                 </div>
-                <div className="flex flex-row justify-between gap-3 items-center">
-                    <p className="font-bold text-sm">Y Axis</p>
-                    {selector("Y")}
-                </div>
+            </Tooltip>
+        </AccordionTrigger>
+        <AccordionContent>
+            <div className="space-y-1 pr-2">
+                <Accordion 
+                    type="multiple" // Using type="multiple" allows both X and Y scales to be open
+                    className="w-full space-y-1"
+                >
+                    {(["X", "Y"] as const).map((axis) => {
+                    const { scale, setScale, options, disabled } = getAxisConfig(axis);
+                    const triggerText = `${axis}-axis: ${scale}`;
+                    const isSelectionDisabled = !setScale || !interactive; // Disable buttons if no setter or not interactive
+
+                    return (
+                        <AccordionItem key={axis} value={`scale-${axis.toLowerCase()}`} className="border-b-0">
+                        <AccordionTrigger
+                            className="text-md font-semibold text-muted-foreground hover:no-underline justify-start py-1 px-1 data-[state=closed]:opacity-100" // Keep opacity when closed
+                            disabled={disabled}
+                        >
+                            {triggerText}
+                            {disabled && options.length > 1 && <span className="text-xs font-normal ml-1">(Setter Unavailable)</span>}
+                            {disabled && options.length === 1 && <span className="text-xs font-normal ml-1">(Log Unavailable)</span>}
+                        </AccordionTrigger>
+                        <AccordionContent className="pl-4 pb-1 space-y-1">
+                            {/* Render buttons only if not disabled (multiple options exist) */}
+                            {!disabled && options.map((option) => (
+                                <Button
+                                    key={option}
+                                    variant={scale === option ? "primary" : "list_item"}
+                                    size="lg"
+                                    className="w-full justify-start h-auto py-1 text-md"
+                                    onClick={() => onSelect(option, setScale)}
+                                    disabled={isSelectionDisabled}
+                                >
+                                    {option}
+                                </Button>
+                            ))}
+                            {/* Show static text if disabled but multiple options were technically possible */}
+                            {disabled && options.length > 1 && (
+                                    <p className="text-sm text-muted-foreground px-2 py-1">Scale selection unavailable.</p>
+                            )}
+                            {/* Show static text if only one option available */}
+                            {disabled && options.length === 1 && (
+                                <p className="text-sm text-muted-foreground px-2 py-1">{options[0]} (Log scale not available)</p>
+                            )}
+                        </AccordionContent>
+                        </AccordionItem>
+                    );
+                    })}
+                </Accordion>
             </div>
-        </BaseDropdown>
+        </AccordionContent>
+        </AccordionItem>
     );
 }
 

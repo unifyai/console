@@ -1,30 +1,86 @@
 "use client";
 
-import { SortDesc, SortAsc, ArrowUpDown } from "lucide-react";
-import SettingButton from "@/components/Common/Buttons/Setting";
+import { ArrowUpDown, SortDesc, SortAsc, GripHorizontal } from "lucide-react";
+import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/UI/accordion";
+import { Button } from "@/components/UI/button";
+import Tooltip from "@/components/Common/Misc/Tooltip";
 
-type PlotSortProps = {
-    sortBars: string,
-    setSortBars: (sortBars: string) => void,
-}
+const PlotSort = ({ interactive = true, plotType, groupByProperty, sortBars, setSortBars }: {
+    interactive?: boolean;
+    plotType: string
+    groupByProperty: string | undefined,
+    sortBars: string;
+    setSortBars: (sortBars: string) => void;
+}) => {
 
-const PlotSort = (({sortBars, setSortBars
-}: PlotSortProps) => {
-    const isSorted = sortBars === "asc" || sortBars === "desc"
-    const states = [
-        { key: "unsorted",  nextKey: "desc", tooltip: "Sort bars descending", icon: <ArrowUpDown/> },
-        { key: "asc",  nextKey: "unsorted", tooltip: "Unsort bars", icon: <SortAsc/> },
-        { key: "desc", nextKey: "asc",  tooltip: "Sort bars ascending", icon: <SortDesc/> },
+    // Only render sort selector for ungrouped bar charts
+    if (plotType != "Bar Chart" || groupByProperty) return null;
+
+    // Define the sort options with their properties
+    const sortOptions = [
+        {
+        key: "unsorted",
+        label: "Unsorted",
+        icon: <GripHorizontal/>,
+        },
+        {
+        key: "asc",
+        label: "Ascending",
+        icon: <SortAsc/>,
+        },
+        {
+        key: "desc",
+        label: "Descending",
+        icon: <SortDesc/>,
+        },
     ];
-    const state = states.find(state => state.key === sortBars)!;
-    const tooltip = state.tooltip;
-    const icon = state.icon
-    const variant = isSorted ? "primary" : undefined;
-    const onClick = () => setSortBars(state.nextKey)
-    return (
-        <SettingButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick}/>
-    );
 
-});
+    // Find the current state object for display purposes
+    const currentState = sortOptions.find((state) => state.key === sortBars) || sortOptions[0];
+
+    // Function to generate the trigger text
+    const triggerText = () => {
+        return `Sort: ${currentState.label}`;
+    };
+
+    // Handler for selecting a sort option
+    const onSelect = (key: string) => {
+        if (!interactive || !setSortBars) return;
+        setSortBars(key);
+    };
+
+    return (
+        <AccordionItem value="plot-sort">
+            <AccordionTrigger disabled={!interactive}>
+                <Tooltip content="Sort bars based on the x axis values. Does not apply when grouping is set." side="left">
+                    <div className="flex flex-row items-center gap-2">
+                        {currentState.key === "unsorted" 
+                            ? <ArrowUpDown size={20}/>
+                            : currentState.icon
+                        }
+                        {triggerText()}
+                    </div>                
+                </Tooltip>
+            </AccordionTrigger>
+            <AccordionContent>
+                <div className="space-y-1 pr-2">
+                    {sortOptions.map((option) => (
+                        <Button
+                            key={option.key}
+                            variant={sortBars === option.key ? "primary" : "list_item"}
+                            size="lg"
+                            className="w-full justify-start h-auto py-1 text-md flex items-center gap-2"
+                            onClick={() => onSelect(option.key)}
+                            disabled={!interactive}
+                        >
+                            {option.icon}
+                            {option.label}
+                        </Button>
+                    ))}
+                </div>
+            </AccordionContent>
+        </AccordionItem>
+    );
+};
 
 export default PlotSort;

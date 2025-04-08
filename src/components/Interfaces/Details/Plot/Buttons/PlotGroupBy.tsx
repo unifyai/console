@@ -1,79 +1,122 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import BaseDropdown from "@/components/Common/Dropdowns/Base";
-import { Group, Ungroup, LoaderCircle } from "lucide-react";
-import { DropdownMenuItem, DropdownMenuGroup, DropdownMenuSub, DropdownMenuPortal, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/UI/dropdown-menu";
-import SettingButton from "@/components/Common/Buttons/Setting";
+import { LoaderCircle } from "lucide-react";
 import { LogProps, LogFieldsResponseProps } from "@/types/evals/logs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/UI/accordion";
+import { Button } from "@/components/UI/button";
+import { BiCategoryAlt } from "react-icons/bi";
+import Tooltip from "@/components/Common/Misc/Tooltip";
 
-const PlotGroupBy = ({fields, groupBy, setGroupBy, logs}: {
-    fields: LogFieldsResponseProps, 
-    groupBy: string | undefined, 
-    setGroupBy: (x: string | undefined) => void, 
-    logs: LogProps[] | undefined
+const PlotGroupBy = ({
+  interactive = true,
+  fields,
+  groupBy,
+  setGroupBy,
+  logs,
+  plotType
+}: {
+  interactive?: boolean;
+  fields: LogFieldsResponseProps;
+  groupBy: string | undefined;
+  setGroupBy: ((x: string | undefined) => void) | undefined;
+  logs: LogProps[] | undefined;
+  plotType: string;
 }) => {
 
     /* Display loader when data updates */
     const [loading, setLoading] = useState(false);
     useEffect(() => {
         setLoading(false);
-    },[logs])
+    }, [logs]);
 
     /* Available options */
     const properties = Object
         .entries(fields)
         .map(([name]) => name);
-    let options = properties.reduce((acc: {[key: string]: string[]}, item) => {
+    const options = properties.reduce((acc: { [key: string]: string[] }, item) => {
         const [table, column] = item.split(".");
-        acc[table] = acc[table] || [];
-        acc[table].push(column);
-        return acc;
-    }, {}) as {[key: string]: string[]};
-    options ["None"] = []
-
-    /* Selection handler */
-    const onSelect = (option: string) => {
-        setGroupBy(option === "None" || option === groupBy ? undefined : option)
-        setLoading(true)
-    }
-    
-    /* Dropdown button */
-    const icon = !groupBy || groupBy === "None" 
-        ? loading ? <LoaderCircle className="animate-spin text-primary"/> : <Group/> 
-        : loading ? <LoaderCircle className="animate-spin text-white"/> : <Ungroup/>;
-    const variant = !groupBy || groupBy === "None" ? "outline" : "primary";
-    const button = <SettingButton icon={icon} tooltip={"Group by"} variant={variant} disabled={loading}/> 
-    return (
-        <BaseDropdown button={button}>
-            {Object.entries(options).map(([table, columns], optionIndex) => {
-
-                if (table === "None") {
-                    return <DropdownMenuItem key={"None"} onClick={() => onSelect("None")}>{"None"}</DropdownMenuItem>
-                }
-
-                const tableTrigger = <DropdownMenuSubTrigger className="hover:text-white data-[state=open]:text-white">{table}</DropdownMenuSubTrigger>
-                const tableOptions = columns.map((column, optionIndex) => {
-                    const selection = `${table}.${column}`
-                    return <DropdownMenuItem key={optionIndex} onSelect={() => onSelect(selection)}>{column}</DropdownMenuItem>
-                })
-
-                return (
-                    <DropdownMenuGroup key={optionIndex}> 
-                        <DropdownMenuSub>
-                            {tableTrigger}
-                            <DropdownMenuPortal>
-                                <DropdownMenuSubContent>
-                                    {tableOptions}
-                                </DropdownMenuSubContent>
-                            </DropdownMenuPortal>
-                        </DropdownMenuSub>
-                    </DropdownMenuGroup>
-                )
-            })
+            if (table && column) {
+                acc[table] = acc[table] || [];
+                acc[table].push(column);
         }
-        </BaseDropdown>
+        return acc;
+        }, {}) as { [key: string]: string[] };
+        
+    /* Selection handler */
+    const onSelect = (selection: string | undefined) => {
+        if (!interactive || !setGroupBy) return;
+        setLoading(true);
+        setGroupBy(selection === groupBy ? undefined : selection);
+    };
+
+    return (
+        <AccordionItem value="plot-group-by" disabled={loading || !interactive}>
+        <AccordionTrigger disabled={loading || !interactive}>
+            <Tooltip content="Assign a different color to data points based on the grouping field." side="left">
+                <div className="flex flex-row items-center gap-2">
+                    {loading ? <LoaderCircle className="animate-spin" size={20} /> : <BiCategoryAlt size={20}/>}
+                    {`Group: ${groupBy ?? ""}`}
+                </div>
+            </Tooltip>
+        </AccordionTrigger>
+        <AccordionContent>
+            <div className="max-h-60 overflow-y-auto pr-2 space-y-1">
+            {/* Button for "None" option */}
+            <Button
+                key="none-group-by"
+                variant={!groupBy ? "primary" : "list_item"}
+                size="lg"
+                className="w-full justify-start h-auto py-1 text-md"
+                onClick={() => onSelect(undefined)} // Select undefined for "None"
+                disabled={loading || !interactive}
+            >
+                None
+            </Button>
+
+            {/* Accordion for Tables */}
+            <Accordion type="multiple" className="w-full">
+                {Object.entries(options).map(([table, columns]) => (
+                <AccordionItem key={table} value={`group-${table}`} className="border-b-0">
+                    {/* Table Name Trigger */}
+                    <AccordionTrigger
+                        className="text-md font-semibold text-muted-foreground hover:no-underline justify-start py-1 px-1"
+                        disabled={loading || !interactive}
+                    >
+                    {table}
+                    </AccordionTrigger>
+                    {/* Content: Columns */}
+                    <AccordionContent className="pl-3 pb-1 space-y-1">
+                    {columns.map((column) => {
+                        const selection = `${table}.${column}`;
+                        return (
+                            <Button
+                                key={selection}
+                                variant={selection === groupBy ? "primary" : "list_item"}
+                                size="lg"
+                                className="w-full justify-start h-auto py-1 text-md"
+                                onClick={() => onSelect(selection)}
+                                disabled={loading || !interactive}
+                            >
+                                {column}
+                            </Button>
+                        );
+                    })}
+                    </AccordionContent>
+                </AccordionItem>
+                ))}
+            </Accordion>
+
+            {/* Fallback if no property */}
+            {properties.length === 0 && (
+                <p className="text-md text-muted-foreground px-2 py-1">
+                    No properties available for grouping.
+                </p>
+            )}
+            </div>
+        </AccordionContent>
+        </AccordionItem>
     );
-}
+};
 
 export default PlotGroupBy;

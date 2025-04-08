@@ -17,6 +17,8 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground shadow-sm hover:bg-accent hover:text-accent-foreground",
         outline:
           "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
+        list_item:
+          "hover:bg-muted hover:text-muted-foreground",
         warning:
           "hover:text-destructive shadow-sm",
         warning_outline:
