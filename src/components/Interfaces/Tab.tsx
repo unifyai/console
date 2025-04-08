@@ -245,6 +245,7 @@ const Tab = ({
                                 projectId={projectId}
                                 contexts={contexts}
                                 context={tabDataState?.globalContext}
+                                logsActions={logsActions}
                                 contextActions={contextActions}
                                 button={
                                     <Tooltip content="Context">
@@ -264,6 +265,7 @@ const Tab = ({
                                 projectId={projectId}
                                 contexts={contexts}
                                 context={tabDataState?.globalContext}
+                                logsActions={logsActions}
                                 contextActions={contextActions}
                                 button={<Tooltip content="Column Context">
                                     <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>

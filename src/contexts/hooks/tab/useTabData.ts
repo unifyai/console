@@ -21,6 +21,7 @@ const EMPTY_TILE_PROPS: TileProps[] = [];
  */
 export interface TabDataActions {
   setGlobalContext: (context: string | undefined) => void;
+  removeContextFromTab: (context: string) => void;
   setSavedTab: (savedTab: TabProps | null) => void;
   setTableArguments: (tableArguments: TableArguments) => void;
 
@@ -172,6 +173,7 @@ export function useTabData(
 
   // Get all the store actions needed for data
   const storeUpdateTab = useStoreContext(state => state.updateTab);
+  const storeRemoveContextFromTab = useStoreContext(state => state.removeContextFromTab);
   const storeInitTile = useStoreContext(state => state.initTile);
   const storeAddTile = useStoreContext(state => state.addTile);
   const storeRemoveTile = useStoreContext(state => state.removeTile);
@@ -222,6 +224,12 @@ export function useTabData(
     setGlobalContext: (globalContext) => {
       if (tabId) {
         storeUpdateTab(tabId, { globalContext });
+      }
+    },
+
+    removeContextFromTab: (context) => {
+      if (tabId) {
+        storeRemoveContextFromTab(tabId, context);
       }
     },
     
@@ -460,6 +468,7 @@ export function useTabData(
     activeInterfaceId,
     setItems,
     storeUpdateTab,
+    storeRemoveContextFromTab,
     storeInitTile,
     storeAddTile,
     storeRemoveTile,

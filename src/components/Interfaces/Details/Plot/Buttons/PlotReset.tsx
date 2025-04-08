@@ -5,23 +5,25 @@ import { X } from "lucide-react";
 import * as d3 from "d3";
 import { clearCanvas } from "@/utils/evals/plot";
 
-const PlotReset = ({svgRef, containerRef, setSelectedXAxisProperty, setSelectedYAxisProperty, setGroupByProperty}: {
+const PlotReset = ({svgRef, containerRef, setSelectedXAxisProperty, setSelectedYAxisProperty, setGroupByProperty, setIsAggregated}: {
     svgRef: any,
     containerRef: any,
     setSelectedXAxisProperty: (x: string | undefined) => void,
     setSelectedYAxisProperty: (x: string | undefined) => void,
-    setGroupByProperty: (x: string | undefined) => void
+    setGroupByProperty: (x: string | undefined) => void,
+    setIsAggregated: ((x: string | undefined) => void)
 }) => {
     const onClick = () => {
         setSelectedXAxisProperty(undefined);
         setSelectedYAxisProperty(undefined);
         setGroupByProperty(undefined);
+        setIsAggregated(undefined);
         clearCanvas(svgRef, containerRef)
     };
     return (
         <SettingButton
             icon={<X/>}
-            tooltip="Reset settings"
+            tooltip="Clear plot"
             onClick={onClick}
         />
     )

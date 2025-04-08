@@ -478,3 +478,30 @@ export const convertMetricsToLogs = (
 
     return metricLogs;
 };
+
+/**
+ * Returns an array of field names that start with the given "column context".
+ * For example, if columnContext = "question", it returns all keys like "question/something".
+ *
+ * @param fields LogFieldsResponseProps
+ * @param columnContext A prefix like "question" or "question/" or "student"
+ * @returns string[] of matching field names (e.g. ["question/subject", "question/paper_id", ...])
+ */
+export function getFieldsByColumnContext(
+  fields: LogFieldsResponseProps,
+  columnContext: string
+): string[] {
+  if (!columnContext) {
+    // If no context is provided, return all keys (or empty array, up to you)
+    return [];
+  }
+
+  // Ensure we have a trailing slash, so "question" => "question/"
+  // If the user already includes a slash, we preserve that
+  const normalizedContext = columnContext.endsWith("/")
+    ? columnContext
+    : columnContext + "/";
+
+  // Filter all fields to those whose key starts with e.g. "question/"
+  return Object.keys(fields).filter((key) => key.startsWith(normalizedContext));
+}

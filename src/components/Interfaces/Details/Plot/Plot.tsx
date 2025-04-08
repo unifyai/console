@@ -167,7 +167,8 @@ const LogsPlot = ({
                     yTable,
                     logs,
                     fields,
-                    zoomRef
+                    zoomRef,
+                    interactive
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
@@ -200,7 +201,8 @@ const LogsPlot = ({
                     yTable,
                     logs,
                     fields,
-                    zoomRef
+                    zoomRef,
+                    interactive
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
@@ -266,7 +268,8 @@ const LogsPlot = ({
                     yTable,
                     logs,
                     fields,
-                    zoomRef
+                    zoomRef,
+                    interactive
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
@@ -293,7 +296,8 @@ const LogsPlot = ({
         binCount,
         binCounts,
         showRegression,
-        isAggregated
+        isAggregated,
+        interactive
     ]);
 
 
@@ -378,6 +382,7 @@ const LogsPlot = ({
                             setSelectedXAxisProperty={plotTileActions?.setXAxis!}
                             setSelectedYAxisProperty={plotTileActions?.setYAxis!}
                             setGroupByProperty={plotTileActions?.setPlotGroupBy!}
+                            setIsAggregated={plotTileActions?.setIsAggregated!}
                         />
                         {plotType === "Histogram" && <PlotBins binCount={binCount} binCounts={binCounts} setBinCount={plotTileActions?.setBinCount!}/>}
                         <PlotGroupBy fields={fields} groupBy={groupByProperty} setGroupBy={plotTileActions?.setPlotGroupBy!} logs={logs}/>

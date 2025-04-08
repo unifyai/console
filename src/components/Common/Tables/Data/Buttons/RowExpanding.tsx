@@ -21,24 +21,27 @@ const RowExpanding = ({
 }: RowExpandingProps) => {
     const [isLoading, setIsLoading] = useState(externalIsLoading);
     const [isAnimating, setIsAnimating] = useState(externalIsAnimating);
-
     const isExpanded = row.getIsExpanded();
+
+    const handleOnExpand = async () => {
+        setIsLoading(true);
+            try {
+                const groupingValue = row.getValue(groupingColumnId);
+                const parentId = row.original.id.split('>').slice(0, -1).join('>');
+                await onExpand(groupingColumnId, groupingValue as string, parentId, setExpandingRowId);
+            } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleInitialExpand = async () => {
+        if (isExpanded && !row.original.isPopulated) {
+            handleOnExpand();
+        }
+    };
 
     // Effect to handle initial expanded state on page load
     useEffect(() => {
-        const handleInitialExpand = async () => {
-            if (row.getIsExpanded() && !row.original.isPopulated) {
-                setIsLoading(true);
-                try {
-                    const groupingValue = row.getValue(groupingColumnId);
-                    const parentId = row.original.id.split('>').slice(0, -1).join('>');
-                    await onExpand(groupingColumnId, groupingValue as string, parentId, setExpandingRowId);
-                } finally {
-                    setIsLoading(false);
-                }
-            }
-        };
-
         handleInitialExpand();
     }, []);
 
@@ -51,14 +54,7 @@ const RowExpanding = ({
             
             if (!row.original.isPopulated) {
                 // Only fetch data when we haven't populated this group's data before
-                setIsLoading(true);
-                try {
-                    const groupingValue = row.getValue(groupingColumnId);
-                    const parentId = row.original.id.split('>').slice(0, -1).join('>');
-                    await onExpand(groupingColumnId, groupingValue as string, parentId, setExpandingRowId);
-                } finally {
-                    setIsLoading(false);
-                }
+                handleOnExpand();
             }
 
             // Simply toggle this row's expanded state
@@ -76,7 +72,7 @@ const RowExpanding = ({
     return (
         <button 
             className={`transition-transform duration-200 ease-in-out cursor-pointer ${
-                isExpanded ? 'rotate-90' : 'rotate-0'
+                isAnimating ? 'rotate-90' : isExpanded ? 'rotate-90' : 'rotate-0'
             }`}
             onClick={handleClick}
             disabled={isLoading}

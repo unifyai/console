@@ -14,7 +14,7 @@ import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions, TableD
 import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
-import { buildTree, nestedColumns, encodeRenderedDepth } from "@/utils/evals/table";
+import { buildTree, nestedColumns, encodeRenderedDepth, formatCellValue } from "@/utils/evals/table";
 import { Badge } from "@/components/UI/badge";
 import ColumnFilter from "./Buttons/Filters/Main";
 import AggregatedCell from "./Content/AggregatedCell";
@@ -50,9 +50,7 @@ import { deselectFromClickOutside } from "@/hooks/Logs/useCellSelection";
 // Import new hooks
 import { useTab } from "@/contexts/hooks/tab";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
-import { useInterface } from "@/contexts/hooks/interface";
 import { useProject } from "@/contexts/hooks/project";
-
 import { shallow } from "zustand/vanilla/shallow";
 
 const LogsTable = ({
@@ -126,7 +124,7 @@ const LogsTable = ({
     boundaries: { minimums: {}, maximums: {} },
     metric: ""
   } as TableDataItem), []);
-  const tableDataItem = useMemo(() => tableTileState?.tableDataItem || defaultTableDataItem, [tableTileState?.tableDataItem]);
+  const tableDataItem = tableTileState?.tableDataItem || defaultTableDataItem;
 
   const setPending = (pending: boolean) => tileUIActions?.setPending(pending);
 
@@ -140,7 +138,7 @@ const LogsTable = ({
     logsData,
     totalPages,
     boundaries
-  } = useMemo(() => tableDataItem, [tableDataItem]);
+  } = tableDataItem;
 
   // Display loaders for group metrics and shared values
   const [loadingGroups, setLoadingGroups] = useState<Set<string>>(new Set());
@@ -152,7 +150,14 @@ const LogsTable = ({
 
     // Handle loading states and fetch grouped metrics
     if (!loadingSubGroup) {
-      setLoadingGroups(prev => new Set(["_all_groups_"]));
+      setLoadingGroups((prev) => {
+        // If `prev` is already the single-element set we want, just reuse it:
+        if (prev.size === 1 && prev.has("_all_groups_")) {
+          return prev; // same reference => no state update => no re-render
+        }
+        // Otherwise create a new set
+        return new Set(["_all_groups_"]);
+      });
     }
 
     // Fetch grouped metrics
@@ -181,7 +186,7 @@ const LogsTable = ({
         });
       }
     });
-  }, [tableDataItem]);
+  }, [tableDataItem.logs, loadingSubGroup]);
 
   // Extract params values from logs
   const paramsValues: LogItemProps = {};
@@ -555,7 +560,8 @@ const LogsTable = ({
             interfaceId={interfaceId}
             projectId={projectId}
             contexts={contexts}
-            context={context_}
+            context={item?.context || context_}
+            logsActions={logsActions}
             contextActions={contextActions}
             refresh={() => updateTab()}
             setPending={setPending}
@@ -782,6 +788,7 @@ const LogsTable = ({
                           logs,
                           logs.length ? [...entriesProperties, ...paramsProperties] : []
                         );
+
                         setLoadingGroups(prev => {
                           const next = new Set(prev);
                           next.delete(props.row.id);
@@ -807,20 +814,15 @@ const LogsTable = ({
                         const newKey = key.replace("Entries/", "").replace("Parameters/", "");
                         const groupingValue = row.getValue(key) as string;
                         const value = groupedMetrics[newKey] ? groupedMetrics[newKey][groupingValue] : undefined;
-                        if (value && typeof value === "number")
-                          if (state.metric === "count")
-                            return Math.floor(value)
-                          else
-                            return value.toFixed(2)
-                        else if (value && cell.column.columnDef.meta?.dataType === "timedelta" && state.metric != "count") 
-                          try {
-                            return durationToTimeDelta(timeDeltaValueToDuration(value.toString()));
-                          } catch (error) {
-                            console.error("Error formatting timedelta:", error);
-                            return value?.toString() ?? "";
-                          }
-                        else
-                          return value?.toString() ?? ""
+                        const exclude_nulls = true;
+                        const exclude_undefined = true;
+                        const formattedValue = formatCellValue(
+                          value, 
+                          cell.column.columnDef.meta?.dataType ?? "", 
+                          exclude_nulls,
+                          exclude_undefined
+                        );
+                        return formattedValue;
                       }}
                       getSharedValue={(key: string) => {
                         const slicedRowId = row.id.split(">").slice(0, -1).join(">");
@@ -834,17 +836,15 @@ const LogsTable = ({
                         const newKey = key.replace("Entries/", "").replace("Parameters/", "");
                         const groupingValue = row.getValue(key) as string;
                         const value = groupedSharedValues[newKey] ? groupedSharedValues[newKey][groupingValue] : undefined;
-                        if (value && typeof value === "number") 
-                          return value.toFixed(2)
-                        else if (value && cell.column.columnDef.meta?.dataType === "timedelta") 
-                          try {
-                            return durationToTimeDelta(timeDeltaValueToDuration(value.toString()));
-                          } catch (error) {
-                            console.error("Error formatting timedelta:", error);
-                            return value?.toString() ?? "";
-                          }
-                        else
-                          return value?.toString() ?? ""
+                        const exclude_nulls = true;
+                        const exclude_undefined = true;
+                        const formattedValue = formatCellValue(
+                          value, 
+                          cell.column.columnDef.meta?.dataType ?? "", 
+                          exclude_nulls,
+                          exclude_undefined
+                        );
+                        return formattedValue;
                       }}
                     />
                   )}

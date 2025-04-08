@@ -510,3 +510,49 @@ export function renameTab(
   // Now remove the source tab
   removeTab(state, interfaceId, sourceTabId);
 }
+
+/**
+ * Remove a context from a tab
+ */
+export function removeContextFromTab(
+  state: WritableDraft<StoreSlice>,
+  tabId: string,
+  context: string
+): void {
+  const tab = state.tabsById[tabId];
+  if (!tab) return;
+
+  if (tab.globalContext && tab.globalContext === context) {
+    tab.globalContext = undefined;
+  }
+
+  // Also update all the tiles that have the context or column context set as this context
+  let itemsNeedRecompute = false;
+  tab.tileIds?.forEach(tileId => {
+    const tile = state.tilesById[tileId];
+    if (tile) {
+      if (tile.context === context && context !== undefined) {
+        tile.context = undefined;
+        tile.pending = true;
+        tile.itemsNeedRecompute = true;
+        itemsNeedRecompute = true;
+      }
+      if (tile.tableTile?.column_context === context && context !== undefined) {
+        tile.tableTile.column_context = undefined;
+        tile.pending = true;
+        tile.itemsNeedRecompute = true;
+        itemsNeedRecompute = true;
+      }
+      if (tile.itemsNeedRecompute) {
+        state.tilesById[tileId] = tile;
+      }
+    }
+  });
+
+  // Update the tab in the store
+  if (itemsNeedRecompute && !tab.itemsNeedRecompute) {
+    tab.itemsNeedRecompute = true;
+  }
+
+  state.tabsById[tabId] = tab;
+}
