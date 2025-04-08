@@ -85,7 +85,7 @@ const LogsPlot = ({
     plotType = plotType ? plotType : "Scatter Plot";    
 
     let metric = item?.metric ? item?.metric : "mean";
-    let isAggregated = item?.is_aggregated;
+    let aggregateProperty = item?.plot_aggregate;
     const groupings = Object.fromEntries(Object.entries(args).filter(([_, tableArgs]) => tableArgs.grouping).map(([table, tableArgs]) => ([table, tableArgs.grouping.split(",")])));
     
     let binCount = item?.bin_count ? parseFloat(item?.bin_count) : 10;
@@ -272,7 +272,7 @@ const LogsPlot = ({
         binCount,
         binCounts,
         showRegression,
-        isAggregated,
+        aggregateProperty,
         interactive
     ]);
 
@@ -328,7 +328,7 @@ return (
             sortBars={sortBars}
             setSortBars={setSortBars}
             groupings={groupings}
-            isAggregated={isAggregated}
+            aggregateProperty={aggregateProperty}
             showRegression={showRegression}
             tileId={tileId}
             tabId={tabId}

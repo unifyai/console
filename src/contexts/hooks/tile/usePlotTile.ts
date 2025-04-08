@@ -40,7 +40,7 @@ export interface PlotTileDataActions {
   setPlotType: (plotType: string | undefined) => void;
   setPlotScaleX: (plotScaleX: string | undefined) => void;
   setPlotScaleY: (plotScaleY: string | undefined) => void;
-  setIsAggregated: (isAggregated: string | undefined) => void;
+  setAggregateProperty: (aggregateProperty: string | undefined) => void;
   setXAxis: (xAxis: string | undefined) => void;
   setYAxis: (yAxis: string | undefined) => void;
   setPlotGroupBy: (plotGroupBy: string | undefined) => void;
@@ -113,7 +113,7 @@ export function usePlotTile(
       plot_type: plotTile.plot_type,
       plot_scale_x: plotTile.plot_scale_x,
       plot_scale_y: plotTile.plot_scale_y,
-      is_aggregated: plotTile.is_aggregated,
+      plot_aggregate: plotTile.plot_aggregate,
       x_axis: plotTile.x_axis,
       y_axis: plotTile.y_axis,
       plot_group_by: plotTile.plot_group_by,
@@ -127,7 +127,7 @@ export function usePlotTile(
     plotTile?.plot_type,
     plotTile?.plot_scale_x,
     plotTile?.plot_scale_y,
-    plotTile?.is_aggregated,
+    plotTile?.plot_aggregate,
     plotTile?.x_axis,
     plotTile?.y_axis,
     plotTile?.plot_group_by,
@@ -180,9 +180,9 @@ export function usePlotTile(
         storeUpdatePlotTile(tileId, update);
       },
       
-      setIsAggregated: (isAggregated) => {
+      setAggregateProperty: (aggregateProperty) => {
         const update: Partial<PlotTile> = { 
-          is_aggregated: isAggregated 
+          plot_aggregate: aggregateProperty 
         };
         storeUpdatePlotTile(tileId, update);
       },

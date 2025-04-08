@@ -10,15 +10,15 @@ const PlotAggregate = ({
   interactive = true,
   plotType,
   groupings,
-  isAggregated,
-  setIsAggregated,
+  aggregateProperty,
+  setAggregateProperty,
   logs,
 }: {
   interactive?: boolean;
   plotType: string;
   groupings: { [key: string]: string[] };
-  isAggregated: string | undefined;
-  setIsAggregated: ((x: string | undefined) => void) | undefined;
+  aggregateProperty: string | undefined;
+  setAggregateProperty: ((x: string | undefined) => void) | undefined;
   logs: LogProps[] | undefined;
 }) => {
 
@@ -38,9 +38,9 @@ const PlotAggregate = ({
 
   /* Selection handler */
   const onSelect = (selection: string | undefined) => {
-    if (!interactive || !setIsAggregated) return;
+    if (!interactive || !setAggregateProperty) return;
     setLoading(true);
-    setIsAggregated(selection === isAggregated ? undefined : selection);
+    setAggregateProperty(selection === aggregateProperty ? undefined : selection);
   };
 
   const hasChoices = Object.keys(choices).length > 0;
@@ -51,7 +51,7 @@ const PlotAggregate = ({
         <Tooltip content="Use aggregate metrics as data points." side="left">
           <div className="flex items-center gap-2">
             {loading ? <LoaderCircle className="animate-spin" size={20} /> : <Sigma size={20} />}
-            {`Aggregate: ${isAggregated ?? ""}`}
+            {`Aggregate: ${aggregateProperty ?? ""}`}
           </div>
         </Tooltip>
       </AccordionTrigger>
@@ -60,7 +60,7 @@ const PlotAggregate = ({
            {/* Button for "None" option */}
            <Button
              key="none-aggregate"
-             variant={!isAggregated ? "primary" : "list_item"}
+             variant={!aggregateProperty ? "primary" : "list_item"}
              size="lg"
              className="w-full justify-start h-auto py-1 text-md"
              onClick={() => onSelect(undefined)}
@@ -88,7 +88,7 @@ const PlotAggregate = ({
                         return (
                         <Button
                             key={selection}
-                            variant={selection === isAggregated ? "primary" : "list_item"}
+                            variant={selection === aggregateProperty ? "primary" : "list_item"}
                             size="lg"
                             className="flex flex-row gap-2 items-center w-full justify-start h-auto py-1 text-md"
                             onClick={() => onSelect(selection)}

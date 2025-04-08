@@ -47,7 +47,7 @@ const PlotSettings = ({
   sortBars,
   setSortBars,
   groupings,
-  isAggregated,
+  aggregateProperty,
   showRegression,
   tileId,
   tabId,
@@ -90,7 +90,7 @@ const PlotSettings = ({
   
   /* Aggregating by */
   groupings: {[k: string]: string[]};
-  isAggregated: string | undefined;
+  aggregateProperty: string | undefined;
 
   /* Bar chart sorting */
   sortBars: string;
@@ -139,7 +139,7 @@ const PlotSettings = ({
   const setScaleY = plotTileActions?.setPlotScaleY;
   const setBinCount = plotTileActions?.setBinCount;
   const setGroupBy = plotTileActions?.setPlotGroupBy;
-  const setIsAggregated = plotTileActions?.setIsAggregated;
+  const setAggregateProperty = plotTileActions?.setAggregateProperty;
   const setShowRegression = plotTileActions?.setRegressionLine;
   const setMetric = tileDataActions?.setMetric;
 
@@ -235,9 +235,9 @@ const PlotSettings = ({
                     interactive={interactive}
                     plotType={plotType}
                     groupings={groupings}
-                    isAggregated={isAggregated}
+                    aggregateProperty={aggregateProperty}
                     logs={logs}
-                    setIsAggregated={setIsAggregated}
+                    setAggregateProperty={setAggregateProperty}
                 />
                 {/* Axis scales */}
                 <PlotScale 
@@ -322,7 +322,7 @@ const PlotSettings = ({
               setXAxis={setXAxis}
               setYAxis={setYAxis}
               setGroupBy={setGroupBy}
-              setIsAggregated={setIsAggregated}
+              setAggregateProperty={setAggregateProperty}
             />
          </div>
       )}

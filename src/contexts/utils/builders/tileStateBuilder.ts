@@ -153,7 +153,7 @@ export function buildPlotTileState(
     plot_type: tileProps.plot_type,
     plot_scale_x: tileProps.plot_scale_x,
     plot_scale_y: tileProps.plot_scale_y,
-    is_aggregated: tileProps.is_aggregated,
+    plot_aggregate: tileProps.plot_aggregate,
     x_axis: tileProps.x_axis,
     y_axis: tileProps.y_axis,
     plot_group_by: tileProps.plot_group_by,

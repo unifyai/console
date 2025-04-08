@@ -17,7 +17,7 @@ export interface PlotTileData {
   plot_type?: string | null;          // Used in addition to plotType for compatibility
   plot_scale_x?: string | null;       // X-axis scale type (linear, log, etc.)
   plot_scale_y?: string | null;       // Y-axis scale type
-  is_aggregated?: string | null;      // Whether the plot data is aggregated
+  plot_aggregate?: string | null;     // Table grouped by property used to plot metrics for
   x_axis?: string | null;             // Used in addition to xAxis for compatibility
   y_axis?: string | null;             // Used in addition to yAxis for compatibility
   plot_group_by?: string | null;      // Used in addition to groupBy for compatibility
@@ -38,7 +38,7 @@ export type PlotTile = PlotTileMeta & PlotTileData & PlotTileUI;
 // plotKeys: all keys that are used in `asTileItem` in `useTileItem` hook to convert
 // a PlotTile into a TileProps
 export const PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS: (keyof PlotTile)[] = [
-  "plot_type", "plot_scale_x", "plot_scale_y", "is_aggregated",
+  "plot_type", "plot_scale_x", "plot_scale_y", "plot_aggregate",
   "x_axis", "y_axis", "plot_group_by", "bin_count", "regression_line"
 ];
 
@@ -57,7 +57,7 @@ export function initPlotTile(initialState: Partial<PlotTile> = {}): PlotTile {
     plot_type: initialState.plot_type,
     plot_scale_x: initialState.plot_scale_x,
     plot_scale_y: initialState.plot_scale_y,
-    is_aggregated: initialState.is_aggregated,
+    plot_aggregate: initialState.plot_aggregate,
     x_axis: initialState.x_axis,
     y_axis: initialState.y_axis,
     plot_group_by: initialState.plot_group_by,
