@@ -20,16 +20,17 @@ const PlotAxis = ({ interactive = true, fields, axisProperty, setAxisProperty, a
     setMetric: ((metric: string) => void) | undefined
 }) => {
 
-    // Don't render Y axis selector for Histogram
-    if (plotType === "Histogram" && axis === "Y") {
-        return null;
-    }
-
+    
     /* Display loader when data updates */
     const [loading, setLoading] = useState(false);
     useEffect(() => {
         setLoading(false);
     }, [logs]);
+    
+    // Don't render Y axis selector for Histogram
+    if (plotType === "Histogram" && axis === "Y") {
+        return null;
+    }
 
     /* Available options */
     let properties: string[];

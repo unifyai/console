@@ -24,6 +24,7 @@ const LogsPlot = ({ logs, fields}: {
     // Initialize refs and container dimensions
     let svgRef = useRef(null);
     let containerRef = useRef(null);
+    let settingsRef = useRef(null);
     const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
     const margins = {top: 30, right: 100, bottom: 75, left: 60} // Margin on the sides
     const axisPadding = 20; // Extra padding between axes borders and plot borders
@@ -62,7 +63,8 @@ const LogsPlot = ({ logs, fields}: {
             .attr("width", dimensions.width)
             .attr("height", dimensions.height)
             .attr("viewBox", [0, 0, dimensions.width, dimensions.height]);
-        
+        const settings = d3.select(settingsRef.current)
+
         // Update clipbox dimensions
         svg.select("#clip-rect")
            .attr("x", margins.left)
@@ -85,6 +87,7 @@ const LogsPlot = ({ logs, fields}: {
                 drawLineChart(
                     container,
                     svg, 
+                    settings,
                     adjustedScaleX,
                     adjustedScaleY,
                     dimensions, 
@@ -119,7 +122,8 @@ const LogsPlot = ({ logs, fields}: {
                 const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
                 drawBarChart(
                     container,
-                    svg, 
+                    svg,
+                    settings, 
                     adjustedScaleX,
                     adjustedScaleY,
                     dimensions, 
@@ -155,6 +159,7 @@ const LogsPlot = ({ logs, fields}: {
                 drawHistogram(
                     container,
                     svg, 
+                    settings,
                     scaleX,
                     scaleY,
                     dimensions, 
@@ -191,6 +196,7 @@ const LogsPlot = ({ logs, fields}: {
                 drawScatterPlot(
                     container,
                     svg, 
+                    settings,
                     adjustedScaleX,
                     adjustedScaleY,
                     dimensions, 
