@@ -14,9 +14,11 @@ import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/UI/dialog";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import { buildFilterExpressionArgument } from "@/utils/evals/filters";
+import { DerivedEntryActions } from "@/types/evals/grid";
 
 const ColumnUpdate = ({
     project,
+    context,
     colId,
     previousEquation,
     currentTable,
@@ -32,12 +34,13 @@ const ColumnUpdate = ({
     renderMode
 }: {
     project: string,
+    context: string | undefined,
     colId: string,
     previousEquation: string,
     currentTable: string,
     tableArguments: TableArguments,
     logs: LogProps[] | GroupedLogProps[]
-    update: (project: string, key: string | null, equation: string | null, target_derived_logs: {[table_name: string]: getLogsParameters}, referenced_logs: {[table_name: string]: getLogsParameters} | null) => Promise<ResponseProps>,
+    update: DerivedEntryActions["update"],
     setPending: (pending: boolean) => void,
     refresh: () => Promise<ResponseProps>,
     open: boolean,
@@ -86,17 +89,9 @@ const ColumnUpdate = ({
                   .filter(([key, _]) => previousReferencedTables.includes(key))
                   .map(([key, args]) => [key, buildFilterExpressionArgument(args).getLogs_parameters])
         );
-        
-        let newReferencedTables : (keyof TableArguments)[] = tables.filter(table => equation.includes(table))
-        if (!newReferencedTables.length) newReferencedTables = [currentTable]
-        const referenced_logs = Object.fromEntries(
-            Object.entries(tableArguments)
-                  .filter(([key, _]) => newReferencedTables.includes(key))
-                  .map(([key, args]) => [key, buildFilterExpressionArgument(args).getLogs_parameters])
-        );
 
         setUpdateLoading(true);
-        update(project, sanitizeId(colId), equation, target_derived_logs, referenced_logs).then(async (response: ResponseProps) => {
+        update(project, context, sanitizeId(colId), equation, target_derived_logs).then(async (response: ResponseProps) => {
             if ("info" in response) {
                 
                 // Update states

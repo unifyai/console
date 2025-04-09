@@ -170,7 +170,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
         if (tile.column_context) tableArguments_[tile.i].getLogs_parameters["column_context"] = tile.column_context;
         return tableArguments_;
     }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
-    const plotArguments: PlotArguments = Object.fromEntries(Object.entries(tableArguments).map(([table, args]) => [table, args.getLogs_parameters]));
+    const plotArguments: PlotArguments = Object.fromEntries(Object.entries(tableArguments).map(([table, args]) => [table, { ...args.getLogs_parameters }]));
 
     // Get logs with pagination, and plot logs subset for all tables
     let allLogsData: LogsResponseProps[] = Array(tableTiles.length).fill({ params: {}, logs: [], count: 0, groups: [] });

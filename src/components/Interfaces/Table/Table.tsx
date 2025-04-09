@@ -787,6 +787,7 @@ const LogsTable = ({
                   ColumnUpdate={(colId: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode = "button") => (
                     <ColumnUpdate
                       project={projectId}
+                      context={item?.context}
                       colId={colId}
                       open={open}
                       setOpen={setOpen}
