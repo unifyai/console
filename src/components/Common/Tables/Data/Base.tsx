@@ -6,7 +6,7 @@ import { ColumnFiltersState, ColumnPinningState, GroupingState, Header, SortingS
 import { getFilteredRowModel, getExpandedRowModel } from "@tanstack/react-table";
 import { ColumnDef, Table as TanstackTable, Column as TanstackColumn, Cell as TanstackCell, Row as TanstackRow } from "@tanstack/react-table";
 
-import { useSensors, useSensor, MouseSensor, TouchSensor, KeyboardSensor } from "@dnd-kit/core";
+import { useSensors, useSensor, MouseSensor, TouchSensor, KeyboardSensor, DragStartEvent, DragMoveEvent, DragOverEvent, DragEndEvent, DragCancelEvent } from "@dnd-kit/core";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
@@ -175,16 +175,54 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
         ))
     );
 
+    const handleDragStartWrapper = (event: DragStartEvent) => {
+        handleDragStart(
+            event,
+            state.draggingColumns,
+            setState.setDraggingColumns,
+            table.getAllFlatColumns(),
+        );
+    }
+
+    const handleDragMoveWrapper = (event: DragMoveEvent) => {
+        handleDragMove(
+            event,
+            state.draggingColumns,
+            setState.setDraggingColumns,
+            table.getAllFlatColumns(),
+        );
+    }
+
+    const handleDragOverWrapper = (event: DragOverEvent) => {
+        handleDragOver(event, state.draggingColumns, setState.setDraggingColumns, table.getAllFlatColumns());
+    }
+
+    const handleDragEndWrapper = (event: DragEndEvent) => {
+        handleDragEnd(
+            event,
+            state.columnOrder,
+            setState.setColumnOrder,
+            state.grouping,
+            setState.setGrouping,
+            setState.setDraggingColumns,
+            table.getAllFlatColumns(),
+        );
+    }
+
+    const handleDragCancelWrapper = (event: DragCancelEvent) => {
+        handleDragCancel(setState.setDraggingColumns);
+    }
+
     return (<div className="relative flex h-fit w-full gap-2">
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
                     modifiers={[restrictToHorizontalAxis]}
-                    onDragStart={(event) => handleDragStart(event, state.draggingColumns, setState.setDraggingColumns, table.getAllFlatColumns())}
-                    onDragMove={(event) => handleDragMove(event, state.draggingColumns, setState.setDraggingColumns, table.getAllFlatColumns())}
-                    onDragOver={(event) => handleDragOver(event, state.draggingColumns, setState.setDraggingColumns, table.getAllFlatColumns())}
-                    onDragEnd={(event) => handleDragEnd(event, state.columnOrder, setState.setColumnOrder, state.grouping, setState.setGrouping, setState.setDraggingColumns, table.getAllFlatColumns())}
-                    onDragCancel={(event) => handleDragCancel(setState.setDraggingColumns)}
+                    onDragStart={(event) => handleDragStartWrapper(event)}
+                    onDragMove={(event) => handleDragMoveWrapper(event)}
+                    onDragOver={(event) => handleDragOverWrapper(event)}
+                    onDragEnd={(event) => handleDragEndWrapper(event)}
+                    onDragCancel={(event) => handleDragCancelWrapper(event)}
                 >
                     <Table className={`relative w-full ${className}`} style={{ width: table.getTotalSize() }}>
                         <TableHeader className="sticky top-0 z-20 bg-background">
@@ -219,8 +257,8 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                 columnOrder={state.columnOrder}
                                                 setColumnOrder={setState.setColumnOrder}
                                                 columnPinning={state.columnPinning}
-                                                pinningState={state.pinningState}
-                                                setPinningState={setState.setPinningState}
+                                                draggingColumnPinner={state.draggingColumnPinner}
+                                                setDraggingColumnPinner={setState.setDraggingColumnPinner}
                                                 columnActionsApplied={columnActionsApplied}
                                                 setColumnActionsApplied={setColumnActionsApplied}
                                             />

@@ -26,7 +26,7 @@ export interface DraggingColumnsState {
     };
 }
 
-export interface PinningColumnState {
+export interface DraggingColumnPinnerState {
     columnId: string | null;
     isPinning: boolean;
     direction: 'left' | 'right' | null;

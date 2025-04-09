@@ -34,7 +34,7 @@ import { FiltersByColumn } from "@/types/evals/columns";
 import CellPopover from "./Content/CellPopover";
 import { TableDataItem, TileProps, TabProps } from "@/types/evals/grid";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
-import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
+import { DraggingColumnsState, DraggingColumnPinnerState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
 import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
 import ColumnGroupBy from "@/components/Interfaces/Table/Buttons/ColumnGroupBy";
@@ -365,7 +365,7 @@ const LogsTable = ({
     },
   });
 
-  const [pinningState, setPinningState] = useState<PinningColumnState>({
+  const [draggingColumnPinner, setDraggingColumnPinner] = useState<DraggingColumnPinnerState>({
     columnId: null,
     isPinning: false,
     direction: null,
@@ -386,7 +386,7 @@ const LogsTable = ({
     columnSizing,
     context,
     draggingColumns,
-    pinningState,
+    draggingColumnPinner,
   };
   const setState = {
     setTableDataItem: (newTableDataItem: TableDataItem) => tableTileActions?.setTableDataItem(newTableDataItem),
@@ -402,7 +402,7 @@ const LogsTable = ({
     setColumnSizing,
     setContext: (newContext: string) => tableTileActions?.setColumnContext(newContext),
     setDraggingColumns,
-    setPinningState,
+    setDraggingColumnPinner,
   };
 
   // Use refs to detect a *real* page/filter change

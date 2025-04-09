@@ -8,7 +8,7 @@ import { CSS, Transform } from "@dnd-kit/utilities";
 
 import { TableHead } from "@/components/UI/table";
 import { getNextLeafColumn, getPreviousLeafColumn } from "@/utils/evals/columnOperations";
-import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
+import { DraggingColumnPinnerState, DraggingColumnsState } from "@/types/evals/columns";
 import { getCellsFromHeader, getSelectableTableCells } from "@/hooks/Logs/useCellSelection";
 import { getColumnGroupIDs } from "@/utils/evals/table";
 
@@ -62,8 +62,8 @@ const DataTableHeader = ({
   columnOrder,
   setColumnOrder,
   columnPinning,
-  pinningState,
-  setPinningState,
+  draggingColumnPinner,
+  setDraggingColumnPinner,
   children,
   columnActionsApplied,
   setColumnActionsApplied
@@ -98,8 +98,8 @@ const DataTableHeader = ({
   columnOrder: string[],
   setColumnOrder: (columnOrder: string[]) => void,
   columnPinning: { left?: string[]; right?: string[] },
-  pinningState: PinningColumnState,
-  setPinningState: (state: PinningColumnState) => void,
+  draggingColumnPinner: DraggingColumnPinnerState,
+  setDraggingColumnPinner: (state: DraggingColumnPinnerState) => void,
   children?: ReactNode,
   columnActionsApplied: { [depth: number]: { [columnId: string]: boolean } },
   setColumnActionsApplied: Dispatch<SetStateAction<{ [depth: number]: { [columnId: string]: boolean } }>>
@@ -138,10 +138,10 @@ const DataTableHeader = ({
     header.column.columnDef.meta?.dataType === "timedelta"
 
   // Handle pinning animation
-  const isPinning = pinningState.isPinning && (
-    header.column.id === pinningState.columnId || // Current column being pinned
-    (pinningState.direction === 'right' && header.column.id === getNextLeafColumn(header.column, columnOrder, table)?.id) || // Next column when pinning right
-    (pinningState.direction === 'left' && header.column.id === getPreviousLeafColumn(header.column, columnOrder, table)?.id) // Previous column when pinning left
+  const isPinning = draggingColumnPinner.isPinning && (
+    header.column.id === draggingColumnPinner.columnId || // Current column being pinned
+    (draggingColumnPinner.direction === 'right' && header.column.id === getNextLeafColumn(header.column, columnOrder, table)?.id) || // Next column when pinning right
+    (draggingColumnPinner.direction === 'left' && header.column.id === getPreviousLeafColumn(header.column, columnOrder, table)?.id) // Previous column when pinning left
   );
 
   // Determine the applied transform for both dragging and pinning
@@ -166,7 +166,7 @@ const DataTableHeader = ({
       position: 'absolute',
       top: 0,
       bottom: 0,
-      [pinningState.direction === 'right' ? 'right' : 'left']: 0,
+      [draggingColumnPinner.direction === 'right' ? 'right' : 'left']: 0,
       width: '2px',
       background: 'var(--primary)',
       opacity: 0.7,
@@ -709,8 +709,8 @@ const DataTableHeader = ({
                         table={table}
                         columnPinning={columnPinning}
                         columnOrder={columnOrder}
-                        pinningState={pinningState}
-                        setPinningState={setPinningState}
+                        draggingColumnPinner={draggingColumnPinner}
+                        setDraggingColumnPinner={setDraggingColumnPinner}
                     />
                 </div>
             )}
