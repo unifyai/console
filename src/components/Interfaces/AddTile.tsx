@@ -19,8 +19,12 @@ const AddTile = ({
     const { ui: tabUIState, dataActions: tabDataActions, exists } = useTab(tabId);
     
     // Use the getItems function from the useTab hook to get TileProps array
-    const items = useMemo(() => {
-        return !exists || !tabDataActions ? [] : tabDataActions.getItems().filter(item => item.visible !== false);
+    const [items, visibleItems] = useMemo(() => {
+        const allItems = tabDataActions?.getItems();
+        return !exists || !tabDataActions ? [[], []] : [
+            allItems as TileProps[],
+            allItems?.filter(item => item.visible) as TileProps[]
+        ];
     }, [exists, tabDataActions]);
 
     return (
@@ -41,7 +45,7 @@ const AddTile = ({
                 const position = {
                     x: (() => {
                         // Group items by row
-                        const rowGroups = items.reduce((acc, item) => {
+                        const rowGroups = visibleItems.reduce((acc, item) => {
                             const row = Math.floor(item.y);
                             if (!acc[row]) acc[row] = [];
                             acc[row].push(item);
@@ -75,7 +79,7 @@ const AddTile = ({
                     })(),
                     y: (() => {
                         // Group items by row
-                        const rowGroups = items.reduce((acc, item) => {
+                        const rowGroups = visibleItems.reduce((acc, item) => {
                             const row = Math.floor(item.y);
                             if (!acc[row]) acc[row] = [];
                             acc[row].push(item);
