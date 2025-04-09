@@ -486,7 +486,7 @@ const DataTableHeader = ({
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>{`${header.id.split("/").at(-1)} : ${header.column.columnDef.meta?.dataType || "unknown"}`}</p>
+                          <p>{`${header.id.split("/").at(-1)}: ${header.column.columnDef.meta?.dataType || "unknown"}`}</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
