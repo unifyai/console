@@ -304,58 +304,21 @@ const keyTemplate = (keys: GroupingColors) => {
  * dimensions can be measured correctly.
  *
  * @param event The mouse event (used for cursor position).
- * @param target The container to use as reference for positioning (not used)
  * @param tooltip The D3 selection of the tooltip element.
  */
-const positionTooltip = (event: any, target: any, tooltip: any) => {
-    const node = tooltip.node();
-    if (!node) return;
-
-    // --- 1. Get Dimensions ---
-    const tooltipRect = node.getBoundingClientRect();
-    const tooltipWidth = tooltipRect.width;
-    const tooltipHeight = tooltipRect.height;
-
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-
-    // --- 2. Get Cursor Position & Define Offset ---
-    const cursorX = event.pageX;
-    const cursorY = event.pageY;
-    const offsetX = 5; // Horizontal gap from cursor
-    const offsetY = 5; // Vertical gap from cursor
-    const boundaryPadding = 5; // Minimum space from viewport edges
-
-    // --- 3. Calculate Preferred Position (Bottom-Right of cursor) ---
-    let targetX = cursorX + offsetX;
-    let targetY = cursorY + offsetY;
-
-    // --- 4. Check Boundaries and Adjust ---
-
-    // Check RIGHT boundary first (for preferred bottom-right position)
-    if (targetX + tooltipWidth > viewportWidth - boundaryPadding) {
-        // Preferred position is off-screen right. Flip to the LEFT of the cursor.
-        targetX = cursorX - tooltipWidth - offsetX;
-        // Check if the flipped position now goes off the LEFT edge
-        if (targetX < boundaryPadding) {
-            targetX = boundaryPadding; // Clamp to left edge
-        }
-    }
-
-    // Check BOTTOM boundary first (for preferred bottom-right position)
-    if (targetY + tooltipHeight > viewportHeight - boundaryPadding) {
-        // Preferred position is off-screen bottom. Flip ABOVE the cursor.
-        targetY = cursorY - tooltipHeight - offsetY;
-        // Check if the flipped position now goes off the TOP edge
-        if (targetY < boundaryPadding) {
-            targetY = boundaryPadding; // Clamp to top edge
-        }
-    }
-
-    // --- 5. Apply Final Position ---
+const positionTooltip = (event: any, tooltip: any) => {
+    const tooltipNode = tooltip.node();
+    if (!tooltipNode) return;
+    const [tooltipRect] = [tooltipNode.getBoundingClientRect()];
+    const [tooltipWidth, tooltipHeight] = [tooltipRect.width, tooltipRect.height];
+    const [pointerX, pointerY] = d3.pointer(event, event.target);
+    const [xOffset, yOffset] = [
+        pointerX - tooltipWidth / 2,
+        pointerY < tooltipHeight ? pointerY + tooltipHeight / 1.75 : pointerY - tooltipHeight / 1.15
+    ]
     tooltip
-        .style("left", `${targetX}px`)
-        .style("top", `${targetY}px`);
+        .style("left", `${xOffset}px`)
+        .style("top", `${yOffset}px`)
 };
 
 /** Utility functions to process plot data, including:
@@ -964,7 +927,7 @@ export const drawBarChart = (
         }
     };
      const handleMouseMove = (event: any) => {
-        positionTooltip(event, event.currentTarget, tooltip);
+        positionTooltip(event, tooltip);
     };
     const handleMouseOut = () => {
         tooltip.transition("opacity").style("opacity", 0);
@@ -1422,7 +1385,7 @@ export const drawScatterPlot = (
     function hoverOnPoint (event: any, data: LogProps, xTable: string, yTable: string) {
 
         tooltip.html(tooltipTemplate(getTooltipData(data, xTable, yTable))).transition("opacity").style("opacity", 1)
-        positionTooltip(event, event.target, tooltip);
+        positionTooltip(event, tooltip);
 
         if (groupBy) {
             g.selectAll("circle.data-point")
@@ -1459,7 +1422,7 @@ export const drawScatterPlot = (
     }
 
     function moveOnPoint(event: any, data: LogProps) {
-        positionTooltip(event, event.target, tooltip);
+        positionTooltip(event, tooltip);
     }
 
     // When leaving a point. Reset info card data and reset point opacity if grouped
@@ -2035,7 +1998,7 @@ export const drawHistogram = (
     function hoverOnHist(event: any, bin: d3.Bin<number, number> | GroupedBin) {
 
         tooltip.html(tooltipTemplate(getTooltipData(bin))).transition("opacity").style("opacity", 1);
-        positionTooltip(event, event.target, tooltip);
+        positionTooltip(event, tooltip);
 
         g.selectAll("rect.hist-item")
          .filter((d: any) => groupByProperty
@@ -2054,7 +2017,7 @@ export const drawHistogram = (
       }
 
       function moveOnHist(event: any, bin: d3.Bin<number, number>) {
-        positionTooltip(event, event.target, tooltip);
+        positionTooltip(event, tooltip);
       }
       
       function leaveHist(event: any, bin: d3.Bin<number, number>) {
