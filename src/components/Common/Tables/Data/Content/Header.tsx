@@ -360,7 +360,7 @@ const DataTableHeader = ({
   const isSelected = isNotUtilColumn && !isPlaceholderColumn ? isAllColumnSelected(header) : isAllTableSelected();
   const selectionClass = isSelected ? 'bg-primary' : '';
   const pinnedClass = !isSelected && isPinned && isNotUtilColumn && !isPlaceholderColumn ? 'bg-background' : '';
-  const defaultBgClass = !isSelected && !pinnedClass ? 'bg-background' : '';
+  const defaultBgClass = !isSelected && !pinnedClass ? 'bg-transparent' : '';
   const hoverClass = !isSelected && !pinnedClass && !dropdownOpen && (!isPlaceholderColumn || isIndexColumn) ? 'hover:bg-muted' : '';
 
   const maxLabelWidth = Math.max(Number((style.width as string).split("px")[0]) - (actionButtonRef.current?.clientWidth ?? 0), 10)
