@@ -167,6 +167,7 @@ const ListColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
                 newFilters.find(f => f.key === filter.key)!.value === "true" 
                     ? newFilters.find(f => f.key === filter.key)!.value = "false"
                     : newFilters.find(f => f.key === filter.key)!.value = "true"
+                setFilters(newFilters)
             }}
         />
     const filterInput = (filter: ListFilter) => {
@@ -181,6 +182,7 @@ const ListColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
                     if (["exists", "isNone"].includes(option.name)) {
                         newFilters.find(f => f.key === filter.key)!.value = "true"
                     }
+                    setFilters(newFilters)
                 }}
             >
                 {["exists", "isNone"].includes(option.name) ? toggleInput(filter) : valueInput(filter, option)}
