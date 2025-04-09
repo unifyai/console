@@ -26,7 +26,7 @@ const ColumnPinner = ({
     const [startX, setStartX] = useState(0);
     const [overlayPosition, setOverlayPosition] = useState<{ left: number; top: number; height: number } | null>(null);
 
-    const handleDragEnd = useCallback(() => {
+    const handleDragEnd = () => {
         setIsDragging(false);
         setOverlayPosition(null);
         setDraggingColumnPinner({
@@ -36,7 +36,7 @@ const ColumnPinner = ({
             transform: null
         });
         setStartX(0);
-    }, [setDraggingColumnPinner]);
+    };
 
     const getOverlayPosition = useCallback(() => {
         const currentHeader = document.querySelector(`[data-column-id="${column.id}"]`);
@@ -66,21 +66,23 @@ const ColumnPinner = ({
     const handleDragStart = useCallback((e: React.MouseEvent) => {
         e.stopPropagation(); // Prevent interference with other drag handlers
         
-        setIsDragging(true);
-        setStartX(e.clientX);
-        
-        const position = getOverlayPosition();
-        if (position) {
-            setOverlayPosition(position);
+        if (!isDragging) {
+            setIsDragging(true);
+            setStartX(e.clientX);
             
-            setDraggingColumnPinner({
-                columnId: column.id,
-                isPinning: true,
-                direction: null,
-                transform: { x: 0, y: 0, scaleX: 1, scaleY: 1 }
-            });
+            const position = getOverlayPosition();
+            if (position) {
+                setOverlayPosition(position);
+                
+                setDraggingColumnPinner({
+                    columnId: column.id,
+                    isPinning: true,
+                    direction: null,
+                    transform: { x: 0, y: 0, scaleX: 1, scaleY: 1 }
+                });
+            }
         }
-    }, [column.id, setDraggingColumnPinner, getOverlayPosition]);
+    }, [column.id, isDragging, setIsDragging, setStartX, getOverlayPosition, setOverlayPosition, setDraggingColumnPinner]);
 
     const nextColumn = getNextLeafColumn(column, columnOrder, table);
     const prevColumn = getPreviousLeafColumn(column, columnOrder, table);
@@ -94,7 +96,7 @@ const ColumnPinner = ({
         if (!currentHeader) return false;
 
         const currentRect = currentHeader.getBoundingClientRect();
-        const threshold = currentRect.width * 0.1; // 10% of column width
+        const threshold = currentRect.width * 0.02; // 2% of column width
 
         if (dragDelta > 0 && nextHeader) {
             const nextRect = nextHeader.getBoundingClientRect();
@@ -210,7 +212,7 @@ const ColumnPinner = ({
                 setStartX(e.clientX);
             }
         }
-    }, [isDragging, draggingColumnPinner, startX, column, columnOrder, table, columnPinning, setDraggingColumnPinner, overlayPosition, isNearColumnBoundary, handleDragEnd]);
+    }, [column, columnOrder, table, columnPinning, draggingColumnPinner, isDragging, startX, isNearColumnBoundary, setStartX, setDraggingColumnPinner]);
 
     // Set up event listeners using useEffect
     useEffect(() => {
