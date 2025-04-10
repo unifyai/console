@@ -46,18 +46,21 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
 
     // Get tabs
     const getTabsFromInterface = async (temporary: boolean) => {
-        if (!currentProject) return {};
+        if (!currentProject) return { tabs: {}, tabNames: [] };
         
         // Fetch tabs
         const tabs = await tabActions.get(currentProject, temporary) || [];
 
         // Convert array to object with name as key
-        return tabs.reduce((acc, curr) => ({...acc, [curr.name]: curr}), {});
+        return {
+            tabs: tabs.reduce((acc, curr) => ({...acc, [curr.name]: curr}), {}),
+            tabNames: tabs.map(tab => tab.name)
+        };
     };
 
     // Fetch both regular and temporary tabs
-    let tabs: Record<string, TabProps> = await getTabsFromInterface(false);
-    let tabsTemp: Record<string, TabProps> = await getTabsFromInterface(true);
+    let { tabs }: { tabs: Record<string, TabProps>, tabNames: string[] } = await getTabsFromInterface(false);
+    let { tabs: tabsTemp, tabNames: tabNamesTemp }: { tabs: Record<string, TabProps>, tabNames: string[] } = await getTabsFromInterface(true);
 
     // Check if the tab exists in either collection
     const tabCreated = tab != undefined && tab in tabs;
@@ -446,6 +449,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     // Now build the initial state
     const initialState: Partial<IStoreState> = buildInitialState(
         currentTabName,
+        tabNamesTemp,
         currentInterfaceName,
         currentProjectName,
         projects,

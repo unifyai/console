@@ -13,6 +13,7 @@ import { PlotDataProps } from "@/types/evals/grid";
  */
 export function buildProjectState(
   tabName: string | null,
+  tabNames: string[],
   interfaceId: string,
   projectId: string | null,
   projectName: string | null,
@@ -40,6 +41,7 @@ export function buildProjectState(
   
   const { interface: interfaceObj, tabs: interfaceTabs, tiles: interfaceTiles } = buildInterfaceState(
     tabName,
+    tabNames,
     interfaceId,
     projectId,
     tabs,

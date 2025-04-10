@@ -11,6 +11,7 @@ import { StoreState } from "../slices/slice";
  */
 export function buildInitialState(
   tabName: string | null,
+  tabNames: string[],
   interfaceName: string,
   projectName: string | null,
   projectsList: string[],
@@ -54,6 +55,7 @@ export function buildInitialState(
       tiles: tilesById 
     } = buildProjectState(
       tabName,
+      tabNames,
       interfaceId,
       projectId,
       projectName,
