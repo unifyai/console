@@ -1,5 +1,5 @@
 import { LogProps, GroupedLogProps, LogFieldsResponseProps, GroupedLogPropsRaw, LogItemProps } from "@/types/evals/logs";
-import { TileProps, TableDataProps, LogsActions } from "@/types/evals/grid";
+import { TileProps, LogsActions, TableDataItem } from "@/types/evals/grid";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import { FiltersByColumn } from "@/types/evals/columns";
 import { combineFilters, filtersToExpression } from "./filters";
@@ -176,12 +176,36 @@ export function updateGroupedSubRows(
 /*
   Type guards to distinguish between LogProps and GroupedLogProps using the type field.
 */
-function isLogProps(item: LogProps | GroupedLogProps): item is LogProps {
-  return item.type === "ungrouped";
+function isLogProps(logProp: LogProps | GroupedLogProps): logProp is LogProps {
+  return logProp.type === "ungrouped";
 }
 
-function isGroupedLogProps(item: LogProps | GroupedLogProps): item is GroupedLogProps {
-  return item.type === "grouped";
+function isGroupedLogProps(logProp: LogProps | GroupedLogProps): logProp is GroupedLogProps {
+  return logProp.type === "grouped";
+}
+
+/**
+ * Recursively traverses items and pushes all LogProps into 'output'.
+ */
+function recurseFlatten(
+  logProps: LogProps[] | GroupedLogProps[],
+  output: LogProps[]
+): void {
+  for (const logProp of logProps) {
+    if (isLogProps(logProp)) {
+      // It's a LogProps, add it to output
+      output.push(logProp);
+    } else if (isGroupedLogProps(logProp)) {
+      // It's a GroupedLogProps
+      // Only flatten subRows if isPopulated = true
+      if (logProp.isPopulated) {
+        recurseFlatten(logProp.subRows, output);
+      }
+      // If not populated, we skip because there's nothing to flatten yet
+    } else {
+      console.warn("Encountered an item that is neither LogProps nor GroupedLogProps:", logProp);
+    }
+  }
 }
 
 /*
@@ -190,24 +214,10 @@ function isGroupedLogProps(item: LogProps | GroupedLogProps): item is GroupedLog
   If it's GroupedLogProps[], flattens it recursively into LogProps[].
 */
 export function maybeFlattenGroupedLogs(
-  items: LogProps[] | GroupedLogProps[]
+  logProps: LogProps[] | GroupedLogProps[]
 ): LogProps[] {
   const flattened: LogProps[] = [];
-
-  for (const item of items) {
-    if (isLogProps(item)) {
-      // Item is a LogProps; add it directly.
-      flattened.push(item);
-    } else if (isGroupedLogProps(item)) {
-      // Item is a GroupedLogProps; recursively flatten its subRows if they have been populated.
-      if (item.isPopulated) {
-        flattened.push(...maybeFlattenGroupedLogs(item.subRows));
-      }
-    } else {
-      // The item did not match any expected type.
-      console.warn('Encountered an item that is neither LogProps nor GroupedLogProps:', item);
-    }
-  }
+  recurseFlatten(logProps, flattened);
   return flattened;
 }
 
@@ -333,7 +343,7 @@ export async function onGroupExpand(
   offset: number,
   logsActions: LogsActions,
   setExpandingRowId: (id: string | null) => void,
-  updateTableDataItem: (updater: (prev: TableDataProps) => TableDataProps) => void,
+  updateTableDataItem: (updater?: (prev: TableDataItem) => TableDataItem, partialUpdates?: Partial<TableDataItem>, merge?: boolean) => void,
   item: TileProps,
   dataTypes: { [key: string]: string },
   fields: LogFieldsResponseProps,
@@ -353,6 +363,7 @@ export async function onGroupExpand(
     
     // Get the remaining grouping columns after the current one
     const remainingGrouping = currentGrouping.slice(currentIndex + 1);
+    const updatedGroupingExpression = remainingGrouping.length > 0 ? remainingGrouping.join(",") : null;
 
     setExpandingRowId(currentId);
 
@@ -363,7 +374,7 @@ export async function onGroupExpand(
       columnContext,
       updatedFilterExpression,
       sortingExpression,
-      remainingGrouping.length > 0 ? remainingGrouping.join(",") : null,
+      updatedGroupingExpression,
       groupSortingExpression,
       null,
       null,
@@ -375,10 +386,10 @@ export async function onGroupExpand(
     );
 
     let groupedMetrics: { [key: string]: { [key: string]: { [key: string]: { [key: string]: number | string } } } } = {};
-    const remainingGroupingExpression = remainingGrouping.length > 0 ? remainingGrouping.join(",") : null;
-    if (remainingGroupingExpression) {
+    if (updatedGroupingExpression) {
       const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
-      const groupingColumnId = remainingGroupingExpression.split(",")[0];
+      const groupingColumnId = updatedGroupingExpression.split(",")[0];
+      const metric = item.metric ?? "mean";
       const metricsData = await getColumnMetrics(
         project,
         context,
@@ -386,13 +397,13 @@ export async function onGroupExpand(
         numericColumns,
         updatedFilterExpression,
         groupingColumnId,
-        item.metric ?? "mean",
+        metric,
         logsActions
       ) as { [key: string]: { [key: string]: { [key: string]: number | string } } };
       const metrics = Object.fromEntries(
         Object.entries(metricsData).filter(([col, _]) => numericColumns.includes(col)).map(
           ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
-            ([groupingVal, results]) => [groupingVal, results[item.metric ?? "mean"]]
+            ([groupingVal, results]) => [groupingVal, results[metric]]
           ))]
       ));
       const sharedValues = Object.fromEntries(
@@ -402,7 +413,7 @@ export async function onGroupExpand(
           ))]
       ));
       groupedMetrics[rowId] = {
-        [item.metric ?? "mean"]: metrics,
+        [metric]: metrics,
         shared_value: sharedValues
       };
     }
@@ -445,25 +456,28 @@ export async function onGroupExpand(
       })
     );
 
-    // Update the table data with the processed logs
+    // Update the table data with the processed logs.
     await new Promise<void>(resolve => {
-      updateTableDataItem(prev => {
+      updateTableDataItem((prev: TableDataItem) => {
         const newState = {
           ...prev,
-          [item.i]: {
-            ...prev[item.i],
-            logs: updatedLogs,
-            groupedMetrics: {
-              ...prev[item.i].groupedMetrics,
-              ...groupedMetrics,
-            }
-          }
-        };
+          logs: updatedLogs,
+          updatedFilterExpression: updatedFilterExpression
+        }
         resolve();
         return newState;
       });
     });
 
+    // Merge the groupedMetrics with the previous groupedMetrics
+    await new Promise<void>(resolve => {
+      updateTableDataItem(
+        undefined,
+        { groupedMetrics },
+        true
+      );
+      resolve();
+    });
   } catch (error) {
     console.error("Error fetching grouped logs:", error);
   } finally {

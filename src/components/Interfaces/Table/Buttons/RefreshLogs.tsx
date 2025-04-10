@@ -3,31 +3,20 @@
 import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { ItemType, LogsActions, FieldsActions, TableDataItem, TableDataProps, TileProps } from "@/types/evals/grid";
-import { getLogsParameters, GroupedLogProps, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogsResponseProps } from "@/types/evals/logs";
+import { LogsActions, FieldsActions, TableDataItem, TileProps } from "@/types/evals/grid";
+import { GroupedLogProps, LogFieldsResponseProps, LogItemProps, LogsResponseProps } from "@/types/evals/logs";
 import { getLogsDetails } from "@/utils/evals/common";
-import { ResponseProps } from "@/types/common";
 import { LogProps } from "@/types/evals/logs";
 import { buildFilterExpression } from "@/utils/evals/filters";
 import { useTileItem } from "@/contexts/hooks/tile/useTileItem";
 import { useTile } from "@/contexts/hooks/tile/useTile";
+import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 
-const isGroupedLog = (log: LogProps | GroupedLogProps): log is GroupedLogProps => log.type === "grouped";
-const flattenLogs = (logs: (LogProps | GroupedLogProps)[]): LogProps[] => {
-    return logs.reduce<LogProps[]>((acc, log) => {
-        if (isGroupedLog(log)) {
-            return acc.concat(flattenLogs(log.subRows));
-        } else {
-            return acc.concat(log);
-        }
-    }, []);
-};
-
-const getNewCells = (tableDataItem: TableDataItem, logs: (LogProps | GroupedLogProps)[]): string[] => {
+const getNewCells = (tableDataItem: TableDataItem, logs: LogProps[] | GroupedLogProps[]): string[] => {
     let newCells: string[] = [];
-    const flattenedLogs = flattenLogs(logs);
+    const flattenedLogs = maybeFlattenGroupedLogs(logs);
     if (flattenedLogs.length) {
-      const flattenedTableLogs = flattenLogs(tableDataItem.logs)
+      const flattenedTableLogs = maybeFlattenGroupedLogs(tableDataItem.logs)
       const previousCells = flattenedTableLogs.flatMap(log => {
         const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`);
         const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`);
@@ -53,7 +42,7 @@ async function updateLogs (
     project: string, 
     logsActions: LogsActions, 
     fieldsActions: FieldsActions,
-    updateTable: (updateFn: (prev: TableDataProps) => TableDataProps) => void,
+    updateTableDataItem: (updater?: (prev: TableDataItem) => TableDataItem, partialUpdates?: Partial<TableDataItem>, merge?: boolean) => void,
     signal?:  AbortSignal
 ) {
     if (signal?.aborted) return;
@@ -100,25 +89,22 @@ async function updateLogs (
                 item, logsData, fields, context, column_context, project, filterExpression, groupingExpression, item.metric, sorting, undefined, logsActions
             )
             await new Promise<void>(resolve => {
-                updateTable(prev => {
-                    const newCells = getNewCells(prev[item.i], logs)
+                updateTableDataItem((prev: TableDataItem) => {
+                    const newCells = getNewCells(prev, logs)
                     const newState = {
                         ...prev,
-                        [item.i]: {
-                            ...prev[item.i],
-                            fields,
-                            logsData,
-                            totalPages,
-                            entriesProperties,
-                            paramsProperties,
-                            logs,
-                            params,
-                            metrics,
-                            boundaries,
-                            newCells,
-                            columnContexts
-                        }
-                    };
+                        fields,
+                        logsData,
+                        totalPages,
+                        entriesProperties,
+                        paramsProperties,
+                        logs,
+                        params,
+                        metrics,
+                        boundaries,
+                        newCells,
+                        columnContexts
+                    }
                     resolve();
                     return newState;
                 });
@@ -139,7 +125,7 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
     groupingExpression: string | null,
     groupSortingExpression: string | null,
     hiddenColumns: string | undefined,
-    updateTableDataItem: (updater: (prev: TableDataProps) => TableDataProps) => void,
+    updateTableDataItem: (updater?: (prev: TableDataItem) => TableDataItem, partialUpdates?: Partial<TableDataItem>, merge?: boolean) => void,
     logs: LogProps[] | GroupedLogProps[],
     logsActions: LogsActions,
     fieldsActions: FieldsActions

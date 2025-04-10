@@ -38,7 +38,7 @@ import { searchParamToFilters } from "@/utils/evals/filters";
 import CellPopover from "./Content/CellPopover";
 import SelectionMenu from "@/components/Tree/SelectionMenu/SelectionMenu";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
-import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
+import { DraggingColumnsState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Evals/Table/Buttons/ColumnCreate";
 import { DerivedEntryActions, LogsActions } from "@/types/evals/grid";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
@@ -259,12 +259,12 @@ const LogsTable = ({
     },
   });
 
-  const [pinningState, setPinningState] = useState<PinningColumnState>({
-    columnId: null,
-    isPinning: false,
-    direction: null,
-    transform: null
-  });
+  // const [pinningState, setPinningState] = useState<PinningColumnState>({
+  //   columnId: null,
+  //   isPinning: false,
+  //   direction: null,
+  //   transform: null
+  // });
 
   const [_timestamp, _setTimestamp] = useQueryState("_timestamp", { shallow: false })
 
@@ -280,7 +280,7 @@ const LogsTable = ({
     columnSizing,
     context,
     draggingColumns,
-    pinningState,
+    // pinningState,
     _timestamp
   };
   const setState = {
@@ -295,7 +295,7 @@ const LogsTable = ({
     setColumnSizing,
     setContext,
     setDraggingColumns,
-    setPinningState,
+    // setPinningState,
     _setTimestamp
   };
 

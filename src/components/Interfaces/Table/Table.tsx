@@ -10,7 +10,7 @@ import {
   ColumnSizingState,
   GroupingState,
 } from "@tanstack/react-table";
-import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions, TableDataProps } from "@/types/evals/grid";
+import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions } from "@/types/evals/grid";
 import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
@@ -34,7 +34,7 @@ import { FiltersByColumn } from "@/types/evals/columns";
 import CellPopover from "./Content/CellPopover";
 import { TableDataItem, TileProps, TabProps } from "@/types/evals/grid";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
-import { DraggingColumnsState, PinningColumnState } from "@/types/evals/columns";
+import { DraggingColumnsState, DraggingColumnPinnerState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
 import ColumnUpdate from "@/components/Interfaces/Table/Buttons/ColumnUpdate";
 import ColumnGroupBy from "@/components/Interfaces/Table/Buttons/ColumnGroupBy";
@@ -43,7 +43,6 @@ import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data
 import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import ContextSelector from "./Content/ContextSelector";
 import ResetServerAction from "./Buttons/ResetServerAction";
-import { durationToTimeDelta, timeDeltaValueToDuration } from "@/utils/evals/format";
 import { getGroupedMetrics } from "@/utils/evals/common";
 import { deselectFromClickOutside } from "@/hooks/Logs/useCellSelection";
 
@@ -143,50 +142,6 @@ const LogsTable = ({
   // Display loaders for group metrics and shared values
   const [loadingGroups, setLoadingGroups] = useState<Set<string>>(new Set());
   const [loadingSubGroup, setLoadingSubGroup] = useState<boolean>(false);
-
-  // Effect to handle table data updates and grouped metrics
-  useEffect(() => {
-    if (!tableDataItem) return;
-
-    // Handle loading states and fetch grouped metrics
-    if (!loadingSubGroup) {
-      setLoadingGroups((prev) => {
-        // If `prev` is already the single-element set we want, just reuse it:
-        if (prev.size === 1 && prev.has("_all_groups_")) {
-          return prev; // same reference => no state update => no re-render
-        }
-        // Otherwise create a new set
-        return new Set(["_all_groups_"]);
-      });
-    }
-
-    // Fetch grouped metrics
-    getGroupedMetrics(
-      projectId || null,
-      item?.context || null,
-      item?.column_context || null,
-      logs.length ? [...entriesProperties, ...paramsProperties] : [],
-      filterExpression,
-      groupingExpression,
-      metric,
-      fields,
-      logsActions
-    ).then((groupedMetrics) => {
-      // Update grouped metrics
-      tableTileActions?.updateTableDataItem({ groupedMetrics });
-
-      // Update loading states
-      if (loadingSubGroup) {
-        setLoadingSubGroup(false);
-      } else {
-        setLoadingGroups(prev => {
-          const next = new Set(prev);
-          next.delete("_all_groups_");
-          return next;
-        });
-      }
-    });
-  }, [tableDataItem.logs, loadingSubGroup]);
 
   // Extract params values from logs
   const paramsValues: LogItemProps = {};
@@ -410,7 +365,7 @@ const LogsTable = ({
     },
   });
 
-  const [pinningState, setPinningState] = useState<PinningColumnState>({
+  const [draggingColumnPinner, setDraggingColumnPinner] = useState<DraggingColumnPinnerState>({
     columnId: null,
     isPinning: false,
     direction: null,
@@ -431,7 +386,7 @@ const LogsTable = ({
     columnSizing,
     context,
     draggingColumns,
-    pinningState,
+    draggingColumnPinner,
   };
   const setState = {
     setTableDataItem: (newTableDataItem: TableDataItem) => tableTileActions?.setTableDataItem(newTableDataItem),
@@ -447,7 +402,7 @@ const LogsTable = ({
     setColumnSizing,
     setContext: (newContext: string) => tableTileActions?.setColumnContext(newContext),
     setDraggingColumns,
-    setPinningState,
+    setDraggingColumnPinner,
   };
 
   // Use refs to detect a *real* page/filter change
@@ -537,17 +492,110 @@ const LogsTable = ({
     }
   }, [columnIDs, manualColumnOrderOverride]);
 
-  const updateTableDataItemWithUpdater = (updater: (prev: TableDataProps) => TableDataProps) => {
-    // Create an adapter that wraps our simple update function to match expected signature
+  // Function for full table data item replacement
+  const updateTableDataItem = (newTableDataItem: TableDataItem) => {
     if (tableTileActions && item?.i) {
-      const newData = updater({
-        [item.i]: tableDataItem
-      });
-      if (newData && newData[item.i]) {
-        tableTileActions.updateTableDataItem(newData[item.i]);
-      }
+      tableTileActions.updateTableDataItem(newTableDataItem);
     }
   }
+
+  // Function for partial updates (more efficient)
+  const mergeUpdatesIntoTableDataItem = (
+    partialUpdates: Partial<TableDataItem>
+  ) => {
+    if (tableTileActions && item?.i) {
+      tableTileActions.mergeUpdatesIntoTableDataItem(partialUpdates)
+    }
+  }
+
+  // Adapter that accepts an updater function as well as partial updates
+  // and handles both direct overwriting updates as well as partial updates.
+  // If no partialUpdates are provided, the updater function will be used to update the tableDataItem.
+  // There is an optional merge parameter that defaults to false.
+  // If merge is true, the updates will be merged into the previous tableDataItem using mergeUpdatesIntoTableDataItem.
+  // If merge is false, the updates will overwrite the previous tableDataItem using updateTableDataItem.
+  const updateTableDataItemWithUpdater = (
+    updater?: (prev: TableDataItem) => TableDataItem,
+    partialUpdates?: Partial<TableDataItem>,
+    merge?: boolean
+  ) => {
+    const deferringFn = merge ? mergeUpdatesIntoTableDataItem : updateTableDataItem;
+
+    if (updater) {
+      if (partialUpdates) {
+        deferringFn(partialUpdates as TableDataItem);
+      } else {
+        deferringFn(updater(tableDataItem));
+      }
+    } else if (partialUpdates) {
+      deferringFn(partialUpdates as TableDataItem);
+    }
+  }
+
+  // Helper function to safely access the property
+  function safeUpdatedFilterExpression(item: TableDataItem): boolean {
+    return (item as any).updatedFilterExpression;
+  }
+
+  // Effect to handle table data updates and grouped metrics
+  useEffect(() => {
+    if (!logs.length) return;
+
+    // Handle loading states and fetch grouped metrics
+    if (!loadingSubGroup && !safeUpdatedFilterExpression(tableDataItem)) {
+      setLoadingGroups((prev) => {
+        // If `prev` is already the single-element set we want, just reuse it:
+        if (prev.size === 1 && prev.has("_all_groups_")) {
+          return prev; // same reference => no state update => no re-render
+        }
+        // Otherwise create a new set
+        return new Set(["_all_groups_"]);
+      });
+    }
+
+    // Fetch grouped metrics
+    getGroupedMetrics(
+      projectId || null,
+      item?.context || null,
+      item?.column_context || null,
+      logs.length ? [...entriesProperties, ...paramsProperties] : [],
+      filterExpression,
+      groupingExpression,
+      metric,
+      fields,
+      logsActions
+    ).then((groupedMetrics) => {
+      // Update grouped metrics
+      updateTableDataItemWithUpdater(
+        undefined,
+        { groupedMetrics },
+        true
+      );
+
+      // Update loading states
+      if (loadingSubGroup) {
+        setLoadingSubGroup(false);
+      } else {
+        setLoadingGroups(prev => {
+          const next = new Set(prev);
+          next.delete("_all_groups_");
+          return next;
+        });
+      }
+    });
+  }, [
+    projectId,
+    item?.context,
+    item?.column_context,
+    logs.length,
+    safeUpdatedFilterExpression(tableDataItem),
+    filterExpression,
+    groupingExpression,
+    metric,
+    fields,
+    logsActions,
+    item?.i,
+  ]);
 
   // Top area: filters, page, etc.
   const tableTop = (
@@ -739,6 +787,7 @@ const LogsTable = ({
                   ColumnUpdate={(colId: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode = "button") => (
                     <ColumnUpdate
                       project={projectId}
+                      context={item?.context}
                       colId={colId}
                       open={open}
                       setOpen={setOpen}
@@ -762,9 +811,16 @@ const LogsTable = ({
                       isAnimating={props.isAnimating}
                       setExpandingRowId={props.setExpandingRowId}
                       onExpand={async (groupingColumnId: string, groupingValue: string, parentId: string, setExpandingRowId: (id: string | null) => void) => {
-
                         setLoadingSubGroup(true)
-                        setLoadingGroups(prev => new Set(prev).add(props.row.id));
+                        setLoadingGroups(prev => {
+                          const next = new Set(prev);
+                          if (next.has("_all_groups_")) {
+                            next.delete("_all_groups_");
+                          }
+                          next.add(props.row.id);
+                          return next;
+                        });
+                        
                         await onGroupExpand(
                           props.row.id,
                           groupingColumnId,
@@ -883,3 +939,4 @@ const LogsTable = ({
 };
 
 export default LogsTable;
+

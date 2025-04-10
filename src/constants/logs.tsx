@@ -21,32 +21,34 @@ import markingAssistant from "./demos/marking_assistant";
 
 export const metrics = ["mean", "count", "sum", "var", "std", "min", "max", "median", "mode"];
 
-export const defaultItems = [
-    {
-        "i": "Table",
-        "x": 0.0,
-        "y": 0.0,
-        "w": 7.0,
-        "h": 8.0,
-        "minW": undefined,
-        "minH": undefined,
-        "tab": "Table",
-        "table_type": "Data Table"
-    },
-    {
-        "i": "View",
-        "x": 7.0,
-        "y": 0.0,
-        "w": 5.0,
-        "h": 8.0,
-        "minW": undefined,
-        "minH": undefined,
-        "tab": "View",
-        "table": "Table"
-    }
-];
+// export const defaultItems = [
+//     {
+//         "i": "Table",
+//         "x": 0.0,
+//         "y": 0.0,
+//         "w": 7.0,
+//         "h": 8.0,
+//         "minW": undefined,
+//         "minH": undefined,
+//         "tab": "Table",
+//         "table_type": "Data Table"
+//     },
+//     {
+//         "i": "View",
+//         "x": 7.0,
+//         "y": 0.0,
+//         "w": 5.0,
+//         "h": 8.0,
+//         "minW": undefined,
+//         "minH": undefined,
+//         "tab": "View",
+//         "table": "Table"
+//     }
+// ];
+export const defaultItems: TileProps[] = [];
 
-export const defaultNewCounter = 2;
+// export const defaultNewCounter = 2;
+export const defaultNewCounter = 0;
 
 export const icons = {
     "Table": <Table />,

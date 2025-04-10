@@ -387,14 +387,14 @@ export function addTab(
 
   if (!interfaceObj || !sourceTab) return;
 
-  // Update the tab's tileIds array by replacing tabName substrings with newName substrings
-  const newTileIds = sourceTab.tileIds?.map(id => id.replace(sourceTabId, newTabId));
+  // // Update the tab's tileIds array by replacing tabName substrings with newName substrings
+  // const newTileIds = sourceTab.tileIds?.map(id => id.replace(sourceTabId, newTabId));
 
   // Only initialize if it doesn't exist
   if (!state.tabsById[newTabId]) {
     const newTab = tabLogic.initTab(newTabId, {
       ...sourceTab,
-      tileIds: newTileIds,
+      // tileIds: newTileIds,
       ...initialState,
     });
     state.tabsById[newTabId] = newTab;
@@ -409,30 +409,30 @@ export function addTab(
   const sourceTabName = sourceTab.name || "";
   state.interfacesById[interfaceId] = interfaceLogic.addTabName(interfaceObj, newTabName, sourceTabName);
 
-  // Now copy over the tiles from the source tab but with the new tile ids and names
-  sourceTab.tileIds.forEach((sourceTileId, index) => {
-    const tile = state.tilesById[sourceTileId];
-    const newTileId = newTileIds[index];
+  // // Now copy over the tiles from the source tab but with the new tile ids and names
+  // sourceTab.tileIds.forEach((sourceTileId, index) => {
+  //   const tile = state.tilesById[sourceTileId];
+  //   const newTileId = newTileIds[index];
 
-    if (tile) {
-      state.tilesById[newTileId] = tileLogic.initTile(newTileId, {
-        ...tile,
-        id: newTileId,
-        tabId: newTabId,
-      });
+  //   if (tile) {
+  //     state.tilesById[newTileId] = tileLogic.initTile(newTileId, {
+  //       ...tile,
+  //       id: newTileId,
+  //       tabId: newTabId,
+  //     });
 
-      // Initialize type-specific data if needed
-      if (tile.type === 'Table' && !tile.tableTile) {
-        state.tilesById[newTileId].tableTile = tableTileLogic.initTableTile();
-      } else if (tile.type === 'Plot' && !tile.plotTile) {
-        state.tilesById[newTileId].plotTile = plotTileLogic.initPlotTile();
-      } else if (tile.type === 'View' && !tile.viewTile) {
-        state.tilesById[newTileId].viewTile = viewTileLogic.initViewTile();
-      } else if (tile.type === 'Editor' && !tile.editorTile) {
-        state.tilesById[newTileId].editorTile = editorTileLogic.initEditorTile();
-      }
-    }
-  });
+  //     // Initialize type-specific data if needed
+  //     if (tile.type === 'Table' && !tile.tableTile) {
+  //       state.tilesById[newTileId].tableTile = tableTileLogic.initTableTile();
+  //     } else if (tile.type === 'Plot' && !tile.plotTile) {
+  //       state.tilesById[newTileId].plotTile = plotTileLogic.initPlotTile();
+  //     } else if (tile.type === 'View' && !tile.viewTile) {
+  //       state.tilesById[newTileId].viewTile = viewTileLogic.initViewTile();
+  //     } else if (tile.type === 'Editor' && !tile.editorTile) {
+  //       state.tilesById[newTileId].editorTile = editorTileLogic.initEditorTile();
+  //     }
+  //   }
+  // });
 }
 
 /**

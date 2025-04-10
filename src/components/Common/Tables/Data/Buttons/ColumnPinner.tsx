@@ -2,7 +2,7 @@ import { Column, Table } from "@tanstack/react-table";
 import { CSSProperties, useState, useEffect, useCallback } from "react";
 import { Hand, ChevronLeft, ChevronRight } from "lucide-react";
 import { getNextLeafColumn, getPreviousLeafColumn } from "@/utils/evals/columnOperations";
-import { PinningColumnState } from "@/types/evals/columns";
+import { DraggingColumnPinnerState } from "@/types/evals/columns";
 import { Transform } from "@dnd-kit/utilities";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 
@@ -11,32 +11,32 @@ const ColumnPinner = ({
     table,
     columnPinning,
     columnOrder,
-    pinningState,
-    setPinningState,
+    draggingColumnPinner,
+    setDraggingColumnPinner,
 }: {
     column: Column<any, unknown>;
     table: Table<any>;
     columnPinning: { left?: string[]; right?: string[] };
     columnOrder: string[];
-    pinningState: PinningColumnState;
-    setPinningState: (state: PinningColumnState) => void;
+    draggingColumnPinner: DraggingColumnPinnerState;
+    setDraggingColumnPinner: (state: DraggingColumnPinnerState) => void;
 }) => {
     const [isHovered, setIsHovered] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [startX, setStartX] = useState(0);
     const [overlayPosition, setOverlayPosition] = useState<{ left: number; top: number; height: number } | null>(null);
 
-    const handleDragEnd = useCallback(() => {
+    const handleDragEnd = () => {
         setIsDragging(false);
         setOverlayPosition(null);
-        setPinningState({
+        setDraggingColumnPinner({
             columnId: null,
             isPinning: false,
             direction: null,
             transform: null
         });
         setStartX(0);
-    }, [setPinningState]);
+    };
 
     const getOverlayPosition = useCallback(() => {
         const currentHeader = document.querySelector(`[data-column-id="${column.id}"]`);
@@ -66,21 +66,23 @@ const ColumnPinner = ({
     const handleDragStart = useCallback((e: React.MouseEvent) => {
         e.stopPropagation(); // Prevent interference with other drag handlers
         
-        setIsDragging(true);
-        setStartX(e.clientX);
-        
-        const position = getOverlayPosition();
-        if (position) {
-            setOverlayPosition(position);
+        if (!isDragging) {
+            setIsDragging(true);
+            setStartX(e.clientX);
             
-            setPinningState({
-                columnId: column.id,
-                isPinning: true,
-                direction: null,
-                transform: { x: 0, y: 0, scaleX: 1, scaleY: 1 }
-            });
+            const position = getOverlayPosition();
+            if (position) {
+                setOverlayPosition(position);
+                
+                setDraggingColumnPinner({
+                    columnId: column.id,
+                    isPinning: true,
+                    direction: null,
+                    transform: { x: 0, y: 0, scaleX: 1, scaleY: 1 }
+                });
+            }
         }
-    }, [column.id, setPinningState, getOverlayPosition]);
+    }, [column.id, isDragging, setIsDragging, setStartX, getOverlayPosition, setOverlayPosition, setDraggingColumnPinner]);
 
     const nextColumn = getNextLeafColumn(column, columnOrder, table);
     const prevColumn = getPreviousLeafColumn(column, columnOrder, table);
@@ -94,7 +96,7 @@ const ColumnPinner = ({
         if (!currentHeader) return false;
 
         const currentRect = currentHeader.getBoundingClientRect();
-        const threshold = currentRect.width * 0.1; // 10% of column width
+        const threshold = currentRect.width * 0.02; // 2% of column width
 
         if (dragDelta > 0 && nextHeader) {
             const nextRect = nextHeader.getBoundingClientRect();
@@ -130,7 +132,7 @@ const ColumnPinner = ({
         });
 
         // Set pinning state to trigger animation
-        setPinningState({
+        setDraggingColumnPinner({
             columnId: column.id,
             isPinning: true,
             direction,
@@ -154,7 +156,7 @@ const ColumnPinner = ({
     }, [column, nextColumn, prevColumn, handleDragEnd]);
 
     const handleDragMove = useCallback((e: MouseEvent) => {
-        if (!isDragging || !pinningState.isPinning || !overlayPosition) {
+        if (!isDragging || !draggingColumnPinner.isPinning || !overlayPosition) {
             return;
         }
 
@@ -184,12 +186,12 @@ const ColumnPinner = ({
         const prevColumn = getPreviousLeafColumn(column, columnOrder, table);
 
         // Update pinning state with direction and transform
-        const newPinningState = {
-            ...pinningState,
+        const newdraggingColumnPinner = {
+            ...draggingColumnPinner,
             direction: dragDelta > 0 ? ("right" as const) : ("left" as const),
             transform
         };
-        setPinningState(newPinningState);
+        setDraggingColumnPinner(newdraggingColumnPinner);
 
         // If dragging right and there's a next leaf column that isn't pinned
         if (dragDelta > 50 && nextColumn && !nextColumn.getIsPinned()) {
@@ -210,7 +212,7 @@ const ColumnPinner = ({
                 setStartX(e.clientX);
             }
         }
-    }, [isDragging, pinningState, startX, column, columnOrder, table, columnPinning, setPinningState, overlayPosition, isNearColumnBoundary, handleDragEnd]);
+    }, [column, columnOrder, table, columnPinning, draggingColumnPinner, isDragging, startX, isNearColumnBoundary, setStartX, setDraggingColumnPinner]);
 
     // Set up event listeners using useEffect
     useEffect(() => {
@@ -232,7 +234,7 @@ const ColumnPinner = ({
         top: 0,
         bottom: 0,
         width: 8,
-        cursor: isDragging ? "grabbing" : "grab",
+        cursor: "grabbing",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -308,7 +310,7 @@ const ColumnPinner = ({
                         width: 4,
                         background: "var(--primary)",
                         opacity: 0.7,
-                        transform: pinningState.transform ? `translateX(${pinningState.transform.x}px)` : undefined,
+                        transform: draggingColumnPinner.transform ? `translateX(${draggingColumnPinner.transform.x}px)` : undefined,
                         transition: "transform 0.2s ease-out",
                         pointerEvents: "none",
                         zIndex: 1000,

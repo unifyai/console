@@ -202,7 +202,7 @@ export const getGroupedMetrics = async (
     const groupingColumnId = (groupingExpression as string).split(",")[0];
     const metric_ = metric ?? "mean";
     const metricsData = await getColumnMetrics(
-      project, context, column_context, columns, filterExpression, groupingColumnId, metric_, logsActions
+      project, context, column_context, numericColumns, filterExpression, groupingColumnId, metric_, logsActions
     ) as { [key: string]: { [key: string]: { [key: string]: number | string }}};
     const metrics = Object.fromEntries(
       Object.entries(metricsData).filter(([col, _]) => numericColumns.includes(col)).map(

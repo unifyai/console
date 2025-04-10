@@ -12,6 +12,7 @@ import { TableArguments } from "@/types/evals/logs";
  */
 export function buildInterfaceState(
   tabName: string | null,
+  tabNames: string[],
   interfaceId: string,
   projectId: string | null = null,
   tabs: Record<string, TabProps>,
@@ -29,16 +30,13 @@ export function buildInterfaceState(
   // Initialize collections for the result
   const tabsById: Record<string, Tab> = {};
   const tilesById: Record<string, Tile> = {};
-  const tabNames: string[] = [];
-  const tabIds: string[] = [];
-
+  const tabIds: string[] = tabNames.map(name => `${interfaceId}>${name}`);
+  const tabIdsExplored: string[] = [];
   const tabId = tabName ? `${interfaceId}>${tabName}` : null;
 
   // Add current active tab
   if (tabId && tabName) {
-    tabIds.push(tabId);
-    tabNames.push(tabName);
-    
+    tabIdsExplored.push(tabId);
     const { tab, tiles } = buildTabState(
       tabId,
       interfaceId,
@@ -64,11 +62,9 @@ export function buildInterfaceState(
   Object.entries(tabsData).forEach(([tabId_, tabData]: [string, any]) => {
     const tabName = tabData.name;
     if (tabId_ !== tabId && (tabs && tabName in tabs)) {
-      if (!tabIds.includes(tabId_)) {
-        tabIds.push(tabId_);
-        tabNames.push(tabName);
-        
-        const order = tabIds.length;
+      if (!tabIdsExplored.includes(tabId_)) {
+        tabIdsExplored.push(tabId_);
+        const order = tabIdsExplored.length;
         const { tab, tiles } = buildTabState(
           tabId_,
           projectId,

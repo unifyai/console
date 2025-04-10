@@ -13,6 +13,7 @@ import { useState } from "react";
 import { useInterface } from "@/contexts/hooks/interface";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useTabUI } from "@/contexts/hooks/tab";
+import { defaultItems, defaultNewCounter } from "@/constants/logs";
 
 const ProjectButtons = ({
     interfaceId,
@@ -111,7 +112,24 @@ const ProjectButtons = ({
                     />
                 </div>
             )}
-            {projects && <CreateProject creationFunction={serverProjectActions.create} paths={projects} />}
+            {projects && <CreateProject creationFunction={(name: string) => {
+                const createProject = serverProjectActions.create(name).then(async () => {
+                    await serverTabActions.create(
+                        "tab1", name, undefined, defaultItems, defaultNewCounter, true
+                    );
+                    const tabCreate = await serverTabActions.create(
+                        "tab1", name, undefined, defaultItems, defaultNewCounter, false
+                    );
+                    setProject(name);
+                    setTabQueryParam("tab1");
+                    tabUIActions?.setPending(true);
+                    tabUIActions?.setDataPending(true);
+                    interfaceDataActions?.setTabNames(["tab1"]);
+                    setProjects([...projects, name]);
+                    return tabCreate;
+                });
+                return createProject;
+            }} paths={projects} />}
             <ActionButton
                 variant="outline"
                 icon={tabUIState?.refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}

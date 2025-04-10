@@ -180,6 +180,7 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
                     if (["exists", "isNone", "is"].includes(option.name)) {
                         newFilters.find(f => f.key === filter.key)!.value = "true"
                     }
+                    setFilters(newFilters)
                 }}
             >
                 {toggleInput(filter)}
