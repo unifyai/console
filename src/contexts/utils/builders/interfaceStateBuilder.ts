@@ -31,10 +31,12 @@ export function buildInterfaceState(
   const tabsById: Record<string, Tab> = {};
   const tilesById: Record<string, Tile> = {};
   const tabIds: string[] = tabNames.map(name => `${interfaceId}>${name}`);
+  const tabIdsExplored: string[] = [];
   const tabId = tabName ? `${interfaceId}>${tabName}` : null;
 
   // Add current active tab
   if (tabId && tabName) {
+    tabIdsExplored.push(tabId);
     const { tab, tiles } = buildTabState(
       tabId,
       interfaceId,
@@ -60,8 +62,9 @@ export function buildInterfaceState(
   Object.entries(tabsData).forEach(([tabId_, tabData]: [string, any]) => {
     const tabName = tabData.name;
     if (tabId_ !== tabId && (tabs && tabName in tabs)) {
-      if (!tabIds.includes(tabId_)) {
-        const order = tabIds.length;
+      if (!tabIdsExplored.includes(tabId_)) {
+        tabIdsExplored.push(tabId_);
+        const order = tabIdsExplored.length;
         const { tab, tiles } = buildTabState(
           tabId_,
           projectId,
