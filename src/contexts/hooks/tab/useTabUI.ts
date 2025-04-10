@@ -23,6 +23,7 @@ export interface TabUIActions {
   setPending: (pending: boolean) => void;
   setRefreshing: (refreshing: boolean) => void;
   setTilesPending: (pending: boolean) => void;
+  setColor: (color: string | undefined) => void;
 }
 
 /**
@@ -122,6 +123,11 @@ export function useTabUI(
     return state.tabsById[tabId].refreshing;
   });
 
+  const color = useStoreContext(state => {
+    if (!tabExists || !tabId) return undefined;
+    return state.tabsById[tabId].color;
+  });
+
   // Get store actions needed for UI
   const storeUpdateTab = useStoreContext(state => state.updateTab);
   const storeUpdateTile = useStoreContext(state => state.updateTile);
@@ -143,7 +149,8 @@ export function useTabUI(
       deleting,
       dataPending,
       pending,
-      refreshing
+      refreshing,
+      color
     };
   }, [
     tabExists,
@@ -159,7 +166,8 @@ export function useTabUI(
     deleting,
     dataPending,
     pending,
-    refreshing
+    refreshing,
+    color
   ]);
 
   // Memoize the UI actions
@@ -240,6 +248,12 @@ export function useTabUI(
           
           storeUpdateTile(hierarchicalTileId, { pending });
         });
+      }
+    },
+
+    setColor: (color) => {
+      if (tabId) {
+        storeUpdateTab(tabId, { color });
       }
     }
   }), [

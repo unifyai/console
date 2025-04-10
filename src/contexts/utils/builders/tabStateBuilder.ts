@@ -172,6 +172,7 @@ export function buildTabState(
     dataPending: false,
     pending: false,
     refreshing: false,
+    color: tabData.savedTab?.color
   };
   
   // Create the complete tab

@@ -6,14 +6,14 @@ import { Input } from "@/components/UI/input";
 import SubmitButton from "@/components/Common/Buttons/Submit";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { getLogsParameters, TableArguments, LogProps, GroupedLogProps } from "@/types/evals/logs"
-import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuGroup, DropdownMenuSub, DropdownMenuPortal, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/UI/dropdown-menu";
-import { LoaderCircle, Info } from "lucide-react";
+import { DropdownMenuItem, DropdownMenuLabel } from "@/components/UI/dropdown-menu";
+import { LoaderCircle, Info, Plus } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import FormulaInput from "@/components/Common/Input/Formula";
 import { expressionToDerivedFunction } from "@/utils/evals/derivedColumns";
 import { buildFilterExpressionArgument } from "@/utils/evals/filters";
-import { Dialog, DialogTrigger, DialogContent } from "@/components/UI/dialog";
 import { processContext, sanitizeId } from "@/utils/evals/columnOperations";
+import BaseDialog from "@/components/Common/Dialogs/Base";
 
 const extractSharedPath = (firstColumnName: string, secondColumnName: string) => {
     const firstPathParts = firstColumnName.split('/').filter(p => p !== '');
@@ -222,25 +222,49 @@ const ColumnCreate = ({ project, context, columnContext, currentTable, tableArgu
     </div>
 
     return (
-        <Dialog open={loading ? true : undefined}>
-            <DropdownMenuItem>
-                <DialogTrigger asChild onClick={(e) => e.stopPropagation()}>
+        <BaseDialog
+            context="tile" 
+            open={loading ? true : undefined}
+            button={
+                <DropdownMenuItem 
+                    className="
+                    relative 
+                    flex 
+                    cursor-pointer 
+                    select-none 
+                    items-center 
+                    gap-2 
+                    rounded-sm 
+                    px-2 
+                    py-1.5 
+                    text-sm 
+                    outline-none 
+                    transition-colors 
+                    focus:bg-accent 
+                    focus:text-accent-foreground 
+                    data-[highlighted]:bg-accent 
+                    data-[highlighted]:text-accent-foreground 
+                    data-[disabled]:pointer-events-none 
+                    data-[disabled]:opacity-50 
+                    [&>svg]:size-4 
+                    [&>svg]:shrink-0
+                "
+                    onSelect={(e) => e.preventDefault()}
+                >
+                    <Plus className="h-4 w-4"/>
                     <span>New column</span>
-                </DialogTrigger>    
-            </DropdownMenuItem>
-            <DialogContent 
-                // Stop clicks from closing the parent if it’s still around
-                onPointerDown={(e) => e.stopPropagation()}
-                onPointerUp={(e) => e.stopPropagation()}
-                onPointerOver={(e) => e.stopPropagation()}
-                // Prevent auto-focus on the first input element
-                onOpenAutoFocus={(e) => e.preventDefault()}
-                className="sm:max-w-lg"
-            >
-                {body}
-                {footer}
-            </DialogContent>
-        </Dialog>
+                </DropdownMenuItem>
+            }
+            body={body}
+            footer={footer}
+            // Stop clicks from closing the parent if it’s still around
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onPointerOver={(e) => e.stopPropagation()}
+            // Prevent auto-focus on the first input element
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            className="sm:max-w-lg"
+        />
     )
 }
 

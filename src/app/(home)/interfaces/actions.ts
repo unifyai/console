@@ -269,7 +269,7 @@ export const updateDerivedEntry = async (apiKey: string) => {
 
 // create interface
 export const createInterface = async (apiKey: string) => {
-    return async (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, temporary: boolean = false) => {
+    return async (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, temporary: boolean = false, color: string | undefined) => {
         "use server";
 
         const response = await fetch(
@@ -277,7 +277,7 @@ export const createInterface = async (apiKey: string) => {
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ name, project, context: context || null, items, new_counter, temporary })
+                body: JSON.stringify({ name, project, context: context || null, items, new_counter, temporary, color: color || null })
             }
         );
         return await response.json();
@@ -301,10 +301,9 @@ export const getInterface = async (apiKey: string) => {
 
 // update interface
 export const updateInterface = async (apiKey: string) => {
-    return async (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, new_name: string | undefined = undefined, temporary: boolean = false) => {
+    return async (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, new_name: string | undefined = undefined, temporary: boolean = false, color: string | undefined) => {
         "use server";
-
-        const body = { name, project, context: context || null, items, new_counter, temporary };
+        const body = { name, project, context: context || null, items, new_counter, temporary, color: color || null };
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/interface`,
             {

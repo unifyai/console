@@ -58,6 +58,7 @@ export function buildTileState(
     error: null,
     moved: tileProps.moved,
     static: tileProps.static,
+    color: tileProps.color,
     itemsNeedRecompute: false,
   };
 

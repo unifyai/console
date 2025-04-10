@@ -2,7 +2,7 @@
 
 import { TabProps, ContextActions, TileProps, LogsActions } from "@/types/evals/grid";
 import { Eye, Hammer, SquareMousePointer, Info } from "lucide-react";
-import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon } from "lucide-react";
+import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon, Palette } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
@@ -11,6 +11,7 @@ import { ResponseProps } from "@/types/common";
 import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import Tooltip from "../Common/Misc/Tooltip";
+import ColorPicker from "../Common/Misc/ColorPicker";
 import AddTile from "./AddTile";
 import ContextSelector from "./Table/Content/ContextSelector";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
@@ -233,6 +234,19 @@ const InterfaceButtons = ({
                 onClick={handlePaste}
             />
 
+            {/* Color selector */}
+            <ColorPicker
+                value={tabUIState?.color ?? getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()}
+                onChange={(color) => tabUIActions?.setColor(color)}
+            >
+                <ActionButton 
+                    className="cursor-pointer hover:z-10"
+                    icon={<Palette/>} 
+                    variant="outline" 
+                    tooltip="Change tab primary color"
+                    disabled={!project}
+                />
+            </ColorPicker>
             {/* Right side - Edit and Interactive mode switches */}
             <div className="flex items-center gap-2 border rounded-md p-1">
                 <Switch

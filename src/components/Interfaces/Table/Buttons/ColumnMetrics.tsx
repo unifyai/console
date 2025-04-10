@@ -33,7 +33,7 @@ const ColumnMetrics = ({interactive, metric, setMetric, colSpan = 1, logs}: {int
 
     return (
         <TableCell style={style} colSpan={colSpan} className="text-left">
-            <BaseDropdown button={<ActionButton tooltip="Select metric" text={metric} icon={loading ? <LoaderCircle className="animate-spin text-primary"/> : <ChevronDown />} disabled={!interactive || loading} />} open={interactive ? undefined : false}>
+            <BaseDropdown context="tile" button={<ActionButton tooltip="Select metric" text={metric} icon={loading ? <LoaderCircle className="animate-spin text-primary"/> : <ChevronDown />} disabled={!interactive || loading} />} open={interactive ? undefined : false}>
                 {metrics.map((metric_, index) =>
                     <DropdownMenuCheckboxItem checked={metric === metric_} key={index} onClick={() => onClick(metric_)}>
                         {metric_}

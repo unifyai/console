@@ -88,7 +88,7 @@ const DefaultProject = ({
             setPendingLocal(true);
             codeActions.run({ "main.py": demoCode }, "main.py", "").then(() => {
                 tabActions.create(
-                    demoName, demoProject, undefined, demoItems, demoNewCounter, true
+                    demoName, demoProject, undefined, demoItems, demoNewCounter, true, undefined
                 ).then(() => {
                     if (demoDerivedColumns != undefined) {
                         derivedEntryActions.create(

@@ -1299,6 +1299,7 @@ export default function SelectionPanel({
               
               {/* Column Visibility Popover (Moved Here) */}
               <BasePopover
+                 context="tile"
                  button={
                    <ActionButton
                      tooltip="Show / hide columns"
@@ -1425,6 +1426,7 @@ export default function SelectionPanel({
               
               {/* Settings Popover */}
               <BasePopover
+                context="tile"
                 button={
                   <ActionButton
                     tooltip="View Settings"

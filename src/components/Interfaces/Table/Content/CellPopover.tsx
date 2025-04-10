@@ -43,7 +43,7 @@ const CellPopover = ({cell, flatLogs, paramsValues, isCellExpanded, setExpandedC
     
     return (
     <div style={{position: "absolute"}} onClick={(e) => e.stopPropagation()}>
-        <BasePopover button={null} open={open} setOpen={setOpen} className="relative max-w-[500px] max-h-[200px] overflow-auto p-5">
+        <BasePopover context="tile" button={null} open={open} setOpen={setOpen} className="relative max-w-[500px] max-h-[200px] overflow-auto p-5">
             {copy}
             {cell.column.columnDef.meta?.dataType === "image" ? flexRender(cell.column.columnDef.cell, cell.getContext()) : <Markdown>{JSON.stringify(content)}</Markdown>}
         </BasePopover>

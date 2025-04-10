@@ -67,7 +67,7 @@ const Interface = ({
   const [saveDialog, setSaveDialog] = useState(false);
   const [editTile, setEditTile] = useState<string | undefined>();
   const [newCounter, setNewCounter] = useState(0);
-  
+
   // Reference for the grid container
   const gridRef = useRef<HTMLDivElement>(null);
   
@@ -97,6 +97,7 @@ const Interface = ({
     const context_1 = savedTab != null ? savedTab.context : tabDataState?.globalContext;
     const items_1 = savedTab?.items ?? currentTileProps;
     const newCounter_1 = savedTab?.new_counter ?? newCounter;
+    const color_1 = savedTab != null ? savedTab.color : tabUIState?.color;
 
     if (
         tabQueryParam &&
@@ -113,7 +114,8 @@ const Interface = ({
                 items_1,
                 newCounter_1,
                 undefined,
-                true
+                true,
+                color_1,
             );
         } else {
             return serverTabActions.create(
@@ -122,7 +124,8 @@ const Interface = ({
                 context_1,
                 items_1,
                 newCounter_1,
-                true
+                true,
+                color_1,
             );
         }
     }
@@ -136,6 +139,7 @@ const Interface = ({
     serverTabActions,
     tileProps,
     newCounter,
+    tabUIState?.color,
     tabMetaState?.name,
     projectMetaState?.name
   ]);
@@ -189,6 +193,19 @@ const Interface = ({
       behavior: "smooth",
     });
   }, [newCounter]);
+
+  // Update tab primary and accent colors
+  useEffect(() => {
+    const root = document.documentElement;
+    const color = tabUIState?.color;
+    if (color) {
+        root.style.setProperty("--primary", color);
+        root.style.setProperty("--accent", color);
+    } else {
+        root.style.removeProperty("--primary");
+        root.style.removeProperty("--accent");
+    }
+  }, [tabUIState?.color])
 
   return (
     <div className="w-full h-full overflow-auto relative bg-background" ref={gridRef}>
@@ -348,8 +365,10 @@ const Interface = ({
                                 tileProps,
                                 newCounter,
                                 undefined,
-                                false
+                                false,
+                                tabUIState?.color,
                             );
+                            console.log("responses",response)
                         } else {
                             response = await serverTabActions.create(
                                 tabQueryParam as string,
@@ -357,7 +376,8 @@ const Interface = ({
                                 tabDataState?.globalContext,
                                 tileProps,
                                 newCounter,
-                                false
+                                false,
+                                tabUIState?.color,
                             );
                         }
                         if (response && "info" in response) {

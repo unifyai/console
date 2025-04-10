@@ -136,7 +136,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
     const reset = <ActionButton tooltip="Delete all filters" variant="warning" icon={<Trash/>} onClick={() => onReset()}/> 
     const submit = <SubmitButton text="Save" onClick={() => onSubmit()}/>
     const append = 
-        <BaseDropdown button={<ActionButton tooltip="Add new filter" icon={<Plus/>}/>}>
+        <BaseDropdown context="tile" button={<ActionButton tooltip="Add new filter" icon={<Plus/>}/>}>
             {["And", "Or"].map((method, index) => 
                 <DropdownMenuItem 
                     key={index}
@@ -168,7 +168,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
 
     /* Filter row */
     const join = (filter: TimeFilter) => 
-        <BaseDropdown button={<ActionButton tooltip="Update joining method" text={filter.join === "&&" ? "and" : "or"}/>}>
+        <BaseDropdown context="tile" button={<ActionButton tooltip="Update joining method" text={filter.join === "&&" ? "and" : "or"}/>}>
             {["And", "Or"].map((method, index) => 
                 <DropdownMenuItem 
                     key={index}

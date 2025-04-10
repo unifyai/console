@@ -12,6 +12,7 @@ export interface TileProps {
     moved?: boolean;
     static?: boolean;
     visible?: boolean;
+    color?: string;
     tab?: string;
     table?: string;
     table_type?: string;
@@ -123,6 +124,7 @@ export type ItemType =
     | "auto_update"
     | "freeze"
     | "visible"
+    | "color"
     | "table_type"
     | "file_name"
     | "file_type"
@@ -139,6 +141,7 @@ export interface TabProps {
     context: string | undefined,
     items: TileProps[],
     new_counter: number,
+    color: string | undefined
 }
 
 export interface TabsDataProps {
@@ -188,8 +191,8 @@ export interface ContextActions {
 
 export interface TabActions {
     get: (project: string, temporary: boolean) => Promise<TabProps[]>,
-    create: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, temporary: boolean) => Promise<ResponseProps>,
-    update: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, new_name: string | undefined, temporary: boolean) => Promise<ResponseProps>,
+    create: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, temporary: boolean, color: string | undefined) => Promise<ResponseProps>,
+    update: (name: string, project: string, context: string | undefined, items: TileProps[], new_counter: number, new_name: string | undefined, temporary: boolean, color: string | undefined) => Promise<ResponseProps>,
     delete: (name: string, project: string, temporary: boolean) => Promise<ResponseProps>
 }
 

@@ -1082,6 +1082,7 @@ export default function SelectionPanel({
               
               {/* Show/Hide columns Popover */}
               <BasePopover
+                context="tile"
                 button={
                   <ActionButton
                     tooltip="Show / hide columns"
