@@ -15,7 +15,7 @@ import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { DateTimeInput } from "@/components/Common/Time/DateTimeInput";
 import { AbsoluteDateString, RelativeDateString } from "@/types/evals/filters";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
-import { Dialog, DialogDescription, DialogHeader, DialogTitle, DialogContent, DialogTrigger } from "@/components/UI/dialog";
+import BaseDialog from "@/components/Common/Dialogs/Base";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 
 interface TimeFilter {
@@ -323,13 +323,12 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
     )
 
     return (
-        <Dialog
-          // Tie <Dialog> open to parent state if not "menuItem" mode
-          open={renderMode === "menuItem" ? undefined : interactive && open}
-          onOpenChange={renderMode === "menuItem" ? undefined : setOpen}
-        >
-          <DialogTrigger asChild>
-            {renderMode === "menuItem" ? (
+        <BaseDialog
+            context="tile"            
+            // Tie <Dialog> open to parent state if not "menuItem" mode
+            open={renderMode === "menuItem" ? undefined : interactive && open}
+            setOpen={renderMode === "menuItem" ? undefined : setOpen}
+            button={renderMode === "menuItem" ? (
               // Render a styled <DropdownMenuItem> so the parent doesn't close
               <DropdownMenuItem
                 onSelect={(e) => e.preventDefault()}
@@ -362,17 +361,12 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
             ) : (
               button
             )}
-          </DialogTrigger>
-    
-          <DialogContent
+            body={filterContent}
             onPointerDown={(e) => e.stopPropagation()}
             onPointerUp={(e) => e.stopPropagation()}
             onPointerOver={(e) => e.stopPropagation()}
             className="sm:max-w-2xl"
-          >    
-            {filterContent}
-          </DialogContent>
-        </Dialog>
+        />
     );
 }
 

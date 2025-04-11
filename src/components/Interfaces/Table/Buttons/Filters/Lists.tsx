@@ -12,7 +12,7 @@ import { Input } from "@/components/UI/input";
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { combineFilters, initFilters } from "@/utils/evals/filters";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/UI/dialog";
+import BaseDialog from "@/components/Common/Dialogs/Base";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 
 interface ListFilter {
@@ -222,13 +222,12 @@ const ListColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
     )
 
     return (
-        <Dialog
-          // Tie the <Dialog> open to the parent state if not "menuItem" mode
-          open={renderMode === "menuItem" ? undefined : interactive && open}
-          onOpenChange={renderMode === "menuItem" ? undefined : setOpen}
-        >
-          <DialogTrigger asChild>
-            {renderMode === "menuItem" ? (
+        <BaseDialog
+            context="tile"
+            // Tie the <Dialog> open to the parent state if not "menuItem" mode
+            open={renderMode === "menuItem" ? undefined : interactive && open}
+            setOpen={renderMode === "menuItem" ? undefined : setOpen}
+            button={renderMode === "menuItem" ? (
               <DropdownMenuItem
                 onSelect={(e) => e.preventDefault()}
                 className="
@@ -260,35 +259,12 @@ const ListColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
             ) : (
               button
             )}
-          </DialogTrigger>
-    
-          <DialogContent
+            body={filterContent}
             onPointerDown={(e) => e.stopPropagation()}
             onPointerUp={(e) => e.stopPropagation()}
             onPointerOver={(e) => e.stopPropagation()}
             className="sm:max-w-lg"
-          >
-
-            <DialogHeader>
-              <DialogDescription>
-                Search for string numeric list items by wrapping the filter value in quotes, otherwise just type the desired filter value.
-              </DialogDescription>
-            </DialogHeader>
-
-            {/* The main filter UI */}
-            {filterContent}
-
-            {/* 
-            If you wanted a separate <DialogFooter>, you could do:
-            <DialogFooter>
-              <div className="flex flex-row gap-2 justify-end">
-                {reset}
-                {submit}
-              </div>
-            </DialogFooter>
-            */}
-          </DialogContent>
-        </Dialog>
+        />
       );
 }
 
