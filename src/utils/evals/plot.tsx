@@ -7,7 +7,6 @@ import { toComputableValue, computeStatistic } from "./common";
 import { formatNumber } from "../formatNumber";
 import { formatTimeTypeValue, timeValueToTime, timeDeltaValueToDuration } from "./format";
 
-const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
 const copyIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
 const closeIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
 const copiedIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>`;
@@ -319,6 +318,19 @@ const positionTooltip = (event: any, tooltip: any) => {
     tooltip
         .style("left", `${xOffset}px`)
         .style("top", `${yOffset}px`)
+};
+
+// Helper function to get the primary color from a node
+export const getPrimaryColorFromNode = (node: Element | null): string => {
+    const fallback = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
+    if (node) {
+      // Read the computed style for --primary from the specific node
+      const color = getComputedStyle(node).getPropertyValue('--primary').trim();
+      // Provide a fallback if the property isn't set or is empty
+      return color || fallback;
+    }
+    // Fallback if the node itself is null
+    return fallback;
 };
 
 /** Utility functions to process plot data, including:
@@ -667,7 +679,7 @@ export const drawBarChart = (
     g.selectAll("text.correlation").remove();
     g.selectAll("text.correlation-group").remove();
     g.selectAll("path.best-fit").remove()
-
+    
     // Prepare data
     const properties = Object.entries(fields).map(([name]) => name);
     const xAxisProperty = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties.at(0);
@@ -835,6 +847,7 @@ export const drawBarChart = (
             });
     }
     else {
+        const primary = getPrimaryColorFromNode(svg.node());
         g
             .selectAll<SVGRectElement, DataLabel>("rect.bar-item")
             .data(data as DataLabel[], d => d[0])
@@ -859,7 +872,8 @@ export const drawBarChart = (
                         .attr("x", d => xScale(d[0])!)
                         .attr("width", xScale.bandwidth())
                         .attr("y", d => yScale(Math.max(0, d[1])))
-                        .attr("height", d => Math.abs(yScale(d[1]) - yScale(0)))),
+                        .attr("height", d => Math.abs(yScale(d[1]) - yScale(0))))
+                        .attr("fill", primary),
                 exit => exit.transition("exit")
                     .duration(500)
                     .attr("height", 0)
@@ -1096,18 +1110,26 @@ export const drawLineChart = (
             .transition("opacity")
             .style("opacity", 1)
     } else {
+        const primary = getPrimaryColorFromNode(svg.node());
         g.selectAll("path.line-item")
             .data(
                 [data as DataPoint[]],
                 (d) => `${(d as DataPoint)[0]}-${(d as DataPoint)[1]}` // Setting a unique identifier)
             )
-            .join("path")
-            .attr("class", "line")
-            .attr("fill", "none")
-            .attr("stroke", primary)
-            .attr("stroke-width", 2)
-            .attr("d", lineGenerator)
-            .attr("class", "line-item")
+            .join(
+                enter => enter.append("path")
+                  .attr("class", "line-item line")
+                  .attr("fill", "none")
+                  .attr("stroke", primary)
+                  .attr("stroke-width", 2)
+                  .attr("d", lineGenerator),
+                update => update
+                  .attr("stroke", primary)
+                  .transition("update")
+                  .duration(500)
+                  .attr("d", lineGenerator),
+                exit => exit.remove()
+            );
     }
 
     // When hovering on a line, lower opacity of other line groups and their corresponding key
@@ -1297,6 +1319,7 @@ export const drawScatterPlot = (
     // - Generate a color scheme based on the grouping values
     // - Color the points based on their groupBy value
     // - Pass the color info to the grouping key
+    const primary = getPrimaryColorFromNode(svg.node());
     let color = d3.scaleOrdinal<string>().range(d3.schemeCategory10);
     if (groupBy) {
         let domain = data.map(d => JSON.stringify(getValue(fields, groupBy, d, xTable)));
@@ -1311,34 +1334,32 @@ export const drawScatterPlot = (
     const points = g
         .selectAll("circle.data-point")
         .data(data, (d: unknown) => (d as LogProps).id); // Use unique identifier to track point transitions
-    const enteringPoints = points
-        .enter()
-        .append("circle")
-        .attr("class", "data-point")
-        .attr("fill", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
-        .attr("stroke", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
-        .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable)) : getValue(fields, xAxisProperty as string, d, xTable)))
-        .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable)) : getValue(fields, yAxisProperty as string, d, yTable)))
-        .attr("r", 0)
-        .style("cursor", "pointer")
-        .on("mouseover", (event, data) => hoverOnPoint(event, data, xTable, yTable))
-        .on("mousemove", (event, data) => moveOnPoint(event, data))
-        .on("mouseout", (event, data) => leavePoint(event, data))
-        .on("click", (event, data) => showFixedTooltip(event, getTooltipData(data, xTable, yTable)));
-    enteringPoints
-        .merge(points as any)
-        .transition("enter")
-        .duration(500)
-        .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable)) : getValue(fields, xAxisProperty as string, d, xTable)))
-        .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable)) : getValue(fields, yAxisProperty as string, d, yTable)))
-        .attr("r", 3)
-        .attr("fill", d => groupBy ? color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
-        .attr("stroke", d => groupBy ? color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary);
-    points.exit()
-        .transition("exit")
-        .duration(500)
-        .attr("r", 0)
-        .remove();
+    points.join(
+        enter => enter
+            .append("circle")
+            .attr("class", "data-point")
+            .attr("fill", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
+            .attr("stroke", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
+            .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable)) : getValue(fields, xAxisProperty as string, d, xTable)))
+            .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable)) : getValue(fields, yAxisProperty as string, d, yTable)))
+            .attr("r", 0)
+            .style("cursor", "pointer")
+            .on("mouseover", (event, data) => hoverOnPoint(event, data, xTable, yTable))
+            .on("mousemove", (event, data) => moveOnPoint(event, data))
+            .on("mouseout", (event, data) => leavePoint(event, data))
+            .on("click", (event, data) => showFixedTooltip(event, getTooltipData(data, xTable, yTable)))
+            // Call transition only on the enter selection *after* initial setup
+            .call(enter => enter.transition("enter").duration(500).attr("r", 3)),
+                update => update
+                    .attr("fill", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
+                    .attr("stroke", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
+                    .call(update => update.transition("update").duration(500)
+                        .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable)) : getValue(fields, xAxisProperty as string, d, xTable)))
+                        .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable)) : getValue(fields, yAxisProperty as string, d, yTable)))
+                        .attr("r", 3)
+            ),
+        exit => exit.call(exit => exit.transition("exit").duration(500).attr("r", 0).remove())
+    );
 
     // Add hover areas
     g
@@ -1562,19 +1583,32 @@ export const drawScatterPlot = (
             g
                 .selectAll("path.best-fit")
                 .data([regression])
-                .join("path")
-                .attr("d", d => {
-                    const xMin = x.domain()[0];
-                    const xMax = x.domain()[1];
-                    return line([
-                    [xMin, d.m * xMin + d.b],
-                    [xMax, d.m * xMax + d.b]
-                    ]);
-                })
-                .attr("stroke", primary)
-                .attr("stroke-width", 2)
-                .attr("fill", "none")
-                .attr("class", "best-fit");
+                .join(
+                    enter => enter.append("path")
+                        .attr("class", "best-fit")
+                        .attr("stroke", primary)
+                        .attr("stroke-width", 2)
+                        .attr("fill", "none")
+                        .attr("d", d => {
+                            const xMin = x.domain()[0];
+                            const xMax = x.domain()[1];
+                            return line([
+                            [xMin, d.m * xMin + d.b],
+                            [xMax, d.m * xMax + d.b]
+                            ]);
+                        }),
+                    update => update
+                        .attr("stroke", primary)
+                        .attr("d", d => {
+                            const xMin = x.domain()[0];
+                            const xMax = x.domain()[1];
+                            return line([
+                            [xMin, d.m * xMin + d.b],
+                            [xMax, d.m * xMax + d.b]
+                            ]);
+                        }),
+                    exit => exit.remove()
+                );
 
             // Get SVG coordinates of line endpoints
             const lineStart = [minX, regression.m * minX + regression.b];
@@ -1596,15 +1630,27 @@ export const drawScatterPlot = (
             g
                 .selectAll("text.correlation")
                 .data([regression])
-                .join("text")
-                .attr("x", textX)
-                .attr("y", textY)
-                .attr("transform", `rotate(${angleDeg},${textX},${textY})`)
-                .attr("text-anchor", dx < 0 ? "end" : "start")
-                .attr("dominant-baseline", "middle")
-                .attr("fill", primary)
-                .text(`r = ${regression.r.toFixed(2)}`)
-                .attr("class", "correlation");
+                .join(
+                enter => enter
+                    .append("text")
+                    .attr("x", textX)
+                    .attr("y", textY)
+                    .attr("transform", `rotate(${angleDeg},${textX},${textY})`)
+                    .attr("text-anchor", dx < 0 ? "end" : "start")
+                    .attr("dominant-baseline", "middle")
+                    .attr("fill", primary)
+                    .text(`r = ${regression.r.toFixed(2)}`)
+                    .attr("class", "correlation"),
+                update => update
+                    .attr("fill", primary)
+                    .attr("x", textX)
+                    .attr("y", textY)
+                    .attr("transform", `rotate(${angleDeg},${textX},${textY})`)
+                    .attr("text-anchor", dx < 0 ? "end" : "start")
+                    .attr("dominant-baseline", "middle")
+                    .text(d => `r = ${d.r.toFixed(2)}`),
+                exit => exit.remove()
+                );
         }
     }
 
@@ -1935,39 +1981,44 @@ export const drawHistogram = (
             });
     }
     else {
+        const primary = getPrimaryColorFromNode(svg.node());
         const bars = g
         .selectAll("rect.hist-item")
         .data((buckets as d3.Bin<number, number>[]), (d: any) => `${d.x0}-${d.x1}`); // Use bin boundaries as key
-        const enteringBars = bars.enter()
-            .append("rect")
-            .attr("class", "hist-item")
-            .attr("fill", primary)
-            .attr("x", d => x(d.x0 as number))
-            .attr("width", d => Math.max(0, x(d.x1 as number) - x(d.x0 as number) - 1))
-            .attr("y", y(0)) // Start at base
-            .attr("height", 0) // Start with 0 height
-            .style("opacity", initialOpacity)
-            .style("cursor", "pointer")
-            .on("mouseover", (event, d) => hoverOnHist(event, d))
-            .on("mousemove", (event, d) => moveOnHist(event, d))
-            .on("mouseout", (event, d) => leaveHist(event, d))
-            .on("click", (event, d) => showFixedTooltip(event, getTooltipData(d)));
-        enteringBars
-            .merge(bars as any)
-            .transition("enter")
-            .duration(500)
-            .attr("fill", primary)
-            .attr("x", d => x(d.x0 as number))
-            .attr("width", d => Math.max(0, x(d.x1 as number) - x(d.x0 as number) - 1))
-            .attr("y", d => y(d.length))
-            .attr("height", d => y(0) - y(d.length))
-            .style("opacity", initialOpacity)
-        bars.exit()
-            .transition("exit")
-            .duration(500)
-            .attr("y", y(0))
-            .attr("height", 0)
-            .remove();
+        bars.join(
+            enter => enter
+                .append("rect")
+                .attr("class", "hist-item")
+                .attr("fill", primary)
+                .attr("x", d => x(d.x0 as number))
+                .attr("width", d => Math.max(0, x(d.x1 as number) - x(d.x0 as number) - 1))
+                .attr("y", y(0)) // Start at base
+                .attr("height", 0) // Start with 0 height
+                .style("opacity", initialOpacity)
+                .style("cursor", "pointer")
+                .on("mouseover", (event, d) => hoverOnHist(event, d))
+                .on("mousemove", (event, d) => moveOnHist(event, d))
+                .on("mouseout", (event, d) => leaveHist(event, d))
+                .on("click", (event, d) => showFixedTooltip(event, getTooltipData(d)))
+                .call(enter => enter.transition("enter").duration(500)
+                    .attr("y", d => y(d.length))
+                    .attr("height", d => y(0) - y(d.length))
+                ),
+            update => update
+                .attr("fill", primary)
+                .call(update => update.transition("update").duration(500)
+                    .attr("x", d => x(d.x0 as number))
+                    .attr("width", d => Math.max(0, x(d.x1 as number) - x(d.x0 as number) - 1))
+                    .attr("y", d => y(d.length))
+                    .attr("height", d => y(0) - y(d.length))
+                ),
+            exit => exit
+                .call(exit => exit.transition("exit").duration(500)
+                    .attr("y", y(0))
+                    .attr("height", 0)
+                    .remove()
+                )
+        );
     }
 
     // Add mouse event handlers

@@ -51,6 +51,7 @@ export interface TileUI {
   error?: string | null;
   moved?: boolean;
   static?: boolean;
+  color?: string;
   itemsNeedRecompute: boolean; // Flag to indicate when tileProps needs recomputing
 }
 
@@ -67,7 +68,7 @@ export interface Tile extends TileMeta, TileData, TileUI {
 // a Tile into a TileProps
 export const TILE_PROPS_KEYS_AS_TILE_KEYS: (keyof Tile)[] = [
   "id","name","type","position","minW","minH","context","table","auto_update",
-  "freeze","filters","common_filter","metric","visible","moved","static",
+  "freeze","filters","common_filter","metric","visible","moved","static","color",
 ];
 
 export const TILE_KEYS: (keyof Tile)[] = [
@@ -111,6 +112,7 @@ export function initTile(tileId: string, initialState: Partial<Tile> = {}): Tile
     error: initialState.error !== undefined ? initialState.error : null,
     moved: initialState.moved,
     static: initialState.static,
+    color: initialState.color,
     itemsNeedRecompute: initialState.itemsNeedRecompute !== undefined ? initialState.itemsNeedRecompute : false,
     
     // Type-specific data references

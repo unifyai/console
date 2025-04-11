@@ -158,7 +158,7 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
     
     return (
         <div className="absolute -right-2 z-10 hover:opacity-100 opacity-0 transition-all">
-            <BaseDropdown button={columnButton} open={open} setOpen={setOpen}>
+            <BaseDropdown button={columnButton} open={open} setOpen={setOpen} context="tile">
                 {hiddenColumns.length > 0 && hidden}
                 {header.column.columnDef.meta?.columnType === "entries" && derived}
             </BaseDropdown>

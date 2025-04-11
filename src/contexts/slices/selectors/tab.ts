@@ -38,6 +38,7 @@ export interface TabUI {
   dataPending: boolean;
   pending: boolean;
   refreshing: boolean;
+  color?: string
 }
 
 // Combined Tab state definition
@@ -79,6 +80,7 @@ export function initTab(tabId: string, initialState: Partial<Tab> = {}): Tab {
     dataPending: initialState.dataPending !== undefined ? initialState.dataPending : false,
     pending: initialState.pending !== undefined ? initialState.pending : false,
     refreshing: initialState.refreshing !== undefined ? initialState.refreshing : false,
+    color: initialState.color,
     itemsNeedRecompute: initialState.itemsNeedRecompute !== undefined ? initialState.itemsNeedRecompute : false,
     
     ...initialState,

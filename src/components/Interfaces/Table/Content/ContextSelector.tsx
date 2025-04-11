@@ -113,6 +113,7 @@ const ContextSelector = ({
     return (
         <div className="w-fit">
             <BaseDropdown
+                context="tile"
                 button={button || <ActionButton
                     tooltip={item == undefined ? "Edit Global Context" : "Edit Context and Column Context"}
                     icon={<FolderTree />}

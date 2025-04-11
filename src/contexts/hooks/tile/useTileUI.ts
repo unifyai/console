@@ -14,6 +14,7 @@ export interface TileUIActions {
   setError: (error?: string | null) => void;
   setMoved: (moved?: boolean) => void;
   setStatic: (static_?: boolean) => void;
+  setColor: (color?: string) => void;
 }
 
 /**
@@ -84,6 +85,11 @@ export function useTileUI(
     return !!state.tilesById[tileId].static;
   });
 
+  const color = useStoreContext(state => {
+    if (!tileExists || !tileId) return undefined;
+    return state.tilesById[tileId].color;
+  });
+
   // Get store actions for UI state management
   const storeUpdateTile = useStoreContext(state => state.updateTile);
 
@@ -102,6 +108,7 @@ export function useTileUI(
       error,
       moved,
       static: static_,
+      color
     };
   }, [
     tileExists,
@@ -115,6 +122,7 @@ export function useTileUI(
     error,
     moved,
     static_,
+    color
   ]);
 
   // Memoize the UI actions to prevent unnecessary re-renders
@@ -161,6 +169,11 @@ export function useTileUI(
       }
     },
     
+    setColor: (color) => {
+      if (tileId) {
+        storeUpdateTile(tileId, {color});
+      }
+    }
   }), [tileId, storeUpdateTile]);
 
   return {

@@ -69,13 +69,13 @@ const InterfaceTabs = ({
                             onKeyDown={(e) => {
                                 if (e.key === "Enter" && tab_ != tabQueryParamState && !tabNames.includes(tabQueryParamState)) {
                                     serverTabActions.update(
-                                        tab_, project as string, context, items, newCounter, tabQueryParamState, true
+                                        tab_, project as string, context, items, newCounter, tabQueryParamState, true, tabUIState?.color
                                     ).then(() => {
                                         serverTabActions.update(
-                                            tab_, project as string, context, items, newCounter, tabQueryParamState, false
+                                            tab_, project as string, context, items, newCounter, tabQueryParamState, false, tabUIState?.color
                                         ).then(() => {
-                                            interfaceDataActions?.renameTab(tab_, tabQueryParamState);
                                             tabUIActions?.setPending(true);
+                                            interfaceDataActions?.renameTab(tab_, tabQueryParamState);
                                             setTabQueryParam(tabQueryParamState);
                                         });
                                     });
@@ -116,10 +116,10 @@ const InterfaceTabs = ({
                             initialIndex++;
                         const newTabName = `tab${initialIndex}`;
                         serverTabActions.create(
-                            newTabName, project as string, context, defaultItems, defaultNewCounter, true
+                            newTabName, project as string, context, defaultItems, defaultNewCounter, true, tabUIState?.color
                         ).then(() => {
                             serverTabActions.create(
-                                newTabName, project as string, context, defaultItems, defaultNewCounter, false
+                                newTabName, project as string, context, defaultItems, defaultNewCounter, false, tabUIState?.color
                             ).then(() => {
                                 interfaceDataActions?.addTab(tabQueryParam || "", newTabName);
                                 tabUIActions?.setTilesPending(true);

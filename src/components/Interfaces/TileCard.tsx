@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, Suspense, lazy } from "react";
+import React, { useMemo, Suspense, lazy, useRef } from "react";
 import { Plus } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
@@ -10,9 +10,9 @@ import { ResponseProps } from "@/types/common";
 import { DerivedEntryActions, FieldsActions, ContextActions, TabProps, TileProps, CodeActions } from "@/types/evals/grid";
 import { LogsActions } from "@/types/evals/grid";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
-
+import { TileColorContext } from '@/contexts/TileColorContext';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
-import { useTileData } from '@/contexts/hooks/tile';
+import { useTileData, useTileUI } from '@/contexts/hooks/tile';
 import { useLogLengths } from "@/contexts/hooks/useStore";
 
 const Tile = lazy(() => import('./Tile'));
@@ -29,6 +29,7 @@ interface TileCardProps {
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
   codeActions: CodeActions;
+  tileButtonsRef?: React.RefObject<HTMLDivElement>
 }
 
 const TileCard = ({
@@ -43,13 +44,17 @@ const TileCard = ({
   derivedEntryActions,
   contextActions,
   codeActions,
+  tileButtonsRef
 }: TileCardProps) => {
+
+  const tileCardRef = useRef<HTMLDivElement>(null);
 
   // Use tab hooks for tab-level state
   const { ui: tabUIState } = useTabUI(tabId, interfaceId);
   const { dataActions: tabDataActions } = useTabData(tabId, interfaceId);
-
+  
   // Use granular tile hooks for tile-specific state
+  const {ui: tileUIState} = useTileUI(tileId, tabId, interfaceId);
   const { dataActions: tileDataActions } = useTileData(tileId, tabId, interfaceId);
 
   // Get tile props using the getItems function from the tabDataActions
@@ -71,11 +76,13 @@ const TileCard = ({
   const logsLengths = useLogLengths();
 
   return (
-    <div className="relative flex w-full h-full border">
+  <TileColorContext.Provider value={tileUIState?.color  || null}>
+    <div ref={tileCardRef} className="relative flex w-full h-full border">
       <div className={"w-full flex-1 flex flex-col items-center " + ((!tabUIState?.edit && tab) ? "mt-4" : tab ? "mt-2" : "justify-center")}>
         <div className="flex gap-4 z-20">
           {tabUIState?.edit && <div className="w-fit">
             <BaseDropdown
+              context="tile"
               button={<ActionButton
                 tooltip="Select Tile Type"
                 text={item?.tab}
@@ -112,6 +119,7 @@ const TileCard = ({
           </div>}
           {tab && tabUIState?.edit && tab === "View" && <div className="w-fit">
             <BaseDropdown
+              context="tile"
               button={<ActionButton
                 tooltip="Select Table"
                 text={item?.table || "Select Table"}
@@ -155,11 +163,14 @@ const TileCard = ({
               derivedEntryActions={derivedEntryActions}
               contextActions={contextActions}
               codeActions={codeActions}
+              tileButtonsRef={tileButtonsRef}
+              tileCardRef={tileCardRef}
           />
         </Suspense>
 
       </div>
     </div>
+  </TileColorContext.Provider>
   );
 };
 

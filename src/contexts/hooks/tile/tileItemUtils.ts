@@ -28,6 +28,7 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
     moved: tile.moved,
     static: tile.static,
     context: tile.context || undefined,
+    color: tile.color || undefined,
     table: tile.table || undefined,
     auto_update: tile.auto_update || undefined,
     freeze: tile.freeze || undefined,

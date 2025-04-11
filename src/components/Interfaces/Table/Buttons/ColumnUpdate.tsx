@@ -11,10 +11,10 @@ import { TbMathFunction } from "react-icons/tb";
 import { LoaderCircle } from "lucide-react";
 import { expressionToDerivedFunction, derivedFunctionToExpression } from "@/utils/evals/derivedColumns";
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/UI/dialog";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import { buildFilterExpressionArgument } from "@/utils/evals/filters";
 import { DerivedEntryActions } from "@/types/evals/grid";
+import BaseDialog from "@/components/Common/Dialogs/Base";
 
 const ColumnUpdate = ({
     project,
@@ -144,58 +144,52 @@ const ColumnUpdate = ({
                     </div>
 
     return (
-        <Dialog
+        <BaseDialog
+            context="tile"
+            button={renderMode === "menuItem" ? (
+                // Because this is inside a parent DropdownMenuItem, 
+                // we must prevent the parent from closing automatically:
+                <DropdownMenuItem
+                    className="
+                    relative 
+                    flex 
+                    cursor-pointer 
+                    select-none 
+                    items-center 
+                    gap-2 
+                    rounded-sm 
+                    px-2 
+                    py-1.5 
+                    text-sm 
+                    outline-none 
+                    transition-colors 
+                    focus:bg-accent 
+                    focus:text-accent-foreground 
+                    data-[highlighted]:bg-accent 
+                    data-[highlighted]:text-accent-foreground 
+                    data-[disabled]:pointer-events-none 
+                    data-[disabled]:opacity-50 
+                    [&>svg]:size-4 
+                    [&>svg]:shrink-0
+                "
+                    onSelect={(e) => e.preventDefault()}
+                >
+                    {columnButton}
+                    <span>Update Equation</span>
+                </DropdownMenuItem>
+            ) : (
+                columnButton
+            )}
             open={renderMode === "menuItem" ? undefined : open}
-            onOpenChange={renderMode === "menuItem" ? undefined : setOpen}
-        >
-            <DialogTrigger asChild>
-                {renderMode === "menuItem" ? (
-                    // Because this is inside a parent DropdownMenuItem, 
-                    // we must prevent the parent from closing automatically:
-                    <DropdownMenuItem
-                        className="
-                        relative 
-                        flex 
-                        cursor-pointer 
-                        select-none 
-                        items-center 
-                        gap-2 
-                        rounded-sm 
-                        px-2 
-                        py-1.5 
-                        text-sm 
-                        outline-none 
-                        transition-colors 
-                        focus:bg-accent 
-                        focus:text-accent-foreground 
-                        data-[highlighted]:bg-accent 
-                        data-[highlighted]:text-accent-foreground 
-                        data-[disabled]:pointer-events-none 
-                        data-[disabled]:opacity-50 
-                        [&>svg]:size-4 
-                        [&>svg]:shrink-0
-                    "
-                        onSelect={(e) => e.preventDefault()}
-                    >
-                        {columnButton}
-                        <span>Update Equation</span>
-                    </DropdownMenuItem>
-                ) : (
-                    columnButton
-                )}
-            </DialogTrigger>
-
-            <DialogContent
-                // Stop clicks from closing the parent if it’s still around
-                onPointerDown={(e) => e.stopPropagation()}
-                onPointerUp={(e) => e.stopPropagation()}
-                onPointerOver={(e) => e.stopPropagation()}
-                className="sm:max-w-xl"
-            >
-                {body}
-                <DialogFooter>{footer}</DialogFooter>
-            </DialogContent>
-        </Dialog>
+            setOpen={renderMode === "menuItem" ? undefined : setOpen}
+            body={body}
+            footer={footer}
+            // Stop clicks from closing the parent if it’s still around
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onPointerOver={(e) => e.stopPropagation()}
+            className="sm:max-w-xl"
+        />
     );
 }
 

@@ -11,7 +11,7 @@ import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { combineFilters, initFilters } from "@/utils/evals/filters";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/UI/dialog";
+import BaseDialog from "@/components/Common/Dialogs/Base";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import { SelectValue, SelectTrigger, SelectLabel, SelectContent, SelectItem, SelectGroup } from "@/components/UI/select";
 import { Select } from "@/components/UI/select";
@@ -120,7 +120,7 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
     const reset = <ActionButton tooltip="Delete all filters" variant="warning" icon={<Trash/>} onClick={() => onReset()}/> 
     const submit = <SubmitButton text="Apply" onClick={() => onSubmit()}/>
     const append = 
-        <BaseDropdown button={<ActionButton tooltip="Add new filter" icon={<Plus/>}/>}>
+        <BaseDropdown context="tile" button={<ActionButton tooltip="Add new filter" icon={<Plus/>}/>}>
             {["And", "Or"].map((method, index) => 
                 <DropdownMenuItem 
                     key={index}
@@ -138,7 +138,7 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
 
     // Filter row
     const join = (filter: BooleanFilter) => 
-        <BaseDropdown button={<ActionButton tooltip="Update joining method" text={filter.join === "&&" ? "and" : "or"}/>}>
+        <BaseDropdown context="tile" button={<ActionButton tooltip="Update joining method" text={filter.join === "&&" ? "and" : "or"}/>}>
             {["And", "Or"].map((method, index) => 
                 <DropdownMenuItem 
                     key={index}
@@ -220,67 +220,49 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
     )
 
     return (
-        <Dialog
-          // Tie the <Dialog> open to the parent state if not "menuItem" mode
-          open={renderMode === "menuItem" ? undefined : interactive && open}
-          onOpenChange={renderMode === "menuItem" ? undefined : setOpen}
-        >
-          <DialogTrigger asChild>
-            {renderMode === "menuItem" ? (
-              <DropdownMenuItem
-                onSelect={(e) => e.preventDefault()}
-                className="
-                  relative
-                  flex
-                  cursor-pointer
-                  select-none
-                  items-center
-                  gap-2
-                  rounded-sm
-                  px-2
-                  py-1.5
-                  text-sm
-                  outline-none
-                  transition-colors
-                  focus:bg-accent
-                  focus:text-accent-foreground
-                  data-[highlighted]:bg-accent
-                  data-[highlighted]:text-accent-foreground
-                  data-[disabled]:pointer-events-none
-                  data-[disabled]:opacity-50
-                  [&>svg]:size-4
-                  [&>svg]:shrink-0
-                "
-              >
-                {button}
-                <span>Filter column</span>
-              </DropdownMenuItem>
-            ) : (
-              button
+        <BaseDialog
+            context="tile"
+            // Tie the <Dialog> open to the parent state if not "menuItem" mode
+            open={renderMode === "menuItem" ? undefined : interactive && open}
+            setOpen={renderMode === "menuItem" ? undefined : setOpen}
+            button={renderMode === "menuItem" ? (
+                <DropdownMenuItem
+                  onSelect={(e) => e.preventDefault()}
+                  className="
+                    relative
+                    flex
+                    cursor-pointer
+                    select-none
+                    items-center
+                    gap-2
+                    rounded-sm
+                    px-2
+                    py-1.5
+                    text-sm
+                    outline-none
+                    transition-colors
+                    focus:bg-accent
+                    focus:text-accent-foreground
+                    data-[highlighted]:bg-accent
+                    data-[highlighted]:text-accent-foreground
+                    data-[disabled]:pointer-events-none
+                    data-[disabled]:opacity-50
+                    [&>svg]:size-4
+                    [&>svg]:shrink-0
+                  "
+                >
+                  {button}
+                  <span>Filter column</span>
+                </DropdownMenuItem>
+              ) : (
+                button
             )}
-          </DialogTrigger>
-    
-          <DialogContent
+            body={filterContent}
             onPointerDown={(e) => e.stopPropagation()}
             onPointerUp={(e) => e.stopPropagation()}
             onPointerOver={(e) => e.stopPropagation()}
             className="sm:max-w-lg"
-          >
-
-            {/* The main filter UI */}
-            {filterContent}
-
-            {/* 
-            If you wanted a separate <DialogFooter>, you could do:
-            <DialogFooter>
-              <div className="flex flex-row gap-2 justify-end">
-                {reset}
-                {submit}
-              </div>
-            </DialogFooter>
-            */}
-          </DialogContent>
-        </Dialog>
+        />
       );
 }
 

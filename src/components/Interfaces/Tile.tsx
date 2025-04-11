@@ -28,6 +28,8 @@ interface TileComponentProps {
     derivedEntryActions: DerivedEntryActions;
     contextActions: ContextActions;
     codeActions: CodeActions;
+    tileButtonsRef?: React.RefObject<HTMLDivElement>;
+    tileCardRef: React.RefObject<HTMLDivElement>;
 }
 
 const Tile = ({
@@ -40,14 +42,16 @@ const Tile = ({
     fieldsActions,
     derivedEntryActions,
     contextActions,
-    codeActions
+    codeActions,
+    tileButtonsRef,
+    tileCardRef
 }: TileComponentProps) => {
     const router = useRouter();
     const [initial, setInitial] = useState(true);
 
     // Use granular hooks for better code organization
     const { meta: tileMetaState } = useTileMeta(tileId, tabId, interfaceId);
-    const { uiActions: tileUIActions } = useTileUI(tileId, tabId, interfaceId);
+    const { ui: tileUIState, uiActions: tileUIActions } = useTileUI(tileId, tabId, interfaceId);
     const { itemActions } = useTileItem(tileId, tabId, interfaceId);
 
     // Extract required data
@@ -89,7 +93,8 @@ const Tile = ({
         tileItem.plot_group_by,
         tileItem.plot_aggregate,
         tileItem.auto_update,
-        tileItem.freeze
+        tileItem.freeze,
+        tileItem.color
     ]);
 
     useEffect(() => {
@@ -100,6 +105,33 @@ const Tile = ({
     useEffect(() => {
         setInitial(false);
     }, []);
+
+    // Update tile primary and secondary colors
+    // Node: Need to update buttons and tile content separately 
+    // instead of the common parent div because ResponsiveReactGridLayout
+    // interferes with ref manipulation
+    useEffect(() => {
+        if (tileButtonsRef && tileButtonsRef.current) {
+            const color = tileUIState?.color;
+            if (color) {
+                tileButtonsRef.current.style.setProperty("--primary", color);
+                tileButtonsRef.current.style.setProperty("--accent", color);
+            } else {
+                tileButtonsRef.current.style.removeProperty("--primary");
+                tileButtonsRef.current.style.removeProperty("--accent");
+            }
+        }
+        if (tileCardRef && tileCardRef.current) {
+            const color = tileUIState?.color;
+            if (color) {
+                tileCardRef.current.style.setProperty("--primary", color);
+                tileCardRef.current.style.setProperty("--accent", color);
+            } else {
+                tileCardRef.current.style.removeProperty("--primary");
+                tileCardRef.current.style.removeProperty("--accent");
+            }
+        }
+    }, [tileUIState?.color]);
 
     // Render based on tile type
     const renderContent = () => {
@@ -179,7 +211,7 @@ const Tile = ({
 
     return (
         renderContent()
-    );
+    ); 
 };
 
 export default Tile; 

@@ -273,7 +273,8 @@ const LogsPlot = ({
         binCounts,
         showRegression,
         aggregateProperty,
-        interactive
+        interactive,
+        tileUIState?.color
     ]);
 
 return (

@@ -119,7 +119,7 @@ const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, conte
     const button = <SettingButton tooltip={"Show / hide columns"} icon={<Columns3 />} />
 
     return (
-        <BasePopover button={button}>
+        <BasePopover button={button} context="tile">
             <div className="flex flex-col gap-1 p-3">
             <p className="font-bold text-medium pb-1">Select visible columns</p>
             <div

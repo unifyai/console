@@ -1,23 +1,18 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, Suspense, lazy } from "react";
+import React, { useEffect, useMemo, useRef, Suspense, lazy, createRef } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { ResponseProps } from "@/types/common";
-import { Loader2, Maximize2, EyeOff, Copy, Grip, X, Braces, Grid2x2 } from "lucide-react";
-import { Badge } from "../UI/badge";
-import Tooltip from "../Common/Misc/Tooltip";
-import ActionButton from "../Common/Buttons/Action";
 // import Cookies from "js-cookie";
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions, CodeActions } from "@/types/evals/grid";
-import ContextSelector from "./Table/Content/ContextSelector";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
-import TutorialButton from "./TutorialButton";
 import { useTiles } from "@/contexts/hooks/useStore";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 const TileCard = lazy(() => import('./TileCard'));
+const TileButtons = lazy(() => import('./TileButtons'));
 
 interface TabComponentProps {
   interfaceId: string;
@@ -172,6 +167,9 @@ const Tab = ({
     }
   };
 
+  // Set-up refs for tile buttons
+  const tileButtonsRefs = useRef<Record<string, React.RefObject<HTMLDivElement>>>({});
+
   // Show loading state if tab data is not yet available
   if (!tabDataState || !tabUIState) {
     return null;
@@ -192,6 +190,10 @@ const Tab = ({
     >
         {/* Render tiles */}
         {tileProps.map((item: TileProps, idx: number) => {
+            if (!tileButtonsRefs.current[item.i]) {
+              tileButtonsRefs.current[item.i] = createRef<HTMLDivElement>();
+            }
+            const tileButtonsRef = tileButtonsRefs.current[item.i];
             return (
                 !item.visible ? <></> : <div
                     key={item.i}
@@ -199,12 +201,13 @@ const Tab = ({
                     className="relative"
                     onClick={(e) => e.stopPropagation()}
                 >
+
                     <Suspense fallback={
                         <div className="w-full h-full flex items-center justify-center border p-4">
-                            <SkeletonLoader />
+                          <SkeletonLoader />
                         </div>
                     }>
-                        <TileCard
+                      <TileCard
                             index={idx}
                             tileId={item.i}
                             tabId={tabId}
@@ -216,119 +219,28 @@ const Tab = ({
                             derivedEntryActions={derivedEntryActions}
                             contextActions={contextActions}
                             codeActions={codeActions}
+                            tileButtonsRef={tileButtonsRef}
                         />
                     </Suspense>
 
-                    <div className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (tabUIState?.edit ? "h-16" : "h-10")}>
-                      <div className="mb-auto flex gap-2 ml-1 items-center">
-                        {tabUIState?.help && <TutorialButton 
-                            url={
-                                item.tab === "Plot" ? "https://docs.unify.ai/interfaces/plots" :
-                                item.tab === "View" ? "https://docs.unify.ai/interfaces/views" :
-                                item.tab === "Editor" ? "https://docs.unify.ai/interfaces/views" :
-                                "https://docs.unify.ai/interfaces/tables"
-                            }
-                        />}
-                              <Tooltip content="Rename Tile">
-                                <Badge
-                                    className="cursor-pointer text-sm font-normal mb-1"
-                                    variant="primary"
-                                    onClick={() => tabUIState?.edit ? setEditTile(item.i) : undefined}
-                                >
-                                    {item.i}
-                                </Badge>
-                            </Tooltip>
-                            {item.context && item.tab == "Table" && <ContextSelector
-                                tileId={item.i}
-                                tabId={tabId}
-                                interfaceId={interfaceId}
-                                projectId={projectId}
-                                contexts={contexts}
-                                context={tabDataState?.globalContext}
-                                logsActions={logsActions}
-                                contextActions={contextActions}
-                                button={
-                                    <Tooltip content="Context">
-                                        <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
-                                            <Braces size={18} />
-                                            {item.context}
-                                        </Badge>
-                                    </Tooltip>
-                                }
-                                refresh={() => updateTab()}
-                                setPending={tabUIActions.setPending}
-                            />}
-                            {(item.column_context) && item.tab == "Table" && <ContextSelector
-                                tileId={item.i}
-                                tabId={tabId}
-                                interfaceId={interfaceId}
-                                projectId={projectId}
-                                contexts={contexts}
-                                context={tabDataState?.globalContext}
-                                logsActions={logsActions}
-                                contextActions={contextActions}
-                                button={<Tooltip content="Column Context">
-                                    <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
-                                        <Grid2x2 size={18} />
-                                        {item.column_context}
-                                    </Badge>
-                                </Tooltip>}
-                                refresh={() => updateTab()}
-                                setPending={tabUIActions.setPending}
-                            />}
-                        </div>
-                        <div className="flex-1 flex justify-end gap-2 mb-auto opacity-0 hover:opacity-100">
-                            <ActionButton
-                                className="cursor-pointer hover:z-10"
-                                onClick={() => {
-                                    const focusedTileNames = tabUIState?.focusedTileNames || [undefined, undefined];
-                                    if (!focusedTileNames.includes(item.i)) {
-                                        tabUIActions?.setFocusedTileNames([item.i, focusedTileNames[0] || focusedTileNames[1]] as [string | undefined, string | undefined]);
-                                    }
-                                    setFocusDialog(true);
-                                }}
-                                icon={<Maximize2 />}
-                                tooltip="Open in Focus Pane"
-                                variant={(tabUIState?.focusedTileNames || [undefined, undefined]).includes(item.i) ? "primary" : "outline"}
-                            />
-                            {tabUIState?.edit && (
-                                <>
-                                    <ActionButton
-                                        className="cursor-pointer hover:z-10"
-                                        onClick={() => tabDataActions?.updateTile(item.i, { visible: false })}
-                                        icon={<EyeOff />}
-                                        tooltip={"Hide"}
-                                        variant="outline"
-                                    />
-                                    <ActionButton
-                                        className="cursor-pointer hover:z-10"
-                                        onClick={() => tabUIActions?.setCopied(item.i)}
-                                        icon={<Copy />}
-                                        tooltip={"Copy"}
-                                        variant="outline"
-                                    />
-                                    <ActionButton
-                                        className="drag cursor-grab hover:z-10"
-                                        icon={<Grip />}
-                                        tooltip="Drag"
-                                        variant="outline"
-                                    />
-                                    <ActionButton
-                                        className="remove cursor-pointer hover:z-10"
-                                        onClick={() => {
-                                            tabDataActions?.removeTile(item.i);
-                                            if (tileProps.length <= 1) {
-                                                setNewCounter(0);
-                                            }
-                                        }}
-                                        icon={<X />}
-                                        tooltip="Remove"
-                                        variant="outline"
-                                    />
-                                </>
-                            )}
-                        </div>
-                    </div>
+                    <TileButtons
+                      item={item}
+                      tileId={item.i}
+                      tabId={tabId}
+                      interfaceId={interfaceId}
+                      projectId={projectId}
+                      contexts={contexts}
+                      setNewCounter={setNewCounter}
+                      setFocusDialog={setFocusDialog}
+                      setEditTile={setEditTile}
+                      updateTab={updateTab}
+                      logsActions={logsActions}
+                      contextActions={contextActions}
+                      codeActions={codeActions}
+                      tileCount={tileProps.length}
+                      buttonsRef={tileButtonsRef}
+                    />
+
                 </div>
             );
         })}

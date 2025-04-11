@@ -422,6 +422,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
             tabCreated: tabCreated,
             tempTabCreated: tempTabCreated,
             savedTab: savedTab,
+            color: currentTab?.color
         } as TabsDataProps[keyof TabsDataProps]
 
         // Add other tabs
@@ -441,6 +442,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                     tabCreated: true,
                     tempTabCreated: true,
                     savedTab: tabs[name],
+                    color: data.color
                 } as TabsDataProps[keyof TabsDataProps];
             }
         })

@@ -115,10 +115,10 @@ const ProjectButtons = ({
             {projects && <CreateProject creationFunction={(name: string) => {
                 const createProject = serverProjectActions.create(name).then(async () => {
                     await serverTabActions.create(
-                        "tab1", name, undefined, defaultItems, defaultNewCounter, true
+                        "tab1", name, undefined, defaultItems, defaultNewCounter, true, undefined
                     );
                     const tabCreate = await serverTabActions.create(
-                        "tab1", name, undefined, defaultItems, defaultNewCounter, false
+                        "tab1", name, undefined, defaultItems, defaultNewCounter, false, undefined
                     );
                     setProject(name);
                     setTabQueryParam("tab1");
