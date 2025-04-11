@@ -74,8 +74,8 @@ const InterfaceTabs = ({
                                         serverTabActions.update(
                                             tab_, project as string, context, items, newCounter, tabQueryParamState, false, tabUIState?.color
                                         ).then(() => {
-                                            interfaceDataActions?.renameTab(tab_, tabQueryParamState);
                                             tabUIActions?.setPending(true);
+                                            interfaceDataActions?.renameTab(tab_, tabQueryParamState);
                                             setTabQueryParam(tabQueryParamState);
                                         });
                                     });
