@@ -45,12 +45,10 @@ const ProjectButtons = ({
     const setProject = setProjectQueryParam;
 
     // Interface states and actions with granular access
-    const { dataActions: interfaceDataActions } = useInterface(interfaceId);
+    const { ui: interfaceUIState, uiActions: interfaceUIActions, dataActions: interfaceDataActions } = useInterface(interfaceId);
+    const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabQueryParam || "");
 
     const tabNames = interfaceDataActions?.getTabNames() || [];
-
-    // Tab states and actions with granular access
-    const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabQueryParam || "");
 
     return (
         <div className="w-fit gap-2 flex flex-row items-center px-4">
@@ -59,8 +57,8 @@ const ProjectButtons = ({
                 renamingFunction={serverProjectActions.rename}
                 setterFunction={(proj: FileProps | undefined) => {
                     const newProj = proj ? proj.path : null;
-                    tabUIActions?.setPending(true);
-                    tabUIActions?.setDataPending(true);
+                    interfaceUIActions?.setPending(true);
+                    interfaceUIActions?.setDataPending(true);
                     interfaceDataActions?.setTabNames([]);
                     setTabQueryParam(null);
                     setProject(newProj);
@@ -81,8 +79,8 @@ const ProjectButtons = ({
                 <div className="flex flex-row gap-2">
                     <CloseProject
                         onClick={() => {
-                            tabUIActions?.setPending(true);
-                            tabUIActions?.setDataPending(true);
+                            interfaceUIActions?.setPending(true);
+                            interfaceUIActions?.setDataPending(true);
                             setTabQueryParam(null);
                             interfaceDataActions?.setTabNames([]);
                             setProject(null);
@@ -102,8 +100,8 @@ const ProjectButtons = ({
                         }}
                         variant="outline"
                         onDelete={() => {
-                            tabUIActions?.setPending(true);
-                            tabUIActions?.setDataPending(true);
+                            interfaceUIActions?.setPending(true);
+                            interfaceUIActions?.setDataPending(true);
                             setTabQueryParam(null);
                             interfaceDataActions?.setTabNames([]);
                             setProject(null);
@@ -122,8 +120,8 @@ const ProjectButtons = ({
                     );
                     setProject(name);
                     setTabQueryParam("tab1");
-                    tabUIActions?.setPending(true);
-                    tabUIActions?.setDataPending(true);
+                    interfaceUIActions?.setPending(true);
+                    interfaceUIActions?.setDataPending(true);
                     interfaceDataActions?.setTabNames(["tab1"]);
                     setProjects([...projects, name]);
                     return tabCreate;
@@ -134,7 +132,7 @@ const ProjectButtons = ({
                 variant="outline"
                 icon={tabUIState?.refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
                 tooltip={"Refresh Interface"}
-                disabled={!project ||tabUIState?.pending || tabUIState?.dataPending}
+                disabled={!project || interfaceUIState?.pending || interfaceUIState?.dataPending}
                 onClick={() => {
                     tabUIActions?.setRefreshing(true);
                     router.refresh();

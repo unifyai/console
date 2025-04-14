@@ -50,6 +50,22 @@ export function preprocessMarkdown(markdown: string): string {
       inTable = false;
     }
     
+    // NEW CODE: Check specifically for list items with 4+ spaces at the beginning 
+    // and fix them to prevent being interpreted as code blocks
+    const startsWithFourSpaces = line.startsWith('    ');
+    const isOrderedListItem = /^\s*\d+\.\s/.test(trimmedLine);
+    const isUnorderedListItem = /^\s*[-*+]\s/.test(trimmedLine);
+    
+    if (startsWithFourSpaces && (isOrderedListItem || isUnorderedListItem)) {
+      // Replace 4 spaces with 3 spaces to avoid code block interpretation
+      // while maintaining indentation
+      const processedLine = line.replace(/^    /, '   ');
+      processedLines.push(processedLine);
+      inListItem = true;
+      
+      continue;
+    }
+    
     // Check for list items - traditional markers and preserve them
     const isListItem = /^(\s*)([-*+]|\d+\.)\s/.test(line);
     if (isListItem) {

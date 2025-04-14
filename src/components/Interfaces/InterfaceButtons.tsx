@@ -20,6 +20,7 @@ import { SetStateAction, useMemo } from "react";
 import { useTab } from "@/contexts/hooks/tab";
 import { useProject } from "@/contexts/hooks/project";
 import { useTiles } from "@/contexts/hooks/useStore";
+import { useInterfaceUI } from "@/contexts/hooks/interface";
 
 const InterfaceButtons = ({
     interfaceId,
@@ -47,6 +48,7 @@ const InterfaceButtons = ({
     // Get the project data and the contexts with granular access
     const project = useStoreContext((state) => state.activeProjectId);
     const { data: projectDataState } = useProject(project);
+    const { ui: interfaceUIState, uiActions: interfaceUIActions } = useInterfaceUI(interfaceId);
     
     const contexts = projectDataState?.contexts || [];
 
@@ -115,7 +117,7 @@ const InterfaceButtons = ({
                 });
 
             // Set data pending and refresh
-            tabUIActions.setDataPending(true);
+            interfaceUIActions.setDataPending(true);
             router.refresh();
         }
     };
@@ -139,7 +141,7 @@ const InterfaceButtons = ({
                 tooltip="Open Focus Pane"
                 icon={<FocusIcon/>}
                 variant={"outline"}
-                disabled={!project || !tabQueryParam || tabUIState?.pending}
+                disabled={!project || !tabQueryParam || interfaceUIState?.pending}
                 onClick={() => setFocusDialog(true)}
             />
             
@@ -153,7 +155,7 @@ const InterfaceButtons = ({
                 logsActions={logsActions}
                 contextActions={contextActions}
                 refresh={() => updateTab()}
-                setPending={tabUIActions?.setPending!}
+                setPending={interfaceUIActions?.setPending!}
             />
             
             {/* Middle - Save, Reset, AddTile */}
@@ -162,7 +164,7 @@ const InterfaceButtons = ({
                 tooltip={!project ? "Select a project first" : "Save Interface"}
                 icon={saveIcon}
                 variant={variant}
-                disabled={!project || !tabQueryParam || tabUIState?.pending}
+                disabled={!project || !tabQueryParam || interfaceUIState?.pending}
                 onClick={async () => setSaveDialog(true)}
             />
 
@@ -171,7 +173,7 @@ const InterfaceButtons = ({
                 tooltip={!project ? "Select a project first" : "Return to last saved interface"}
                 icon={resetIcon}
                 variant="outline"
-                disabled={!project || tabUIState?.pending}
+                disabled={!project || interfaceUIState?.pending}
                 onClick={() => {
                     updateTab(tabDataState?.savedTab);
                     tabUIActions?.setResetting(true);
@@ -182,6 +184,7 @@ const InterfaceButtons = ({
 
             <AddTile
                 project={project || ""}
+                interfaceId={interfaceId}
                 tabId={tabQueryParam || ""}
                 newCounter={newCounter}
                 setNewCounter={setNewCounter}
@@ -195,7 +198,7 @@ const InterfaceButtons = ({
                         icon={<Eye/>}
                         tooltip="Show Hidden"
                         size="sm"
-                        disabled={hiddenItems.length === 0 || tabUIState?.pending}
+                        disabled={hiddenItems.length === 0 || interfaceUIState?.pending}
                     />
                 }
             >
@@ -230,7 +233,7 @@ const InterfaceButtons = ({
                 variant="outline"
                 icon={<Clipboard/>}
                 tooltip="Paste"
-                disabled={!tabUIState?.copied || tabUIState?.pending}
+                disabled={!tabUIState?.copied || interfaceUIState?.pending}
                 onClick={handlePaste}
             />
 

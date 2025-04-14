@@ -187,8 +187,8 @@ export default function StringView({
             {!versionEmpty && (
               <p className="font-semibold">Value</p>
             )}
-            <div className="flex border rounded p-2 relative group">
-              <div className="mt-1 mb-1">
+            <div className="flex border rounded p-2 relative group max-w-full overflow-hidden">
+              <div className="mt-1 mb-1 w-full overflow-x-auto">
                 {displayMode === "markdown" ? (
                   <MarkdownRenderer>{baseStr}</MarkdownRenderer>
                 ) : (
@@ -250,7 +250,7 @@ export default function StringView({
                     return (
                       <div
                         key={j}
-                        className="space-y-2 border rounded p-2 relative group"
+                        className="space-y-2 border rounded p-2 relative group max-w-full overflow-hidden"
                       >
                         <RowBadge rowNumbers={vg.rows} mode="none" />
                         <CopyButton
@@ -260,7 +260,7 @@ export default function StringView({
                           tooltipContent="Copy version"
                         />
                         {verText ? (
-                          <div className="pt-2">
+                          <div className="pt-2 w-full overflow-x-auto">
                             {displayMode === "markdown" ? (
                               <MarkdownRenderer>{verText}</MarkdownRenderer>
                             ) : (
@@ -282,7 +282,7 @@ export default function StringView({
                 {!versionEmpty && (
                   <p className="font-semibold">Value</p>
                 )}
-                <div className="border rounded p-2 relative group">
+                <div className="border rounded p-2 relative group max-w-full overflow-hidden">
                   <RowBadge rowNumbers={rowNums} mode="none" />
                   <CopyButton
                     className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
@@ -291,7 +291,7 @@ export default function StringView({
                     tooltipContent="Copy string"
                   />
                   {textValue ? (
-                    <div className="pt-2">
+                    <div className="pt-2 w-full overflow-x-auto">
                       {displayMode === "markdown" ? (
                         <MarkdownRenderer>{textValue}</MarkdownRenderer>
                       ) : (
@@ -395,7 +395,7 @@ export default function StringView({
               {!versionEmpty && (
                 <p className="font-semibold">String Diff</p>
               )}
-            <div className="border rounded p-2">
+            <div className="border rounded p-2 max-w-full overflow-hidden">
               <div className="flex items-center gap-2 text-xs">
                 <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadgeMode} />
                 <RowBadge
@@ -403,7 +403,7 @@ export default function StringView({
                   mode={baseStrSafe !== compStr ? "insert" : "none"}
                 />
               </div>
-              <div>
+              <div className="w-full overflow-x-auto">
                 {(() => {
                   const singleLineDiff = !baseStrSafe.includes('\n') && !compStr.includes('\n');
                   return (

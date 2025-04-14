@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +39,7 @@ export default function TimelineViewButton({
   const [chartWidth, setChartWidth] = useState(1000);
   const [chartHeight, setChartHeight] = useState(600);
   const [zoomFactor, setZoomFactor] = useState(1); // Default zoom factor
+  const [customZoomInput, setCustomZoomInput] = useState("100"); // New state for custom zoom input
   const [panOffset, setPanOffset] = useState(0); // Pan offset for navigating when zoomed in
   const [domainMin, setDomainMin] = useState(0); // Minimum value of the domain
   const [domainMax, setDomainMax] = useState<number | string>("dataMax+0.2");
@@ -149,43 +150,6 @@ export default function TimelineViewButton({
     }
   }, [chartData, open]);
 
-  // Center the view on initial load and after zoom changes
-  useEffect(() => {
-    if (containerRef.current && zoomFactor > 1) {
-      // Center the scrollable area when zooming in
-      const scrollableWidth = containerRef.current.scrollWidth;
-      const containerWidth = containerRef.current.clientWidth;
-      const scrollCenter = (scrollableWidth - containerWidth) / 2;
-      containerRef.current.scrollLeft = scrollCenter;
-    }
-  }, [zoomFactor]);
-
-  // Handle zoom in
-  const handleZoomIn = () => {
-    setZoomFactor(prev => {
-      const newZoom = prev * 1.5; // More gradual zoom steps
-      // Cap zoom to prevent over-zooming
-      return Math.min(newZoom, 5);
-    });
-  };
-
-  // Handle zoom out
-  const handleZoomOut = () => {
-    setZoomFactor(prev => {
-      const newZoom = prev / 1.5; // More gradual zoom steps
-      // Limit minimum zoom
-      return Math.max(newZoom, 1);
-    });
-  };
-
-  // Reset zoom
-  const handleResetZoom = () => {
-    setZoomFactor(1);
-    if (containerRef.current) {
-      containerRef.current.scrollLeft = 0;
-    }
-  };
-
   // For single trace mode, we'll modify the data to center the bars
   const processedChartData = useMemo(() => {
     if (!isSingleTrace) return chartData;
@@ -203,6 +167,63 @@ export default function TimelineViewButton({
       };
     });
   }, [chartData, isSingleTrace, baseTrace]);
+  
+  // Define findFirstActivityTime in a useMemo to avoid recreation
+  const findFirstActivityTime = useMemo(() => {
+    return () => {
+      if (!processedChartData || processedChartData.length === 0) {
+        return 0;
+      }
+      
+      // Find the minimum non-zero start time across all spans
+      let minStartTime = Number.MAX_VALUE;
+      
+      processedChartData.forEach(item => {
+        // Check all start keys
+        Object.keys(item).forEach(key => {
+          if (key.startsWith('start-') && typeof item[key] === 'number') {
+            const startTime = item[key];
+            const lengthKey = key.replace('start-', 'length-');
+            
+            // Only consider spans that have a non-zero length
+            if (item[lengthKey] > 0 && startTime >= 0 && startTime < minStartTime) {
+              minStartTime = startTime;
+            }
+          }
+        });
+      });
+      
+      return minStartTime === Number.MAX_VALUE ? 0 : minStartTime;
+    };
+  }, [processedChartData]);
+  
+  // Center the view on initial load and after zoom changes
+  useEffect(() => {
+    if (containerRef.current && zoomFactor > 1) {
+      // Find the first activity start time to focus on
+      const firstActivityTime = findFirstActivityTime();
+      
+      // If we have chart data to work with
+      if (processedChartData && processedChartData.length > 0) {
+        // Calculate relative position in the chart
+        const relativePosition = firstActivityTime / maxValue;
+        
+        // Calculate scroll position (taking chart margins into account)
+        const scrollableWidth = containerRef.current.scrollWidth;
+        const containerWidth = containerRef.current.clientWidth;
+        const scrollPosition = Math.max(0, (scrollableWidth - containerWidth) * relativePosition);
+        
+        // Apply scroll position
+        containerRef.current.scrollLeft = scrollPosition;
+      } else {
+        // Fallback: Center the scrollable area when zooming in
+        const scrollableWidth = containerRef.current.scrollWidth;
+        const containerWidth = containerRef.current.clientWidth;
+        const scrollCenter = (scrollableWidth - containerWidth) / 2;
+        containerRef.current.scrollLeft = scrollCenter;
+      }
+    }
+  }, [zoomFactor, processedChartData, maxValue, findFirstActivityTime]);
 
   // Calculate ideal height based on number of rows
   const idealHeight = useMemo(() => {
@@ -272,6 +293,127 @@ export default function TimelineViewButton({
     return null;
   };
 
+  // Handle custom zoom input change
+  const handleCustomZoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Allow only numbers
+    const value = e.target.value.replace(/[^0-9]/g, '');
+    setCustomZoomInput(value);
+  };
+  
+  // Apply custom zoom when user presses Enter or input loses focus
+  const applyCustomZoom = () => {
+    // Parse the input value as a number
+    const zoomValue = parseInt(customZoomInput, 10);
+    
+    // Validate the zoom value (100% to 1000%)
+    if (!isNaN(zoomValue) && zoomValue >= 100 && zoomValue <= 1000) {
+      // Convert percentage to factor (e.g., 200% -> 2)
+      const newZoomFactor = zoomValue / 100;
+      setZoomFactor(newZoomFactor);
+    } else {
+      // Reset the input to the current zoom level if invalid
+      setCustomZoomInput(Math.round(zoomFactor * 100).toString());
+    }
+  };
+  
+  // Update the custom zoom input when zoom factor changes
+  useEffect(() => {
+    setCustomZoomInput(Math.round(zoomFactor * 100).toString());
+  }, [zoomFactor]);
+
+  // Handle zoom in
+  const handleZoomIn = () => {
+    setZoomFactor(prev => {
+      const newZoom = prev * 1.25; // More fine-grained zoom steps (changed from 1.5)
+      // Cap zoom to prevent over-zooming - increased from 5 to 10
+      return Math.min(newZoom, 10);
+    });
+  };
+
+  // Handle zoom out
+  const handleZoomOut = () => {
+    setZoomFactor(prev => {
+      const newZoom = prev / 1.25; // More fine-grained zoom steps (changed from 1.5)
+      // Limit minimum zoom
+      return Math.max(newZoom, 1);
+    });
+  };
+
+  // Reset zoom
+  const handleResetZoom = () => {
+    setZoomFactor(1);
+    if (containerRef.current) {
+      containerRef.current.scrollLeft = 0;
+    }
+  };
+
+  // Pan left
+  const handlePanLeft = () => {
+    if (containerRef.current && containerRef.current.scrollLeft > 0) {
+      // Calculate a reasonable pan amount (about 25% of the visible width)
+      const panAmount = containerRef.current.clientWidth * 0.25;
+      containerRef.current.scrollLeft -= panAmount;
+    }
+  };
+  
+  // Pan right
+  const handlePanRight = () => {
+    if (containerRef.current) {
+      // Calculate a reasonable pan amount (about 25% of the visible width)
+      const panAmount = containerRef.current.clientWidth * 0.25;
+      const maxScroll = containerRef.current.scrollWidth - containerRef.current.clientWidth;
+      if (containerRef.current.scrollLeft < maxScroll) {
+        containerRef.current.scrollLeft += panAmount;
+      }
+    }
+  };
+
+  // Calculate dynamic tick marks based on zoom factor
+  const dynamicTicks = useMemo(() => {
+    // Base number of intervals (4 intervals = 5 ticks at 100% zoom)
+    const baseIntervals = 4;
+    
+    // Calculate intervals based on zoom factor with diminishing returns
+    // More intervals at higher zoom levels, but not too many to avoid overcrowding
+    let intervals = baseIntervals;
+    if (zoomFactor > 1) {
+      // Logarithmic growth: more ticks initially, then slower growth at higher zoom levels
+      intervals = Math.min(
+        40, // Cap at 40 intervals (41 ticks)
+        Math.floor(baseIntervals + Math.log2(zoomFactor) * 10)
+      );
+    }
+    
+    // Generate evenly spaced tick values
+    const ticks = [];
+    const step = maxValue / intervals;
+    
+    // Create ticks with slight adjustments to ensure important values are included
+    for (let i = 0; i <= intervals; i++) {
+      const tickValue = step * i;
+      ticks.push(tickValue);
+    }
+    
+    return ticks;
+  }, [maxValue, zoomFactor]);
+
+  // Dynamically adjust tick density based on available width
+  const adjustedTickCount = useMemo(() => {
+    // Calculate approximate pixels per tick
+    const availableWidth = scaledChartWidth - 200; // Account for margins
+    const tickCount = dynamicTicks.length;
+    const pixelsPerTick = availableWidth / tickCount;
+    
+    // If ticks are too close together, reduce them
+    if (pixelsPerTick < 50) { // Minimum 50px between ticks
+      // Skip some ticks to maintain readability
+      const skipFactor = Math.ceil(50 / pixelsPerTick);
+      return dynamicTicks.filter((_, index) => index % skipFactor === 0);
+    }
+    
+    return dynamicTicks;
+  }, [dynamicTicks, scaledChartWidth]);
+
   return (
     <>
       <button
@@ -291,12 +433,22 @@ export default function TimelineViewButton({
             </DialogDescription>
           </DialogHeader>
           
-          {/* Zoom Controls - Fixed position */}
+          {/* Enhanced Zoom Controls - Fixed position */}
           <div className="mt-2 px-2 pb-3 border-b border-border">
             <div className="flex space-x-2 items-center px-3 py-1.5 bg-background border border-border rounded-md shadow-sm w-fit">
-              <span className="text-xs text-muted-foreground mr-1">
-                Zoom: {Math.round(zoomFactor * 100)}%
-              </span>
+              <span className="text-xs text-muted-foreground mr-1">Zoom:</span>
+              <div className="flex items-center">
+                <input
+                  type="text"
+                  value={customZoomInput}
+                  onChange={handleCustomZoomChange}
+                  onBlur={applyCustomZoom}
+                  onKeyDown={(e) => e.key === 'Enter' && applyCustomZoom()}
+                  className="w-12 h-6 text-xs px-1 border border-input rounded-sm mr-1 text-center"
+                  aria-label="Zoom percentage"
+                />
+                <span className="text-xs text-muted-foreground">%</span>
+              </div>
               <button 
                 onClick={handleZoomIn} 
                 className="p-1 rounded-md hover:bg-muted transition"
@@ -318,6 +470,27 @@ export default function TimelineViewButton({
               >
                 <RotateCcw className="h-4 w-4" />
               </button>
+              
+              {/* Pan controls - only show when zoomed in */}
+              {zoomFactor > 1 && (
+                <>
+                  <div className="mx-1 h-4 w-px bg-border" />
+                  <button 
+                    onClick={handlePanLeft} 
+                    className="p-1 rounded-md hover:bg-muted transition"
+                    title="Pan Left"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button 
+                    onClick={handlePanRight} 
+                    className="p-1 rounded-md hover:bg-muted transition"
+                    title="Pan Right"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </>
+              )}
             </div>
           </div>
           
@@ -349,6 +522,7 @@ export default function TimelineViewButton({
                     stroke="#E5E7EB"
                     strokeDasharray="3 3"
                     horizontal={false}
+                    verticalPoints={adjustedTickCount.map(tick => tick)}
                   />
                   <YAxis
                     dataKey="label"
@@ -365,10 +539,14 @@ export default function TimelineViewButton({
                     tickLine={false}
                     axisLine={false}
                     stroke="#4B5563"
-                    tickFormatter={(val) => `${val.toFixed(2)}s`}
+                    tickFormatter={(val) => {
+                      // Increase precision (decimal places) as zoom level increases
+                      const decimalPlaces = Math.min(4, Math.max(2, Math.floor(zoomFactor)));
+                      return `${val.toFixed(decimalPlaces)}s`;
+                    }}
                     domain={[0, domainMax]}
                     fontSize={12}
-                    ticks={[0, maxValue * 0.25, maxValue * 0.5, maxValue * 0.75, maxValue]}
+                    ticks={adjustedTickCount}
                   />
                   <Tooltip content={<CustomTooltip />} />
                   
