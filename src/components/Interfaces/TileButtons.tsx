@@ -37,7 +37,7 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
     const {uiActions: interfaceUIActions} = useInterfaceUI(interfaceId);
     return (
         <div ref={buttonsRef} className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (tabUIState?.edit ? "h-16" : "h-10")}>
-            <div className="mb-auto flex gap-2 ml-1 items-center">
+            <div className="flex gap-2 mb-auto ml-1 items-center z-10">
                 {tabUIState?.help && 
                     <TutorialButton 
                         url={
