@@ -66,9 +66,9 @@ const DiffViewer = ({oldValue, newValue, showDiffOnly = false, hideMarkers = tru
     mode?: "characters" | "words" | "wordsWithSpace" | "lines" | "trimmedLines" | "sentences" | "css"
 }) => {
 
-    const render = (str: string) => <p className='text-foreground'>{str}</p>
+    const render = (str: string) => <p className='text-foreground whitespace-pre-wrap break-words'>{str}</p>
     return (
-        <div className="bg-background p-4 font-mono text-sm w-full">
+        <div className="bg-background p-4 font-mono text-sm w-full overflow-auto">
             <ReactDiffViewer 
                 oldValue={oldValue} 
                 newValue={newValue}
