@@ -181,7 +181,7 @@ const Tab = ({
   return (
     <ResponsiveReactGridLayout
         onLayoutChange={onLayoutChange}
-        className="layout interactive-grid flex-1"
+        className="layout interactive-grid flex-1 mx-1"
         cols={{ lg: 12, md: 12, sm: 12, xs: 12, xxs: 12 }}
         rowHeight={110}
         margin={[0, 0]}

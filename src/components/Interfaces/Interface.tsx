@@ -232,9 +232,7 @@ const Interface = ({
           {projectQueryParam && (
             <InterfaceTabs
               interfaceId={interfaceId}
-              tabQueryParam={tabQueryParam}
               newCounter={newCounter}
-              setTabQueryParam={setTabQueryParam}
               tabActions={serverTabActions}
             />
           )}

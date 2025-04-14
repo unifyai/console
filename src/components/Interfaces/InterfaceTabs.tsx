@@ -9,20 +9,14 @@ import { defaultItems, defaultNewCounter } from "@/constants/logs";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useInterface } from "@/contexts/hooks/interface";
 import { useTab } from "@/contexts/hooks/tab";
+import { useQueryState } from "nuqs";
 
-const InterfaceTabs = ({
-    interfaceId,
-    tabQueryParam,
-    newCounter,
-    setTabQueryParam,
-    tabActions: serverTabActions,
-}: {
+const InterfaceTabs = ({ interfaceId, newCounter, tabActions: serverTabActions }: {
     interfaceId: string,
-    tabQueryParam: string | null,
     newCounter: number,
-    setTabQueryParam: (tab: string | null) => void;
     tabActions: TabActions,
 }) => {
+    const [tabQueryParam, setTabQueryParam] = useQueryState("tab");
     const [tabQueryParamState, setTabQueryParamState] = useState(tabQueryParam || "");
     const [hoveredTab, setHoveredTab] = useState<string | undefined>();
 
@@ -74,7 +68,6 @@ const InterfaceTabs = ({
                                         serverTabActions.update(
                                             tab_, project as string, context, items, newCounter, tabQueryParamState, false, tabUIState?.color
                                         ).then(() => {
-                                            interfaceUIActions?.setPending(true);
                                             interfaceDataActions?.renameTab(tab_, tabQueryParamState);
                                             setTabQueryParam(tabQueryParamState);
                                         });
