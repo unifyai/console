@@ -30,7 +30,7 @@ const InterfaceTabs = ({
     const project = useStoreContext((s) => s.activeProjectId);
 
     // Interface states and actions with granular access
-    const { dataActions: interfaceDataActions } = useInterface(interfaceId);
+    const { ui: interfaceUIState, dataActions: interfaceDataActions, uiActions: interfaceUIActions } = useInterface(interfaceId);
 
     const tabNames = interfaceDataActions?.getTabNames() || [];
 
@@ -64,7 +64,7 @@ const InterfaceTabs = ({
                     >
                         {tabQueryParam == tab_ ? <Input
                             value={tabQueryParamState}
-                            disabled={tabUIState?.pending || tabUIState?.dataPending}
+                            disabled={interfaceUIState?.pending || interfaceUIState?.dataPending}
                             onInput={(event: React.ChangeEvent<HTMLInputElement>) => setTabQueryParamState(event.target.value)}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter" && tab_ != tabQueryParamState && !tabNames.includes(tabQueryParamState)) {
@@ -74,7 +74,7 @@ const InterfaceTabs = ({
                                         serverTabActions.update(
                                             tab_, project as string, context, items, newCounter, tabQueryParamState, false, tabUIState?.color
                                         ).then(() => {
-                                            tabUIActions?.setPending(true);
+                                            interfaceUIActions?.setPending(true);
                                             interfaceDataActions?.renameTab(tab_, tabQueryParamState);
                                             setTabQueryParam(tabQueryParamState);
                                         });
@@ -92,7 +92,7 @@ const InterfaceTabs = ({
                             onClick={() => {
                                 serverTabActions.delete(tab_, project as string, true).then(() => {
                                     if (tabQueryParam == tab_)
-                                        tabUIActions?.setPending(true);
+                                        interfaceUIActions?.setPending(true);
                                     serverTabActions.delete(tab_, project as string, true).then(() => {
                                         interfaceDataActions?.removeTab(tab_);
                                     });
@@ -109,7 +109,7 @@ const InterfaceTabs = ({
                     variant="outline"
                     icon={<Plus />}
                     tooltip={"Add new tab"}
-                    disabled={tabUIState?.pending}
+                    disabled={interfaceUIState?.pending}
                     onClick={() => {
                         let initialIndex = tabNames.length + 1;
                         while (tabNames.includes(`tab${initialIndex}`))

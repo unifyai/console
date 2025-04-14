@@ -19,8 +19,6 @@ export interface TabUIActions {
   setHelp: (help: boolean) => void;
   setCopied: (copied?: string) => void;
   setDeleting: (deleting: boolean) => void;
-  setDataPending: (dataPending: boolean) => void;
-  setPending: (pending: boolean) => void;
   setRefreshing: (refreshing: boolean) => void;
   setTilesPending: (pending: boolean) => void;
   setColor: (color: string | undefined) => void;
@@ -108,16 +106,6 @@ export function useTabUI(
     return state.tabsById[tabId].deleting;
   });
   
-  const dataPending = useStoreContext(state => {
-    if (!tabExists || !tabId) return false;
-    return state.tabsById[tabId].dataPending;
-  });
-  
-  const pending = useStoreContext(state => {
-    if (!tabExists || !tabId) return false;
-    return state.tabsById[tabId].pending;
-  });
-  
   const refreshing = useStoreContext(state => {
     if (!tabExists || !tabId) return false;
     return state.tabsById[tabId].refreshing;
@@ -147,8 +135,6 @@ export function useTabUI(
       help,
       copied,
       deleting,
-      dataPending,
-      pending,
       refreshing,
       color
     };
@@ -164,8 +150,6 @@ export function useTabUI(
     help,
     copied,
     deleting,
-    dataPending,
-    pending,
     refreshing,
     color
   ]);
@@ -217,18 +201,6 @@ export function useTabUI(
     setDeleting: (deleting) => {
       if (tabId) {
         storeUpdateTab(tabId, { deleting });
-      }
-    },
-    
-    setDataPending: (dataPending) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { dataPending });
-      }
-    },
-    
-    setPending: (pending) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { pending });
       }
     },
     

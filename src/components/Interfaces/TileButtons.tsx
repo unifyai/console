@@ -2,7 +2,7 @@
 
 import ColorPicker from "../Common/Misc/ColorPicker";
 import ActionButton from "../Common/Buttons/Action";
-import { useTabUI, useTileUI } from "@/contexts/hooks";
+import { useInterfaceUI, useTabUI, useTileUI } from "@/contexts/hooks";
 import { useTabData } from "@/contexts/hooks";
 import { Maximize2, EyeOff, Copy, Grip, X, Braces, Grid2x2, Palette } from "lucide-react";
 import { Badge } from "../UI/badge";
@@ -34,6 +34,7 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
     const {ui: tileUIState, uiActions: tileUIActions} = useTileUI(tileId, tabId, interfaceId);
     const {ui: tabUIState, uiActions: tabUIActions} = useTabUI(tabId, interfaceId)
     const {data: tabDataState, dataActions: tabDataActions} = useTabData(tabId, interfaceId);
+    const {uiActions: interfaceUIActions} = useInterfaceUI(interfaceId);
     return (
         <div ref={buttonsRef} className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (tabUIState?.edit ? "h-16" : "h-10")}>
             <div className="mb-auto flex gap-2 ml-1 items-center">
@@ -74,7 +75,7 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
                         </Tooltip>
                     }
                     refresh={() => updateTab()}
-                    setPending={tabUIActions.setPending}
+                    setPending={interfaceUIActions.setPending}
                 />}
                 {(item.column_context) && item.tab == "Table" && <ContextSelector
                     tileId={item.i}
@@ -92,7 +93,7 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
                         </Badge>
                     </Tooltip>}
                     refresh={() => updateTab()}
-                    setPending={tabUIActions.setPending}
+                    setPending={interfaceUIActions.setPending}
                 />}
             </div>
             <div className="flex-1 flex justify-end gap-2 mb-auto opacity-0 hover:opacity-100">

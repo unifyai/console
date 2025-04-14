@@ -15,7 +15,7 @@ import { useQueryState } from "nuqs";
 import { ProjectsActions, TabActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions } from '@/types/evals/grid';
 import { ResponseProps } from '@/types/common';
 
-import { useInterfaceData } from '@/contexts/hooks/interface';
+import { useInterfaceData, useInterfaceUI } from '@/contexts/hooks/interface';
 import { useTabMeta, useTabData, useTabUI } from '@/contexts/hooks/tab';
 import { useProjectData, useProjectMeta } from '@/contexts/hooks/project';
 
@@ -56,6 +56,7 @@ const Interface = ({
   const { data: projectDataState } = useProjectData(projectQueryParam || null);
   const { meta: projectMetaState } = useProjectMeta(projectQueryParam || null);
   const { dataActions: interfaceDataActions } = useInterfaceData(interfaceId);
+  const { ui: interfaceUIState, uiActions: interfaceUIActions } = useInterfaceUI(interfaceId);
 
   // Use granular tab hooks for better performance
   const { meta: tabMetaState, metaActions: tabMetaActions } = useTabMeta(tabQueryParam || "", interfaceId);
@@ -104,7 +105,7 @@ const Interface = ({
         projectQueryParam &&
         tabQueryParam === tabMetaState?.name &&
         projectQueryParam === projectMetaState?.name &&
-        !tabUIState?.pending
+        !interfaceUIState?.pending
     ) {
         if (tabMetaState?.tempTabCreated) {
             return serverTabActions.update(
@@ -135,7 +136,7 @@ const Interface = ({
     projectQueryParam, 
     tabDataState?.globalContext, 
     tabMetaState?.tempTabCreated, 
-    tabUIState?.pending, 
+    interfaceUIState?.pending, 
     serverTabActions,
     tileProps,
     newCounter,
@@ -168,7 +169,7 @@ const Interface = ({
 
         setNewCounter(currentTab.new_counter || 0);
         tabMetaActions.setTempTabCreated(Boolean(currentTab));
-        tabUIActions.setPending(false);
+        interfaceUIActions.setPending(false);
         interfaceDataActions?.setTabNames(tabProps.map(tab => tab.name));
       }
     });
@@ -177,9 +178,9 @@ const Interface = ({
   // Set active tab handler
   const handleTabChange = (value: string | undefined) => {
     if (tabUIState && !tabUIState?.deleting) {
-      if (tabUIActions) {
-        tabUIActions.setPending(true);
-        tabUIActions.setDataPending(true);
+      if (interfaceUIActions) {
+        interfaceUIActions.setPending(true);
+        interfaceUIActions.setDataPending(true);
       }
       // Update URL query param
       setTabQueryParam(value || null);
@@ -253,7 +254,7 @@ const Interface = ({
         </div>
 
         {tabNames.length === 0 ? (
-          projectQueryParam && tabUIState?.pending ? (
+          projectQueryParam && interfaceUIState?.pending ? (
             <div className="flex justify-center">
               <Loader2 className="animate-spin my-36" />
             </div>
@@ -277,7 +278,7 @@ const Interface = ({
               value={tabName}
               className="tutorial-selection-pane relative"
             >
-              {tabUIState?.pending ? (
+              {interfaceUIState?.pending ? (
                 <div className="flex justify-center">
                   <Loader2 className="animate-spin my-36" />
                 </div>

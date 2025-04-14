@@ -8,6 +8,7 @@ import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { useTab } from '@/contexts/hooks/tab';
 import PlotSettings from "./Sidebar";
+import { useInterface } from "@/contexts/hooks/interface";
 
 const LogsPlot = ({ 
     tileId,
@@ -38,13 +39,14 @@ const LogsPlot = ({
     
     // Get access to the tab context and actions with granular access
     const { ui: tabUIState } = useTab(tabId, interfaceId, projectId);
+    const { ui: interfaceUIState } = useInterface(interfaceId);
 
     // Get the item representation for the current tile
     const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
 
     // UI state from the tab
     const interactive = tabUIState?.interactive || false;
-    const pending = tabUIState?.pending || tabUIState?.dataPending || tileUIState?.pending || false;
+    const pending = interfaceUIState?.pending || interfaceUIState?.dataPending || tileUIState?.pending || false;
 
     // Use the plotDataItem from the tile's plot data
     const plotDataItem = useMemo(() => plotTileState?.plotDataItem || {

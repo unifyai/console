@@ -3,20 +3,24 @@ import ActionButton from "../Common/Buttons/Action";
 import { Plus } from "lucide-react";
 import { useTab } from "@/contexts/hooks/tab";
 import { useMemo } from "react";
+import { useInterface } from "@/contexts/hooks/interface";
 
 const AddTile = ({
     project,
+    interfaceId,
     tabId,
     newCounter,
     setNewCounter,
 }: {
     project: string | null,
+    interfaceId: string,
     tabId: string,
     newCounter: number,
     setNewCounter: (newCounter: number) => void,
 }) => {
     // Get tab data and actions using useTab hook with granular access
     const { ui: tabUIState, dataActions: tabDataActions, exists } = useTab(tabId);
+    const { ui: interfaceUIState } = useInterface(interfaceId);
     
     // Use the getItems function from the useTab hook to get TileProps array
     const [items, visibleItems] = useMemo(() => {
@@ -34,7 +38,7 @@ const AddTile = ({
             icon={<Plus />}
             text="Add Tile"
             variant="outline"
-            disabled={!tabUIState?.edit || !project || tabUIState?.pending || !exists}
+            disabled={!tabUIState?.edit || !project || interfaceUIState?.pending || !exists}
             onClick={() => {
                 let initialIndex = items.length;
                 while (items.some(item => item.i == "Tile_" + initialIndex))

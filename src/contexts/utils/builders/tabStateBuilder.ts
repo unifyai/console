@@ -169,8 +169,6 @@ export function buildTabState(
     interactive: true,
     help: true,
     deleting: false,
-    dataPending: false,
-    pending: false,
     refreshing: false,
     color: tabData.savedTab?.color
   };

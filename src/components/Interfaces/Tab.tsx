@@ -9,6 +9,7 @@ import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions, CodeActions } from "@/types/evals/grid";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { useTiles } from "@/contexts/hooks/useStore";
+import { useInterfaceUI } from "@/contexts/hooks/interface";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 const TileCard = lazy(() => import('./TileCard'));
@@ -46,6 +47,8 @@ const Tab = ({
   codeActions,
 }: TabComponentProps) => {
   // Use granular hooks instead of a general hook
+  const { ui: interfaceUIState, uiActions: interfaceUIActions } = useInterfaceUI(interfaceId);
+
   const { 
     data: tabDataState,
     dataActions: tabDataActions
@@ -124,8 +127,8 @@ const Tab = ({
     // Use setTimeout to delay execution
     setTimeout(() => {
       // Reset loading states
-      if (tabUIState?.dataPending === true) {
-        tabUIActions.setDataPending(false);
+      if (interfaceUIState?.dataPending === true) {
+        interfaceUIActions.setDataPending(false);
       }
       if (tabUIState?.refreshing === true) {
         tabUIActions.setRefreshing(false);
@@ -139,7 +142,7 @@ const Tab = ({
       // });
 
       // If tab is pending or resetting, get latest data
-      if ((tabUIState?.pending || tabUIState?.resetting) && projectId && tabId) {
+      if ((interfaceUIState?.pending || tabUIState?.resetting) && projectId && tabId) {
         getLatestTab();
       }
 
@@ -156,14 +159,14 @@ const Tab = ({
 
   // Item layout change handler
   const onLayoutChange = (newLayout: any[]) => {
-    if (!tabUIState?.pending && tabDataActions) {
+    if (!interfaceUIState?.pending && tabDataActions) {
       const layoutItems = newLayout.map((item) => {
         const originalItem = tileProps.find((t) => t.i === item.i);
         return { ...originalItem, ...item };
       });
       tabDataActions.setItems(layoutItems);
     } else {
-      tabUIActions?.setPending(false);
+      interfaceUIActions?.setPending(false);
     }
   };
 

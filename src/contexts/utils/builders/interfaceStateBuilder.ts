@@ -106,6 +106,8 @@ export function buildInterfaceState(
   const interfaceUI: InterfaceUI = {
     projectId,
     activeTabId: tabId ? tabId : null,
+    dataPending: false,
+    pending: false,
   };
   
   // Create the complete interface

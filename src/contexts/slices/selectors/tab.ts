@@ -35,8 +35,6 @@ export interface TabUI {
   help: boolean;
   copied?: string;
   deleting: boolean;
-  dataPending: boolean;
-  pending: boolean;
   refreshing: boolean;
   color?: string
 }
@@ -77,8 +75,6 @@ export function initTab(tabId: string, initialState: Partial<Tab> = {}): Tab {
     help: initialState.help !== undefined ? initialState.help : true,
     copied: initialState.copied,
     deleting: initialState.deleting !== undefined ? initialState.deleting : false,
-    dataPending: initialState.dataPending !== undefined ? initialState.dataPending : false,
-    pending: initialState.pending !== undefined ? initialState.pending : false,
     refreshing: initialState.refreshing !== undefined ? initialState.refreshing : false,
     color: initialState.color,
     itemsNeedRecompute: initialState.itemsNeedRecompute !== undefined ? initialState.itemsNeedRecompute : false,
