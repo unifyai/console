@@ -284,31 +284,6 @@ function DictionarySectionItem({
   const [allExpanded, setAllExpanded] = useState<boolean>(false);
   const dictionaryRef = useRef<HTMLDivElement>(null);
 
-  // Add custom icons for specific keys
-  if (title === "Inputs") {
-    // Common input keys with appropriate icons
-    customIconMapping["query"] = <span className="text-primary">Q</span>;
-    customIconMapping["prompt"] = <span className="text-primary">P</span>;
-    customIconMapping["text"] = <span className="text-primary">T</span>;
-    customIconMapping["messages"] = <span className="text-primary">M</span>;
-    customIconMapping["context"] = <span className="text-primary">C</span>;
-    customIconMapping["documents"] = <span className="text-primary">D</span>;
-    customIconMapping["parameters"] = <span className="text-primary">π</span>;
-    customIconMapping["options"] = <span className="text-primary">O</span>;
-    customIconMapping["system_prompt"] = <span className="text-primary">S</span>;
-  } else if (title === "Outputs") {
-    // Common output keys with appropriate icons
-    customIconMapping["result"] = <span className="text-primary">R</span>;
-    customIconMapping["response"] = <span className="text-primary">R</span>;
-    customIconMapping["completion"] = <span className="text-primary">C</span>;
-    customIconMapping["answer"] = <span className="text-primary">A</span>;
-    customIconMapping["generated_text"] = <span className="text-primary">G</span>;
-    customIconMapping["message"] = <span className="text-primary">M</span>;
-    customIconMapping["content"] = <span className="text-primary">C</span>;
-    customIconMapping["choices"] = <span className="text-primary">C</span>;
-    customIconMapping["error"] = <span className="text-red-500">E</span>;
-  }
-  
   // Effect to update allExpanded state based on actual paths
   useEffect(() => {
     if (!persistedState) return; // Early return if no persistedState
@@ -598,6 +573,7 @@ function PatchDetailPanel({
     "Code": <Code className="h-4 w-4 text-primary" />,
     "Errors": <AlertTriangle className="h-4 w-4 text-primary" />,
     "Cost": <DollarSign className="h-4 w-4 text-primary" />,
+    "ID": <IdCard className="h-4 w-4 text-primary" />,
     "IDs": <IdCard className="h-4 w-4 text-primary" />,
   };
 
@@ -735,6 +711,9 @@ function PatchDetailPanel({
           }
           const { baseVal: bId, comps: cId } = gatherID();
           
+          // Determine if we're showing a single ID or multiple IDs
+          const idSectionTitle = comparisonLogsIndex.length > 0 && cId.some(id => id !== "") ? "IDs" : "ID";
+          
           // Specialized renderer for cost section
           function renderCostBlock(): JSX.Element | null {
             const isEmpty = allEmpty(bCost, cCost) && allEmpty(bCostIncCache, cCostIncCache);
@@ -798,7 +777,7 @@ function PatchDetailPanel({
               {maybeRenderBlock("Execution Time", bExecTime, cExecTime)}
               {maybeRenderBlock("Errors", bErrors, cErrors)}
               {renderCostBlock()}
-              {maybeRenderBlock("IDs", bId, cId)}
+              {maybeRenderBlock(idSectionTitle, bId, cId)}
             </>
           );
         })()}

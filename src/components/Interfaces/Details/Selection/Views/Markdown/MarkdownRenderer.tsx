@@ -43,6 +43,7 @@ function CodeBlock({
           margin: "0.5em 0", 
           overflow: "hidden",
           borderRadius: "var(--radius)",
+          maxWidth: "100%",
         }}
         className="group"
       >
@@ -55,6 +56,9 @@ function CodeBlock({
             margin: 0,
             padding: "0.75em",
             whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            overflow: "auto",
+            maxWidth: "100%",
             borderRadius: "var(--radius)",
             border: "1px solid var(--border)",
             backgroundColor: "var(--code-block-bg, var(--card))",
@@ -133,6 +137,9 @@ function getMarkdownStyles() {
       font-size: 1rem;
       line-height: 1.6;
       color: var(--foreground);
+      max-width: 100%;
+      overflow-wrap: break-word;
+      word-wrap: break-word;
       
       /* Links - use primary color with underline on hover */
       a {
@@ -273,6 +280,9 @@ function getMarkdownStyles() {
       /* Paragraphs and spacing */
       p {
         margin-bottom: 1rem;
+        max-width: 100%;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
       }
       
       /* Horizontal rule */
@@ -302,6 +312,22 @@ function getMarkdownStyles() {
       }
       
       /* Code blocks are handled by the CodeBlock component */
+      code {
+        max-width: 100%;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+      }
+      
+      pre {
+        max-width: 100%;
+        overflow-x: auto;
+      }
+      
+      pre code {
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
       
       /* Additional spacing for better readability */
       * + h1, * + h2, * + h3 {
@@ -362,14 +388,16 @@ export default function MarkdownRenderer({
       {/* Add the styles needed for proper markdown rendering */}
       <style dangerouslySetInnerHTML={{ __html: markdownStyles }} />
       
-      <ReactMarkdown
-        className={`react-markdown-content ${className}`}
-        remarkPlugins={remarkPlugins}
-        rehypePlugins={finalRehypePlugins}
-        components={components}
-      >
-        {content}
-      </ReactMarkdown>
+      <div className="markdown-wrapper max-w-full overflow-hidden">
+        <ReactMarkdown
+          className={`react-markdown-content ${className}`}
+          remarkPlugins={remarkPlugins}
+          rehypePlugins={finalRehypePlugins}
+          components={components}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
     </MarkdownErrorBoundary>
   );
 }
