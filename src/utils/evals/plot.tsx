@@ -198,11 +198,11 @@ function renderFixedTooltipContent(container: d3.Selection<HTMLDivElement, InfoC
 
 
     // Helper function to add an item with a copy button
-    const addItem = (label: string, value: string | number) => {
+    const addItem = (label: string, value?: string | number) => {
         const itemDiv = contentWrapper.append('div').attr('class', 'flex items-center justify-between gap-2');
         const textDiv = itemDiv.append('div').attr('class', 'flex-1 overflow-hidden');
         textDiv.append('p').attr('class', 'text-xs text-muted-foreground truncate').text(label);
-        textDiv.append('p').attr('class', 'font-semibold truncate').text(value);
+        if (value) textDiv.append('p').attr('class', 'font-semibold truncate').text(value);
 
         const copyButton = itemDiv.append('button')
             .attr('class', 'p-1 rounded hover:bg-muted focus:outline-none focus:ring-1 focus:ring-ring copy-button shrink-0')
@@ -220,6 +220,12 @@ function renderFixedTooltipContent(container: d3.Selection<HTMLDivElement, InfoC
             });
         });
     };
+
+    // Add Aggregate Item (if exists)
+    if (data.aggregate) {
+        addItem(data.aggregate.name);
+        contentWrapper.append('div').attr('class', 'border-b border-border my-1'); // Divider
+    }
 
     // Add Group Item (if exists)
     if (data.group) {
@@ -270,7 +276,13 @@ const tooltipTemplate = (data: InfoCardData) => {
         `
         template = groupTemplate + template
     }
-
+    if (data.aggregate) {
+        const aggregateTemplate = `
+        <p>${data.aggregate.name}</p>
+        <div style="border-bottom: 1px solid var(--foreground); margin: 4px 0;"></div>
+        `
+        template = aggregateTemplate + template
+    }
     // Instructions to pin the tooltip
     template += `
         <div class="border-b border-border my-2"></div>
@@ -660,6 +672,7 @@ export const drawBarChart = (
     selectedXAxisProperty: string | undefined,
     selectedYAxisProperty: string | undefined,
     groupByProperty: string | undefined,
+    aggregateProperty: string | undefined,
     metric: string,
     sortBars: string | undefined,
     xTable: string,
@@ -888,18 +901,23 @@ export const drawBarChart = (
             const group = (d as GroupedDataLabel)[0];            
             const xValue = (d as GroupedDataLabel)[1][0];
             const yValue = (d as GroupedDataLabel)[1][1];
-            const data = {
+            const data : InfoCardData =  {
                 group: { 
-                    name: groupByProperty, 
+                    name: `Group: ${groupByProperty}`, 
                     value: group 
                 },
                 x: { 
-                    name: xAxisProperty!, 
+                    name: `X: ${xAxisProperty!}`, 
                     value: xValue 
                 },
                 y: { 
-                    name: `${yAxisProperty}(${metric})`, 
+                    name: `Y: ${yAxisProperty}(${metric})`, 
                     value: yValue 
+                }
+            }
+            if (aggregateProperty) {
+                data.aggregate = {
+                    name: `Aggregate: ${aggregateProperty}`,
                 }
             }
             return data
@@ -907,14 +925,19 @@ export const drawBarChart = (
         else {
             const xValue = (d as DataLabel)[0];
             const yValue = (d as DataLabel)[1];
-            const data = {
+            const data : InfoCardData = {
                 x: { 
-                    name: xAxisProperty!, 
+                    name: `X: ${xAxisProperty!}`, 
                     value: xValue 
                 },
                 y: { 
-                    name: `${yAxisProperty}(${metric})`,
+                    name: `Y: ${yAxisProperty}(${metric})`,
                     value: yValue
+                }
+            }
+            if (aggregateProperty) {
+                data.aggregate = {
+                    name: `Aggregate: ${aggregateProperty}`,
                 }
             }
             return data
@@ -969,6 +992,7 @@ export const drawLineChart = (
   selectedXAxisProperty: string | undefined,
   selectedYAxisProperty: string | undefined,
   groupBy: string | undefined,
+  aggregate: string | undefined,
   xTable: string,
   yTable: string,
   logs: LogProps[],
@@ -1239,6 +1263,7 @@ export const drawScatterPlot = (
   selectedXAxisProperty: string | undefined,
   selectedYAxisProperty: string | undefined,
   groupBy: string | undefined,
+  aggregate: string | undefined,
   showRegression: string,
   xTable: string,
   yTable: string,
@@ -1385,21 +1410,24 @@ export const drawScatterPlot = (
     const getTooltipData = (data: LogProps, xTable: string, yTable: string) => {
         const hoverData : InfoCardData = {
             "x" : {
-                "name":  selectedXAxisProperty as string,
+                "name":  `X: ${selectedXAxisProperty as string}`,
                 "value": (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "date")
                     ? formatTimeTypeValue(getValue(fields, selectedXAxisProperty as string, data, xTable), xType)
                     : getValue(fields, selectedXAxisProperty as string, data, xTable)
             },
             "y" : {
-                "name":  selectedYAxisProperty as string, 
+                "name":  `Y: ${selectedYAxisProperty as string}`, 
                 "value": (yType === "timestamp" || yType === "timedelta" || yType === "time" || yType === "date")
                     ? formatTimeTypeValue(getValue(fields, selectedYAxisProperty as string, data, yTable), yType)
                     : getValue(fields, selectedYAxisProperty as string, data, yTable)
             }
         }
         if (groupBy) hoverData["group"] = {
-            "name": groupBy, 
+            "name": `Group: ${groupBy}`, 
             value: getValue(fields, groupBy as string, data, xTable)
+        }
+        if (aggregate) hoverData["aggregate"] = {
+            name: `Aggregate: ${aggregate}`,
         }
         return hoverData
     }
@@ -1808,6 +1836,7 @@ export const drawHistogram = (
     axisPadding: number,
     selectedXAxisProperty: string | undefined,
     groupByProperty: string | undefined,
+    aggregateProperty: string | undefined,
     binCount: number,
     setbinCount: (binCount: string) => void,
     binCounts: number[],
@@ -2026,7 +2055,7 @@ export const drawHistogram = (
         const [localMinX, localMaxX] = groupByProperty // Compute group boundaries if group by is set
         ? d3.extent((data as GroupedDataRange).filter(d => d[0] === (bin as GroupedBin).group).flatMap(d => d[1]) as DataRange)
         : [minX, maxX]
-        const hoverData = {
+        const hoverData : InfoCardData = {
             group: {
               name: "Data Range",
               value: (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "date")
@@ -2044,6 +2073,11 @@ export const drawHistogram = (
               value: bin.length
             }
         };
+        if (aggregateProperty) {
+            hoverData.aggregate = {
+                name: `Aggregate: ${aggregateProperty}`,
+            }
+        }
         return hoverData        
     }
     function hoverOnHist(event: any, bin: d3.Bin<number, number> | GroupedBin) {
