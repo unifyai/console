@@ -150,10 +150,6 @@ const PlotSettings = ({
   return (
     <div 
       ref={settingsRef}
-      style={{
-        height: containerRef.current?.clientHeight,
-        maxHeight: containerRef.current?.clientHeight
-      }}
       className={`relative flex flex-col bg-background border-l border-border transition-all duration-300 ease-in-out ${isOpen ? 'w-64' : 'w-12'} rounded-r-md`}
     >
 

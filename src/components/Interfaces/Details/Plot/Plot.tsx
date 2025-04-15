@@ -284,7 +284,7 @@ const LogsPlot = ({
     ]);
 
 return (
-    <div className="flex flex-row w-full h-full">
+    <div className="flex flex-row w-full h-full items-stretch min-h-0">
   
       {/* Chart Container */}
       <div
