@@ -22,9 +22,9 @@ const LogsPlot = ({ logs, fields}: {
     fields: LogFieldsResponseProps
 }) => {
     // Initialize refs and container dimensions
-    let svgRef = useRef(null);
-    let containerRef = useRef(null);
-    let settingsRef = useRef(null);
+    let svgRef = useRef<SVGSVGElement>(null);
+    let containerRef = useRef<HTMLDivElement>(null);
+    let settingsRef = useRef<HTMLDivElement>(null);
     const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
     const margins = {top: 30, right: 100, bottom: 75, left: 60} // Margin on the sides
     const axisPadding = 20; // Extra padding between axes borders and plot borders

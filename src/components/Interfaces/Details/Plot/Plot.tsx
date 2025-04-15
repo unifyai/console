@@ -74,9 +74,9 @@ const LogsPlot = ({
     const {plotLogs: logs, plotArguments: args, plotFields: fields} = useMemo(() => plotDataItem, [plotDataItem]);
 
     // Initialize refs and container dimensions
-    let svgRef = useRef(null);
-    let containerRef = useRef(null);
-    let settingsRef = useRef(null);
+    let svgRef = useRef<SVGSVGElement>(null);
+    let containerRef = useRef<HTMLDivElement>(null);
+    let settingsRef = useRef<HTMLDivElement>(null);
     const clipId = useId();
     const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
     const margins = { top: 0, right: 10, bottom: 65, left: 60 } // Margin on the sides

@@ -37,7 +37,7 @@ export function clearCanvas (svgRef: any, containerRef: any) {
 
 const drawAxes = (
     plotType: string,
-    svg: d3.Selection<null, unknown, null, undefined>, 
+    svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>, 
     dimensions: {width: number, height: number},
     margins: {[key: string]: number},
     x: d3.ScaleBand<string> | d3.ScaleLinear<number, number, never> | d3.ScaleLogarithmic<number, number, never>,
@@ -139,7 +139,7 @@ const drawAxes = (
 };
 
 export const drawBorders = (
-  svg: d3.Selection<null, unknown, null, undefined>,
+  svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>,
   height: number,
   width: number,
   margins: {[key: string]: number}
@@ -661,9 +661,9 @@ function getRandomSubset(arr: any[], size: number) {
  * Histogram: Plot frequency per x-axis value for given bin size. Accepts floats, ints or times.
 */
 export const drawBarChart = (
-    container: d3.Selection<null, unknown, null, undefined>,
-    svg: d3.Selection<null, unknown, null, undefined>,
-    settings: d3.Selection<null, unknown, null, undefined>,
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+    svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>,
+    settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
     scaleX: string,
     scaleY: string,
     dimensions: {width: number, height: number},
@@ -981,9 +981,9 @@ export const drawBarChart = (
 };
 
 export const drawLineChart = (
-  container: d3.Selection<null, unknown, null, undefined>,
-  svg: d3.Selection<null, unknown, null, undefined>,
-  settings: d3.Selection<null, unknown, null, undefined>,
+  container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+  svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>,
+  settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
   scaleX: string,
   scaleY: string,
   dimensions: {width: number, height: number},
@@ -1252,9 +1252,9 @@ export const drawLineChart = (
 };
 
 export const drawScatterPlot = (
-  container: d3.Selection<null, unknown, null, undefined>,
-  svg: d3.Selection<null, unknown, null, undefined>,
-  settings: d3.Selection<null, unknown, null, undefined>,
+  container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+  svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>,
+  settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
   scaleX: string,
   scaleY: string,
   dimensions: {width: number, height: number},
@@ -1367,23 +1367,27 @@ export const drawScatterPlot = (
             .attr("stroke", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
             .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable)) : getValue(fields, xAxisProperty as string, d, xTable)))
             .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable)) : getValue(fields, yAxisProperty as string, d, yTable)))
-            .attr("r", 0)
+            .attr("r", 3)
+            .style("opacity", 0)
             .style("cursor", "pointer")
             .on("mouseover", (event, data) => hoverOnPoint(event, data, xTable, yTable))
             .on("mousemove", (event, data) => moveOnPoint(event, data))
             .on("mouseout", (event, data) => leavePoint(event, data))
             .on("click", (event, data) => showFixedTooltip(event, getTooltipData(data, xTable, yTable)))
             // Call transition only on the enter selection *after* initial setup
-            .call(enter => enter.transition("enter").duration(500).attr("r", 3)),
+            .call(enter => enter.transition("enter").duration(200).style("opacity", 1)),
                 update => update
                     .attr("fill", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
                     .attr("stroke", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
-                    .call(update => update.transition("update").duration(500)
+                    .call(update => update
+                        .transition("update")
+                        .duration(250)
                         .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable)) : getValue(fields, xAxisProperty as string, d, xTable)))
                         .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable)) : getValue(fields, yAxisProperty as string, d, yTable)))
                         .attr("r", 3)
+                        .style("opacity", 1)
             ),
-        exit => exit.call(exit => exit.transition("exit").duration(500).attr("r", 0).remove())
+        exit => exit.call(exit => exit.transition("exit").duration(200).attr("r", 0).remove())
     );
 
     // Add hover areas
@@ -1826,9 +1830,9 @@ export const drawScatterPlot = (
 };
 
 export const drawHistogram = (
-    container: d3.Selection<null, unknown, null, undefined>,
-    svg: d3.Selection<null, unknown, null, undefined>,
-    settings: d3.Selection<null, unknown, null, undefined>,
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+    svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>,
+    settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
     scaleX: string,
     scaleY: string,
     dimensions: {width: number, height: number},
