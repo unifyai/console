@@ -193,8 +193,8 @@ export const drawBorders = (
 /**
  * Clears the content and hides the fixed tooltip container.
  */
-export function clearFixedTooltip() {
-    const container = d3.select(".fixedPlotTooltip");
+export function clearFixedTooltip(settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>) {
+    const container = settings.select(".fixedPlotTooltip");
     container.datum(null).html('').classed('hidden', true);
 }
 
@@ -202,11 +202,11 @@ export function clearFixedTooltip() {
  * Renders the content of the fixed tooltip based on the bound datum.
  * @param container d3.Selection of the fixed tooltip div.
  */
-function renderFixedTooltipContent(container: d3.Selection<HTMLDivElement, InfoCardData | null, HTMLElement, any>) {
+function renderFixedTooltipContent(container: d3.Selection<HTMLDivElement, InfoCardData | null, null, any>, settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>) {
     const data = container.datum(); // Get the bound data
 
     if (!data) {
-        clearFixedTooltip(); // Ensure it's cleared and hidden if no data
+        clearFixedTooltip(settings); // Ensure it's cleared and hidden if no data
         return;
     }
 
@@ -219,7 +219,7 @@ function renderFixedTooltipContent(container: d3.Selection<HTMLDivElement, InfoC
         .html(closeIconSVG)
         .on('click', (event) => {
             event.stopPropagation(); // Prevent plot background click if tooltip overlaps
-            clearFixedTooltip();
+            clearFixedTooltip(settings);
         });
 
     const contentWrapper = container.append('div')
@@ -277,11 +277,11 @@ function renderFixedTooltipContent(container: d3.Selection<HTMLDivElement, InfoC
  * @param event The click event.
  * @param data The data associated with the clicked element (InfoCardData structure).
  */
-function showFixedTooltip(event: MouseEvent, data: InfoCardData | null) {
+function showFixedTooltip(event: MouseEvent, data: InfoCardData | null, settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>) {
     event.stopPropagation();
-    const fixedTooltipContainer = d3.select<HTMLDivElement, InfoCardData | null>(".fixedPlotTooltip");
+    const fixedTooltipContainer = settings.select(".fixedPlotTooltip") as d3.Selection<HTMLDivElement, any, null, any>;
     fixedTooltipContainer.datum(data); // Bind the new data
-    renderFixedTooltipContent(fixedTooltipContainer); // Render with new data
+    renderFixedTooltipContent(fixedTooltipContainer, settings); // Render with new data
 }
 
 /**
@@ -1006,7 +1006,7 @@ export const drawBarChart = (
         .on("mouseover", (e, d) =>handleMouseOver(e,(d as GroupedDataLabel | DataLabel)))
         .on("mousemove", handleMouseMove)
         .on("mouseout", handleMouseOut)
-        .on("click", (e,d) => showFixedTooltip(e, getTooltipData(groupByProperty, (d as GroupedDataLabel | DataLabel))));
+        .on("click", (e,d) => showFixedTooltip(e, getTooltipData(groupByProperty, (d as GroupedDataLabel | DataLabel)), settings));
 };
 
 export const drawLineChart = (
@@ -1403,7 +1403,7 @@ export const drawScatterPlot = (
             .on("mouseover", (event, data) => hoverOnPoint(event, data, xTable, yTable))
             .on("mousemove", (event, data) => moveOnPoint(event, data))
             .on("mouseout", (event, data) => leavePoint(event, data))
-            .on("click", (event, data) => showFixedTooltip(event, getTooltipData(data, xTable, yTable)))
+            .on("click", (event, data) => showFixedTooltip(event, getTooltipData(data, xTable, yTable), settings))
             // Call transition only on the enter selection *after* initial setup
             .call(enter => enter.transition("enter").duration(200).style("opacity", 1)),
                 update => update
@@ -1429,7 +1429,7 @@ export const drawScatterPlot = (
         .on("mouseover", (event, data) => hoverOnPoint(event, data, xTable, yTable))
         .on("mousemove", (event, data) => moveOnPoint(event, data))
         .on("mouseout", (event, data) => leavePoint(event, data))
-        .on("click", (event, data) => showFixedTooltip(event, getTooltipData(data, xTable, yTable)))
+        .on("click", (event, data) => showFixedTooltip(event, getTooltipData(data, xTable, yTable), settings))
         .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable) as number) : getValue(fields, xAxisProperty as string, d, xTable) as number))
         .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable) as number) : getValue(fields, yAxisProperty as string, d, yTable) as number))
         .attr("r", 10)
@@ -1998,7 +1998,7 @@ export const drawHistogram = (
             .on("mouseover", (event, d) => hoverOnHist(event, d))
             .on("mousemove", (event, d) => moveOnHist(event, d))
             .on("mouseout", (event, d) => leaveHist(event, d))
-            .on("click", (event, d) => showFixedTooltip(event, getTooltipData(d)));
+            .on("click", (event, d) => showFixedTooltip(event, getTooltipData(d), settings));
         enteringBars
             .merge(bars as any)
             .transition("enter")
@@ -2062,7 +2062,7 @@ export const drawHistogram = (
                 .on("mouseover", (event, d) => hoverOnHist(event, d))
                 .on("mousemove", (event, d) => moveOnHist(event, d))
                 .on("mouseout", (event, d) => leaveHist(event, d))
-                .on("click", (event, d) => showFixedTooltip(event, getTooltipData(d)))
+                .on("click", (event, d) => showFixedTooltip(event, getTooltipData(d), settings))
                 .call(enter => enter.transition("enter").duration(500)
                     .attr("y", d => y(d.length))
                     .attr("height", d => y(0) - y(d.length))

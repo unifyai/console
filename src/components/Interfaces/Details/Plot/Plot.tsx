@@ -108,24 +108,27 @@ const LogsPlot = ({
 
     // Sort bars for bar chart
     const [sortBars, setSortBars] = useState("asc")
+    
+    // Set up containers
+    const container = d3.select(containerRef.current)
+    const placeholder = container.select(".placeholderText")
+    const svg = d3.select(svgRef.current);
+    const settings = d3.select(settingsRef.current)
 
     // Track zoom level and reset when changing plot type or axes
     let zoomRef = useRef(d3.zoomIdentity);
     useEffect(() => {
         zoomRef.current = d3.zoomIdentity;
-        clearFixedTooltip();
+        clearFixedTooltip(settings);
     }, [selectedXAxisProperty, selectedYAxisProperty, plotType])
 
     // Draw plot
     useEffect(() => {
-        // Initialize SVG, container and placholder text
-        const container = d3.select(containerRef.current)
-        const placeholder = container.select(".placeholderText")
-        const svg = d3.select(svgRef.current)
-            .attr("width", dimensions.width)
-            .attr("height", dimensions.height)
-            .attr("viewBox", [0, 0, dimensions.width, dimensions.height]);
-        const settings = d3.select(settingsRef.current)
+        // Update svg dimensions
+        svg
+        .attr("width", dimensions.width)
+        .attr("height", dimensions.height)
+        .attr("viewBox", [0, 0, dimensions.width, dimensions.height])
 
         // Update clipbox dimensions
         svg.select("#clip-rect")
@@ -168,7 +171,7 @@ const LogsPlot = ({
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
-                clearFixedTooltip()
+                clearFixedTooltip(settings)
             }
         } 
         
@@ -199,7 +202,7 @@ const LogsPlot = ({
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
-                clearFixedTooltip()
+                clearFixedTooltip(settings)
             }
         } 
         
@@ -228,7 +231,7 @@ const LogsPlot = ({
                 )
             } else {
                 clearCanvas(svgRef, containerRef)
-                clearFixedTooltip()
+                clearFixedTooltip(settings)
             }
         } 
         
@@ -260,7 +263,7 @@ const LogsPlot = ({
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
-                clearFixedTooltip()
+                clearFixedTooltip(settings)
             }
         }
 
