@@ -1412,8 +1412,8 @@ export const drawScatterPlot = (
             g.selectAll("circle.data-point")
                 .transition("opacity")
                 .duration(200)
-                .attr("r", d => getValue(fields, groupBy, d as LogProps, xTable) === getValue(fields, groupBy, data, xTable) ? 4 : 2)
-                .style("opacity", d => getValue(fields, groupBy, d as LogProps, xTable) === getValue(fields, groupBy, data, xTable) ? 1 : 0.5);
+                .attr("r", d => (d as LogProps)[`${xTable}.id`] === data[`${xTable}.id`] ? 4 : 3)
+                .style("opacity", d => getValue(fields, groupBy, d as LogProps, xTable) === getValue(fields, groupBy, data, xTable) ? 1 : 0.5)
             g.selectAll("path.best-fit")
                 .transition("opacity")
                 .duration(200)
