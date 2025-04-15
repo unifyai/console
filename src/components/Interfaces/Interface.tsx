@@ -233,7 +233,9 @@ const Interface = ({
             <InterfaceTabs
               interfaceId={interfaceId}
               newCounter={newCounter}
+              tabQueryParam={tabQueryParam}
               tabActions={serverTabActions}
+              setTabQueryParam={setTabQueryParam}
             />
           )}
 

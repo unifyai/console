@@ -11,12 +11,14 @@ import { useInterface } from "@/contexts/hooks/interface";
 import { useTab } from "@/contexts/hooks/tab";
 import { useQueryState } from "nuqs";
 
-const InterfaceTabs = ({ interfaceId, newCounter, tabActions: serverTabActions }: {
+const InterfaceTabs = ({ interfaceId, newCounter, tabQueryParam, tabActions: serverTabActions, setTabQueryParam }: {
     interfaceId: string,
     newCounter: number,
+    tabQueryParam: string | null,
     tabActions: TabActions,
+    setTabQueryParam: (tabQueryParam: string) => void,
 }) => {
-    const [tabQueryParam, setTabQueryParam] = useQueryState("tab");
+    const [_, setTabQueryParamNoReload] = useQueryState("tab");
     const [tabQueryParamState, setTabQueryParamState] = useState(tabQueryParam || "");
     const [hoveredTab, setHoveredTab] = useState<string | undefined>();
 
@@ -69,7 +71,8 @@ const InterfaceTabs = ({ interfaceId, newCounter, tabActions: serverTabActions }
                                             tab_, project as string, context, items, newCounter, tabQueryParamState, false, tabUIState?.color
                                         ).then(() => {
                                             interfaceDataActions?.renameTab(tab_, tabQueryParamState);
-                                            setTabQueryParam(tabQueryParamState);
+                                            interfaceUIActions?.setPending(true);
+                                            setTabQueryParamNoReload(tabQueryParamState);
                                         });
                                     });
                                 }
@@ -115,7 +118,7 @@ const InterfaceTabs = ({ interfaceId, newCounter, tabActions: serverTabActions }
                                 newTabName, project as string, context, defaultItems, defaultNewCounter, false, tabUIState?.color
                             ).then(() => {
                                 interfaceDataActions?.addTab(tabQueryParam || "", newTabName);
-                                tabUIActions?.setTilesPending(true);
+                                interfaceUIActions?.setPending(true);
                                 setTabQueryParam(newTabName);
                                 setTabQueryParamState(newTabName);
                             });
