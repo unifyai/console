@@ -46,8 +46,10 @@ const drawAxes = (
     yTicks: number[],
     reverseX: boolean = false,
     reverseY: boolean = false,
+    xAxisLabel?: string,
+    yAxisLabel?: string,
     xType?: string,
-    yType?: string
+    yType?: string,
 ) => {
 
     /* Initialize variables */
@@ -106,8 +108,35 @@ const drawAxes = (
     xAxis.select("path").style("opacity", 0);
     yAxis.select("path").style("opacity", 0);
     xAxis.style("opacity", 1)
-
+    
     if (plotType === "Bar Chart") xAxis.style("opacity", 0)         // (Temporary: Hide x axis for bar charts)
+
+    // --- Add Axis Labels ---
+    const labelFontSize = "12px";
+    const labelColor = "var(--foreground)";
+    xAxis.selectAll(".x-axis-label").remove(); // Remove old label first
+    if (xAxisLabel) {
+        xAxis.append("text")
+        .attr("class", "x-axis-label")
+        .attr("text-anchor", "middle")
+        .attr("x", margins.left + (width - margins.left - margins.right) / 2) // Center below plot area
+        .attr("y", margins.bottom - 15) // Position below ticks
+        .attr("fill", labelColor)
+        .style("font-size", labelFontSize)
+        .text(xAxisLabel);
+    }
+    yAxis.selectAll(".y-axis-label").remove(); // Remove old label first
+    if (yAxisLabel) {
+        yAxis.append("text")
+        .attr("class", "y-axis-label")
+        .attr("transform", "rotate(-90)")
+        .attr("text-anchor", "middle")
+        .attr("y", -margins.left + 20) // Position left of axis
+        .attr("x", -(margins.top + (height - margins.top - margins.bottom) / 2)) // Center vertically in plot area
+        .attr("fill", labelColor)
+        .style("font-size", labelFontSize)
+        .text(yAxisLabel);
+    }
 
     /* Add x = 0 and / or y = 0 line, if applicable */
     const zeroXLine = svg.selectAll(".x-zero")
@@ -785,7 +814,7 @@ export const drawBarChart = (
         generateTicks(0, 0, 10, scaleX === "log"),
         generateTicks(minY, maxY, 10, scaleY === "log")
     ]
-    drawAxes("Bar Chart", svg, dimensions, margins, xScale, yScale, xTicks, yTicks);
+    drawAxes("Bar Chart", svg, dimensions, margins, xScale, yScale, xTicks, yTicks, undefined, undefined, xAxisProperty, yAxisProperty ? `${yAxisProperty} (${metric})` : undefined);
 
     // Tooltip and grouping key
     const tooltip = container.select(".plotTooltip").style("opacity", 0);
@@ -1090,7 +1119,7 @@ export const drawLineChart = (
         generateTicks(minX, maxX, 10, scaleX === "log"),
         generateTicks(minY, maxY, 10, scaleY === "log")
     ]
-    drawAxes("Line Chart", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY, xType);
+    drawAxes("Line Chart", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY, xAxisProperty, yAxisProperty, xType);
 
     // Add grouping key and hide tooltip
     const key = settings.select(".groupingKey")
@@ -1230,7 +1259,7 @@ export const drawLineChart = (
             ]
 
             // Redraw axes with new scales
-            drawAxes("Line Chart", svg, dimensions, margins, newX, y, xTicks, yTicks, reverseX, reverseY, xType);
+            drawAxes("Line Chart", svg, dimensions, margins, newX, y, xTicks, yTicks, reverseX, reverseY, xAxisProperty, yAxisProperty, xType);
 
             // Update line paths
             if (groupBy) {
@@ -1333,7 +1362,8 @@ export const drawScatterPlot = (
         generateTicks(minX, maxX, 10, scaleX === "log"),
         generateTicks(minY, maxY, 10, scaleY === "log")
     ]
-    drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY, xType, yType);
+
+    drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY, xAxisProperty, yAxisProperty, xType, yType);
 
     // Add tooltip and grouping key
     const tooltip = container.select(".plotTooltip").style("opacity", 0)
@@ -1743,7 +1773,7 @@ export const drawScatterPlot = (
                 generateTicks(newY.domain()[0], newY.domain()[1], 10, scaleY === "log")
             ]
 
-            drawAxes("Scatter Plot", svg, dimensions, margins, newX, newY, newXTicks, newYTicks, reverseX, reverseY, xType, yType);
+            drawAxes("Scatter Plot", svg, dimensions, margins, newX, newY, newXTicks, newYTicks, reverseX, reverseY, xAxisProperty, yAxisProperty, xType, yType);
 
             // Update points
             g
@@ -1940,7 +1970,7 @@ export const drawHistogram = (
         generateTicks(minX, maxX, 10, scaleX === "log"),
         generateTicks(minY, maxY, 10, scaleY === "log")
     ]
-    drawAxes("Histogram", svg, dimensions, margins, x, y, xTicks, yTicks, false, false, xType);
+    drawAxes("Histogram", svg, dimensions, margins, x, y, xTicks, yTicks, false, false, xAxisProperty, undefined, xType);
 
     // Tooltip and grouping key
     const tooltip = container.select(".plotTooltip").style("opacity", 0);

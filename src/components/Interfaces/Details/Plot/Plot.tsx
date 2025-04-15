@@ -79,7 +79,7 @@ const LogsPlot = ({
     let settingsRef = useRef<HTMLDivElement>(null);
     const clipId = useId();
     const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
-    const margins = { top: 0, right: 10, bottom: 65, left: 60 } // Margin on the sides
+    const margins = { top: 0, right: 10, bottom: 65, left: 70 } // Margin on the sides
     const axisPadding = 20; // Extra padding between axes borders and plot borders
 
     // Plot settings
