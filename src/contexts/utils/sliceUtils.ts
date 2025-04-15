@@ -559,3 +559,7 @@ export function removeContextFromTab(
 
   state.tabsById[tabId] = tab;
 }
+
+export function getAnyTileLoading(state: StoreSlice): boolean {
+  return Object.values(state.tilesById).some(tile => tile.loading);
+}

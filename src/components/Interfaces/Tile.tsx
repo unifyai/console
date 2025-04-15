@@ -70,6 +70,7 @@ const Tile = ({
     useEffect(() => {
         if (tileItem.tab != "View" && !initial) {
             updateTab(null, tileItem).then(() => {
+                tileUIActions?.setLoading(true);
                 router.refresh();
             }).catch(error => {
                 console.error('Error updating interface:', error);

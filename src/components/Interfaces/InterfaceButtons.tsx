@@ -21,6 +21,7 @@ import { useTab } from "@/contexts/hooks/tab";
 import { useProject } from "@/contexts/hooks/project";
 import { useTiles } from "@/contexts/hooks/useStore";
 import { useInterfaceUI } from "@/contexts/hooks/interface";
+import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 
 const InterfaceButtons = ({
     interfaceId,
@@ -47,6 +48,7 @@ const InterfaceButtons = ({
 
     // Get the project data and the contexts with granular access
     const project = useStoreContext((state) => state.activeProjectId);
+    const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
     const { data: projectDataState } = useProject(project);
     const { ui: interfaceUIState, uiActions: interfaceUIActions } = useInterfaceUI(interfaceId);
     
@@ -173,7 +175,7 @@ const InterfaceButtons = ({
                 tooltip={!project ? "Select a project first" : "Return to last saved interface"}
                 icon={resetIcon}
                 variant="outline"
-                disabled={!project || interfaceUIState?.pending}
+                disabled={!project || interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading}
                 onClick={() => {
                     updateTab(tabDataState?.savedTab);
                     tabUIActions?.setResetting(true);
@@ -187,6 +189,7 @@ const InterfaceButtons = ({
                 interfaceId={interfaceId}
                 tabId={tabQueryParam || ""}
                 newCounter={newCounter}
+                anyTileLoading={anyTileLoading}
                 setNewCounter={setNewCounter}
             />
 

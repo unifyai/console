@@ -337,6 +337,7 @@ const Interface = ({
         <Suspense fallback={<div className="w-full h-16"><SkeletonLoader /></div>}>
           <EditTileName
             tabId={tabQueryParam || ""}
+            interfaceId={interfaceId}
             editTile={editTile}
             setEditTile={setEditTile}
           />
