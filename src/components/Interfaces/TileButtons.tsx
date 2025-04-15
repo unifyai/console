@@ -38,6 +38,7 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
     const {data: tabDataState, dataActions: tabDataActions} = useTabData(tabId, interfaceId);
     const {ui: interfaceUIState, uiActions: interfaceUIActions} = useInterfaceUI(interfaceId);
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
+    const disabled = interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading;
 
     return (
         <div ref={buttonsRef} className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (tabUIState?.edit ? "h-16" : "h-10")}>
@@ -143,13 +144,14 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
                         </ColorPicker>
                         <ActionButton
                             className="drag cursor-grab hover:z-10"
+                            disabled={disabled}
                             icon={<Grip />}
                             tooltip="Drag"
                             variant="outline"
                         />
                         <ActionButton
                             className="remove cursor-pointer hover:z-10"
-                            disabled={interfaceUIState?.pending  || tabUIState?.resetting || anyTileLoading}
+                            disabled={disabled}
                             onClick={() => {
                                 tabDataActions?.removeTile(item.i);
                                 if (tileCount <= 1) {
