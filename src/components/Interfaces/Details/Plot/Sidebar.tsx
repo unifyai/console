@@ -56,6 +56,8 @@ const PlotSettings = ({
   args,
   isTooltipMinimized,
   setIsTooltipMinimized,
+  isGroupingKeyMinimized,
+  setIsGroupingKeyMinimized,
   setPlotDataItem,
   logsActions,
   fieldsActions,
@@ -89,7 +91,9 @@ const PlotSettings = ({
   /* Grouping by */
   groupByProperty: string | undefined;
   metric: string;
-  
+  isGroupingKeyMinimized: boolean;
+  setIsGroupingKeyMinimized: Dispatch<SetStateAction<boolean>>;
+
   /* Aggregating by */
   groupings: {[k: string]: string[]};
   aggregateProperty: string | undefined;
@@ -290,26 +294,30 @@ const PlotSettings = ({
             { (showFixedTooltip || showGroupByKey) && <hr className="mx-3 my-3 border-border" /> }
 
             {/* Fixed Tooltip and Grouping Key */}
-            <div className="flex flex-col gap-2 px-3 pb-4 space-y-3">
-                <div
-                    className={`fixedPlotTooltip relative border border-muted rounded-md hidden text-sm transition-all duration-200 ease-in-out ${
-                        isTooltipMinimized
-                            ? 'h-10 overflow-hidden px-2 py-1' // Minimized
-                            : 'p-3'                            // Expanded
-                    }`}
-                >
-                    {/* Content is rendered by d3 inside renderFixedTooltipContent */}
-                </div>
+            <div className="flex flex-col gap-2 px-3 pb-4">
+              {/* Fixed Tooltip Container */}
+              <div className={`fixedPlotTooltip relative border border-muted rounded-md hidden text-sm transition-all duration-200 ease-in-out ${
+                isTooltipMinimized 
+                  ? 'h-10 overflow-hidden px-2 py-1' 
+                  : 'p-3'
+                }`}
+              >
+                {/* Content is rendered by d3 inside renderFixedTooltipContent */}
+              </div>
 
-                {/* Grouping Key Container */}
-                {showGroupByKey && (
-                    <div
-                        style={{"scrollbar-width": "none"} as React.CSSProperties}
-                        className="groupingKey py-2 px-3 flex flex-col gap-1 overflow-auto w-full h-full max-h-[150px] rounded-md border-2 border border-dashed rounded"
-                    >
-                        {/* Content is rendered by d3 */}
-                    </div>
-                )}
+              {/* Grouping Key Container */}
+              {showGroupByKey && (
+                <div
+                  style={{ "scrollbar-width": "none" } as React.CSSProperties}
+                  className={`groupingKey flex flex-col gap-1 w-full rounded-md border border-dashed transition-all duration-200 ease-in-out ${
+                    isGroupingKeyMinimized
+                    ? "h-10 overflow-hidden px-2 py-1"
+                    : "max-h-[150px] p-3"
+                  }`}
+                >
+                  {/* Content is rendered by d3 */}
+                </div>
+              )}
             </div>
           </>
         )}

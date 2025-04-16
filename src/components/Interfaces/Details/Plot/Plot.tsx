@@ -105,6 +105,13 @@ const LogsPlot = ({
     const selectedXAxisProperty = item?.x_axis;
     const selectedYAxisProperty = item?.y_axis;
     const groupByProperty = item?.plot_group_by;
+    const [isGroupingKeyMinimized, setIsGroupingKeyMinimized] = useState(false);
+    useEffect(() => {
+        if (settingsRef.current) {
+            (settingsRef.current as any).__isGroupingKeyMinimized = isGroupingKeyMinimized;
+            (settingsRef.current as any).__setIsGroupingKeyMinimized = setIsGroupingKeyMinimized;
+        }
+    }, [isGroupingKeyMinimized, setIsGroupingKeyMinimized]);
 
     // Sort bars for bar chart
     const [sortBars, setSortBars] = useState("asc")
@@ -362,6 +369,8 @@ return (
             tileDataActions={tileDataActions}
             isTooltipMinimized={isTooltipMinimized}
             setIsTooltipMinimized={setIsTooltipMinimized}
+            isGroupingKeyMinimized={isGroupingKeyMinimized}
+            setIsGroupingKeyMinimized={setIsGroupingKeyMinimized}
         />
   
     </div>

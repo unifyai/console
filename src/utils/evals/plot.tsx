@@ -195,7 +195,7 @@ export const drawBorders = (
 /**
  * Clears the content and hides the fixed tooltip container.
  * Also resets the minimized state.
- */
+*/
 export function clearFixedTooltip(
     settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
     setIsMinimized: (minimized: boolean) => void
@@ -205,6 +205,22 @@ export function clearFixedTooltip(
     // Reset minimized state ONLY when explicitly closed/cleared
     if (setIsMinimized) {
         setIsMinimized(false);
+    }
+}
+
+/**
+ * Clears the content and hides the grouping key container.
+ * Also resets the minimized state.
+*/
+export function clearGroupingKey(
+    settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+    setIsGroupingKeyMinimized: (minimized: boolean) => void
+) {
+    const container = settings.select<HTMLDivElement>(".groupingKey");
+    // Don't remove data binding here, just clear HTML and hide
+    container.html('').classed('hidden', true);
+    if (setIsGroupingKeyMinimized) {
+        setIsGroupingKeyMinimized(false);
     }
 }
 
@@ -395,15 +411,87 @@ const tooltipTemplate = (data: InfoCardData) => {
     return template
 }
 
+/**
+ * Generates *only* the list item HTML for the grouping key.
+ * @param keys The color mapping for group keys.
+ * @returns HTML string for the key items.
+ */
 const keyTemplate = (keys: GroupingColors) => {
-    const value = (entry: { key: string | null, color: string }) => entry.key?.toString().replace(/^"|"$/g, '');
-    return (`
-    ${keys.map((entry, index) => `
-    <div id=${entry.key} class="key flex flex-row gap-2 mt-1 items-center">
-        <div class="rounded-full h-2 w-2 shrink-0" style="background-color: ${entry.color}; color: ${entry.color}"></div>
-        <p class="text-xs text-foreground">${value(entry)}</p>
-    </div>
-    `).join("\n")}`)
+    const value = (entry: { key: string | null, color: string }) => entry.key?.toString().replace(/^"|"$/g, '') || 'null';
+    return keys.map(entry => `
+        <div class="key flex flex-row gap-2 items-center">
+            <div class="rounded-full h-2 w-2 shrink-0" style="background-color: ${entry.color};"></div>
+            <p class="text-xs text-foreground truncate">${value(entry)}</p>
+        </div>
+    `).join("\n");
+}
+
+/**
+ * Renders the grouping key section, including header, buttons, and items.
+ * Handles minimize/expand state and re-rendering.
+ * @param settings d3.Selection of the settings panel div.
+ * @param colors Array of group keys and their colors.
+ */
+function renderGroupingKey(
+    settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+    colors: GroupingColors | null // Allow null to hide the key
+) {
+    const container = settings.select<HTMLDivElement>(".groupingKey");
+    if (!colors || colors.length === 0) {
+        // If no colors (no grouping), hide the container and potentially reset state
+        const settingsNode = settings.node();
+        const setIsMinimized = settingsNode ? (settingsNode as any).__setIsGroupingKeyMinimized : undefined;
+        clearGroupingKey(settings, setIsMinimized); // Use the dedicated clear function
+        return;
+    }
+
+    // Retrieve state and setter from the settings DOM node
+    const settingsNode = settings.node();
+    const isMinimized = settingsNode ? (settingsNode as any).__isGroupingKeyMinimized ?? false : false;
+    const setIsMinimized = settingsNode ? (settingsNode as any).__setIsGroupingKeyMinimized : undefined;
+
+    container.html(''); // Clear previous content
+    container.classed('hidden', false); // Ensure container is visible
+
+    // --- Header Row ---
+    const header = container.append('div')
+        .attr('class', 'flex justify-between items-center min-h-6 mb-1');
+
+    // --- Title ---
+    header.append('span')
+        .attr('class', `text-xs font-semibold mr-2`)
+        .text('Grouping Key');
+
+    // --- Button Group ---
+    const buttonGroup = header.append('div')
+        .attr('class', 'flex items-center gap-1 ml-auto'); // Pushes buttons right
+
+    // --- Minimize/Expand Button ---
+    if (setIsMinimized) {
+        buttonGroup.append('button')
+            .attr('class', 'p-0.5 rounded hover:bg-muted focus:outline-none focus:ring-1 focus:ring-ring')
+            .attr('aria-label', isMinimized ? 'Expand key' : 'Minimize key')
+            .html(isMinimized ? expandIconSVG : minimizeIconSVG)
+            .on('click', (event) => {
+                event.stopPropagation();
+                const newState = !isMinimized;
+                setIsMinimized(newState);
+
+                // Queue re-render
+                setTimeout(() => {
+                     // Re-fetch colors? No, they should be stable for this render cycle.
+                     // Re-render with the *same* colors data but new state.
+                    renderGroupingKey(settings, colors);
+                }, 0);
+            });
+    }
+
+    // --- Key Items (Only add if NOT minimized) ---
+    if (!isMinimized) {
+        const itemsWrapper = container.append('div')
+             .attr('class', 'grouping-key-items mt-1 flex flex-col gap-1'); // Add margin top
+        itemsWrapper.html(keyTemplate(colors));
+    }
 }
 
 /**
@@ -889,7 +977,6 @@ export const drawBarChart = (
 
     // Tooltip and grouping key
     const tooltip = container.select(".plotTooltip").style("opacity", 0);
-    const key = settings.select(".groupingKey");
 
     // Draw bars
     const initialOpacity = groupByProperty ? 0.7 : 1.0;
@@ -934,33 +1021,11 @@ export const drawBarChart = (
         );
         // Grouping Key
         const colors: GroupingColors = groupDomain.map(groupKey => ({key: groupKey, color: colorScale(groupKey)}));
-        key.html(keyTemplate(colors)).style("opacity", 1);
-        key
-            .selectAll(".key")
-            .on("mouseover", (event: MouseEvent) => {
-                const target = event.currentTarget as HTMLElement;
-                const groupKey = target.id;
-                g.selectAll("rect.bar-item")
-                 .transition("opacity")
-                 .duration(200)
-                 .style("opacity", d => { return (d as GroupedDataLabel)[0] === groupKey ? 1 : 0 });
-                key.selectAll(".key")
-                   .transition("opacity").duration(200)
-                   .style("opacity", function() { return (this as any).id === groupKey ? 1 : 0.3; });
-            })
-            .on("mouseout", () => {
-                g.selectAll("rect.bar-item")
-                 .transition("opacity")
-                 .duration(200)
-                 .style("opacity", initialOpacity);
-                key.selectAll(".key")
-                   .transition("opacity")
-                   .duration(200)
-                   .style("opacity", 1);
-            });
+        renderGroupingKey(settings, colors);
     }
     else {
         const primary = getPrimaryColorFromNode(svg.node());
+        renderGroupingKey(settings, null); 
         g
             .selectAll<SVGRectElement, DataLabel>("rect.bar-item")
             .data(data as DataLabel[], d => d[0])
@@ -1050,10 +1115,6 @@ export const drawBarChart = (
             g.selectAll("rect.bar-item")
               .transition("opacity").duration(200)
               .style("opacity", barData => (barData as GroupedDataLabel)[0] === group ? 1 : 0);
-            key.selectAll(".key")
-                .transition("opacity")
-                .duration(200)
-                .style("opacity", function() { return (this as any).id === group ? 1 : 0.3; });
         }
         else {
             const xValue = (d as DataLabel)[0];
@@ -1069,9 +1130,6 @@ export const drawBarChart = (
     const handleMouseOut = () => {
         tooltip.transition("opacity").style("opacity", 0);
         g.selectAll("rect.bar-item").transition("opacity").style("opacity", initialOpacity);
-        if (groupByProperty) {
-            key.selectAll(".key").transition("opacity").duration(200).style("opacity", 1);
-        }
     };
     g.selectAll("rect.bar-item")
         .on("mouseover", (e, d) =>handleMouseOver(e,(d as GroupedDataLabel | DataLabel)))
@@ -1193,7 +1251,6 @@ export const drawLineChart = (
     drawAxes("Line Chart", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY, xAxisProperty, yAxisProperty, xType);
 
     // Add grouping key and hide tooltip
-    const key = settings.select(".groupingKey")
     const tooltip = container.select(".plotTooltip").style("opacity", 0)
 
     // Plot lines.
@@ -1214,6 +1271,7 @@ export const drawLineChart = (
         domain = Array.from(new Set(domain))
         const color = d3.scaleOrdinal().domain(domain).range(d3.schemeCategory10);
         const colors = domain.map((key) => ({key: key, color: color(key) as string}));
+        renderGroupingKey(settings, colors); 
         g.selectAll("path.line-item")
             .data(
                 data as GroupedDataPoint[], 
@@ -1228,13 +1286,9 @@ export const drawLineChart = (
             .attr("stroke-width", 2)
             .attr("d", d => lineGenerator(d[1]))
             .attr("class", "line-item");
-            
-        key
-            .html(keyTemplate(colors))
-            .transition("opacity")
-            .style("opacity", 1)
     } else {
         const primary = getPrimaryColorFromNode(svg.node());
+        renderGroupingKey(settings, null); 
         g.selectAll("path.line-item")
             .data(
                 [data as DataPoint[]],
@@ -1262,21 +1316,11 @@ export const drawLineChart = (
             .transition("opacity")
             .duration(200)
             .style("opacity", d => (d as GroupedDataPoint)[0] === groupValue ? 1 : 0.5);
-        key.selectAll(".key")
-            .each(function (d, i) {
-                const id = d3.select(this).attr("id")
-                const opacity = id.toString() === groupValue ? 1 : 0.5
-                d3.select(this)
-                .transition("opacity")
-                .duration(200)
-                .style("opacity", opacity)
-            })
     }
 
     // When leaving a line, restore opacity of all line groups and their corresponding key
     function leaveLine () {
         g.selectAll("path.line-item").transition("opacity").duration(200).style("opacity", 1)
-        key.selectAll(".key").transition("opacity").duration(200).style("opacity", 1)
     }
 
     // Handle panning and zooming
@@ -1438,7 +1482,6 @@ export const drawScatterPlot = (
 
     // Add tooltip and grouping key
     const tooltip = container.select(".plotTooltip").style("opacity", 0)
-    const key = settings.select(".groupingKey")
 
     // Add data points
     // If grouping is set:
@@ -1452,11 +1495,10 @@ export const drawScatterPlot = (
         domain = Array.from(new Set(domain));
         color.domain(domain);
         const colors = domain.map((key) => ({ key: key, color: color(key) as string }));
-        key
-            .html(keyTemplate(colors))
-            .transition("opacity")
-            .style("opacity", 1);
-    }    
+        renderGroupingKey(settings, colors); 
+    } else {
+        renderGroupingKey(settings, null);
+    }
     const points = g
         .selectAll("circle.data-point")
         .data(data, (d: unknown) => (d as LogProps).id); // Use unique identifier to track point transitions
@@ -1556,15 +1598,6 @@ export const drawScatterPlot = (
                 .transition("opacity")
                 .duration(200)
                 .style("opacity", (d: any) => d.groupKey === groupBy ? 1 : 0.5);
-            key.selectAll(".key")
-                .each(function (d, i) {
-                    const id = d3.select(this).attr("id")
-                    const opacity = id.toString() === getValue(fields, groupBy, data, xTable).toString() ? 1 : 0.5
-                    d3.select(this)
-                      .transition("opacity")
-                      .duration(200)
-                      .style("opacity", opacity)
-                })
         } else {
             g.selectAll("circle.data-point")
                 .filter((d: unknown) => (d as LogProps).id !== data.id)
@@ -1587,14 +1620,6 @@ export const drawScatterPlot = (
                 .transition("opacity")
                 .duration(200)
                 .attr("r", 3)
-                .style("opacity", 1)
-            g.selectAll(".key")
-               .transition("opacity")
-               .duration(200)
-               .style("opacity", 1)
-            key.selectAll(".key")
-                .transition("opacity")
-                .duration(200)
                 .style("opacity", 1)
             g.selectAll("path.best-fit, text.correlation-group")
                 .transition("opacity")
@@ -2045,7 +2070,6 @@ export const drawHistogram = (
 
     // Tooltip and grouping key
     const tooltip = container.select(".plotTooltip").style("opacity", 0);
-    const key = settings.select(".groupingKey");
 
     // Add histogram
     const initialOpacity = groupByProperty ? 0.7 : 1.0;
@@ -2089,33 +2113,11 @@ export const drawHistogram = (
 
         // Grouping Key
         const colors: GroupingColors = groupDomain.map(groupKey => ({key: groupKey, color: colorScale(groupKey)}));
-        key.html(keyTemplate(colors)).style("opacity", 1);
-        key
-            .selectAll(".key")
-            .on("mouseover", (event: MouseEvent) => {
-                const target = event.currentTarget as HTMLElement;
-                const groupKey = target.id;
-                g.selectAll("rect.hist-item")
-                 .transition("opacity")
-                 .duration(200)
-                 .style("opacity", d => { return (d as GroupedBin).group === groupKey ? 1 : 0 });
-                key.selectAll(".key")
-                   .transition("opacity").duration(200)
-                   .style("opacity", function() { return (this as any).id === groupKey ? 1 : 0.3; });
-            })
-            .on("mouseout", () => {
-                g.selectAll("rect.hist-item")
-                 .transition("opacity")
-                 .duration(200)
-                 .style("opacity", initialOpacity);
-                key.selectAll(".key")
-                   .transition("opacity")
-                   .duration(200)
-                   .style("opacity", 1);
-            });
+        renderGroupingKey(settings, colors); 
     }
     else {
         const primary = getPrimaryColorFromNode(svg.node());
+        renderGroupingKey(settings, null); 
         const bars = g
         .selectAll("rect.hist-item")
         .data((buckets as d3.Bin<number, number>[]), (d: any) => `${d.x0}-${d.x1}`); // Use bin boundaries as key
@@ -2198,12 +2200,6 @@ export const drawHistogram = (
          .transition("opacity")
          .duration(200)
          .style("opacity", 0.5);
-        if (groupByProperty) {
-            key.selectAll(".key")
-                .transition("opacity")
-                .duration(200)
-                .style("opacity", function() { return (this as any).id === (bin as GroupedBin).group ? 1 : 0.3; });
-        }
       }
 
       function moveOnHist(event: any, bin: d3.Bin<number, number>) {
@@ -2218,8 +2214,5 @@ export const drawHistogram = (
           .transition("opacity")
           .duration(200)
           .style("opacity", initialOpacity);
-        if (groupByProperty) {
-            key.selectAll(".key").transition("opacity").duration(200).style("opacity", 1);
-        }
     }
 };
