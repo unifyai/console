@@ -179,6 +179,7 @@ const PlotSettings = ({
                 {/* Plot Type Selection */}
                 <PlotType
                   interactive={interactive}
+                  settingsRef={settingsRef}
                   plotType={plotType}
                   svgRef={svgRef}
                   containerRef={containerRef}
@@ -313,6 +314,7 @@ const PlotSettings = ({
               logs={logs}
             />
             <PlotReset
+              settingsRef={settingsRef}
               svgRef={svgRef}
               containerRef={containerRef}
               setXAxis={setXAxis}
