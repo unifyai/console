@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, Dispatch, SetStateAction } from 'react';
+import React, { useEffect, useState, useMemo, Dispatch, SetStateAction } from 'react';
 import { LuPanelLeftOpen, LuPanelRightOpen } from 'react-icons/lu';
 
 import { Button } from "@/components/UI/button";
@@ -153,6 +153,17 @@ const PlotSettings = ({
   const setShowRegression = plotTileActions?.setRegressionLine;
   const setMetric = tileDataActions?.setMetric;
 
+  // Attach isOpen state and setter to ref
+  useEffect(() => {
+    if (settingsRef.current) {
+        const node = settingsRef.current as any;
+        node.__isOpen = isOpen;
+        node.__setIsOpen = setIsOpen;
+    }
+  }, [
+      isOpen, setIsOpen
+  ]);
+
   // Show fixed tooltip / grouping key
   const showFixedTooltip = true;
   const showGroupByKey = groupByProperty != undefined && groupByProperty != "None";
@@ -296,7 +307,7 @@ const PlotSettings = ({
             {/* Fixed Tooltip and Grouping Key */}
             <div className="flex flex-col gap-2 px-3 pb-4">
               {/* Fixed Tooltip Container */}
-              <div className={`fixedPlotTooltip relative border border-muted rounded-md hidden text-sm transition-all duration-200 ease-in-out ${
+              <div className={`fixedPlotTooltip relative border border-dashed rounded-md hidden text-sm transition-all duration-200 ease-in-out ${
                 isTooltipMinimized 
                   ? 'h-10 overflow-hidden px-2 py-1' 
                   : 'p-3'
@@ -309,7 +320,7 @@ const PlotSettings = ({
               {showGroupByKey && (
                 <div
                   style={{ "scrollbar-width": "none" } as React.CSSProperties}
-                  className={`groupingKey flex flex-col gap-1 w-full rounded-md border border-dashed transition-all duration-200 ease-in-out ${
+                  className={`groupingKey flex flex-col gap-1 w-full rounded-md border border-muted transition-all duration-200 ease-in-out ${
                     isGroupingKeyMinimized
                     ? "h-10 overflow-hidden px-2 py-1"
                     : "max-h-[150px] p-3"

@@ -356,19 +356,65 @@ function renderFixedTooltipContent(
 
 /**
  * Generic click handler for plot elements (bars, points, hist bins) to handle fixed tooltip.
+ * If the sidebar is closed, it attempts to open it before pinning.
  * @param event The click event.
  * @param data The data associated with the clicked element (InfoCardData structure).
- * @param settings d3.Selection of the settings panel div.
+ * @param settings d3.Selection of the settings panel div (which should have state/setters attached).
  */
-function showFixedTooltip(
-    event: MouseEvent,
-    data: InfoCardData | null,
-    settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
-) {
-    event.stopPropagation();
-    const fixedTooltipContainer = settings.select<HTMLDivElement>(".fixedPlotTooltip") as d3.Selection<HTMLDivElement, any, null, any>;
-    fixedTooltipContainer.datum(data); // Bind the new data (or rebind the same data)
-    renderFixedTooltipContent(fixedTooltipContainer, settings); // Render (will use current/updated minimized state)
+function showFixedTooltip( event: MouseEvent, data: InfoCardData | null, settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined> ) {
+    event.stopPropagation(); // Prevent triggering other listeners
+  
+    const settingsNode = settings.node();
+    if (!settingsNode) {
+        console.error("Settings panel node not found for fixed tooltip.");
+        return; // Safety check
+    }
+  
+    // Retrieve state and setter from the settings DOM node
+    const isOpen = (settingsNode as any).__isOpen;
+    const setIsOpen = (settingsNode as any).__setIsOpen;
+  
+    // Define the core logic for pinning the tooltip
+    const executePinning = () => {
+        // Re-select the container *inside* this function,
+        // especially if it runs after a delay, to ensure it exists.
+        const fixedTooltipContainer = settings.select<HTMLDivElement>(".fixedPlotTooltip");
+  
+        // Check if the container was successfully created/found
+        if (!fixedTooltipContainer.node()) {
+            console.error("Fixed tooltip container (.fixedPlotTooltip) not found in the DOM even after attempting to open sidebar. Cannot pin data.");
+            // Attempt to clear any potentially stale data binding if the element *was* there before but now isn't
+            settings.selectAll<HTMLDivElement, any>(".fixedPlotTooltip").datum(null).html('').classed('hidden', true);
+            return;
+        }
+  
+        // Proceed with binding data and rendering
+        fixedTooltipContainer.datum(data); // Bind the new data (or null to clear)
+        renderFixedTooltipContent(fixedTooltipContainer as d3.Selection<HTMLDivElement, any, null, any>, settings); // Render
+    };
+  
+    // --- Logic based on sidebar state ---
+    if (data === null) {
+        // If called with null data (e.g., explicit clear), just execute immediately
+        executePinning();
+    } else if (isOpen === false && typeof setIsOpen === 'function') {
+        // Sidebar is closed, and we have the function to open it
+        setIsOpen(true); // Trigger React state update to open sidebar
+  
+        // Use setTimeout to defer executePinning until *after* React has re-rendered
+        // the sidebar with the .fixedPlotTooltip element present in the DOM.
+        setTimeout(executePinning, 0); // 0ms delay is usually sufficient
+  
+    } else if (isOpen === true || isOpen === undefined) {
+        // Sidebar is already open, or its state is unknown (e.g., initial render before effect runs)
+        // Proceed immediately.
+        executePinning();
+  
+    } else {
+        // Sidebar is closed, but we don't have the setIsOpen function.
+        // We cannot open it automatically. Log a warning.
+        console.warn("Sidebar is closed, but cannot find function to open it. Tooltip cannot be pinned while closed.");
+    }
 }
 
 /**
