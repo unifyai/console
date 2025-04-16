@@ -338,7 +338,7 @@ const DataTableHeader = ({
     whiteSpace: "nowrap",
     width: `${Math.round(header.getSize())}px`,
     minWidth: hasActiveActions ? activeActionsRef.current?.clientWidth : 0,
-    zIndex: isColumnDragging || isPinned ? 1 : 0,
+    zIndex: isPinned ? 2 : isColumnDragging ? 1 : 0,
     borderLeft: header.column.id === "RowNumbering" ? "1px solid var(--muted)" : undefined,
     borderRight: "1px solid var(--muted)",
     borderTop: "1px solid var(--muted)",
@@ -356,9 +356,9 @@ const DataTableHeader = ({
   const isPlaceholderColumn = header.isPlaceholder
   const isSelected = isNotUtilColumn && !isPlaceholderColumn ? isAllColumnSelected(header) : isAllTableSelected();
   const selectionClass = isSelected ? 'bg-primary' : '';
-  const pinnedClass = !isSelected && isPinned && isNotUtilColumn && !isPlaceholderColumn ? 'bg-background' : '';
-  const defaultBgClass = !isSelected && !pinnedClass ? 'bg-transparent' : '';
-  const hoverClass = !isSelected && !pinnedClass && !dropdownOpen && (!isPlaceholderColumn || isIndexColumn) ? 'hover:bg-muted' : '';
+  const pinnedClass = isPinned && !isSelected ? 'bg-background' : '';
+  const defaultBgClass = !isSelected && !isPinned ? 'bg-transparent' : '';
+  const hoverClass = !isSelected && !isPinned && !dropdownOpen && (!isPlaceholderColumn || isIndexColumn) ? 'hover:bg-muted' : '';
 
   const maxLabelWidth = Math.max(Number((style.width as string).split("px")[0]) - (actionButtonRef.current?.clientWidth ?? 0), 10)
 

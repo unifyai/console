@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, Dispatch, SetStateAction } from 'react';
+import React, { useEffect, useState, useMemo, Dispatch, SetStateAction } from 'react';
 import { LuPanelLeftOpen, LuPanelRightOpen } from 'react-icons/lu';
 
 import { Button } from "@/components/UI/button";
@@ -54,6 +54,10 @@ const PlotSettings = ({
   interfaceId,
   projectId,
   args,
+  isTooltipMinimized,
+  setIsTooltipMinimized,
+  isGroupingKeyMinimized,
+  setIsGroupingKeyMinimized,
   setPlotDataItem,
   logsActions,
   fieldsActions,
@@ -87,7 +91,9 @@ const PlotSettings = ({
   /* Grouping by */
   groupByProperty: string | undefined;
   metric: string;
-  
+  isGroupingKeyMinimized: boolean;
+  setIsGroupingKeyMinimized: Dispatch<SetStateAction<boolean>>;
+
   /* Aggregating by */
   groupings: {[k: string]: string[]};
   aggregateProperty: string | undefined;
@@ -111,6 +117,10 @@ const PlotSettings = ({
   args: PlotArguments;
   setPlotDataItem: Dispatch<SetStateAction<PlotDataItem>>,
   
+  /* Fixed tooltip */
+  isTooltipMinimized: boolean;
+  setIsTooltipMinimized: Dispatch<SetStateAction<boolean>>;
+
   /* Server actions */
   plotTileActions: PlotActions | null;
   tileDataActions: TileDataActions | null;
@@ -143,6 +153,17 @@ const PlotSettings = ({
   const setShowRegression = plotTileActions?.setRegressionLine;
   const setMetric = tileDataActions?.setMetric;
 
+  // Attach isOpen state and setter to ref
+  useEffect(() => {
+    if (settingsRef.current) {
+        const node = settingsRef.current as any;
+        node.__isOpen = isOpen;
+        node.__setIsOpen = setIsOpen;
+    }
+  }, [
+      isOpen, setIsOpen
+  ]);
+
   // Show fixed tooltip / grouping key
   const showFixedTooltip = true;
   const showGroupByKey = groupByProperty != undefined && groupByProperty != "None";
@@ -150,10 +171,6 @@ const PlotSettings = ({
   return (
     <div 
       ref={settingsRef}
-      style={{
-        height: containerRef.current?.clientHeight,
-        maxHeight: containerRef.current?.clientHeight
-      }}
       className={`relative flex flex-col bg-background border-l border-border transition-all duration-300 ease-in-out ${isOpen ? 'w-64' : 'w-12'} rounded-r-md`}
     >
 
@@ -183,6 +200,7 @@ const PlotSettings = ({
                 {/* Plot Type Selection */}
                 <PlotType
                   interactive={interactive}
+                  settingsRef={settingsRef}
                   plotType={plotType}
                   svgRef={svgRef}
                   containerRef={containerRef}
@@ -192,6 +210,7 @@ const PlotSettings = ({
                   setPlotType={setPlotType}
                   setXAxis={setXAxis}
                   setYAxis={setYAxis}
+                  setIsTooltipMinimized={setIsTooltipMinimized}
                 />
 
                 {/* X Axis Selection */}
@@ -286,15 +305,29 @@ const PlotSettings = ({
             { (showFixedTooltip || showGroupByKey) && <hr className="mx-3 my-3 border-border" /> }
 
             {/* Fixed Tooltip and Grouping Key */}
-            <div className="flex flex-col gap-2 px-3 pb-4 space-y-3">
-              {showFixedTooltip && (
-                <div className="fixedPlotTooltip relative p-3 border border-muted rounded-md hidden text-sm"></div>
-              )}
+            <div className="flex flex-col gap-2 px-3 pb-4">
+              {/* Fixed Tooltip Container */}
+              <div className={`fixedPlotTooltip relative border border-dashed rounded-md hidden text-sm transition-all duration-200 ease-in-out ${
+                isTooltipMinimized 
+                  ? 'h-10 overflow-hidden px-2 py-1' 
+                  : 'p-3'
+                }`}
+              >
+                {/* Content is rendered by d3 inside renderFixedTooltipContent */}
+              </div>
+
+              {/* Grouping Key Container */}
               {showGroupByKey && (
                 <div
-                  style={{"scrollbar-width": "none"} as React.CSSProperties} 
-                  className="groupingKey py-2 px-3 flex flex-col gap-1 overflow-auto w-full h-full max-h-[150px] rounded-md border-2 border border-dashed rounded"
-                ></div>
+                  style={{ "scrollbar-width": "none" } as React.CSSProperties}
+                  className={`groupingKey flex flex-col gap-1 w-full rounded-md border border-muted transition-all duration-200 ease-in-out ${
+                    isGroupingKeyMinimized
+                    ? "h-10 overflow-hidden px-2 py-1"
+                    : "max-h-[150px] p-3"
+                  }`}
+                >
+                  {/* Content is rendered by d3 */}
+                </div>
               )}
             </div>
           </>
@@ -317,12 +350,14 @@ const PlotSettings = ({
               logs={logs}
             />
             <PlotReset
+              settingsRef={settingsRef}
               svgRef={svgRef}
               containerRef={containerRef}
               setXAxis={setXAxis}
               setYAxis={setYAxis}
               setGroupBy={setGroupBy}
               setAggregateProperty={setAggregateProperty}
+              setIsTooltipMinimized={setIsTooltipMinimized}
             />
          </div>
       )}

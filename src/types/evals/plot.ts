@@ -19,7 +19,8 @@ export interface GroupedBin extends d3.Bin<number, number> {
 export type InfoCardData = {
     x : {"name": string, "value": string | number},
     y : {"name": string, "value": number},
-    group? : {"name": string, "value": string | number}
+    group? : {"name": string, "value": string | number},
+    aggregate? : {"name": string}
 } 
 
 export type InfoCardPosition = { x: number, y: number}

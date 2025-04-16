@@ -4,24 +4,28 @@ import { Plus } from "lucide-react";
 import { useTab } from "@/contexts/hooks/tab";
 import { useMemo } from "react";
 import { useInterface } from "@/contexts/hooks/interface";
+import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
+import { useStoreContext } from "@/contexts/providers/StoreProvider";
 
 const AddTile = ({
     project,
     interfaceId,
     tabId,
     newCounter,
+    anyTileLoading,
     setNewCounter,
 }: {
     project: string | null,
     interfaceId: string,
     tabId: string,
     newCounter: number,
+    anyTileLoading: boolean,
     setNewCounter: (newCounter: number) => void,
 }) => {
     // Get tab data and actions using useTab hook with granular access
     const { ui: tabUIState, dataActions: tabDataActions, exists } = useTab(tabId);
     const { ui: interfaceUIState } = useInterface(interfaceId);
-    
+
     // Use the getItems function from the useTab hook to get TileProps array
     const [items, visibleItems] = useMemo(() => {
         const allItems = tabDataActions?.getItems();
@@ -38,7 +42,7 @@ const AddTile = ({
             icon={<Plus />}
             text="Add Tile"
             variant="outline"
-            disabled={!tabUIState?.edit || !project || interfaceUIState?.pending || !exists}
+            disabled={!tabUIState?.edit || !project || !exists || interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading}
             onClick={() => {
                 let initialIndex = items.length;
                 while (items.some(item => item.i == "Tile_" + initialIndex))

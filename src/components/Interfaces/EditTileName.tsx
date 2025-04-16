@@ -5,19 +5,28 @@ import ActionButton from "../Common/Buttons/Action";
 import { Dialog, DialogContent } from "../UI/dialog";
 import { Input } from "../UI/input";
 import { useTab } from "@/contexts/hooks/tab";
+import { useTileUI } from "@/contexts/hooks/tile";
+import { useStoreContext } from "@/contexts/providers/StoreProvider";
+import { useInterfaceUI } from "@/contexts/hooks/interface";
+import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 
 const EditTileName = ({
     tabId,
+    interfaceId,
     editTile,
     setEditTile,
 }: {
     tabId: string,
+    interfaceId: string,
     editTile: string | undefined,
     setEditTile: Dispatch<SetStateAction<string | undefined>>,
 }) => {
     const [newTileName, setNewTileName] = useState<string>();
 
-    const { dataActions: tabDataActions } = useTab(tabId);
+    const { ui: interfaceUIState } = useInterfaceUI(interfaceId);
+    const { ui: tabUIState, dataActions: tabDataActions } = useTab(tabId);
+    const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
+    const readOnly = interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading;
 
     // edit tile name
     const saveTileName = () => {
@@ -36,25 +45,30 @@ const EditTileName = ({
             setNewTileName(undefined);
         }}>
             <DialogContent className="w-72">
-                <div className="mt-6 flex gap-2">
-                    <Input
-                        placeholder={"Enter new tile name..."}
-                        value={newTileName || ""}
-                        onInput={(input) => setNewTileName(input.currentTarget.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                                saveTileName();
-                            }
-                        }}
-                        className="h-8 w-48"
-                    />
-                    <ActionButton
-                        className="remove cursor-pointer"
-                        onClick={() => saveTileName()}
-                        text="Save"
-                        tooltip="Save"
-                        variant="primary"
-                    />
+                <div className="mt-6 flex flex-col gap-2">
+                    {readOnly && <div className="text-sm text-muted-foreground">Please wait while tiles are loading...</div>}
+                    <div className="flex gap-2">
+                        <Input
+                            placeholder={readOnly ? editTile : "Enter new tile name..."}
+                            value={newTileName || ""}
+                            onInput={(input) => setNewTileName(input.currentTarget.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    saveTileName();
+                                }
+                            }}
+                            readOnly={readOnly}
+                            className="h-8 w-48"
+                        />
+                        <ActionButton
+                            className="remove cursor-pointer"
+                            onClick={() => saveTileName()}
+                            text="Save"
+                            tooltip="Save"
+                            variant="primary"
+                            disabled={readOnly}
+                        />
+                    </div>
                 </div>
             </DialogContent>
         </Dialog>

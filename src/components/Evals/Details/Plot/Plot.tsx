@@ -22,9 +22,9 @@ const LogsPlot = ({ logs, fields}: {
     fields: LogFieldsResponseProps
 }) => {
     // Initialize refs and container dimensions
-    let svgRef = useRef(null);
-    let containerRef = useRef(null);
-    let settingsRef = useRef(null);
+    let svgRef = useRef<SVGSVGElement>(null);
+    let containerRef = useRef<HTMLDivElement>(null);
+    let settingsRef = useRef<HTMLDivElement>(null);
     const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
     const margins = {top: 30, right: 100, bottom: 75, left: 60} // Margin on the sides
     const axisPadding = 20; // Extra padding between axes borders and plot borders
@@ -96,6 +96,7 @@ const LogsPlot = ({ logs, fields}: {
                     selectedXAxisProperty, 
                     selectedYAxisProperty, 
                     groupByProperty || undefined,
+                    undefined,
                     xTable,
                     yTable,
                     logs, 
@@ -132,6 +133,7 @@ const LogsPlot = ({ logs, fields}: {
                     selectedXAxisProperty, 
                     selectedYAxisProperty, 
                     groupByProperty ?? undefined,
+                    undefined,
                     metric as string,
                     "unsorted",
                     xTable,
@@ -167,6 +169,7 @@ const LogsPlot = ({ logs, fields}: {
                     axisPadding, 
                     selectedXAxisProperty, 
                     groupByProperty ?? undefined,
+                    undefined,
                     +binCount,
                     setBinCount,
                     binCounts,
@@ -205,6 +208,7 @@ const LogsPlot = ({ logs, fields}: {
                     selectedXAxisProperty, 
                     selectedYAxisProperty, 
                     groupByProperty || undefined,
+                    undefined,
                     showRegression,
                     xTable,
                     yTable,

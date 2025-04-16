@@ -4,7 +4,7 @@ import ColorPicker from "../Common/Misc/ColorPicker";
 import ActionButton from "../Common/Buttons/Action";
 import { useInterfaceUI, useTabUI, useTileUI } from "@/contexts/hooks";
 import { useTabData } from "@/contexts/hooks";
-import { Maximize2, EyeOff, Copy, Grip, X, Braces, Grid2x2, Palette } from "lucide-react";
+import { Maximize2, EyeOff, Copy, Grip, X, Braces, Grid2x2, Palette, Loader2 } from "lucide-react";
 import { Badge } from "../UI/badge";
 import Tooltip from "../Common/Misc/Tooltip";
 import ContextSelector from "./Table/Content/ContextSelector";
@@ -13,6 +13,8 @@ import { TileProps } from "@/types/evals/grid";
 import { LogsActions, ContextActions, CodeActions } from "@/types/evals/grid";
 import { ResponseProps } from "@/types/common";
 import { Context } from "@/types/evals/grid";
+import { useStoreContext } from "@/contexts/providers/StoreProvider";
+import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 
 const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, logsActions, contextActions, updateTab, setFocusDialog, setEditTile, setNewCounter, tileCount, buttonsRef}: {
     item: TileProps;
@@ -34,7 +36,10 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
     const {ui: tileUIState, uiActions: tileUIActions} = useTileUI(tileId, tabId, interfaceId);
     const {ui: tabUIState, uiActions: tabUIActions} = useTabUI(tabId, interfaceId)
     const {data: tabDataState, dataActions: tabDataActions} = useTabData(tabId, interfaceId);
-    const {uiActions: interfaceUIActions} = useInterfaceUI(interfaceId);
+    const {ui: interfaceUIState, uiActions: interfaceUIActions} = useInterfaceUI(interfaceId);
+    const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
+    const disabled = interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading;
+
     return (
         <div ref={buttonsRef} className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (tabUIState?.edit ? "h-16" : "h-10")}>
             <div className="flex gap-2 mb-auto ml-1 items-center z-10">
@@ -50,11 +55,11 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
                 }
                 <Tooltip content="Rename Tile">
                     <Badge
-                        className="cursor-pointer text-sm font-normal mb-1"
+                        className="cursor-pointer text-sm font-normal mb-1 flex gap-2 items-center"
                         variant="primary"
                         onClick={() => tabUIState?.edit ? setEditTile(item.i) : undefined}
                     >
-                        {item.i}
+                        {item.i}{tileUIState?.loading && <Loader2 className="animate-spin" size={16} />}
                     </Badge>
                 </Tooltip>
                 {item.context && item.tab == "Table" && <ContextSelector
@@ -139,12 +144,14 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
                         </ColorPicker>
                         <ActionButton
                             className="drag cursor-grab hover:z-10"
+                            disabled={disabled}
                             icon={<Grip />}
                             tooltip="Drag"
                             variant="outline"
                         />
                         <ActionButton
                             className="remove cursor-pointer hover:z-10"
+                            disabled={disabled}
                             onClick={() => {
                                 tabDataActions?.removeTile(item.i);
                                 if (tileCount <= 1) {

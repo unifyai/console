@@ -74,12 +74,12 @@ const LogsPlot = ({
     const {plotLogs: logs, plotArguments: args, plotFields: fields} = useMemo(() => plotDataItem, [plotDataItem]);
 
     // Initialize refs and container dimensions
-    let svgRef = useRef(null);
-    let containerRef = useRef(null);
-    let settingsRef = useRef(null);
+    let svgRef = useRef<SVGSVGElement>(null);
+    let containerRef = useRef<HTMLDivElement>(null);
+    let settingsRef = useRef<HTMLDivElement>(null);
     const clipId = useId();
     const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
-    const margins = { top: 0, right: 10, bottom: 65, left: 60 } // Margin on the sides
+    const margins = { top: 0, right: 10, bottom: 65, left: 70 } // Margin on the sides
     const axisPadding = 20; // Extra padding between axes borders and plot borders
 
     // Plot settings
@@ -105,27 +105,47 @@ const LogsPlot = ({
     const selectedXAxisProperty = item?.x_axis;
     const selectedYAxisProperty = item?.y_axis;
     const groupByProperty = item?.plot_group_by;
+    const [isGroupingKeyMinimized, setIsGroupingKeyMinimized] = useState(false);
+    useEffect(() => {
+        if (settingsRef.current) {
+            (settingsRef.current as any).__isGroupingKeyMinimized = isGroupingKeyMinimized;
+            (settingsRef.current as any).__setIsGroupingKeyMinimized = setIsGroupingKeyMinimized;
+        }
+    }, [isGroupingKeyMinimized, setIsGroupingKeyMinimized]);
 
     // Sort bars for bar chart
     const [sortBars, setSortBars] = useState("asc")
+    
+    // Fixed tooltip states
+    const [isTooltipMinimized, setIsTooltipMinimized] = useState(false);
+    useEffect(() => {
+        if (settingsRef.current) {
+            (settingsRef.current as any).__isTooltipMinimized = isTooltipMinimized;
+            (settingsRef.current as any).__setIsTooltipMinimized = setIsTooltipMinimized;
+        }
+    }, [isTooltipMinimized, setIsTooltipMinimized]);
+
+
+    // Set up containers
+    const container = d3.select(containerRef.current)
+    const placeholder = container.select(".placeholderText")
+    const svg = d3.select(svgRef.current);
+    const settings = d3.select(settingsRef.current)
 
     // Track zoom level and reset when changing plot type or axes
     let zoomRef = useRef(d3.zoomIdentity);
     useEffect(() => {
         zoomRef.current = d3.zoomIdentity;
-        clearFixedTooltip();
+        clearFixedTooltip(settings, setIsTooltipMinimized);
     }, [selectedXAxisProperty, selectedYAxisProperty, plotType])
 
     // Draw plot
     useEffect(() => {
-        // Initialize SVG, container and placholder text
-        const container = d3.select(containerRef.current)
-        const placeholder = container.select(".placeholderText")
-        const svg = d3.select(svgRef.current)
-            .attr("width", dimensions.width)
-            .attr("height", dimensions.height)
-            .attr("viewBox", [0, 0, dimensions.width, dimensions.height]);
-        const settings = d3.select(settingsRef.current)
+        // Update svg dimensions
+        svg
+        .attr("width", dimensions.width)
+        .attr("height", dimensions.height)
+        .attr("viewBox", [0, 0, dimensions.width, dimensions.height])
 
         // Update clipbox dimensions
         svg.select("#clip-rect")
@@ -158,6 +178,7 @@ const LogsPlot = ({
                     selectedXAxisProperty,
                     selectedYAxisProperty,
                     groupByProperty,
+                    aggregateProperty,
                     xTable,
                     yTable,
                     logs,
@@ -167,7 +188,7 @@ const LogsPlot = ({
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
-                clearFixedTooltip()
+                clearFixedTooltip(settings, setIsTooltipMinimized)
             }
         } 
         
@@ -186,6 +207,7 @@ const LogsPlot = ({
                     selectedXAxisProperty,
                     selectedYAxisProperty,
                     groupByProperty,
+                    aggregateProperty,
                     metric,
                     sortBars,
                     xTable,
@@ -197,7 +219,7 @@ const LogsPlot = ({
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
-                clearFixedTooltip()
+                clearFixedTooltip(settings, setIsTooltipMinimized)
             }
         } 
         
@@ -215,6 +237,7 @@ const LogsPlot = ({
                     axisPadding, 
                     selectedXAxisProperty, 
                     groupByProperty,
+                    aggregateProperty,
                     binCount,
                     plotTileActions?.setBinCount!,
                     binCounts,
@@ -225,7 +248,7 @@ const LogsPlot = ({
                 )
             } else {
                 clearCanvas(svgRef, containerRef)
-                clearFixedTooltip()
+                clearFixedTooltip(settings, setIsTooltipMinimized)
             }
         } 
         
@@ -246,6 +269,7 @@ const LogsPlot = ({
                     selectedXAxisProperty,
                     selectedYAxisProperty,
                     groupByProperty,
+                    aggregateProperty,
                     showRegression,
                     xTable,
                     yTable,
@@ -256,7 +280,7 @@ const LogsPlot = ({
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
-                clearFixedTooltip()
+                clearFixedTooltip(settings, setIsTooltipMinimized)
             }
         }
 
@@ -280,7 +304,7 @@ const LogsPlot = ({
     ]);
 
 return (
-    <div className="flex flex-row w-full h-full">
+    <div className="flex flex-row w-full h-full items-stretch min-h-0">
   
       {/* Chart Container */}
       <div
@@ -343,6 +367,10 @@ return (
             fieldsActions={fieldsActions}
             plotTileActions={plotTileActions}
             tileDataActions={tileDataActions}
+            isTooltipMinimized={isTooltipMinimized}
+            setIsTooltipMinimized={setIsTooltipMinimized}
+            isGroupingKeyMinimized={isGroupingKeyMinimized}
+            setIsGroupingKeyMinimized={setIsGroupingKeyMinimized}
         />
   
     </div>

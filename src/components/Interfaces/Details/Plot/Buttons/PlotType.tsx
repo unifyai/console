@@ -1,14 +1,17 @@
 "use client";
 
+import { Dispatch, SetStateAction } from "react";
 import { ChartScatter, ChartLine, ChartColumn, ChartColumnBig } from "lucide-react";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { clearCanvas, clearFixedTooltip } from "@/utils/evals/plot";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/UI/accordion";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { Button } from "@/components/UI/button";
+import * as d3 from "d3";
 
-const PlotType = ({ interactive = true, svgRef, containerRef, plotType, setPlotType, fields, selectedXAxisProperty, setXAxis, selectedYAxisProperty, setYAxis}: {
+const PlotType = ({ interactive = true, settingsRef, svgRef, containerRef, plotType, setPlotType, fields, selectedXAxisProperty, setXAxis, selectedYAxisProperty, setYAxis, setIsTooltipMinimized}: {
     interactive: boolean,
+    settingsRef: any,
     svgRef: any,
     containerRef: any,
     plotType: string, 
@@ -17,9 +20,10 @@ const PlotType = ({ interactive = true, svgRef, containerRef, plotType, setPlotT
     selectedYAxisProperty: string | undefined,
     setPlotType: ((x: string | undefined) => void) | undefined,
     setXAxis: ((x: string | undefined) => void) | undefined,    
-    setYAxis: ((x: string | undefined) => void) | undefined
+    setYAxis: ((x: string | undefined) => void) | undefined,
+    setIsTooltipMinimized: Dispatch<SetStateAction<boolean>>
 }) => {
-
+    const settings = d3.select(settingsRef.current)
     const plotTypes = ["Scatter Plot", "Line Chart", "Bar Chart", "Histogram"]
 
     const properties = Object
@@ -37,11 +41,11 @@ const PlotType = ({ interactive = true, svgRef, containerRef, plotType, setPlotT
         const xAxis = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : undefined;
         if (type === "Histogram" && !xAxis) {
             clearCanvas(svgRef, containerRef)
-            clearFixedTooltip()
+            clearFixedTooltip(settings, setIsTooltipMinimized)
         }
         if (type != "Histogram" && [xAxis, yAxis].some(v => !v)) {
             clearCanvas(svgRef, containerRef)
-            clearFixedTooltip()
+            clearFixedTooltip(settings, setIsTooltipMinimized)
         } 
         setXAxis(xAxis)
         setYAxis(yAxis)

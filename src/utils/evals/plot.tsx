@@ -10,6 +10,8 @@ import { formatTimeTypeValue, timeValueToTime, timeDeltaValueToDuration } from "
 const copyIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
 const closeIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
 const copiedIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>`;
+const minimizeIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-up"><path d="m18 15-6-6-6 6"/></svg>`;
+const expandIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6"/></svg>`;
 
 /** Utility functions to draw UI elements shared across plot types, including: 
  * X and Y axes and ticks
@@ -37,7 +39,7 @@ export function clearCanvas (svgRef: any, containerRef: any) {
 
 const drawAxes = (
     plotType: string,
-    svg: d3.Selection<null, unknown, null, undefined>, 
+    svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>, 
     dimensions: {width: number, height: number},
     margins: {[key: string]: number},
     x: d3.ScaleBand<string> | d3.ScaleLinear<number, number, never> | d3.ScaleLogarithmic<number, number, never>,
@@ -46,8 +48,10 @@ const drawAxes = (
     yTicks: number[],
     reverseX: boolean = false,
     reverseY: boolean = false,
+    xAxisLabel?: string,
+    yAxisLabel?: string,
     xType?: string,
-    yType?: string
+    yType?: string,
 ) => {
 
     /* Initialize variables */
@@ -106,8 +110,35 @@ const drawAxes = (
     xAxis.select("path").style("opacity", 0);
     yAxis.select("path").style("opacity", 0);
     xAxis.style("opacity", 1)
-
+    
     if (plotType === "Bar Chart") xAxis.style("opacity", 0)         // (Temporary: Hide x axis for bar charts)
+
+    // --- Add Axis Labels ---
+    const labelFontSize = "12px";
+    const labelColor = "var(--foreground)";
+    xAxis.selectAll(".x-axis-label").remove(); // Remove old label first
+    if (xAxisLabel) {
+        xAxis.append("text")
+        .attr("class", "x-axis-label")
+        .attr("text-anchor", "middle")
+        .attr("x", margins.left + (width - margins.left - margins.right) / 2) // Center below plot area
+        .attr("y", margins.bottom - 15) // Position below ticks
+        .attr("fill", labelColor)
+        .style("font-size", labelFontSize)
+        .text(xAxisLabel);
+    }
+    yAxis.selectAll(".y-axis-label").remove(); // Remove old label first
+    if (yAxisLabel) {
+        yAxis.append("text")
+        .attr("class", "y-axis-label")
+        .attr("transform", "rotate(-90)")
+        .attr("text-anchor", "middle")
+        .attr("y", -margins.left + 20) // Position left of axis
+        .attr("x", -(margins.top + (height - margins.top - margins.bottom) / 2)) // Center vertically in plot area
+        .attr("fill", labelColor)
+        .style("font-size", labelFontSize)
+        .text(yAxisLabel);
+    }
 
     /* Add x = 0 and / or y = 0 line, if applicable */
     const zeroXLine = svg.selectAll(".x-zero")
@@ -139,7 +170,7 @@ const drawAxes = (
 };
 
 export const drawBorders = (
-  svg: d3.Selection<null, unknown, null, undefined>,
+  svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>,
   height: number,
   width: number,
   margins: {[key: string]: number}
@@ -163,90 +194,227 @@ export const drawBorders = (
 
 /**
  * Clears the content and hides the fixed tooltip container.
- */
-export function clearFixedTooltip() {
-    const container = d3.select(".fixedPlotTooltip");
+ * Also resets the minimized state.
+*/
+export function clearFixedTooltip(
+    settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+    setIsMinimized: (minimized: boolean) => void
+) {
+    const container = settings.select<HTMLDivElement>(".fixedPlotTooltip");
     container.datum(null).html('').classed('hidden', true);
+    // Reset minimized state ONLY when explicitly closed/cleared
+    if (setIsMinimized) {
+        setIsMinimized(false);
+    }
+}
+
+/**
+ * Clears the content and hides the grouping key container.
+ * Also resets the minimized state.
+*/
+export function clearGroupingKey(
+    settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+    setIsGroupingKeyMinimized: (minimized: boolean) => void
+) {
+    const container = settings.select<HTMLDivElement>(".groupingKey");
+    // Don't remove data binding here, just clear HTML and hide
+    container.html('').classed('hidden', true);
+    if (setIsGroupingKeyMinimized) {
+        setIsGroupingKeyMinimized(false);
+    }
 }
 
 /**
  * Renders the content of the fixed tooltip based on the bound datum.
+ * Includes Close and Minimize/Expand buttons. Handles re-rendering on minimize/expand.
  * @param container d3.Selection of the fixed tooltip div.
+ * @param settings d3.Selection of the settings panel div (used to access state/setter).
  */
-function renderFixedTooltipContent(container: d3.Selection<HTMLDivElement, InfoCardData | null, HTMLElement, any>) {
+function renderFixedTooltipContent(
+    container: d3.Selection<HTMLDivElement, InfoCardData | null, null, any>,
+    settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
+) {
     const data = container.datum(); // Get the bound data
 
+    // Retrieve state and setter from the settings DOM node
+    const settingsNode = settings.node();
+    const isMinimized = settingsNode ? (settingsNode as any).__isTooltipMinimized ?? false : false;
+    const setIsMinimized = settingsNode ? (settingsNode as any).__setIsTooltipMinimized : undefined;
+
     if (!data) {
-        clearFixedTooltip(); // Ensure it's cleared and hidden if no data
+        // Ensure it's cleared and hidden if no data
+        container.datum(null).html('').classed('hidden', true);
         return;
     }
 
-    container.html('').classed('hidden', false); // Clear previous content and ensure visible
+    container.html(''); // Clear previous content completely before rebuilding
+    container.classed('hidden', false); // Ensure visible
 
-    // Add Close Button
-    container.append('button')
-        .attr('class', 'absolute top-1 right-1 p-0.5 rounded hover:bg-muted focus:outline-none focus:ring-1 focus:ring-ring')
+    // --- Header Row using Flexbox ---
+    const header = container.append('div')
+        // Use min-h-6 instead of h-6 to allow slight wrapping if needed, keep items centered
+        .attr('class', 'flex justify-between items-center min-h-6 mb-1');
+
+    // --- Title ---
+    header.append('span')
+        .attr('class', `text-xs font-semibold mr-2`)
+        .text('Pinned Datapoint'); // Or just "Tooltip"
+
+    // --- Button Group ---
+    const buttonGroup = header.append('div')
+        .attr('class', 'flex items-center gap-1 ml-auto'); // ml-auto pushes this group right
+
+    // --- Add Minimize/Expand Button ---
+    if (setIsMinimized) {
+        buttonGroup.append('button')
+            .attr('class', 'p-0.5 rounded hover:bg-muted focus:outline-none focus:ring-1 focus:ring-ring') // Tailwind classes
+            .attr('aria-label', isMinimized ? 'Expand tooltip' : 'Minimize tooltip')
+            .html(isMinimized ? expandIconSVG : minimizeIconSVG) // Dynamic icon
+            .on('click', (event) => {
+                event.stopPropagation();
+                const newState = !isMinimized;
+                setIsMinimized(newState); // Toggle React state
+
+                // Use setTimeout to ensure React state update propagates to the DOM node attribute
+                // and CSS classes are applied *before* D3 re-renders the content.
+                setTimeout(() => {
+                    const currentData = container.datum(); // Re-check data binding
+                    if (currentData) {
+                        renderFixedTooltipContent(container, settings); // Re-render with new state
+                    }
+                }, 0); // Minimal delay
+            });
+    }
+
+    // --- Add Close Button ---
+    buttonGroup.append('button')
+        .attr('class', 'p-0.5 rounded hover:bg-muted focus:outline-none focus:ring-1 focus:ring-ring')
         .attr('aria-label', 'Close tooltip')
         .html(closeIconSVG)
         .on('click', (event) => {
-            event.stopPropagation(); // Prevent plot background click if tooltip overlaps
-            clearFixedTooltip();
-        });
-
-    const contentWrapper = container.append('div')
-        .attr('class', 'flex flex-col gap-2 mt-1'); // Add margin top for close button space
-
-
-    // Helper function to add an item with a copy button
-    const addItem = (label: string, value: string | number) => {
-        const itemDiv = contentWrapper.append('div').attr('class', 'flex items-center justify-between gap-2');
-        const textDiv = itemDiv.append('div').attr('class', 'flex-1 overflow-hidden');
-        textDiv.append('p').attr('class', 'text-xs text-muted-foreground truncate').text(label);
-        textDiv.append('p').attr('class', 'font-semibold truncate').text(value);
-
-        const copyButton = itemDiv.append('button')
-            .attr('class', 'p-1 rounded hover:bg-muted focus:outline-none focus:ring-1 focus:ring-ring copy-button shrink-0')
-            .attr('aria-label', `Copy ${label}`)
-            .html(copyIconSVG);
-
-        copyButton.on('click', function(event) {
             event.stopPropagation();
-            const button = d3.select(this);
-            navigator.clipboard.writeText(String(value)).then(() => {
-                button.html(copiedIconSVG);
-                setTimeout(() => {button.html(copyIconSVG)}, 1500);
-            }).catch(err => {
-                console.error('Failed to copy text: ', err);
-            });
+            const currentSetter = settingsNode ? (settingsNode as any).__setIsTooltipMinimized : undefined;
+            if (currentSetter) {
+                clearFixedTooltip(settings, currentSetter); // Resets minimized state too
+            } else {
+                // Fallback
+                container.datum(null).html('').classed('hidden', true);
+            }
         });
-    };
 
-    // Add Group Item (if exists)
-    if (data.group) {
-        addItem(data.group.name, data.group.value);
-        contentWrapper.append('div').attr('class', 'border-b border-border my-1'); // Divider
-    }
+    // --- Content Wrapper (Only add content if NOT minimized) ---
+    if (!isMinimized) {
+        const contentWrapper = container.append('div')
+            .attr('class', 'tooltip-content-wrapper flex flex-col gap-1 mt-1'); // Add margin top if content exists
 
-    // Add X Item
-    addItem(data.x.name, data.x.value);
+        // Helper function to add an item with a copy button
+        const addItem = (label: string, value?: string | number) => {
+             const itemDiv = contentWrapper.append('div').attr('class', 'flex items-center justify-between gap-2');
+            const textDiv = itemDiv.append('div').attr('class', 'flex-1 overflow-hidden');
+            textDiv.append('p').attr('class', 'text-xs text-muted-foreground truncate').text(label);
+            if (value != null) {
+                textDiv.append('p').attr('class', 'font-semibold truncate text-sm').text(value);
+            }
 
-    // Add Y Item
-    if (data.y) {
-        contentWrapper.append('div').attr('class', 'border-b border-border my-1'); // Divider
-        addItem(data.y.name, data.y.value);
+            if (value != null) {
+                const copyButton = itemDiv.append('button')
+                    .attr('class', 'p-1 rounded hover:bg-muted focus:outline-none focus:ring-1 focus:ring-ring copy-button shrink-0')
+                    .attr('aria-label', `Copy ${label}`)
+                    .html(copyIconSVG);
+
+                copyButton.on('click', function(event) {
+                    event.stopPropagation();
+                    const button = d3.select(this);
+                    navigator.clipboard.writeText(String(value)).then(() => {
+                        button.html(copiedIconSVG);
+                        setTimeout(() => {button.html(copyIconSVG)}, 1500);
+                    }).catch(err => {
+                        console.error('Failed to copy text: ', err);
+                    });
+                });
+            } else {
+                itemDiv.append('div').attr('class', 'w-6 shrink-0'); // Placeholder for alignment
+            }
+        };
+
+        // --- Render Data Items ---
+        if (data.aggregate) {
+            addItem(data.aggregate.name);
+            contentWrapper.append('div').attr('class', 'border-b border-border my-1'); // Divider
+        }
+        if (data.group) {
+            addItem(data.group.name, data.group.value);
+            contentWrapper.append('div').attr('class', 'border-b border-border my-1'); // Divider
+        }
+        addItem(data.x.name, data.x.value);
+        if (data.y) {
+            contentWrapper.append('div').attr('class', 'border-b border-border my-1'); // Divider
+            addItem(data.y.name, data.y.value);
+        }
     }
 }
 
 /**
- * Generic click handler for plot elements (bars, points, hist bins) to handle fixed tooltip .
+ * Generic click handler for plot elements (bars, points, hist bins) to handle fixed tooltip.
+ * If the sidebar is closed, it attempts to open it before pinning.
  * @param event The click event.
  * @param data The data associated with the clicked element (InfoCardData structure).
+ * @param settings d3.Selection of the settings panel div (which should have state/setters attached).
  */
-function showFixedTooltip(event: MouseEvent, data: InfoCardData | null) {
-    event.stopPropagation();
-    const fixedTooltipContainer = d3.select<HTMLDivElement, InfoCardData | null>(".fixedPlotTooltip");
-    fixedTooltipContainer.datum(data); // Bind the new data
-    renderFixedTooltipContent(fixedTooltipContainer); // Render with new data
+function showFixedTooltip( event: MouseEvent, data: InfoCardData | null, settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined> ) {
+    event.stopPropagation(); // Prevent triggering other listeners
+  
+    const settingsNode = settings.node();
+    if (!settingsNode) {
+        console.error("Settings panel node not found for fixed tooltip.");
+        return; // Safety check
+    }
+  
+    // Retrieve state and setter from the settings DOM node
+    const isOpen = (settingsNode as any).__isOpen;
+    const setIsOpen = (settingsNode as any).__setIsOpen;
+  
+    // Define the core logic for pinning the tooltip
+    const executePinning = () => {
+        // Re-select the container *inside* this function,
+        // especially if it runs after a delay, to ensure it exists.
+        const fixedTooltipContainer = settings.select<HTMLDivElement>(".fixedPlotTooltip");
+  
+        // Check if the container was successfully created/found
+        if (!fixedTooltipContainer.node()) {
+            console.error("Fixed tooltip container (.fixedPlotTooltip) not found in the DOM even after attempting to open sidebar. Cannot pin data.");
+            // Attempt to clear any potentially stale data binding if the element *was* there before but now isn't
+            settings.selectAll<HTMLDivElement, any>(".fixedPlotTooltip").datum(null).html('').classed('hidden', true);
+            return;
+        }
+  
+        // Proceed with binding data and rendering
+        fixedTooltipContainer.datum(data); // Bind the new data (or null to clear)
+        renderFixedTooltipContent(fixedTooltipContainer as d3.Selection<HTMLDivElement, any, null, any>, settings); // Render
+    };
+  
+    // --- Logic based on sidebar state ---
+    if (data === null) {
+        // If called with null data (e.g., explicit clear), just execute immediately
+        executePinning();
+    } else if (isOpen === false && typeof setIsOpen === 'function') {
+        // Sidebar is closed, and we have the function to open it
+        setIsOpen(true); // Trigger React state update to open sidebar
+  
+        // Use setTimeout to defer executePinning until *after* React has re-rendered
+        // the sidebar with the .fixedPlotTooltip element present in the DOM.
+        setTimeout(executePinning, 0); // 0ms delay is usually sufficient
+  
+    } else if (isOpen === true || isOpen === undefined) {
+        // Sidebar is already open, or its state is unknown (e.g., initial render before effect runs)
+        // Proceed immediately.
+        executePinning();
+  
+    } else {
+        // Sidebar is closed, but we don't have the setIsOpen function.
+        // We cannot open it automatically. Log a warning.
+        console.warn("Sidebar is closed, but cannot find function to open it. Tooltip cannot be pinned while closed.");
+    }
 }
 
 /**
@@ -270,7 +438,13 @@ const tooltipTemplate = (data: InfoCardData) => {
         `
         template = groupTemplate + template
     }
-
+    if (data.aggregate) {
+        const aggregateTemplate = `
+        <p>${data.aggregate.name}</p>
+        <div style="border-bottom: 1px solid var(--foreground); margin: 4px 0;"></div>
+        `
+        template = aggregateTemplate + template
+    }
     // Instructions to pin the tooltip
     template += `
         <div class="border-b border-border my-2"></div>
@@ -283,15 +457,87 @@ const tooltipTemplate = (data: InfoCardData) => {
     return template
 }
 
+/**
+ * Generates *only* the list item HTML for the grouping key.
+ * @param keys The color mapping for group keys.
+ * @returns HTML string for the key items.
+ */
 const keyTemplate = (keys: GroupingColors) => {
-    const value = (entry: { key: string | null, color: string }) => entry.key?.toString().replace(/^"|"$/g, '');
-    return (`
-    ${keys.map((entry, index) => `
-    <div id=${entry.key} class="key flex flex-row gap-2 mt-1 items-center">
-        <div class="rounded-full h-2 w-2 shrink-0" style="background-color: ${entry.color}; color: ${entry.color}"></div>
-        <p class="text-xs text-foreground">${value(entry)}</p>
-    </div>
-    `).join("\n")}`)
+    const value = (entry: { key: string | null, color: string }) => entry.key?.toString().replace(/^"|"$/g, '') || 'null';
+    return keys.map(entry => `
+        <div class="key flex flex-row gap-2 items-center">
+            <div class="rounded-full h-2 w-2 shrink-0" style="background-color: ${entry.color};"></div>
+            <p class="text-xs text-foreground truncate">${value(entry)}</p>
+        </div>
+    `).join("\n");
+}
+
+/**
+ * Renders the grouping key section, including header, buttons, and items.
+ * Handles minimize/expand state and re-rendering.
+ * @param settings d3.Selection of the settings panel div.
+ * @param colors Array of group keys and their colors.
+ */
+function renderGroupingKey(
+    settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+    colors: GroupingColors | null // Allow null to hide the key
+) {
+    const container = settings.select<HTMLDivElement>(".groupingKey");
+    if (!colors || colors.length === 0) {
+        // If no colors (no grouping), hide the container and potentially reset state
+        const settingsNode = settings.node();
+        const setIsMinimized = settingsNode ? (settingsNode as any).__setIsGroupingKeyMinimized : undefined;
+        clearGroupingKey(settings, setIsMinimized); // Use the dedicated clear function
+        return;
+    }
+
+    // Retrieve state and setter from the settings DOM node
+    const settingsNode = settings.node();
+    const isMinimized = settingsNode ? (settingsNode as any).__isGroupingKeyMinimized ?? false : false;
+    const setIsMinimized = settingsNode ? (settingsNode as any).__setIsGroupingKeyMinimized : undefined;
+
+    container.html(''); // Clear previous content
+    container.classed('hidden', false); // Ensure container is visible
+
+    // --- Header Row ---
+    const header = container.append('div')
+        .attr('class', 'flex justify-between items-center min-h-6 mb-1');
+
+    // --- Title ---
+    header.append('span')
+        .attr('class', `text-xs font-semibold mr-2`)
+        .text('Grouping Key');
+
+    // --- Button Group ---
+    const buttonGroup = header.append('div')
+        .attr('class', 'flex items-center gap-1 ml-auto'); // Pushes buttons right
+
+    // --- Minimize/Expand Button ---
+    if (setIsMinimized) {
+        buttonGroup.append('button')
+            .attr('class', 'p-0.5 rounded hover:bg-muted focus:outline-none focus:ring-1 focus:ring-ring')
+            .attr('aria-label', isMinimized ? 'Expand key' : 'Minimize key')
+            .html(isMinimized ? expandIconSVG : minimizeIconSVG)
+            .on('click', (event) => {
+                event.stopPropagation();
+                const newState = !isMinimized;
+                setIsMinimized(newState);
+
+                // Queue re-render
+                setTimeout(() => {
+                     // Re-fetch colors? No, they should be stable for this render cycle.
+                     // Re-render with the *same* colors data but new state.
+                    renderGroupingKey(settings, colors);
+                }, 0);
+            });
+    }
+
+    // --- Key Items (Only add if NOT minimized) ---
+    if (!isMinimized) {
+        const itemsWrapper = container.append('div')
+             .attr('class', 'grouping-key-items mt-1 flex flex-col gap-1'); // Add margin top
+        itemsWrapper.html(keyTemplate(colors));
+    }
 }
 
 /**
@@ -649,9 +895,9 @@ function getRandomSubset(arr: any[], size: number) {
  * Histogram: Plot frequency per x-axis value for given bin size. Accepts floats, ints or times.
 */
 export const drawBarChart = (
-    container: d3.Selection<null, unknown, null, undefined>,
-    svg: d3.Selection<null, unknown, null, undefined>,
-    settings: d3.Selection<null, unknown, null, undefined>,
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+    svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>,
+    settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
     scaleX: string,
     scaleY: string,
     dimensions: {width: number, height: number},
@@ -660,6 +906,7 @@ export const drawBarChart = (
     selectedXAxisProperty: string | undefined,
     selectedYAxisProperty: string | undefined,
     groupByProperty: string | undefined,
+    aggregateProperty: string | undefined,
     metric: string,
     sortBars: string | undefined,
     xTable: string,
@@ -772,11 +1019,10 @@ export const drawBarChart = (
         generateTicks(0, 0, 10, scaleX === "log"),
         generateTicks(minY, maxY, 10, scaleY === "log")
     ]
-    drawAxes("Bar Chart", svg, dimensions, margins, xScale, yScale, xTicks, yTicks);
+    drawAxes("Bar Chart", svg, dimensions, margins, xScale, yScale, xTicks, yTicks, undefined, undefined, xAxisProperty, yAxisProperty ? `${yAxisProperty} (${metric})` : undefined);
 
     // Tooltip and grouping key
     const tooltip = container.select(".plotTooltip").style("opacity", 0);
-    const key = settings.select(".groupingKey");
 
     // Draw bars
     const initialOpacity = groupByProperty ? 0.7 : 1.0;
@@ -821,33 +1067,11 @@ export const drawBarChart = (
         );
         // Grouping Key
         const colors: GroupingColors = groupDomain.map(groupKey => ({key: groupKey, color: colorScale(groupKey)}));
-        key.html(keyTemplate(colors)).style("opacity", 1);
-        key
-            .selectAll(".key")
-            .on("mouseover", (event: MouseEvent) => {
-                const target = event.currentTarget as HTMLElement;
-                const groupKey = target.id;
-                g.selectAll("rect.bar-item")
-                 .transition("opacity")
-                 .duration(200)
-                 .style("opacity", d => { return (d as GroupedDataLabel)[0] === groupKey ? 1 : 0 });
-                key.selectAll(".key")
-                   .transition("opacity").duration(200)
-                   .style("opacity", function() { return (this as any).id === groupKey ? 1 : 0.3; });
-            })
-            .on("mouseout", () => {
-                g.selectAll("rect.bar-item")
-                 .transition("opacity")
-                 .duration(200)
-                 .style("opacity", initialOpacity);
-                key.selectAll(".key")
-                   .transition("opacity")
-                   .duration(200)
-                   .style("opacity", 1);
-            });
+        renderGroupingKey(settings, colors);
     }
     else {
         const primary = getPrimaryColorFromNode(svg.node());
+        renderGroupingKey(settings, null); 
         g
             .selectAll<SVGRectElement, DataLabel>("rect.bar-item")
             .data(data as DataLabel[], d => d[0])
@@ -888,18 +1112,23 @@ export const drawBarChart = (
             const group = (d as GroupedDataLabel)[0];            
             const xValue = (d as GroupedDataLabel)[1][0];
             const yValue = (d as GroupedDataLabel)[1][1];
-            const data = {
+            const data : InfoCardData =  {
                 group: { 
-                    name: groupByProperty, 
+                    name: `Group: ${groupByProperty}`, 
                     value: group 
                 },
                 x: { 
-                    name: xAxisProperty!, 
+                    name: `X: ${xAxisProperty!}`, 
                     value: xValue 
                 },
                 y: { 
-                    name: `${yAxisProperty}(${metric})`, 
+                    name: `Y: ${yAxisProperty}(${metric})`, 
                     value: yValue 
+                }
+            }
+            if (aggregateProperty) {
+                data.aggregate = {
+                    name: `Aggregate: ${aggregateProperty}`,
                 }
             }
             return data
@@ -907,14 +1136,19 @@ export const drawBarChart = (
         else {
             const xValue = (d as DataLabel)[0];
             const yValue = (d as DataLabel)[1];
-            const data = {
+            const data : InfoCardData = {
                 x: { 
-                    name: xAxisProperty!, 
+                    name: `X: ${xAxisProperty!}`, 
                     value: xValue 
                 },
                 y: { 
-                    name: `${yAxisProperty}(${metric})`,
+                    name: `Y: ${yAxisProperty}(${metric})`,
                     value: yValue
+                }
+            }
+            if (aggregateProperty) {
+                data.aggregate = {
+                    name: `Aggregate: ${aggregateProperty}`,
                 }
             }
             return data
@@ -927,10 +1161,6 @@ export const drawBarChart = (
             g.selectAll("rect.bar-item")
               .transition("opacity").duration(200)
               .style("opacity", barData => (barData as GroupedDataLabel)[0] === group ? 1 : 0);
-            key.selectAll(".key")
-                .transition("opacity")
-                .duration(200)
-                .style("opacity", function() { return (this as any).id === group ? 1 : 0.3; });
         }
         else {
             const xValue = (d as DataLabel)[0];
@@ -946,21 +1176,18 @@ export const drawBarChart = (
     const handleMouseOut = () => {
         tooltip.transition("opacity").style("opacity", 0);
         g.selectAll("rect.bar-item").transition("opacity").style("opacity", initialOpacity);
-        if (groupByProperty) {
-            key.selectAll(".key").transition("opacity").duration(200).style("opacity", 1);
-        }
     };
     g.selectAll("rect.bar-item")
         .on("mouseover", (e, d) =>handleMouseOver(e,(d as GroupedDataLabel | DataLabel)))
         .on("mousemove", handleMouseMove)
         .on("mouseout", handleMouseOut)
-        .on("click", (e,d) => showFixedTooltip(e, getTooltipData(groupByProperty, (d as GroupedDataLabel | DataLabel))));
+        .on("click", (e,d) => showFixedTooltip(e, getTooltipData(groupByProperty, (d as GroupedDataLabel | DataLabel)), settings));
 };
 
 export const drawLineChart = (
-  container: d3.Selection<null, unknown, null, undefined>,
-  svg: d3.Selection<null, unknown, null, undefined>,
-  settings: d3.Selection<null, unknown, null, undefined>,
+  container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+  svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>,
+  settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
   scaleX: string,
   scaleY: string,
   dimensions: {width: number, height: number},
@@ -969,6 +1196,7 @@ export const drawLineChart = (
   selectedXAxisProperty: string | undefined,
   selectedYAxisProperty: string | undefined,
   groupBy: string | undefined,
+  aggregate: string | undefined,
   xTable: string,
   yTable: string,
   logs: LogProps[],
@@ -1066,10 +1294,9 @@ export const drawLineChart = (
         generateTicks(minX, maxX, 10, scaleX === "log"),
         generateTicks(minY, maxY, 10, scaleY === "log")
     ]
-    drawAxes("Line Chart", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY, xType);
+    drawAxes("Line Chart", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY, xAxisProperty, yAxisProperty, xType);
 
     // Add grouping key and hide tooltip
-    const key = settings.select(".groupingKey")
     const tooltip = container.select(".plotTooltip").style("opacity", 0)
 
     // Plot lines.
@@ -1090,6 +1317,7 @@ export const drawLineChart = (
         domain = Array.from(new Set(domain))
         const color = d3.scaleOrdinal().domain(domain).range(d3.schemeCategory10);
         const colors = domain.map((key) => ({key: key, color: color(key) as string}));
+        renderGroupingKey(settings, colors); 
         g.selectAll("path.line-item")
             .data(
                 data as GroupedDataPoint[], 
@@ -1104,13 +1332,9 @@ export const drawLineChart = (
             .attr("stroke-width", 2)
             .attr("d", d => lineGenerator(d[1]))
             .attr("class", "line-item");
-            
-        key
-            .html(keyTemplate(colors))
-            .transition("opacity")
-            .style("opacity", 1)
     } else {
         const primary = getPrimaryColorFromNode(svg.node());
+        renderGroupingKey(settings, null); 
         g.selectAll("path.line-item")
             .data(
                 [data as DataPoint[]],
@@ -1138,21 +1362,11 @@ export const drawLineChart = (
             .transition("opacity")
             .duration(200)
             .style("opacity", d => (d as GroupedDataPoint)[0] === groupValue ? 1 : 0.5);
-        key.selectAll(".key")
-            .each(function (d, i) {
-                const id = d3.select(this).attr("id")
-                const opacity = id.toString() === groupValue ? 1 : 0.5
-                d3.select(this)
-                .transition("opacity")
-                .duration(200)
-                .style("opacity", opacity)
-            })
     }
 
     // When leaving a line, restore opacity of all line groups and their corresponding key
     function leaveLine () {
         g.selectAll("path.line-item").transition("opacity").duration(200).style("opacity", 1)
-        key.selectAll(".key").transition("opacity").duration(200).style("opacity", 1)
     }
 
     // Handle panning and zooming
@@ -1206,7 +1420,7 @@ export const drawLineChart = (
             ]
 
             // Redraw axes with new scales
-            drawAxes("Line Chart", svg, dimensions, margins, newX, y, xTicks, yTicks, reverseX, reverseY, xType);
+            drawAxes("Line Chart", svg, dimensions, margins, newX, y, xTicks, yTicks, reverseX, reverseY, xAxisProperty, yAxisProperty, xType);
 
             // Update line paths
             if (groupBy) {
@@ -1228,9 +1442,9 @@ export const drawLineChart = (
 };
 
 export const drawScatterPlot = (
-  container: d3.Selection<null, unknown, null, undefined>,
-  svg: d3.Selection<null, unknown, null, undefined>,
-  settings: d3.Selection<null, unknown, null, undefined>,
+  container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+  svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>,
+  settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
   scaleX: string,
   scaleY: string,
   dimensions: {width: number, height: number},
@@ -1239,6 +1453,7 @@ export const drawScatterPlot = (
   selectedXAxisProperty: string | undefined,
   selectedYAxisProperty: string | undefined,
   groupBy: string | undefined,
+  aggregate: string | undefined,
   showRegression: string,
   xTable: string,
   yTable: string,
@@ -1308,11 +1523,11 @@ export const drawScatterPlot = (
         generateTicks(minX, maxX, 10, scaleX === "log"),
         generateTicks(minY, maxY, 10, scaleY === "log")
     ]
-    drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY, xType, yType);
+
+    drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY, xAxisProperty, yAxisProperty, xType, yType);
 
     // Add tooltip and grouping key
     const tooltip = container.select(".plotTooltip").style("opacity", 0)
-    const key = settings.select(".groupingKey")
 
     // Add data points
     // If grouping is set:
@@ -1326,11 +1541,10 @@ export const drawScatterPlot = (
         domain = Array.from(new Set(domain));
         color.domain(domain);
         const colors = domain.map((key) => ({ key: key, color: color(key) as string }));
-        key
-            .html(keyTemplate(colors))
-            .transition("opacity")
-            .style("opacity", 1);
-    }    
+        renderGroupingKey(settings, colors); 
+    } else {
+        renderGroupingKey(settings, null);
+    }
     const points = g
         .selectAll("circle.data-point")
         .data(data, (d: unknown) => (d as LogProps).id); // Use unique identifier to track point transitions
@@ -1342,23 +1556,27 @@ export const drawScatterPlot = (
             .attr("stroke", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
             .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable)) : getValue(fields, xAxisProperty as string, d, xTable)))
             .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable)) : getValue(fields, yAxisProperty as string, d, yTable)))
-            .attr("r", 0)
+            .attr("r", 3)
+            .style("opacity", 0)
             .style("cursor", "pointer")
             .on("mouseover", (event, data) => hoverOnPoint(event, data, xTable, yTable))
             .on("mousemove", (event, data) => moveOnPoint(event, data))
             .on("mouseout", (event, data) => leavePoint(event, data))
-            .on("click", (event, data) => showFixedTooltip(event, getTooltipData(data, xTable, yTable)))
+            .on("click", (event, data) => showFixedTooltip(event, getTooltipData(data, xTable, yTable), settings))
             // Call transition only on the enter selection *after* initial setup
-            .call(enter => enter.transition("enter").duration(500).attr("r", 3)),
+            .call(enter => enter.transition("enter").duration(200).style("opacity", 1)),
                 update => update
                     .attr("fill", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
                     .attr("stroke", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
-                    .call(update => update.transition("update").duration(500)
+                    .call(update => update
+                        .transition("update")
+                        .duration(250)
                         .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable)) : getValue(fields, xAxisProperty as string, d, xTable)))
                         .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable)) : getValue(fields, yAxisProperty as string, d, yTable)))
                         .attr("r", 3)
+                        .style("opacity", 1)
             ),
-        exit => exit.call(exit => exit.transition("exit").duration(500).attr("r", 0).remove())
+        exit => exit.call(exit => exit.transition("exit").duration(200).attr("r", 0).remove())
     );
 
     // Add hover areas
@@ -1370,7 +1588,7 @@ export const drawScatterPlot = (
         .on("mouseover", (event, data) => hoverOnPoint(event, data, xTable, yTable))
         .on("mousemove", (event, data) => moveOnPoint(event, data))
         .on("mouseout", (event, data) => leavePoint(event, data))
-        .on("click", (event, data) => showFixedTooltip(event, getTooltipData(data, xTable, yTable)))
+        .on("click", (event, data) => showFixedTooltip(event, getTooltipData(data, xTable, yTable), settings))
         .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable) as number) : getValue(fields, xAxisProperty as string, d, xTable) as number))
         .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable) as number) : getValue(fields, yAxisProperty as string, d, yTable) as number))
         .attr("r", 10)
@@ -1385,21 +1603,24 @@ export const drawScatterPlot = (
     const getTooltipData = (data: LogProps, xTable: string, yTable: string) => {
         const hoverData : InfoCardData = {
             "x" : {
-                "name":  selectedXAxisProperty as string,
+                "name":  `X: ${selectedXAxisProperty as string}`,
                 "value": (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "date")
                     ? formatTimeTypeValue(getValue(fields, selectedXAxisProperty as string, data, xTable), xType)
                     : getValue(fields, selectedXAxisProperty as string, data, xTable)
             },
             "y" : {
-                "name":  selectedYAxisProperty as string, 
+                "name":  `Y: ${selectedYAxisProperty as string}`, 
                 "value": (yType === "timestamp" || yType === "timedelta" || yType === "time" || yType === "date")
                     ? formatTimeTypeValue(getValue(fields, selectedYAxisProperty as string, data, yTable), yType)
                     : getValue(fields, selectedYAxisProperty as string, data, yTable)
             }
         }
         if (groupBy) hoverData["group"] = {
-            "name": groupBy, 
+            "name": `Group: ${groupBy}`, 
             value: getValue(fields, groupBy as string, data, xTable)
+        }
+        if (aggregate) hoverData["aggregate"] = {
+            name: `Aggregate: ${aggregate}`,
         }
         return hoverData
     }
@@ -1412,8 +1633,8 @@ export const drawScatterPlot = (
             g.selectAll("circle.data-point")
                 .transition("opacity")
                 .duration(200)
-                .attr("r", d => getValue(fields, groupBy, d as LogProps, xTable) === getValue(fields, groupBy, data, xTable) ? 4 : 2)
-                .style("opacity", d => getValue(fields, groupBy, d as LogProps, xTable) === getValue(fields, groupBy, data, xTable) ? 1 : 0.5);
+                .attr("r", d => (d as LogProps)[`${xTable}.id`] === data[`${xTable}.id`] ? 4 : 3)
+                .style("opacity", d => getValue(fields, groupBy, d as LogProps, xTable) === getValue(fields, groupBy, data, xTable) ? 1 : 0.5)
             g.selectAll("path.best-fit")
                 .transition("opacity")
                 .duration(200)
@@ -1423,15 +1644,6 @@ export const drawScatterPlot = (
                 .transition("opacity")
                 .duration(200)
                 .style("opacity", (d: any) => d.groupKey === groupBy ? 1 : 0.5);
-            key.selectAll(".key")
-                .each(function (d, i) {
-                    const id = d3.select(this).attr("id")
-                    const opacity = id.toString() === getValue(fields, groupBy, data, xTable).toString() ? 1 : 0.5
-                    d3.select(this)
-                      .transition("opacity")
-                      .duration(200)
-                      .style("opacity", opacity)
-                })
         } else {
             g.selectAll("circle.data-point")
                 .filter((d: unknown) => (d as LogProps).id !== data.id)
@@ -1454,14 +1666,6 @@ export const drawScatterPlot = (
                 .transition("opacity")
                 .duration(200)
                 .attr("r", 3)
-                .style("opacity", 1)
-            g.selectAll(".key")
-               .transition("opacity")
-               .duration(200)
-               .style("opacity", 1)
-            key.selectAll(".key")
-                .transition("opacity")
-                .duration(200)
                 .style("opacity", 1)
             g.selectAll("path.best-fit, text.correlation-group")
                 .transition("opacity")
@@ -1711,7 +1915,7 @@ export const drawScatterPlot = (
                 generateTicks(newY.domain()[0], newY.domain()[1], 10, scaleY === "log")
             ]
 
-            drawAxes("Scatter Plot", svg, dimensions, margins, newX, newY, newXTicks, newYTicks, reverseX, reverseY, xType, yType);
+            drawAxes("Scatter Plot", svg, dimensions, margins, newX, newY, newXTicks, newYTicks, reverseX, reverseY, xAxisProperty, yAxisProperty, xType, yType);
 
             // Update points
             g
@@ -1798,9 +2002,9 @@ export const drawScatterPlot = (
 };
 
 export const drawHistogram = (
-    container: d3.Selection<null, unknown, null, undefined>,
-    svg: d3.Selection<null, unknown, null, undefined>,
-    settings: d3.Selection<null, unknown, null, undefined>,
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+    svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>,
+    settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
     scaleX: string,
     scaleY: string,
     dimensions: {width: number, height: number},
@@ -1808,6 +2012,7 @@ export const drawHistogram = (
     axisPadding: number,
     selectedXAxisProperty: string | undefined,
     groupByProperty: string | undefined,
+    aggregateProperty: string | undefined,
     binCount: number,
     setbinCount: (binCount: string) => void,
     binCounts: number[],
@@ -1907,11 +2112,10 @@ export const drawHistogram = (
         generateTicks(minX, maxX, 10, scaleX === "log"),
         generateTicks(minY, maxY, 10, scaleY === "log")
     ]
-    drawAxes("Histogram", svg, dimensions, margins, x, y, xTicks, yTicks, false, false, xType);
+    drawAxes("Histogram", svg, dimensions, margins, x, y, xTicks, yTicks, false, false, xAxisProperty, undefined, xType);
 
     // Tooltip and grouping key
     const tooltip = container.select(".plotTooltip").style("opacity", 0);
-    const key = settings.select(".groupingKey");
 
     // Add histogram
     const initialOpacity = groupByProperty ? 0.7 : 1.0;
@@ -1935,7 +2139,7 @@ export const drawHistogram = (
             .on("mouseover", (event, d) => hoverOnHist(event, d))
             .on("mousemove", (event, d) => moveOnHist(event, d))
             .on("mouseout", (event, d) => leaveHist(event, d))
-            .on("click", (event, d) => showFixedTooltip(event, getTooltipData(d)));
+            .on("click", (event, d) => showFixedTooltip(event, getTooltipData(d), settings));
         enteringBars
             .merge(bars as any)
             .transition("enter")
@@ -1955,33 +2159,11 @@ export const drawHistogram = (
 
         // Grouping Key
         const colors: GroupingColors = groupDomain.map(groupKey => ({key: groupKey, color: colorScale(groupKey)}));
-        key.html(keyTemplate(colors)).style("opacity", 1);
-        key
-            .selectAll(".key")
-            .on("mouseover", (event: MouseEvent) => {
-                const target = event.currentTarget as HTMLElement;
-                const groupKey = target.id;
-                g.selectAll("rect.hist-item")
-                 .transition("opacity")
-                 .duration(200)
-                 .style("opacity", d => { return (d as GroupedBin).group === groupKey ? 1 : 0 });
-                key.selectAll(".key")
-                   .transition("opacity").duration(200)
-                   .style("opacity", function() { return (this as any).id === groupKey ? 1 : 0.3; });
-            })
-            .on("mouseout", () => {
-                g.selectAll("rect.hist-item")
-                 .transition("opacity")
-                 .duration(200)
-                 .style("opacity", initialOpacity);
-                key.selectAll(".key")
-                   .transition("opacity")
-                   .duration(200)
-                   .style("opacity", 1);
-            });
+        renderGroupingKey(settings, colors); 
     }
     else {
         const primary = getPrimaryColorFromNode(svg.node());
+        renderGroupingKey(settings, null); 
         const bars = g
         .selectAll("rect.hist-item")
         .data((buckets as d3.Bin<number, number>[]), (d: any) => `${d.x0}-${d.x1}`); // Use bin boundaries as key
@@ -1999,7 +2181,7 @@ export const drawHistogram = (
                 .on("mouseover", (event, d) => hoverOnHist(event, d))
                 .on("mousemove", (event, d) => moveOnHist(event, d))
                 .on("mouseout", (event, d) => leaveHist(event, d))
-                .on("click", (event, d) => showFixedTooltip(event, getTooltipData(d)))
+                .on("click", (event, d) => showFixedTooltip(event, getTooltipData(d), settings))
                 .call(enter => enter.transition("enter").duration(500)
                     .attr("y", d => y(d.length))
                     .attr("height", d => y(0) - y(d.length))
@@ -2026,7 +2208,7 @@ export const drawHistogram = (
         const [localMinX, localMaxX] = groupByProperty // Compute group boundaries if group by is set
         ? d3.extent((data as GroupedDataRange).filter(d => d[0] === (bin as GroupedBin).group).flatMap(d => d[1]) as DataRange)
         : [minX, maxX]
-        const hoverData = {
+        const hoverData : InfoCardData = {
             group: {
               name: "Data Range",
               value: (xType === "timestamp" || xType === "timedelta" || xType === "time" || xType === "date")
@@ -2044,6 +2226,11 @@ export const drawHistogram = (
               value: bin.length
             }
         };
+        if (aggregateProperty) {
+            hoverData.aggregate = {
+                name: `Aggregate: ${aggregateProperty}`,
+            }
+        }
         return hoverData        
     }
     function hoverOnHist(event: any, bin: d3.Bin<number, number> | GroupedBin) {
@@ -2059,12 +2246,6 @@ export const drawHistogram = (
          .transition("opacity")
          .duration(200)
          .style("opacity", 0.5);
-        if (groupByProperty) {
-            key.selectAll(".key")
-                .transition("opacity")
-                .duration(200)
-                .style("opacity", function() { return (this as any).id === (bin as GroupedBin).group ? 1 : 0.3; });
-        }
       }
 
       function moveOnHist(event: any, bin: d3.Bin<number, number>) {
@@ -2079,8 +2260,5 @@ export const drawHistogram = (
           .transition("opacity")
           .duration(200)
           .style("opacity", initialOpacity);
-        if (groupByProperty) {
-            key.selectAll(".key").transition("opacity").duration(200).style("opacity", 1);
-        }
     }
 };

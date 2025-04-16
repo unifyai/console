@@ -10,6 +10,7 @@ import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActi
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { useTiles } from "@/contexts/hooks/useStore";
 import { useInterfaceUI } from "@/contexts/hooks/interface";
+import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 const TileCard = lazy(() => import('./TileCard'));
@@ -48,6 +49,7 @@ const Tab = ({
 }: TabComponentProps) => {
   // Use granular hooks instead of a general hook
   const { ui: interfaceUIState, uiActions: interfaceUIActions } = useInterfaceUI(interfaceId);
+  const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
 
   const { 
     data: tabDataState,
@@ -178,6 +180,8 @@ const Tab = ({
     return null;
   }
 
+  const dragResizeDisabled = interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading;
+
   return (
     <ResponsiveReactGridLayout
         onLayoutChange={onLayoutChange}
@@ -186,8 +190,8 @@ const Tab = ({
         rowHeight={110}
         margin={[0, 0]}
         containerPadding={[0, 0]}
-        isDraggable={tabUIState?.edit}
-        isResizable={tabUIState?.edit}
+        isDraggable={tabUIState?.edit && !dragResizeDisabled}
+        isResizable={tabUIState?.edit && !dragResizeDisabled}
         draggableHandle=".drag"
         resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
     >
