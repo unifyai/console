@@ -2,7 +2,8 @@
 
 import { Dispatch, SetStateAction } from "react";
 import ActionButton from "@/components/Common/Buttons/Action";
-import { clearCanvas, clearFixedTooltip } from "@/utils/evals/plot";
+import { clearCanvas } from "@/utils/evals/plots/canvas";
+import { clearFixedTooltip } from "@/utils/evals/plots/tooltip";
 import { GrClearOption } from "react-icons/gr";
 import * as d3 from "d3";
 

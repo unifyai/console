@@ -12,7 +12,7 @@ import PlotBins from "./Buttons/PlotBins";
 
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { LogFieldsResponseProps, LogProps } from "@/types/evals/logs";
-import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram, checkLogScalability } from "@/utils/evals/plot";
+import { drawPlot } from "@/utils/evals/plots/main";
 
 import PlotAxis from "./Buttons/PlotAxis";
 import { useQueryState, parseAsFloat, parseAsString } from "nuqs";
@@ -54,181 +54,49 @@ const LogsPlot = ({ logs, fields}: {
         zoomRef.current = d3.zoomIdentity
     }, [selectedXAxisProperty, selectedYAxisProperty, plotType])
     
+    // Set up containers
+    const container = d3.select(containerRef.current)
+    const placeholder = container.select(".placeholderText") as d3.Selection<SVGTextElement, unknown, null, undefined>;
+    const svg = d3.select(svgRef.current);
+    const settings = d3.select(settingsRef.current)
+
+    // Fixed tooltip states
+    const [isTooltipMinimized, setIsTooltipMinimized] = useState(false);
+
     // Draw plot
     useEffect (() => {
-        // Initialize SVG, container and placholder text
-        const container = d3.select(containerRef.current)
-        const placeholder = container.select(".placeholderText")
-        const svg = d3.select(svgRef.current)
-            .attr("width", dimensions.width)
-            .attr("height", dimensions.height)
-            .attr("viewBox", [0, 0, dimensions.width, dimensions.height]);
-        const settings = d3.select(settingsRef.current)
-
-        // Update clipbox dimensions
-        svg.select("#clip-rect")
-           .attr("x", margins.left)
-           .attr("y", margins.top)
-           .attr("width", dimensions.width - margins.left - margins.right)
-           .attr("height", dimensions.height - margins.top - margins.bottom)
-        
-        // Draw plot borders
-        drawBorders(svg, dimensions.height, dimensions.width, margins);
-
-        const xTable = selectedXAxisProperty?.split(".")[0] || "";
-        const yTable = selectedYAxisProperty?.split(".")[0] || "";
-        
-        // Draw selected plot type 
-        if (plotType === "Line Chart") {
-            if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                placeholder.text("");
-                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
-                drawLineChart(
-                    container,
-                    svg, 
-                    settings,
-                    adjustedScaleX,
-                    adjustedScaleY,
-                    dimensions, 
-                    margins, 
-                    axisPadding, 
-                    selectedXAxisProperty, 
-                    selectedYAxisProperty, 
-                    groupByProperty || undefined,
-                    undefined,
-                    xTable,
-                    yTable,
-                    logs, 
-                    fields,
-                    zoomRef
-                );
-            } else {
-                placeholder
-                .attr("stroke", "black") 
-                .attr("stroke-width", 0.1)
-                .attr("fill", "gray")
-                .attr("x", "50%")
-                .attr("y", "50%")
-                .attr("text-anchor", "middle")
-                .attr("font-size", "16px")
-                .text("Select two numeric properties to plot");
-            }
-        }   
-
-        else if (plotType  === "Bar Chart") {
-            if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                placeholder.text("");
-                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
-                drawBarChart(
-                    container,
-                    svg,
-                    settings, 
-                    adjustedScaleX,
-                    adjustedScaleY,
-                    dimensions, 
-                    margins, 
-                    axisPadding, 
-                    selectedXAxisProperty, 
-                    selectedYAxisProperty, 
-                    groupByProperty ?? undefined,
-                    undefined,
-                    metric as string,
-                    "unsorted",
-                    xTable,
-                    yTable,
-                    logs, 
-                    fields,
-                    zoomRef
-                );
-            } else {
-                placeholder
-                .attr("stroke", "black") 
-                .attr("stroke-width", 0.1)
-                .attr("fill", "gray")
-                .attr("x", "50%")
-                .attr("y", "50%")
-                .attr("text-anchor", "middle")
-                .attr("font-size", "16px")
-                .text("Select a property to plot and a reduction metric");
-            }
-        }
-        
-        else if (plotType === "Histogram") {
-            if (logs && selectedXAxisProperty) {
-                placeholder.text("");
-                drawHistogram(
-                    container,
-                    svg, 
-                    settings,
-                    scaleX,
-                    scaleY,
-                    dimensions, 
-                    margins, 
-                    axisPadding, 
-                    selectedXAxisProperty, 
-                    groupByProperty ?? undefined,
-                    undefined,
-                    +binCount,
-                    setBinCount,
-                    binCounts,
-                    setBinCounts,
-                    xTable,
-                    logs,
-                    fields,
-                )
-            } else {
-                placeholder
-                .attr("stroke", "black") 
-                .attr("stroke-width", 0.1)
-                .attr("fill", "gray")
-                .attr("x", "50%")
-                .attr("y", "50%")
-                .attr("text-anchor", "middle")
-                .attr("font-size", "16px")
-                .text("Select a numeric or time property to plot");
-            }
-        }
-
-        else {
-            if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                if (logs.length > 1000) placeholder.text("Too many data points. Displaying a random subset.").attr("text-anchor", "start").attr("x", "5%").attr("y", "90%").attr("font-size", "12px"); else placeholder.text("");
-                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled)
-                drawScatterPlot(
-                    container,
-                    svg, 
-                    settings,
-                    adjustedScaleX,
-                    adjustedScaleY,
-                    dimensions, 
-                    margins, 
-                    axisPadding, 
-                    selectedXAxisProperty, 
-                    selectedYAxisProperty, 
-                    groupByProperty || undefined,
-                    undefined,
-                    showRegression,
-                    xTable,
-                    yTable,
-                    logs, 
-                    fields,
-                    zoomRef
-                );
-            } else {
-                placeholder
-                .attr("stroke", "black") 
-                .attr("stroke-width", 0.1)
-                .attr("fill", "gray")
-                .attr("x", "50%")
-                .attr("y", "50%")
-                .attr("text-anchor", "middle")
-                .attr("font-size", "16px")
-                .text("Select two numeric properties to plot");
-            }
-        }       
-
+        drawPlot(
+            svg, 
+            container, 
+            settings, 
+            placeholder, 
+            dimensions, 
+            margins, 
+            axisPadding, 
+            plotType, 
+            logs ?? [], 
+            fields, 
+            selectedXAxisProperty ?? undefined, 
+            selectedYAxisProperty ?? undefined, 
+            groupByProperty ?? undefined,
+            undefined,
+            scaleX,
+            scaleY,
+            metric,
+            undefined,
+            10,
+            binCounts,
+            setBinCounts,
+            showRegression,
+            zoomRef,
+            true,
+            setIsTooltipMinimized,
+            svgRef,
+            containerRef,
+            setLogScaleXEnabled,
+            setLogScaleYEnabled,
+            undefined
+        );
     }, [
         logs,
         dimensions,
