@@ -1,5 +1,6 @@
 "use client";
 
+import { Dispatch, SetStateAction } from "react";
 import { ChartScatter, ChartLine, ChartColumn, ChartColumnBig } from "lucide-react";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { clearCanvas, clearFixedTooltip } from "@/utils/evals/plot";
@@ -8,7 +9,7 @@ import Tooltip from "@/components/Common/Misc/Tooltip";
 import { Button } from "@/components/UI/button";
 import * as d3 from "d3";
 
-const PlotType = ({ interactive = true, settingsRef, svgRef, containerRef, plotType, setPlotType, fields, selectedXAxisProperty, setXAxis, selectedYAxisProperty, setYAxis}: {
+const PlotType = ({ interactive = true, settingsRef, svgRef, containerRef, plotType, setPlotType, fields, selectedXAxisProperty, setXAxis, selectedYAxisProperty, setYAxis, setIsTooltipMinimized}: {
     interactive: boolean,
     settingsRef: any,
     svgRef: any,
@@ -19,7 +20,8 @@ const PlotType = ({ interactive = true, settingsRef, svgRef, containerRef, plotT
     selectedYAxisProperty: string | undefined,
     setPlotType: ((x: string | undefined) => void) | undefined,
     setXAxis: ((x: string | undefined) => void) | undefined,    
-    setYAxis: ((x: string | undefined) => void) | undefined
+    setYAxis: ((x: string | undefined) => void) | undefined,
+    setIsTooltipMinimized: Dispatch<SetStateAction<boolean>>
 }) => {
     const settings = d3.select(settingsRef.current)
     const plotTypes = ["Scatter Plot", "Line Chart", "Bar Chart", "Histogram"]
@@ -39,11 +41,11 @@ const PlotType = ({ interactive = true, settingsRef, svgRef, containerRef, plotT
         const xAxis = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : undefined;
         if (type === "Histogram" && !xAxis) {
             clearCanvas(svgRef, containerRef)
-            clearFixedTooltip(settings)
+            clearFixedTooltip(settings, setIsTooltipMinimized)
         }
         if (type != "Histogram" && [xAxis, yAxis].some(v => !v)) {
             clearCanvas(svgRef, containerRef)
-            clearFixedTooltip(settings)
+            clearFixedTooltip(settings, setIsTooltipMinimized)
         } 
         setXAxis(xAxis)
         setYAxis(yAxis)

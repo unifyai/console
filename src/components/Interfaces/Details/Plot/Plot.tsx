@@ -109,6 +109,16 @@ const LogsPlot = ({
     // Sort bars for bar chart
     const [sortBars, setSortBars] = useState("asc")
     
+    // Fixed tooltip states
+    const [isTooltipMinimized, setIsTooltipMinimized] = useState(false);
+    useEffect(() => {
+        if (settingsRef.current) {
+            (settingsRef.current as any).__isTooltipMinimized = isTooltipMinimized;
+            (settingsRef.current as any).__setIsTooltipMinimized = setIsTooltipMinimized;
+        }
+    }, [isTooltipMinimized, setIsTooltipMinimized]);
+
+
     // Set up containers
     const container = d3.select(containerRef.current)
     const placeholder = container.select(".placeholderText")
@@ -119,7 +129,7 @@ const LogsPlot = ({
     let zoomRef = useRef(d3.zoomIdentity);
     useEffect(() => {
         zoomRef.current = d3.zoomIdentity;
-        clearFixedTooltip(settings);
+        clearFixedTooltip(settings, setIsTooltipMinimized);
     }, [selectedXAxisProperty, selectedYAxisProperty, plotType])
 
     // Draw plot
@@ -171,7 +181,7 @@ const LogsPlot = ({
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
-                clearFixedTooltip(settings)
+                clearFixedTooltip(settings, setIsTooltipMinimized)
             }
         } 
         
@@ -202,7 +212,7 @@ const LogsPlot = ({
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
-                clearFixedTooltip(settings)
+                clearFixedTooltip(settings, setIsTooltipMinimized)
             }
         } 
         
@@ -231,7 +241,7 @@ const LogsPlot = ({
                 )
             } else {
                 clearCanvas(svgRef, containerRef)
-                clearFixedTooltip(settings)
+                clearFixedTooltip(settings, setIsTooltipMinimized)
             }
         } 
         
@@ -263,7 +273,7 @@ const LogsPlot = ({
                 );
             } else {
                 clearCanvas(svgRef, containerRef)
-                clearFixedTooltip(settings)
+                clearFixedTooltip(settings, setIsTooltipMinimized)
             }
         }
 
@@ -350,6 +360,8 @@ return (
             fieldsActions={fieldsActions}
             plotTileActions={plotTileActions}
             tileDataActions={tileDataActions}
+            isTooltipMinimized={isTooltipMinimized}
+            setIsTooltipMinimized={setIsTooltipMinimized}
         />
   
     </div>

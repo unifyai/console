@@ -1,11 +1,12 @@
 "use client";
 
+import { Dispatch, SetStateAction } from "react";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { clearCanvas, clearFixedTooltip } from "@/utils/evals/plot";
 import { GrClearOption } from "react-icons/gr";
 import * as d3 from "d3";
 
-const PlotReset = ({settingsRef, svgRef, containerRef, setXAxis, setYAxis, setGroupBy, setAggregateProperty}: {
+const PlotReset = ({settingsRef, svgRef, containerRef, setXAxis, setYAxis, setGroupBy, setAggregateProperty, setIsTooltipMinimized}: {
     settingsRef: any,
     svgRef: any,
     containerRef: any,
@@ -13,6 +14,7 @@ const PlotReset = ({settingsRef, svgRef, containerRef, setXAxis, setYAxis, setGr
     setYAxis: ((x: string | undefined) => void) | undefined,
     setGroupBy: ((x: string | undefined) => void) | undefined,
     setAggregateProperty: ((x: string | undefined) => void) | undefined
+    setIsTooltipMinimized: Dispatch<SetStateAction<boolean>>
 }) => {
     const settings = d3.select(settingsRef.current)
 
@@ -22,7 +24,7 @@ const PlotReset = ({settingsRef, svgRef, containerRef, setXAxis, setYAxis, setGr
         if (setGroupBy) setGroupBy(undefined);
         if (setAggregateProperty) setAggregateProperty(undefined);
         clearCanvas(svgRef, containerRef);
-        clearFixedTooltip(settings);
+        clearFixedTooltip(settings, setIsTooltipMinimized);
     };
     return (
         <ActionButton

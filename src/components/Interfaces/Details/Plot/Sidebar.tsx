@@ -54,6 +54,8 @@ const PlotSettings = ({
   interfaceId,
   projectId,
   args,
+  isTooltipMinimized,
+  setIsTooltipMinimized,
   setPlotDataItem,
   logsActions,
   fieldsActions,
@@ -111,6 +113,10 @@ const PlotSettings = ({
   args: PlotArguments;
   setPlotDataItem: Dispatch<SetStateAction<PlotDataItem>>,
   
+  /* Fixed tooltip */
+  isTooltipMinimized: boolean;
+  setIsTooltipMinimized: Dispatch<SetStateAction<boolean>>;
+
   /* Server actions */
   plotTileActions: PlotActions | null;
   tileDataActions: TileDataActions | null;
@@ -189,6 +195,7 @@ const PlotSettings = ({
                   setPlotType={setPlotType}
                   setXAxis={setXAxis}
                   setYAxis={setYAxis}
+                  setIsTooltipMinimized={setIsTooltipMinimized}
                 />
 
                 {/* X Axis Selection */}
@@ -284,15 +291,25 @@ const PlotSettings = ({
 
             {/* Fixed Tooltip and Grouping Key */}
             <div className="flex flex-col gap-2 px-3 pb-4 space-y-3">
-              {showFixedTooltip && (
-                <div className="fixedPlotTooltip relative p-3 border border-muted rounded-md hidden text-sm"></div>
-              )}
-              {showGroupByKey && (
                 <div
-                  style={{"scrollbar-width": "none"} as React.CSSProperties} 
-                  className="groupingKey py-2 px-3 flex flex-col gap-1 overflow-auto w-full h-full max-h-[150px] rounded-md border-2 border border-dashed rounded"
-                ></div>
-              )}
+                    className={`fixedPlotTooltip relative border border-muted rounded-md hidden text-sm transition-all duration-200 ease-in-out ${
+                        isTooltipMinimized
+                            ? 'h-10 overflow-hidden px-2 py-1' // Minimized
+                            : 'p-3'                            // Expanded
+                    }`}
+                >
+                    {/* Content is rendered by d3 inside renderFixedTooltipContent */}
+                </div>
+
+                {/* Grouping Key Container */}
+                {showGroupByKey && (
+                    <div
+                        style={{"scrollbar-width": "none"} as React.CSSProperties}
+                        className="groupingKey py-2 px-3 flex flex-col gap-1 overflow-auto w-full h-full max-h-[150px] rounded-md border-2 border border-dashed rounded"
+                    >
+                        {/* Content is rendered by d3 */}
+                    </div>
+                )}
             </div>
           </>
         )}
@@ -321,6 +338,7 @@ const PlotSettings = ({
               setYAxis={setYAxis}
               setGroupBy={setGroupBy}
               setAggregateProperty={setAggregateProperty}
+              setIsTooltipMinimized={setIsTooltipMinimized}
             />
          </div>
       )}
