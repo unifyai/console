@@ -412,9 +412,28 @@ export function extractParamsValues(entriesParams: LogItemProps, params: LogItem
 export function formatCellValue(
 	rawValue: unknown,
 	dataType: string,
+	columnWidth?: number,
 	exclude_undefined: boolean = false,
-	exclude_nulls: boolean = false
+	exclude_nulls: boolean = false,
 ): React.ReactNode {
+
+	// Calculate truncation dynamically based on column width
+	const AVERAGE_CHAR_WIDTH_PX = 8; // Approximate pixels per character
+	const CELL_PADDING_PX = 16;      // Approximate total horizontal padding (e.g., 8px left + 8px right)
+	const MIN_CHARS = 5;             // Minimum characters to show even if column is very narrow
+	const DEFAULT_MAX_CHARS = 50;    // Default max characters if width is not available or calculation fails
+	const ABSOLUTE_MAX_CHARS = 200;  // Absolute max characters to prevent excessively long strings
+	let maxChars = DEFAULT_MAX_CHARS;
+	if (columnWidth && columnWidth > CELL_PADDING_PX) {
+	  const availableWidth = columnWidth - CELL_PADDING_PX;
+	  const calculatedChars = Math.floor(availableWidth / AVERAGE_CHAR_WIDTH_PX);
+	  // Ensure calculated chars are within reasonable bounds
+	  maxChars = Math.max(MIN_CHARS, Math.min(calculatedChars, ABSOLUTE_MAX_CHARS));
+	} else if (columnWidth && columnWidth <= CELL_PADDING_PX) {
+	  // If column is narrower than padding, show minimum chars
+	  maxChars = MIN_CHARS;
+	}
+
 	// If cellValue is undefined or null, handle that up front
 	if (rawValue === undefined) {
 		if (exclude_undefined) {
@@ -476,7 +495,7 @@ export function formatCellValue(
 		if (value.startsWith('"') && value.endsWith('"')) {
 		  value = value.slice(1, -1);
 		}
-		if (value.length > 20) value = value.slice(0, 20) + '...';
+		if (value.length > maxChars) value = value.slice(0, maxChars) + '...';
 		return value;
 	  }
   
@@ -486,17 +505,17 @@ export function formatCellValue(
 		if (typeof rawValue === "object") {
 		  try {
 			let value = JSON.stringify(rawValue);
-			if (value.length > 20) value = value.slice(0, 20) + "...";
+			if (value.length > maxChars) value = value.slice(0, maxChars) + "...";
 			return value;
 		  } catch {
 			let value = String(rawValue);
-			if (value.length > 20) value = value.slice(0, 20) + "...";
+			if (value.length > maxChars) value = value.slice(0, maxChars) + "...";
 			return value;
 		  }
 		}
 		// If it's anything else, just convert to string
 		let value = String(rawValue);
-		if (value.length > 20) value = value.slice(0, 20) + "...";
+		if (value.length > maxChars) value = value.slice(0, maxChars) + "...";
 		return value;
 	  }
 	}
@@ -558,6 +577,7 @@ export const nestedColumns = (
 			header: node.name,
 			cell: ({ cell }: { cell: Cell<LogProps | GroupedLogProps, unknown> }) => {
 				let cellValue = cell.getValue();
+				const columnWidth = cell.column.getSize();
 
 				// For grouped logs, if we haven't yet expanded a grouped row,
 				// we haven't fetched any logs for that group yet, and so we
@@ -574,7 +594,7 @@ export const nestedColumns = (
 				}
 
 				// Now call our utility for final formatting
-				return formatCellValue(cellValue, dataType);
+				return formatCellValue(cellValue, dataType, columnWidth);
 			},
 			meta: {
 				dataType: dataType,
