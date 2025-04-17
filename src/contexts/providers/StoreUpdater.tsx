@@ -30,7 +30,7 @@ function StoreUpdater({ initialState }: { initialState: Partial<IStoreState> }) 
   );
   
   // Get the resetting state of the active tab
-  const resetting = useStoreContext(state => state.tabsById?.[state.activeTabId || ""].resetting);
+  const resetting = useStoreContext(state => state.tabsById?.[state.activeTabId || ""]?.resetting);
 
   // // Get operations separately to avoid unnecessary re-renders
   // const operations = useStoreContext(state => state.operations);
