@@ -11,11 +11,14 @@ import { useTileItem } from "@/contexts/hooks/tile/useTileItem";
 import { useTile } from "@/contexts/hooks/tile/useTile";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 
-const getNewCells = (tableDataItem: TableDataItem, logs: LogProps[] | GroupedLogProps[]): string[] => {
+const getNewCells = (
+    previousLogs: LogProps[] | GroupedLogProps[],
+    logs: LogProps[] | GroupedLogProps[]
+): string[] => {
     let newCells: string[] = [];
     const flattenedLogs = maybeFlattenGroupedLogs(logs);
     if (flattenedLogs.length) {
-        const flattenedTableLogs = maybeFlattenGroupedLogs(tableDataItem.logs)
+        const flattenedTableLogs = maybeFlattenGroupedLogs(previousLogs)
         const previousCells = flattenedTableLogs.flatMap(log => {
             const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`);
             const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`);
@@ -42,6 +45,7 @@ function updateLogs(
     logsActions: LogsActions,
     fieldsActions: FieldsActions,
     updateTableDataItem: (updater?: (prev: TableDataItem) => TableDataItem, partialUpdates?: Partial<TableDataItem>, merge?: boolean) => void,
+    previousLogs: LogProps[] | GroupedLogProps[],
     signal?: AbortSignal
 ): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -94,9 +98,9 @@ function updateLogs(
             })
             .then(({ entriesProperties, paramsProperties, logs, params, metrics, boundaries, fields, logsData, columnContexts }) => {
                 if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+                const newCells = getNewCells(previousLogs, logs)
                 return new Promise<void>(resolveUpdate => {
                     updateTableDataItem((prev: TableDataItem) => {
-                        const newCells = getNewCells(prev, logs)
                         const newState = {
                             ...prev,
                             fields,
@@ -146,6 +150,7 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
     const { itemActions } = useTileItem(tileId, tabId, interfaceId);
     const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
     const { tableTile: tableTileState, dataActions: tileDataActions } = useTile(tileId, tabId, interfaceId, projectId);
+    const currentLogs = logs || [];
     const limit = tableTileState?.limit as number;
     const offset = tableTileState?.offset as number;
 
@@ -200,6 +205,8 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
         abortControllerRef.current = new AbortController();
         const currentSignal = abortControllerRef.current.signal;
 
+        const logsBeforeFetch = tableTileState?.tableDataItem?.logs || [];
+
         updateLogs(
             item as TileProps,
             sortingExpression,
@@ -215,6 +222,7 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
                     updateTableDataItem(updateFn, partialUpdates, merge);
                  }
             },
+            logsBeforeFetch,
             currentSignal
         )
         .catch(error => {
@@ -238,7 +246,7 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
              }
         });
 
-    }, [item, projectId, logsActions, fieldsActions, updateTableDataItem, sortingExpression, groupingExpression, groupSortingExpression, limit, offset]); // Dependencies for the fetch logic
+    }, [item, projectId, logsActions, fieldsActions, updateTableDataItem, sortingExpression, groupingExpression, groupSortingExpression, limit, offset, tableTileState?.tableDataItem?.logs]); // Dependencies for the fetch logic
 
     // Effect to start/stop the fetching loop
     useEffect(() => {
@@ -320,6 +328,8 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
         setLoading(true);
         setRefreshClick(true); // Indicate manual refresh was initiated
 
+        const logsBeforeManualFetch = currentLogs; // Use the logs prop passed from parent
+
         logsActions.getLatest(projectId, item?.context ?? null, item?.column_context ?? null, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, null, null, null, null, null, null)
             .then(latest => {
                 const latestTs = new Date(latest).getTime();
@@ -329,7 +339,7 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
                     // Data has changed, perform the update
                     // Use a dedicated AbortController for manual refresh
                     const manualAbortController = new AbortController();
-                    return updateLogs(item as TileProps, sortingExpression, groupingExpression, groupSortingExpression, limit, offset, projectId, logsActions, fieldsActions, updateTableDataItem, manualAbortController.signal)
+                    return updateLogs(item as TileProps, sortingExpression, groupingExpression, groupSortingExpression, limit, offset, projectId, logsActions, fieldsActions, updateTableDataItem, logsBeforeManualFetch, manualAbortController.signal)
                     .then(() => {
                         if (isMounted.current) setLastUpdated(latest); // Update timestamp on successful fetch
                     })
