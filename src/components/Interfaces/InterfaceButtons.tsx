@@ -177,10 +177,13 @@ const InterfaceButtons = ({
                 variant="outline"
                 disabled={!project || interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading}
                 onClick={() => {
-                    updateTab(tabDataState?.savedTab);
-                    tabUIActions?.setResetting(true);
-                    tabUIActions?.setEdit(true);
-                    router.refresh();
+                    updateTab(tabDataState?.savedTab).then(() => {
+                        tabUIActions?.setResetting(true);
+                        tabUIActions?.setEdit(true);
+                        router.refresh();
+                    }).catch(error => {
+                        console.error("Error updating interface:", error);
+                    });
                 }}
             />
 
