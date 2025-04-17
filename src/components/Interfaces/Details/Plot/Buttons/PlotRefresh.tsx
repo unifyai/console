@@ -1,135 +1,223 @@
 "use client";
-
 import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { TileProps, LogsActions, FieldsActions, PlotDataItem } from "@/types/evals/grid";
-import { PlotArguments, LogFieldsResponseProps, LogsResponseProps, GroupedMetrics } from "@/types/evals/logs";
+import { PlotArguments, LogFieldsResponseProps, LogsResponseProps, GroupedMetrics, LogProps } from "@/types/evals/logs"; // Added LogProps
 import { replaceParamsIndicesWithValues, convertMetricsToLogs } from "@/utils/evals/common";
 import { processContext } from "@/utils/evals/columnOperations";
-import { LogProps } from "@/types/evals/logs";
 import { buildFilterExpression } from "@/utils/evals/filters";
 import { useTileItem } from "@/contexts/hooks/tile/useTileItem";
 import { useTab } from "@/contexts/hooks/tab/useTab";
 import { useTiles } from "@/contexts/hooks/useStore";
 import { useTile } from "@/contexts/hooks/tile/useTile";
 
-const fetchLatestTimestamps = async (tables: string[], args: PlotArguments, project: string, logsActions: LogsActions) => {
-    const latestDates = await Promise.all(
-        tables.map(async (table) => {
+function fetchLatestTimestamps(tables: string[], args: PlotArguments, project: string, logsActions: LogsActions, signal?: AbortSignal): Promise<string> {
+    return new Promise((resolve, reject) => {
+        if (signal?.aborted) return reject(new DOMException('Aborted', 'AbortError'));
+        const promises = tables.map(table => {
             const tableArgs = args[table];
-            const tableContext = tableArgs ? tableArgs["context"] : null;
-            const tableColumnContext = tableArgs ? tableArgs["column_context"] : null;
-            const tableFilters = tableArgs ? tableArgs["filters"] : null;
-            const tableSubset = tableArgs ? tableArgs["subset"] : null;
+            const tableContext = tableArgs?.["context"] ?? null;
+            const tableColumnContext = tableArgs?.["column_context"] ?? null;
+            const tableFilters = tableArgs?.["filters"] ?? null;
+            const tableSubset = tableArgs?.["subset"] ?? null;
             return logsActions.getLatest(project, tableContext, tableColumnContext, tableFilters, null, null, null, tableSubset, null, null, null, null, null);
-        })
-    );
-    const latestTimestamp = new Date(Math.max(...latestDates.map(t => new Date(t).getTime())))
-    const latest = latestTimestamp.toString() == "Invalid Date" ? "" : latestTimestamp.toISOString()
-    return latest
-};
+        });
+        Promise.all(promises)
+            .then(latestDates => {
+                if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+                const validTimestamps = latestDates.map(t => new Date(t).getTime()).filter(t => !isNaN(t));
+                if (validTimestamps.length === 0) {
+                    resolve(""); // Resolve with empty if no valid dates
+                    return;
+                }
+                const latestTimestamp = new Date(Math.max(...validTimestamps));
+                const latest = latestTimestamp.toString() === "Invalid Date" ? "" : latestTimestamp.toISOString();
+                resolve(latest);
+            })
+            .catch(error => {
+                if (error.name !== 'AbortError') {
+                    console.error("Error fetching latest timestamps:", error);
+                }
+                reject(error); // Propagate the error
+            });
+    });
+}
 
 const mergePlotData = (plotData_: {[x: string]: { plotLogs: LogProps[] }}) => {
-    let mergedPlotData : {plotLogs: LogProps[]} = {plotLogs: []} 
-    if (plotData_ && Object.values(plotData_).length && Object.values(plotData_)[0].plotLogs) {
-        const minLogLength = Math.min(...Object.values(plotData_).map(data => data.plotLogs.length));
-        if (minLogLength > 0) {
-            const plotLogs = Object.values(plotData_)[0].plotLogs.slice(0, minLogLength).map((_, i) => {
-                return Object.entries(plotData_).reduce((acc, [tableId, data]) => {
-                    const prefixedLog = Object.fromEntries(
-                        Object.entries(data.plotLogs[i] || {}).map(([key, value]) => [
-                            `${tableId}.${key}`,
-                            (["params", "entries", "derived_entries"].includes(key) && value) 
-                                ? Object.fromEntries(Object.entries(value).map(([k,v]) => [`${tableId}.${k}`, v])) 
-                                : value
-                        ])
-                    );
-                    return { ...acc, ...prefixedLog };
-                }, {}) as LogProps;
-            })
-            mergedPlotData = {plotLogs}
+    let mergedPlotData : {plotLogs: LogProps[]} = {plotLogs: []}
+    if (plotData_ && Object.values(plotData_).length && Object.values(plotData_)[0]?.plotLogs) {
+        const logArrays = Object.values(plotData_).map(data => data.plotLogs || []);
+        if (logArrays.every(arr => arr.length > 0)) {
+             const minLogLength = Math.min(...logArrays.map(data => data.length));
+             if (minLogLength > 0) {
+                 const plotLogs = Array.from({ length: minLogLength }).map((_, i) => {
+                     return Object.entries(plotData_).reduce((acc, [tableId, data]) => {
+                         const logEntry = data.plotLogs?.[i];
+                         if (!logEntry) return acc; // Skip if log entry missing for this index
+                         const prefixedLog = Object.fromEntries(
+                             Object.entries(logEntry).map(([key, value]) => [
+                                 `${tableId}.${key}`,
+                                 (["params", "entries", "derived_entries"].includes(key) && value)
+                                     ? Object.fromEntries(Object.entries(value).map(([k, v]) => [`${tableId}.${k}`, v]))
+                                     : value
+                             ])
+                         );
+                         return { ...acc, ...prefixedLog };
+                     }, {}) as LogProps;
+                 });
+                 mergedPlotData = { plotLogs };
+             }
         }
     }
-    return mergedPlotData
+    return mergedPlotData;
 }
 
-const fetchAndMergeFields = async (tables: string[], args: PlotArguments, project: string, fieldsActions: FieldsActions) => {
-    const plotFieldsArray : LogFieldsResponseProps[] = await Promise.all(tables.flatMap(async (table) => {
-        const tableArgs = args[table];
-        const tableContext = tableArgs ? tableArgs["context"] : null;
-        const tableColumnContext = tableArgs ? tableArgs["column_context"] : null;
-        const fields : LogFieldsResponseProps = await fieldsActions.get(project, tableContext);
-        const newFields = Object.fromEntries(
-            Object
-                .entries(fields)
-                .filter(([name, { data_type, field_type, artifacts }]) => tableColumnContext ? name.startsWith(tableColumnContext) : name)
-                .map(([name, { data_type, field_type, artifacts }]) => {
-                    const newName = tableColumnContext ? processContext("split", tableColumnContext, name) : name
-                    const newFields = [`${table}.${newName}`, { data_type, field_type, artifacts }]
-                    return newFields;
-                })
-        )
-        return newFields
-    }))
-    const plotFields = plotFieldsArray.reduce((acc, curr) => ({ ...acc, ...curr }), {});
-    return plotFields
+function fetchAndMergeFields (tables: string[], args: PlotArguments, project: string, fieldsActions: FieldsActions, signal?: AbortSignal): Promise<LogFieldsResponseProps> {
+     return new Promise((resolve, reject) => {
+         if (signal?.aborted) return reject(new DOMException('Aborted', 'AbortError'));
+         const fieldPromises = tables.map(table => {
+             const tableArgs = args[table];
+             const tableContext = tableArgs?.["context"] ?? null;
+             return fieldsActions
+                .get(project, tableContext)
+                .then(fields => {
+                    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+                    const tableColumnContext = tableArgs?.["column_context"] ?? null;
+                    const newFields = Object.fromEntries(
+                        Object
+                            .entries(fields)
+                            .filter(([name, _]) => tableColumnContext ? name.startsWith(tableColumnContext) : name)
+                            .map(([name, { data_type, field_type, artifacts }]) => {
+                                const newName = tableColumnContext ? processContext("split", tableColumnContext, name) : name;
+                                return [`${table}.${newName}`, { data_type, field_type, artifacts }];
+                            })
+                    );
+                    return newFields; // Return processed fields for this table
+                });
+        });
+        Promise.all(fieldPromises)
+            .then(plotFieldsArray => {
+                if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+                const plotFields = plotFieldsArray.reduce((acc, curr) => ({ ...acc, ...curr }), {});
+                resolve(plotFields);
+            })
+            .catch(error => {
+                if (error.name !== 'AbortError') {
+                    console.error("Error fetching and merging fields:", error);
+                }
+                reject(error);
+            });
+     });
 }
 
-const fetchAndMergeLogs = async (tables: string[], item: TileProps | undefined, args: PlotArguments, project: string, logsActions: LogsActions, plotFields: LogFieldsResponseProps) => {
-    const data : {[table: string]: {plotLogs: LogProps[]}}= {};
-    await Promise.all(
-        tables.map(async (table) => {
-            const tableArgs = args[table];
-            const tableContext = tableArgs ? tableArgs["context"] : null;
-            const tableColumnContext = tableArgs ? tableArgs["column_context"] : null;
-            const tableFields = Object.fromEntries(Object.entries(plotFields).filter(([field, _]) => field.startsWith(table)).map(([field, attributes]) => [field.split(".").slice(1).join("."), attributes]))
-            const tableFilters = tableArgs ? buildFilterExpression(tableArgs["column_filters"], tableArgs["common_filter"], tableArgs["column_context"], tableArgs["freeze"], tableFields) : null;
-            const tableSubset = tableArgs ? tableArgs["subset"] : null;
-            const tableGrouping = tableArgs ? tableArgs["grouping"] : null;
-            const tableMetric = tableArgs ? tableArgs["metric"] ? tableArgs["metric"] : "mean" : "mean";
-            let tableData: LogsResponseProps = { params: {}, logs: [], count: 0, groups: [] };
-            if (
-                (item?.plot_aggregate && item.plot_aggregate.split(".").length > 1)
-                && item.plot_aggregate.split(".")[0] === table
-                && tableGrouping
+function fetchAndMergeLogs (tables: string[], item: TileProps | undefined, args: PlotArguments, project: string, logsActions: LogsActions, plotFields: LogFieldsResponseProps, signal?: AbortSignal): Promise<LogProps[]> {
+     return new Promise((resolve, reject) => {
+         if (signal?.aborted) return reject(new DOMException('Aborted', 'AbortError'));
+         const dataPromises = tables.map(table => {
+             const tableArgs = args[table];
+             const tableContext = tableArgs?.["context"] ?? null;
+             const tableColumnContext = tableArgs?.["column_context"] ?? null;
+             const tableFields = Object.fromEntries(Object.entries(plotFields).filter(([field, _]) => field.startsWith(table)).map(([field, attributes]) => [field.split(".").slice(1).join("."), attributes]));
+             const tableFilters = tableArgs ? buildFilterExpression(tableArgs["column_filters"], tableArgs["common_filter"], tableArgs["column_context"], tableArgs["freeze"], tableFields) : null;
+             const tableSubset = tableArgs?.["subset"] ?? null;
+             const tableGrouping = tableArgs?.["grouping"] ?? null;
+             const tableMetric = tableArgs?.["metric"] ?? "mean";
+
+             let fetchDataPromise: Promise<LogProps[]>;
+
+             const aggregatePath = item?.plot_aggregate?.split(".");
+             if (
+                (aggregatePath && aggregatePath.length > 1) 
+                && aggregatePath[0] === table 
+                && tableGrouping 
                 && tableSubset
             ) {
-                const groupFields = tableGrouping.split(",").slice(0, tableGrouping.split(",").indexOf(item.plot_aggregate.split(".")[1]) + 1)
-                const metrics = await logsActions.getMetrics(project, tableContext, tableFilters, groupFields.join(","), tableMetric, tableSubset.split("&"))
-                tableData.logs = convertMetricsToLogs(groupFields, tableMetric, tableFields, metrics as GroupedMetrics)
+                 const groupFieldsArray = tableGrouping.split(",");
+                 const aggregateFieldIndex = groupFieldsArray.indexOf(aggregatePath[1]);
+                 if (aggregateFieldIndex !== -1) {
+                     const groupFields = groupFieldsArray.slice(0, aggregateFieldIndex + 1).join(",");
+                     fetchDataPromise = logsActions
+                        .getMetrics(project, tableContext, tableFilters, groupFields, tableMetric, tableSubset.split("&"))
+                        .then(metrics => {
+                            if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+                            return convertMetricsToLogs(groupFields.split(","), tableMetric, tableFields, metrics as GroupedMetrics);
+                        });
+                 } else {
+                     fetchDataPromise = logsActions
+                        .get(project, tableContext, tableColumnContext, tableFilters, null, null, null, tableSubset, null, null, null, null, null, Date.now().toString())
+                        .then(rawData => {
+                            if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+                            return replaceParamsIndicesWithValues(rawData).logs as LogProps[];
+                        });
+                 }
+            } else {
+                 fetchDataPromise = logsActions
+                    .get(project, tableContext, tableColumnContext, tableFilters, null, null, null, tableSubset, null, null, null, null, null, Date.now().toString())
+                    .then(rawData => {
+                        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+                        return replaceParamsIndicesWithValues(rawData).logs as LogProps[];
+                    });
             }
-            else {
-                const rawData = await logsActions.get(project, tableContext, tableColumnContext, tableFilters, null, null, null, tableSubset, null, null, null, null, null, Date.now().toString());
-                tableData = replaceParamsIndicesWithValues(rawData)    
-            }
-            const tableLogs = tableData.logs as LogProps[]
-            data[table] = {plotLogs: tableLogs}
-        })
-    );
-    const logs = mergePlotData(data).plotLogs
-    return logs
-};
 
-async function updatePlotLogs (
-    tables: string[], 
-    args: PlotArguments, 
-    project: string, 
-    logsActions: LogsActions, 
+             // Return a promise that resolves to { table: string, plotLogs: LogProps[] }
+             return fetchDataPromise.then(tableLogs => ({ table, plotLogs: tableLogs }));
+        });
+        Promise.all(dataPromises)
+            .then(results => {
+                if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+                const data: {[table: string]: {plotLogs: LogProps[]}} = {};
+                results.forEach(result => {
+                    data[result.table] = { plotLogs: result.plotLogs };
+                });
+                const logs = mergePlotData(data).plotLogs;
+                resolve(logs);
+            })
+            .catch(error => {
+                if (error.name !== 'AbortError') {
+                    console.error("Error fetching and merging logs:", error);
+                }
+                reject(error);
+            });
+    });
+}
+
+
+function updatePlotLogs(
+    tables: string[],
+    args: PlotArguments,
+    project: string,
+    logsActions: LogsActions,
     fieldsActions: FieldsActions,
-    item: TileProps | undefined, 
+    item: TileProps | undefined,
     updatePlot: (updateFn: (prev: PlotDataItem) => PlotDataItem) => void,
-    signal?:  AbortSignal
-) {
-    if (signal?.aborted) return;
-    fetchAndMergeFields(tables, args, project, fieldsActions).then(async (plotFields: LogFieldsResponseProps) => 
-        fetchAndMergeLogs(tables, item, args, project, logsActions, plotFields).then(async (logs) => {
-            updatePlot((plotDataItem: PlotDataItem) => ({...plotDataItem, plotLogs: logs as LogProps[], plotFields}));
-        })
-    )
-} 
+    signal?: AbortSignal
+): Promise<void> {
+    return new Promise((resolve, reject) => {
+        if (signal?.aborted) {
+            return reject(new DOMException('Aborted', 'AbortError'));
+        }
+        fetchAndMergeFields(tables, args, project, fieldsActions, signal)
+            .then(plotFields => {
+                if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+                return fetchAndMergeLogs(tables, item, args, project, logsActions, plotFields, signal).then(logs => ({ plotFields, logs })); // Pass both results down
+            })
+            .then(({ plotFields, logs }) => {
+                if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+                // Update state directly
+                updatePlot((prevPlotDataItem: PlotDataItem) => ({...prevPlotDataItem, plotLogs: logs as LogProps[], plotFields}));
+                resolve(); // Resolve the main promise after state update is queued
+            })
+            .catch(error => {
+                if (error.name !== 'AbortError') {
+                    console.error('Failed to update plot data:', error);
+                }
+                reject(error); // Reject the main promise
+            });
+    });
+}
 
-const PlotRefresh = ({ tileId, tabId, interfaceId, projectId, pending, args, setPlotDataItem, logs, logsActions, fieldsActions }: {
+const PlotRefresh = ({tileId, tabId, interfaceId, projectId, pending, args, setPlotDataItem, logs, logsActions, fieldsActions}: {
     tileId: string,
     tabId: string,
     interfaceId: string,
@@ -141,16 +229,14 @@ const PlotRefresh = ({ tileId, tabId, interfaceId, projectId, pending, args, set
     logsActions: LogsActions,
     fieldsActions: FieldsActions
 }) => {
-
+    
     // Get access to the tab context and actions with granular access
     const { data: tabDataState } = useTab(tabId, interfaceId, projectId);
     
     // Get tileIds from tab data properly
     const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
-
     // Only subscribe to a subset of the tiles objects to incl. name, type and tableTile only
     const tiles = useTiles(tileIds, ["name", "type"]);
-
     const tables = useMemo(() => {
         // Only return table names for table tiles
         // Return should be an array of strings only
@@ -160,15 +246,11 @@ const PlotRefresh = ({ tileId, tabId, interfaceId, projectId, pending, args, set
             .filter(Boolean) as string[];
     }, [tiles]);
 
-    // Get the item representation for the current tile
     const { itemActions } = useTileItem(tileId, tabId, interfaceId);
     const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
-
-    // Get the overarching tile data actions
     const { dataActions: tileDataActions } = useTile(tileId, tabId, interfaceId, projectId);
 
     /* Auto refresh */
-    // We use timestamp to tag fetch api calls to trigger revalidation every 5 seconds
     const autoUpdateRef = useRef(item?.auto_update === "true");
     const pendingRef = useRef(pending);
     const isMounted = useRef(false);
@@ -176,140 +258,206 @@ const PlotRefresh = ({ tileId, tabId, interfaceId, projectId, pending, args, set
     const abortControllerRef = useRef<AbortController | null>(null);
     const argsRef = useRef(args);
     const tablesRef = useRef(tables);
+    const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
 
     // Sync pending, auto updaten, args and tables refs 
-    useEffect(() => {pendingRef.current = pending}, [pending]);
-    useEffect(() => {autoUpdateRef.current = item?.auto_update === "true"}, [item?.auto_update]);
-    useEffect(() => {argsRef.current = args}, [args]);
-    useEffect(() => {tablesRef.current = tables}, [tables]);
+    useEffect(() => { pendingRef.current = pending }, [pending]);
+    useEffect(() => { autoUpdateRef.current = item?.auto_update === "true" }, [item?.auto_update]);
+    useEffect(() => { argsRef.current = args }, [args]);
+    useEffect(() => { tablesRef.current = tables }, [tables]);
 
-    // Pause auto-update on server action
-    useEffect(() => {
-        if (item?.auto_update === "true") autoUpdateRef.current = false;
-    }, [pendingRef.current])
+    // Pause/manage auto-update on server action (pending state)
+     useEffect(() => {
+         if (pendingRef.current && item?.auto_update === "true") {
+             // Stop running fetch if any
+             if (abortControllerRef.current) {
+                 abortControllerRef.current.abort();
+                 abortControllerRef.current = null;
+             }
+             // Clear scheduled timeout
+             if (timeoutIdRef.current) {
+                 clearTimeout(timeoutIdRef.current);
+                 timeoutIdRef.current = null;
+             }
+             isRunning.current = false; // Ensure running state is reset
+         }
+         // Restarting is handled by the main fetch loop effect when pending becomes false
+     }, [pendingRef.current, item?.auto_update]);
 
-    // Restart streaming after server action ends
-    useEffect(() => {
-        if (item?.auto_update === "true" && !autoUpdateRef.current && !pendingRef.current) autoUpdateRef.current = true;
-    }, [autoUpdateRef.current])
-
-    // Track component mount state
+    // Mount/Unmount cleanup
     useEffect(() => {
         isMounted.current = true;
         return () => {
             isMounted.current = false;
-            // Abort any ongoing request on unmount
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
             }
+            if (timeoutIdRef.current) {
+                 clearTimeout(timeoutIdRef.current);
+             }
         };
-    }, [])
+    }, []);
 
-    // Memoize updatePlotLogs to prevent unnecessary recreations
-    const updateLogsCallback = useCallback(async () => {
+    // Periodically fetch logs
+    const runFetch = useCallback(() => {
         if (!isMounted.current || !autoUpdateRef.current || pendingRef.current || isRunning.current) return;
-        
+
         isRunning.current = true;
         abortControllerRef.current = new AbortController();
+        const currentSignal = abortControllerRef.current.signal;
 
-        try {
-            await updatePlotLogs(
-                tablesRef.current,
-                argsRef.current,
-                projectId,
-                logsActions,
-                fieldsActions,
-                item,
-                (updateFn) => {
-                    if (isMounted.current && autoUpdateRef.current) {
-                        setPlotDataItem(updateFn);
-                    }
-                },
-                abortControllerRef.current.signal,
-            );
-        } catch (error: any) {
+        updatePlotLogs(
+            tablesRef.current,
+            argsRef.current,
+            projectId,
+            logsActions,
+            fieldsActions,
+            item,
+            (updateFn) => {
+                if (isMounted.current && autoUpdateRef.current && !currentSignal.aborted) {
+                    setPlotDataItem(updateFn);
+                }
+            },
+            currentSignal
+        )
+        .catch(error => {
             if (error.name !== 'AbortError') {
-                console.error('Failed to fetch logs:', error);
+                console.error("Plot fetch run failed:", error);
             }
-        } finally {
-            isRunning.current = false;
-            abortControllerRef.current = null;
-        }
-    }, [item?.auto_update]);
+        })
+        .finally(() => {
+             isRunning.current = false;
+             abortControllerRef.current = null;
 
-    // Auto-refresh with recursive timeout
-    const fetchWithBackoff = useCallback(async () => {
-        if (!isMounted.current || !autoUpdateRef.current) return;
-        
-        try {
-          await updateLogsCallback();
-        } finally {
-          // Schedule next request only after current completes
-          const timeoutId = setTimeout(fetchWithBackoff, 5000);
-          return () => clearTimeout(timeoutId);
-        }
-      }, [updateLogsCallback]);
-      
-      useEffect(() => {
-        if (autoUpdateRef.current) {
-          fetchWithBackoff();
-        }
-    }, [fetchWithBackoff]);
+             // Schedule the next fetch *only if* still mounted and auto-update is on and not pending
+             if (isMounted.current && autoUpdateRef.current && !pendingRef.current) {
+                 // Clear previous timeout just in case
+                 if (timeoutIdRef.current) {
+                    clearTimeout(timeoutIdRef.current);
+                 }
+                 timeoutIdRef.current = setTimeout(runFetch, 5000);
+             }
+        });
 
-    const onAutoClick = () => tileDataActions?.setAutoUpdate(item?.auto_update === "true" ? "false" : "true")
-    const autoRefresh =
-        <ActionButton
+    }, [projectId, logsActions, fieldsActions, item, setPlotDataItem]);
+
+
+    // Effect to manage the fetch loop (start/stop)
+    useEffect(() => {
+        if (autoUpdateRef.current && !pendingRef.current && isMounted.current) {
+            runFetch();
+        } 
+        else {
+            // Auto-update off, pending, or component unmounted: Stop the loop
+            if (timeoutIdRef.current) {
+                clearTimeout(timeoutIdRef.current);
+                timeoutIdRef.current = null;
+            }
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+                abortControllerRef.current = null;
+                isRunning.current = false; // Ensure running state reset
+            }
+        }
+
+        // Cleanup for dependency changes (redundant with mount cleanup but safe)
+        return () => {
+            if (timeoutIdRef.current) {
+                clearTimeout(timeoutIdRef.current);
+            }
+        };
+    }, [autoUpdateRef.current, pendingRef.current, runFetch]);
+
+    const onAutoClick = () => {
+        const nextValue = item?.auto_update === "true" ? "false" : "true";
+        tileDataActions?.setAutoUpdate(nextValue);
+    }
+    const autoRefresh = 
+        <ActionButton 
             variant={item?.auto_update === "true" ? "primary" : "ghost"}
             className="rounded-sm"
             icon={<Power />}
             tooltip={"Auto refresh every 5s"}
-            onClick={() => onAutoClick()}
-        />
+            onClick={onAutoClick}
+        />;
 
     /* Manual refresh */
-
     // Display loader when data updates
-    const [refreshClick, setRefreshClick] = useState(false);    // To avoid displaying the check icon when data updates from elsewhere
+    const [refreshClick, setRefreshClick] = useState(false);
     const [loading, setLoading] = useState(false);
     const [loaded, setLoaded] = useState(false);
-    const displayLoadCheck = () => {
-        setLoading(false);
+    const [lastUpdated, setLastUpdated] = useState<string>("");
+
+    const displayLoadCheck = useCallback(() => {
         setRefreshClick(false);
         setLoaded(true);
         const timeoutId = setTimeout(() => {
-            setLoaded(false);
+            if (isMounted.current) {
+                 setLoaded(false);
+             }
         }, 2000);
-        return () => {
-            clearTimeout(timeoutId);
-        };
-    }
-    useEffect(() => {
-        if (refreshClick) displayLoadCheck();
-    }, [logs]);
+        return () => clearTimeout(timeoutId);
+    }, []);
 
-    // We compare the timestamp string returned from the get latest timestamp endpoint
-    // with the timestamp saved last time the refresh button was used, except the first
-    // time where we compare with the timestamp set on loading the component
-    const [lastUpdated, setLastUpdated] = useState<string>("")
-    
+    // Effect to show checkmark *after* loading finishes
     useEffect(() => {
-        fetchLatestTimestamps(tables, args, projectId, logsActions).then(latestTimestamp => setLastUpdated(latestTimestamp));
-    }, [])
+        let cleanup: (() => void) | undefined;
+        if (refreshClick && !loading) {
+            cleanup = displayLoadCheck();
+        }
+        return cleanup;
+    }, [refreshClick, loading, displayLoadCheck]);
+
+
+    // Fetch initial timestamp on mount
+    useEffect(() => {
+        if (tables.length > 0) {
+            fetchLatestTimestamps(tables, args, projectId, logsActions)
+                .then(latestTimestamp => {
+                    if (isMounted.current) setLastUpdated(latestTimestamp);
+                })
+                .catch(err => console.error("Failed to get initial latest plot timestamp:", err));
+        }
+    }, [tables, args, projectId, logsActions]);
 
     const onManualClick = () => {
+        if (loading || item?.auto_update === "true" || tables.length === 0) return;
+
         setLoading(true);
         setRefreshClick(true);
-        fetchLatestTimestamps(tables, args, projectId, logsActions).then(latestTimestamp => {
-            const latestTs = new Date(latestTimestamp).getTime();
-            const lastCheckTs = new Date(lastUpdated).getTime();
-            if (latestTs > lastCheckTs) {
-                updatePlotLogs(tables, args, projectId, logsActions, fieldsActions, item, setPlotDataItem).then(() => {
-                    setLastUpdated(latestTimestamp)
-                }) 
-            } else {
-                displayLoadCheck();
-            }
-        })
+
+        const manualAbortController = new AbortController();
+
+        fetchLatestTimestamps(tablesRef.current, argsRef.current, projectId, logsActions, manualAbortController.signal)
+            .then(latestTimestamp => {
+                if (manualAbortController.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+                const latestTs = latestTimestamp ? new Date(latestTimestamp).getTime() : 0;
+                const lastCheckTs = lastUpdated ? new Date(lastUpdated).getTime() : 0;
+                if (latestTs > lastCheckTs) {
+                    return updatePlotLogs(tablesRef.current, argsRef.current, projectId, logsActions, fieldsActions, item,setPlotDataItem,manualAbortController.signal)
+                    .then(() => {
+                         // Update last checked timestamp only on successful fetch
+                         if (isMounted.current && !manualAbortController.signal.aborted) {
+                             setLastUpdated(latestTimestamp);
+                         }
+                     });
+                     // Catch inside updatePlotLogs handles logging errors
+                     // Finally block below handles setting loading state
+                } else {
+                    return Promise.resolve(); // Resolve immediately
+                }
+            })
+            .catch(error => {
+                if (error.name !== 'AbortError') {
+                    console.error("Manual plot refresh failed:", error);
+                }
+            })
+            .finally(() => {
+                // Ensure loading state is reset regardless of outcome (unless aborted mid-check)
+                if (isMounted.current && !manualAbortController.signal.aborted) {
+                    setLoading(false);
+                 }
+            });
     }
 
     const icon = loading || item?.auto_update === "true"
