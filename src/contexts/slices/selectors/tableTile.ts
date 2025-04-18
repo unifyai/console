@@ -58,21 +58,21 @@ export const TABLE_TILE_KEYS: (keyof TableTile)[] = [
 export function initTableTile(initialState: Partial<TableTile> = {}): TableTile {
   return {
     // UI
-    limit: initialState.limit,
-    offset: initialState.offset,
-    column_context: initialState.column_context,
-    page_number: initialState.page_number,
+    limit: initialState.limit !== undefined ? initialState.limit : null,
+    offset: initialState.offset !== undefined ? initialState.offset : null,
+    column_context: initialState.column_context !== undefined ? initialState.column_context : null,
+    page_number: initialState.page_number !== undefined ? initialState.page_number : null,
 
     // Data
-    table_type: initialState.table_type,
-    column_order: initialState.column_order,
-    hidden_columns: initialState.hidden_columns,
-    sorting: initialState.sorting,
-    grouping: initialState.grouping,
-    group_sorting: initialState.group_sorting,
-    columns_pin_left: initialState.columns_pin_left,
-    columns_pin_right: initialState.columns_pin_right,
-    selected: initialState.selected,
+    table_type: initialState.table_type !== undefined ? initialState.table_type : null,
+    column_order: initialState.column_order !== undefined ? initialState.column_order : null,
+    hidden_columns: initialState.hidden_columns !== undefined ? initialState.hidden_columns : null,
+    sorting: initialState.sorting !== undefined ? initialState.sorting : null,
+    grouping: initialState.grouping !== undefined ? initialState.grouping : null,
+    group_sorting: initialState.group_sorting !== undefined ? initialState.group_sorting : null,
+    columns_pin_left: initialState.columns_pin_left !== undefined ? initialState.columns_pin_left : null,
+    columns_pin_right: initialState.columns_pin_right !== undefined ? initialState.columns_pin_right : null,
+    selected: initialState.selected !== undefined ? initialState.selected : null,
 
     // Fields from TableDataItem
     tableDataItem: {

@@ -68,7 +68,7 @@ const Tile = ({
 
     // Use a ref to compare the needed properties so we only update if something truly changed.
     useEffect(() => {
-        if (tileItem.tab != "View" && !initial) {
+        if (!["View", "Editor"].includes(tileItem.tab || "") && !initial) {
             updateTab(null, tileItem).then(() => {
                 tileUIActions?.setLoading(true);
                 router.refresh();
@@ -96,8 +96,9 @@ const Tile = ({
         tileItem.freeze,
         tileItem.color
     ]);
+
     useEffect(() => {
-        if (tileItem.tab != "View" && !initial) {
+        if (!["View", "Editor"].includes(tileItem.tab || "") && !initial) {
             updateTab(null, tileItem).then(() => {
                 router.refresh();
             }).catch(error => {
@@ -107,7 +108,7 @@ const Tile = ({
     }, [tileItem.auto_update]);
 
     useEffect(() => {
-        if (tileItem.tab != "View" && !initial)
+        if (!["View", "Editor"].includes(tileItem.tab || "") && !initial)
             tileUIActions?.setPending(true);
     }, [tileItem.tab, tileItem.table_type, tileItem.context, tileItem.column_context]);
 
