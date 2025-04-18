@@ -93,10 +93,18 @@ const Tile = ({
         tileItem.y_axis,
         tileItem.plot_group_by,
         tileItem.plot_aggregate,
-        tileItem.auto_update,
         tileItem.freeze,
         tileItem.color
     ]);
+    useEffect(() => {
+        if (tileItem.tab != "View" && !initial) {
+            updateTab(null, tileItem).then(() => {
+                router.refresh();
+            }).catch(error => {
+                console.error('Error updating interface:', error);
+            });
+        }
+    }, [tileItem.auto_update]);
 
     useEffect(() => {
         if (tileItem.tab != "View" && !initial)
