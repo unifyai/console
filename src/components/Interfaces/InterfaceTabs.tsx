@@ -16,7 +16,7 @@ const InterfaceTabs = ({ interfaceId, newCounter, tabQueryParam, tabActions: ser
     newCounter: number,
     tabQueryParam: string | null,
     tabActions: TabActions,
-    setTabQueryParam: (tabQueryParam: string) => void,
+    setTabQueryParam: (tabQueryParam: string | null) => void,
 }) => {
     const [_, setTabQueryParamNoReload] = useQueryState("tab");
     const [tabQueryParamState, setTabQueryParamState] = useState(tabQueryParam || "");
@@ -86,8 +86,13 @@ const InterfaceTabs = ({ interfaceId, newCounter, tabQueryParam, tabActions: ser
                             onMouseLeave={() => tabQueryParam != tab_ && tabUIActions?.setDeleting(false)}
                             onClick={() => {
                                 serverTabActions.delete(tab_, project as string, true).then(() => {
-                                    if (tabQueryParam == tab_)
+                                    if (tabQueryParam == tab_) {
                                         interfaceUIActions?.setPending(true);
+                                        const tabIdx = tabNames.indexOf(tab_);
+                                        const nextTabIdx = tabIdx > 0 ? tabIdx - 1 : tabNames.length > 1 ? 1 : -1;
+                                        const nextTabName = nextTabIdx != -1 ? tabNames[nextTabIdx] : null;
+                                        setTabQueryParam(nextTabName);
+                                    }
                                     serverTabActions.delete(tab_, project as string, true).then(() => {
                                         interfaceDataActions?.removeTab(tab_);
                                     });

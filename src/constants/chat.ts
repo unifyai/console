@@ -52,8 +52,6 @@ export const defaultModelArgs = {
 };
 
 export const noStreamingEndpoints = [
-    "o1-preview@openai",
-    "o1-mini@openai",
-    "o1@openai"
+    "o3@openai"
 ];
 

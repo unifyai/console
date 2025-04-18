@@ -40,9 +40,9 @@ export function initEditorTile(
 ): EditorTile {
   return {
     // Data
-    file_name: initialState.file_name,
-    file_type: initialState.file_type,
-    content: initialState.content,
+    file_name: initialState.file_name !== undefined ? initialState.file_name : null,
+    file_type: initialState.file_type !== undefined ? initialState.file_type : null,
+    content: initialState.content !== undefined ? initialState.content : null,
 
     ...initialState,
   } as EditorTile;

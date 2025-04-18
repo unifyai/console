@@ -404,11 +404,10 @@ export function addTab(
   const { name: newTabName } = deconstructHierarchicalId(newTabId);
 
   // Update the interface's tabIds array using the proper function
-  state.interfacesById[interfaceId] = interfaceLogic.addTabId(interfaceObj, newTabId, sourceTabId);
+  state.interfacesById[interfaceId] = interfaceLogic.addTabId(interfaceObj, newTabId);
 
   // Update the interface's tabNames array using the proper function
-  const sourceTabName = sourceTab.name || "";
-  state.interfacesById[interfaceId] = interfaceLogic.addTabName(interfaceObj, newTabName, sourceTabName);
+  state.interfacesById[interfaceId] = interfaceLogic.addTabName(interfaceObj, newTabName);
 
   if (renaming) {
     // Now copy over the tiles from the source tab but with the new tile ids and names

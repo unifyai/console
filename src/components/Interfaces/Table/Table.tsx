@@ -876,7 +876,8 @@ const LogsTable = ({
                         const exclude_undefined = true;
                         const formattedValue = formatCellValue(
                           value, 
-                          cell.column.columnDef.meta?.dataType ?? "", 
+                          cell.column.columnDef.meta?.dataType ?? "",
+                          cell.column.getSize(),
                           exclude_nulls,
                           exclude_undefined
                         );
@@ -899,6 +900,7 @@ const LogsTable = ({
                         const formattedValue = formatCellValue(
                           value, 
                           cell.column.columnDef.meta?.dataType ?? "", 
+                          cell.column.getSize(),
                           exclude_nulls,
                           exclude_undefined
                         );

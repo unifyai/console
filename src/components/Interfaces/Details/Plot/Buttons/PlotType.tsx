@@ -3,7 +3,8 @@
 import { Dispatch, SetStateAction } from "react";
 import { ChartScatter, ChartLine, ChartColumn, ChartColumnBig } from "lucide-react";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
-import { clearCanvas, clearFixedTooltip } from "@/utils/evals/plot";
+import { clearCanvas } from "@/utils/evals/plots/canvas";
+import { clearFixedTooltip } from "@/utils/evals/plots/tooltip";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/UI/accordion";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { Button } from "@/components/UI/button";

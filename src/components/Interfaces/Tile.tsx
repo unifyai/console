@@ -68,7 +68,7 @@ const Tile = ({
 
     // Use a ref to compare the needed properties so we only update if something truly changed.
     useEffect(() => {
-        if (tileItem.tab != "View" && !initial) {
+        if (!["View", "Editor"].includes(tileItem.tab || "") && !initial) {
             updateTab(null, tileItem).then(() => {
                 tileUIActions?.setLoading(true);
                 router.refresh();
@@ -93,13 +93,22 @@ const Tile = ({
         tileItem.y_axis,
         tileItem.plot_group_by,
         tileItem.plot_aggregate,
-        tileItem.auto_update,
         tileItem.freeze,
         tileItem.color
     ]);
 
     useEffect(() => {
-        if (tileItem.tab != "View" && !initial)
+        if (!["View", "Editor"].includes(tileItem.tab || "") && !initial) {
+            updateTab(null, tileItem).then(() => {
+                router.refresh();
+            }).catch(error => {
+                console.error('Error updating interface:', error);
+            });
+        }
+    }, [tileItem.auto_update]);
+
+    useEffect(() => {
+        if (!["View", "Editor"].includes(tileItem.tab || "") && !initial)
             tileUIActions?.setPending(true);
     }, [tileItem.tab, tileItem.table_type, tileItem.context, tileItem.column_context]);
 

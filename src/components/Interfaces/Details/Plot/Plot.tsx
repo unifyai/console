@@ -3,12 +3,13 @@
 import { useEffect, useRef, useId, useState, useMemo } from "react";
 import * as d3 from "d3";
 import { LogsActions, FieldsActions, PlotDataItem } from "@/types/evals/grid";
-import { drawBorders, drawBarChart, drawLineChart, drawScatterPlot, drawHistogram, checkLogScalability, clearCanvas, clearFixedTooltip } from "@/utils/evals/plot";
+import { clearFixedTooltip } from "@/utils/evals/plots/tooltip";
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { useTab } from '@/contexts/hooks/tab';
 import PlotSettings from "./Sidebar";
 import { useInterface } from "@/contexts/hooks/interface";
+import { drawPlot } from "@/utils/evals/plots/main";
 
 const LogsPlot = ({ 
     tileId,
@@ -128,7 +129,7 @@ const LogsPlot = ({
 
     // Set up containers
     const container = d3.select(containerRef.current)
-    const placeholder = container.select(".placeholderText")
+    const placeholder = container.select(".placeholderText") as d3.Selection<SVGTextElement, unknown, null, undefined>;
     const svg = d3.select(svgRef.current);
     const settings = d3.select(settingsRef.current)
 
@@ -141,149 +142,38 @@ const LogsPlot = ({
 
     // Draw plot
     useEffect(() => {
-        // Update svg dimensions
-        svg
-        .attr("width", dimensions.width)
-        .attr("height", dimensions.height)
-        .attr("viewBox", [0, 0, dimensions.width, dimensions.height])
-
-        // Update clipbox dimensions
-        svg.select("#clip-rect")
-            .attr("x", margins.left)
-            .attr("y", margins.top)
-            .attr("width", dimensions.width - margins.left - margins.right)
-            .attr("height", dimensions.height - margins.top - margins.bottom)
-
-        // Draw plot borders
-        drawBorders(svg, dimensions.height, dimensions.width, margins);
-
-        const xTable = selectedXAxisProperty?.split(".")[0] || "";
-        const yTable = selectedYAxisProperty?.split(".")[0] || "";
-
-        // Draw selected plot type 
-        if (plotType === "Line Chart") {
-            if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                placeholder.text("");
-                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, plotTileActions?.setPlotScaleX!, setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, fields, yTable,selectedYAxisProperty, scaleY, plotTileActions?.setPlotScaleY!, setLogScaleYEnabled)
-                drawLineChart(
-                    container,
-                    svg,
-                    settings,
-                    adjustedScaleX,
-                    adjustedScaleY,
-                    dimensions,
-                    margins,
-                    axisPadding,
-                    selectedXAxisProperty,
-                    selectedYAxisProperty,
-                    groupByProperty,
-                    aggregateProperty,
-                    xTable,
-                    yTable,
-                    logs,
-                    fields,
-                    zoomRef,
-                    interactive
-                );
-            } else {
-                clearCanvas(svgRef, containerRef)
-                clearFixedTooltip(settings, setIsTooltipMinimized)
-            }
-        } 
-        
-        else if (plotType === "Bar Chart") {
-            if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                placeholder.text("");
-                drawBarChart(
-                    container,
-                    svg,
-                    settings,
-                    "linear",
-                    "linear",
-                    dimensions,
-                    margins,
-                    axisPadding,
-                    selectedXAxisProperty,
-                    selectedYAxisProperty,
-                    groupByProperty,
-                    aggregateProperty,
-                    metric,
-                    sortBars,
-                    xTable,
-                    yTable,
-                    logs,
-                    fields,
-                    zoomRef,
-                    interactive
-                );
-            } else {
-                clearCanvas(svgRef, containerRef)
-                clearFixedTooltip(settings, setIsTooltipMinimized)
-            }
-        } 
-        
-        else if (plotType === "Histogram") {
-            if (logs && selectedXAxisProperty) {
-                placeholder.text("");    
-                drawHistogram(
-                    container,
-                    svg, 
-                    settings,
-                    "linear",
-                    "linear",
-                    dimensions, 
-                    margins, 
-                    axisPadding, 
-                    selectedXAxisProperty, 
-                    groupByProperty,
-                    aggregateProperty,
-                    binCount,
-                    plotTileActions?.setBinCount!,
-                    binCounts,
-                    setBinCounts,
-                    xTable,
-                    logs, 
-                    fields
-                )
-            } else {
-                clearCanvas(svgRef, containerRef)
-                clearFixedTooltip(settings, setIsTooltipMinimized)
-            }
-        } 
-        
-        else {
-            if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                if (logs.length > 1000) placeholder.text("Too many data points. Displaying a random subset.").attr("text-anchor", "start").attr("x", `${margins.left + 10}px`).attr("y", `${dimensions.height - margins.bottom - 10}px`).attr("font-size", "10px"); else placeholder.text("");
-                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, plotTileActions?.setPlotScaleX!, setLogScaleXEnabled)
-                const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, plotTileActions?.setPlotScaleY!, setLogScaleYEnabled)
-                drawScatterPlot(
-                    container,
-                    svg,
-                    settings,
-                    adjustedScaleX,
-                    adjustedScaleY,
-                    dimensions,
-                    margins,
-                    axisPadding,
-                    selectedXAxisProperty,
-                    selectedYAxisProperty,
-                    groupByProperty,
-                    aggregateProperty,
-                    showRegression,
-                    xTable,
-                    yTable,
-                    logs,
-                    fields,
-                    zoomRef,
-                    interactive
-                );
-            } else {
-                clearCanvas(svgRef, containerRef)
-                clearFixedTooltip(settings, setIsTooltipMinimized)
-            }
-        }
-
+        drawPlot(
+            svg, 
+            container, 
+            settings, 
+            placeholder, 
+            dimensions, 
+            margins, 
+            axisPadding, 
+            plotType, 
+            logs, 
+            fields, 
+            selectedXAxisProperty, 
+            selectedYAxisProperty, 
+            groupByProperty,
+            aggregateProperty,
+            scaleX,
+            scaleY,
+            metric,
+            sortBars,
+            binCount,
+            binCounts,
+            setBinCounts,
+            showRegression,
+            zoomRef,
+            interactive,
+            setIsTooltipMinimized,
+            svgRef,
+            containerRef,
+            setLogScaleXEnabled,
+            setLogScaleYEnabled,
+            plotTileActions
+        );
     }, [
         logs,
         dimensions,

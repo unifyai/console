@@ -38,7 +38,7 @@ export function initViewTile(
 ): ViewTile {
   return {
     // Data
-    base_index: initialState.base_index,
+    base_index: initialState.base_index !== undefined ? initialState.base_index : null,
 
     ...initialState,
   } as ViewTile;

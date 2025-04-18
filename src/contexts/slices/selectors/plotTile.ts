@@ -54,15 +54,15 @@ export const PLOT_TILE_KEYS: (keyof PlotTile)[] = [
 export function initPlotTile(initialState: Partial<PlotTile> = {}): PlotTile {
   return {
     // Data
-    plot_type: initialState.plot_type,
-    plot_scale_x: initialState.plot_scale_x,
-    plot_scale_y: initialState.plot_scale_y,
-    plot_aggregate: initialState.plot_aggregate,
-    x_axis: initialState.x_axis,
-    y_axis: initialState.y_axis,
-    plot_group_by: initialState.plot_group_by,
-    bin_count: initialState.bin_count,
-    regression_line: initialState.regression_line,
+    plot_type: initialState.plot_type !== undefined ? initialState.plot_type : null,
+    plot_scale_x: initialState.plot_scale_x !== undefined ? initialState.plot_scale_x : null,
+    plot_scale_y: initialState.plot_scale_y !== undefined ? initialState.plot_scale_y : null,
+    plot_aggregate: initialState.plot_aggregate !== undefined ? initialState.plot_aggregate : null,
+    x_axis: initialState.x_axis !== undefined ? initialState.x_axis : null,
+    y_axis: initialState.y_axis !== undefined ? initialState.y_axis : null,
+    plot_group_by: initialState.plot_group_by !== undefined ? initialState.plot_group_by : null,
+    bin_count: initialState.bin_count !== undefined ? initialState.bin_count : null,
+    regression_line: initialState.regression_line !== undefined ? initialState.regression_line : null,
 
     // Fields from PlotDataItem
     plotDataItem: {

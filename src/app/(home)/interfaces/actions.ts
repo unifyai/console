@@ -71,8 +71,8 @@ export const createLogs = async (apiKey: string) => {
     return async (
         project: string,
         context: string | null,
-        params: { system_message: string }[],
-        entries: { question: string, response: string, score: number }[]
+        params: { [param: string]: string }[],
+        entries: { [entry: string | number]: string }[]
     ) => {
         "use server";
 
