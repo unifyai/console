@@ -137,6 +137,10 @@
   background: var(--primary) !important;
 }
 
+.react-grid-item.cssTransforms {
+  transition-property: none !important
+}
+
 .react-grid-item > .react-resizable-handle {
   margin: 3px !important;
   background-image: var(--resizable-handle) !important;
