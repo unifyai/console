@@ -12,6 +12,7 @@ import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import Tooltip from "../Common/Misc/Tooltip";
 import ColorPicker from "../Common/Misc/ColorPicker";
+import { FileUpload } from "./FileUpload";
 import AddTile from "./AddTile";
 import ContextSelector from "./Table/Content/ContextSelector";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
@@ -138,6 +139,11 @@ const InterfaceButtons = ({
     return (
         <div className="flex items-center gap-2 px-2">
             {/* Left side - Focus and Context selector */}
+            <FileUpload
+                contexts={contexts}
+                logsActions={logsActions}
+                project={project}
+            />
             <ActionButton
                 className="transition-all"
                 tooltip="Open Focus Pane"
