@@ -4,14 +4,8 @@ const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
 export async function GET(request: NextRequest) {
     const url = new URL(request.url);
-    const searchParams = new URLSearchParams(url.search);
-    
-    // Check if we're trying to list interfaces or get a specific one
-    const isListing = !searchParams.has('name');
-    const endpoint = isListing ? "/interfaces/list" : "/interfaces";
-    
     return await fetch(
-        `${baseUrl}${endpoint}${url.search}`,
+        `${baseUrl}/tile${url.search}`,
         {
             method: "GET",
             headers: {
@@ -23,13 +17,12 @@ export async function GET(request: NextRequest) {
     );
 }
 
-export async function PUT(request: NextRequest) {
+export async function POST(request: NextRequest) {
     const body = await request.json();
-    const url = new URL(request.url);
     return await fetch(
-        `${baseUrl}/interfaces${url.search}`,
+        `${baseUrl}/tile/`,
         {
-            method: "PUT",
+            method: "POST",
             headers: {
                 "Authorization": `Bearer ${request.headers.get("apiKey")}`,
                 "Content-Type": "application/json",
@@ -39,12 +32,13 @@ export async function PUT(request: NextRequest) {
     );
 }
 
-export async function POST(request: NextRequest) {
+export async function PUT(request: NextRequest) {
     const body = await request.json();
+    const url = new URL(request.url);
     return await fetch(
-        `${baseUrl}/interfaces/`,
+        `${baseUrl}/tile${url.search}`,
         {
-            method: "POST",
+            method: "PUT",
             headers: {
                 "Authorization": `Bearer ${request.headers.get("apiKey")}`,
                 "Content-Type": "application/json",
@@ -57,7 +51,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
     const url = new URL(request.url);
     return await fetch(
-        `${baseUrl}/interfaces${url.search}`,
+        `${baseUrl}/tile${url.search}`,
         {
             method: "DELETE",
             headers: {

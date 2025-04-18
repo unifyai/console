@@ -441,3 +441,529 @@ export const runCode = async (apiKey: string, userId: string) => {
         return responseJson;
     }
 }
+
+// ----- NEW GRANULAR API ACTIONS -----
+
+// Type definitions for tile properties
+type TilePosition = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+};
+
+type TableTileData = {
+    table_type?: string;
+    column_context?: string;
+    page_number?: string;
+    column_order?: string;
+    hidden_columns?: string;
+    sorting?: string;
+    grouping?: string;
+    group_sorting?: string;
+    columns_pin_left?: string;
+    columns_pin_right?: string;
+    selected?: string;
+};
+
+type PlotTileData = {
+    plot_type?: string;
+    plot_scale_x?: string;
+    plot_scale_y?: string;
+    plot_aggregate?: string;
+    x_axis?: string;
+    y_axis?: string;
+    plot_group_by?: string;
+    plot_group_by_colors?: string;
+    bin_count?: string;
+    regression_line?: string;
+};
+
+type ViewTileData = {
+    base_index?: string;
+};
+
+type EditorTileData = {
+    file_path?: string;
+    file_type?: string;
+    content?: string;
+};
+
+// List interfaces
+export const listInterfaces = async (apiKey: string) => {
+    return async (projectId: string, checkpoint: boolean = false) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/interfaces?project_id=${projectId}&checkpoint=${checkpoint}`,
+            {
+                method: "GET",
+                headers: { apiKey: apiKey },
+                cache: "no-store",
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to list interfaces: ${response.status}` };
+        }
+        
+        return await response.json();
+    };
+};
+
+// Get interface by name
+export const getInterfaceByName = async (apiKey: string) => {
+    return async (projectId: string, name: string, checkpoint: boolean = false) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/interfaces?project_id=${projectId}&name=${encodeURIComponent(name)}&checkpoint=${checkpoint}`,
+            {
+                method: "GET",
+                headers: { apiKey: apiKey },
+                cache: "no-store",
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to get interface: ${response.status}` };
+        }
+        
+        const interfaces = await response.json();
+        return interfaces.length > 0 ? interfaces[0] : null;
+    };
+};
+
+// Create interface (new version)
+export const createNewInterface = async (apiKey: string) => {
+    return async (projectId: string, name: string, color?: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/interfaces`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({
+                    project_id: projectId,
+                    name,
+                    color
+                }),
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to create interface: ${response.status}` };
+        }
+        
+        return await response.json();
+    };
+};
+
+// Update interface by name (new version)
+export const updateInterfaceByName = async (apiKey: string) => {
+    return async (projectId: string, name: string, data: { name?: string, active_tab_id?: string, color?: string }, checkpoint: boolean = false) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/interfaces?project_id=${projectId}&name=${encodeURIComponent(name)}&checkpoint=${checkpoint}`,
+            {
+                method: "PUT",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify(data),
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to update interface: ${response.status}` };
+        }
+        
+        return await response.json();
+    };
+};
+
+// Delete interface by name (new version)
+export const deleteInterfaceByName = async (apiKey: string) => {
+    return async (projectId: string, name: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/interfaces?project_id=${projectId}&name=${encodeURIComponent(name)}`,
+            {
+                method: "DELETE",
+                headers: { apiKey: apiKey },
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to delete interface: ${response.status}` };
+        }
+        
+        return await response.json();
+    };
+};
+
+// Create checkpoint for interface
+export const createInterfaceCheckpoint = async (apiKey: string) => {
+    return async (projectId: string, name: string, description: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/interfaces/checkpoint?project_id=${projectId}&name=${encodeURIComponent(name)}`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({ description }),
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to create checkpoint: ${response.status}` };
+        }
+        
+        return await response.json();
+    };
+};
+
+// List tabs by interface
+export const listTabs = async (apiKey: string) => {
+    return async (projectId: string, interfaceName: string, checkpoint: boolean = false) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tab?project_id=${projectId}&interface_name=${encodeURIComponent(interfaceName)}&checkpoint=${checkpoint}`,
+            {
+                method: "GET",
+                headers: { apiKey: apiKey },
+                cache: "no-store",
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to list tabs: ${response.status}` };
+        }
+        
+        return await response.json();
+    };
+};
+
+// Get tab by name
+export const getTabByName = async (apiKey: string) => {
+    return async (projectId: string, interfaceName: string, tabName: string, checkpoint: boolean = false) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tab?project_id=${projectId}&interface_name=${encodeURIComponent(interfaceName)}&name=${encodeURIComponent(tabName)}&checkpoint=${checkpoint}`,
+            {
+                method: "GET",
+                headers: { apiKey: apiKey },
+                cache: "no-store",
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to get tab: ${response.status}` };
+        }
+        
+        const tabs = await response.json();
+        return tabs.length > 0 ? tabs[0] : null;
+    };
+};
+
+// Create tab
+export const createTab = async (apiKey: string) => {
+    return async (projectId: string, interfaceName: string, tabName: string, data: {
+        visible?: boolean,
+        active?: boolean,
+        order?: number,
+        global_context?: string,
+        color?: string
+    }) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tab`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({
+                    project_id: projectId,
+                    interface_name: interfaceName,
+                    name: tabName,
+                    ...data
+                }),
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to create tab: ${response.status}` };
+        }
+        
+        return await response.json();
+    };
+};
+
+// Update tab by name
+export const updateTab = async (apiKey: string) => {
+    return async (projectId: string, interfaceName: string, tabName: string, data: {
+        name?: string,
+        visible?: boolean,
+        active?: boolean,
+        order?: number,
+        global_context?: string,
+        color?: string
+    }, checkpoint: boolean = false) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tab?project_id=${projectId}&interface_name=${encodeURIComponent(interfaceName)}&name=${encodeURIComponent(tabName)}&checkpoint=${checkpoint}`,
+            {
+                method: "PUT",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify(data),
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to update tab: ${response.status}` };
+        }
+        
+        return await response.json();
+    };
+};
+
+// Delete tab by name
+export const deleteTab = async (apiKey: string) => {
+    return async (projectId: string, interfaceName: string, tabName: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tab?project_id=${projectId}&interface_name=${encodeURIComponent(interfaceName)}&name=${encodeURIComponent(tabName)}`,
+            {
+                method: "DELETE",
+                headers: { apiKey: apiKey },
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to delete tab: ${response.status}` };
+        }
+        
+        return await response.json();
+    };
+};
+
+// Create checkpoint for tab
+export const createTabCheckpoint = async (apiKey: string) => {
+    return async (projectId: string, interfaceName: string, tabName: string, description: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tab/checkpoint?project_id=${projectId}&interface_name=${encodeURIComponent(interfaceName)}&name=${encodeURIComponent(tabName)}`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({ description }),
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to create checkpoint: ${response.status}` };
+        }
+        
+        return await response.json();
+    };
+};
+
+// List tiles by tab
+export const listTiles = async (apiKey: string) => {
+    return async (projectId: string, interfaceName: string, tabName: string, type?: string, checkpoint: boolean = false) => {
+        "use server";
+
+        let url = `${process.env.NEXTAUTH_URL}/api/tile?project_id=${projectId}&interface_name=${encodeURIComponent(interfaceName)}&tab_name=${encodeURIComponent(tabName)}&checkpoint=${checkpoint}`;
+        if (type) {
+            url += `&type=${type}`;
+        }
+
+        const response = await fetch(url, {
+            method: "GET",
+            headers: { apiKey: apiKey },
+            cache: "no-store",
+        });
+        
+        if (!response.ok) {
+            return { error: `Failed to list tiles: ${response.status}` };
+        }
+        
+        return await response.json();
+    };
+};
+
+// Get tile by name
+export const getTileByName = async (apiKey: string) => {
+    return async (projectId: string, interfaceName: string, tabName: string, tileName: string, checkpoint: boolean = false) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tile?project_id=${projectId}&interface_name=${encodeURIComponent(interfaceName)}&tab_name=${encodeURIComponent(tabName)}&name=${encodeURIComponent(tileName)}&checkpoint=${checkpoint}`,
+            {
+                method: "GET",
+                headers: { apiKey: apiKey },
+                cache: "no-store",
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to get tile: ${response.status}` };
+        }
+        
+        const tiles = await response.json();
+        return tiles.length > 0 ? tiles[0] : null;
+    };
+};
+
+// Create tile
+export const createTile = async (apiKey: string) => {
+    return async (
+        projectId: string, 
+        interfaceName: string, 
+        tabName: string, 
+        tileName: string, 
+        tileType: string,
+        position: TilePosition,
+        data: {
+            min_width?: number,
+            min_height?: number,
+            visible?: boolean,
+            locked?: boolean,
+            moved?: boolean,
+            static?: boolean,
+            context?: string,
+            table?: string,
+            auto_update?: string,
+            freeze?: string,
+            filters?: string,
+            common_filter?: string,
+            metric?: string,
+            table_tile?: TableTileData,
+            plot_tile?: PlotTileData,
+            view_tile?: ViewTileData,
+            editor_tile?: EditorTileData
+        }
+    ) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tile`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({
+                    project_id: projectId,
+                    interface_name: interfaceName,
+                    tab_name: tabName,
+                    name: tileName,
+                    type: tileType,
+                    position,
+                    ...data
+                }),
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to create tile: ${response.status}` };
+        }
+        
+        return await response.json();
+    };
+};
+
+// Update tile by name
+export const updateTile = async (apiKey: string) => {
+    return async (
+        projectId: string,
+        interfaceName: string,
+        tabName: string,
+        tileName: string,
+        data: {
+            name?: string,
+            position?: TilePosition,
+            min_width?: number,
+            min_height?: number,
+            visible?: boolean,
+            locked?: boolean,
+            context?: string,
+            table?: string,
+            auto_update?: string,
+            freeze?: string,
+            filters?: string,
+            common_filter?: string,
+            metric?: string,
+            table_tile?: TableTileData,
+            plot_tile?: PlotTileData,
+            view_tile?: ViewTileData,
+            editor_tile?: EditorTileData
+        },
+        checkpoint: boolean = false
+    ) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tile?project_id=${projectId}&interface_name=${encodeURIComponent(interfaceName)}&tab_name=${encodeURIComponent(tabName)}&name=${encodeURIComponent(tileName)}&checkpoint=${checkpoint}`,
+            {
+                method: "PUT",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify(data),
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to update tile: ${response.status}` };
+        }
+        
+        return await response.json();
+    };
+};
+
+// Delete tile by name
+export const deleteTile = async (apiKey: string) => {
+    return async (projectId: string, interfaceName: string, tabName: string, tileName: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tile?project_id=${projectId}&interface_name=${encodeURIComponent(interfaceName)}&tab_name=${encodeURIComponent(tabName)}&name=${encodeURIComponent(tileName)}`,
+            {
+                method: "DELETE",
+                headers: { apiKey: apiKey },
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to delete tile: ${response.status}` };
+        }
+        
+        return await response.json();
+    };
+};
+
+// Create checkpoint for tile
+export const createTileCheckpoint = async (apiKey: string) => {
+    return async (projectId: string, interfaceName: string, tabName: string, tileName: string, description: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tile/checkpoint?project_id=${projectId}&interface_name=${encodeURIComponent(interfaceName)}&tab_name=${encodeURIComponent(tabName)}&name=${encodeURIComponent(tileName)}`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({ description }),
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to create checkpoint: ${response.status}` };
+        }
+        
+        return await response.json();
+    };
+};
