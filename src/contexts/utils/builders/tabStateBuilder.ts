@@ -124,7 +124,7 @@ export function buildTabState(
         tileIds.push(tileId);
         
         // Determine tile type
-        const tileType = tileProps.tab as "Table" | "Plot" | "View" | "Editor" | undefined;
+        const tileType = tileProps.tab as "Table" | "Plot" | "View" | "Editor" | null;
         
         tilesById[tileId] = buildTileState(
           tabId,
