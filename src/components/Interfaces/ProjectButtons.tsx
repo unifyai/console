@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
+import { Ellipsis, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import CreateProject from "./Table/Buttons/CreateProject";
 import CloseProject from "./Table/Buttons/CloseProject";
@@ -14,6 +14,9 @@ import { useInterface } from "@/contexts/hooks/interface";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useTabUI } from "@/contexts/hooks/tab";
 import { defaultItems, defaultNewCounter } from "@/constants/logs";
+import AutoComplete from "../Common/Misc/AutoComplete";
+import BaseDropdown from "../Common/Dropdowns/Base";
+import { DropdownMenuItem } from "../UI/dropdown-menu";
 
 const ProjectButtons = ({
     interfaceId,
@@ -50,84 +53,114 @@ const ProjectButtons = ({
 
     const tabNames = interfaceDataActions?.getTabNames() || [];
 
+    const onOpen = () => {
+        setLoading(true);
+        serverProjectActions.get().then(projects => {
+            setProjects(projects);
+            setLoading(false);
+        });
+    }
+
+    const setterFunction = (proj: FileProps | undefined) => {
+        const newProj = proj ? proj.path : null;
+        interfaceUIActions?.setPending(true);
+        interfaceUIActions?.setDataPending(true);
+        interfaceDataActions?.setTabNames([]);
+        setTabQueryParam(null);
+        setProject(newProj);
+    }
+
     return (
         <div className="w-fit gap-2 flex flex-row items-center px-4">
-            <FileDirectory
-                data={projectsData}
-                renamingFunction={serverProjectActions.rename}
-                setterFunction={(proj: FileProps | undefined) => {
-                    const newProj = proj ? proj.path : null;
-                    interfaceUIActions?.setPending(true);
-                    interfaceUIActions?.setDataPending(true);
-                    interfaceDataActions?.setTabNames([]);
-                    setTabQueryParam(null);
-                    setProject(newProj);
-                }}
-                type="Projects"
+            <BaseDropdown
+                context="project"
+                button={<ActionButton
+                    tooltip="Manage Projects"
+                    icon={<Ellipsis />}
+                    variant="outline"
+                />}
+                className="min-w-0 w-fit"
+            >
+                <div className="w-fit flex flex-col items-center p-2">
+                    <div className="border-b pb-1">
+                        <FileDirectory
+                            data={projectsData}
+                            renamingFunction={serverProjectActions.rename}
+                            setterFunction={setterFunction}
+                            type="Projects"
+                            defaultValue={project || undefined}
+                            isAutocompleteOpen={defaultProject ? true : undefined}
+                            onOpen={onOpen}
+                            loading={loading}
+                        />
+                    </div>
+                    {project && <div className="border-b py-1">
+                        <CloseProject
+                            onClick={() => {
+                                interfaceUIActions?.setPending(true);
+                                interfaceUIActions?.setDataPending(true);
+                                setTabQueryParam(null);
+                                interfaceDataActions?.setTabNames([]);
+                                setProject(null);
+                            }}
+                            variant="ghost"
+                        />
+                    </div>}
+                    {project && <div className="border-b py-1">
+                        <DeleteDialog
+                            type="project"
+                            args={[project]}
+                            deletingFunction={async (name: string) => {
+                                await Promise.all(tabNames.map(tabName => serverTabActions.delete(
+                                    tabName, project, true
+                                )))
+                                await Promise.all(tabNames.map(tabName => serverTabActions.delete(
+                                    tabName, project, false
+                                )))
+                                return await serverProjectActions.delete(name);
+                            }}
+                            variant="ghost"
+                            onDelete={() => {
+                                interfaceUIActions?.setPending(true);
+                                interfaceUIActions?.setDataPending(true);
+                                setTabQueryParam(null);
+                                interfaceDataActions?.setTabNames([]);
+                                setProject(null);
+                                serverProjectActions.get().then(projects => setProjects(projects));
+                            }}
+                        />
+                    </div>}
+                    {projects && <div className="pt-1">
+                        <CreateProject creationFunction={(name: string) => {
+                            const createProject = serverProjectActions.create(name).then(async () => {
+                                await serverTabActions.create(
+                                    "tab1", name, undefined, defaultItems, defaultNewCounter, true, undefined
+                                );
+                                const tabCreate = await serverTabActions.create(
+                                    "tab1", name, undefined, defaultItems, defaultNewCounter, false, undefined
+                                );
+                                setProject(name);
+                                setTabQueryParam("tab1");
+                                interfaceUIActions?.setPending(true);
+                                interfaceUIActions?.setDataPending(true);
+                                interfaceDataActions?.setTabNames(["tab1"]);
+                                setProjects([...projects, name]);
+                                return tabCreate;
+                            });
+                            return createProject;
+                        }} paths={projects} variant="ghost" />
+                    </div>}
+                </div>
+            </BaseDropdown>
+            <AutoComplete
+                type={"Projects"}
+                items={projects.map((project) => ({ label: project, value: project }))}
                 defaultValue={project || undefined}
-                isAutocompleteOpen={defaultProject ? true : undefined}
-                onOpen={() => {
-                    setLoading(true);
-                    serverProjectActions.get().then(projects => {
-                        setProjects(projects);
-                        setLoading(false);
-                    });
-                }}
+                isOpen={defaultProject ? true : undefined}
+                onSelect={(currentValue: string) => setterFunction({ path: currentValue })}
+                onOpen={onOpen}
                 loading={loading}
             />
-            {project && (
-                <div className="flex flex-row gap-2">
-                    <CloseProject
-                        onClick={() => {
-                            interfaceUIActions?.setPending(true);
-                            interfaceUIActions?.setDataPending(true);
-                            setTabQueryParam(null);
-                            interfaceDataActions?.setTabNames([]);
-                            setProject(null);
-                        }}
-                    />
-                    <DeleteDialog
-                        type="project"
-                        args={[project]}
-                        deletingFunction={async (name: string) => {
-                            await Promise.all(tabNames.map(tabName => serverTabActions.delete(
-                                tabName, project, true
-                            )))
-                            await Promise.all(tabNames.map(tabName => serverTabActions.delete(
-                                tabName, project, false
-                            )))
-                            return await serverProjectActions.delete(name);
-                        }}
-                        variant="outline"
-                        onDelete={() => {
-                            interfaceUIActions?.setPending(true);
-                            interfaceUIActions?.setDataPending(true);
-                            setTabQueryParam(null);
-                            interfaceDataActions?.setTabNames([]);
-                            setProject(null);
-                            serverProjectActions.get().then(projects => setProjects(projects));
-                        }}
-                    />
-                </div>
-            )}
-            {projects && <CreateProject creationFunction={(name: string) => {
-                const createProject = serverProjectActions.create(name).then(async () => {
-                    await serverTabActions.create(
-                        "tab1", name, undefined, defaultItems, defaultNewCounter, true, undefined
-                    );
-                    const tabCreate = await serverTabActions.create(
-                        "tab1", name, undefined, defaultItems, defaultNewCounter, false, undefined
-                    );
-                    setProject(name);
-                    setTabQueryParam("tab1");
-                    interfaceUIActions?.setPending(true);
-                    interfaceUIActions?.setDataPending(true);
-                    interfaceDataActions?.setTabNames(["tab1"]);
-                    setProjects([...projects, name]);
-                    return tabCreate;
-                });
-                return createProject;
-            }} paths={projects} />}
             <ActionButton
                 variant="outline"
                 icon={tabUIState?.refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}

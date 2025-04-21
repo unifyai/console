@@ -213,9 +213,9 @@ const Interface = ({
       <Tabs
         value={tabQueryParam || undefined}
         onValueChange={handleTabChange}
-        className="w-full tutorial-details-panel"
+        className="w-full h-full flex flex-col tutorial-details-panel"
       >
-        <div className="sticky top-0 z-10 bg-background p-2 flex justify-between w-full md:overflow-none overflow-x-auto">
+        <div className="sticky top-0 z-10 bg-background p-2 flex justify-between w-full">
           {/* Project buttons and add/delete buttons */}
           <ProjectButtons
             interfaceId={interfaceId}
@@ -227,17 +227,6 @@ const Interface = ({
             projectActions={projectsActions}
             tabActions={serverTabActions}
           />
-
-          {/* Interface tabs */}
-          {projectQueryParam && (
-            <InterfaceTabs
-              interfaceId={interfaceId}
-              newCounter={newCounter}
-              tabQueryParam={tabQueryParam}
-              tabActions={serverTabActions}
-              setTabQueryParam={setTabQueryParam}
-            />
-          )}
 
           {/* Interface buttons */}
           <InterfaceButtons
@@ -276,7 +265,7 @@ const Interface = ({
             <TabsContent
               key={idx}
               value={tabName}
-              className="tutorial-selection-pane relative"
+              className="mb-auto tutorial-selection-pane relative"
             >
               {interfaceUIState?.pending ? (
                 <div className="flex justify-center">
@@ -308,6 +297,17 @@ const Interface = ({
             </TabsContent>
           ))
         )}
+
+        {/* Interface tabs */}
+        {projectQueryParam && <div className="sticky bottom-0 z-10 p-2 bg-background flex w-full">
+          <InterfaceTabs
+            interfaceId={interfaceId}
+            newCounter={newCounter}
+            tabQueryParam={tabQueryParam}
+            tabActions={serverTabActions}
+            setTabQueryParam={setTabQueryParam}
+          />
+        </div>}
       </Tabs>
 
       {/* Focus Dialog */}

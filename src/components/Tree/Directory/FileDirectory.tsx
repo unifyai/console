@@ -76,7 +76,7 @@ export default function FileDirectory ({ type,  data, defaultValue, isAutocomple
     <div className="flex flex-row gap-2 items-center">
       <BaseDialog
         button={
-            <SettingButton variant="outline" icon={<Folder/>} tooltip={`Manage ${type}`} disabled={disabled} />
+            <SettingButton variant={type == "Projects" ? "ghost" : "outline"} icon={<Folder/>} tooltip={`Search ${type}`} disabled={disabled} />
         }
         title="File Directory"
         description={`Search and organize your ${type.toLowerCase()} by folder. Double click on a file to select it.`}
@@ -106,7 +106,7 @@ export default function FileDirectory ({ type,  data, defaultValue, isAutocomple
         onOpen={onOpen}
         disabled={disabled}
       />  
-      <AutoComplete 
+      {type != "Projects" && <AutoComplete
         type={type}
         items={files.map((file) => ({label: file.name, value: file.path}))}
         defaultValue={defaultValue}
@@ -115,7 +115,7 @@ export default function FileDirectory ({ type,  data, defaultValue, isAutocomple
         onOpen={onOpen}
         disabled={disabled}
         loading={loading}
-      />
+      />}
     </div>
   );
 };
