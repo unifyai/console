@@ -219,7 +219,7 @@ return (
            <g className="yAxis" transform={`translate(${margins.left}, 0)`} />
         </svg>
         {/* Hover Tooltip */}
-        <div style={{ position: "fixed", minWidth: "160px", maxWidth: "300px", pointerEvents: "none", background: "var(--background)", border: "1px solid var(--foreground)", padding: "8px", borderRadius: "4px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", transition: "opacity 0.2s", fontSize: "14px", opacity: 0, zIndex: 1000 }} className="plotTooltip gap-2 overflow-hidden" />
+        <div style={{ position: "absolute", minWidth: "160px", maxWidth: "300px", pointerEvents: "none", background: "var(--background)", border: "1px solid var(--foreground)", padding: "8px", borderRadius: "4px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", transition: "opacity 0.2s", fontSize: "14px", opacity: 0, zIndex: 1000 }} className="plotTooltip gap-2 overflow-hidden" />
       </div>
   
       {/* Settings Panel */}

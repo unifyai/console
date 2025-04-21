@@ -59,7 +59,8 @@ function onMouseOver(
     minX: number,
     maxX: number,
     g: d3.Selection<d3.BaseType, unknown, null, undefined>, 
-    tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>
+    tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>,
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
 ) {
     const tooltipData = getTooltipData(data, bin, groupBy, aggregate, xType, minX, maxX);
     const template = tooltipTemplate(tooltipData);
@@ -67,7 +68,7 @@ function onMouseOver(
         .html(template)
         .transition("opacity")
         .style("opacity", 1);
-    positionTooltip(event, tooltip);
+    positionTooltip(event, tooltip, container);
 
     g.selectAll("rect.hist-item")
         .filter((d: any) => groupBy ? d.group !== (bin as GroupedBin).group : d.x0 !== bin.x0 || d.x1 !== bin.x1)
@@ -76,8 +77,12 @@ function onMouseOver(
         .style("opacity", 0.5);
     }
 
-function onMouseMove(event: any, tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>) {
-    positionTooltip(event, tooltip);
+function onMouseMove(
+    event: any, 
+    tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>,
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
+) {
+    positionTooltip(event, tooltip, container);
 }
     
 function onMouseOut(initialOpacity: number, g: d3.Selection<d3.BaseType, unknown, null, undefined>, tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>) {
@@ -240,8 +245,8 @@ export const drawHistogram = (
             .attr("height", 0) // Start with 0 height
             .style("opacity", initialOpacity)
             .style("cursor", "pointer")
-            .on("mouseover", (event, d) => onMouseOver(event, data, d, groupBy, aggregate, xType, minX, maxX, g, tooltip))
-            .on("mousemove", (event, _) => onMouseMove(event, tooltip))
+            .on("mouseover", (event, d) => onMouseOver(event, data, d, groupBy, aggregate, xType, minX, maxX, g, tooltip, container))
+            .on("mousemove", (event, _) => onMouseMove(event, tooltip, container))
             .on("mouseout", (_) => onMouseOut(initialOpacity, g, tooltip))
             .on("click", (event, d) => onClick(event, data, d, groupBy, aggregate, xType, minX, maxX, settings)
         );
@@ -283,8 +288,8 @@ export const drawHistogram = (
                 .attr("height", 0) // Start with 0 height
                 .style("opacity", initialOpacity)
                 .style("cursor", "pointer")
-                .on("mouseover", (event, d) => onMouseOver(event, data, d, groupBy, aggregate, xType, minX, maxX, g, tooltip))
-                .on("mousemove", (event, _) => onMouseMove(event, tooltip))
+                .on("mouseover", (event, d) => onMouseOver(event, data, d, groupBy, aggregate, xType, minX, maxX, g, tooltip, container))
+                .on("mousemove", (event, _) => onMouseMove(event, tooltip, container))
                 .on("mouseout", (_) => onMouseOut(initialOpacity, g, tooltip))
                 .on("click", (event, d) => onClick(event, data, d, groupBy, aggregate, xType, minX, maxX, settings))    
                 .call(enter => enter.transition("enter").duration(500)

@@ -247,20 +247,62 @@ export function showFixedTooltip( event: MouseEvent, data: InfoCardData | null, 
  *
  * @param event The mouse event (used for cursor position).
  * @param tooltip The D3 selection of the tooltip element.
+ * @param container The D3 selection of the plot container element.
  */
-export const positionTooltip = (event: any, tooltip: any) => {
+export const positionTooltip = (
+    event: MouseEvent,
+    tooltip: any,
+    container: any
+) => {
     const tooltipNode = tooltip.node();
-    if (!tooltipNode) return;
-    const [tooltipRect] = [tooltipNode.getBoundingClientRect()];
-    const [tooltipWidth, tooltipHeight] = [tooltipRect.width, tooltipRect.height];
-    const [pointerX, pointerY] = d3.pointer(event, event.target);
-    const [xOffset, yOffset] = [
-        pointerX - tooltipWidth / 2,
-        pointerY < tooltipHeight ? pointerY + tooltipHeight / 1.75 : pointerY - tooltipHeight / 1.15
-    ]
+    const containerNode = container.node();
+    
+
+    if (!tooltipNode || !containerNode) return;
+
+    tooltip.style("opacity", 1); // Ensure visible for measurement
+
+    const tooltipRect = tooltipNode.getBoundingClientRect();
+    const tooltipWidth = tooltipRect.width;
+    const tooltipHeight = tooltipRect.height;
+
+    // --- Use d3.pointer relative to the container ---
+    const [pointerX, pointerY] = d3.pointer(event, containerNode);
+
+    // --- Simple offset calculation relative to the container ---
+    // Place slightly below and to the right of the cursor within the container
+    const offsetX = 10;
+    const offsetY = 10;
+    let xPos = pointerX + offsetX;
+    let yPos = pointerY + offsetY;
+
+    // --- Boundary checks *within the container* ---
+    const containerRect = containerNode.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+
+    // If tooltip goes past the right edge of the container, flip it to the left of the cursor
+    if (xPos + tooltipWidth > containerWidth) {
+        xPos = pointerX - tooltipWidth - offsetX;
+    }
+    // If tooltip goes past the left edge (after potential flip), clamp it
+    if (xPos < 0) {
+        xPos = 0;
+    }
+
+    // If tooltip goes past the bottom edge, flip it above the cursor
+    if (yPos + tooltipHeight > containerHeight) {
+        yPos = pointerY - tooltipHeight - offsetY;
+    }
+    // If tooltip goes past the top edge (after potential flip), clamp it
+    if (yPos < 0) {
+        yPos = 0;
+    }
+
+    // Apply styles relative to the container
     tooltip
-        .style("left", `${xOffset}px`)
-        .style("top", `${yOffset}px`)
+        .style("left", `${xPos}px`)
+        .style("top", `${yPos}px`);
 };
 
 /**

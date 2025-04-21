@@ -59,7 +59,8 @@ function onMouseOver (
     xType: string | undefined, 
     yType: string | undefined, 
     g: d3.Selection<d3.BaseType, unknown, null, undefined>, 
-    tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>
+    tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>,
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
 ) {
     const tooltipData = getTooltipData(data, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType);
     const template = tooltipTemplate(tooltipData);
@@ -67,7 +68,7 @@ function onMouseOver (
         .html(template)
         .transition("opacity")
         .style("opacity", 1)
-    positionTooltip(event, tooltip);
+    positionTooltip(event, tooltip, container);
     if (groupBy) {
         g.selectAll("circle.data-point")
             .transition("opacity")
@@ -95,9 +96,10 @@ function onMouseOver (
 
 function onMouseMove(
     event: any, 
-    tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>
+    tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>,
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
 ) { 
-    positionTooltip(event, tooltip);
+    positionTooltip(event, tooltip, container);
 }
 
 function onMouseOut (
@@ -450,8 +452,8 @@ export const drawScatterPlot = (
             .attr("r", 3)
             .style("opacity", 0)
             .style("cursor", "pointer")
-            .on("mouseover", (event, data) => onMouseOver(event, data, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType, g, tooltip))
-            .on("mousemove", (event, _) => onMouseMove(event, tooltip))
+            .on("mouseover", (event, data) => onMouseOver(event, data, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType, g, tooltip, container))
+            .on("mousemove", (event, _) => onMouseMove(event, tooltip, container))
             .on("mouseout", (_) => onMouseOut(groupBy, g, tooltip))
             .on("click", (event, data) => onClick(event, data, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType, settings))
             .call(enter => enter.transition("enter").duration(200).style("opacity", 1)),
@@ -475,8 +477,8 @@ export const drawScatterPlot = (
         .data(data)
         .join("circle")
         .style("cursor", "pointer")
-        .on("mouseover", (event, data) => onMouseOver(event, data, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType, g, tooltip))
-        .on("mousemove", (event, _) => onMouseMove(event, tooltip))
+        .on("mouseover", (event, data) => onMouseOver(event, data, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType, g, tooltip, container))
+        .on("mousemove", (event, _) => onMouseMove(event, tooltip, container))
         .on("mouseout", (_) => onMouseOut(groupBy, g, tooltip))
         .on("click", (event, data) => onClick(event, data, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType, settings))
         .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable) as number) : getValue(fields, xAxisProperty as string, d, xTable) as number))

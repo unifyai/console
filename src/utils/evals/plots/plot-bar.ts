@@ -74,7 +74,8 @@ function onMouseOver (
     groupBy: string | undefined, 
     aggregate: string | undefined,
     g: d3.Selection<d3.BaseType, unknown, null, undefined>, 
-    tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>
+    tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>,
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
 ) {
     const tooltipData = getTooltipData(d, xAxisProperty, yAxisProperty, metric, groupBy, aggregate);
     const template = tooltipTemplate(tooltipData)
@@ -82,7 +83,7 @@ function onMouseOver (
         .html(template)
         .transition("opacity")
         .style("opacity", 1);
-    positionTooltip(event, tooltip);
+    positionTooltip(event, tooltip, container);
     if (groupBy) {
         const group = (d as GroupedDataLabel)[0];
         g.selectAll("rect.bar-item")
@@ -97,8 +98,12 @@ function onMouseOver (
     }
 };
 
-function onMouseMove (event: any, tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>) {
-    positionTooltip(event, tooltip);
+function onMouseMove (
+    event: any, 
+    tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>,
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
+) {
+    positionTooltip(event, tooltip, container);
 };
 
 function onMouseOut  (
@@ -338,8 +343,8 @@ export const drawBarChart = (
 
     // Attach event handlers to the bars
     g.selectAll("rect.bar-item")
-        .on("mouseover", (e, d) => onMouseOver(e, (d as GroupedDataLabel | DataLabel), xAxisProperty, yAxisProperty, metric, groupBy, aggregate, g, tooltip))
-        .on("mousemove", (e, _) => onMouseMove(e, tooltip))
+        .on("mouseover", (e, d) => onMouseOver(e, (d as GroupedDataLabel | DataLabel), xAxisProperty, yAxisProperty, metric, groupBy, aggregate, g, tooltip, container))
+        .on("mousemove", (e, _) => onMouseMove(e, tooltip, container))
         .on("mouseout", (_) => onMouseOut(initialOpacity, g, tooltip))
         .on("click", (e,d) => onClick(e, (d as GroupedDataLabel | DataLabel), xAxisProperty, yAxisProperty, metric, groupBy, aggregate, settings));
 };
