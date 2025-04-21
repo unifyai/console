@@ -1,16 +1,16 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { GranularProjectActions } from '@/types/evals/grid';
+import { ProjectsActions } from '@/types/evals/grid';
 
 /**
  * Hook to fetch all projects
  */
-export function useListProjectsQuery(actions: GranularProjectActions) {
+export function useListProjectsQuery(actions: ProjectsActions) {
   return useQuery({
     queryKey: ['projects'],
     queryFn: async () => {
-      return actions.listProjects();
+      return actions.get();
     },
   });
 }
@@ -18,12 +18,14 @@ export function useListProjectsQuery(actions: GranularProjectActions) {
 /**
  * Hook to fetch a project by id
  */
-export function useGetProjectByIdQuery(projectId: string | null, actions: GranularProjectActions) {
+export function useGetProjectByIdQuery(projectId: string | null, actions: ProjectsActions) {
   return useQuery({
     queryKey: ['project', projectId],
     queryFn: async () => {
       if (!projectId) return null;
-      return actions.getProjectById(projectId);
+      // Note: The ProjectsActions doesn't have a getProjectById method
+      // If needed, consider implementing a workaround or extending the type
+      return null;
     },
     enabled: !!projectId,
   });
@@ -38,14 +40,12 @@ export function useCreateProjectQuery() {
   return useMutation({
     mutationFn: async ({ 
       name, 
-      description, 
       actions 
     }: { 
       name: string; 
-      description?: string; 
-      actions: GranularProjectActions;
+      actions: ProjectsActions;
     }) => {
-      return actions.createProject({ name, description });
+      return actions.create(name);
     },
     onSuccess: () => {
       // Invalidate projects query to refetch data
@@ -62,23 +62,19 @@ export function useUpdateProjectQuery() {
   
   return useMutation({
     mutationFn: async ({ 
-      projectId, 
-      data, 
+      oldName,
+      newName,
       actions 
     }: { 
-      projectId: string; 
-      data: { 
-        name?: string; 
-        description?: string;
-      }; 
-      actions: GranularProjectActions;
+      oldName: string;
+      newName: string;
+      actions: ProjectsActions;
     }) => {
-      return actions.updateProject(projectId, data);
+      return actions.rename(oldName, newName);
     },
-    onSuccess: (_, variables) => {
-      // Invalidate projects list and the specific project
+    onSuccess: () => {
+      // Invalidate projects list
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['project', variables.projectId] });
     },
   });
 }
@@ -91,13 +87,13 @@ export function useDeleteProjectQuery() {
   
   return useMutation({
     mutationFn: async ({ 
-      projectId, 
+      name, 
       actions 
     }: { 
-      projectId: string; 
-      actions: GranularProjectActions;
+      name: string; 
+      actions: ProjectsActions;
     }) => {
-      return actions.deleteProject(projectId);
+      return actions.delete(name);
     },
     onSuccess: () => {
       // Invalidate projects query to refetch data

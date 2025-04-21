@@ -297,14 +297,6 @@ export interface DevboxActions {
     create: () => Promise<ResponseProps>
 }
 
-export interface GranularProjectActions {
-    listProjects: () => Promise<string[]>;
-    getProjectById: (projectId: string) => Promise<any>;
-    createProject: (data: { name: string; description?: string }) => Promise<ResponseProps>;
-    updateProject: (projectId: string, data: { name?: string; description?: string }) => Promise<ResponseProps>;
-    deleteProject: (projectId: string) => Promise<ResponseProps>;
-}
-
 export interface GranularContextActions {
     getContexts: (projectId: string) => Promise<Context[]>;
     createContext: (projectId: string, name: string) => Promise<ResponseProps>;
