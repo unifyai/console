@@ -724,7 +724,7 @@ export default function SelectionEntry({
             <ActionButton
               variant="ghost"
               size="icon"
-              tooltip={allOpen ? "Collapse All" : "Expand All"}
+              tooltip={allOpen ? "Collapse all" : "Expand all"}
               onClick={handleGlobalExpandToggle}
               icon={allOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
             />

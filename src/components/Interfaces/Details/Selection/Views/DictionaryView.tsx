@@ -370,7 +370,7 @@ function renderNoDiffMode(
                   <ActionButton
                     variant="ghost"
                     size="icon"
-                    tooltip={isPathOpen ? "Collapse All Children" : "Expand All Children"}
+                    tooltip={isPathOpen ? "Collapse all children" : "Expand all children"}
                     onClick={(e) => handleRecursiveToggle(e, path, currentValue, currentComparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys)}
                     icon={isPathOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
                   />
@@ -794,7 +794,7 @@ function renderDiffMode(
                   <ActionButton
                     variant="ghost"
                     size="icon"
-                    tooltip={isPathOpen ? "Collapse All Children" : "Expand All Children"}
+                    tooltip={isPathOpen ? "Collapse all children" : "Expand all children"}
                     onClick={(e) => handleRecursiveToggle(e, path, currentValue, currentComparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys)}
                     icon={isPathOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
                   />

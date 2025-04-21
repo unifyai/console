@@ -59,7 +59,7 @@ const GlobalFilter = ({ searchParams, columnNames, commonFilterQuery, setCommonF
             </div>
             {(searchParams.filters || searchParams.common_filter) && <ActionButton
                 icon={loadingReset ? <LoaderCircle className="animate-spin text-white"/> : <Filter/>}
-                tooltip="Reset All Filters"
+                tooltip="Reset all filters"
                 variant={"destructive"}
                 disabled={loadingReset}
                 onClick={() => {

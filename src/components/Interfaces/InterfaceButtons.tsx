@@ -146,7 +146,7 @@ const InterfaceButtons = ({
             />
             <ActionButton
                 className="transition-all"
-                tooltip="Open Focus Pane"
+                tooltip="Open focus pane"
                 icon={<FocusIcon/>}
                 variant={"outline"}
                 disabled={!project || !tabQueryParam || interfaceUIState?.pending}
@@ -208,7 +208,7 @@ const InterfaceButtons = ({
                     <ActionButton
                         variant="outline"
                         icon={<Eye/>}
-                        tooltip="Show Hidden"
+                        tooltip="Show hidden"
                         size="sm"
                         disabled={hiddenItems.length === 0 || interfaceUIState?.pending}
                     />

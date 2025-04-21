@@ -57,7 +57,7 @@ const CodeBlock = ({
                     ? <Loader2 className="animate-spin" />
                     : <Play />
                 }
-                tooltip={"Run Demo"}
+                tooltip={"Run demo"}
                 onClick={() => onRun(code)}
                 disabled={disabled || pending}
             />

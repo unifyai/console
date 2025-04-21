@@ -425,7 +425,7 @@ const DataTableHeader = ({
                       className="min-w-[8rem]"
                       button={
                         <ActionButton
-                          tooltip="Parent Column Actions"
+                          tooltip="Parent column actions"
                           icon={<MoreHorizontal className="h-4 w-4" />}
                           variant="ghost"
                           size="icon"
@@ -507,7 +507,7 @@ const DataTableHeader = ({
                           button={
                             <ActionButton
                               ref={actionButtonRef}
-                              tooltip="Child Column Actions"
+                              tooltip="Child column actions"
                               icon={<MoreHorizontal className="h-4 w-4" />}
                               variant="ghost"
                               size="icon"
