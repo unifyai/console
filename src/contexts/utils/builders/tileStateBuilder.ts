@@ -13,7 +13,7 @@ export function buildTileState(
   interfaceId: string | null = null,
   projectId: string | null = null,
   tileProps: TileProps,
-  type: "Table" | "Plot" | "View" | "Editor" = "Table",
+  type: "Table" | "Plot" | "View" | "Editor" | null = "Table",
 ): Tile {
   // Generate the hierarchical tile ID
   const tileId = `${tabId}>${tileProps.i}`;
