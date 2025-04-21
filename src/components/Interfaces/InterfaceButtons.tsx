@@ -150,7 +150,7 @@ const InterfaceButtons = ({
                 <div className="w-fit flex flex-col items-center p-2">
 
                     {/* File upload */}
-                    <div className="border-b pb-1">
+                    <div className="w-full border-b pb-1">
                         <FileUpload
                             contexts={contexts}
                             logsActions={logsActions}
@@ -159,9 +159,10 @@ const InterfaceButtons = ({
                     </div>
 
                     {/* Focus pane */}
-                    <div className="border-b py-1">
+                    <div className="w-full border-b py-1">
                         <ActionButton
                             className="transition-all"
+                            text="Open focus pane"
                             tooltip="Open focus pane"
                             icon={<FocusIcon />}
                             variant="ghost"
@@ -171,7 +172,7 @@ const InterfaceButtons = ({
                     </div>
 
                     {/* Context selector */}
-                    <div className="border-b py-1">
+                    <div className="w-full border-b py-1">
                         <ContextSelector
                             tabId={tabQueryParam || undefined}
                             interfaceId={interfaceId}
@@ -187,9 +188,10 @@ const InterfaceButtons = ({
                     </div>
 
                     {/* Save button */}
-                    <div className="border-b py-1">
+                    <div className="w-full border-b py-1">
                         <ActionButton
                             className="transition-all"
+                            text="Save Interface"
                             tooltip={!project ? "Select a project first" : "Save Interface"}
                             icon={saveIcon}
                             variant={variant}
@@ -199,10 +201,11 @@ const InterfaceButtons = ({
                     </div>
 
                     {/* Reset button */}
-                    <div className="border-b py-1">
+                    <div className="w-full border-b py-1">
                         <ActionButton
                             className="transition-all"
-                            tooltip={!project ? "Select a project first" : "Return to last saved interface"}
+                            text="Reset Interface"
+                            tooltip={!project ? "Select a project first" : "Reset Interface"}
                             icon={resetIcon}
                             variant="ghost"
                             disabled={!project || interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading}
@@ -219,7 +222,7 @@ const InterfaceButtons = ({
                     </div>
 
                     {/* Add tile button */}
-                    <div className="border-b py-1">
+                    <div className="w-full border-b py-1">
                         <AddTile
                             project={project || ""}
                             interfaceId={interfaceId}
@@ -231,12 +234,13 @@ const InterfaceButtons = ({
                     </div>
 
                     {/* Show hidden items dropdown */}
-                    <div className="border-b py-1">
+                    <div className="w-full border-b py-1">
                         <BaseDropdown
                             button={
                                 <ActionButton
                                     variant="ghost"
                                     icon={<Eye />}
+                                    text="Show hidden"
                                     tooltip="Show hidden"
                                     size="sm"
                                     disabled={hiddenItems.length === 0 || interfaceUIState?.pending}
@@ -271,9 +275,10 @@ const InterfaceButtons = ({
                     </div>
 
                     {/* Paste button */}
-                    <div className="border-b py-1">
+                    <div className="w-full border-b py-1">
                         <ActionButton
                             variant="ghost"
+                            text="Paste"
                             icon={<Clipboard />}
                             tooltip="Paste"
                             disabled={!tabUIState?.copied || interfaceUIState?.pending}
@@ -282,7 +287,7 @@ const InterfaceButtons = ({
                     </div>
 
                     {/* Color selector */}
-                    <div className="pt-1">
+                    <div className="w-full pt-1">
                         <ColorPicker
                             value={tabUIState?.color ?? getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()}
                             onChange={(color) => tabUIActions?.setColor(color)}
@@ -291,7 +296,8 @@ const InterfaceButtons = ({
                                 className="cursor-pointer hover:z-10"
                                 icon={<Palette />}
                                 variant="ghost"
-                                tooltip="Change tab primary color"
+                                text="Change tab color"
+                                tooltip="Change tab color"
                                 disabled={!project}
                             />
                         </ColorPicker>

@@ -7,10 +7,11 @@ import { z } from "zod";
 import FormEntry from "@/components/Common/Forms/Entry";
 import { ResponseProps } from "@/types/common";
 
-const CreateProject = ({paths, creationFunction, disabled, variant="outline"}: {
+const CreateProject = ({paths, creationFunction, disabled, text, variant="outline"}: {
     paths: string[],
     creationFunction: (name: string, value: string) => Promise<ResponseProps>,
     disabled?: boolean,
+    text?: string,
     variant?: "outline" | "ghost"
 }) => {
 
@@ -56,6 +57,7 @@ const CreateProject = ({paths, creationFunction, disabled, variant="outline"}: {
             form={form}
             extraFormActions={(data) => updateProject(data.name)}
             disabled={disabled}
+            text={text}
             variant={variant}
         />
     )

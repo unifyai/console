@@ -115,6 +115,7 @@ const ContextSelector = ({
             <BaseDropdown
                 context="tile"
                 button={button || <ActionButton
+                    text={item == undefined ? "Edit Global Context" : undefined}
                     tooltip={item == undefined ? "Edit Global Context" : "Edit Context and Column Context"}
                     icon={<FolderTree />}
                     variant={context ? "primary" : item == undefined ? "ghost" : "outline"}

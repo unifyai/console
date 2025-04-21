@@ -40,7 +40,7 @@ const AddTile = ({
             className="transition-all"
             tooltip={(!tabUIState?.edit || !project) ? "Select a project first" : "Add new tile"}
             icon={<Plus />}
-            // text="Add Tile"
+            text="Add Tile"
             variant="ghost"
             disabled={!tabUIState?.edit || !project || !exists || interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading}
             onClick={() => {
