@@ -299,7 +299,7 @@ const Interface = ({
         )}
 
         {/* Interface tabs */}
-        {projectQueryParam && <div className="sticky bottom-0 z-10 p-2 bg-background flex w-fit mx-auto">
+        {projectQueryParam && <div className="sticky bottom-0 z-10 p-2 bg-background flex w-full justify-center">
           <InterfaceTabs
             interfaceId={interfaceId}
             newCounter={newCounter}
