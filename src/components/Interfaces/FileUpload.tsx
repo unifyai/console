@@ -410,13 +410,12 @@ export function FileUpload({ project, logsActions, contexts }: FileUploadProps) 
             className="sm:max-w-[75vw] max-h-[90vh] flex flex-col" // Increased width slightly
             button={
                 <ActionButton
-                    text="Upload logs"
+                    text="Upload Logs"
                     icon={<Upload />}
                     onClick={() => onOpenChange(true)}
                     tooltip="Upload logs from file (.csv, .jsonl, .json)"
                     variant="outline"
                     disabled={!project}
-                    className="h-9 px-3"
                 />
             }
             body={
