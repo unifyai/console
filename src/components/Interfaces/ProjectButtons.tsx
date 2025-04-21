@@ -82,19 +82,21 @@ const ProjectButtons = ({
                 className="min-w-0 w-fit"
             >
                 <div className="w-fit flex flex-col items-center p-2">
-                    <div className="border-b pb-1">
+                    <div className="w-full border-b pb-1">
                         <FileDirectory
                             data={projectsData}
                             renamingFunction={serverProjectActions.rename}
                             setterFunction={setterFunction}
                             type="Projects"
+                            text="Select projects"
+                            variant="ghost"
                             defaultValue={project || undefined}
                             isAutocompleteOpen={defaultProject ? true : undefined}
                             onOpen={onOpen}
                             loading={loading}
                         />
                     </div>
-                    {project && <div className="border-b py-1">
+                    {project && <div className="w-full border-b py-1">
                         <CloseProject
                             onClick={() => {
                                 interfaceUIActions?.setPending(true);
@@ -104,9 +106,10 @@ const ProjectButtons = ({
                                 setProject(null);
                             }}
                             variant="ghost"
+                            text="Close project"
                         />
                     </div>}
-                    {project && <div className="border-b py-1">
+                    {project && <div className="w-full border-b py-1">
                         <DeleteDialog
                             type="project"
                             args={[project]}
@@ -120,6 +123,7 @@ const ProjectButtons = ({
                                 return await serverProjectActions.delete(name);
                             }}
                             variant="ghost"
+                            text="Delete project"
                             onDelete={() => {
                                 interfaceUIActions?.setPending(true);
                                 interfaceUIActions?.setDataPending(true);
@@ -130,7 +134,7 @@ const ProjectButtons = ({
                             }}
                         />
                     </div>}
-                    {projects && <div className="pt-1">
+                    {projects && <div className="w-full pt-1">
                         <CreateProject creationFunction={(name: string) => {
                             const createProject = serverProjectActions.create(name).then(async () => {
                                 await serverTabActions.create(
@@ -148,7 +152,7 @@ const ProjectButtons = ({
                                 return tabCreate;
                             });
                             return createProject;
-                        }} paths={projects} variant="ghost" />
+                        }} paths={projects} text="Create project" variant="ghost" />
                     </div>}
                 </div>
             </BaseDropdown>

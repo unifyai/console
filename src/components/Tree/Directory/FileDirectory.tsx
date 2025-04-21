@@ -17,8 +17,10 @@ import { updateNode } from "@/utils/misc/directory";
 import CancelButton from "../../Common/Buttons/Cancel";
 import SettingButton from "../../Common/Buttons/Setting";
 
-export default function FileDirectory ({ type,  data, defaultValue, isAutocompleteOpen, disabled, loading, setterFunction, renamingFunction, onOpen } : {
+export default function FileDirectory ({ type, text, variant, data, defaultValue, isAutocompleteOpen, disabled, loading, setterFunction, renamingFunction, onOpen } : {
   type: string, 
+  text?: string,
+  variant?: "outline" | "ghost",
   data: FileProps[],
   defaultValue?: string | undefined,
   isAutocompleteOpen?: boolean,
@@ -76,7 +78,7 @@ export default function FileDirectory ({ type,  data, defaultValue, isAutocomple
     <div className="flex flex-row gap-2 items-center">
       <BaseDialog
         button={
-            <SettingButton variant={type == "Projects" ? "ghost" : "outline"} icon={<Folder/>} tooltip={`Search ${type}`} disabled={disabled} />
+            <SettingButton variant={variant || "outline"} icon={<Folder/>} text={text} tooltip={`Search ${type}`} disabled={disabled} />
         }
         title="File Directory"
         description={`Search and organize your ${type.toLowerCase()} by folder. Double click on a file to select it.`}

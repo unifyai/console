@@ -13,7 +13,7 @@ import { Form } from "@/components/UI/form"
 import SettingButton from "../Buttons/Setting";
 import { useKey } from "react-use";
 
-export default function CreateDialog ({ type, creationFunction, CreateSchema, form, Fields, extraFormActions, disabled, variant="outline" }: {
+export default function CreateDialog ({ type, creationFunction, CreateSchema, form, Fields, extraFormActions, disabled, text, variant="outline" }: {
     type: string;
     creationFunction: (...args: any[]) => Promise<ResponseProps>
     CreateSchema: z.ZodObject<any>,
@@ -21,7 +21,8 @@ export default function CreateDialog ({ type, creationFunction, CreateSchema, fo
     Fields: ReactNode,
     extraFormActions?: (data: z.infer<typeof CreateSchema>) => void,
     disabled?: boolean,
-    variant?: "outline" | "ghost"
+    text?: string
+    variant?: "outline" | "ghost",
 }) {
     // Define messages
     const messages = {
@@ -56,7 +57,7 @@ export default function CreateDialog ({ type, creationFunction, CreateSchema, fo
     }
     
     const tooltip = `Create ${type}`
-    const button =  <SettingButton icon={<Plus/>} onClick={onOpen} tooltip={tooltip} disabled={disabled} variant={variant}/>
+    const button =  <SettingButton icon={<Plus/>} onClick={onOpen} tooltip={tooltip} disabled={disabled} text={text} variant={variant}/>
     
     const title = tooltip
     const body =    success ? messages["success"] : error ? messages["error"] : Fields;
