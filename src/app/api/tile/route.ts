@@ -61,3 +61,19 @@ export async function DELETE(request: NextRequest) {
         },
     );
 }
+
+export async function PATCH(request: NextRequest) {
+    const body = await request.json();
+    const url = new URL(request.url);
+    return await fetch(
+        `${baseUrl}/tile${url.search}`,
+        {
+            method: "PATCH",
+            headers: {
+                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body)
+        },
+    );
+}

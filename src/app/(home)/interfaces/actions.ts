@@ -4,6 +4,7 @@ import { TileProps } from "@/types/evals/grid";
 import { LogFieldsProps, getLogsParameters } from "@/types/evals/logs";
 import { sanitizeKey } from "./utils";
 import { ResponseProps } from "@/types/common";
+import { TilePosition, TableTileData, PlotTileData, ViewTileData, EditorTileData } from "@/types/evals/grid";
 
 // create project
 export const createProject = async (apiKey: string) => {
@@ -443,52 +444,6 @@ export const runCode = async (apiKey: string, userId: string) => {
 }
 
 // ----- NEW GRANULAR API ACTIONS -----
-
-// Type definitions for tile properties
-type TilePosition = {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-};
-
-type TableTileData = {
-    table_type?: string;
-    column_context?: string;
-    page_number?: string;
-    column_order?: string;
-    hidden_columns?: string;
-    sorting?: string;
-    grouping?: string;
-    group_sorting?: string;
-    columns_pin_left?: string;
-    columns_pin_right?: string;
-    selected?: string;
-};
-
-type PlotTileData = {
-    plot_type?: string;
-    plot_scale_x?: string;
-    plot_scale_y?: string;
-    plot_aggregate?: string;
-    x_axis?: string;
-    y_axis?: string;
-    plot_group_by?: string;
-    plot_group_by_colors?: string;
-    bin_count?: string;
-    regression_line?: string;
-};
-
-type ViewTileData = {
-    base_index?: string;
-};
-
-type EditorTileData = {
-    file_path?: string;
-    file_type?: string;
-    content?: string;
-};
-
 // List interfaces
 export const listInterfaces = async (apiKey: string) => {
     return async (projectId: string, checkpoint: boolean = false) => {
@@ -919,6 +874,96 @@ export const updateTile = async (apiKey: string) => {
         
         if (!response.ok) {
             return { error: `Failed to update tile: ${response.status}` };
+        }
+        
+        return await response.json();
+    };
+};
+
+// Patch tile by name
+export const patchTile = async (apiKey: string) => {
+    return async (
+        projectId: string,
+        interfaceName: string,
+        tabName: string,
+        tileName: string,
+        updateData: {
+            name?: string,
+            position?: TilePosition,
+            min_width?: number,
+            min_height?: number,
+            visible?: boolean,
+            locked?: boolean,
+            moved?: boolean,
+            static?: boolean,
+            context?: string,
+            table?: string,
+            auto_update?: string,
+            freeze?: string,
+            filters?: string,
+            common_filter?: string,
+            metric?: string,
+            table_tile?: TableTileData,
+            plot_tile?: PlotTileData,
+            view_tile?: ViewTileData,
+            editor_tile?: EditorTileData
+        },
+        checkpoint: boolean = false
+    ) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tile?project_id=${projectId}&interface_name=${encodeURIComponent(interfaceName)}&tab_name=${encodeURIComponent(tabName)}&name=${encodeURIComponent(tileName)}&checkpoint=${checkpoint}`,
+            {
+                method: "PATCH",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify(updateData),
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to patch tile: ${response.status}` };
+        }
+        
+        return await response.json();
+    };
+}; 
+
+// Patch specialized tile by name
+export const patchSpecializedTile = async (apiKey: string) => {
+    return async (
+        projectId: string,
+        interfaceName: string,
+        tabName: string,
+        tileName: string,
+        tileType: "Table" | "Plot" | "View" | "Editor",
+        updateData: Record<string, any>,
+        checkpoint: boolean = false,
+    ) => {
+        "use server";
+
+        // Build query parameters
+        const queryParams = new URLSearchParams();
+        
+        // Required parameters
+        queryParams.append("tile_type", tileType);
+        queryParams.append("project_id", projectId);
+        queryParams.append("interface_name", encodeURIComponent(interfaceName));
+        queryParams.append("tab_name", encodeURIComponent(tabName));
+        queryParams.append("name", encodeURIComponent(tileName));
+        queryParams.append("checkpoint", checkpoint.toString());
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tile/specialized?${queryParams.toString()}`,
+            {
+                method: "PATCH",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify(updateData),
+            }
+        );
+        
+        if (!response.ok) {
+            return { error: `Failed to patch ${tileType.toLowerCase()} tile: ${response.status}` };
         }
         
         return await response.json();

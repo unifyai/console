@@ -159,6 +159,98 @@ export interface TabsDataProps {
     }
 }
 
+export interface InterfaceData {
+    id?: string;
+    project_id: string;
+    name: string;
+    color?: string;
+    active_tab_id?: string;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface TabData {
+    id?: string;
+    interface_id: string;
+    name: string;
+    visible?: boolean;
+    active?: boolean;
+    order?: number;
+    global_context?: string;
+    color?: string;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface TilePosition {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}
+
+export interface TileData {
+    id?: string;
+    tab_id: string;
+    name: string;
+    type: string;
+    position: TilePosition;
+    min_width?: number;
+    min_height?: number;
+    visible?: boolean;
+    locked?: boolean;
+    context?: string;
+    table?: string;
+    auto_update?: string;
+    freeze?: string;
+    filters?: string;
+    common_filter?: string;
+    metric?: string;
+    table_tile?: TableTileData;
+    plot_tile?: PlotTileData;
+    view_tile?: ViewTileData;
+    editor_tile?: EditorTileData;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface TableTileData {
+    table_type?: string;
+    column_context?: string;
+    page_number?: string;
+    column_order?: string;
+    hidden_columns?: string;
+    sorting?: string;
+    grouping?: string;
+    group_sorting?: string;
+    columns_pin_left?: string;
+    columns_pin_right?: string;
+    selected?: string;
+}
+
+export interface PlotTileData {
+    plot_type?: string;
+    plot_scale_x?: string;
+    plot_scale_y?: string;
+    plot_aggregate?: string;
+    x_axis?: string;
+    y_axis?: string;
+    plot_group_by?: string;
+    plot_group_by_colors?: string;
+    bin_count?: string;
+    regression_line?: string;
+}
+
+export interface ViewTileData {
+    base_index?: string;
+}
+
+export interface EditorTileData {
+    file_path?: string;
+    file_type?: string;
+    content?: string;
+}
+
 export interface ProjectsActions {
     get: () => Promise<string[]>,
     create: (name: string) => Promise<ResponseProps>,
@@ -203,4 +295,145 @@ export interface CodeActions {
 export interface DevboxActions {
     get: () => Promise<ResponseProps>,
     create: () => Promise<ResponseProps>
+}
+
+export interface GranularProjectActions {
+    listProjects: () => Promise<string[]>;
+    getProjectById: (projectId: string) => Promise<any>;
+    createProject: (data: { name: string; description?: string }) => Promise<ResponseProps>;
+    updateProject: (projectId: string, data: { name?: string; description?: string }) => Promise<ResponseProps>;
+    deleteProject: (projectId: string) => Promise<ResponseProps>;
+}
+
+export interface GranularContextActions {
+    getContexts: (projectId: string) => Promise<Context[]>;
+    createContext: (projectId: string, name: string) => Promise<ResponseProps>;
+    deleteContext: (projectId: string, contextName: string) => Promise<ResponseProps>;
+}
+
+export interface GranularInterfaceActions {
+    listInterfaces: (projectId: string, checkpoint?: boolean) => Promise<InterfaceData[]>;
+    getInterfaceByName: (projectId: string, name: string, checkpoint?: boolean) => Promise<InterfaceData | null>;
+    getInterfaceWithTabs: (projectId: string, name: string) => Promise<{interface: InterfaceData, tabs: TabData[]}>;
+    createInterface: (projectId: string, name: string, color?: string) => Promise<InterfaceData>;
+    updateInterface: (projectId: string, name: string, data: { name?: string, active_tab_id?: string, color?: string }, checkpoint?: boolean) => Promise<InterfaceData>;
+    deleteInterface: (projectId: string, name: string) => Promise<ResponseProps>;
+    createInterfaceCheckpoint: (projectId: string, name: string, description: string) => Promise<ResponseProps>;
+}
+
+export interface GranularTabActions {
+    listTabs: (projectId: string, interfaceName: string, checkpoint?: boolean) => Promise<TabData[]>;
+    getTabByName: (projectId: string, interfaceName: string, tabName: string, checkpoint?: boolean) => Promise<TabData | null>;
+    getTabWithTiles: (projectId: string, interfaceName: string, tabName: string) => Promise<{tab: TabData, tiles: TileData[]}>;
+    createTab: (projectId: string, interfaceName: string, tabName: string, data: {
+        visible?: boolean;
+        active?: boolean;
+        order?: number;
+        global_context?: string;
+        color?: string;
+    }) => Promise<TabData>;
+    updateTab: (projectId: string, interfaceName: string, tabName: string, data: {
+        name?: string;
+        visible?: boolean;
+        active?: boolean;
+        order?: number;
+        global_context?: string;
+        color?: string;
+    }, checkpoint?: boolean) => Promise<TabData>;
+    updateTabsPositions: (projectId: string, interfaceName: string, tabs: Array<{id: string; position: number}>) => Promise<ResponseProps>;
+    deleteTab: (projectId: string, interfaceName: string, tabName: string) => Promise<ResponseProps>;
+    createTabCheckpoint: (projectId: string, interfaceName: string, tabName: string, description: string) => Promise<ResponseProps>;
+}
+
+export interface GranularTileActions {
+    listTiles: (projectId: string, interfaceName: string, tabName: string, type?: string, checkpoint?: boolean) => Promise<TileData[]>;
+    getTileByName: (projectId: string, interfaceName: string, tabName: string, tileName: string, checkpoint?: boolean) => Promise<TileData | null>;
+    createTile: (
+        projectId: string, 
+        interfaceName: string, 
+        tabName: string, 
+        data: { 
+            name: string;
+            type: string;
+            position: TilePosition;
+            min_width?: number;
+            min_height?: number;
+            visible?: boolean;
+            locked?: boolean;
+            context?: string;
+            table?: string;
+            auto_update?: string;
+            freeze?: string;
+            filters?: string;
+            common_filter?: string;
+            metric?: string;
+            table_tile?: TableTileData;
+            plot_tile?: PlotTileData;
+            view_tile?: ViewTileData;
+            editor_tile?: EditorTileData;
+        }
+    ) => Promise<TileData>;
+    updateTile: (projectId: string, interfaceName: string, tabName: string, tileName: string, data: {
+        name?: string;
+        position?: TilePosition;
+        min_width?: number;
+        min_height?: number;
+        visible?: boolean;
+        locked?: boolean;
+        context?: string;
+        table?: string;
+        auto_update?: string;
+        freeze?: string;
+        filters?: string;
+        common_filter?: string;
+        metric?: string;
+        table_tile?: TableTileData;
+        plot_tile?: PlotTileData;
+        view_tile?: ViewTileData;
+        editor_tile?: EditorTileData;
+    }, checkpoint?: boolean) => Promise<TileData>;
+    patchTile: (
+        projectId: string, 
+        interfaceName: string, 
+        tabName: string, 
+        tileName: string, 
+        updateData: {
+            name?: string;
+            position?: TilePosition;
+            min_width?: number;
+            min_height?: number;
+            visible?: boolean;
+            locked?: boolean;
+            moved?: boolean;
+            static?: boolean;
+            context?: string;
+            table?: string;
+            auto_update?: string;
+            freeze?: string;
+            filters?: string;
+            common_filter?: string;
+            metric?: string;
+            table_tile?: TableTileData;
+            plot_tile?: PlotTileData;
+            view_tile?: ViewTileData;
+            editor_tile?: EditorTileData;
+        }, 
+        checkpoint?: boolean
+    ) => Promise<TileData>;
+    patchSpecializedTile: (
+        projectId: string, 
+        interfaceName: string, 
+        tabName: string, 
+        tileName: string, 
+        tileType: "Table" | "Plot" | "View" | "Editor", 
+        updateData: Record<string, any>, 
+        checkpoint?: boolean
+    ) => Promise<TileData>;
+    updateTilesPositions: (projectId: string, interfaceName: string, tabName: string, tiles: Array<{id: string; position: TilePosition}>) => Promise<ResponseProps>;
+    deleteTile: (projectId: string, interfaceName: string, tabName: string, tileName: string) => Promise<ResponseProps>;
+    createTileCheckpoint: (projectId: string, interfaceName: string, tabName: string, tileName: string, description: string) => Promise<ResponseProps>;
+    getTableData: (projectId: string, interfaceName: string, tabName: string, tileId: string, isCheckpoint?: boolean) => Promise<any>;
+    getPlotData: (projectId: string, interfaceName: string, tabName: string, tileId: string, isCheckpoint?: boolean) => Promise<any>;
+    getViewData: (projectId: string, interfaceName: string, tabName: string, tileId: string, isCheckpoint?: boolean) => Promise<any>;
+    getEditorData: (projectId: string, interfaceName: string, tabName: string, tileId: string, isCheckpoint?: boolean) => Promise<any>;
 }
