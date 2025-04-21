@@ -40,7 +40,7 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, isOp
         >
           {value && label
             ? (type.includes("axis") ? label?.slice(0, 15) + (label?.length > 15 ? "..." : "") : label)
-            : `Select ${type}...`}
+            : type == "Actions" ? "Search Actions..." : `Select ${type}...`}
           <ChevronsUpDown className="opacity-50" />
         </Button>
       </PopoverTrigger>

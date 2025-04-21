@@ -117,7 +117,7 @@ const ContextSelector = ({
                 button={button || <ActionButton
                     tooltip={item == undefined ? "Edit Global Context" : "Edit Context and Column Context"}
                     icon={<FolderTree />}
-                    variant={context ? "primary" : "outline"}
+                    variant={context ? "primary" : item == undefined ? "ghost" : "outline"}
                     size="sm"
                     disabled={!projectId}
                 />}

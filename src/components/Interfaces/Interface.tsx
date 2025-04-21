@@ -18,6 +18,7 @@ import { ResponseProps } from '@/types/common';
 import { useInterfaceData, useInterfaceUI } from '@/contexts/hooks/interface';
 import { useTabMeta, useTabData, useTabUI } from '@/contexts/hooks/tab';
 import { useProjectData, useProjectMeta } from '@/contexts/hooks/project';
+import AutoComplete from '../Common/Misc/AutoComplete';
 
 // Lazy load components
 const Tab = lazy(() => import('./Tab'));
@@ -208,6 +209,8 @@ const Interface = ({
     }
   }, [tabUIState?.color])
 
+  const options: string[] = [];
+
   return (
     <div className="w-full h-full overflow-auto relative bg-background" ref={gridRef}>
       <Tabs
@@ -226,6 +229,16 @@ const Interface = ({
             setProjectQueryParam={setProjectQueryParam}
             projectActions={projectsActions}
             tabActions={serverTabActions}
+          />
+
+          <AutoComplete
+            type={"Actions"}
+            items={options.map((option) => ({ label: option, value: option }))}
+            defaultValue={undefined}
+            isOpen={undefined}
+            onSelect={(currentValue: string) => {}}
+            onOpen={() => {}}
+            loading={false}
           />
 
           {/* Interface buttons */}

@@ -1,7 +1,7 @@
 "use client";
 
 import { TabProps, ContextActions, TileProps, LogsActions } from "@/types/evals/grid";
-import { Eye, Hammer, SquareMousePointer, Info } from "lucide-react";
+import { Eye, Hammer, SquareMousePointer, Info, Ellipsis } from "lucide-react";
 import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon, Palette } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
@@ -52,11 +52,11 @@ const InterfaceButtons = ({
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
     const { data: projectDataState } = useProject(project);
     const { ui: interfaceUIState, uiActions: interfaceUIActions } = useInterfaceUI(interfaceId);
-    
+
     const contexts = projectDataState?.contexts || [];
 
     // Tab states and actions with granular access
-    const { 
+    const {
         data: tabDataState,
         ui: tabUIState,
         dataActions: tabDataActions,
@@ -79,7 +79,7 @@ const InterfaceButtons = ({
 
     const saveIcon = tabUIState?.saveSuccess ? <Check /> : tabUIState?.saveSuccess === false ? <TriangleAlert /> : <Save />;
     const resetIcon = tabUIState?.resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
-    const variant = tabUIState?.saveSuccess === false ? "destructive" : "outline";
+    const variant = tabUIState?.saveSuccess === false ? "destructive" : "ghost";
 
     // Handle context change 
     const handleContextChange = (ctx: string) => {
@@ -87,37 +87,37 @@ const InterfaceButtons = ({
             // First update the tab's context
             tabDataActions.setGlobalContext(ctx);
 
-                // Then update each tile's context-related properties if needed
-                tiles.forEach(tile => {
-                    // Get the corresponding item to check current context
-                    const item = items.find(i => i.i === tile.name);
-                    if (item) {
-                        const validContext = contexts.some(c => c.name === ctx);
-                        const validItemContext = item.context?.startsWith(ctx);
-                        const prefixContexts = contexts.filter(c => c.name.startsWith(ctx));
-                        
-                        // Determine the new context value based on conditions
-                        const newContext = validContext
-                            ? ctx
-                            : validItemContext
-                                ? item.context
-                                : prefixContexts.length === 1
-                                    ? prefixContexts[0].name
-                                    : undefined;
+            // Then update each tile's context-related properties if needed
+            tiles.forEach(tile => {
+                // Get the corresponding item to check current context
+                const item = items.find(i => i.i === tile.name);
+                if (item) {
+                    const validContext = contexts.some(c => c.name === ctx);
+                    const validItemContext = item.context?.startsWith(ctx);
+                    const prefixContexts = contexts.filter(c => c.name.startsWith(ctx));
 
-                        // Update the tile's context
-                        tabDataActions.updateTile(tile.name || "", {
-                            context: newContext
+                    // Determine the new context value based on conditions
+                    const newContext = validContext
+                        ? ctx
+                        : validItemContext
+                            ? item.context
+                            : prefixContexts.length === 1
+                                ? prefixContexts[0].name
+                                : undefined;
+
+                    // Update the tile's context
+                    tabDataActions.updateTile(tile.name || "", {
+                        context: newContext
+                    });
+
+                    // Update the tile's column_context
+                    if (tile.type === "Table" && tile.tableTile) {
+                        tabDataActions.updateTableTile(tile.name || "", {
+                            column_context: validItemContext ? item.column_context : undefined
                         });
-
-                        // Update the tile's column_context
-                        if (tile.type === "Table" && tile.tableTile) {
-                            tabDataActions.updateTableTile(tile.name || "", {
-                                column_context: validItemContext ? item.column_context : undefined
-                            });
-                        }
                     }
-                });
+                }
+            });
 
             // Set data pending and refresh
             interfaceUIActions.setDataPending(true);
@@ -137,131 +137,169 @@ const InterfaceButtons = ({
     };
 
     return (
-        <div className="flex items-center gap-2 px-2">
-            {/* Left side - Focus and Context selector */}
-            <FileUpload
-                contexts={contexts}
-                logsActions={logsActions}
-                project={project}
-            />
-            <ActionButton
-                className="transition-all"
-                tooltip="Open focus pane"
-                icon={<FocusIcon/>}
-                variant={"outline"}
-                disabled={!project || !tabQueryParam || interfaceUIState?.pending}
-                onClick={() => setFocusDialog(true)}
-            />
-            
-            <ContextSelector
-                tabId={tabQueryParam || undefined}
-                interfaceId={interfaceId}
-                projectId={project || undefined}
-                context={tabDataState?.globalContext}
-                contexts={contexts}
-                setContext={handleContextChange}
-                logsActions={logsActions}
-                contextActions={contextActions}
-                refresh={() => updateTab()}
-                setPending={interfaceUIActions?.setPending!}
-            />
-            
-            {/* Middle - Save, Reset, AddTile */}
-            <ActionButton
-                className="transition-all"
-                tooltip={!project ? "Select a project first" : "Save Interface"}
-                icon={saveIcon}
-                variant={variant}
-                disabled={!project || !tabQueryParam || interfaceUIState?.pending}
-                onClick={async () => setSaveDialog(true)}
-            />
-
-            <ActionButton
-                className="transition-all"
-                tooltip={!project ? "Select a project first" : "Return to last saved interface"}
-                icon={resetIcon}
-                variant="outline"
-                disabled={!project || interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading}
-                onClick={() => {
-                    updateTab(tabDataState?.savedTab).then(() => {
-                        tabUIActions?.setResetting(true);
-                        tabUIActions?.setEdit(true);
-                        router.refresh();
-                    }).catch(error => {
-                        console.error("Error updating interface:", error);
-                    });
-                }}
-            />
-
-            <AddTile
-                project={project || ""}
-                interfaceId={interfaceId}
-                tabId={tabQueryParam || ""}
-                newCounter={newCounter}
-                anyTileLoading={anyTileLoading}
-                setNewCounter={setNewCounter}
-            />
-
-            {/* Show hidden items dropdown */}
+        <div className="flex items-center gap-2 px-4">
             <BaseDropdown
-                button={
-                    <ActionButton
-                        variant="outline"
-                        icon={<Eye/>}
-                        tooltip="Show hidden"
-                        size="sm"
-                        disabled={hiddenItems.length === 0 || interfaceUIState?.pending}
-                    />
-                }
+                context="tab"
+                button={<ActionButton
+                    tooltip="Manage Tab"
+                    icon={<Ellipsis />}
+                    variant="outline"
+                />}
+                className="min-w-0 w-fit"
             >
-                {hiddenItems.map((item, idx) => (
-                    <DropdownMenuItem
-                        key={idx}
-                        onSelect={() => {
-                            if (tabDataActions && item.i) {
-                                tabDataActions.updateTile(item.i, {
-                                    position: {
-                                        x: (tileIds.length * 2) % 12,
-                                        y: (tileIds.length * 2) / 12,
-                                        width: 4,
-                                        height: 4,
-                                    },
-                                    minW: undefined,
-                                    minH: undefined,
-                                    visible: true
+                <div className="w-fit flex flex-col items-center p-2">
+
+                    {/* File upload */}
+                    <div className="border-b pb-1">
+                        <FileUpload
+                            contexts={contexts}
+                            logsActions={logsActions}
+                            project={project}
+                        />
+                    </div>
+
+                    {/* Focus pane */}
+                    <div className="border-b py-1">
+                        <ActionButton
+                            className="transition-all"
+                            tooltip="Open focus pane"
+                            icon={<FocusIcon />}
+                            variant="ghost"
+                            disabled={!project || !tabQueryParam || interfaceUIState?.pending}
+                            onClick={() => setFocusDialog(true)}
+                        />
+                    </div>
+
+                    {/* Context selector */}
+                    <div className="border-b py-1">
+                        <ContextSelector
+                            tabId={tabQueryParam || undefined}
+                            interfaceId={interfaceId}
+                            projectId={project || undefined}
+                            context={tabDataState?.globalContext}
+                            contexts={contexts}
+                            setContext={handleContextChange}
+                            logsActions={logsActions}
+                            contextActions={contextActions}
+                            refresh={() => updateTab()}
+                            setPending={interfaceUIActions?.setPending!}
+                        />
+                    </div>
+
+                    {/* Save button */}
+                    <div className="border-b py-1">
+                        <ActionButton
+                            className="transition-all"
+                            tooltip={!project ? "Select a project first" : "Save Interface"}
+                            icon={saveIcon}
+                            variant={variant}
+                            disabled={!project || !tabQueryParam || interfaceUIState?.pending}
+                            onClick={async () => setSaveDialog(true)}
+                        />
+                    </div>
+
+                    {/* Reset button */}
+                    <div className="border-b py-1">
+                        <ActionButton
+                            className="transition-all"
+                            tooltip={!project ? "Select a project first" : "Return to last saved interface"}
+                            icon={resetIcon}
+                            variant="ghost"
+                            disabled={!project || interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading}
+                            onClick={() => {
+                                updateTab(tabDataState?.savedTab).then(() => {
+                                    tabUIActions?.setResetting(true);
+                                    tabUIActions?.setEdit(true);
+                                    router.refresh();
+                                }).catch(error => {
+                                    console.error("Error updating interface:", error);
                                 });
+                            }}
+                        />
+                    </div>
+
+                    {/* Add tile button */}
+                    <div className="border-b py-1">
+                        <AddTile
+                            project={project || ""}
+                            interfaceId={interfaceId}
+                            tabId={tabQueryParam || ""}
+                            newCounter={newCounter}
+                            anyTileLoading={anyTileLoading}
+                            setNewCounter={setNewCounter}
+                        />
+                    </div>
+
+                    {/* Show hidden items dropdown */}
+                    <div className="border-b py-1">
+                        <BaseDropdown
+                            button={
+                                <ActionButton
+                                    variant="ghost"
+                                    icon={<Eye />}
+                                    tooltip="Show hidden"
+                                    size="sm"
+                                    disabled={hiddenItems.length === 0 || interfaceUIState?.pending}
+                                />
                             }
-                        }}
-                        disabled={hiddenItems.length === 0}
-                        className="w-64"
-                    >
-                        {item.i}
-                    </DropdownMenuItem>
-                ))}
+                        >
+                            {hiddenItems.map((item, idx) => (
+                                <DropdownMenuItem
+                                    key={idx}
+                                    onSelect={() => {
+                                        if (tabDataActions && item.i) {
+                                            tabDataActions.updateTile(item.i, {
+                                                position: {
+                                                    x: (tileIds.length * 2) % 12,
+                                                    y: (tileIds.length * 2) / 12,
+                                                    width: 4,
+                                                    height: 4,
+                                                },
+                                                minW: undefined,
+                                                minH: undefined,
+                                                visible: true
+                                            });
+                                        }
+                                    }}
+                                    disabled={hiddenItems.length === 0}
+                                    className="w-64"
+                                >
+                                    {item.i}
+                                </DropdownMenuItem>
+                            ))}
+                        </BaseDropdown>
+                    </div>
+
+                    {/* Paste button */}
+                    <div className="border-b py-1">
+                        <ActionButton
+                            variant="ghost"
+                            icon={<Clipboard />}
+                            tooltip="Paste"
+                            disabled={!tabUIState?.copied || interfaceUIState?.pending}
+                            onClick={handlePaste}
+                        />
+                    </div>
+
+                    {/* Color selector */}
+                    <div className="pt-1">
+                        <ColorPicker
+                            value={tabUIState?.color ?? getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()}
+                            onChange={(color) => tabUIActions?.setColor(color)}
+                        >
+                            <ActionButton
+                                className="cursor-pointer hover:z-10"
+                                icon={<Palette />}
+                                variant="ghost"
+                                tooltip="Change tab primary color"
+                                disabled={!project}
+                            />
+                        </ColorPicker>
+                    </div>
+                </div>
             </BaseDropdown>
 
-            {/* Paste button */}
-            <ActionButton
-                variant="outline"
-                icon={<Clipboard/>}
-                tooltip="Paste"
-                disabled={!tabUIState?.copied || interfaceUIState?.pending}
-                onClick={handlePaste}
-            />
 
-            {/* Color selector */}
-            <ColorPicker
-                value={tabUIState?.color ?? getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()}
-                onChange={(color) => tabUIActions?.setColor(color)}
-            >
-                <ActionButton 
-                    className="cursor-pointer hover:z-10"
-                    icon={<Palette/>} 
-                    variant="outline" 
-                    tooltip="Change tab primary color"
-                    disabled={!project}
-                />
-            </ColorPicker>
             {/* Right side - Edit and Interactive mode switches */}
             <div className="flex items-center gap-2 border rounded-md p-1">
                 <Switch
@@ -292,8 +330,8 @@ const InterfaceButtons = ({
             </div>
 
             <Tooltip content="Toggle info icons">
-                <Info 
-                    name="help" 
+                <Info
+                    name="help"
                     size={16}
                     onClick={() => {
                         if (project && tabUIState?.interactive) tabUIActions?.setHelp(!tabUIState?.help)
