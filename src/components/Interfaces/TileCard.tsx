@@ -84,7 +84,7 @@ const TileCard = ({
             <BaseDropdown
               context="tile"
               button={<ActionButton
-                tooltip="Select Tile Type"
+                tooltip="Select tile type"
                 text={item?.tab}
                 icon={item?.tab ? undefined : <Plus />}
                 variant="outline"
@@ -121,7 +121,7 @@ const TileCard = ({
             <BaseDropdown
               context="tile"
               button={<ActionButton
-                tooltip="Select Table"
+                tooltip="Select table"
                 text={item?.table || "Select Table"}
                 variant="outline"
                 size="default"

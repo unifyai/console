@@ -53,7 +53,7 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
                         }
                     />
                 }
-                <Tooltip content="Rename Tile">
+                <Tooltip content="Rename tile">
                     <Badge
                         className="cursor-pointer text-sm font-normal mb-1 flex gap-2 items-center"
                         variant="primary"
@@ -91,7 +91,7 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
                     context={tabDataState?.globalContext}
                     logsActions={logsActions}
                     contextActions={contextActions}
-                    button={<Tooltip content="Column Context">
+                    button={<Tooltip content="Column context">
                         <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
                             <Grid2x2 size={18} />
                             {item.column_context}
@@ -112,7 +112,7 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
                         setFocusDialog(true);
                     }}
                     icon={<Maximize2 />}
-                    tooltip="Open in Focus Pane"
+                    tooltip="Open in focus pane"
                     variant={(tabUIState?.focusedTileNames || [undefined, undefined]).includes(item.i) ? "primary" : "outline"}
                 />
                 {tabUIState?.edit && (

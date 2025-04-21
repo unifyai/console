@@ -89,7 +89,7 @@ const FocusDialog = ({
                                         setFocusDialog(false);
                                 }}
                                 icon={<X />}
-                                tooltip="Remove from Focus Pane"
+                                tooltip="Remove from focus pane"
                                 variant="outline"
                             />
                         </div>
@@ -99,7 +99,7 @@ const FocusDialog = ({
                     <div className="w-fit">
                         <BaseDropdown
                             button={<ActionButton
-                                tooltip="Select Tile"
+                                tooltip="Select tile"
                                 icon={<Plus />}
                                 variant="outline"
                                 size="default"

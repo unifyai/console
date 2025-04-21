@@ -409,7 +409,7 @@ function DictionarySectionItem({
             <ActionButton
               variant="ghost"
               size="sm"
-              tooltip={allExpanded ? "Collapse All" : "Expand All"}
+              tooltip={allExpanded ? "Collapse all" : "Expand all"}
               onClick={allExpanded ? handleCollapseAll : handleExpandAll}
               icon={
                 allExpanded ? (

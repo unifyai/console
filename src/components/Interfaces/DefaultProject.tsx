@@ -171,7 +171,7 @@ const DefaultProject = ({
                             <div className="w-fit">
                                 <BaseDropdown
                                     button={<ActionButton
-                                        tooltip={"Select Demo"}
+                                        tooltip={"Select demo"}
                                         text={"Select Demo"}
                                         variant={"outline"}
                                         size="default"

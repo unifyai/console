@@ -147,7 +147,7 @@ const ContextSelector = ({
                                     </Tooltip>
                                 }
                             </div>
-                            {(item != undefined ? item.context : context) && <Tooltip content="Clear Context">
+                            {(item != undefined ? item.context : context) && <Tooltip content="Clear context">
                                 <X
                                     size={18}
                                     onClick={() => finalSetContext && finalSetContext("")}
@@ -190,7 +190,7 @@ const ContextSelector = ({
                             <div className="flex gap-2 items-center">
                                 <Grid2x2 size={18} /> Column Context
                             </div>
-                            {item.column_context && <Tooltip content="Clear Column Context">
+                            {item.column_context && <Tooltip content="Clear column context">
                                 <X
                                     size={18}
                                     onClick={() => tableTileActions?.setColumnContext("")}

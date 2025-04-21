@@ -1095,7 +1095,7 @@ export default function SelectionPanel({
             <ActionButton
               variant="ghost"
               size="icon"
-              tooltip={allOpen ? "Collapse All" : "Expand All"}
+              tooltip={allOpen ? "Collapse all" : "Expand all"}
               onClick={onEntriesExpandToggle}
               icon={allOpen ? <FoldVertical /> : <UnfoldVertical />}
             />
@@ -1210,7 +1210,7 @@ export default function SelectionPanel({
             <ActionButton
               variant="ghost"
               size="icon"
-              tooltip={allOpen ? "Collapse All" : "Expand All"}
+              tooltip={allOpen ? "Collapse all" : "Expand all"}
               onClick={onParamsExpandToggle}
               icon={allOpen ? <FoldVertical /> : <UnfoldVertical />}
             />
@@ -1429,7 +1429,7 @@ export default function SelectionPanel({
                 context="tile"
                 button={
                   <ActionButton
-                    tooltip="View Settings"
+                    tooltip="View settings"
                     icon={<Settings className="h-4 w-4" />}
                     variant="ghost"
                     size="icon"
