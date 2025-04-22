@@ -36,7 +36,8 @@ export interface TabUI {
   copied?: string;
   deleting: boolean;
   refreshing: boolean;
-  color?: string
+  color?: string;
+  hoveredLog?: string;
 }
 
 // Combined Tab state definition
@@ -77,6 +78,7 @@ export function initTab(tabId: string, initialState: Partial<Tab> = {}): Tab {
     deleting: initialState.deleting !== undefined ? initialState.deleting : false,
     refreshing: initialState.refreshing !== undefined ? initialState.refreshing : false,
     color: initialState.color,
+    hoveredLog: initialState.hoveredLog,
     itemsNeedRecompute: initialState.itemsNeedRecompute !== undefined ? initialState.itemsNeedRecompute : false,
     
     ...initialState,

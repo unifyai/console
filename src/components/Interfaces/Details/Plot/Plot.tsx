@@ -39,9 +39,15 @@ const LogsPlot = ({
     const { itemActions } = useTileItem(tileId, tabId, interfaceId);
     
     // Get access to the tab context and actions with granular access
-    const { ui: tabUIState } = useTab(tabId, interfaceId, projectId);
+    const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId, interfaceId, projectId);
     const { ui: interfaceUIState } = useInterface(interfaceId);
-
+    useEffect(() => {
+      if (containerRef.current) {
+          (containerRef.current as any).__hoveredLog = tabUIState?.hoveredLog;
+          (containerRef.current as any).__setHoveredLog = tabUIActions?.setHoveredLog;
+      }
+    }, [tabUIState?.hoveredLog, tabUIActions?.setHoveredLog]);
+    
     // Get the item representation for the current tile
     const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
 
@@ -190,15 +196,16 @@ const LogsPlot = ({
         showRegression,
         aggregateProperty,
         interactive,
-        tileUIState?.color
+        tileUIState?.color,
+        tabUIState?.hoveredLog
     ]);
 
 return (
-    <div className="flex flex-row w-full h-full items-stretch min-h-0">
+    <div className="flex flex-row w-full h-full items-stretch min-h-0 overflow-hidden">
   
       {/* Chart Container */}
       <div
-        className="flex flex-1 h-full bg-background relative border-t border-border"
+        className="flex flex-1 h-full bg-background relative border-t border-border overflow-hidden"
         ref={containerRef}
       >
         {/* SVG content*/}

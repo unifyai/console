@@ -7,7 +7,7 @@ import { getValue, hasProperty } from "./data";
 import { drawAxes, generateTicks } from "./axes";
 import { getPrimaryColorFromNode } from "./common";
 import { renderGroupingKey } from "./key";
-import { showFixedTooltip, tooltipTemplate, positionTooltip } from "./tooltip";
+import { showFixedTooltip, tooltipTemplate, positionTooltipRelativeToPointer } from "./tooltip";
 import { toComputableValue, computeStatistic } from "../common";
 
 const getTooltipData = (
@@ -83,7 +83,7 @@ function onMouseOver (
         .html(template)
         .transition("opacity")
         .style("opacity", 1);
-    positionTooltip(event, tooltip, container);
+    positionTooltipRelativeToPointer(event, tooltip, container);
     if (groupBy) {
         const group = (d as GroupedDataLabel)[0];
         g.selectAll("rect.bar-item")
@@ -103,7 +103,7 @@ function onMouseMove (
     tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>,
     container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
 ) {
-    positionTooltip(event, tooltip, container);
+    positionTooltipRelativeToPointer(event, tooltip, container);
 };
 
 function onMouseOut  (

@@ -238,6 +238,7 @@ export const drawPlot = (
                     yTable,
                     logs,
                     fields,
+                    containerRef,
                     zoomRef,
                     interactive
                 );
