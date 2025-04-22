@@ -1,20 +1,20 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { GranularContextActions } from '@/types/evals/grid';
+import { ContextActions } from '@/types/evals/grid';
 
 /**
  * Hook to fetch all contexts for a project
  */
 export function useListContextsQuery(
   projectId: string | null,
-  actions: GranularContextActions
+  actions: ContextActions
 ) {
   return useQuery({
     queryKey: ['contexts', projectId],
     queryFn: async () => {
       if (!projectId) return [];
-      return actions.getContexts(projectId);
+      return actions.get(projectId);
     },
     enabled: !!projectId,
   });
@@ -34,9 +34,9 @@ export function useCreateContextQuery() {
     }: { 
       projectId: string; 
       name: string;
-      actions: GranularContextActions;
+      actions: ContextActions;
     }) => {
-      return actions.createContext(projectId, name);
+      return actions.create(projectId, name);
     },
     onSuccess: (_, variables) => {
       // Invalidate contexts query to refetch the list
@@ -61,9 +61,9 @@ export function useDeleteContextQuery() {
     }: { 
       projectId: string; 
       contextName: string;
-      actions: GranularContextActions;
+      actions: ContextActions;
     }) => {
-      return actions.deleteContext(projectId, contextName);
+      return actions.delete(projectId, contextName);
     },
     onSuccess: (_, variables) => {
       // Invalidate contexts query to refetch the list

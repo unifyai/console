@@ -297,34 +297,25 @@ export interface DevboxActions {
     create: () => Promise<ResponseProps>
 }
 
-export interface GranularContextActions {
-    getContexts: (projectId: string) => Promise<Context[]>;
-    createContext: (projectId: string, name: string) => Promise<ResponseProps>;
-    deleteContext: (projectId: string, contextName: string) => Promise<ResponseProps>;
-}
-
 export interface GranularInterfaceActions {
-    listInterfaces: (projectId: string, checkpoint?: boolean) => Promise<InterfaceData[]>;
-    getInterfaceByName: (projectId: string, name: string, checkpoint?: boolean) => Promise<InterfaceData | null>;
-    getInterfaceWithTabs: (projectId: string, name: string) => Promise<{interface: InterfaceData, tabs: TabData[]}>;
-    createInterface: (projectId: string, name: string, color?: string) => Promise<InterfaceData>;
-    updateInterface: (projectId: string, name: string, data: { name?: string, active_tab_id?: string, color?: string }, checkpoint?: boolean) => Promise<InterfaceData>;
-    deleteInterface: (projectId: string, name: string) => Promise<ResponseProps>;
-    createInterfaceCheckpoint: (projectId: string, name: string, description: string) => Promise<ResponseProps>;
+    get: (projectId: string, name: string, checkpoint?: boolean) => Promise<InterfaceData | null>;
+    create: (projectId: string, name: string, color?: string) => Promise<InterfaceData>;
+    update: (projectId: string, name: string, data: { name?: string, active_tab_id?: string, color?: string }, checkpoint?: boolean) => Promise<InterfaceData>;
+    delete: (projectId: string, name: string) => Promise<ResponseProps>;
+    list: (projectId: string, checkpoint?: boolean) => Promise<InterfaceData[]>;
+    checkpoint: (projectId: string, name: string, description: string) => Promise<ResponseProps>;
 }
 
 export interface GranularTabActions {
-    listTabs: (projectId: string, interfaceName: string, checkpoint?: boolean) => Promise<TabData[]>;
-    getTabByName: (projectId: string, interfaceName: string, tabName: string, checkpoint?: boolean) => Promise<TabData | null>;
-    getTabWithTiles: (projectId: string, interfaceName: string, tabName: string) => Promise<{tab: TabData, tiles: TileData[]}>;
-    createTab: (projectId: string, interfaceName: string, tabName: string, data: {
+    get: (projectId: string, interfaceName: string, tabName: string, checkpoint?: boolean) => Promise<TabData | null>;
+    create: (projectId: string, interfaceName: string, tabName: string, data: {
         visible?: boolean;
         active?: boolean;
         order?: number;
         global_context?: string;
         color?: string;
     }) => Promise<TabData>;
-    updateTab: (projectId: string, interfaceName: string, tabName: string, data: {
+    update: (projectId: string, interfaceName: string, tabName: string, data: {
         name?: string;
         visible?: boolean;
         active?: boolean;
@@ -332,40 +323,34 @@ export interface GranularTabActions {
         global_context?: string;
         color?: string;
     }, checkpoint?: boolean) => Promise<TabData>;
-    updateTabsPositions: (projectId: string, interfaceName: string, tabs: Array<{id: string; position: number}>) => Promise<ResponseProps>;
-    deleteTab: (projectId: string, interfaceName: string, tabName: string) => Promise<ResponseProps>;
-    createTabCheckpoint: (projectId: string, interfaceName: string, tabName: string, description: string) => Promise<ResponseProps>;
+    delete: (projectId: string, interfaceName: string, tabName: string) => Promise<ResponseProps>;
+    list: (projectId: string, interfaceName: string, checkpoint?: boolean) => Promise<TabData[]>;
+    checkpoint: (projectId: string, interfaceName: string, tabName: string, description: string) => Promise<ResponseProps>;
 }
 
 export interface GranularTileActions {
-    listTiles: (projectId: string, interfaceName: string, tabName: string, type?: string, checkpoint?: boolean) => Promise<TileData[]>;
-    getTileByName: (projectId: string, interfaceName: string, tabName: string, tileName: string, checkpoint?: boolean) => Promise<TileData | null>;
-    createTile: (
-        projectId: string, 
-        interfaceName: string, 
-        tabName: string, 
-        data: { 
-            name: string;
-            type: string;
-            position: TilePosition;
-            min_width?: number;
-            min_height?: number;
-            visible?: boolean;
-            locked?: boolean;
-            context?: string;
-            table?: string;
-            auto_update?: string;
-            freeze?: string;
-            filters?: string;
-            common_filter?: string;
-            metric?: string;
-            table_tile?: TableTileData;
-            plot_tile?: PlotTileData;
-            view_tile?: ViewTileData;
-            editor_tile?: EditorTileData;
-        }
-    ) => Promise<TileData>;
-    updateTile: (projectId: string, interfaceName: string, tabName: string, tileName: string, data: {
+    get: (projectId: string, interfaceName: string, tabName: string, tileName: string, checkpoint?: boolean) => Promise<TileData | null>;
+    create: (projectId: string, interfaceName: string, tabName: string, tileName: string,tileType: string,position: TilePosition, data: { 
+        name: string;
+        type: string;
+        position: TilePosition;
+        min_width?: number;
+        min_height?: number;
+        visible?: boolean;
+        locked?: boolean;
+        context?: string;
+        table?: string;
+        auto_update?: string;
+        freeze?: string;
+        filters?: string;
+        common_filter?: string;
+        metric?: string;
+        table_tile?: TableTileData;
+        plot_tile?: PlotTileData;
+        view_tile?: ViewTileData;
+        editor_tile?: EditorTileData;
+    }) => Promise<TileData>;
+    update: (projectId: string, interfaceName: string, tabName: string, tileName: string, data: {
         name?: string;
         position?: TilePosition;
         min_width?: number;
@@ -384,7 +369,7 @@ export interface GranularTileActions {
         view_tile?: ViewTileData;
         editor_tile?: EditorTileData;
     }, checkpoint?: boolean) => Promise<TileData>;
-    patchTile: (
+    patch: (
         projectId: string, 
         interfaceName: string, 
         tabName: string, 
@@ -412,7 +397,7 @@ export interface GranularTileActions {
         }, 
         checkpoint?: boolean
     ) => Promise<TileData>;
-    patchSpecializedTile: (
+    patchSpecialized: (
         projectId: string, 
         interfaceName: string, 
         tabName: string, 
@@ -421,11 +406,7 @@ export interface GranularTileActions {
         updateData: Record<string, any>, 
         checkpoint?: boolean
     ) => Promise<TileData>;
-    updateTilesPositions: (projectId: string, interfaceName: string, tabName: string, tiles: Array<{id: string; position: TilePosition}>) => Promise<ResponseProps>;
-    deleteTile: (projectId: string, interfaceName: string, tabName: string, tileName: string) => Promise<ResponseProps>;
-    createTileCheckpoint: (projectId: string, interfaceName: string, tabName: string, tileName: string, description: string) => Promise<ResponseProps>;
-    getTableData: (projectId: string, interfaceName: string, tabName: string, tileId: string, isCheckpoint?: boolean) => Promise<any>;
-    getPlotData: (projectId: string, interfaceName: string, tabName: string, tileId: string, isCheckpoint?: boolean) => Promise<any>;
-    getViewData: (projectId: string, interfaceName: string, tabName: string, tileId: string, isCheckpoint?: boolean) => Promise<any>;
-    getEditorData: (projectId: string, interfaceName: string, tabName: string, tileId: string, isCheckpoint?: boolean) => Promise<any>;
+    delete: (projectId: string, interfaceName: string, tabName: string, tileName: string) => Promise<ResponseProps>;
+    list: (projectId: string, interfaceName: string, tabName: string, type?: string, checkpoint?: boolean) => Promise<TileData[]>;
+    checkpoint: (projectId: string, interfaceName: string, tabName: string, tileName: string, description: string) => Promise<ResponseProps>;
 }
