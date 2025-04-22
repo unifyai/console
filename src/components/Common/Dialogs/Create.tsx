@@ -13,13 +13,15 @@ import { Form } from "@/components/UI/form"
 import SettingButton from "../Buttons/Setting";
 import { useKey } from "react-use";
 
-export default function CreateDialog ({ type, creationFunction, CreateSchema, form, Fields, extraFormActions, disabled, text, variant="outline" }: {
+export default function CreateDialog ({ type, creationFunction, CreateSchema, form, Fields, extraFormActions, customOpen, setCustomOpen, disabled, text, variant="outline" }: {
     type: string;
     creationFunction: (...args: any[]) => Promise<ResponseProps>
     CreateSchema: z.ZodObject<any>,
     form: UseFormReturn<any, any, undefined>
     Fields: ReactNode,
     extraFormActions?: (data: z.infer<typeof CreateSchema>) => void,
+    customOpen?: boolean,
+    setCustomOpen?: (open: boolean) => any,
     disabled?: boolean,
     text?: string
     variant?: "outline" | "ghost",
@@ -51,7 +53,9 @@ export default function CreateDialog ({ type, creationFunction, CreateSchema, fo
     };
 
     // Dialog state and content 
-    const [open, setOpen] = useState(false)
+    const [open_, setOpen_] = useState(false);
+    const open = customOpen == undefined ? open_ : customOpen;
+    const setOpen = setCustomOpen == undefined ? setOpen_ : setCustomOpen;
     const onOpen = () => {
         setOpen(!open);
     }

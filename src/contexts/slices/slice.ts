@@ -2,6 +2,7 @@ import { StateCreator } from "zustand";
 
 // Import slices
 import { createGlobalSlice, GlobalState, GlobalActions } from "./globalSlice";
+import { createCommandsSlice, CommandsState, CommandsActions } from "./commandsSlice";
 import { createProjectSlice, ProjectState, ProjectActions } from "./projectSlice";
 import { createInterfaceSlice, InterfaceState, InterfaceActions } from "./interfaceSlice";
 import { createTabSlice, TabState, TabActions } from "./tabSlice";
@@ -20,6 +21,7 @@ export type { Tab } from "./selectors/tab";
 // Combined top-level state interface
 export interface StoreState extends 
   GlobalState,
+  CommandsState,
   ProjectState,
   InterfaceState,
   TabState,
@@ -33,6 +35,7 @@ export interface StoreState extends
 // Combined actions interface
 export interface StoreActions extends
   GlobalActions,
+  CommandsActions,
   ProjectActions,
   InterfaceActions,
   TabActions,
@@ -54,6 +57,7 @@ export const createStoreSlice: StateCreator<
   StoreSlice
 > = (...a) => ({
   ...createGlobalSlice(...a),
+  ...createCommandsSlice(...a),
   ...createProjectSlice(...a),
   ...createInterfaceSlice(...a),
   ...createTabSlice(...a),

@@ -6,17 +6,15 @@ import CreateProject from "./Table/Buttons/CreateProject";
 import CloseProject from "./Table/Buttons/CloseProject";
 import FileDirectory from "../Tree/Directory/FileDirectory";
 import DeleteDialog from "../Common/Dialogs/Delete";
-import { FileProps } from "@/types/common";
+import { FileProps, ResponseProps } from "@/types/common";
 import { TabActions, ProjectsActions } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useInterface } from "@/contexts/hooks/interface";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useTabUI } from "@/contexts/hooks/tab";
-import { defaultItems, defaultNewCounter } from "@/constants/logs";
 import AutoComplete from "../Common/Misc/AutoComplete";
 import BaseDropdown from "../Common/Dropdowns/Base";
-import { DropdownMenuItem } from "../UI/dropdown-menu";
 
 const ProjectButtons = ({
     interfaceId,
@@ -39,6 +37,7 @@ const ProjectButtons = ({
 }) => {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
 
     // Global states
     const project = projectQueryParam;
@@ -47,11 +46,33 @@ const ProjectButtons = ({
     const setProjects = useStoreContext((s) => s.setProjects);
     const setProject = setProjectQueryParam;
 
+    // Get commands from store
+    const storeCommands = useStoreContext((s) => s.commands);
+    const updateCommands = useStoreContext((s) => s.updateCommands);
+
     // Interface states and actions with granular access
     const { ui: interfaceUIState, uiActions: interfaceUIActions, dataActions: interfaceDataActions } = useInterface(interfaceId);
     const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabQueryParam || "");
 
     const tabNames = interfaceDataActions?.getTabNames() || [];
+
+    // Update commands only once when component mounts
+    useEffect(() => {
+        if (storeCommands.length === 0) {
+            updateCommands(
+                serverProjectActions,
+                serverTabActions,
+                project,
+                tabNames,
+                setProject,
+                setTabQueryParam,
+                interfaceUIActions,
+                interfaceDataActions,
+                projects,
+                setProjects
+            );
+        }
+    }, [tabNames, project]); // Empty dependency array since we only want to run this once
 
     const onOpen = () => {
         setLoading(true);
@@ -70,6 +91,24 @@ const ProjectButtons = ({
         setProject(newProj);
     }
 
+    // Find the relevant commands
+    const createProjectCommand = storeCommands.find(cmd => cmd.id === 'create-project');
+    const closeProjectCommand = storeCommands.find(cmd => cmd.id === 'close-project');
+    const deleteProjectCommand = storeCommands.find(cmd => cmd.id === 'delete-project');
+
+    const createProjectOpen = useStoreContext((s) => s.createProjectOpen);
+    const deleteProjectOpen = useStoreContext((s) => s.deleteProjectOpen);
+    const setCreateProjectOpen = useStoreContext((s) => s.setCreateProjectOpen);
+    const setDeleteProjectOpen = useStoreContext((s) => s.setDeleteProjectOpen);
+
+    // Set dropdown open when deleteProjectOpen is true
+    useEffect(() => {
+        if (deleteProjectOpen || createProjectOpen)
+            setDropdownOpen(true);
+        else
+            setDropdownOpen(false);
+    }, [deleteProjectOpen, createProjectOpen]);
+
     return (
         <div className="w-fit gap-2 flex flex-row items-center px-4">
             <BaseDropdown
@@ -80,6 +119,8 @@ const ProjectButtons = ({
                     variant="outline"
                 />}
                 className="min-w-0 w-fit"
+                open={dropdownOpen}
+                setOpen={setDropdownOpen}
             >
                 <div className="w-fit flex flex-col items-center p-2">
                     <div className="w-full border-b pb-1">
@@ -98,13 +139,7 @@ const ProjectButtons = ({
                     </div>
                     {project && <div className="w-full border-b py-1">
                         <CloseProject
-                            onClick={() => {
-                                interfaceUIActions?.setPending(true);
-                                interfaceUIActions?.setDataPending(true);
-                                setTabQueryParam(null);
-                                interfaceDataActions?.setTabNames([]);
-                                setProject(null);
-                            }}
+                            onClick={() => closeProjectCommand?.action()}
                             variant="ghost"
                             text="Close project"
                         />
@@ -113,46 +148,37 @@ const ProjectButtons = ({
                         <DeleteDialog
                             type="project"
                             args={[project]}
-                            deletingFunction={async (name: string) => {
-                                await Promise.all(tabNames.map(tabName => serverTabActions.delete(
-                                    tabName, project, true
-                                )))
-                                await Promise.all(tabNames.map(tabName => serverTabActions.delete(
-                                    tabName, project, false
-                                )))
-                                return await serverProjectActions.delete(name);
+                            deletingFunction={async () => {
+                                if (deleteProjectCommand == undefined) {
+                                    return Promise.resolve({
+                                        detail: "Delete project command not found"
+                                    } as ResponseProps);
+                                }
+                                return await deleteProjectCommand?.action();
                             }}
                             variant="ghost"
                             text="Delete project"
-                            onDelete={() => {
-                                interfaceUIActions?.setPending(true);
-                                interfaceUIActions?.setDataPending(true);
-                                setTabQueryParam(null);
-                                interfaceDataActions?.setTabNames([]);
-                                setProject(null);
-                                serverProjectActions.get().then(projects => setProjects(projects));
-                            }}
+                            onDelete={deleteProjectCommand?.onAction}
+                            customOpen={deleteProjectOpen}
+                            setCustomOpen={setDeleteProjectOpen}
                         />
                     </div>}
                     {projects && <div className="w-full pt-1">
-                        <CreateProject creationFunction={(name: string) => {
-                            const createProject = serverProjectActions.create(name).then(async () => {
-                                await serverTabActions.create(
-                                    "tab1", name, undefined, defaultItems, defaultNewCounter, true, undefined
-                                );
-                                const tabCreate = await serverTabActions.create(
-                                    "tab1", name, undefined, defaultItems, defaultNewCounter, false, undefined
-                                );
-                                setProject(name);
-                                setTabQueryParam("tab1");
-                                interfaceUIActions?.setPending(true);
-                                interfaceUIActions?.setDataPending(true);
-                                interfaceDataActions?.setTabNames(["tab1"]);
-                                setProjects([...projects, name]);
-                                return tabCreate;
-                            });
-                            return createProject;
-                        }} paths={projects} text="Create project" variant="ghost" />
+                        <CreateProject
+                            creationFunction={(name: string) => {
+                                if (createProjectCommand == undefined) {
+                                    return Promise.resolve({
+                                        detail: "Create project command not found"
+                                    } as ResponseProps);
+                                }
+                                return createProjectCommand.action(name);
+                            }}
+                            createProjectOpen={createProjectOpen}
+                            setCreateProjectOpen={setCreateProjectOpen}
+                            paths={projects}
+                            text="Create project"
+                            variant="ghost"
+                        />
                     </div>}
                 </div>
             </BaseDropdown>

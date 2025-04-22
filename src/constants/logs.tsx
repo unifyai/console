@@ -1,4 +1,4 @@
-import { ChartLine, Code, Eye, Table } from "lucide-react";
+import { ChartLine, Code, Eye, Plus, Table, Trash, X } from "lucide-react";
 import { TileProps } from "@/types/evals/grid";
 import { getLogsParameters } from "@/types/evals/logs";
 import mathsAssistant from "./demos/maths_assistant";
@@ -118,3 +118,9 @@ export const demos: {
     "Plots/Scatter Plot/Derived Grouping": scatterDemo3,
     "Case Study/Marking Assistant": markingAssistant,
 }
+
+export const iconMap: Record<string, React.ReactNode> = {
+    "Plus": <Plus className="mr-2" />,
+    "X": <X className="mr-2" />,
+    "Trash": <Trash className="mr-2" />
+};

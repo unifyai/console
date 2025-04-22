@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, Suspense, useMemo, useEffect, useCallback, lazy } from 'react';
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, X, Trash } from "lucide-react";
 import { Tabs, TabsContent } from "../UI/tabs";
 import { Dialog, DialogContent } from "../UI/dialog";
 import ActionButton from "../Common/Buttons/Action";
@@ -19,6 +19,9 @@ import { useInterfaceData, useInterfaceUI } from '@/contexts/hooks/interface';
 import { useTabMeta, useTabData, useTabUI } from '@/contexts/hooks/tab';
 import { useProjectData, useProjectMeta } from '@/contexts/hooks/project';
 import AutoComplete from '../Common/Misc/AutoComplete';
+import { useStoreContext } from '@/contexts/providers/StoreProvider';
+import { Command } from '@/contexts/slices/commandsSlice';
+import { iconMap } from '@/constants/logs';
 
 // Lazy load components
 const Tab = lazy(() => import('./Tab'));
@@ -83,6 +86,32 @@ const Interface = ({
 
   // Get tab names for the current interface
   const tabNames = useMemo(() => interfaceDataActions?.getTabNames() || [], [interfaceDataActions]);
+
+  // Get commands and project data from store context
+  const storeCommands = useStoreContext((s) => s.commands);
+  const updateCommands = useStoreContext((s) => s.updateCommands);
+  const projects = useStoreContext((s) => s.projects);
+  const setProjects = useStoreContext((s) => s.setProjects);
+  const setCreateProjectOpen = useStoreContext((s) => s.setCreateProjectOpen);
+  const setDeleteProjectOpen = useStoreContext((s) => s.setDeleteProjectOpen);
+
+  // Update commands only once when component mounts
+  useEffect(() => {
+    if (storeCommands.length === 0) {
+      updateCommands(
+        projectsActions,
+        serverTabActions,
+        projectQueryParam,
+        tabNames,
+        setProjectQueryParam,
+        setTabQueryParam,
+        interfaceUIActions,
+        interfaceDataActions,
+        projects,
+        setProjects
+      );
+    }
+  }, []); // Empty dependency array since we only want to run this once
 
   // update interface – preserves context functionality
   const updateTab = useCallback((savedTab: TabProps | null = null, updatedTileProps: TileProps[] | TileProps | null = null) => {
@@ -209,8 +238,6 @@ const Interface = ({
     }
   }, [tabUIState?.color])
 
-  const options: string[] = [];
-
   return (
     <div className="w-full h-full overflow-auto relative bg-background" ref={gridRef}>
       <Tabs
@@ -233,10 +260,25 @@ const Interface = ({
 
           <AutoComplete
             type={"Actions"}
-            items={options.map((option) => ({ label: option, value: option }))}
+            items={storeCommands.map((cmd: Command) => ({
+              label: cmd.label,
+              value: cmd.id,
+              icon: cmd.icon ? iconMap[cmd.icon] : undefined
+            }))}
             defaultValue={undefined}
             isOpen={undefined}
-            onSelect={(currentValue: string) => {}}
+            onSelect={(currentValue: string) => {
+              const command = storeCommands.find((cmd: Command) => cmd.id === currentValue);
+              if (currentValue == "delete-project") {
+                setDeleteProjectOpen(true);
+              } else if (currentValue == "create-project") {
+                setCreateProjectOpen(true);
+              } else {
+                if (command && !command.disabled) {
+                  command.action();
+                }
+              }
+            }}
             onOpen={() => {}}
             loading={false}
           />
