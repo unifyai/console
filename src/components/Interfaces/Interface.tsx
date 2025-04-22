@@ -264,7 +264,8 @@ const Interface = ({
             items={storeCommands.map((cmd: Command) => ({
               label: cmd.label,
               value: cmd.id,
-              icon: cmd.icon ? iconMap[cmd.icon] : undefined
+              icon: cmd.icon ? iconMap[cmd.icon] : undefined,
+              disabled: cmd.disabled
             }))}
             defaultValue={undefined}
             isOpen={undefined}

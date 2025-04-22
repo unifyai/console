@@ -10,7 +10,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/UI/popover"
 
 export default function AutoComplete ({items, type, defaultValue, onSelect, isOpen, disabled, loading, onOpen, className}: {
-    items: {value:string, label: string, icon?: React.ReactNode}[],
+    items: {value:string, label: string, icon?: React.ReactNode, disabled?: boolean}[],
     type: string,
     defaultValue?: string,
     onSelect: (currentValue: string) => void,
@@ -58,6 +58,7 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, isOp
                 <CommandItem
                   key={item.value}
                   value={item.value}
+                  disabled={item.disabled}
                   onSelect={(currentValue) => {
                     setValue(currentValue === value ? "" : currentValue);
                     setIcon(currentValue === value ? undefined : item?.icon);
