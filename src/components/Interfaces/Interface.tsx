@@ -92,6 +92,7 @@ const Interface = ({
   const updateCommands = useStoreContext((s) => s.updateCommands);
   const projects = useStoreContext((s) => s.projects);
   const setProjects = useStoreContext((s) => s.setProjects);
+  const setSelectProjectsOpen = useStoreContext((s) => s.setSelectProjectsOpen);
   const setCreateProjectOpen = useStoreContext((s) => s.setCreateProjectOpen);
   const setDeleteProjectOpen = useStoreContext((s) => s.setDeleteProjectOpen);
 
@@ -273,6 +274,8 @@ const Interface = ({
                 setDeleteProjectOpen(true);
               } else if (currentValue == "create-project") {
                 setCreateProjectOpen(true);
+              } else if (currentValue == "select-projects") {
+                setSelectProjectsOpen(true);
               } else {
                 if (command && !command.disabled) {
                   command.action();

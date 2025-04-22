@@ -17,7 +17,7 @@ import { updateNode } from "@/utils/misc/directory";
 import CancelButton from "../../Common/Buttons/Cancel";
 import SettingButton from "../../Common/Buttons/Setting";
 
-export default function FileDirectory ({ type, text, variant, data, defaultValue, isAutocompleteOpen, disabled, loading, setterFunction, renamingFunction, onOpen } : {
+export default function FileDirectory ({ type, text, variant, data, defaultValue, isAutocompleteOpen, disabled, loading, customOpen, setCustomOpen, setterFunction, renamingFunction, onOpen } : {
   type: string, 
   text?: string,
   variant?: "outline" | "ghost",
@@ -26,6 +26,8 @@ export default function FileDirectory ({ type, text, variant, data, defaultValue
   isAutocompleteOpen?: boolean,
   disabled?: boolean,
   loading?: boolean,
+  customOpen?: boolean,
+  setCustomOpen?: (open: boolean) => void,
   setterFunction: (x: FileProps | undefined) => void,
   renamingFunction: (name: string, newName: string) => Promise<ResponseProps>,
   onOpen?: () => void,
@@ -105,6 +107,8 @@ export default function FileDirectory ({ type, text, variant, data, defaultValue
           <SubmitButton text="Save" onClick={onSubmit} disabled={disabled}/>
           </>
         }
+        open={customOpen}
+        setOpen={setCustomOpen}
         onOpen={onOpen}
         disabled={disabled}
       />  

@@ -96,18 +96,20 @@ const ProjectButtons = ({
     const closeProjectCommand = storeCommands.find(cmd => cmd.id === 'close-project');
     const deleteProjectCommand = storeCommands.find(cmd => cmd.id === 'delete-project');
 
+    const selectProjectsOpen = useStoreContext((s) => s.selectProjectsOpen);
     const createProjectOpen = useStoreContext((s) => s.createProjectOpen);
     const deleteProjectOpen = useStoreContext((s) => s.deleteProjectOpen);
+    const setSelectProjectsOpen = useStoreContext((s) => s.setSelectProjectsOpen);
     const setCreateProjectOpen = useStoreContext((s) => s.setCreateProjectOpen);
     const setDeleteProjectOpen = useStoreContext((s) => s.setDeleteProjectOpen);
 
     // Set dropdown open when deleteProjectOpen is true
     useEffect(() => {
-        if (deleteProjectOpen || createProjectOpen)
+        if (selectProjectsOpen || createProjectOpen || deleteProjectOpen)
             setDropdownOpen(true);
         else
             setDropdownOpen(false);
-    }, [deleteProjectOpen, createProjectOpen]);
+    }, [selectProjectsOpen, createProjectOpen, deleteProjectOpen]);
 
     return (
         <div className="w-fit gap-2 flex flex-row items-center px-4">
@@ -135,6 +137,8 @@ const ProjectButtons = ({
                             isAutocompleteOpen={defaultProject ? true : undefined}
                             onOpen={onOpen}
                             loading={loading}
+                            customOpen={selectProjectsOpen}
+                            setCustomOpen={setSelectProjectsOpen}
                         />
                     </div>
                     {project && <div className="w-full border-b py-1">
