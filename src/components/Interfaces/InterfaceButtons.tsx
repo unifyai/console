@@ -16,7 +16,7 @@ import { FileUpload } from "./FileUpload";
 import AddTile from "./AddTile";
 import ContextSelector from "./Table/Content/ContextSelector";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
-import { SetStateAction, useMemo } from "react";
+import { SetStateAction, useMemo, useState } from "react";
 
 import { useTab } from "@/contexts/hooks/tab";
 import { useProject } from "@/contexts/hooks/project";
@@ -46,6 +46,7 @@ const InterfaceButtons = ({
     contextActions: ContextActions,
 }) => {
     const router = useRouter();
+    const [dropdownOpen, setDropdownOpen] = useState(false);
 
     // Get the project data and the contexts with granular access
     const project = useStoreContext((state) => state.activeProjectId);
@@ -146,6 +147,8 @@ const InterfaceButtons = ({
                     variant="outline"
                 />}
                 className="min-w-0 w-fit"
+                open={dropdownOpen}
+                setOpen={setDropdownOpen}
             >
                 <div className="w-fit flex flex-col items-center p-2">
 

@@ -82,20 +82,11 @@ const ProjectButtons = ({
         });
     }
 
-    const setterFunction = (proj: FileProps | undefined) => {
-        const newProj = proj ? proj.path : null;
-        interfaceUIActions?.setPending(true);
-        interfaceUIActions?.setDataPending(true);
-        interfaceDataActions?.setTabNames([]);
-        setTabQueryParam(null);
-        setProject(newProj);
-    }
-
-    // Find the relevant commands
-    const createProjectCommand = storeCommands.find(cmd => cmd.id === 'create-project');
-    const closeProjectCommand = storeCommands.find(cmd => cmd.id === 'close-project');
-    const deleteProjectCommand = storeCommands.find(cmd => cmd.id === 'delete-project');
-
+    // action tab states
+    const selectProjectsCommand = storeCommands.find(cmd => cmd.id === "select-projects");
+    const createProjectCommand = storeCommands.find(cmd => cmd.id === "create-project");
+    const closeProjectCommand = storeCommands.find(cmd => cmd.id === "close-project");
+    const deleteProjectCommand = storeCommands.find(cmd => cmd.id === "delete-project");
     const selectProjectsOpen = useStoreContext((s) => s.selectProjectsOpen);
     const createProjectOpen = useStoreContext((s) => s.createProjectOpen);
     const deleteProjectOpen = useStoreContext((s) => s.deleteProjectOpen);
@@ -129,7 +120,14 @@ const ProjectButtons = ({
                         <FileDirectory
                             data={projectsData}
                             renamingFunction={serverProjectActions.rename}
-                            setterFunction={setterFunction}
+                            setterFunction={(proj: FileProps | undefined) => {
+                                if (selectProjectsCommand == undefined) {
+                                    return Promise.resolve({
+                                        detail: "Select projects command not found"
+                                    } as ResponseProps);
+                                }
+                                return selectProjectsCommand.action(proj);
+                            }}
                             type="Projects"
                             text="Select projects"
                             variant="ghost"
@@ -191,7 +189,14 @@ const ProjectButtons = ({
                 items={projects.map((project) => ({ label: project, value: project }))}
                 defaultValue={project || undefined}
                 isOpen={defaultProject ? true : undefined}
-                onSelect={(currentValue: string) => setterFunction({ path: currentValue })}
+                onSelect={(currentValue: string) => {
+                    if (selectProjectsCommand == undefined) {
+                        return Promise.resolve({
+                            detail: "Select projects command not found"
+                        } as ResponseProps);
+                    }
+                    return selectProjectsCommand.action({ path: currentValue });
+                }}
                 onOpen={onOpen}
                 loading={loading}
             />

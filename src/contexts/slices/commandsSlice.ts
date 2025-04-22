@@ -2,13 +2,13 @@ import { StateCreator } from "zustand";
 import { ProjectsActions, TabActions } from "@/types/evals/grid";
 import { StoreSlice } from "./slice";
 import { defaultItems, defaultNewCounter } from "@/constants/logs";
-import { ResponseProps } from "@/types/common";
+import { FileProps, ResponseProps } from "@/types/common";
 
 export interface Command {
     id: string;
     label: string;
     description?: string;
-    action: (name?: string) => Promise<ResponseProps>;
+    action: (name?: string | FileProps | undefined) => Promise<ResponseProps>;
     onAction?: () => Promise<void>;
     disabled: boolean;
     category: "project" | "interface";
@@ -65,7 +65,14 @@ export const createCommandsSlice: StateCreator<
                         {
                             id: "select-projects",
                             label: "Select projects",
-                            action: () => {},
+                            action: (proj: FileProps | undefined) => {
+                                const newProj = proj ? proj.path : null;
+                                interfaceUIActions?.setPending(true);
+                                interfaceUIActions?.setDataPending(true);
+                                interfaceDataActions?.setTabNames([]);
+                                setTabQueryParam(null);
+                                setProject(newProj);
+                            },
                             disabled: false,
                             category: "project",
                             icon: "Folder"
