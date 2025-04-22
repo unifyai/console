@@ -40,9 +40,13 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
         contexts = await contextActions.get(currentProject);
 
     // Get or create devbox
-    const devbox = await devboxActions.get();
-    if (devbox == null)
-        devboxActions.create();
+    try {
+        const devbox = await devboxActions.get();
+        if (devbox == null)
+            devboxActions.create();
+    } catch (error) {
+        console.log("Couldn't find or create devbox");
+    }
 
     // Get tabs
     const getTabsFromInterface = async (temporary: boolean) => {
