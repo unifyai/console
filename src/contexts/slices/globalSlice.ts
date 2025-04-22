@@ -7,6 +7,7 @@ export interface GlobalState {
   activeProjectId: string | null;
   activeInterfaceId: string | null;
   activeTabId: string | null;
+  selectProjectsOpen: boolean;
   createProjectOpen: boolean;
   deleteProjectOpen: boolean;
 }
@@ -16,6 +17,7 @@ export interface GlobalActions {
   setProjects: (projects: string[]) => void;
   resetState: (newState: Partial<StoreSlice>) => void;
   updateState: (updates: Partial<StoreSlice>) => void;
+  setSelectProjectsOpen: (open: boolean) => void;
   setCreateProjectOpen: (open: boolean) => void;
   setDeleteProjectOpen: (open: boolean) => void;
 }
@@ -33,12 +35,17 @@ export const createGlobalSlice: StateCreator<
   activeProjectId: null,
   activeInterfaceId: null,
   activeTabId: null,
+  selectProjectsOpen: false,
   createProjectOpen: false,
   deleteProjectOpen: false,
 
   // Global actions
   setProjects: (projects: string[]) => set(state => {
     state.projects = projects;
+  }),
+
+  setSelectProjectsOpen: (open) => set(state => {
+    state.selectProjectsOpen = open;
   }),
 
   setCreateProjectOpen: (open) => set(state => {

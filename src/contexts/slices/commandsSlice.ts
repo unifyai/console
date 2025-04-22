@@ -63,6 +63,14 @@ export const createCommandsSlice: StateCreator<
                 return {
                     commands: [
                         {
+                            id: "select-projects",
+                            label: "Select projects",
+                            action: () => {},
+                            disabled: false,
+                            category: "project",
+                            icon: "Folder"
+                        },
+                        {
                             id: "create-project",
                             label: "Create project",
                             action: async (name: string) => {

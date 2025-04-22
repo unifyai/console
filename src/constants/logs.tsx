@@ -1,4 +1,4 @@
-import { ChartLine, Code, Eye, Plus, Table, Trash, X } from "lucide-react";
+import { ChartLine, Code, Eye, Folder, Plus, Table, Trash, X } from "lucide-react";
 import { TileProps } from "@/types/evals/grid";
 import { getLogsParameters } from "@/types/evals/logs";
 import mathsAssistant from "./demos/maths_assistant";
@@ -122,5 +122,6 @@ export const demos: {
 export const iconMap: Record<string, React.ReactNode> = {
     "Plus": <Plus className="mr-2" />,
     "X": <X className="mr-2" />,
-    "Trash": <Trash className="mr-2" />
+    "Trash": <Trash className="mr-2" />,
+    "Folder": <Folder className="mr-2" />
 };
