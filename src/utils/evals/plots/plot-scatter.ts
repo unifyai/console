@@ -339,7 +339,8 @@ export const drawScatterPlot = (
   fields: LogFieldsResponseProps,
   containerRef: any,
   zoomRef: any,
-  interactive: boolean = true
+  groupByColors: string = "schemeCategory10",
+  interactive: boolean = true,
 ) => {
 
     // --- Define containers ---
@@ -413,7 +414,8 @@ export const drawScatterPlot = (
 
     // --- Define color schemes and handle grouping key ---
     const primary = getPrimaryColorFromNode(svg.node());
-    let color = d3.scaleOrdinal<string>().range(d3.schemeCategory10);
+    const colorRange = d3[groupByColors as keyof typeof d3] as readonly string[];
+    let color = d3.scaleOrdinal<string>().range(colorRange);
     if (groupBy) {
         let domain = data.map(d => JSON.stringify(getValue(fields, groupBy, d, xTable)));
         domain = Array.from(new Set(domain));
@@ -482,7 +484,7 @@ export const drawScatterPlot = (
             // Group the data and calculate regression for each group
             let groups = data.map(d => JSON.stringify(getValue(fields, groupBy, d, xTable)));
             groups = Array.from(new Set(groups))
-            const color = d3.scaleOrdinal().domain(groups).range(d3.schemeCategory10);
+            const color = d3.scaleOrdinal().domain(groups).range(colorRange);
 
             const groupRegressions = groups.map(groupKey => {
                 const groupData = data.filter(d => 

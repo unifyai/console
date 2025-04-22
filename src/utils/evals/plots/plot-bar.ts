@@ -149,6 +149,7 @@ export const drawBarChart = (
     logs: LogProps[],
     fields: LogFieldsResponseProps,
     zoomRef: any,
+    groupByColors: string = "schemeCategory10",
     interactive: boolean = true
 ) => {
 
@@ -263,7 +264,8 @@ export const drawBarChart = (
     const initialOpacity = groupBy ? 0.7 : 1.0;
     if (groupBy){
         const groupDomain = Array.from(new Set((data as GroupedDataLabel[]).map(d => d[0])))
-        const colorScale = d3.scaleOrdinal<string>(d3.schemeCategory10).domain(groupDomain);
+        const colorRange = d3[groupByColors as keyof typeof d3] as readonly string[];
+        const colorScale = d3.scaleOrdinal<string>(d3.schemeCategory10).domain(colorRange);
         g
             .selectAll<SVGRectElement, GroupedDataLabel>("rect.bar-item")
             .data((data as GroupedDataLabel[]), d => `${(d as GroupedDataLabel)[0]}-${(d as GroupedDataLabel)[1][0]}`)

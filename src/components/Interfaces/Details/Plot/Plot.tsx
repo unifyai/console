@@ -178,7 +178,8 @@ const LogsPlot = ({
             containerRef,
             setLogScaleXEnabled,
             setLogScaleYEnabled,
-            plotTileActions
+            plotTileActions,
+            plotTileState
         );
     }, [
         logs,
@@ -197,6 +198,7 @@ const LogsPlot = ({
         aggregateProperty,
         interactive,
         tileUIState?.color,
+        plotTileState?.plot_group_by_colors,
         tabUIState?.hoveredLog
     ]);
 
@@ -264,6 +266,7 @@ return (
             fieldsActions={fieldsActions}
             plotTileActions={plotTileActions}
             tileDataActions={tileDataActions}
+            plotTileState={plotTileState}
             isTooltipMinimized={isTooltipMinimized}
             setIsTooltipMinimized={setIsTooltipMinimized}
             isGroupingKeyMinimized={isGroupingKeyMinimized}

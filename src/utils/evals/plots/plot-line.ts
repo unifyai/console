@@ -115,6 +115,7 @@ export const drawLineChart = (
   logs: LogProps[],
   fields: LogFieldsResponseProps,
   zoomRef: any,
+  groupByColors: string = "schemeCategory10",
   interactive: boolean = true
 ) => {
 
@@ -225,7 +226,8 @@ export const drawLineChart = (
     if (groupBy) {        
         let domain = (data as GroupedDataPoint[]).map((d) => JSON.stringify(d[0]));
         domain = Array.from(new Set(domain))
-        const color = d3.scaleOrdinal().domain(domain).range(d3.schemeCategory10);
+        const colorRange = d3[groupByColors as keyof typeof d3] as readonly string[];
+        const color = d3.scaleOrdinal().domain(domain).range(colorRange);
         const colors = domain.map((key) => ({key: key, color: color(key) as string}));
         renderGroupingKey(settings, colors); 
         g.selectAll("path.line-item")

@@ -129,6 +129,7 @@ export const drawHistogram = (
     table: string,
     logs: LogProps[],
     fields: LogFieldsResponseProps,
+    groupByColors: string = "schemeCategory10"
 ) => {
 
     // Remove drawings from previous plots
@@ -230,7 +231,8 @@ export const drawHistogram = (
     const initialOpacity = groupBy ? 0.7 : 1.0;
     if (groupBy) {
         const groupDomain = Array.from(new Set((buckets as GroupedBin[]).map(d => d.group)))
-        const colorScale = d3.scaleOrdinal<string>(d3.schemeCategory10).domain(groupDomain);
+        const colorRange = d3[groupByColors as keyof typeof d3] as readonly string[];
+        const colorScale = d3.scaleOrdinal<string>(colorRange).domain(groupDomain);
         const bars = g
         .selectAll("rect.hist-item")
         .data((buckets as GroupedBin[]), (d) => `${(d as GroupedBin).group}-${(d as GroupedBin).x0}-${(d as GroupedBin).x1}`); // Use bin boundaries as key

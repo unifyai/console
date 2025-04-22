@@ -11,6 +11,7 @@ import { checkLogScalability } from "./axes";
 import { clearCanvas } from "./canvas";
 import { clearFixedTooltip } from "./tooltip";
 import { PlotActions } from "@/contexts/hooks/tile/usePlotTile";
+import { PlotTile } from "@/contexts/slices/selectors/plotTile";
 
 /**
  * Main function orchestrating the drawing of different plot types (Scatter, Bar, Histogram, Line) within a specified SVG container.
@@ -53,6 +54,7 @@ import { PlotActions } from "@/contexts/hooks/tile/usePlotTile";
  * @param {(enabled: boolean) => void} setLogScaleXEnabled - State setter to enable/disable the log scale option for the X-axis.
  * @param {(enabled: boolean) => void} setLogScaleYEnabled - State setter to enable/disable the log scale option for the Y-axis.
  * @param {{ setPlotScaleX?: (scale: string) => void; setPlotScaleY?: (scale: string) => void; setBinCount?: (count: string) => void; }} [plotTileActions] - Optional object containing state update functions for the plot tile (e.g., setting scale, bin count).
+ * @param {{ plot_group_by_colors?: string | null; }} [plotTileState] - Optional object containing UI states for the plot tile (e.g., grouping color scheme).
  * @returns {void}
  */
 export const drawPlot = (
@@ -86,6 +88,7 @@ export const drawPlot = (
     setLogScaleXEnabled: (enabled: boolean) => void,
     setLogScaleYEnabled: (enabled: boolean) => void,
     plotTileActions?: PlotActions | null,
+    plotTileState?: PlotTile | null
 ) => {
         // Update svg dimensions
         svg
@@ -105,6 +108,8 @@ export const drawPlot = (
 
         const xTable = selectedXAxisProperty?.split(".")[0] || "";
         const yTable = selectedYAxisProperty?.split(".")[0] || "";
+
+        const groupByColors = plotTileState?.plot_group_by_colors ?? undefined;
 
         // Draw selected plot type
         if (plotType === "Line Chart") {
@@ -136,6 +141,7 @@ export const drawPlot = (
                     logs,
                     fields,
                     zoomRef,
+                    groupByColors,
                     interactive
                 );
             } else {
@@ -167,6 +173,7 @@ export const drawPlot = (
                     logs,
                     fields,
                     zoomRef,
+                    groupByColors,
                     interactive
                 );
             } else {
@@ -201,7 +208,8 @@ export const drawPlot = (
                     setBinCounts,
                     xTable,
                     logs,
-                    fields
+                    fields,
+                    groupByColors
                 );
             } else {
                 clearCanvas(svgRef, containerRef);
@@ -240,7 +248,8 @@ export const drawPlot = (
                     fields,
                     containerRef,
                     zoomRef,
-                    interactive
+                    groupByColors,
+                    interactive,
                 );
             } else {
                 clearCanvas(svgRef, containerRef);

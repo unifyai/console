@@ -92,6 +92,7 @@ const Tile = ({
         tileItem.x_axis,
         tileItem.y_axis,
         tileItem.plot_group_by,
+        tileItem.plot_group_by_colors,
         tileItem.plot_aggregate,
         tileItem.freeze,
         tileItem.color
