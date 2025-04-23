@@ -17,7 +17,6 @@ const isNotUndefinedCell = (cell: Cell<any, any>) => cell.getValue() !== undefin
 const isValidAdjacentTarget = (cell: Cell<any, any>) =>
   !cell.getIsPlaceholder() &&
   !cell.getIsAggregated() &&
-  !cell.getIsGrouped() &&
   isNotUndefinedCell(cell)
 const isVisibleCell = (cell: Cell<any, any>) => cell.column.getIsVisible()
 const isValidIndexSelectionTarget = (cell: Cell<any, any>) => isValidAdjacentTarget(cell) && cell.column.id != "RowNumbering"; 
