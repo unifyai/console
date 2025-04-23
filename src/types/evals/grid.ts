@@ -41,6 +41,7 @@ export interface TileProps {
     x_axis?: string;
     y_axis?: string;
     plot_group_by?: string;
+    plot_group_by_colors?: string;
     bin_count?: string;
     regression_line?: string;
     file_name?: string;
@@ -104,6 +105,7 @@ export type ItemType =
     | "x_axis"
     | "y_axis"
     | "plot_group_by"
+    | "plot_group_by_colors"
     | "selected"
     | "base_index"
     | "metric"

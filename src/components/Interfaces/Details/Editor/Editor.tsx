@@ -11,6 +11,8 @@ import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { CodeActions } from "@/types/evals/grid";
 import { useTab, useTabData } from "@/contexts/hooks/tab";
 import { useTiles } from "@/contexts/hooks";
+import Tooltip from "@/components/Common/Misc/Tooltip";
+
 
 const Editor = ({
     tileId,
@@ -38,6 +40,7 @@ const Editor = ({
     const [tempCode, setTempCode] = useState(editorTileState?.content || "");
     const [saved, setSaved] = useState(false);
     const [pending, setPending] = useState(false);
+    const [complete, setComplete] = useState(false);
     const [output, setOutput] = useState("");
 
     const language = fileTypes[editorTileState?.file_type || "txt"] || "text";
@@ -47,29 +50,42 @@ const Editor = ({
             setTimeout(() => setSaved(false), 2000);
     }, [saved]);
 
+    useEffect(() => {
+        if (!pending && output !== "")
+            setComplete(true);
+    }, [pending]);
+
+    useEffect(() => {
+        if (complete)
+            setTimeout(() => setComplete(false), 5000);
+    }, [complete]);
+
     return (
         <div className="w-full h-full flex flex-col">
-            <div className="flex flex-row items-center ml-4 text-sm gap-2">
-                <Input
-                    value={tempFileName}
-                    onChange={(e) => setTempFileName(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter")
-                            editorTileActions?.setFileName(tempFileName);
+            <div className="flex flex-row items-center ml-4 text-sm gap-1">
+                <Tooltip content="File Name" side="top">
+                    <Input
+                        value={tempFileName}
+                    onChange={(e) => {
+                        setTempFileName(e.target.value);
+                        editorTileActions?.setFileName(e.target.value)
                     }}
                     placeholder="File Name"
                     className="text-sm w-24"
-                />
-                <Input
-                    value={tempFileType}
-                    onChange={(e) => setTempFileType(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter")
-                            editorTileActions?.setFileType(tempFileType);
+                    />
+                </Tooltip>
+                .
+                <Tooltip content="File Type" side="top">
+                    <Input
+                        value={tempFileType}
+                    onChange={(e) => {
+                        setTempFileType(e.target.value);
+                        editorTileActions?.setFileType(e.target.value);
                     }}
                     placeholder="File Type"
                     className="text-sm w-24"
-                />
+                    />
+                </Tooltip>
                 {saved && <div className="text-primary text-sm font-semibold">File saved!</div>}
             </div>
             <CodeBlock
@@ -77,17 +93,22 @@ const Editor = ({
                 output={output}
                 language={language}
                 pending={pending}
+                complete={complete}
                 create={null}
                 disabled={false}
                 setTempCode={setTempCode}
                 onRun={(code: string) => {
                     setPending(true);
+                    setOutput("");
                     editorTileActions?.setFileName(tempFileName);
                     editorTileActions?.setContent(code);
                     const tempFilePath = `${tempFileName}.${editorTileState?.file_type}`;
                     allFiles[tempFilePath] = code;
                     codeActions.run(allFiles, tempFilePath, projectId).then(
-                        (result: any) => setOutput(result.output.replaceAll("/project/sandbox/", ""))
+                        (result: any) => {
+                            result = result.output.replaceAll("/project/sandbox/", "")
+                            setOutput(result == "" ? "Script execution completed." : result)
+                        }
                     ).finally(() => setPending(false));
                 }}
                 readOnly={false}

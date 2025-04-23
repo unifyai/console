@@ -8,7 +8,7 @@ import { getValue, hasProperty } from "./data";
 import { drawAxes, generateTicks } from "./axes";
 import { getPrimaryColorFromNode } from "./common";
 import { renderGroupingKey } from "./key";
-import { showFixedTooltip, tooltipTemplate, positionTooltip } from "./tooltip";
+import { showFixedTooltip, tooltipTemplate, positionTooltipRelativeToPointer } from "./tooltip";
 import { formatNumber } from "@/utils/formatNumber";
 
 const getTooltipData = (
@@ -68,7 +68,7 @@ function onMouseOver(
         .html(template)
         .transition("opacity")
         .style("opacity", 1);
-    positionTooltip(event, tooltip, container);
+    positionTooltipRelativeToPointer(event, tooltip, container);
 
     g.selectAll("rect.hist-item")
         .filter((d: any) => groupBy ? d.group !== (bin as GroupedBin).group : d.x0 !== bin.x0 || d.x1 !== bin.x1)
@@ -82,7 +82,7 @@ function onMouseMove(
     tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>,
     container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
 ) {
-    positionTooltip(event, tooltip, container);
+    positionTooltipRelativeToPointer(event, tooltip, container);
 }
     
 function onMouseOut(initialOpacity: number, g: d3.Selection<d3.BaseType, unknown, null, undefined>, tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>) {
@@ -129,6 +129,7 @@ export const drawHistogram = (
     table: string,
     logs: LogProps[],
     fields: LogFieldsResponseProps,
+    groupByColors: string = "schemeCategory10"
 ) => {
 
     // Remove drawings from previous plots
@@ -230,7 +231,8 @@ export const drawHistogram = (
     const initialOpacity = groupBy ? 0.7 : 1.0;
     if (groupBy) {
         const groupDomain = Array.from(new Set((buckets as GroupedBin[]).map(d => d.group)))
-        const colorScale = d3.scaleOrdinal<string>(d3.schemeCategory10).domain(groupDomain);
+        const colorRange = d3[groupByColors as keyof typeof d3] as readonly string[];
+        const colorScale = d3.scaleOrdinal<string>(colorRange).domain(groupDomain);
         const bars = g
         .selectAll("rect.hist-item")
         .data((buckets as GroupedBin[]), (d) => `${(d as GroupedBin).group}-${(d as GroupedBin).x0}-${(d as GroupedBin).x1}`); // Use bin boundaries as key

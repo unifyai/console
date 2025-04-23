@@ -22,6 +22,7 @@ export interface TabUIActions {
   setRefreshing: (refreshing: boolean) => void;
   setTilesPending: (pending: boolean) => void;
   setColor: (color: string | undefined) => void;
+  setHoveredLog: (hoveredLog: string | undefined) => void;
 }
 
 /**
@@ -116,6 +117,11 @@ export function useTabUI(
     return state.tabsById[tabId].color;
   });
 
+  const hoveredLog = useStoreContext(state => {
+    if (!tabExists || !tabId) return undefined;
+    return state.tabsById[tabId].hoveredLog;
+  })
+
   // Get store actions needed for UI
   const storeUpdateTab = useStoreContext(state => state.updateTab);
   const storeUpdateTile = useStoreContext(state => state.updateTile);
@@ -136,7 +142,8 @@ export function useTabUI(
       copied,
       deleting,
       refreshing,
-      color
+      color,
+      hoveredLog
     };
   }, [
     tabExists,
@@ -151,7 +158,8 @@ export function useTabUI(
     copied,
     deleting,
     refreshing,
-    color
+    color,
+    hoveredLog
   ]);
 
   // Memoize the UI actions
@@ -226,6 +234,12 @@ export function useTabUI(
     setColor: (color) => {
       if (tabId) {
         storeUpdateTab(tabId, { color });
+      }
+    },
+
+    setHoveredLog: (hoveredLog) => {
+      if (tabId) {
+        storeUpdateTab(tabId, { hoveredLog })
       }
     }
   }), [

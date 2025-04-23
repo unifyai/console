@@ -63,6 +63,7 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
       x_axis: tile.plotTile.x_axis,
       y_axis: tile.plotTile.y_axis,
       plot_group_by: tile.plotTile.plot_group_by,
+      plot_group_by_colors: tile.plotTile.plot_group_by_colors,
       bin_count: tile.plotTile.bin_count,
       regression_line: tile.plotTile.regression_line
     });
@@ -153,6 +154,7 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
       x_axis: tileItem.x_axis,
       y_axis: tileItem.y_axis,
       plot_group_by: tileItem.plot_group_by,
+      plot_group_by_colors: tileItem.plot_group_by_colors,
       bin_count: tileItem.bin_count,
       regression_line: tileItem.regression_line
     };

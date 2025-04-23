@@ -162,9 +162,10 @@ export function buildPlotTileState(
     regression_line: tileProps.regression_line,
     plotDataItem: plotData[tileProps.i],
   };
-
+  
   // Build plot tile UI
   const plotTileUI: PlotTileUI = {
+    plot_group_by_colors: tileProps.plot_group_by_colors,
   };
 
   // Build the complete plot tile

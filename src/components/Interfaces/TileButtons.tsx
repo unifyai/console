@@ -48,7 +48,7 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
                         url={
                             item.tab === "Plot" ? "https://docs.unify.ai/interfaces/plots" :
                             item.tab === "View" ? "https://docs.unify.ai/interfaces/views" :
-                            item.tab === "Editor" ? "https://docs.unify.ai/interfaces/views" :
+                            item.tab === "Editor" ? "https://docs.unify.ai/interfaces/editors" :
                             "https://docs.unify.ai/interfaces/tables"
                         }
                     />

@@ -7,7 +7,7 @@ import { getValue, hasProperty } from "./data";
 import { drawAxes, generateTicks } from "./axes";
 import { getPrimaryColorFromNode } from "./common";
 import { renderGroupingKey } from "./key";
-import { showFixedTooltip, tooltipTemplate, positionTooltip } from "./tooltip";
+import { showFixedTooltip, tooltipTemplate, positionTooltipRelativeToPointer } from "./tooltip";
 import { toComputableValue, computeStatistic } from "../common";
 
 const getTooltipData = (
@@ -83,7 +83,7 @@ function onMouseOver (
         .html(template)
         .transition("opacity")
         .style("opacity", 1);
-    positionTooltip(event, tooltip, container);
+    positionTooltipRelativeToPointer(event, tooltip, container);
     if (groupBy) {
         const group = (d as GroupedDataLabel)[0];
         g.selectAll("rect.bar-item")
@@ -103,7 +103,7 @@ function onMouseMove (
     tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>,
     container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
 ) {
-    positionTooltip(event, tooltip, container);
+    positionTooltipRelativeToPointer(event, tooltip, container);
 };
 
 function onMouseOut  (
@@ -149,6 +149,7 @@ export const drawBarChart = (
     logs: LogProps[],
     fields: LogFieldsResponseProps,
     zoomRef: any,
+    groupByColors: string = "schemeCategory10",
     interactive: boolean = true
 ) => {
 
@@ -263,7 +264,8 @@ export const drawBarChart = (
     const initialOpacity = groupBy ? 0.7 : 1.0;
     if (groupBy){
         const groupDomain = Array.from(new Set((data as GroupedDataLabel[]).map(d => d[0])))
-        const colorScale = d3.scaleOrdinal<string>(d3.schemeCategory10).domain(groupDomain);
+        const colorRange = d3[groupByColors as keyof typeof d3] as readonly string[];
+        const colorScale = d3.scaleOrdinal<string>(d3.schemeCategory10).domain(colorRange);
         g
             .selectAll<SVGRectElement, GroupedDataLabel>("rect.bar-item")
             .data((data as GroupedDataLabel[]), d => `${(d as GroupedDataLabel)[0]}-${(d as GroupedDataLabel)[1][0]}`)

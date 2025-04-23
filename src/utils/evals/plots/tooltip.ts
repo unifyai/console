@@ -249,7 +249,7 @@ export function showFixedTooltip( event: MouseEvent, data: InfoCardData | null, 
  * @param tooltip The D3 selection of the tooltip element.
  * @param container The D3 selection of the plot container element.
  */
-export const positionTooltip = (
+export const positionTooltipRelativeToPointer = (
     event: MouseEvent,
     tooltip: any,
     container: any
@@ -304,6 +304,80 @@ export const positionTooltip = (
         .style("left", `${xPos}px`)
         .style("top", `${yPos}px`);
 };
+
+/**
+ * Positions the tooltip relative to a target SVG element within a container,
+ * accounting for SVG transforms (zoom/pan).
+ * @param targetElement The SVG element (e.g., circle, rect) to position against.
+ * @param tooltip The D3 selection of the tooltip HTML element.
+ * @param container The D3 selection of the main plot container div.
+ * @param svg The D3 selection of the SVG element.
+ * @param currentTransform The current d3.ZoomTransform applied to the plot.
+ */
+export function positionTooltipRelativeToDatapoint(
+    targetElement: SVGElement,
+    tooltip: any,
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+    svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>,
+    currentTransform: d3.ZoomTransform
+) {
+    const tooltipNode = tooltip.node();
+    const containerNode = container.node();
+    const svgNode = svg.node();
+
+    if (!tooltipNode || !containerNode || !svgNode || !targetElement) {
+        tooltip.style("opacity", 0); // Hide if essentials are missing
+        return;
+    }
+
+    // 1. Get BBox of the target element *in its local SVG coordinates*
+    const bbox = (targetElement as SVGGraphicsElement).getBBox(); // Use SVGGraphicsElement for getBBox
+
+    // 2. Calculate the center of the BBox in local SVG coordinates
+    const localX = bbox.x + bbox.width / 2;
+    const localY = bbox.y + bbox.height / 2;
+
+    // 3. Apply the current zoom/pan transform to get *screen coordinates relative to the SVG viewport*
+    const svgScreenX = currentTransform.applyX(localX);
+    const svgScreenY = currentTransform.applyY(localY);
+
+    // 4. Convert SVG screen coordinates to coordinates relative to the *container div*
+    const svgRect = svgNode.getBoundingClientRect();
+    const containerRect = containerNode.getBoundingClientRect();
+
+    // Position relative to the container's top-left corner
+    const containerRelativeX = svgScreenX + (svgRect.left - containerRect.left);
+    const containerRelativeY = svgScreenY + (svgRect.top - containerRect.top);
+
+    // 5. Position the tooltip near the calculated point, checking bounds
+    tooltip.style("opacity", 1); // Ensure visible
+    const tooltipRect = tooltipNode.getBoundingClientRect();
+    const tooltipWidth = tooltipRect.width;
+    const tooltipHeight = tooltipRect.height;
+    const offsetX = 15; // Increase offset slightly
+    const offsetY = 15;
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+
+    let xPos = containerRelativeX + offsetX;
+    let yPos = containerRelativeY + offsetY;
+
+    // Adjust position based on container boundaries
+    if (xPos + tooltipWidth > containerWidth) {
+        xPos = containerRelativeX - tooltipWidth - offsetX; // Move left
+    }
+    if (xPos < 0) {
+        xPos = offsetX; // Prevent going off left edge
+    }
+    if (yPos + tooltipHeight > containerHeight) {
+        yPos = containerRelativeY - tooltipHeight - offsetY; // Move up
+    }
+    if (yPos < 0) {
+        yPos = offsetY; // Prevent going off top edge
+    }
+
+    tooltip.style("left", `${xPos}px`).style("top", `${yPos}px`);
+}
 
 /**
  * Clears the content and hides the fixed tooltip container.
