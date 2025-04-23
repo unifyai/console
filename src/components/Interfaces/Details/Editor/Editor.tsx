@@ -97,7 +97,10 @@ const Editor = ({
                     const tempFilePath = `${tempFileName}.${editorTileState?.file_type}`;
                     allFiles[tempFilePath] = code;
                     codeActions.run(allFiles, tempFilePath, projectId).then(
-                        (result: any) => {setOutput(result.output.replaceAll("/project/sandbox/", ""))}
+                        (result: any) => {
+                            result = result.output.replaceAll("/project/sandbox/", "")
+                            setOutput(result == "" ? "No output expected. Script execution completed." : result)
+                        }
                     ).finally(() => setPending(false));
                 }}
                 readOnly={false}
