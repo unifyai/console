@@ -40,6 +40,7 @@ const Editor = ({
     const [tempCode, setTempCode] = useState(editorTileState?.content || "");
     const [saved, setSaved] = useState(false);
     const [pending, setPending] = useState(false);
+    const [complete, setComplete] = useState(false);
     const [output, setOutput] = useState("");
 
     const language = fileTypes[editorTileState?.file_type || "txt"] || "text";
@@ -48,6 +49,16 @@ const Editor = ({
         if (saved)
             setTimeout(() => setSaved(false), 2000);
     }, [saved]);
+
+    useEffect(() => {
+        if (!pending)
+            setComplete(true);
+    }, [pending]);
+
+    useEffect(() => {
+        if (complete)
+            setTimeout(() => setComplete(false), 5000);
+    }, [complete]);
 
     return (
         <div className="w-full h-full flex flex-col">
@@ -86,6 +97,7 @@ const Editor = ({
                 output={output}
                 language={language}
                 pending={pending}
+                complete={complete}
                 create={null}
                 disabled={false}
                 setTempCode={setTempCode}
@@ -99,7 +111,7 @@ const Editor = ({
                     codeActions.run(allFiles, tempFilePath, projectId).then(
                         (result: any) => {
                             result = result.output.replaceAll("/project/sandbox/", "")
-                            setOutput(result == "" ? "No output expected. Script execution completed." : result)
+                            setOutput(result == "" ? "Script execution completed." : result)
                         }
                     ).finally(() => setPending(false));
                 }}

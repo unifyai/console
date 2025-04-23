@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ExternalLink, Loader2, Play, Save } from "lucide-react";
+import { Check, ExternalLink, Loader2, Play, Save } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import { CopyButton } from "../Common/Buttons/Copy";
 import { Editor } from "@monaco-editor/react";
@@ -14,6 +14,7 @@ const CodeBlock = ({
     language,
     demoLink,
     pending,
+    complete,
     create,
     disabled,
     readOnly,
@@ -26,6 +27,7 @@ const CodeBlock = ({
     language: string | undefined;
     demoLink?: string;
     pending: boolean;
+    complete: boolean;
     create: string | null;
     disabled: boolean;
     readOnly?: boolean;
@@ -119,6 +121,7 @@ const CodeBlock = ({
                     <div className="flex gap-4 items-center">
                         <div className="font-semibold text-gray-400">Output</div>
                         {pending && <Loader2 className="animate-spin" />}
+                        {complete && <Check />}
                     </div>
                     <div className="h-full w-full">
                         <Editor
