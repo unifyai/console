@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, ReactNode, MouseEvent, JSX, Ref, Dispatch, SetStateAction, useState, useEffect } from "react";
+import { useRef, ReactNode, MouseEvent, JSX, Ref, Dispatch, SetStateAction, useState, useEffect } from "react";
 
 import { ColumnFiltersState, ColumnPinningState, GroupingState, Header, SortingState, Updater, useReactTable } from "@tanstack/react-table";
 import { getFilteredRowModel, getExpandedRowModel } from "@tanstack/react-table";
@@ -32,6 +32,7 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     state: StateProps;
     setState: SetStateProps;
     error?: string;
+    scrollContainerRef?: React.RefObject<HTMLDivElement>,
     FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>) => ReactNode; 
     ColumnGroupBy?: (column: TanstackColumn<any | unknown>, groupLoading: boolean, setGroupLoading: (groupLoading: boolean) => void, setIsGrouped: (isGrouped: boolean) => void, setGroupSortLoading: (groupSortLoading: boolean) => void, renderMode: "button" | "menuItem") => ReactNode;
     ColumnGroupSort?: (column: TanstackColumn<any | unknown>, groupSortLoading: boolean, setGroupSortLoading: (groupSortLoading: boolean) => void, setSortingDirection: (sortingDirection: "asc" | "desc" | false) => void, renderMode: "button" | "menuItem", direction?: "asc" | "desc") => ReactNode;
@@ -54,6 +55,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     state,
     setState,
     error,
+    scrollContainerRef,
     FooterCell,
     ColumnGroupBy,
     ColumnGroupSort,
@@ -87,6 +89,10 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     );
 
     const [columnActionsApplied, setColumnActionsApplied] = useState<{ [depth: number]: { [columnId: string]: boolean } }>({});
+
+    // Refs for Header and Footer to calculate visible portion of the table body
+    const tableHeaderRef = useRef<HTMLTableSectionElement>(null); // For <thead>
+    const tableFooterRef = useRef<HTMLTableSectionElement>(null); // For <tfoot>
 
     // Effect to handle data updates
     useEffect(() => {
@@ -159,7 +165,10 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     const { isCellSelected, isRowSelected, isCellExpanded, setExpandedCells, ...cellSelection } = useCellSelection({
         table,
         selectedCells: state.selectedCells,
-        setSelectedCells: setState.setSelectedCells
+        setSelectedCells: setState.setSelectedCells,
+        scrollContainerRef: scrollContainerRef,
+        tableHeaderRef: tableHeaderRef,
+        tableFooterRef: tableFooterRef,  
     });
 
     // Helper function to render skeleton rows
@@ -225,7 +234,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                     onDragCancel={(event) => handleDragCancelWrapper(event)}
                 >
                     <Table className={`relative w-full ${className}`} style={{ width: table.getTotalSize() }}>
-                        <TableHeader className="sticky top-0 z-20 bg-background">
+                        <TableHeader ref={tableHeaderRef} className="sticky top-0 z-20 bg-background">
                             {table.getHeaderGroups().map((headerGroup, headerGroupIndex) => (
                                 <TableRow key={headerGroup.id}>
                                     <SortableContext items={state.columnOrder} strategy={horizontalListSortingStrategy}>
@@ -328,7 +337,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                             }
                         </TableBody>
 
-                        <TableFooter className="sticky bottom-0 z-20 bg-background border-t-2 border-foreground">
+                        <TableFooter ref={tableFooterRef} className="sticky bottom-0 z-20 bg-background border-t-2 border-foreground">
                             <TableRow>
                                 {isUpdatingLogs ? (
                                     finalColumns.map((_, idx) => (

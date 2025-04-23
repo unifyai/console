@@ -684,6 +684,9 @@ const LogsTable = ({
     if (tableTileActions) deselectFromClickOutside(event, containerRef, selectedCells, tableTileActions.setSelected, ["LogsTablePreferences"])
   }
 
+  //Ref for auto scroll
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   return (
     <div
       ref={containerRef} 
@@ -698,7 +701,7 @@ const LogsTable = ({
       ) : (
         <div className="w-full h-full flex flex-col">
           {tableTop && tableTop}
-          <div className="w-full h-fit overflow-y-auto tutorial-logs-table">
+          <div ref={scrollContainerRef} className="w-full h-fit overflow-y-auto tutorial-logs-table">
             {projectId ? (
               <div className="relative flex-col gap-2">
                 {/* "summaryPending" can optionally show a small loader over the table if you like */}
@@ -710,6 +713,7 @@ const LogsTable = ({
                   columns={columns}
                   state={state}
                   setState={setState}
+                  scrollContainerRef={scrollContainerRef}
                   ColumnGroupBy={(column, groupLoading, setGroupLoading, setGroupSortLoading, setIsGrouped, renderMode = "button") => (
                     <ColumnGroupBy
                       interactive={interactive}

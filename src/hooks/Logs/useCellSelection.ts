@@ -1,7 +1,7 @@
 "use client";
 
 import type { Column, Cell, Header, Table } from "@tanstack/react-table";
-import { useState } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { useQueryState } from "nuqs";
 import { parseAsArrayOf, parseAsString } from "nuqs";
 import { getPartAfterFirstUnderscore } from "@/utils/evals/selection";
@@ -11,6 +11,9 @@ export type UseCellSelectionProps = {
   scrollToRow?: (index: number) => void;
   selectedCells: string[],
   setSelectedCells: (selectedCells: string[]) => void,
+  scrollContainerRef?: React.RefObject<HTMLElement | null>; // The element that actually scrolls
+  tableHeaderRef?: React.RefObject<HTMLElement | null>;     // The <thead> element
+  tableFooterRef?: React.RefObject<HTMLElement | null>;     // The <tfoot> element
 };
 
 const isNotUndefinedCell = (cell: Cell<any, any>) => cell.getValue() !== undefined || cell.column.id === "RowNumbering"
@@ -28,7 +31,10 @@ export const useCellSelection = ({
   table,
   scrollToRow,
   selectedCells,
-  setSelectedCells
+  setSelectedCells,
+  scrollContainerRef,
+  tableHeaderRef,
+  tableFooterRef,
 }: UseCellSelectionProps) => {
 
   const [selectedStartCell, setSelectedStartCell] = useState<string | null>(null);
@@ -41,6 +47,48 @@ export const useCellSelection = ({
     )
   );
   const isCellExpanded = (cell: Cell<any, unknown>) => expandedCells[cell.id as keyof typeof expandedCells] === true
+
+  // --- Auto-scroll logic ---
+  const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollDirectionRef = useRef<'up' | 'down' | null>(null);
+  const scrollSpeedRef = useRef<number>(100);
+  const edgeThresholdRef = useRef<number>(50); // Pixels from edge (header bottom / footer top)
+
+  const stopAutoScroll = useCallback(() => {
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+      scrollDirectionRef.current = null;
+    }
+  }, []);
+
+  const startAutoScroll = useCallback((direction: 'up' | 'down') => {
+    stopAutoScroll(); // Ensure only one interval runs
+    scrollDirectionRef.current = direction;
+
+    const scrollContainer = scrollContainerRef?.current;
+    if (!scrollContainer) return;
+
+    scrollIntervalRef.current = setInterval(() => {
+        const amount = scrollSpeedRef.current * (direction === 'up' ? -1 : 1);
+        // Only scroll if there's room
+        if (direction === 'up' && scrollContainer.scrollTop > 0) {
+            scrollContainer.scrollTop += amount;
+        } else if (direction === 'down' && scrollContainer.scrollTop < scrollContainer.scrollHeight - scrollContainer.clientHeight) {
+            scrollContainer.scrollTop += amount;
+        } else {
+            // Stop if we hit the edge
+            stopAutoScroll();
+        }
+    }, 50); // Adjust interval timing (ms) as needed
+  }, [scrollContainerRef, stopAutoScroll]);
+
+  useEffect(() => {
+    // Cleanup interval on unmount
+    return () => {
+      stopAutoScroll();
+    };
+  }, [stopAutoScroll]);
 
   /* Handle keyboard navigation */
   const handleCellsKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
@@ -449,19 +497,80 @@ export const useCellSelection = ({
     e: React.MouseEvent<HTMLElement>,
     _tagrget: Cell<any, any> | Header<any, any>,
   ) => {
-    if (!e.shiftKey) {
-    }
-
     setIsMouseDown(false);
+    stopAutoScroll();
   };
 
   const handleCellMouseOver = (
     e: React.MouseEvent<HTMLElement>,
     target: Cell<any, any> | Header<any, any>,
   ) => {
-    if (e.buttons !== 1) return;
+    if (!isMouseDown) {
+      stopAutoScroll(); // Stop scroll if mouse button is released elsewhere
+      return;
+    }
 
-    if (isMouseDown) {
+    // --- Auto-scroll logic ---
+    const scrollContainer = scrollContainerRef?.current;
+    const tableHeader = tableHeaderRef?.current;
+    const tableFooter = tableFooterRef?.current;
+
+    // Need all refs to calculate boundaries correctly
+    if (scrollContainer && tableHeader && tableFooter) {
+        const containerRect = scrollContainer.getBoundingClientRect(); // Viewport rect of the scrollable area
+        const headerRect = tableHeader.getBoundingClientRect();     // Viewport rect of the sticky header
+        const footerRect = tableFooter.getBoundingClientRect();     // Viewport rect of the sticky footer
+        const mouseY = e.clientY;                                   // Mouse position relative to viewport
+        const edgeThreshold = edgeThresholdRef.current;
+
+        // --- Define trigger zones based on VISIBLE edges within the scroll container ---
+
+        // Top Zone: Below the header's bottom edge, within the threshold
+        const topEdgeZoneLimit = headerRect.bottom + edgeThreshold;
+        // Bottom Zone: Above the footer's top edge, within the threshold
+        const bottomEdgeZoneLimit = footerRect.top - edgeThreshold;
+
+
+        // --- Check if cursor is within the calculated trigger zones ---
+
+        // Check for UP scroll trigger:
+        // Mouse MUST be below the header bottom.
+        // Mouse MUST be within the threshold distance below the header bottom.
+        // Mouse MUST also be within the scroll container's visible top boundary (prevents triggering if header is scrolled way up)
+        if (mouseY > headerRect.bottom && mouseY < topEdgeZoneLimit && mouseY > containerRect.top) {
+            // Check if container can scroll up and we aren't already scrolling up
+            if (scrollContainer.scrollTop > 0 && scrollDirectionRef.current !== 'up') {
+                // console.log(`Scroll UP Trigger: mouseY=${mouseY.toFixed(0)}, headerBottom=${headerRect.bottom.toFixed(0)}, topZoneLimit=${topEdgeZoneLimit.toFixed(0)}`);
+                startAutoScroll('up');
+            } else if (scrollContainer.scrollTop <= 0) {
+                stopAutoScroll(); // Stop if we hit the top
+            }
+        }
+        // Check for DOWN scroll trigger:
+        // Mouse MUST be above the footer top.
+        // Mouse MUST be within the threshold distance above the footer top.
+        // Mouse MUST also be within the scroll container's visible bottom boundary (prevents triggering if footer is scrolled way down)
+        else if (mouseY < footerRect.top && mouseY > bottomEdgeZoneLimit && mouseY < containerRect.bottom) {
+            // Check if container can scroll down and we aren't already scrolling down
+            const canScrollDown = scrollContainer.scrollTop < scrollContainer.scrollHeight - scrollContainer.clientHeight;
+            if (canScrollDown && scrollDirectionRef.current !== 'down') {
+                // console.log(`Scroll DOWN Trigger: mouseY=${mouseY.toFixed(0)}, footerTop=${footerRect.top.toFixed(0)}, bottomZoneLimit=${bottomEdgeZoneLimit.toFixed(0)}`);
+                startAutoScroll('down');
+            } else if (!canScrollDown) {
+                 stopAutoScroll(); // Stop if we hit the bottom
+            }
+        }
+        // Cursor is not in a trigger zone
+        else {
+            stopAutoScroll();
+        }
+    } else {
+      // One or more refs are missing, stop scrolling
+      stopAutoScroll();
+    }
+
+    // --- Range selection update (only if mouse is down and start cell exists) ---
+    if (e.buttons === 1 && selectedStartCell) {
       updateRangeSelection(target);
     }
   };
