@@ -48,31 +48,10 @@ const ProjectButtons = ({
 
     // Get commands from store
     const storeCommands = useStoreContext((s) => s.commands);
-    const updateCommands = useStoreContext((s) => s.updateCommands);
 
     // Interface states and actions with granular access
     const { ui: interfaceUIState, uiActions: interfaceUIActions, dataActions: interfaceDataActions } = useInterface(interfaceId);
     const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabQueryParam || "");
-
-    const tabNames = interfaceDataActions?.getTabNames() || [];
-
-    // Update commands only once when component mounts
-    useEffect(() => {
-        if (storeCommands.length === 0) {
-            updateCommands(
-                serverProjectActions,
-                serverTabActions,
-                project,
-                tabNames,
-                setProject,
-                setTabQueryParam,
-                interfaceUIActions,
-                interfaceDataActions,
-                projects,
-                setProjects
-            );
-        }
-    }, [tabNames, project]); // Empty dependency array since we only want to run this once
 
     const onOpen = () => {
         setLoading(true);
@@ -94,7 +73,6 @@ const ProjectButtons = ({
     const setCreateProjectOpen = useStoreContext((s) => s.setCreateProjectOpen);
     const setDeleteProjectOpen = useStoreContext((s) => s.setDeleteProjectOpen);
 
-    // Set dropdown open when deleteProjectOpen is true
     useEffect(() => {
         if (selectProjectsOpen || createProjectOpen || deleteProjectOpen)
             setDropdownOpen(true);

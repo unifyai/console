@@ -1,14 +1,17 @@
 import { StateCreator } from "zustand";
-import { ProjectsActions, TabActions } from "@/types/evals/grid";
+import { ProjectsActions, TabActions, TabProps, TileProps } from "@/types/evals/grid";
 import { StoreSlice } from "./slice";
 import { defaultItems, defaultNewCounter } from "@/constants/logs";
 import { FileProps, ResponseProps } from "@/types/common";
+import { TabUIActions } from "../hooks/tab";
+import { InterfaceUIActions } from "../hooks/interface/useInterfaceUI";
+import { InterfaceDataActions } from "../hooks/interface/useInterfaceData";
 
 export interface Command {
     id: string;
     label: string;
     description?: string;
-    action: (name?: string | FileProps | undefined) => Promise<ResponseProps>;
+    action: (arg?: string | FileProps | TabProps | undefined | null, func?: () => void) => Promise<ResponseProps>;
     onAction?: () => Promise<void>;
     disabled: boolean;
     category: "project" | "interface";
@@ -27,12 +30,14 @@ export interface CommandsActions {
         tabActions: TabActions,
         project: string | null,
         tabNames: string[],
-        setProject: (project: string | null) => void,
-        setTab: (tab: string | null) => void,
-        interfaceUIActions: any,
-        interfaceDataActions: any,
         projects: string[],
-        setProjects: (projects: string[]) => void
+        setProject: (project: string | null) => void,
+        setTabQueryParam: (tab: string | null) => void,
+        interfaceUIActions: InterfaceUIActions,
+        interfaceDataActions: InterfaceDataActions,
+        tabUIActions: TabUIActions,
+        setProjects: (projects: string[]) => void,
+        updateTab: (savedTab?: TabProps | null, updatedTileProps?: TileProps[] | TileProps | null) => Promise<ResponseProps>,
     ) => void;
 }
 
@@ -50,12 +55,14 @@ export const createCommandsSlice: StateCreator<
         tabActions,
         project,
         tabNames,
+        projects,
         setProject,
         setTabQueryParam,
         interfaceUIActions,
         interfaceDataActions,
-        projects,
-        setProjects
+        tabUIActions,
+        setProjects,
+        updateTab,
     ) => {
         // Only update if the commands array is empty
         set((state) => {
@@ -138,6 +145,54 @@ export const createCommandsSlice: StateCreator<
                             disabled: !project,
                             category: "project",
                             icon: "Trash"
+                        },
+                        {
+                            id: "file-upload",
+                            label: "Upload files",
+                            action: () => {},
+                            disabled: !project,
+                            category: "interface",
+                            icon: "Upload"
+                        },
+                        {
+                            id: "focus-pane",
+                            label: "Open focus pane",
+                            action: () => {},
+                            disabled: !project || !tabNames.length,
+                            category: "interface",
+                            icon: "Focus"
+                        },
+                        {
+                            id: "global-context",
+                            label: "Edit global context",
+                            action: () => {},
+                            disabled: !project || !tabNames.length,
+                            category: "interface",
+                            icon: "FolderTree"
+                        },
+                        {
+                            id: "save-interface",
+                            label: "Save interface",
+                            action: () => {},
+                            disabled: !project || !tabNames.length,
+                            category: "interface",
+                            icon: "Save"
+                        },
+                        {
+                            id: "reset-interface",
+                            label: "Reset interface",
+                            action: (savedTab: TabProps | null, refresh: () => void) => {
+                                updateTab(savedTab).then(() => {
+                                    tabUIActions?.setResetting(true);
+                                    tabUIActions?.setEdit(true);
+                                    refresh();
+                                }).catch(error => {
+                                    console.error("Error updating interface:", error);
+                                });
+                            },
+                            disabled: !project || !tabNames.length,
+                            category: "interface",
+                            icon: "ListRestart"
                         }
                     ]
                 };

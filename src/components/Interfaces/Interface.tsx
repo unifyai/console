@@ -68,8 +68,6 @@ const Interface = ({
   const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabQueryParam || "", interfaceId);
 
   // Local UI state - only keeping what's absolutely necessary as local state
-  const [focusDialog, setFocusDialog] = useState(false);
-  const [saveDialog, setSaveDialog] = useState(false);
   const [editTile, setEditTile] = useState<string | undefined>();
   const [newCounter, setNewCounter] = useState(0);
 
@@ -92,9 +90,20 @@ const Interface = ({
   const updateCommands = useStoreContext((s) => s.updateCommands);
   const projects = useStoreContext((s) => s.projects);
   const setProjects = useStoreContext((s) => s.setProjects);
+  const selectProjectsOpen = useStoreContext((s) => s.selectProjectsOpen);
+  const createProjectOpen = useStoreContext((s) => s.createProjectOpen);
+  const deleteProjectOpen = useStoreContext((s) => s.deleteProjectOpen);
+  const fileUploadOpen = useStoreContext((s) => s.fileUploadOpen);
+  const focusPaneOpen = useStoreContext((s) => s.focusPaneOpen);
+  const globalContextOpen = useStoreContext((s) => s.globalContextOpen);
+  const saveInterfaceOpen = useStoreContext((s) => s.saveInterfaceOpen);
   const setSelectProjectsOpen = useStoreContext((s) => s.setSelectProjectsOpen);
   const setCreateProjectOpen = useStoreContext((s) => s.setCreateProjectOpen);
   const setDeleteProjectOpen = useStoreContext((s) => s.setDeleteProjectOpen);
+  const setFileUploadOpen = useStoreContext((s) => s.setFileUploadOpen);
+  const setFocusPaneOpen = useStoreContext((s) => s.setFocusPaneOpen);
+  const setGlobalContextOpen = useStoreContext((s) => s.setGlobalContextOpen);
+  const setSaveInterfaceOpen = useStoreContext((s) => s.setSaveInterfaceOpen);
 
   // Update commands only once when component mounts
   useEffect(() => {
@@ -104,15 +113,17 @@ const Interface = ({
         serverTabActions,
         projectQueryParam,
         tabNames,
+        projects,
         setProjectQueryParam,
         setTabQueryParam,
         interfaceUIActions,
         interfaceDataActions,
-        projects,
-        setProjects
+        tabUIActions,
+        setProjects,
+        updateTab
       );
     }
-  }, []); // Empty dependency array since we only want to run this once
+  }, [tabNames, projectQueryParam]); // Empty dependency array since we only want to run this once
 
   // update interface – preserves context functionality
   const updateTab = useCallback((savedTab: TabProps | null = null, updatedTileProps: TileProps[] | TileProps | null = null) => {
@@ -259,33 +270,46 @@ const Interface = ({
             tabActions={serverTabActions}
           />
 
-          <AutoComplete
-            type={"Actions"}
-            items={storeCommands.map((cmd: Command) => ({
-              label: cmd.label,
-              value: cmd.id,
-              icon: cmd.icon ? iconMap[cmd.icon] : undefined,
-              disabled: cmd.disabled
-            }))}
-            defaultValue={undefined}
-            isOpen={undefined}
-            onSelect={(currentValue: string) => {
-              const command = storeCommands.find((cmd: Command) => cmd.id === currentValue);
-              if (currentValue == "delete-project") {
-                setDeleteProjectOpen(true);
-              } else if (currentValue == "create-project") {
-                setCreateProjectOpen(true);
-              } else if (currentValue == "select-projects") {
-                setSelectProjectsOpen(true);
-              } else {
-                if (command && !command.disabled) {
-                  command.action();
+          <div className="flex flex-row gap-2 items-center">
+            <AutoComplete
+              type={"Actions"}
+              items={storeCommands.map((cmd: Command) => ({
+                label: cmd.label,
+                value: cmd.id,
+                icon: cmd.icon ? iconMap[cmd.icon] : undefined,
+                disabled: cmd.disabled
+              }))}
+              defaultValue={undefined}
+              isOpen={undefined}
+              onSelect={(currentValue: string) => {
+                const command = storeCommands.find((cmd: Command) => cmd.id === currentValue);
+                if (currentValue == "delete-project") {
+                  setDeleteProjectOpen(!deleteProjectOpen);
+                } else if (currentValue == "create-project") {
+                  setCreateProjectOpen(!createProjectOpen);
+                } else if (currentValue == "select-projects") {
+                  setSelectProjectsOpen(!selectProjectsOpen);
+                } else if (currentValue == "file-upload") {
+                  setFileUploadOpen(!fileUploadOpen);
+                } else if (currentValue == "focus-pane") {
+                  setFocusPaneOpen(!focusPaneOpen);
+                } else if (currentValue == "global-context") {
+                  setGlobalContextOpen(!globalContextOpen);
+                } else if (currentValue == "save-interface") {
+                  setSaveInterfaceOpen(!saveInterfaceOpen);
+                } else if (currentValue == "reset-interface") {
+                  command?.action(tabDataState?.savedTab, router.refresh);
+                } else {
+                  if (command && !command.disabled) {
+                    command.action();
+                  }
                 }
-              }
-            }}
-            onOpen={() => {}}
-            loading={false}
-          />
+              }}
+              onOpen={() => {}}
+              loading={false}
+            />
+            {tabUIState?.resetting && <Loader2 className="animate-spin" />}
+          </div>
 
           {/* Interface buttons */}
           <InterfaceButtons
@@ -294,8 +318,6 @@ const Interface = ({
             newCounter={newCounter}
             setNewCounter={setNewCounter}
             updateTab={updateTab}
-            setFocusDialog={setFocusDialog}
-            setSaveDialog={setSaveDialog}
             logsActions={logsActions}
             contextActions={contextActions}
           />
@@ -344,7 +366,6 @@ const Interface = ({
                     setEditTile={setEditTile}
                     updateTab={updateTab}
                     getLatestTab={getLatestTab}
-                    setFocusDialog={setFocusDialog}
                     logsActions={logsActions}
                     fieldsActions={fieldsActions}
                     derivedEntryActions={derivedEntryActions}
@@ -370,8 +391,8 @@ const Interface = ({
       </Tabs>
 
       {/* Focus Dialog */}
-      {focusDialog && (
-        <Dialog open={true} onOpenChange={() => setFocusDialog(false)}>
+      {focusPaneOpen && (
+        <Dialog open={true} onOpenChange={() => setFocusPaneOpen(false)}>
           <DialogContent className="min-w-full h-full overflow-y-auto">
             <Suspense fallback={<SkeletonLoader />}>
               <FocusDialog
@@ -379,7 +400,6 @@ const Interface = ({
                 interfaceId={interfaceId}
                 projectId={projectQueryParam || ""}
                 updateTab={updateTab}
-                setFocusDialog={setFocusDialog}
                 logsActions={logsActions}
                 fieldsActions={fieldsActions}
                 derivedEntryActions={derivedEntryActions}
@@ -404,8 +424,8 @@ const Interface = ({
       )}
 
       {/* Save Dialog */}
-      {saveDialog && (
-        <Dialog open={true} onOpenChange={() => setSaveDialog(false)}>
+      {saveInterfaceOpen && (
+        <Dialog open={true} onOpenChange={() => setSaveInterfaceOpen(false)}>
           <DialogContent className="w-1/4">
             <div className="mt-4 flex flex-col gap-4">
               <div>
@@ -446,7 +466,7 @@ const Interface = ({
                         } else {
                             tabUIActions?.setSaveSuccess(false);
                         }
-                        setSaveDialog(false);
+                        setSaveInterfaceOpen(false);
                         router.refresh();
                     }
                   }}

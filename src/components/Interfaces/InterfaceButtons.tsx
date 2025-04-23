@@ -16,7 +16,7 @@ import { FileUpload } from "./FileUpload";
 import AddTile from "./AddTile";
 import ContextSelector from "./Table/Content/ContextSelector";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
-import { SetStateAction, useMemo, useState } from "react";
+import { SetStateAction, useEffect, useMemo, useState } from "react";
 
 import { useTab } from "@/contexts/hooks/tab";
 import { useProject } from "@/contexts/hooks/project";
@@ -30,8 +30,6 @@ const InterfaceButtons = ({
     newCounter,
     setNewCounter,
     updateTab,
-    setFocusDialog,
-    setSaveDialog,
     logsActions,
     contextActions,
 }: {
@@ -40,8 +38,6 @@ const InterfaceButtons = ({
     newCounter: number,
     setNewCounter: (newCounter: number) => void,
     updateTab: (savedTab?: TabProps | null, updatedTileProps?: TileProps[] | TileProps | null) => Promise<ResponseProps>,
-    setFocusDialog: (value: SetStateAction<boolean>) => void,
-    setSaveDialog: (value: SetStateAction<boolean>) => void,
     logsActions: LogsActions,
     contextActions: ContextActions,
 }) => {
@@ -49,6 +45,7 @@ const InterfaceButtons = ({
     const [dropdownOpen, setDropdownOpen] = useState(false);
 
     // Get the project data and the contexts with granular access
+    const storeCommands = useStoreContext((s) => s.commands);
     const project = useStoreContext((state) => state.activeProjectId);
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
     const { data: projectDataState } = useProject(project);
@@ -137,6 +134,22 @@ const InterfaceButtons = ({
         }
     };
 
+    // action tab states
+    const fileUploadOpen = useStoreContext((s) => s.fileUploadOpen);
+    const globalContextOpen = useStoreContext((s) => s.globalContextOpen);
+    const setFileUploadOpen = useStoreContext((s) => s.setFileUploadOpen);
+    const setFocusPaneOpen = useStoreContext((s) => s.setFocusPaneOpen);
+    const setGlobalContextOpen = useStoreContext((s) => s.setGlobalContextOpen);
+    const setSaveInterfaceOpen = useStoreContext((s) => s.setSaveInterfaceOpen);
+    const resetInterfaceCommand = storeCommands.find(cmd => cmd.id === "reset-interface");
+
+    useEffect(() => {
+        if (fileUploadOpen || globalContextOpen)
+            setDropdownOpen(true);
+        else
+            setDropdownOpen(false);
+    }, [fileUploadOpen, globalContextOpen]);
+
     return (
         <div className="flex items-center gap-2 px-4">
             <BaseDropdown
@@ -158,6 +171,8 @@ const InterfaceButtons = ({
                             contexts={contexts}
                             logsActions={logsActions}
                             project={project}
+                            customOpen={fileUploadOpen}
+                            setCustomOpen={setFileUploadOpen}
                         />
                     </div>
 
@@ -170,7 +185,7 @@ const InterfaceButtons = ({
                             icon={<FocusIcon />}
                             variant="ghost"
                             disabled={!project || !tabQueryParam || interfaceUIState?.pending}
-                            onClick={() => setFocusDialog(true)}
+                            onClick={() => setFocusPaneOpen(true)}
                         />
                     </div>
 
@@ -183,6 +198,8 @@ const InterfaceButtons = ({
                             context={tabDataState?.globalContext}
                             contexts={contexts}
                             setContext={handleContextChange}
+                            customOpen={globalContextOpen}
+                            setCustomOpen={setGlobalContextOpen}
                             logsActions={logsActions}
                             contextActions={contextActions}
                             refresh={() => updateTab()}
@@ -199,7 +216,7 @@ const InterfaceButtons = ({
                             icon={saveIcon}
                             variant={variant}
                             disabled={!project || !tabQueryParam || interfaceUIState?.pending}
-                            onClick={async () => setSaveDialog(true)}
+                            onClick={async () => setSaveInterfaceOpen(true)}
                         />
                     </div>
 
@@ -212,15 +229,7 @@ const InterfaceButtons = ({
                             icon={resetIcon}
                             variant="ghost"
                             disabled={!project || interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading}
-                            onClick={() => {
-                                updateTab(tabDataState?.savedTab).then(() => {
-                                    tabUIActions?.setResetting(true);
-                                    tabUIActions?.setEdit(true);
-                                    router.refresh();
-                                }).catch(error => {
-                                    console.error("Error updating interface:", error);
-                                });
-                            }}
+                            onClick={() => resetInterfaceCommand?.action(tabDataState?.savedTab, router.refresh)}
                         />
                     </div>
 

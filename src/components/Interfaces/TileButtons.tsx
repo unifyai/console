@@ -16,7 +16,7 @@ import { Context } from "@/types/evals/grid";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 
-const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, logsActions, contextActions, updateTab, setFocusDialog, setEditTile, setNewCounter, tileCount, buttonsRef}: {
+const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, logsActions, contextActions, updateTab, setEditTile, setNewCounter, tileCount, buttonsRef}: {
     item: TileProps;
     tileId: string;
     tabId: string;
@@ -24,7 +24,6 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
     projectId:string;
     contexts: Context[],
     setNewCounter: (newCounter: number) => void;
-    setFocusDialog: (focusDialog: boolean) => void;
     setEditTile: (editTile: string | undefined) => void;
     updateTab: (savedTab?: any, updatedItem?: any) => Promise<ResponseProps>;
     logsActions: LogsActions;
@@ -39,6 +38,7 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
     const {ui: interfaceUIState, uiActions: interfaceUIActions} = useInterfaceUI(interfaceId);
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
     const disabled = interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading;
+    const setFocusPaneOpen = useStoreContext((s) => s.setFocusPaneOpen);
 
     return (
         <div ref={buttonsRef} className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (tabUIState?.edit ? "h-16" : "h-10")}>
@@ -109,7 +109,7 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
                         if (!focusedTileNames.includes(item.i)) {
                             tabUIActions?.setFocusedTileNames([item.i, focusedTileNames[0] || focusedTileNames[1]] as [string | undefined, string | undefined]);
                         }
-                        setFocusDialog(true);
+                        setFocusPaneOpen(true);
                     }}
                     icon={<Maximize2 />}
                     tooltip="Open in focus pane"

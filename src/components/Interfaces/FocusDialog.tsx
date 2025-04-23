@@ -12,6 +12,7 @@ import { Plus, X } from "lucide-react";
 import { icons } from "@/constants/logs";
 import TileCard from "./TileCard";
 import { useTab } from "@/contexts/hooks/tab";
+import { useStoreContext } from "@/contexts/providers/StoreProvider";
 
 const FocusDialog = ({
     interfaceId,
@@ -23,7 +24,6 @@ const FocusDialog = ({
     derivedEntryActions,
     contextActions,
     codeActions,
-    setFocusDialog,
 }: {
     interfaceId: string;
     projectId: string;
@@ -34,9 +34,9 @@ const FocusDialog = ({
     contextActions: ContextActions,
     codeActions: CodeActions,
     updateTab: (savedTab?: any, updatedTileProps?: any) => Promise<ResponseProps>;
-    setFocusDialog: Dispatch<SetStateAction<boolean>>,
 }) => {
     const { ui: tabUIState, uiActions: tabUIActions, dataActions: tabDataActions } = useTab(tabId, interfaceId);
+    const setFocusPaneOpen = useStoreContext((s) => s.setFocusPaneOpen);
 
     // Get tile props using the getItems function from the tabActions
     const tileProps = useMemo(() => {
@@ -86,7 +86,7 @@ const FocusDialog = ({
                                     newFocusedTileNames[idx] = undefined;
                                     tabUIActions?.setFocusedTileNames(newFocusedTileNames as [string | undefined, string | undefined]);
                                     if (newFocusedTileNames[0] == undefined && newFocusedTileNames[1] == undefined)
-                                        setFocusDialog(false);
+                                        setFocusPaneOpen(false);
                                 }}
                                 icon={<X />}
                                 tooltip="Remove from focus pane"

@@ -21,7 +21,6 @@ interface TabComponentProps {
   tabId: string;
   projectId: string;
   setNewCounter: (newCounter: number) => void;
-  setFocusDialog: (focusDialog: boolean) => void;
   setEditTile: (editTile: string | undefined) => void;
   updateTab: (savedTab?: any, updatedItem?: any) => Promise<ResponseProps>;
   getLatestTab: () => void;
@@ -37,7 +36,6 @@ const Tab = ({
   tabId,
   projectId,
   setNewCounter,
-  setFocusDialog,
   setEditTile,
   updateTab,
   getLatestTab,
@@ -238,7 +236,6 @@ const Tab = ({
                       projectId={projectId}
                       contexts={contexts}
                       setNewCounter={setNewCounter}
-                      setFocusDialog={setFocusDialog}
                       setEditTile={setEditTile}
                       updateTab={updateTab}
                       logsActions={logsActions}
