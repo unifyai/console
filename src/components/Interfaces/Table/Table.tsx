@@ -681,7 +681,7 @@ const LogsTable = ({
   // Handle cell deselection from clicks
   const containerRef = useRef<HTMLDivElement>(null); 
   const onContainerClick = (event: React.MouseEvent<HTMLElement, MouseEvent>) => {
-    if (tableTileActions) deselectFromClickOutside(event, containerRef, selectedCells, tableTileActions.setSelected, ["LogsTablePreferences"])
+    if (tableTileActions) deselectFromClickOutside(event, containerRef, selectedCells, tableTileActions.setSelected, ["LogsTable", "LogsTablePreferences"])
   }
 
   //Ref for auto scroll
