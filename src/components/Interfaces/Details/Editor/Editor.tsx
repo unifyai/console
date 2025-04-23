@@ -12,7 +12,7 @@ import { CodeActions } from "@/types/evals/grid";
 import { useTab, useTabData } from "@/contexts/hooks/tab";
 import { useTiles } from "@/contexts/hooks";
 import Tooltip from "@/components/Common/Misc/Tooltip";
-import { TooltipProvider } from "@/components/UI/tooltip";
+
 
 const Editor = ({
     tileId,
@@ -63,33 +63,29 @@ const Editor = ({
     return (
         <div className="w-full h-full flex flex-col">
             <div className="flex flex-row items-center ml-4 text-sm gap-1">
-                <TooltipProvider delayDuration={0}>
-                    <Tooltip content="File Name" side="top">
-                        <Input
-                            value={tempFileName}
-                        onChange={(e) => {
-                            setTempFileName(e.target.value);
-                            editorTileActions?.setFileName(e.target.value)
-                        }}
-                        placeholder="File Name"
-                        className="text-sm w-24"
-                        />
-                    </Tooltip>
-                </TooltipProvider>
+                <Tooltip content="File Name" side="top">
+                    <Input
+                        value={tempFileName}
+                    onChange={(e) => {
+                        setTempFileName(e.target.value);
+                        editorTileActions?.setFileName(e.target.value)
+                    }}
+                    placeholder="File Name"
+                    className="text-sm w-24"
+                    />
+                </Tooltip>
                 .
-                <TooltipProvider delayDuration={0}>
-                    <Tooltip content="File Type" side="top">
-                        <Input
-                            value={tempFileType}
-                        onChange={(e) => {
-                            setTempFileType(e.target.value);
-                            editorTileActions?.setFileType(e.target.value);
-                        }}
-                        placeholder="File Type"
-                        className="text-sm w-24"
-                        />
-                    </Tooltip>
-                </TooltipProvider>
+                <Tooltip content="File Type" side="top">
+                    <Input
+                        value={tempFileType}
+                    onChange={(e) => {
+                        setTempFileType(e.target.value);
+                        editorTileActions?.setFileType(e.target.value);
+                    }}
+                    placeholder="File Type"
+                    className="text-sm w-24"
+                    />
+                </Tooltip>
                 {saved && <div className="text-primary text-sm font-semibold">File saved!</div>}
             </div>
             <CodeBlock
