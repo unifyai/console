@@ -27,7 +27,7 @@ const CodeBlock = ({
     language: string | undefined;
     demoLink?: string;
     pending: boolean;
-    complete: boolean;
+    complete?: boolean;
     create: string | null;
     disabled: boolean;
     readOnly?: boolean;
