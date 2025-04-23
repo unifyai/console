@@ -18,18 +18,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="h-screen w-screen">
-      <Suspense fallback={<LoadingScreen/>}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <Providers>
             <ThemeLoader>
               <NavMenu/>
+              <Suspense fallback={<LoadingScreen/>}>
                 <main className="overflow-hidden relative container min-h-full h-full max-w-full w-full flex flex-row bg-background">
-                    <NuqsAdapter>{children}</NuqsAdapter>
+                  <NuqsAdapter>{children}</NuqsAdapter>
                 </main>
-              </ThemeLoader>
-            </Providers>
-          </ThemeProvider>
-        </Suspense>
+              </Suspense>
+            </ThemeLoader>
+          </Providers>
+        </ThemeProvider>
       </body>
     </html>
   );
