@@ -82,7 +82,10 @@ const CodeBlock = ({
                         top: 24,
                         bottom: 24,
                     },
-                    fontSize: !readOnly ? 14 : undefined
+                    fontSize: !readOnly ? 14 : undefined,
+                    scrollbar: {
+                        alwaysConsumeMouseWheel: false
+                    }
                 }}
                 theme="vs-dark"
                 language={language}
@@ -102,7 +105,10 @@ const CodeBlock = ({
                             top: 24,
                             bottom: 24,
                         },
-                        fontSize: !readOnly ? 14 : undefined
+                        fontSize: !readOnly ? 14 : undefined,
+                        scrollbar: {
+                            alwaysConsumeMouseWheel: false
+                        }
                     }}
                     theme="vs-dark"
                     language={language}
@@ -132,6 +138,7 @@ const CodeBlock = ({
                                 overviewRulerBorder: false,
                                 overviewRulerLanes: 0,
                                 scrollbar: {
+                                    alwaysConsumeMouseWheel: false,
                                     vertical: "hidden",
                                     horizontal: "hidden",
                                     useShadows: false,
