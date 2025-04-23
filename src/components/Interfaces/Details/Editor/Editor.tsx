@@ -51,7 +51,7 @@ const Editor = ({
     }, [saved]);
 
     useEffect(() => {
-        if (!pending)
+        if (!pending && output !== "")
             setComplete(true);
     }, [pending]);
 
