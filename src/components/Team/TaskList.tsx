@@ -3,8 +3,8 @@ import { Input } from "@/components/UI/input";
 import { ScrollArea } from "@/components/UI/scroll-area";
 import { Filter, Search, MoreVertical, Copy, Users, Calendar, EllipsisVertical
 } from "lucide-react";
-import type { Assistant } from "@/types/team/assistant";
-import type { Task } from "@/types/team/task";
+import type { Assistant } from "@/types/assistants/assistant";
+import type { Task } from "@/types/assistants/task";
 import { TaskListItem } from "./TaskListItem";
 import ActionButton from '../Common/Buttons/Action';
 import {

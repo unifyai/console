@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { Badge } from "@/components/UI/badge";
 import { Trash2, Save, Undo2, Calendar } from "lucide-react";
-import type { Task } from "@/types/team/task";
-import type { Assistant } from "@/types/team/assistant"; // Import Assistant type
+import type { Task } from "@/types/assistants/task";
+import type { Assistant } from "@/types/assistants/assistant"; // Import Assistant type
 import ActionButton from '../Common/Buttons/Action';
 import { Textarea } from "@/components/UI/textarea";
 import { cn } from '@/lib/utils';

@@ -16,7 +16,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/UI/popover";
-import type { Assistant } from "@/types/team/assistant";
+import type { Assistant } from "@/types/assistants/assistant";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
 
 interface TaskAssignedFilterProps {

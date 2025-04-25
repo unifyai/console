@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Input } from "@/components/UI/input";
 import { ScrollArea } from "@/components/UI/scroll-area";
 import { Search } from "lucide-react";
-import type { Assistant } from "@/types/team/assistant";
+import type { Assistant } from "@/types/assistants/assistant";
 import { AssistantListItem } from "./AssistantListItem";
 import { ChatOverlay } from "./ChatOverlay";
 

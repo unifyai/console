@@ -5,7 +5,7 @@ import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { Separator } from "@/components/UI/separator";
 import { Mail, Phone, Linkedin, Save, Undo2, X } from "lucide-react"; // Keep X for close
-import type { Assistant } from '@/types/team/assistant';
+import type { Assistant } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
 import ActionButton from '../Common/Buttons/Action';
 import { ScrollArea } from '@/components/UI/scroll-area';

@@ -4,7 +4,7 @@ import { Button } from "@/components/UI/button";
 import { Input } from "@/components/UI/input";
 import { ScrollArea } from "@/components/UI/scroll-area";
 import { Send, Mic, Bot, X } from "lucide-react";
-import type { Assistant } from "@/types/team/assistant";
+import type { Assistant } from "@/types/assistants/assistant";
 import { faker } from '@faker-js/faker';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import ActionButton from '../Common/Buttons/Action';

@@ -4,8 +4,8 @@ import * as React from 'react';
 import { AssistantList } from "@/components/Team/AssistantList";
 import { TaskList } from "@/components/Team/TaskList";
 import { cn } from '@/lib/utils';
-import { Assistant } from "@/types/team/assistant";
-import { Task, TaskStatus } from '@/types/team/task';
+import { Assistant } from "@/types/assistants/assistant";
+import { Task, TaskStatus } from '@/types/assistants/task';
 import { faker } from '@faker-js/faker';
 import { AssistantProfilePanel } from './AssistantProfilePanel'; // Import Profile Panel
 import { AnimatePresence, motion } from 'framer-motion'; // Import motion
