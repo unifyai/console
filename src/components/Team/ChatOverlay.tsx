@@ -35,7 +35,7 @@ export function ChatOverlay({ isOpen, assistant, onClose }: ChatOverlayProps) {
     React.useEffect(() => {
         if (isOpen && assistant) {
             setMessages([
-                { id: faker.string.uuid(), sender: 'assistant', text: `Hi! How can I help you today regarding ${assistant.name}?`, timestamp: new Date() },
+                { id: faker.string.uuid(), sender: 'assistant', text: `Hi! How can I help you today?`, timestamp: new Date() },
             ]);
             // Focus input after a short delay to allow animation
             setTimeout(() => inputRef.current?.focus(), 300);
@@ -93,10 +93,10 @@ export function ChatOverlay({ isOpen, assistant, onClose }: ChatOverlayProps) {
                     {/* Header */}
                     <div className="p-3 border-b flex items-center flex-shrink-0">
                         <Avatar className="h-7 w-7 mr-2">
-                            <AvatarImage src={assistant.avatarUrl} alt={assistant.name} />
-                            <AvatarFallback>{assistant.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                            <AvatarImage src={assistant.avatarUrl} alt={`${assistant.firstName} ${assistant.lastName}`} />
+                            <AvatarFallback>{`${assistant.firstName} ${assistant.lastName}`.substring(0, 2).toUpperCase()}</AvatarFallback>
                         </Avatar>
-                        <h3 className="text-sm font-semibold">Chat with {assistant.name}</h3>
+                        <h3 className="text-sm font-semibold">Chat with {`${assistant.firstName} ${assistant.lastName}`}</h3>
                         <div className='ml-auto flex items-center'>
                             <ActionButton
                                 tooltip={isVoiceMode ? "Switch to text input" : "Switch to voice input"}
@@ -121,7 +121,7 @@ export function ChatOverlay({ isOpen, assistant, onClose }: ChatOverlayProps) {
                                 }>
                                     {message.sender === 'assistant' && (
                                         <Avatar className="h-6 w-6">
-                                            <AvatarImage src={assistant.avatarUrl} alt={assistant.name} />
+                                            <AvatarImage src={assistant.avatarUrl} alt={`${assistant.firstName} ${assistant.lastName}`} />
                                             <AvatarFallback><Bot className='h-4 w-4'/></AvatarFallback>
                                         </Avatar>
                                     )}

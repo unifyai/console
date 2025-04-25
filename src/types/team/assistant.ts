@@ -1,10 +1,15 @@
-import { Task } from "./task";
-
+// src/types/team/assistant.ts
 export interface Assistant {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string;
   avatarUrl: string;
-  tasks: Task[];
+  // Profile fields
+  age: number | null;
+  region: string | null;
+  about: string;
+  skills: string;
+  linkedinUrl?: string;
 }

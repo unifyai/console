@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { Badge } from "@/components/UI/badge";
-import { Trash2, Save, Undo2 } from "lucide-react";
+import { Trash2, Save, Undo2, Calendar } from "lucide-react";
 import type { Task } from "@/types/team/task";
+import type { Assistant } from "@/types/team/assistant"; // Import Assistant type
 import ActionButton from '../Common/Buttons/Action';
 import { Textarea } from "@/components/UI/textarea";
 import { cn } from '@/lib/utils';
@@ -10,18 +11,26 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from "@/components/UI/accordion";
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar'; // Import Avatar
+import { format } from 'date-fns'; // For formatting date
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/UI/tooltip" // Import Tooltip
+
 
 interface TaskListItemProps {
     task: Task;
+    allAssistants: Assistant[]; // Receive all assistants for lookup
 }
 
-export function TaskListItem({ task }: TaskListItemProps) {
+export function TaskListItem({ task, allAssistants }: TaskListItemProps) {
+
     const [description, setDescription] = React.useState(task.description);
     const [isEditing, setIsEditing] = React.useState(false);
     const originalDescription = React.useRef(task.description);
-
-    // Keep track if the accordion item is open to focus textarea
-    const [isOpen, setIsOpen] = React.useState(false);
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
     React.useEffect(() => {
@@ -30,27 +39,14 @@ export function TaskListItem({ task }: TaskListItemProps) {
         setIsEditing(false);
     }, [task]);
 
-    // Focus textarea when accordion opens (if not already focused)
-    React.useEffect(() => {
-        if (isOpen && !isEditing && textareaRef.current) {
-             // Small delay might be needed for transition
-             // setTimeout(() => textareaRef.current?.focus(), 50);
-        }
-         // Reset editing state if accordion closes
-        if (!isOpen) {
-            handleDiscardChanges(); // Revert changes if closing without saving
-        }
-    }, [isOpen]);
-
-
     const getStatusVariant = (status: Task["status"]): "default" | "secondary" | "outline" | "destructive" => {
         switch (status) {
-            case "Completed": return "default";
-            case "In Progress": return "secondary";
-            case "Recurring": return "outline";
-            case "Queued": return "secondary";
-            default: return "secondary";
-        }
+           case "Completed": return "default";
+           case "In Progress": return "secondary";
+           case "Recurring": return "outline";
+           case "Queued": return "secondary";
+           default: return "secondary";
+       }
     };
 
     const handleDeleteClick = (e: React.MouseEvent) => {
@@ -85,47 +81,93 @@ export function TaskListItem({ task }: TaskListItemProps) {
        e.stopPropagation();
     }
 
+    const getAssistantById = (id: string): Assistant | undefined => {
+        return allAssistants.find(a => a.id === id);
+    }
+
     return (
-        <AccordionItem value={task.id} className="border-b">
+        <AccordionItem value={task.id} className="border-b group px-2"> {/* Added group */}
             <AccordionTrigger
                 className={cn(
-                    "p-3 hover:bg-muted/50 hover:no-underline group",
+                    "hover:bg-muted/50 hover:no-underline text-left", // Added text-left for trigger overall
+                    "p-0",
                     "[&>svg]:hidden"
                 )}
-                onChange={(state) => setIsOpen(state.currentTarget.value === 'open')}                 
             >
-                 {/* Top Row: Title, Status, Actions */}
-                 <div className="flex items-center justify-between w-full gap-4">
-                     {/* Left: Title + Chevron (optional) */}
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {/* Option 2: Add Chevron manually if default is hidden */}
-                        {/* <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform duration-200", isOpen && "rotate-180")} /> */}
-                        <span className="font-medium text-sm truncate">{task.title}</span>
+                {/* Use Grid for layout - Define columns here */}
+                <div className={cn(
+                     "grid w-full items-center gap-x-4 px-3 py-3",
+                     // Define column templates. Adjust widths as needed.
+                     // Example: Title (flexible), Status(auto), Assigned(fixed?), DueDate(auto), Actions(fixed)
+                     "grid-cols-[minmax(0,_1fr)_auto_100px_100px_auto]" // Adjust px values for Assigned/Due
+                 )}>
+                    {/* Column 1: Task Title */}
+                    <div className="min-w-0 overflow-hidden">
+                        <span className="font-medium text-sm break-words truncate">
+                            {task.title}
+                        </span>
                     </div>
 
-                    {/* Middle: Status */}
-                    <div className="flex-shrink-0 mx-4"> {/* Add margin */}
-                        <Badge variant={getStatusVariant(task.status)}>
+                    {/* Column 2: Status */}
+                    {/* Width 'auto', content centered */}
+                    <div className="text-center">
+                        <Badge variant={getStatusVariant(task.status)} className="whitespace-nowrap">
                             {task.status}
                         </Badge>
                     </div>
 
-                    {/* Right: Delete Action Button */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                         <ActionButton
-                            tooltip="Delete task"
-                            icon={<Trash2 className="h-4 w-4" />}
-                            onClick={handleDeleteClick}
-                            size="sm"
-                            variant="warning"
-                        />
+                    {/* Column 3: Assigned Avatars */}
+                    {/* Width set by grid-cols, content centered */}
+                    <div className="flex items-center justify-center -space-x-2 overflow-hidden">
+                         {task.assignedAssistantIds.length > 0 ? (
+                            <TooltipProvider delayDuration={100}>
+                                {task.assignedAssistantIds.slice(0, 3).map(id => { // Reduced max visible avatars slightly
+                                    const assistant = getAssistantById(id);
+                                    const name = assistant ? `${assistant.firstName} ${assistant.lastName}` : 'Unknown';
+                                    const fallback = assistant ? `${assistant.firstName?.[0] ?? ''}${assistant.lastName?.[0] ?? ''}`.toUpperCase() : '??';
+                                    return (
+                                         <Tooltip key={id}>
+                                            <TooltipTrigger asChild>
+                                                <Avatar className="h-6 w-6 border-2 border-background cursor-default">
+                                                    <AvatarImage src={assistant?.avatarUrl} alt={name} />
+                                                    <AvatarFallback className="text-xs">{fallback}</AvatarFallback>
+                                                </Avatar>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{name}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    );
+                                })}
+                                {task.assignedAssistantIds.length > 3 && (
+                                     <Avatar className="h-6 w-6 border-2 border-background bg-muted text-muted-foreground">
+                                         <AvatarFallback className="text-xs">+{task.assignedAssistantIds.length - 3}</AvatarFallback>
+                                     </Avatar>
+                                )}
+                             </TooltipProvider>
+                         ) : (
+                             <span className="text-xs text-muted-foreground">Unassigned</span>
+                         )}
                     </div>
+
+                    {/* Column 4: Due Date */}
+                    {/* Width set by grid-cols, content right-aligned */}
+                    <div className="text-right text-xs text-muted-foreground whitespace-nowrap">
+                         {task.dueDate ? (
+                             <span className="flex items-center justify-end gap-1">
+                                 <Calendar className="h-3 w-3 flex-shrink-0" />
+                                 {format(task.dueDate, 'MM/dd/yyyy')}
+                             </span>
+                         ) : (
+                             <span>-</span>
+                         )}
+                     </div>
+
                 </div>
             </AccordionTrigger>
-            <AccordionContent className="p-4 pt-0"> {/* Padding adjusted */}
-                {/* Relative container for positioning buttons */}
-                <div className='relative'>
-                     <Textarea
+            <AccordionContent className="p-4 pt-0 bg-muted/10"> {/* Subtle background */}
+                 <div className='relative'>
+                 <Textarea
                         ref={textareaRef}
                         value={description}
                         onChange={handleDescriptionChange}
@@ -137,9 +179,8 @@ export function TaskListItem({ task }: TaskListItemProps) {
                         )}
                         rows={3}
                     />
-                    {/* Save/Discard Buttons - Positioned within the content area */}
                     {isEditing && (
-                         <div className="flex justify-end gap-2 mt-2 pr-1">
+                        <div className="flex justify-end gap-2 mt-2 pr-1">
                             <ActionButton
                                 tooltip="Save Changes"
                                 icon={<Save className="h-4 w-4 text-green-600" />}
