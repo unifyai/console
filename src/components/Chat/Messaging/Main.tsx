@@ -555,10 +555,10 @@ const Messaging = ({
               />
               <span className="sr-only">Send message</span>
             </Button>
-            <Button
+            {/* <Button
               onClick={handleTwilioVoice}>
               <Phone className="h-4 w-4" />
-            </Button>
+            </Button> */}
           </form>
         </div>
       </div>
