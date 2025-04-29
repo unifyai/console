@@ -101,7 +101,7 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
       model: this.modelId,
 
       // model specific settings:
-      safe_prompt: {}, //this.settings.safePrompt,
+      // safe_prompt: {}, //this.settings.safePrompt,
 
       // standardized settings:
       max_tokens: maxTokens,
