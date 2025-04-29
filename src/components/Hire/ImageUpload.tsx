@@ -13,6 +13,7 @@ interface ImageUploadProps {
   onRemove: () => void; // Added callback for removal
   className?: string;
   avatarClassName?: string;
+  disabled?: boolean; // Add disabled prop
 }
 
 export function ImageUpload({
@@ -21,65 +22,63 @@ export function ImageUpload({
   onFileChange,
   onRemove, // Destructure new prop
   className,
-  avatarClassName
+  avatarClassName,
+  disabled = false, // Default to false
 }: ImageUploadProps) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isHovering, setIsHovering] = React.useState(false);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (disabled) return; // Prevent change if disabled
     const file = event.target.files?.[0] ?? null;
     onFileChange(file);
   };
 
-  // This specifically triggers the file input
   const handleUploadClick = () => {
+    if (disabled) return; // Prevent click if disabled
     fileInputRef.current?.click();
   };
 
-  // This handles clicking on the avatar itself (for removal)
   const handleAvatarClick = () => {
+    if (disabled) return; // Prevent click if disabled
     if (previewUrl) {
-      onRemove(); // Call the remove callback if an image exists
-      // Reset the file input value in case the user wants to upload the same file again
+      onRemove();
       if (fileInputRef.current) {
           fileInputRef.current.value = "";
       }
-    } else {
-      // Optionally, trigger upload if clicking the placeholder
-      // handleUploadClick();
     }
   };
 
   return (
     <div className={cn("flex flex-col items-center gap-3", className)}>
-      {/* Added relative positioning and hover handlers */}
       <div
-        className="relative group" // Use group for hover state propagation
-        onMouseEnter={() => setIsHovering(true)}
+        className="relative group"
+        onMouseEnter={() => !disabled && setIsHovering(true)} // Disable hover effect if disabled
         onMouseLeave={() => setIsHovering(false)}
       >
         <Avatar
           className={cn(
             "h-24 w-24 sm:h-28 sm:w-28 border transition-opacity",
-             // Make avatar clickable only for removal, not file dialog trigger
-             previewUrl ? "cursor-pointer" : "cursor-default",
+             previewUrl && !disabled ? "cursor-pointer" : "cursor-default", // Only clickable if preview exists and not disabled
+             disabled && "opacity-50", // Dim if disabled
              avatarClassName
           )}
-          onClick={handleAvatarClick} // Use specific handler for avatar click
+          onClick={handleAvatarClick}
         >
-          {previewUrl && <AvatarImage src={previewUrl} alt="Avatar Preview" />}
+          {/* ... AvatarImage, AvatarFallback ... */}
+           {previewUrl && <AvatarImage src={previewUrl} alt="Avatar Preview" />}
           <AvatarFallback className="text-muted-foreground bg-muted flex items-center justify-center">
             {!previewUrl && fallbackText}
           </AvatarFallback>
         </Avatar>
 
-        {/* Overlay with Trash Icon - shows only on hover when previewUrl exists */}
-        {previewUrl && (
+        {/* Overlay shows only on hover when previewUrl exists AND not disabled */}
+        {previewUrl && !disabled && (
           <div
-            onClick={handleAvatarClick} // Also trigger remove on overlay click
+            onClick={handleAvatarClick}
             className={cn(
-              "absolute inset-0 bg-black/50 flex items-center justify-center rounded-full", // Match Avatar shape
-              "opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" // Show on hover
+              "absolute inset-0 bg-black/50 flex items-center justify-center rounded-full",
+              "opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
             )}
           >
             <Trash2 className="h-6 w-6 text-white" />
@@ -93,13 +92,14 @@ export function ImageUpload({
         onChange={handleFileChange}
         accept="image/png, image/jpeg, image/webp"
         className="hidden"
+        disabled={disabled} // Disable file input
       />
-      {/* Button now *only* triggers file input */}
       <Button
         type="button"
         variant="outline"
         size="sm"
         onClick={handleUploadClick}
+        disabled={disabled} // Disable button
       >
         <Upload className="mr-2 h-4 w-4" />
         Upload Photo
