@@ -273,7 +273,7 @@ const Messaging = ({
   // Phone Handler
   const [device, setDevice] = useState<Device | null>(null);
   const setupTwilioDevice = async () => {
-    const res = await fetch('/api/phone/token');
+    const res = await fetch(`${process.env.NEXTAUTH_URL}/api/phone/token`);
     const { token } = await res.json();
 
     const twilioDevice = new Device(token);
