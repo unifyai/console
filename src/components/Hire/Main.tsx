@@ -8,43 +8,58 @@ import { PresetsPanel } from './PresetsPanel';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from '@/components/UI/button';
 import { LayoutList } from 'lucide-react';
+import assistantPresets from "@/constants/assistants/assistant_presets";
 
-/* Placeholder data */
-import { faker } from '@faker-js/faker';
-
-
-export function createRandomHirePreset(): HirePreset {
-    const firstName = faker.person.firstName();
-    const lastName = faker.person.lastName();
-    return {
-        id: faker.string.uuid(),
-        firstName: firstName,
-        lastName: lastName,
-        age: faker.number.int({ min: 22, max: 55 }),
-        region: faker.location.countryCode('alpha-2'),
-        about: `I am a dedicated and results-driven professional with over ${faker.number.int({min: 3, max: 10})} years of experience in fast-paced environments. ` + faker.lorem.paragraph(),
-        avatarUrl: faker.image.avatarGitHub(), // Using github avatars for presets
-    };
-}
-
-export function generateHirePresets(count: number = 10): HirePreset[] {
-    return faker.helpers.multiple(createRandomHirePreset, { count });
-}
-
-const hirePresets = generateHirePresets(12);
-/* End placeholder data */
-
+// Helper function to shuffle an array (Fisher-Yates algorithm)
+const shuffleArray = <T,>(array: T[]): T[] => {
+    const shuffled = [...array]; // Create a copy to avoid mutating the original
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+};
 
 export default function Main() {
   const [isPresetsOpen, setIsPresetsOpen] = React.useState(true); // State for animation trigger
+  const [sampledPresets, setSampledPresets] = React.useState<HirePreset[]>([]);
 
-  const formMethods = useForm<PersonaFormData>({ defaultValues: { /* ... */ } });
-  const { setValue, watch } = formMethods;
+  const formMethods = useForm<PersonaFormData>({ defaultValues: { /* Initialize defaults if any */ } });
+  const { setValue, watch, reset } = formMethods; // Added reset
+
+  // Sample presets on component mount
+  React.useEffect(() => {
+    const shuffled = shuffleArray(assistantPresets as HirePreset[]);
+    setSampledPresets(shuffled.slice(0, 10));
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   // Clean up preview URL effect
-  React.useEffect(() => { /* ... */ }, [watch]);
+  React.useEffect(() => {
+    const subscription = watch((value, { name }) => {
+      // Clean up old blob URL if avatarFile changes and preview exists
+      if (name === 'avatarFile' && value.avatarPreview?.startsWith('blob:')) {
+        // This cleanup logic seems redundant with handleImageRemove and handleFileChange
+        // Keep an eye if issues arise, might need refinement.
+      }
+    });
+    // Cleanup function for the watcher
+    return () => subscription.unsubscribe();
+  }, [watch]);
 
-  const handleFormSubmit = (data: PersonaFormData) => { /* ... */ };
+
+  const handleFormSubmit = (data: PersonaFormData) => {
+      console.log("Hiring Assistant with data:", data);
+      // TODO: Implement actual API call using createAssistant action
+      // 1. Handle image upload (if data.avatarFile exists) to get a URL
+      // 2. Call createAssistant action with the form data and image URL
+      // 3. Handle response (success/error), maybe show toast notification
+      // 4. Potentially reset form or navigate away on success
+      alert(`Hiring ${data.firstName} (implementation pending)`);
+      // Example reset after submission:
+      // reset({ // Reset form to initial state or specific values
+      //   firstName: '', lastName: '', age: '', region: '', about: '', avatarFile: null, avatarPreview: null
+      // });
+  };
 
   // Toggles the preset panel state
   const handleTogglePresets = () => {
@@ -57,16 +72,14 @@ export default function Main() {
   }
 
   const handlePresetSelect = (preset: HirePreset) => {
-    // ... (preset selection logic using setValue - unchanged) ...
-    setValue("firstName", preset.firstName);
-    setValue("lastName", preset.lastName);
+    setValue("firstName", preset.first_name);
+    setValue("lastName", preset.last_name);
     setValue("age", preset.age);
     setValue("region", preset.region);
     setValue("about", preset.about);
-    setValue("avatarFile", null);
-    const currentPreview = watch("avatarPreview");
-    if (currentPreview && currentPreview.startsWith('blob:')) URL.revokeObjectURL(currentPreview);
-    setValue("avatarPreview", preset.avatarUrl);
+    // Clear any existing file and revoke old blob URL if necessary
+    handleImageRemove(); // Use existing remove logic to clean up
+    setValue("avatarPreview", preset.image_url); // Set preset image URL
   };
 
   // Handler for removing the uploaded/previewed image
@@ -77,7 +90,7 @@ export default function Main() {
       }
       setValue("avatarFile", null);
       setValue("avatarPreview", null);
-      // Also reset the file input visually if needed (already done in ImageUpload)
+      // Resetting the file input value is handled within ImageUpload component
   }
 
   return (
@@ -96,15 +109,12 @@ export default function Main() {
              >
                 <LayoutList className="h-4 w-4" />
              </Button>
-             {/* Use a ScrollArea if HireForm content might exceed viewport height */}
-             {/* <ScrollArea className="h-full"> */}
-                <HireForm
-                    formMethods={formMethods}
-                    onSubmit={handleFormSubmit}
-                    onImageRemove={handleImageRemove} // Pass down remove handler
-                    // onOpenPresets removed
-                />
-            {/* </ScrollArea> */}
+             {/* HireForm now manages its own scrolling */}
+            <HireForm
+                formMethods={formMethods}
+                onSubmit={handleFormSubmit}
+                onImageRemove={handleImageRemove}
+            />
         </div>
 
         {/* Presets Panel (Animated Div) */}
@@ -120,7 +130,7 @@ export default function Main() {
                  >
                     {/* Render panel content only when needed */}
                     <PresetsPanel
-                        presets={hirePresets}
+                        presets={sampledPresets} // Use sampled presets
                         onPresetSelect={handlePresetSelect}
                         onClose={handleClosePresets} // Pass close handler
                     />

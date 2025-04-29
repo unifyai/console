@@ -11,11 +11,10 @@ export interface PersonaFormData {
   }
   
   export interface HirePreset {
-    id: string;
-    firstName: string;
-    lastName: string;
+    first_name: string;
+    last_name: string;
     age: number;
     region: string;
     about: string;
-    avatarUrl: string; // URL for the preset avatar
+    image_url: string; // URL for the preset avatar
   }

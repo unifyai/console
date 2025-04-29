@@ -42,9 +42,9 @@ export function PresetsPanel({
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-3">
           {presets.length > 0 ? (
-            presets.map((preset) => (
+            presets.map((preset, index) => (
               <PresetListItem
-                key={preset.id}
+                key={index}
                 preset={preset}
                 onSelect={handleSelect}
               />
