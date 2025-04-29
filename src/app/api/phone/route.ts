@@ -42,8 +42,8 @@ export async function POST() {
       // Trunk options
       const trunkOptions = {
         krispEnabled: true,
-        auth_username: "unify-unity",
-        auth_password: "Unity@123456",
+        auth_username: `${process.env.TWIML_SIP_USERNAME}`,
+        auth_password: `${process.env.TWIML_SIP_PASSWORD}`,
       };
 
       const trunk = sipClient.createSipInboundTrunk(

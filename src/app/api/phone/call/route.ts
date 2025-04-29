@@ -8,8 +8,8 @@ export async function POST(request: Request) {
 
     const voiceResponse = new twiml.VoiceResponse();
     voiceResponse.dial().sip({
-        username: "unify-unity",
-        password: "Unity@123456",
+        username: `${process.env.TWIML_SIP_USERNAME}`,
+        password: `${process.env.TWIML_SIP_PASSWORD}`,
     }, `sip:+${phone_number.slice(1, phone_number.toString().length)}@${process.env.LIVEKIT_SIP_URI}`);
 
     return new NextResponse(
