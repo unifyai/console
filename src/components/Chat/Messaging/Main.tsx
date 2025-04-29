@@ -12,6 +12,7 @@ import {
   GalleryHorizontalEnd,
   LayoutGrid,
   Settings2,
+  Phone,
 } from "lucide-react";
 import { Endpoint } from "@/types/chat/endpoints";
 import {
@@ -46,6 +47,7 @@ import {
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { ChatMessageList } from "@/components/UI/Chat/chat-message-list";
 import { Separator } from "@/components/UI/separator";
+import { Device } from '@twilio/voice-sdk';
 
 const Messaging = ({
     endpoints,
@@ -266,6 +268,41 @@ const Messaging = ({
     if (complete) {
       sendMessage();
     }
+  };
+
+  // Phone Handler
+  const [device, setDevice] = useState<Device | null>(null);
+  const setupTwilioDevice = async () => {
+    const res = await fetch('/api/get-token');
+    const { token } = await res.json();
+
+    const twilioDevice = new Device(token);
+
+    twilioDevice.on('ready', () => {
+      console.log('Twilio Device is ready!');
+    });
+
+    twilioDevice.on('error', (error) => {
+      console.error('Twilio Device error:', error);
+    });
+
+    twilioDevice.on('disconnect', () => {
+      console.log('Call disconnected');
+    });
+
+    setDevice(twilioDevice);
+  };
+  
+  const handleTwilioVoice = async (e?: React.FormEvent) => {
+    if (!device) {
+      await setupTwilioDevice();
+    }
+
+    const params = {
+      To: `${process.env.LIVEKIT_SIP_URI}`,
+    };
+
+    device?.connect({ params });
   };
 
   // Function to check if an endpoint is pinned
@@ -517,6 +554,10 @@ const Messaging = ({
                 }`}
               />
               <span className="sr-only">Send message</span>
+            </Button>
+            <Button
+              onClick={handleTwilioVoice}>
+              <Phone className="h-4 w-4" />
             </Button>
           </form>
         </div>
