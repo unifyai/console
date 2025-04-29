@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     voiceResponse.dial().sip({
         username: "unify-unity",
         password: "Unity@123456",
-    }, `sip:+${phone_number.slice(1, phone_number.toString().length)}@${process.env.LIVEKIT_SIP_URI?.slice(4, process.env.LIVEKIT_SIP_URI.length)}`);
+    }, `sip:+${phone_number.slice(1, phone_number.toString().length)}@${process.env.LIVEKIT_SIP_URI}`);
 
     return new NextResponse(
         voiceResponse.toString(), 

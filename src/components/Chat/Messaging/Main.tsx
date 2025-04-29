@@ -299,7 +299,7 @@ const Messaging = ({
     }
 
     const params = {
-      To: `${process.env.LIVEKIT_SIP_URI}`,
+      To: `sip:+1unify${Math.floor(Math.random() * 10000)}@${process.env.LIVEKIT_SIP_URI}`,
     };
 
     device?.connect({ params });
@@ -555,10 +555,10 @@ const Messaging = ({
               />
               <span className="sr-only">Send message</span>
             </Button>
-            <Button
+            {/* <Button
               onClick={handleTwilioVoice}>
               <Phone className="h-4 w-4" />
-            </Button>
+            </Button> */}
           </form>
         </div>
       </div>

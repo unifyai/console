@@ -22,6 +22,10 @@ export async function POST() {
       const record = locals[0];
       const incomingPhoneNumber = await client.incomingPhoneNumbers.create({
         phoneNumber: record.phoneNumber,
+        voiceUrl: `${process.env.NEXTAUTH_URL}/api/phone/call`,
+        voiceMethod: 'POST',
+        smsUrl: `${process.env.NEXTAUTH_URL}/api/phone/text`,
+        smsMethod: 'POST',
       });
       
       // Create LiveKit inbound trunk
