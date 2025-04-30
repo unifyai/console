@@ -1,8 +1,7 @@
 import { Storage } from '@google-cloud/storage';
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { getSession } from '@/lib/user/user';
-import { User } from '@/types/user';
+import { getCurrentUser } from '@/lib/user/user';
 
 const storage = new Storage();
 const bucketName = process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
@@ -18,8 +17,8 @@ export async function POST(request: Request) {
 
   try {
     // 1. Authentication & User ID retrieval
-    const session = await getSession();
-    const userId = (session?.user as User)?.id;
+    const user = await getCurrentUser();
+    const userId = user?.id; 
 
     if (!userId) {
       console.warn("Unauthorized attempt to get upload URL without session/userId.");
