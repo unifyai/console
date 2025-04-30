@@ -81,23 +81,52 @@ export const createAssistant = async (apiKey: string) => {
 export const createAssistantImage = async () => {
     return async (contentType: string, fileSize: number): Promise<CreateAssistantImageResponse> => {
         "use server";
+        let response: Response | null = null; // Keep track of response
+        try {
+            console.log(`[Action:createAssistantImage] Fetching signed URL from /api/assistant/image/upload for type: ${contentType}, size: ${fileSize}`);
+            response = await fetch(
+                `${process.env.NEXTAUTH_URL}/api/assistant/image/upload`,
+                {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json",},
+                    body: JSON.stringify({ contentType, fileSize }),
+                }
+            );
+            console.log(`[Action:createAssistantImage] Received response status: ${response.status}`);
 
-        const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/assistant/image/upload`,
-            {
-                method: "POST",
-                headers: {"Content-Type": "application/json",},
-                body: JSON.stringify({ contentType, fileSize }),
+            if (!response.ok) {
+                let errorData: any = {};
+                const responseText = await response.text(); // Read body as text first
+                console.log(`[Action:createAssistantImage] Raw error response body: ${responseText}`);
+                try {
+                     // Try to parse as JSON if possible
+                     errorData = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.warn("[Action:createAssistantImage] Failed to parse error response body as JSON.");
+                    errorData = { error: responseText }; // Use raw text if not JSON
+                }
+
+                // Log detailed info before throwing
+                console.error("[Action:createAssistantImage] API route /api/assistant/image/upload fetch failed:", {
+                    status: response.status,
+                    statusText: response.statusText,
+                    responseData: errorData, // Log the parsed/text error data
+                });
+
+                // Construct a more informative error
+                throw new Error(`Failed to get signed upload URL from API. Status: ${response.status}. Error: ${errorData?.error || errorData?.details || response.statusText}`);
             }
-        );
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            console.error("Failed to get signed URL:", response.status, errorData);
-            throw new Error(`Failed to get signed upload URL: ${errorData?.error || response.statusText}`);
-        }
+            const responseData = await response.json();
+            console.log("[Action:createAssistantImage] Successfully received signed URL data.");
+            return responseData;
 
-        return await response.json();
+         } catch (error: any) {
+             // This catch block handles network errors *or* the re-thrown error from !response.ok
+             console.error("[Action:createAssistantImage] Error during fetch or processing:", error);
+             // Re-throw the error so Server Components Render catches it
+             throw error;
+         }
     };
 }
 
