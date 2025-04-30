@@ -7,7 +7,7 @@ import {
   AccordionContent,
 } from "@/components/UI/accordion";
 import { Combobox } from "@/components/UI/Combobox";
-import { ChevronDown, ChevronRight, Clock, Code, DollarSign, AlertTriangle, FileInput, FileOutput, IdCard, FoldVertical, UnfoldVertical, Copy } from "lucide-react";
+import { ChevronDown, ChevronRight, Clock, Code, DollarSign, AlertTriangle, FileInput, FileOutput, IdCard, FoldVertical, UnfoldVertical, Copy, Loader2, CheckCircle } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
 
 import { Span } from "@/types/evals/traces";
@@ -40,6 +40,7 @@ import { formatTime } from "@/utils/evals/format";
 import { DoublePanels } from "@/components/Common/Body/DoublePanels";
 import { TraceExpandProvider } from "./TraceExpandContext";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
+import { useTracePolling } from "@/hooks/useTracePolling";
 
 // --- Added types for lifted state ---
 export interface PersistedTraceViewState {
@@ -1125,6 +1126,11 @@ function CollapsiblePatchLineNode({
     }
   }
 
+  // Determine status icon (completed vs running)
+  const spanCompleted = (node.baseSpanRef?.completed ?? node.targetSpanRef?.completed ?? true) === true;
+  const StatusIcon = spanCompleted ? CheckCircle : Loader2;
+  const statusIconClass = spanCompleted ? "text-green-600" : "animate-spin text-muted-foreground";
+
   return (
     <div className="relative" ref={nodeRef} style={{ position: "relative" }}>
       {showLine && (
@@ -1163,6 +1169,7 @@ function CollapsiblePatchLineNode({
         {/* Span name + optional time/cost/token labels */}
         <div className="truncate flex items-center">
           {node.name}
+          <StatusIcon className={`h-3 w-3 ml-1 ${statusIconClass}`} />
           {timeLabel && timeData && (
             <HoverCard>
               <HoverCardTrigger asChild>
@@ -1454,6 +1461,33 @@ export default function UnifiedTraceView({
   displayMode = "markdown",
   persistedState,
 }: UnifiedTraceViewProps) {
+  // NEW: state to hold live-updated base trace
+  const [liveBaseTrace, setLiveBaseTrace] = useState<Span[]>(allTraces[0] ?? []);
+
+  // Keep live trace in sync when parent selection changes
+  useEffect(() => {
+    setLiveBaseTrace(allTraces[0] ?? []);
+  }, [allTraces]);
+
+  // Determine if top-level spans are complete
+  function isTraceComplete(spans: Span[]): boolean {
+    if (!spans.length) return true;
+    return spans.every((s) => (s.completed ?? true) && isTraceComplete(s.child_spans ?? []));
+  }
+
+  const traceDone = useMemo(() => isTraceComplete(liveBaseTrace), [liveBaseTrace]);
+
+  // Poll while the trace is not complete
+  const baseRowId = rowIndexes?.[0]?.toString();
+  const { data: polled } = useTracePolling(!traceDone ? baseRowId : undefined, 500);
+
+  // Update live trace when fresh data arrives
+  useEffect(() => {
+    if (polled?.trace) {
+      setLiveBaseTrace(polled.trace);
+    }
+  }, [polled]);
+
   // If the persisted state is not provided, fall back to local state
   const [localCollapsedNodes, setLocalCollapsedNodes] = useState<Record<string, boolean>>({});
   const [localSelectedNode, setLocalSelectedNode] = useState<PatchDiffNode | null>(null);
@@ -1578,10 +1612,7 @@ export default function UnifiedTraceView({
 
   const multiMode = rowIndexes.length > 1;
 
-  const baseRowSpans = useMemo(() => {
-    if (!allTraces.length) return [];
-    return allTraces[0] ?? [];
-  }, [allTraces]);
+  const baseRowSpans = useMemo(() => liveBaseTrace, [liveBaseTrace]);
 
   function minimalSpanHierarchy(span: Span): any {
     return {
@@ -1787,9 +1818,16 @@ export default function UnifiedTraceView({
                   overflowY: "auto",
                 }}
               >
-                {rowIndexes.length > 1 && (
-                  <div className="sticky top-0 bg-background p-2 border-b border-muted space-y-2 z-10">
-                    <div className="flex items-center gap-2">
+                {/* Sticky header(s) */}
+                <div className="sticky top-0 z-10 bg-background border-b border-muted">
+                  {!traceDone && (
+                    <div className="flex items-center gap-2 px-2 py-1">
+                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Streaming…</span>
+                    </div>
+                  )}
+                  {rowIndexes.length > 1 && (
+                    <div className="p-2 border-t border-muted flex items-center gap-2">
                       <span className="text-xs text-muted-foreground font-semibold block">
                         Compare with:
                       </span>
@@ -1801,8 +1839,8 @@ export default function UnifiedTraceView({
                         className="w-fit items-center bg-background"
                       />
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
                 <div className="p-2">{renderPatchTree()}</div>
               </div>
             }
