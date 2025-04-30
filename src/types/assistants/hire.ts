@@ -19,7 +19,7 @@ export interface HirePreset {
   image_url: string; // URL for the preset image
 }
 
-export interface SuccessfulAssistantCreationResponse {
+export interface CreateAssistantResponse {
   agent_id: string;
   first_name: string;
   surname: string;
@@ -29,12 +29,11 @@ export interface SuccessfulAssistantCreationResponse {
   created_at: string;
   updated_at: string
 } 
-export type CreateAssistantResponse = SuccessfulAssistantCreationResponse | ResponseProps
 
 export interface CreateAssistantImageResponse { signedUrl: string, filePath: string, bucketName: string } 
 
 export interface HireActions {
-  create: (first_name: string, surname: string, age: number, region: string, profile_photo: string, about: string) => Promise<CreateAssistantResponse>;
+  create: (first_name: string, surname: string, age: number, region: string, profile_photo: string, about: string) => Promise<CreateAssistantResponse | ResponseProps>;
   update: (assistantId: string, about: string | null, phone: string | null, email: string | null) => Promise<ResponseProps>;
-  createImage: (contentType: string, fileSize: number) => Promise<CreateAssistantImageResponse>;
+  createImage: (contentType: string, fileSize: number) => Promise<CreateAssistantImageResponse | ResponseProps>;
 }

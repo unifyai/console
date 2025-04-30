@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { useForm } from "react-hook-form";
-import type { PersonaFormData, HirePreset, HireActions } from '@/types/assistants/hire';
+import type { PersonaFormData, HirePreset, HireActions, CreateAssistantImageResponse } from '@/types/assistants/hire';
 import { HireForm } from './HireForm';
 import { PresetsPanel } from './PresetsPanel';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -88,28 +88,29 @@ export default function Main({ hireActions }: { hireActions: HireActions }) {
             const imageFile = data.imageFile;
 
             if (imageFile instanceof File) {
-                const { signedUrl, filePath: returnedFilePath, bucketName: returnedBucketName } = await hireActions.createImage(
+                const createImageResult = await hireActions.createImage(
                     imageFile.type,
                     imageFile.size
                 );
+            
+                // Check if the action returned an error object
+                if ('message' in createImageResult || ('success' in createImageResult && !createImageResult.success)) {
+                    const errorResult = createImageResult as ResponseProps;
+                    const errorMsg = errorResult.detail || errorResult.message || "Failed to get image upload details.";
+                    console.error("Error from createImage action:", errorResult);
+                    toast.error(errorMsg, { id: toastId });
+                    setIsSubmitting(false);
+                    return; // Stop execution
+                }
+            
+                // If successful, proceed (cast needed as TS knows it could be ResponseProps)
+                const successResult = createImageResult as CreateAssistantImageResponse;
+                const { signedUrl, filePath: returnedFilePath, bucketName: returnedBucketName } = successResult;
+            
                 bucketName = returnedBucketName;
                 uploadedFilePath = returnedFilePath;
-
+            
                 const uploadSuccess = await uploadImageToGCS(imageFile, signedUrl);
-                if (!uploadSuccess) {
-                    toast.error("Image upload failed.", { id: toastId });
-                    setIsSubmitting(false);
-                    return;
-                }
-                toast.success("Image uploaded.", { id: toastId });
-
-                if (bucketName && uploadedFilePath) {
-                   finalImageUrlToSend = `https://storage.googleapis.com/${bucketName}/${uploadedFilePath}`;
-                } else {
-                    toast.error("Error processing image upload response.", { id: toastId });
-                    setIsSubmitting(false);
-                    return;
-                }
 
             } else if (data.imagePreview && !data.imagePreview.startsWith('blob:')) {
                 finalImageUrlToSend = data.imagePreview;

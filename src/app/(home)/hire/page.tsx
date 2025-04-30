@@ -12,12 +12,13 @@ const HirePage = async ({ searchParams }: { searchParams: { } }) => {
         signOut();
         redirect('/login');
     }
+    const userId = user.id;
     const apiKey = user.apiKey;
 
     const hireActions = {
         create: await createAssistant(apiKey),
         update: await updateAssistant(apiKey),
-        createImage: await createAssistantImage()
+        createImage: await createAssistantImage(userId)
     }
     return (
         <div className="w-full h-full">
