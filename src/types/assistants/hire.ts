@@ -1,4 +1,4 @@
-import { ResponseProps } from "../common";
+import { ResponseProps, CustomResponseProps } from "../common";
 
 export interface PersonaFormData {
     firstName: string;
@@ -33,7 +33,7 @@ export interface CreateAssistantResponse {
 export interface CreateAssistantImageResponse { signedUrl: string, filePath: string, bucketName: string } 
 
 export interface HireActions {
-  create: (first_name: string, surname: string, age: number, region: string, profile_photo: string, about: string) => Promise<CreateAssistantResponse | ResponseProps>;
+  create: (first_name: string, surname: string, age: number, region: string, profile_photo: string, about: string) => Promise<CreateAssistantResponse | CustomResponseProps>;
   update: (assistantId: string, about: string | null, phone: string | null, email: string | null) => Promise<ResponseProps>;
-  createImage: (contentType: string, fileSize: number) => Promise<CreateAssistantImageResponse | ResponseProps>;
+  createImage: (contentType: string, fileSize: number) => Promise<CreateAssistantImageResponse | CustomResponseProps>;
 }

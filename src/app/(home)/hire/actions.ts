@@ -1,7 +1,7 @@
 "use server";
 
 import { CreateAssistantImageResponse, CreateAssistantResponse } from "@/types/assistants/hire";
-import { ResponseProps } from "@/types/common";
+import { CustomResponseProps } from "@/types/common";
 import { Storage } from '@google-cloud/storage'; // Import Storage here
 import { v4 as uuidv4 } from 'uuid';          // Import uuid here
 import { getCurrentUser } from '@/lib/user/user'; // Import your user function
@@ -10,7 +10,6 @@ import { getCurrentUser } from '@/lib/user/user'; // Import your user function
 let storage: Storage;
 try {
    storage = new Storage();
-   console.log("Storage client initialized successfully in actions.ts");
 } catch (error: any) {
    console.error("FATAL: Failed to initialize Storage client in actions.ts:", error);
 }
@@ -42,7 +41,7 @@ export const createAssistant = async (apiKey: string) => {
         region: string,
         profile_photo: string,
         about: string
-    ): Promise<CreateAssistantResponse | ResponseProps> => {
+    ): Promise<CreateAssistantResponse | CustomResponseProps> => {
         "use server";
 
         const body = {
@@ -70,7 +69,7 @@ export const createAssistant = async (apiKey: string) => {
                      success: false,
                      message: responseData?.detail || responseData?.error || `API Error: ${response.status}`,
                      ...responseData
-                 } as ResponseProps;
+                 } as CustomResponseProps;
             }
              // Explicitly check if agent_id exists before casting to success type
              if (responseData && responseData.agent_id) {
@@ -81,29 +80,29 @@ export const createAssistant = async (apiKey: string) => {
                     success: false,
                     message: "Assistant created but response format unexpected.",
                      ...responseData
-                } as ResponseProps;
+                } as CustomResponseProps;
              }
 
         } catch (error: any) {
              console.error("Network/parsing error in createAssistant action:", error);
-             return { detail: error.message || "Network error" } as ResponseProps;
+             return { success: false, message: error.message || "Network error" } as CustomResponseProps;
         }
     };
 };
 
 // create image
 export const createAssistantImage = async (userId: string) => { 
-    return async (contentType: string, fileSize: number): Promise<CreateAssistantImageResponse | ResponseProps> => {
+    return async (contentType: string, fileSize: number): Promise<CreateAssistantImageResponse | CustomResponseProps> => {
         "use server"
 
         if (!bucketName) {
             console.error("Configuration Error: ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME missing.");
             // Return an error object instead of throwing, can be handled client-side
-            return { success: "false", message: "Server configuration error: Bucket name missing" };
+            return { success: false, message: "Server configuration error: Bucket name missing" };
         }
         if (!storage) {
             console.error("Storage client is not available in createAssistantImage action.");
-            return { success: "false", message: "Server configuration error: Storage unavailable" };
+            return { success: false, message: "Server configuration error: Storage unavailable" };
         }
 
         try {
@@ -111,22 +110,19 @@ export const createAssistantImage = async (userId: string) => {
             if (!userId) {
                 console.warn("[Action:createAssistantImage] Unauthorized attempt: No valid user found via getCurrentUser.");
                 // Return an error object
-                return { success: "false", message: "Unauthorized: Authentication required." };
+                return { success: false, message: "Unauthorized: Authentication required." };
             }
-            console.log(`[Action:createAssistantImage] User ID found: ${userId}`);
 
             // 2. Validate content type (add size validation if needed)
             if (!contentType || !contentType.startsWith('image/')) {
                 console.warn(`[Action:createAssistantImage] Invalid content type: ${contentType}`);
-                return { success: "false", message: "Invalid content type. Only images allowed." };
+                return { success: false, message: "Invalid content type. Only images allowed." };
             }
-            console.log(`[Action:createAssistantImage] Content type validated: ${contentType}`);
 
             // 3. Generate path
             const extension = contentType.split('/')[1] || 'jpg';
             const fileId = uuidv4();
             const filePath = `${userId}/${fileId}.${extension}`;
-            console.log(`[Action:createAssistantImage] Generated GCS path: gs://${bucketName}/${filePath}`);
 
             // 4. Configure options
             const options = {
@@ -135,7 +131,6 @@ export const createAssistantImage = async (userId: string) => {
                 expires: Date.now() + 15 * 60 * 1000, // 15 minutes
                 contentType: contentType,
             };
-            console.log("[Action:createAssistantImage] Requesting signed URL with options:", options);
 
             // 5. Get Signed URL directly using storage client
             const [signedUrl] = await storage
@@ -143,7 +138,6 @@ export const createAssistantImage = async (userId: string) => {
                 .file(filePath)
                 .getSignedUrl(options);
 
-            console.log(`[Action:createAssistantImage] Successfully generated signed URL for ${filePath}`);
 
             // 6. Return success data (compatible with CreateAssistantImageResponse)
             return { signedUrl, filePath, bucketName }; // Implicitly successful
@@ -158,7 +152,7 @@ export const createAssistantImage = async (userId: string) => {
             });
             // Return a structured error object
             return {
-                success: "false",
+                success: false,
                 message: 'Failed to prepare image upload',
                 detail: error.message // Include the underlying error message
             };
