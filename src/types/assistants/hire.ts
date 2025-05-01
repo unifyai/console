@@ -1,13 +1,13 @@
-import { ResponseProps, CustomResponseProps } from "../common";
+import { CustomResponseProps } from "../common";
 
 export interface PersonaFormData {
     firstName: string;
     lastName: string;
-    age: number | string; // Use string for input, parse later if needed
+    age: number | string;
     region: string;
     about: string;
-    imageFile?: File | null; // To hold the selected file
-    imagePreview?: string | null; // To hold the preview URL
+    imageFile?: File | null;
+    imagePreview?: string | null;
   }
 
 export interface HirePreset {
@@ -16,7 +16,7 @@ export interface HirePreset {
   age: number;
   region: string;
   about: string;
-  image_url: string; // URL for the preset image
+  image_url: string;
 }
 
 export interface CreateAssistantResponse {
@@ -34,6 +34,5 @@ export interface CreateAssistantImageResponse { signedUrl: string, filePath: str
 
 export interface HireActions {
   create: (first_name: string, surname: string, age: number, region: string, profile_photo: string, about: string) => Promise<CreateAssistantResponse | CustomResponseProps>;
-  update: (assistantId: string, about: string | null, phone: string | null, email: string | null) => Promise<ResponseProps>;
   createImage: (contentType: string, fileSize: number) => Promise<CreateAssistantImageResponse | CustomResponseProps>;
 }

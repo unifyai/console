@@ -70,7 +70,7 @@ export function ChatOverlay({ isOpen, assistant, onClose }: ChatOverlayProps) {
              id: faker.string.uuid(),
             sender: 'assistant',
             text: faker.lorem.sentence(),
-            timestamp: new Date(Date.now() + 500), // Slight delay
+            timestamp: new Date(Date.now() + 500),
         }
 
         setMessages(prev => [...prev, userMessage, assistantResponse]);
@@ -79,11 +79,14 @@ export function ChatOverlay({ isOpen, assistant, onClose }: ChatOverlayProps) {
 
     if (!assistant) return null;
 
+    // Determine the correct photo URL (prefer signed URL if available)
+    const photoSrc = assistant.signedProfilePhotoUrl || assistant.profile_photo;
+
     return (
         <AnimatePresence>
             {isOpen && (
                 <motion.div
-                    key={`chat-${assistant.id}`}
+                    key={`chat-${assistant.agent_id}`}
                     initial={{ y: "100%" }}
                     animate={{ y: 0 }}
                     exit={{ y: "100%" }}
@@ -93,10 +96,11 @@ export function ChatOverlay({ isOpen, assistant, onClose }: ChatOverlayProps) {
                     {/* Header */}
                     <div className="p-3 border-b flex items-center flex-shrink-0">
                         <Avatar className="h-7 w-7 mr-2">
-                            <AvatarImage src={assistant.avatarUrl} alt={`${assistant.firstName} ${assistant.lastName}`} />
-                            <AvatarFallback>{`${assistant.firstName} ${assistant.lastName}`.substring(0, 2).toUpperCase()}</AvatarFallback>
+                            {/* Use determined photo source */}
+                            <AvatarImage src={photoSrc} alt={`${assistant.first_name} ${assistant.surname}`} />
+                            <AvatarFallback>{`${assistant.first_name} ${assistant.surname}`.substring(0, 2).toUpperCase()}</AvatarFallback>
                         </Avatar>
-                        <h3 className="text-sm font-semibold">Chat with {`${assistant.firstName} ${assistant.lastName}`}</h3>
+                        <h3 className="text-sm font-semibold">Chat with {`${assistant.first_name} ${assistant.surname}`}</h3>
                         <div className='ml-auto flex items-center'>
                             <ActionButton
                                 tooltip={isVoiceMode ? "Switch to text input" : "Switch to voice input"}
@@ -121,7 +125,8 @@ export function ChatOverlay({ isOpen, assistant, onClose }: ChatOverlayProps) {
                                 }>
                                     {message.sender === 'assistant' && (
                                         <Avatar className="h-6 w-6">
-                                            <AvatarImage src={assistant.avatarUrl} alt={`${assistant.firstName} ${assistant.lastName}`} />
+                                            {/* Use determined photo source */}
+                                            <AvatarImage src={photoSrc} alt={`${assistant.first_name} ${assistant.surname}`} />
                                             <AvatarFallback><Bot className='h-4 w-4'/></AvatarFallback>
                                         </Avatar>
                                     )}
@@ -138,7 +143,7 @@ export function ChatOverlay({ isOpen, assistant, onClose }: ChatOverlayProps) {
                                              {format(message.timestamp, 'p')}
                                          </p>
                                      </div>
-                                     {message.sender === 'user' && ( 
+                                     {message.sender === 'user' && (
                                         <Avatar className="h-6 w-6">
                                             {/* Assuming a generic user avatar or initials */}
                                             <AvatarFallback>U</AvatarFallback>
@@ -152,7 +157,7 @@ export function ChatOverlay({ isOpen, assistant, onClose }: ChatOverlayProps) {
                     {/* Footer Input */}
                     <div className="p-3 border-t flex-shrink-0">
                         <form onSubmit={handleSendMessage} className="flex w-full items-center gap-2">
-                            {isVoiceMode ? ( 
+                            {isVoiceMode ? (
                                 <Button type="button" className='flex-1 justify-center' variant="outline">
                                     <Mic className="h-5 w-5 mr-2"/> Listening... (Voice Input Placeholder)
                                 </Button>

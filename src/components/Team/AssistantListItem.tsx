@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
-import { MessageSquare, Phone, Mail, Contact } from "lucide-react"; // Use Contact icon for ID Card
+import { MessageSquare, Phone, Mail, Contact } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Assistant } from "@/types/assistants/assistant";
 import ActionButton from '../Common/Buttons/Action';
@@ -8,8 +8,8 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/UI/h
 
 interface AssistantListItemProps {
     assistant: Assistant;
-    isSelected: boolean; // Now indicates if profile is open for this user
-    onShowProfile: (id: string) => void; // Renamed from onSelect
+    isSelected: boolean;
+    onShowProfile: (id: string) => void;
     onChat: (id: string) => void;
 }
 
@@ -22,15 +22,16 @@ export function AssistantListItem({
 
     const handleChatClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        onChat(assistant.id);
+        onChat(assistant.agent_id);
     };
 
     const handleProfileClick = (e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent potential parent handlers
-        onShowProfile(assistant.id);
+        e.stopPropagation();
+        onShowProfile(assistant.agent_id);
     }
 
-    const displayName = `${assistant.firstName} ${assistant.lastName}`;
+    const displayName = `${assistant.first_name} ${assistant.surname}`;
+    const photoSrc = assistant.signedProfilePhotoUrl || assistant.profile_photo;
 
     return (
         <div
@@ -44,16 +45,15 @@ export function AssistantListItem({
                 <HoverCard openDelay={200} closeDelay={100}>
                     <HoverCardTrigger asChild>
                         <Avatar className="h-8 w-8 cursor-default flex-shrink-0">
-                            <AvatarImage src={assistant.avatarUrl} alt={displayName} />
-                            <AvatarFallback>{`${assistant.firstName?.[0] ?? ''}${assistant.lastName?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
+                            <AvatarImage src={photoSrc} alt={displayName} />
+                            <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
                         </Avatar>
                     </HoverCardTrigger>
                     <HoverCardContent className="w-80" side="right" align="start">
-                        {/* Hover card content... (Shows basic contact) */}
                          <div className="flex justify-between space-x-4">
                              <Avatar>
-                                 <AvatarImage src={assistant.avatarUrl} />
-                                 <AvatarFallback>{`${assistant.firstName?.[0] ?? ''}${assistant.lastName?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
+                                 <AvatarImage src={photoSrc} />
+                                 <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
                              </Avatar>
                              <div className="space-y-1 flex-1">
                                  <h4 className="text-sm font-semibold">{displayName}</h4>
@@ -74,7 +74,7 @@ export function AssistantListItem({
                 <span className="text-sm font-medium truncate">{displayName}</span>
             </div>
 
-            {/* Icons always visible or on hover? Let's make them visible on hover/selection */}
+            {/* Chat / Profile buttons visible on hover/selection */}
             <div className={cn(
                 "flex items-center gap-1 transition-opacity flex-shrink-0",
                 isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
@@ -86,9 +86,9 @@ export function AssistantListItem({
                     size="sm"
                 />
                 <ActionButton
-                    tooltip="View Profile" // Updated tooltip
-                    icon={<Contact className="h-4 w-4" />} // Changed icon
-                    onClick={handleProfileClick} // Changed handler
+                    tooltip="View profile"
+                    icon={<Contact className="h-4 w-4" />}
+                    onClick={handleProfileClick}
                     size="sm"
                 />
             </div>

@@ -22,7 +22,7 @@ export async function PATCH(
     { params }: { params: { assistantId: string } }
 ) {
     return await fetch(
-        `${baseUrl}/assistant/${params.assistantId}`, 
+        `${baseUrl}/assistant/${params.assistantId}/config`, 
         {
             method: "PATCH",
             headers: {

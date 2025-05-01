@@ -16,22 +16,6 @@ try {
 
 const bucketName = process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
 
-// list assistants
-export const listAssistants = async (apiKey: string) => {
-    return async () => {
-        "use server";
-
-        const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/assistant`,
-            {
-                method: "GET",
-                headers: { apiKey: apiKey },
-            }
-        );
-        return await response.json();
-    };
-};
-
 // create assistant
 export const createAssistant = async (apiKey: string) => {
     return async (
@@ -159,37 +143,3 @@ export const createAssistantImage = async (userId: string) => {
         }
     };
 }
-// delete assistant
-export const deleteAssistant = async (apiKey: string) => {
-    return async (assistantId: string) => {
-        "use server";
-
-        const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}`,
-            { method: "DELETE", headers: { apiKey: apiKey } }
-        );
-        return await response.json();
-    };
-};
-
-// update assistant
-export const updateAssistant = async (apiKey: string) => {
-    return async (
-        assistantId: string, 
-        about: string | null,
-        phone: string | null,
-        email: string | null
-    ) => {
-        "use server";
-
-        const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}`,
-            {
-                method: "PATCH",
-                headers: { apiKey: apiKey },
-                body: JSON.stringify({ about, phone, email })
-            }
-        );
-        return await response.json();
-    };
-};

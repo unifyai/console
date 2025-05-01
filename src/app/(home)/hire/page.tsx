@@ -1,10 +1,8 @@
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { getCurrentUser } from "@/lib/user/user";
-import { Suspense } from "react";
 import Main from "@/components/Hire/Main";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { createAssistant, updateAssistant, createAssistantImage } from "./actions";
+import { createAssistant, createAssistantImage } from "./actions";
 
 const HirePage = async ({ searchParams }: { searchParams: { } }) => {
     const user = await getCurrentUser();
@@ -17,14 +15,11 @@ const HirePage = async ({ searchParams }: { searchParams: { } }) => {
 
     const hireActions = {
         create: await createAssistant(apiKey),
-        update: await updateAssistant(apiKey),
         createImage: await createAssistantImage(userId)
     }
     return (
         <div className="w-full h-full">
-            <Suspense fallback={<SkeletonLoader />}>
-                <Main hireActions={hireActions}/>
-            </Suspense>
+            <Main hireActions={hireActions}/>
         </div>
     );
 };
