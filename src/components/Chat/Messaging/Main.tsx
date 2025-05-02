@@ -47,7 +47,6 @@ import {
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { ChatMessageList } from "@/components/UI/Chat/chat-message-list";
 import { Separator } from "@/components/UI/separator";
-import { Device } from '@twilio/voice-sdk';
 
 const Messaging = ({
     endpoints,
@@ -269,41 +268,7 @@ const Messaging = ({
       sendMessage();
     }
   };
-
-  // Phone Handler
-  const [device, setDevice] = useState<Device | null>(null);
-  const setupTwilioDevice = async () => {
-    const res = await fetch(`${process.env.NEXTAUTH_URL}/api/phone/token`);
-    const { token } = await res.json();
-
-    const twilioDevice = new Device(token);
-
-    twilioDevice.on('ready', () => {
-      console.log('Twilio Device is ready!');
-    });
-
-    twilioDevice.on('error', (error) => {
-      console.error('Twilio Device error:', error);
-    });
-
-    twilioDevice.on('disconnect', () => {
-      console.log('Call disconnected');
-    });
-
-    setDevice(twilioDevice);
-  };
   
-  const handleTwilioVoice = async (e?: React.FormEvent) => {
-    if (!device) {
-      await setupTwilioDevice();
-    }
-
-    const params = {
-      To: `sip:+1unify${Math.floor(Math.random() * 10000)}@${process.env.LIVEKIT_SIP_URI}`,
-    };
-
-    device?.connect({ params });
-  };
 
   // Function to check if an endpoint is pinned
   const isEndpointPinned = (endpoint: Endpoint) => {
@@ -555,10 +520,6 @@ const Messaging = ({
               />
               <span className="sr-only">Send message</span>
             </Button>
-            {/* <Button
-              onClick={handleTwilioVoice}>
-              <Phone className="h-4 w-4" />
-            </Button> */}
           </form>
         </div>
       </div>
