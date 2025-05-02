@@ -53,8 +53,10 @@ const mapLogToTask = (log: LogProps): Task | null => {
 // Helper to build filter expression
 const buildFilterExpression = (searchTerm: string, statusFilter: string, assignedFilter: string[]): string | null => {
     const filters: string[] = [];
-    if (searchTerm.trim()) {
-        filters.push(`${searchTerm.trim().replace(/'/g, "\\'")} in title`);
+    if (searchTerm) {
+        if (!searchTerm.startsWith('"')) searchTerm = '"' + searchTerm
+        if (!searchTerm.endsWith('"')) searchTerm = searchTerm + '"'
+        filters.push(`${searchTerm} in str(title)`);
     }
     if (statusFilter !== 'all') {
         filters.push(`status == '${statusFilter}'`);
@@ -469,13 +471,6 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                     setAssignedFilter={setAssignedFilter}
                     updateTask={taskActions.update}
                  />
-                 {/* Display task error messages */}
-                 {taskError && !showTaskSkeletons && ( 
-                    // Only show error if not actively loading initial data
-                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-destructive/10 text-destructive text-xs px-3 py-1 rounded-full border border-destructive/30 z-20">
-                        {`Error loading tasks: ${taskError}`}
-                    </div>
-                 )}
             </div>
         </div>
     );
