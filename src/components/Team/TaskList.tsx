@@ -1,12 +1,11 @@
 import * as React from 'react';
 import { Input } from "@/components/UI/input";
-import { ScrollArea } from "@/components/UI/scroll-area";
-import { Filter, Search, MoreVertical, Copy, Users, Calendar, EllipsisVertical
-} from "lucide-react";
+import { Filter, Search, Users, Loader2 } from "lucide-react";
 import type { Assistant } from "@/types/assistants/assistant";
-import type { Task } from "@/types/assistants/task";
+import type { Task, TaskActions } from "@/types/assistants/task";
 import { TaskListItem } from "./TaskListItem";
-import ActionButton from '../Common/Buttons/Action';
+import { TaskListItemSkeleton } from './TaskListItemSkeleton';
+import { TaskAssignedFilter } from './TaskAssignedFilter';
 import {
     Select,
     SelectContent,
@@ -14,75 +13,105 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/UI/select";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/UI/dropdown-menu";
 import { Accordion } from "@/components/UI/accordion";
-import { TaskAssignedFilter } from './TaskAssignedFilter'; // Import TaskAssignedFilter
+import { Virtuoso } from 'react-virtuoso';
+import { ScrollArea } from '@/components/UI/scroll-area';
 
 interface TaskListProps {
-    // No longer receives single assistant
-    allTasks: Task[];
+    tasks: Task[];
     allAssistants: Assistant[];
+    fetchMoreTasks: () => void;
+    hasMoreTasks: boolean;
+    isLoadingMore: boolean;
+    searchTerm: string;
+    setSearchTerm: (term: string) => void;
+    statusFilter: string;
+    setStatusFilter: (status: string) => void;
+    assignedFilter: string[];
+    setAssignedFilter: (ids: string[]) => void;
+    isLoadingInitial: boolean;
+    updateTask: TaskActions['update'];
 }
 
-export function TaskList({ allTasks, allAssistants }: TaskListProps) {
-    const [searchTerm, setSearchTerm] = React.useState('');
-    const [statusFilter, setStatusFilter] = React.useState<string>('all');
-    const [assignedFilter, setAssignedFilter] = React.useState<string[]>([]); // State for multi-select
+// Footer component for Virtuoso to show loading indicator
+const ListFooter = React.memo(({ isLoadingMore }: { isLoadingMore: boolean }) => {
+    if (!isLoadingMore) return null;
+    return (
+        <div className="flex justify-center items-center p-4">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            <span className="ml-2 text-sm text-muted-foreground">Loading more tasks...</span>
+        </div>
+    );
+});
+ListFooter.displayName = 'ListFooter';
 
-    // Filter tasks based on all criteria
-    const filteredTasks = React.useMemo(() => {
-        let tasks = allTasks;
+// Memoize TaskListItem to prevent re-renders if props haven't changed
+// This is important for Virtuoso performance
+const MemoizedTaskListItem = React.memo(TaskListItem);
 
-        // Filter by Status
-        if (statusFilter !== 'all') {
-            tasks = tasks.filter(task => task.status === statusFilter);
-        }
+export function TaskList({
+    tasks,
+    allAssistants,
+    fetchMoreTasks,
+    hasMoreTasks,
+    isLoadingMore,
+    searchTerm,
+    setSearchTerm,
+    statusFilter,
+    setStatusFilter,
+    assignedFilter,
+    setAssignedFilter,
+    isLoadingInitial,
+    updateTask,
+}: TaskListProps) {
 
-        // Filter by Assigned Assistants (if any selected)
-        if (assignedFilter.length > 0) {
-            tasks = tasks.filter(task =>
-                assignedFilter.every(selectedId =>
-                    task.assignedAssistantIds.includes(selectedId)
-                )
-                // Use .some if you want tasks assigned to ANY of the selected assistants
-                // task.assignedAssistantIds.some(assignedId => assignedFilter.includes(assignedId))
-            );
-        }
-
-        // Filter by Search Term
-        if (searchTerm) {
-            tasks = tasks.filter(task =>
-                task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                task.description.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-        }
-
-        // Optional: Sort tasks (e.g., by due date)
-        tasks.sort((a, b) => {
-            const dateA = a.dueDate?.getTime() ?? Infinity; // Tasks without due date last
-            const dateB = b.dueDate?.getTime() ?? Infinity;
-            return dateA - dateB;
+    // Derive unique statuses from the *currently loaded* tasks for the filter dropdown
+    const taskStatuses = React.useMemo(() => {
+        return ['all', ...Array.from(new Set(tasks.map(t => t.status)))].sort((a, b) => {
+            if (a === 'all') return -1;
+            if (b === 'all') return 1;
+            return a.localeCompare(b);
         });
+    }, [tasks]);
 
-        return tasks;
-    }, [allTasks, searchTerm, statusFilter, assignedFilter]);
+    // Create Assistant Map for efficient lookup in TaskListItem
+    const assistantMap = React.useMemo(() => {
+        const map = new Map<string, Assistant>();
+        allAssistants.forEach(assistant => {
+            const assistantId = assistant.agent_id;
+            map.set(assistantId, assistant);
+        });
+        return map;
+    }, [allAssistants]);
 
-    // Create unique list of statuses present in the *original* task list for the filter
-    const taskStatuses = ['all', ...Array.from(new Set(allTasks.map(t => t.status)))];
+    const virtuosoRef = React.useRef(null);
+
+    // Callback for Virtuoso's endReached, memoized
+    const handleEndReached = React.useCallback(() => {
+        if (!isLoadingMore && hasMoreTasks) {
+            fetchMoreTasks();
+        }
+    }, [isLoadingMore, hasMoreTasks, fetchMoreTasks]);
+
+    // Render function for Virtuoso items, memoized
+    const renderTaskItem = React.useCallback((index: number, task: Task) => {
+        return (
+            <MemoizedTaskListItem
+                key={task.taskId} // Stable key is crucial
+                task={task}
+                assistantMap={assistantMap}
+                updateTask={updateTask}
+            />
+        );
+    }, [assistantMap, updateTask]);
 
     return (
         <div className="flex flex-col h-full bg-background">
-            {/* Header Area */}
+            {/* Header Area - Filter Controls */}
             <div className="px-4 py-3 border-b">
-                {/* Filters Row */}
-                <div className='flex flex-wrap gap-2 items-center justify-start'> {/* Changed layout */}
+                <div className='flex flex-wrap gap-2 items-center justify-start'>
                     {/* Search */}
-                    <div className="relative flex-grow sm:flex-grow-0 sm:max-w-xs"> {/* Control width */}
+                    <div className="relative flex-grow sm:flex-grow-0 sm:max-w-xs">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             type="search"
@@ -112,28 +141,46 @@ export function TaskList({ allTasks, allAssistants }: TaskListProps) {
                         selected={assignedFilter}
                         onChange={setAssignedFilter}
                         placeholder="Assigned"
-                        triggerIcon={<Users className="mr-2 h-4 w-4" />} // Specific icon
-                        className="w-[180px] h-8" // Adjust width
+                        triggerIcon={<Users className="mr-2 h-4 w-4" />}
+                        className="w-[180px] h-8"
                     />
                 </div>
             </div>
 
-            {/* Task Rendering Area */}
-            <ScrollArea className="flex-1">
-                {filteredTasks.length > 0 ? (
-                    <Accordion type="single" collapsible className="w-full">
-                         {filteredTasks.map((task) => (
-                            <TaskListItem
-                                key={task.id}
-                                task={task}
-                                allAssistants={allAssistants} // Pass assistants for avatar lookup
-                            />
-                        ))}
-                    </Accordion>
+            {/* Task Rendering Area - Accordion contains Virtuoso or Skeletons */}
+            <Accordion type="multiple" className="flex-1 h-full min-h-0 overflow-y-hidden">
+                {isLoadingInitial ? (
+                    // Render skeletons within a ScrollArea when initially loading
+                    <ScrollArea className="h-full p-2">
+                        <div className="space-y-1">
+                            {[...Array(15)].map((_, i) => ( 
+                                <TaskListItemSkeleton key={`task-skeleton-${i}`} />
+                            ))}
+                        </div>
+                    </ScrollArea>
+                ) : tasks.length > 0 ? (
+                    // Render Virtuoso list when not loading and tasks exist
+                    // Virtuoso needs a defined height container to work correctly.
+                    // The parent div and Accordion provide this via flex-1 and h-full.
+                    <Virtuoso
+                        ref={virtuosoRef}
+                        style={{ height: '100%' }} // Takes full height of the Accordion container
+                        data={tasks}
+                        endReached={handleEndReached}
+                        overscan={200}
+                        itemContent={renderTaskItem}
+                        components={{
+                            Footer: () => <ListFooter isLoadingMore={isLoadingMore} />,
+                        }}
+                        className="scrollbar-thin scrollbar-thumb-muted-foreground/50 scrollbar-track-transparent"
+                     />
                 ) : (
-                    <p className="p-6 text-sm text-muted-foreground text-center">No tasks found matching criteria.</p>
+                    // Render "No tasks found" message
+                    <p className="p-6 text-sm text-muted-foreground text-center">
+                        No tasks found matching criteria.
+                    </p>
                 )}
-            </ScrollArea>
+            </Accordion>
         </div>
     );
 }

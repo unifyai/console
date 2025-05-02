@@ -33,7 +33,7 @@ export function TaskAssignedFilter({
   selected,
   onChange,
   placeholder = "Select...",
-  triggerIcon = <UserCircle className="mr-2 h-4 w-4" />, // Default icon
+  triggerIcon = <UserCircle className="mr-2 h-4 w-4" />,
   className,
 }: TaskAssignedFilterProps) {
   const [open, setOpen] = React.useState(false);
@@ -51,8 +51,8 @@ export function TaskAssignedFilter({
   };
 
   const getAssistantName = (id: string) => {
-      const assistant = options.find(a => a.id === id);
-      return assistant ? `${assistant.firstName} ${assistant.lastName}` : 'Unknown';
+      const assistant = options.find(a => a.agent_id === id);
+      return assistant ? `${assistant.first_name} ${assistant.surname}` : 'Unknown';
   }
 
   return (
@@ -82,12 +82,16 @@ export function TaskAssignedFilter({
             <CommandEmpty>No assistants found.</CommandEmpty>
             <CommandGroup>
               {options.map((option) => {
-                const isSelected = selected.includes(option.id);
+                const isSelected = selected.includes(option.agent_id);
+                const avatarUrl = option.signedProfilePhotoUrl || option.profile_photo;
+                const displayName = `${option.first_name} ${option.surname}`;
+                const searchValue = `${displayName} ${option.email || ''}`.toLowerCase();
+
                 return (
                   <CommandItem
-                    key={option.id}
-                    value={`${option.firstName} ${option.lastName} ${option.email}`}
-                    onSelect={() => handleSelect(option.id)}
+                    key={option.agent_id}
+                    value={searchValue}
+                    onSelect={() => handleSelect(option.agent_id)}
                   >
                     <Check
                       className={cn(
@@ -96,12 +100,12 @@ export function TaskAssignedFilter({
                       )}
                     />
                      <Avatar className="h-5 w-5 mr-2">
-                        <AvatarImage src={option.avatarUrl} alt={`${option.firstName} ${option.lastName}`} />
+                        <AvatarImage src={avatarUrl} alt={displayName} />
                         <AvatarFallback className="text-xs">
-                            {`${option.firstName?.[0] ?? ''}${option.lastName?.[0] ?? ''}`.toUpperCase()}
+                            {`${option.first_name?.[0] ?? ''}${option.surname?.[0] ?? ''}`.toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
-                    <span className="truncate">{option.firstName} {option.lastName}</span>
+                    <span className="truncate">{displayName}</span>
                   </CommandItem>
                 );
               })}

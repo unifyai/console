@@ -2,6 +2,12 @@ export interface ResponseProps {
     [key: string]: string
 }
 
+export interface CustomResponseProps {
+    success: false,
+    message: string,
+    [key: string]: any
+}
+
 export interface FileProps {
     path: string,
     type?: string,

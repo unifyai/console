@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { useForm } from "react-hook-form";
-import type { PersonaFormData, HirePreset, HireActions } from '@/types/assistants/hire';
+import type { PersonaFormData, HirePreset, HireActions, CreateAssistantImageResponse } from '@/types/assistants/hire';
 import { HireForm } from './HireForm';
 import { PresetsPanel } from './PresetsPanel';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -11,7 +11,7 @@ import { Button } from '@/components/UI/button';
 import { LayoutList } from 'lucide-react';
 import assistantPresets from "@/constants/assistants/assistant_presets";
 import { Toaster, toast } from 'sonner';
-import { ResponseProps } from '@/types/common';
+import { CustomResponseProps } from '@/types/common';
 
 const shuffleArray = <T,>(array: T[]): T[] => {
     const shuffled = [...array];
@@ -77,83 +77,99 @@ export default function Main({ hireActions }: { hireActions: HireActions }) {
 
         setIsSubmitting(true);
         clearErrors();
-        const toastId = toast.loading("Processing request...");
+        const toastId = toast.loading("Hiring assistant...");
         let finalImageUrlToSend: string | null = null;
-        let uploadedFilePath: string | null = null;
-        let bucketName: string | null = null;
 
         try {
-            // 1. Handle Image Upload / Preset Check
-            toast.loading("Hiring assistant...", { id: toastId });
             const imageFile = data.imageFile;
 
             if (imageFile instanceof File) {
-                const { signedUrl, filePath: returnedFilePath, bucketName: returnedBucketName } = await hireActions.createImage(
+                // --- Custom Image Upload Path ---
+                const createImageResult = await hireActions.createImage(
                     imageFile.type,
                     imageFile.size
                 );
-                bucketName = returnedBucketName;
-                uploadedFilePath = returnedFilePath;
 
-                const uploadSuccess = await uploadImageToGCS(imageFile, signedUrl);
-                if (!uploadSuccess) {
-                    toast.error("Image upload failed.", { id: toastId });
+                if ('message' in createImageResult || ('success' in createImageResult && !createImageResult.success)) {
+                    const errorResult = createImageResult as CustomResponseProps;
+                    const errorMsg = errorResult.detail || errorResult.message || "Failed to get image upload details.";
+                    console.error("Error from createImage action:", errorResult);
+                    toast.error(errorMsg, { id: toastId });
                     setIsSubmitting(false);
                     return;
                 }
-                toast.success("Image uploaded.", { id: toastId });
 
-                if (bucketName && uploadedFilePath) {
-                   finalImageUrlToSend = `https://storage.googleapis.com/${bucketName}/${uploadedFilePath}`;
+                const successResult = createImageResult as CreateAssistantImageResponse;
+                const { signedUrl, filePath: returnedFilePath, bucketName: returnedBucketName } = successResult;
+
+                // Now upload the image using the signed URL
+                const uploadSuccess = await uploadImageToGCS(imageFile, signedUrl);
+                if (!uploadSuccess) {
+                    console.error("GCS upload failed after getting signed URL.");
+                    setIsSubmitting(false);
+                    // No need to update toastId here, uploadImageToGCS handled it
+                    return;
+                }
+
+                // Construct the final URL after successful upload
+                if (returnedBucketName && returnedFilePath) {
+                    finalImageUrlToSend = `https://storage.googleapis.com/${returnedBucketName}/${returnedFilePath}`;
                 } else {
-                    toast.error("Error processing image upload response.", { id: toastId });
+                    console.error("Error: Missing bucket name or file path after successful createImage action.");
+                    toast.error("Error processing image upload.", { id: toastId });
                     setIsSubmitting(false);
                     return;
                 }
 
             } else if (data.imagePreview && !data.imagePreview.startsWith('blob:')) {
-                finalImageUrlToSend = data.imagePreview;
-            } else {
-
+                finalImageUrlToSend = data.imagePreview; 
             }
 
             if (!finalImageUrlToSend) {
+                console.error("Final image URL is still missing before creating assistant.");
                 toast.error("Profile photo is required. Please upload one or select a preset.", { id: toastId });
                 setIsSubmitting(false);
                 return;
             }
 
-            // 3. Prepare data
+            // Prepare data
             const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
+            if (isNaN(ageNumber)) {
+                toast.error("Invalid age provided.", { id: toastId });
+                setIsSubmitting(false);
+                return;
+            }
 
-            // 4. Call createAssistant action
+            // Call createAssistant action
             const result = await hireActions.create(
                 data.firstName,
                 data.lastName,
                 ageNumber,
                 data.region,
-                finalImageUrlToSend,
+                finalImageUrlToSend, // Use the now correctly set URL
                 data.about
             );
 
-            // 5. Handle response
-             if (result && 'agent_id' in result && result.agent_id) {
+            // Handle response
+            if (result && 'agent_id' in result && result.agent_id) {
                 toast.success(`Assistant ${result.first_name || data.firstName} hired!`, { id: toastId, duration: 4000 });
                 reset();
                 handleImageRemove();
             } else {
-                const errorResult = result as ResponseProps;
+                const errorResult = result as CustomResponseProps;
                 const errorMessage = errorResult?.detail || errorResult?.message || errorResult?.error || "Failed to hire assistant.";
+                console.error("Error response from createAssistant action:", errorResult);
                 toast.error(errorMessage, { id: toastId, duration: 5000 });
             }
 
-
         } catch (error: any) {
-             toast.error(`An error occurred: ${error.message}`, { id: toastId, duration: 5000 });
+            console.error("Unhandled error in handleFormSubmit:", error);
+            toast.error(`An error occurred: ${error.message}`, { id: toastId, duration: 5000 });
         } finally {
             setIsSubmitting(false);
         }
-    }; 
+    };
+
 
     const handleTogglePresets = () => {
         setIsPresetsOpen(prev => !prev);
