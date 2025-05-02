@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { LogProps } from "@/types/evals/logs";
 import {
   Accordion,
@@ -48,7 +48,8 @@ import {
   Hash,
   Clock,
   MessagesSquare,
-  FileText
+  FileText,
+  Save
 } from "lucide-react";
 
 import {
@@ -154,7 +155,10 @@ function getSelectionView(
   parentPath: string,
   valueType: string,
   viewTracesAsDict?: boolean,
-  persistedTraceState?: PersistedTraceViewState
+  persistedTraceState?: PersistedTraceViewState,
+  cellEditMode?: boolean,
+  onSaveEdit?: (desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }) => void,
+  path?: (string | number)[]
 ) {
   // If user wants "raw"
   if (displayMode === "raw") {
@@ -168,6 +172,9 @@ function getSelectionView(
         comparisonLogsIndex={compLogIndex}
         diffMode={diffMode}
         splitView={splitView}
+        cellEditMode={cellEditMode}
+        onSaveEdit={onSaveEdit}
+        path={path}
       />
     );
   }
@@ -190,6 +197,9 @@ function getSelectionView(
           prefix={prefix}
           parentPath={parentPath}
           viewTracesAsDict={viewTracesAsDict}
+          cellEditMode={cellEditMode}
+          onSaveEdit={onSaveEdit}
+          path={path}
         />
     );
   }
@@ -209,6 +219,9 @@ function getSelectionView(
           comparableVersions={vers}
           displayMode={displayMode}
           persistedState={persistedTraceState}
+          cellEditMode={cellEditMode}
+          onSaveEdit={onSaveEdit}
+          path={path}
         />
       );
     case "chat":
@@ -223,6 +236,9 @@ function getSelectionView(
           version={version}
           comparableVersions={vers}
           displayMode={displayMode}
+          cellEditMode={cellEditMode}
+          onSaveEdit={onSaveEdit}
+          path={path}
         />
       );
     case "dict":
@@ -241,6 +257,9 @@ function getSelectionView(
           prefix={prefix}
           parentPath={parentPath}
           viewTracesAsDict={viewTracesAsDict}
+          cellEditMode={cellEditMode}
+          onSaveEdit={onSaveEdit}
+          path={path}
         />
       );
     case "list":
@@ -259,6 +278,9 @@ function getSelectionView(
           prefix={prefix}
           parentPath={parentPath}
           viewTracesAsDict={viewTracesAsDict}
+          cellEditMode={cellEditMode}
+          onSaveEdit={onSaveEdit}
+          path={path}
         />
       );
     case "pdf":
@@ -273,6 +295,9 @@ function getSelectionView(
           version={version}
           comparableVersions={vers}
           displayMode={displayMode}
+          cellEditMode={cellEditMode}
+          onSaveEdit={onSaveEdit}
+          path={path}
         />
       );
     case "image":
@@ -287,6 +312,9 @@ function getSelectionView(
           version={version}
           comparableVersions={vers}
           displayMode={displayMode}
+          cellEditMode={cellEditMode}
+          onSaveEdit={onSaveEdit}
+          path={path}
         />
       );
     case "matrix":
@@ -301,6 +329,9 @@ function getSelectionView(
           version={version}
           comparableVersions={vers}
           displayMode={displayMode}
+          cellEditMode={cellEditMode}
+          onSaveEdit={onSaveEdit}
+          path={path}
         />
       );
     case "number":
@@ -315,6 +346,9 @@ function getSelectionView(
           version={version}
           comparableVersions={vers}
           displayMode={displayMode}
+          cellEditMode={cellEditMode}
+          onSaveEdit={onSaveEdit}
+          path={path}
         />
       );
     case "timestamp":
@@ -329,6 +363,9 @@ function getSelectionView(
           version={version}
           comparableVersions={vers}
           displayMode={displayMode}
+          cellEditMode={cellEditMode}
+          onSaveEdit={onSaveEdit}
+          path={path}
         />
       );
     default:
@@ -343,6 +380,9 @@ function getSelectionView(
           version={version}
           comparableVersions={vers}
           displayMode={displayMode}
+          cellEditMode={cellEditMode}
+          onSaveEdit={onSaveEdit}
+          path={path}
         />
       );
   }
@@ -376,6 +416,9 @@ interface SelectionEntryProps {
   externalTraceState?: PersistedTraceViewState;
   dragAttributes?: DraggableAttributes;
   dragListeners?: SyntheticListenerMap;
+  cellEditMode?: boolean;
+  onSaveEdit?: (desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }) => void;
+  path?: (string | number)[];
 }
 
 /**
@@ -416,6 +459,9 @@ export default function SelectionEntry({
   externalTraceState,
   dragAttributes,
   dragListeners,
+  cellEditMode = false,
+  onSaveEdit,
+  path: incomingPath,
 }: SelectionEntryProps) {
   // We need to access the expandRecursively and collapseRecursively functions from context
   const expandRecursively = useMemo(() => {
@@ -593,11 +639,17 @@ export default function SelectionEntry({
     ]
   );
 
+  // Build the path array: use the supplied `path` from recursion if present,
+  // otherwise default to the top-level `[property]`.
+  const valuePath: (string | number)[] = useMemo(() => {
+    return incomingPath && incomingPath.length > 0 ? incomingPath : [property];
+  }, [incomingPath, property]);
+
   // Memoize the content to avoid unnecessary re-calculations
   const renderedContent = useMemo(() => {
     // Skip calculation if empty
     if (isEmpty) return null;
-    
+
     return getSelectionView(
       rawValue,
       comps,
@@ -613,7 +665,10 @@ export default function SelectionEntry({
       topLevelPath, // Pass the top-level path as parentPath
       unifiedType, // Pass the unified type to avoid recalculating
       viewTracesAsDict, // Now comes after valueType
-      persistedTraceState // Pass the persisted trace state
+      persistedTraceState, // Pass the persisted trace state
+      cellEditMode,
+      onSaveEdit,
+      valuePath
     );
   }, [
     rawValue,
@@ -631,7 +686,10 @@ export default function SelectionEntry({
     unifiedType,
     isEmpty,
     viewTracesAsDict,
-    persistedTraceState
+    persistedTraceState,
+    cellEditMode,
+    onSaveEdit,
+    valuePath
   ]);
   
   // For the shadcn <AccordionItem>, we unify property => so the parent's "onValueChange" logic sees a simpler string
@@ -679,9 +737,157 @@ export default function SelectionEntry({
     }
   };
 
+  ////////////////////////////////////////////////////////////////////////////
+  // Local edit state (Task 7)
+  ////////////////////////////////////////////////////////////////////////////
+
+  // Treat traces as non-leaf values regardless of how they are rendered so that the
+  // entire trace object itself never becomes directly editable.  Editing should
+  // occur within the specialised TraceView (or within its dictionary form) at
+  // the appropriate nested fields instead.
+  const isLeaf = useMemo(() => {
+    if (unifiedType === "trace") return false;
+    return !isTopLevelExpandable;
+  }, [unifiedType, isTopLevelExpandable]);
+
+  // Track edit mode for this specific cell
+  const [isEditing, setIsEditing] = useState(false);
+
+  // `draft` holds the transient user edits.  Start with the current value.
+  const [draft, setDraft] = useState<any>(rawValue);
+
+  // Ref for the editable input/textarea so we can focus programmatically
+  const editRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+
+  // Container ref to support click-away cancel
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Keep draft in sync if the underlying value changes (e.g. user selects a
+  // different row set)
+  useEffect(() => {
+    setDraft(rawValue);
+  }, [rawValue]);
+
+  // When global cell edit mode is toggled off while a cell is editing, abort
+  // the edit to keep UI consistent.
+  useEffect(() => {
+    if (!cellEditMode) {
+      setIsEditing(false);
+    }
+  }, [cellEditMode]);
+
+  // Focus the field when entering editing state
+  useEffect(() => {
+    if (isEditing) {
+      // Delay to next tick to ensure element is mounted
+      setTimeout(() => editRef.current?.focus(), 0);
+    }
+  }, [isEditing]);
+
+  // Escape key → cancel edit (discard changes)
+  useEffect(() => {
+    function onKeydown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setIsEditing(false);
+        setDraft(rawValue); // revert
+      }
+    }
+    if (isEditing) {
+      window.addEventListener("keydown", onKeydown);
+    }
+    return () => window.removeEventListener("keydown", onKeydown);
+  }, [isEditing, rawValue]);
+
+  // Click-away to cancel
+  useEffect(() => {
+    function handleClick(event: MouseEvent) {
+      if (isEditing && containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsEditing(false);
+        setDraft(rawValue);
+      }
+    }
+    if (isEditing) {
+      document.addEventListener("mousedown", handleClick);
+    }
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [isEditing, rawValue]);
+
+  // Handle commit (save) of the edited draft
+  const handleSave = useMemo(() => {
+    return () => {
+      setIsEditing(false);
+      if (onSaveEdit) {
+        onSaveEdit({
+          source,
+          path: valuePath,
+          newValue: draft,
+        });
+      }
+    };
+  }, [onSaveEdit, source, valuePath, draft]);
+
+  // Decide what to render inside AccordionContent
+  const contentNode = useMemo(() => {
+    if (isLeaf && cellEditMode) {
+      if (isEditing) {
+        // Very basic editor – render input/textarea based on content length
+        const isMultiLine = typeof draft === "string" && draft.length > 80;
+        const commonProps = {
+          className: "w-full border rounded p-1 text-sm font-mono",
+          value: draft == null ? "" : draft,
+          onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setDraft(e.target.value),
+        } as const;
+
+        return (
+          <div className="relative">
+            {isMultiLine ? (
+              <textarea
+                rows={4}
+                ref={editRef as React.RefObject<HTMLTextAreaElement>}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    if (e.shiftKey) {
+                      // Shift+Enter inserts newline, do nothing
+                      return;
+                    }
+                    e.preventDefault();
+                    handleSave();
+                  }
+                }}
+                {...commonProps}
+              />
+            ) : (
+              <input
+                type="text"
+                ref={editRef as React.RefObject<HTMLInputElement>}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSave();
+                  }
+                }}
+                {...commonProps}
+              />
+            )}
+          </div>
+        );
+      }
+      // Not currently editing – just show view content (read-only)
+      return renderedContent;
+    }
+    // Not a leaf or not in cell edit mode – fallback to normal content
+    return renderedContent;
+  }, [isLeaf, cellEditMode, isEditing, draft, renderedContent]);
+
   return (
     <AccordionItem
       value={itemValue}
+      onDoubleClick={(e) => {
+        if (cellEditMode && isLeaf) {
+          e.stopPropagation();
+          setIsEditing(true);
+        }
+      }}
     >
       <AccordionTrigger
         {...(dragAttributes ? { ...dragAttributes, ...dragListeners } : {})}
@@ -703,7 +909,7 @@ export default function SelectionEntry({
           </Tooltip>
           
           {/* Property name */}
-          <span className="inline-block align-middle">{property}</span>
+          <span className={`inline-block align-middle ${cellEditMode && isLeaf ? "cursor-text" : ""}`}>{property}</span>
           
           {/* Hide column button */}
           <ActionButton
@@ -734,8 +940,26 @@ export default function SelectionEntry({
 
       <AccordionContent>
         {/* Add a wrapper div with proper indentation for top-level items */}
-        <div className="border-l border-l-muted ml-4 pl-3 relative">
-          {renderedContent}
+        <div
+          ref={containerRef}
+          className="border-l border-l-muted ml-4 pl-3 relative">
+          {contentNode}
+
+          {/* Floating save button */}
+          {cellEditMode && isLeaf && isEditing && (
+            <ActionButton
+              className="absolute -top-1 -right-1"
+              icon={<Save size={14} />}
+              tooltip="Save"
+              aria-label="Save cell"
+              variant="primary"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSave();
+              }}
+            />
+          )}
         </div>
       </AccordionContent>
     </AccordionItem>

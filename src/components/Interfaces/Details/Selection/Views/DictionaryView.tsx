@@ -220,6 +220,9 @@ interface DictionaryViewProps extends LogComparisonProps {
   nestingLevel?: number;
   customIconMapping?: Record<string, JSX.Element>; // New prop for custom icons
   viewTracesAsDict?: boolean; // Add prop to pass down the setting
+  cellEditMode?: boolean;
+  onSaveEdit?: (value: any) => void;
+  path?: (string | number)[];
 }
 
 /*─────────────────────────────────────────────────────────────────────────
@@ -247,11 +250,15 @@ function renderNoDiffMode(
     collapseRecursively: (paths: string[]) => void,
     customIconMapping?: Record<string, JSX.Element>, // Add custom icon mapping to options
     viewTracesAsDict?: boolean, // Receive the trace view setting
+    cellEditMode?: boolean,
+    onSaveEdit?: (desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }) => void,
+    editPath?: (string | number)[],
   }
 ) {
   const { 
     baseLogIndex, comparisonLogsIndex, version, comparableVersions, 
     diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
+    cellEditMode = false, onSaveEdit, editPath = [],
     expandRecursively, collapseRecursively, customIconMapping
   } = options;
   
@@ -355,6 +362,9 @@ function renderNoDiffMode(
         // Get separator classes for this item
         const separatorClasses = getSeparatorClasses(idx, allKeys.length);
         
+        // Build editing path for this child key
+        const childEditPath = [...editPath, k];
+        
         return (
           <AccordionItem key={k} value={path} className={separatorClasses}>
             <AccordionTrigger className="relative group flex items-center justify-between">
@@ -407,6 +417,9 @@ function renderNoDiffMode(
                       prefix,
                       parentPath: path,
                       viewTracesAsDict,
+                      cellEditMode,
+                      onSaveEdit,
+                      path: childEditPath,
                     });
                   }
                   
@@ -459,6 +472,9 @@ function renderNoDiffMode(
                                 prefix,
                                 parentPath: path,
                                 viewTracesAsDict,
+                                cellEditMode,
+                                onSaveEdit,
+                                path: childEditPath,
                               })}
                             </div>
                           )}
@@ -484,6 +500,9 @@ function renderNoDiffMode(
                                 prefix,
                                 parentPath: path,
                                 viewTracesAsDict,
+                                cellEditMode,
+                                onSaveEdit,
+                                path: childEditPath,
                               })}
                             </div>
                           )}
@@ -532,6 +551,9 @@ function renderNoDiffMode(
                                       prefix,
                                       parentPath: path,
                                       viewTracesAsDict,
+                                      cellEditMode,
+                                      onSaveEdit,
+                                      path: childEditPath,
                                     })}
                                   </div>
                                 ));
@@ -590,6 +612,9 @@ function renderNoDiffMode(
                                   prefix,
                                   parentPath: path,
                                   viewTracesAsDict,
+                                  cellEditMode,
+                                  onSaveEdit,
+                                  path: childEditPath,
                                 })}
                               </div>
                             ))}
@@ -614,6 +639,9 @@ function renderNoDiffMode(
                     prefix,
                     parentPath: path,
                     viewTracesAsDict,
+                    cellEditMode,
+                    onSaveEdit,
+                    path: childEditPath,
                   });
                 })()}
               </div>
@@ -650,11 +678,15 @@ function renderDiffMode(
     collapseRecursively: (paths: string[]) => void,
     customIconMapping?: Record<string, JSX.Element>, // Add custom icon mapping to options
     viewTracesAsDict?: boolean, // Receive the trace view setting
+    cellEditMode?: boolean,
+    onSaveEdit?: (desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }) => void,
+    editPath?: (string | number)[],
   }
 ) {
   const { 
     baseLogIndex, comparisonLogsIndex, version, comparableVersions, 
     diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
+    cellEditMode = false, onSaveEdit, editPath = [],
     expandRecursively, collapseRecursively, customIconMapping
   } = options;
   
@@ -769,6 +801,9 @@ function renderDiffMode(
           compVals.map(cv => cv.rowIndex)
         );
         
+        // Build editing path for this child key
+        const childEditPath = [...editPath, k];
+        
         return (
           <AccordionItem key={k} value={path} className={separatorClasses}>
             <AccordionTrigger className="relative group flex items-center justify-between">
@@ -825,6 +860,9 @@ function renderDiffMode(
                       prefix,
                       parentPath: path,
                       viewTracesAsDict,
+                      cellEditMode,
+                      onSaveEdit,
+                      path: childEditPath,
                     });
                   }
                   
@@ -895,6 +933,9 @@ function renderDiffMode(
                         prefix,
                         parentPath: path,
                         viewTracesAsDict,
+                        cellEditMode,
+                        onSaveEdit,
+                        path: childEditPath,
                       })}
                     </div>
                           )}
@@ -920,6 +961,9 @@ function renderDiffMode(
                                 prefix,
                                 parentPath: path,
                                 viewTracesAsDict,
+                                cellEditMode,
+                                onSaveEdit,
+                                path: childEditPath,
                               })}
                             </div>
                           )}
@@ -957,6 +1001,9 @@ function renderDiffMode(
                                         prefix,
                                         parentPath: path,
                                         viewTracesAsDict,
+                                        cellEditMode,
+                                        onSaveEdit,
+                                        path: childEditPath,
                                       })}
                                     </div>
                                   );
@@ -1002,6 +1049,9 @@ function renderDiffMode(
                                       prefix,
                                       parentPath: path,
                                       viewTracesAsDict,
+                                      cellEditMode,
+                                      onSaveEdit,
+                                      path: childEditPath,
                                     })}
                                   </div>
                                 ));
@@ -1030,6 +1080,9 @@ function renderDiffMode(
                       prefix,
                       parentPath: path,
                       viewTracesAsDict,
+                      cellEditMode,
+                      onSaveEdit,
+                      path: childEditPath,
                     });
                   }
                   
@@ -1048,6 +1101,9 @@ function renderDiffMode(
                     prefix,
                     parentPath: path,
                     viewTracesAsDict,
+                    cellEditMode,
+                    onSaveEdit,
+                    path: childEditPath,
                   });
                 })()}
               </div>
@@ -1074,6 +1130,9 @@ export default function DictionaryView({
   parentPath = "", // new param to track parent's path
   customIconMapping, // New prop for custom icons
   viewTracesAsDict, // Receive the prop
+  cellEditMode = false,
+  onSaveEdit,
+  path: editPath = [],
 }: DictionaryViewProps) {
 
   // We first need to detect if we're within a TraceView context
@@ -1266,6 +1325,9 @@ export default function DictionaryView({
       handleToggle(k, path);
     }
 
+    // Build editing path for this child key
+    const childEditPath = [...editPath, k];
+
     return (
       <AccordionItem key={k} value={k} className="border-0">
         <AccordionTrigger
@@ -1313,6 +1375,9 @@ export default function DictionaryView({
               prefix,
               parentPath: path, // pass fully-qualified path to children
               viewTracesAsDict,
+              cellEditMode,
+              onSaveEdit,
+              path: childEditPath,
             })}
           </div>
         </AccordionContent>
@@ -1348,6 +1413,9 @@ export default function DictionaryView({
       e.stopPropagation();
       handleToggle(k, path);
     }
+
+    // Build editing path for this child key
+    const childEditPath = [...editPath, k];
 
     return (
       <AccordionItem className={indentClass} key={k} value={k}>
@@ -1388,6 +1456,9 @@ export default function DictionaryView({
               prefix,
               parentPath: path, // pass fully-qualified path to children
               viewTracesAsDict,
+              cellEditMode,
+              onSaveEdit,
+              path: childEditPath,
             })}
           </div>
         </AccordionContent>
@@ -1474,6 +1545,9 @@ export default function DictionaryView({
         collapseRecursively: effectiveCollapseRecursively,
         customIconMapping,
         viewTracesAsDict,
+        cellEditMode,
+        onSaveEdit,
+        editPath,
       }
     );
   }
@@ -1501,6 +1575,9 @@ export default function DictionaryView({
       collapseRecursively: effectiveCollapseRecursively,
       customIconMapping,
       viewTracesAsDict,
+      cellEditMode,
+      onSaveEdit,
+      editPath,
     }
   );
 }

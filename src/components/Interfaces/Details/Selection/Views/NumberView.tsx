@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { LogComparisonProps } from "./types";
 import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 import MarkdownRenderer from "./Markdown/MarkdownRenderer";
+import { useEditablePrimitive } from "@/hooks/useEditablePrimitive";
+import { toast } from "sonner";
 
 /**
  * Convert unknown => finite number, or null if not a valid number.
@@ -109,7 +111,34 @@ export default function NumberView({
   comparableVersions = [],
   scientificNotation = false,
   displayMode = "markdown",
+  cellEditMode = false,
+  onSaveEdit,
+  path = [],
 }: LogComparisonProps & { scientificNotation?: boolean }) {
+  const { draft, inputProps } = useEditablePrimitive<number | null>(asFiniteNumber(value), (val)=>{
+    if(onSaveEdit) onSaveEdit({source:"entries", path, newValue: val});
+  }, (val)=> val===null ? "Invalid number" : true);
+
+  // ------------------------------------------------------------------
+  // Hooks must be called unconditionally.  Declare state BEFORE any
+  // potential early-return to keep hook order stable across renders.
+  // ------------------------------------------------------------------
+  const [opIndex, setOpIndex] = React.useState(0);
+  const currentSymbol = symbols[opIndex];
+  function handleCycleSymbol() {
+    setOpIndex((prev) => (prev + 1) % symbols.length);
+  }
+
+  if (cellEditMode) {
+    return (
+      <input
+        type="number"
+        className="w-full border rounded p-1 text-sm font-mono"
+        {...inputProps}
+      />
+    );
+  }
+
   // Single vs. multiple
   const singleMode = !comparables || comparables.length === 0;
 
@@ -128,13 +157,6 @@ export default function NumberView({
       return val.toExponential(2);
     }
     return val.toString();
-  }
-
-  // Operation: cycle through symbols
-  const [opIndex, setOpIndex] = useState(0);
-  const currentSymbol = symbols[opIndex];
-  function handleCycleSymbol() {
-    setOpIndex((prev) => (prev + 1) % symbols.length);
   }
 
   /////////////////////////////////////////////////////////////////////////

@@ -5,6 +5,11 @@ import UnifiedTraceView, { PersistedTraceViewState } from "./TraceView";
 
 interface TraceViewProps extends LogComparisonProps {
   persistedState?: PersistedTraceViewState;
+  cellEditMode?: boolean;
+  onSaveEdit?: (
+    desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }
+  ) => void;
+  path?: (string | number)[];
 }
 
 const TraceView: React.FC<TraceViewProps> = ({
@@ -16,6 +21,9 @@ const TraceView: React.FC<TraceViewProps> = ({
   splitView = false,
   displayMode = "markdown",
   persistedState,
+  cellEditMode,
+  onSaveEdit,
+  path,
 }) => {
   // Ensure the base "value" is an array of spans
   if (!Array.isArray(value)) {
@@ -39,6 +47,9 @@ const TraceView: React.FC<TraceViewProps> = ({
       splitView={splitView}
       displayMode={displayMode}
       persistedState={persistedState}
+      cellEditMode={cellEditMode}
+      onSaveEdit={onSaveEdit}
+      path={path}
     />
   );
 };

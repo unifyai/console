@@ -11,4 +11,9 @@ export interface LogComparisonProps {
   diffMode?: "none" | "lines" | "words" | "characters";
   splitView?: boolean;
   displayMode?: "text" | "markdown"
+  // Editing mode props (Task 8)
+  cellEditMode?: boolean;
+  onSaveEdit?: (desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }) => void;
+  path?: (string | number)[]; // Path to this value within its container for editing
+  editable?: boolean; // alias for cellEditMode when used directly in leaf views
 }

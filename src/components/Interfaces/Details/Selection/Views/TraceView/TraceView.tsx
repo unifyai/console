@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   Accordion,
   AccordionItem,
@@ -134,6 +134,16 @@ function formatCost(value: any): string {
   return parseFloat(num.toFixed(4)).toString();
 }
 
+// Helper to safely apply toFixed on potentially non-number inputs
+function safeToFixed(val: any, digits: number = 2) {
+  const num = typeof val === "number" ? val : Number(val);
+  if (Number.isFinite(num)) {
+    return num.toFixed(digits);
+  }
+  // Fallback – return string representation unchanged for non-numeric values
+  return String(val);
+}
+
 function pickView(
   baseVal: any,
   comps: any[],
@@ -141,7 +151,10 @@ function pickView(
   comparisonLogsIndex: number[],
   diffMode: LogComparisonProps["diffMode"],
   splitView: LogComparisonProps["splitView"],
-  displayMode: "text" | "markdown" | undefined
+  displayMode: "text" | "markdown" | undefined,
+  cellEditMode?: boolean,
+  onSaveEdit?: (desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }) => void,
+  path: (string | number)[] = []
 ): JSX.Element {
   if (isChat(baseVal)) {
     return (
@@ -153,6 +166,9 @@ function pickView(
         diffMode={diffMode ?? "none"}
         splitView={splitView ?? false}
         displayMode={displayMode}
+        cellEditMode={cellEditMode}
+        onSaveEdit={onSaveEdit}
+        path={path}
       />
     );
   }
@@ -166,6 +182,9 @@ function pickView(
         diffMode={diffMode ?? "none"}
         splitView={splitView ?? false}
         displayMode={displayMode}
+        cellEditMode={cellEditMode}
+        onSaveEdit={onSaveEdit}
+        path={path}
       />
     );
   }
@@ -179,6 +198,9 @@ function pickView(
         diffMode={diffMode ?? "none"}
         splitView={splitView ?? false}
         displayMode={displayMode}
+        cellEditMode={cellEditMode}
+        onSaveEdit={onSaveEdit}
+        path={path}
       />
     );
   }
@@ -192,6 +214,9 @@ function pickView(
         diffMode={diffMode ?? "none"}
         splitView={splitView ?? false}
         displayMode={displayMode}
+        cellEditMode={cellEditMode}
+        onSaveEdit={onSaveEdit}
+        path={path}
       />
     );
   }
@@ -205,6 +230,9 @@ function pickView(
         diffMode={diffMode ?? "none"}
         splitView={splitView ?? false}
         displayMode={displayMode}
+        cellEditMode={cellEditMode}
+        onSaveEdit={onSaveEdit}
+        path={path}
       />
     );
   }
@@ -218,6 +246,9 @@ function pickView(
         diffMode={diffMode ?? "none"}
         splitView={splitView ?? false}
         displayMode={displayMode}
+        cellEditMode={cellEditMode}
+        onSaveEdit={onSaveEdit}
+        path={path}
       />
     );
   }
@@ -231,6 +262,9 @@ function pickView(
         diffMode={diffMode ?? "none"}
         splitView={splitView ?? false}
         displayMode={displayMode}
+        cellEditMode={cellEditMode}
+        onSaveEdit={onSaveEdit}
+        path={path}
       />
     );
   }
@@ -244,6 +278,9 @@ function pickView(
       diffMode={diffMode ?? "none"}
       splitView={splitView ?? false}
       displayMode={displayMode}
+      cellEditMode={cellEditMode}
+      onSaveEdit={onSaveEdit}
+      path={path}
     />
   );
 }
@@ -262,6 +299,9 @@ function DictionarySectionItem({
   openSections,
   setOpenSections,
   sectionIcons,
+  cellEditMode,
+  onSaveEdit,
+  parentPath,
 }: {
   title: string;
   baseVal: any;
@@ -275,6 +315,9 @@ function DictionarySectionItem({
   openSections: string[];
   setOpenSections: React.Dispatch<React.SetStateAction<string[]>>;
   sectionIcons: Record<string, JSX.Element>;
+  cellEditMode?: boolean;
+  onSaveEdit?: (desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }) => void;
+  parentPath: (string | number)[];
 }) {
   // Create a custom icon mapping for the DictionaryView
   const customIconMapping: Record<string, JSX.Element> = {};
@@ -436,6 +479,9 @@ function DictionarySectionItem({
             prefix={title.toLowerCase()} // Use lowercase section name as prefix
             parentPath={title.toLowerCase()} // Use lowercase section name as parent path
             customIconMapping={customIconMapping}
+            cellEditMode={cellEditMode}
+            onSaveEdit={onSaveEdit}
+            path={parentPath}
           />
         </div>
       </AccordionContent>
@@ -453,6 +499,9 @@ function PatchDetailPanel({
   splitView,
   displayMode,
   persistedState,
+  cellEditMode,
+  onSaveEdit,
+  path,
 }: {
   node: PatchDiffNode;
   baseRowIndex: number;
@@ -463,6 +512,9 @@ function PatchDetailPanel({
   splitView?: LogComparisonProps["splitView"];
   displayMode?: "text" | "markdown" | undefined;
   persistedState?: PersistedTraceViewState;
+  cellEditMode?: boolean;
+  onSaveEdit?: (desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }) => void;
+  path?: (string | number)[];
 }) {
   // IMPORTANT: Declare ALL hooks at the top level before any conditional logic
   
@@ -507,6 +559,47 @@ function PatchDetailPanel({
     return <p className="italic text-sm">No base or target data</p>;
   }
   
+  // ------------------------------------------------------------------
+  // Determine the *full* path (indices + "child_spans" segments) from the
+  // root trace array to the currently selected span.  This guarantees that
+  // edits performed on deeply-nested spans are written back to the correct
+  // location in the trace structure.
+  // ------------------------------------------------------------------
+
+  const spanPathSegments = useMemo(() => {
+    const targetId = node.baseSpanRef?.id || node.targetSpanRef?.id;
+
+    function recurse(spans: Span[], acc: (string | number)[]): (string | number)[] | null {
+      for (let i = 0; i < spans.length; i++) {
+        const s = spans[i];
+        if (s.id === targetId) {
+          return [...acc, i];
+        }
+        if (s.child_spans && s.child_spans.length) {
+          const found = recurse(s.child_spans, [...acc, i, "child_spans"]);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+
+    const roots = (allTraces?.[0] ?? []) as Span[];
+    const res = recurse(roots, []);
+    return res ?? [0]; // default to first span if not found
+  }, [allTraces, node.baseSpanRef, node.targetSpanRef]);
+
+  // Helper to construct a fully-qualified edit path for a given field key
+  const buildFieldPath = useCallback(
+    (fieldKey: string | number) => {
+      return [
+        ...(path ?? []), // usually ["trace"]
+        ...spanPathSegments,
+        fieldKey,
+      ] as (string | number)[];
+    },
+    [path, spanPathSegments]
+  );
+
   const mainSpan = node.baseSpanRef || node.targetSpanRef;
   const spanId = mainSpan?.id ?? "(no id)";
 
@@ -578,18 +671,25 @@ function PatchDetailPanel({
   };
 
   // Helper to render a standard accordion item
-  function maybeRenderBlock(title: string, baseVal: any, comps: any[]): JSX.Element | null {
+  function maybeRenderBlock(title: string, baseVal: any, comps: any[], fieldKey: string): JSX.Element | null {
     // Determine if we should render anything by checking emptiness first
     const isEmpty = allEmpty(baseVal, comps);
     if (isEmpty) {
       return null;
     }
 
+    // PRECOMPUTE full edit path (used in multiple places below)
+    const fullPath = buildFieldPath(fieldKey);
+
     // Special handling for "Inputs" and "Outputs" sections
     if (title === "Inputs" || title === "Outputs") {
       // If it's not a dictionary, fall back to standard rendering
       if (!isDict(baseVal)) {
-        const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown");
+        const wrappedSave = (desc: { source: "entries" | "params"; path: (string|number)[]; newValue:any }) => {
+          onSaveEdit?.(desc);
+        };
+
+        const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown", cellEditMode, wrappedSave, fullPath);
         return (
           <AccordionItem key={title} value={title}>
             <AccordionTrigger className="relative group flex items-center justify-between">
@@ -605,6 +705,10 @@ function PatchDetailPanel({
       }
 
       // Use a dedicated component for dictionary inputs/outputs to encapsulate hooks
+      const wrappedSave = (desc: { source: "entries" | "params"; path: (string|number)[]; newValue:any }) => {
+        onSaveEdit?.(desc);
+      };
+
       return (
         <DictionarySectionItem 
           title={title}
@@ -619,12 +723,19 @@ function PatchDetailPanel({
           openSections={openSections}
           setOpenSections={setOpenSections}
           sectionIcons={sectionIcons}
+          cellEditMode={cellEditMode}
+          onSaveEdit={wrappedSave}
+          parentPath={fullPath}
         />
       );
     }
 
     // Standard rendering for other sections
-    const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown");
+    const wrappedSave = (desc: { source: "entries" | "params"; path: (string|number)[]; newValue:any }) => {
+      onSaveEdit?.(desc);
+    };
+
+    const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown", cellEditMode, wrappedSave, fullPath);
 
     return (
       <AccordionItem key={title} value={title}>
@@ -771,13 +882,13 @@ function PatchDetailPanel({
           // Return all accordion sections
           return (
             <>
-              {maybeRenderBlock("Inputs", bInputs, cInputs)}
-              {maybeRenderBlock("Outputs", bOutputs, cOutputs)}
-              {maybeRenderBlock("Code", bCode, cCode)}
-              {maybeRenderBlock("Execution Time", bExecTime, cExecTime)}
-              {maybeRenderBlock("Errors", bErrors, cErrors)}
+              {maybeRenderBlock("Inputs", bInputs, cInputs, "inputs")}
+              {maybeRenderBlock("Outputs", bOutputs, cOutputs, "outputs")}
+              {maybeRenderBlock("Code", bCode, cCode, "code")}
+              {maybeRenderBlock("Execution Time", bExecTime, cExecTime, "exec_time")}
+              {maybeRenderBlock("Errors", bErrors, cErrors, "errors")}
               {renderCostBlock()}
-              {maybeRenderBlock(idSectionTitle, bId, cId)}
+              {maybeRenderBlock(idSectionTitle, bId, cId, idSectionTitle.toLowerCase())}
             </>
           );
         })()}
@@ -877,7 +988,7 @@ function CollapsiblePatchLineNode({
   if (!multiMode) {
     if (baseTime) {
       const { value, unit } = formatTime(baseTime);
-      timeLabel = `${value.toFixed(2)}${unit}`;
+      timeLabel = `${safeToFixed(value,2)}${unit}`;
       timeData = {
         title: "Execution Time",
         baseTime,
@@ -887,7 +998,7 @@ function CollapsiblePatchLineNode({
     if (node.marker === "+") {
       if (targetTime) {
         const { value, unit } = formatTime(targetTime);
-        timeLabel = `${value.toFixed(2)}${unit}`;
+        timeLabel = `${safeToFixed(value,2)}${unit}`;
         timeData = {
           title: "Execution Time (Comparison Only)",
           targetTime,
@@ -896,7 +1007,7 @@ function CollapsiblePatchLineNode({
     } else if (node.marker === "-") {
       if (baseTime) {
         const { value, unit } = formatTime(baseTime);
-        timeLabel = `${value.toFixed(2)}${unit}`;
+        timeLabel = `${safeToFixed(value,2)}${unit}`;
         timeData = {
           title: "Execution Time (Base Only)",
           baseTime,
@@ -907,7 +1018,7 @@ function CollapsiblePatchLineNode({
       if (baseTime || targetTime) {
         const { value, unit } = formatTime(Math.abs(diff));
         const sign = diff >= 0 ? "+" : "-";
-        timeLabel = `${sign}${value.toFixed(2)}${unit}`;
+        timeLabel = `${sign}${safeToFixed(value,2)}${unit}`;
         timeData = {
           title: "Execution Times",
           baseTime,
@@ -1176,20 +1287,20 @@ function CollapsiblePatchLineNode({
                   {timeData.baseTime !== undefined && (
                     <p>Base Execution Time: {(() => {
                       const { value, unit } = formatTime(timeData.baseTime);
-                      return `${value.toFixed(2)}${unit}`;
+                      return `${safeToFixed(value,2)}${unit}`;
                     })()}</p>
                   )}
                   {timeData.targetTime !== undefined && (
                     <p>
                       Comparison Execution Time: {(() => {
                         const { value, unit } = formatTime(timeData.targetTime);
-                        return `${value.toFixed(2)}${unit}`;
+                        return `${safeToFixed(value,2)}${unit}`;
                       })()}
                     </p>
                   )}
                   {timeData.diffSign && (
                     <p>
-                      Difference: {timeData.diffSign}{timeData.diffValue.toFixed(2)}{timeData.diffUnit}
+                      Difference: {timeData.diffSign}{safeToFixed(timeData.diffValue,2)}{timeData.diffUnit}
                     </p>
                   )}
                 </div>
@@ -1346,6 +1457,9 @@ interface UnifiedTraceViewProps {
   displayMode?: "text" | "markdown" | undefined;
   // New prop for persisted state (optional)
   persistedState?: PersistedTraceViewState;
+  cellEditMode?: boolean;
+  onSaveEdit?: (desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }) => void;
+  path?: (string | number)[];
 }
 
 function flattenRootNode(root: PatchDiffNode | null): PatchDiffNode[] {
@@ -1380,7 +1494,10 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
   diffMode,
   splitView,
   displayMode,
-  persistedState
+  persistedState,
+  cellEditMode,
+  onSaveEdit,
+  path,
 }: {
   selectedNode: PatchDiffNode | null;
   baseRowIndex: number;
@@ -1391,6 +1508,9 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
   splitView?: LogComparisonProps["splitView"];
   displayMode?: "text" | "markdown" | undefined;
   persistedState?: PersistedTraceViewState;
+  cellEditMode?: boolean;
+  onSaveEdit?: (desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }) => void;
+  path?: (string | number)[];
 }) {
   if (!selectedNode) {
     return (
@@ -1411,39 +1531,59 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
       splitView={splitView}
       displayMode={displayMode}
       persistedState={persistedState}
+      cellEditMode={cellEditMode}
+      onSaveEdit={onSaveEdit}
+      path={path}
     />
   );
 }, (prevProps, nextProps) => {
-  // More robust comparison to prevent unnecessary re-renders
-  
-  // Compare basic config
-  const configsEqual = prevProps.diffMode === nextProps.diffMode && 
-    prevProps.splitView === nextProps.splitView && 
-    prevProps.displayMode === nextProps.displayMode;
-  
+  // ------------------------------------------------------------------
+  // Custom comparator: allow re-render when either configuration OR the
+  // *underlying trace data* changes.  Previously we ignored `allTraces`,
+  // so edits to a span value didn't trigger an update.
+  // ------------------------------------------------------------------
+
+  // 1) Always re-render if the reference of the traces array changes – this
+  //    is a cheap shallow check because upstream code recreates `allTraces`
+  //    whenever any span content is modified.
+  if (prevProps.allTraces !== nextProps.allTraces) {
+    return false;
+  }
+
+  // 2) Re-render if any basic configuration toggles.
+  const configsEqual =
+    prevProps.diffMode === nextProps.diffMode &&
+    prevProps.splitView === nextProps.splitView &&
+    prevProps.displayMode === nextProps.displayMode &&
+    prevProps.cellEditMode === nextProps.cellEditMode;
+
   if (!configsEqual) return false;
-  
-  // Compare indices arrays by stringify
+
+  // 3) Compare row index arrays.
   const prevIndices = JSON.stringify(prevProps.comparisonLogsIndex);
   const nextIndices = JSON.stringify(nextProps.comparisonLogsIndex);
   if (prevIndices !== nextIndices) return false;
-  
-  // Compare base index
+
+  // 4) Base row index change.
   if (prevProps.baseRowIndex !== nextProps.baseRowIndex) return false;
-  
-  // If either node is null, compare strict equality
+
+  // 5) Selection change: if either node is null, compare directly.
   if (!prevProps.selectedNode || !nextProps.selectedNode) {
     return prevProps.selectedNode === nextProps.selectedNode;
   }
-  
-  // Deep comparison of the important node properties
+
+  // 6) Otherwise compare key identity fields of the nodes.
   const prevNode = prevProps.selectedNode;
   const nextNode = nextProps.selectedNode;
-  
-  return prevNode.name === nextNode.name && 
-         prevNode.marker === nextNode.marker &&
-         prevNode.baseSpanRef?.id === nextNode.baseSpanRef?.id &&
-         prevNode.targetSpanRef?.id === nextNode.targetSpanRef?.id;
+
+  return (
+    prevNode.name === nextNode.name &&
+    prevNode.marker === nextNode.marker &&
+    prevNode.baseSpanRef?.id === nextNode.baseSpanRef?.id &&
+    prevNode.targetSpanRef?.id === nextNode.targetSpanRef?.id &&
+    prevNode.baseSpanRef === nextNode.baseSpanRef &&
+    prevNode.targetSpanRef === nextNode.targetSpanRef
+  );
 });
 
 export default function UnifiedTraceView({
@@ -1453,6 +1593,9 @@ export default function UnifiedTraceView({
   splitView = false,
   displayMode = "markdown",
   persistedState,
+  cellEditMode,
+  onSaveEdit,
+  path,
 }: UnifiedTraceViewProps) {
   // If the persisted state is not provided, fall back to local state
   const [localCollapsedNodes, setLocalCollapsedNodes] = useState<Record<string, boolean>>({});
@@ -1760,9 +1903,12 @@ export default function UnifiedTraceView({
         splitView={splitView}
         displayMode={displayMode}
         persistedState={persistedState}
+        cellEditMode={cellEditMode}
+        onSaveEdit={onSaveEdit}
+        path={path}
       />
     );
-  }, [selectedNode, rowIndexes, groupCompareRows, allTraces, diffMode, splitView, displayMode, persistedState]);
+  }, [selectedNode, rowIndexes, groupCompareRows, allTraces, diffMode, splitView, displayMode, persistedState, cellEditMode, onSaveEdit, path]);
 
   return (
     <TraceExpandProvider

@@ -5,6 +5,7 @@ import DiffViewer from "@/components/Common/Misc/DiffViewer";
 import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 import { LogComparisonProps } from "./types";
+import { useEditablePrimitive } from "@/hooks/useEditablePrimitive";
 
 /**
  * Convert unknown => string with JSON if object.
@@ -104,6 +105,9 @@ export default function RawView({
   splitView = false,
   version = "",
   comparableVersions = [],
+  cellEditMode = false,
+  onSaveEdit,
+  path,
 }: LogComparisonProps) {
   const singleMode = !comparables || comparables.length === 0;
   const baseStr = toRawString(value);
@@ -113,6 +117,58 @@ export default function RawView({
   const baseVer = version || "";
   const compVers = comparableVersions || [];
   const versionEmpty = !baseVer && compVers.every((s) => !s);
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Edit-mode – allow user to edit the raw string directly
+  // ────────────────────────────────────────────────────────────────────────
+  if (cellEditMode) {
+    const { draft, inputProps } = useEditablePrimitive<string>(baseStr, (newVal) => {
+      // ------------------------------------------------------------------
+      // Attempt to coerce the edited *string* back to the original type so
+      // that switching out of "raw" mode restores the correct renderer
+      // (e.g. trace objects remain objects).
+      // ------------------------------------------------------------------
+      let finalVal: any = newVal;
+
+      // 1) If the original value was an object/array, try JSON.parse
+      if (value !== null && typeof value === "object") {
+        try {
+          // Preserve numbers/booleans where possible inside JSON
+          finalVal = JSON.parse(newVal);
+        } catch {
+          // If parsing fails, keep as raw string – user intends plain text
+        }
+      } else if (typeof value === "number") {
+        // 2) If original was a number, attempt to parse to number
+        const maybeNum = Number(newVal);
+        if (!Number.isNaN(maybeNum)) {
+          finalVal = maybeNum;
+        }
+      }
+
+      // 3) If the resulting value is "effectively" unchanged (deep-equals), skip
+      //    emitting the save to avoid unnecessary churn.
+      try {
+        const unchanged = JSON.stringify(finalVal) === JSON.stringify(value);
+        if (unchanged) return;
+      } catch {
+        /* best-effort only – continue */
+      }
+
+      if (onSaveEdit) {
+        onSaveEdit({ source: "entries", path: path ?? [], newValue: finalVal });
+      }
+    });
+
+    // Always render a textarea to comfortably edit potentially long JSON
+    return (
+      <textarea
+        rows={Math.min(12, Math.max(4, draft.split("\n").length))}
+        className="w-full border rounded p-1 text-sm font-mono"
+        {...inputProps}
+      />
+    );
+  }
 
   //----------------------------------------------------------------------
   // SINGLE MODE => just show the base raw text + param version if present

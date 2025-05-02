@@ -3,6 +3,7 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  useRef,
 } from "react";
 import SelectionHints from "./Hints";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -29,6 +30,7 @@ interface PanelState {
   localOpenKeys: Set<string>;
   savedOpenKeys: Set<string>;
   viewTracesAsDict: boolean;  // New state for trace view mode
+  cellEditMode: boolean;     // NEW – enables cell editing UX
 }
 
 // Default values for a new panel
@@ -46,9 +48,11 @@ const defaultPanelState: PanelState = {
   localOpenKeys: new Set<string>(),
   savedOpenKeys: new Set<string>(),
   viewTracesAsDict: false,  // Default to standard TraceView
+  cellEditMode: false,
 };
 
 import SelectionPanel from "./SelectionPanel";
+import { toast } from "sonner";
 
 import { useTile, useTileItem } from "@/contexts/hooks/tile";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
@@ -77,7 +81,7 @@ export default function Selection({
   const item = useMemo(() => tileItemActionsWithId?.asTileItem(), [tileItemActionsWithId]);
 
   // Get the table tile this selection references
-  const { meta: tileMetaStateWithTable, tableTile: tableTileStateWithTable, actions: tileActionsWithTable } = useTile(
+  const { meta: tileMetaStateWithTable, tableTile: tableTileStateWithTable, actions: tileActionsWithTable, tableTileActions } = useTile(
     item?.table || "", 
     tabId, 
     interfaceId, 
@@ -197,6 +201,15 @@ export default function Selection({
    ******************************************************************************/
   const [panelCount, setPanelCount] = useState(1);
   
+  // Ref to keep the latest in-flight PATCH so we can abort outdated ones
+  const bulkPatchAbortRef = useRef<AbortController | null>(null);
+
+  // Helper to rollback optimistic change when network fails
+  const rollbackLogs = useCallback((prevLogs: any[] | undefined) => {
+    if (!prevLogs) return;
+    tableTileActions?.mergeUpdatesIntoTableDataItem({ logs: prevLogs });
+  }, [tableTileActions]);
+
   /*******************************************************************************
    * Panel States - Keep track of each panel's state
    ******************************************************************************/
@@ -228,6 +241,68 @@ export default function Selection({
       return newStates;
     });
   }, [panelCount]);
+
+  /*******************************************************************************
+   * Save-many handler – optimistic update + backend PATCH
+   ******************************************************************************/
+  const handleSaveMany = useCallback(
+    (
+      rowIds: string[],
+      desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }
+    ) => {
+      // [DEBUG] handleSaveMany invoked
+      console.log("[DEBUG] handleSaveMany", { rowIds, desc });
+
+      if (!tableTileActions) {
+        console.warn("[DEBUG] handleSaveMany] Missing tableTileActions – optimistic update skipped");
+        return;
+      }
+
+      if (!rowIds.length) return;
+
+      // Snapshot previous logs for potential rollback
+      const prevLogs = tableTileStateWithTable?.tableDataItem?.logs;
+
+      // Optimistic local state update
+      console.log("[DEBUG] handleSaveMany – calling updateLogsDeep");
+      tableTileActions.updateLogsDeep(rowIds, desc);
+
+      // ------------------------------------------------------------------
+      // TEMPORARY: Skip server persistence until backend endpoint is ready
+      // ------------------------------------------------------------------
+      console.log("[DEBUG] handleSaveMany – skipping backend PATCH (not yet configured)");
+      return; // Remove this line once /api/logs/bulk is implemented
+
+      console.log("[DEBUG] handleSaveMany – after updateLogsDeep, preparing fetch");
+      // Abort any previous in-flight request (only latest matters)
+      bulkPatchAbortRef.current?.abort();
+      const controller = new AbortController();
+      bulkPatchAbortRef.current = controller;
+
+      const body = JSON.stringify({ rowIds: Array.from(new Set(rowIds)), ...desc });
+
+      console.log("[DEBUG] handleSaveMany – sending PATCH /api/logs/bulk", { body });
+
+      fetch("/api/logs/bulk", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body,
+        signal: controller.signal,
+      })
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          // success: nothing else (optimistic state already matches)
+          console.log("[DEBUG] handleSaveMany – backend success");
+        })
+        .catch(err => {
+          if (err.name === "AbortError") return; // superseded by newer call
+          console.error("[DEBUG] handleSaveMany – backend error", err);
+          rollbackLogs(prevLogs);
+          toast.error("Save failed");
+        });
+    },
+    [tableTileActions, tableTileStateWithTable?.tableDataItem?.logs, rollbackLogs]
+  );
 
   /*******************************************************************************
    * If no rows selected, just show hints
@@ -262,6 +337,7 @@ export default function Selection({
           if (!panelState.entryOrder) panelState.entryOrder = [];
           if (!panelState.paramOrder) panelState.paramOrder = [];
           if (panelState.viewTracesAsDict === undefined) panelState.viewTracesAsDict = false; // Initialize if missing
+          if (panelState.cellEditMode === undefined) panelState.cellEditMode = false; // Initialize if missing
           
           return (
             <React.Fragment key={`panel-fragment-${idx}`}>
@@ -287,6 +363,7 @@ export default function Selection({
                 selectedRowCount={selectedRowIndices.length}
                 currentPanelCount={panelCount}
                 onPanelCountChange={setPanelCount}
+                onSaveMany={handleSaveMany}
               />
             </React.Fragment>
           );

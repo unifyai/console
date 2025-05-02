@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import { toast } from "sonner";
+import { useEditablePrimitive } from "@/hooks/useEditablePrimitive";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 import { LogComparisonProps } from "./types";
 import MarkdownRenderer from "./Markdown/MarkdownRenderer";
@@ -139,9 +141,39 @@ export default function StringView({
   version = "",
   comparableVersions = [""],
   displayMode = "markdown",
+  cellEditMode = false,
+  onSaveEdit,
+  path = [],
 }: LogComparisonProps) {
   // Prepare string values
   const singleMode = !comparables || comparables.length === 0;
+  const { draft, inputProps } = useEditablePrimitive<string>(toStringSafe(value), (newVal) => {
+    if (onSaveEdit) onSaveEdit({ source: "entries", path, newValue: newVal });
+  });
+
+  // If editable => simple input / textarea
+  if (cellEditMode) {
+    const isMultiLine = draft.length > 80;
+
+    const commonProps = {
+      className: "w-full border rounded p-1 text-sm font-mono",
+      ...inputProps,
+    } as const;
+
+    return (
+      <div>
+        {isMultiLine ? (
+          <textarea rows={4} {...commonProps} />
+        ) : (
+          <input
+            type="text"
+            {...commonProps}
+          />
+        )}
+      </div>
+    );
+  }
+
   const baseStr = toStringSafe(value);
   const compStrs = (comparables ?? []).map(toStringSafe);
 

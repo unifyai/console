@@ -73,6 +73,7 @@ import React, {
   } from "@/components/UI/select";
 
   import { createContext, useContextSelector } from "use-context-selector";
+  import { getDeep } from "@/utils/objectPath";
 
 // Create a custom context for panel-specific state
 type PanelExpandContextType = {
@@ -95,6 +96,7 @@ interface PanelState {
   diffModeIdx: number;
   splitView: boolean;
   editMode: boolean;
+  cellEditMode: boolean;
   entriesFilter: Record<string, boolean>;
   paramsFilter: Record<string, boolean>;
   entryOrderings: { [key: string]: string[] };
@@ -177,6 +179,7 @@ export default function SelectionPanel({
     selectedRowCount,
     currentPanelCount,
     onPanelCountChange,
+    onSaveMany,
   }: {
     panelId: number;
     panelState: PanelState;
@@ -195,6 +198,7 @@ export default function SelectionPanel({
     selectedRowCount: number;
     currentPanelCount: number;
     onPanelCountChange: React.Dispatch<React.SetStateAction<number>>;
+    onSaveMany: (rowIds: string[], desc: { source: "entries" | "params"; path: (string|number)[]; newValue: any }) => void;
   }) {
     // Extract all values from panelState
     const {
@@ -202,6 +206,7 @@ export default function SelectionPanel({
       diffModeIdx,
       splitView,
       editMode,
+      cellEditMode,
       entriesFilter,
       paramsFilter,
       entryOrderings,
@@ -1083,6 +1088,8 @@ export default function SelectionPanel({
               }
               externalTraceState={traceState}
               viewTracesAsDict={viewTracesAsDict}
+              cellEditMode={cellEditMode}
+              onSaveEdit={handleSaveEditLocal}
             />
           </SortableAccordionItem>
         );
@@ -1198,6 +1205,8 @@ export default function SelectionPanel({
               }
               externalTraceState={traceState}
               viewTracesAsDict={viewTracesAsDict}
+              cellEditMode={cellEditMode}
+              onSaveEdit={handleSaveEditLocal}
             />
           </SortableAccordionItem>
         );
@@ -1234,6 +1243,128 @@ export default function SelectionPanel({
           </DndContext>
         </div>
       );
+    }
+
+    type LocalEdit = { source: "entries" | "params"; path: (string|number)[]; newValue:any };
+    function handleSaveEditLocal(desc: LocalEdit) {
+      console.debug("[SelectionPanel] handleSaveEditLocal", { path: desc.path });
+
+      // ---------------------------------------------------------------
+      // Step 0: Normalise the path so that any array indices expressed
+      // as strings (e.g. "0", "1", …) are converted to actual numbers.
+      // This ensures that downstream helpers (getDeep / setDeep) access
+      // the correct elements *and* prevents the trace-specific path fix
+      // from inserting an extra leading 0 when the index is already
+      // present.
+      // ---------------------------------------------------------------
+      function coerceNumericStrings(original: (string|number)[]): (string|number)[] {
+        return original.map(seg => {
+          return typeof seg === "string" && /^\d+$/.test(seg) ? Number(seg) : seg;
+        });
+      }
+
+      const normalisedPath = coerceNumericStrings(desc.path);
+
+      if (normalisedPath.some((s, i) => s !== desc.path[i])) {
+        console.debug("[SelectionPanel] handleSaveEditLocal – path normalised", { from: desc.path, to: normalisedPath });
+        desc = { ...desc, path: normalisedPath } as LocalEdit;
+      }
+
+      // NEW: adjust path for trace arrays – if first segment points to a trace array, insert index 0
+      function maybeFixTracePath(original: (string|number)[]): (string|number)[] {
+        if (!baseLog || original.length === 0) return original;
+
+        const [firstSeg, ...rest] = original;
+        // Look up the container (entries vs params) first
+        const containerRoot = (desc.source === "params" ? baseLog.params : baseLog.entries) ?? {};
+        const candidate = (containerRoot as any)[firstSeg as any];
+
+        // If the candidate is an array of spans (heuristic: first element has span_name)
+        const looksLikeSpanArray = Array.isArray(candidate) && candidate.length > 0 && typeof candidate[0] === "object" && candidate[0] !== null && "span_name" in candidate[0];
+
+        // Also handle the common case where the first segment *literally* equals "trace".
+        const firstSegIsTraceKey = firstSeg === "trace";
+
+        if (looksLikeSpanArray || firstSegIsTraceKey) {
+          // If the next segment is NOT already a number index, insert 0 so we address the root span.
+          if (typeof rest[0] !== "number") {
+            return [firstSeg, 0, ...rest];
+          }
+        }
+        return original;
+      }
+
+      // Apply the trace-path fix BEFORE any subsequent logic
+      const fixedPath = maybeFixTracePath(desc.path);
+      if (fixedPath !== desc.path) {
+        console.debug("[SelectionPanel] handleSaveEditLocal – path auto-fixed", { from: desc.path, to: fixedPath });
+        desc = { ...desc, path: fixedPath } as LocalEdit;
+      }
+
+      // ------------------------------------------------------------------
+      // 1) Determine which container (entries or params) actually holds the
+      //    target path.  Some leaf editors (e.g. RawView) always report
+      //    `source: "entries"`, so we need to correct for that here.
+      // ------------------------------------------------------------------
+      const detectSource = (): "entries" | "params" => {
+        if (!baseLog) return desc.source;
+
+        const inEntries = getDeep(baseLog.entries ?? {}, desc.path) !== undefined;
+        const inParams  = getDeep(baseLog.params  ?? {}, desc.path) !== undefined;
+
+        // Prefer whichever container uniquely contains the path.  If both or
+        // neither contain it, fall back to the original hint from the editor.
+        if (inEntries && !inParams) return "entries";
+        if (inParams  && !inEntries) return "params";
+        return desc.source;
+      };
+
+      const effectiveSource: "entries" | "params" = detectSource();
+
+      // ------------------------------------------------------------------
+      // 2) Fetch the current (pre-edit) value for comparison
+      // ------------------------------------------------------------------
+      const currentVal = getDeep(
+        baseLog?.[effectiveSource === "params" ? "params" : "entries"] ?? {},
+        desc.path
+      );
+
+      // ------------------------------------------------------------------
+      // 3) Identify all rows whose existing value matches the current value
+      //    (so they should be updated together for bulk-edit behaviour)
+      // ------------------------------------------------------------------
+      let rowIds = Array.from(new Set(
+        logs
+          .filter((l) => {
+            const val = getDeep(
+              (effectiveSource === "params" ? l.params : l.entries) ?? {},
+              desc.path
+            );
+            // Compare via primitive equality first, then deep/JSON equality
+            if (val === currentVal) return true;
+            try {
+              return JSON.stringify(val) === JSON.stringify(currentVal);
+            } catch {
+              return false;
+            }
+          })
+          .map((l) => String(l.id))
+      ));
+
+      // Always include the base row if nothing matched (reference inequality cases)
+      if (rowIds.length === 0 && baseLog) {
+        rowIds = [String(baseLog.id)];
+      }
+
+      // ------------------------------------------------------------------
+      // 4) Propagate the save request upstream
+      // ------------------------------------------------------------------
+      console.debug("[SelectionPanel] handleSaveEditLocal – invoking onSaveMany", { rowIds, desc: { ...desc, source: effectiveSource } });
+      onSaveMany(rowIds, {
+        source: effectiveSource,
+        path: desc.path,
+        newValue: desc.newValue,
+      });
     }
 
     if (!baseLog) {
@@ -1479,6 +1610,18 @@ export default function SelectionPanel({
                     </Select>
                   </div>
 
+                  {/* Edit cells mode */}
+                  <div className="flex items-center justify-between">
+                    <Label>Edit cells</Label>
+                    <Switch
+                      checked={cellEditMode}
+                      onCheckedChange={(checked) => {
+                        if (checked && diffModeIdx !== 0) onPanelStateChange({ diffModeIdx: 0 });
+                        onPanelStateChange({ cellEditMode: checked });
+                      }}
+                    />
+                  </div>
+
                   {/* Diff Controls (Conditional) */}
                   {selectedRowIndices.length > 1 && (
                     <>
@@ -1486,6 +1629,7 @@ export default function SelectionPanel({
                         {/* Re-enable Label, remove conditional class */}
                         <Label>Diff Mode</Label>
                         <Select
+                          disabled={cellEditMode}
                           value={String(diffModeIdx)}
                           onValueChange={(value) => {
                             const newIndex = parseInt(value, 10);
@@ -1514,7 +1658,7 @@ export default function SelectionPanel({
                           id={`split-view-${panelId}`}
                           checked={splitView}
                           onCheckedChange={(checked) => onPanelStateChange({ splitView: checked })}
-                          disabled={diffMode === 'none'} // Disable Switch when diffMode is none
+                          disabled={cellEditMode || diffMode === 'none'} // Disable Switch when editing or diffMode is none
                         />
                       </div>
                     </>

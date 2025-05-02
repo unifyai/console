@@ -5,6 +5,8 @@ import { LogComparisonProps } from "./types";
 import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 import MarkdownRenderer from "./Markdown/MarkdownRenderer";
+import { useEditablePrimitive } from "@/hooks/useEditablePrimitive";
+import { toast } from "sonner";
 
 /**
  * parseTimestamp: Convert a string to a Date. If invalid, returns null.
@@ -74,7 +76,24 @@ export default function TimestampView({
   version = "",
   comparableVersions = [],
   displayMode = "markdown",
+  cellEditMode = false,
+  onSaveEdit,
+  path = [],
 }: LogComparisonProps) {
+
+  const { draft, inputProps } = useEditablePrimitive<string>(String(value ?? ""), (val)=>{
+    if(onSaveEdit) onSaveEdit({source:"entries", path, newValue: val});
+  }, (val)=> parseTimestamp(val) ? true : "Invalid timestamp" );
+
+  if (cellEditMode) {
+    return (
+      <input
+        type="text"
+        className="w-full border rounded p-1 text-sm font-mono"
+        {...inputProps}
+      />
+    );
+  }
 
   // Single vs multiple
   const singleMode = !comparables || comparables.length === 0;
