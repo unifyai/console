@@ -1,11 +1,11 @@
 import * as React from 'react';
 import { Input } from "@/components/UI/input";
 import { Filter, Search, Users, Loader2 } from "lucide-react";
-import type { Assistant } from "@/types/assistants/assistant";
-import type { Task, TaskActions } from "@/types/assistants/task";
+import type { Assistant } from "@/types/team/assistant";
+import type { Task, TaskActions } from "@/types/team/task";
 import { TaskListItem } from "./TaskListItem";
 import { TaskListItemSkeleton } from './TaskListItemSkeleton';
-import { TaskAssignedFilter } from './TaskAssignedFilter';
+import { TaskAssignedFilter } from './TaskFilterAssigned';
 import {
     Select,
     SelectContent,
@@ -31,6 +31,7 @@ interface TaskListProps {
     setAssignedFilter: (ids: string[]) => void;
     isLoadingInitial: boolean;
     updateTask: TaskActions['update'];
+    onTaskUpdate: (taskId: string, updatedFields: Partial<Task>) => void;
 }
 
 // Footer component for Virtuoso to show loading indicator
@@ -63,13 +64,14 @@ export function TaskList({
     setAssignedFilter,
     isLoadingInitial,
     updateTask,
+    onTaskUpdate
 }: TaskListProps) {
 
     // Derive unique statuses from the *currently loaded* tasks for the filter dropdown
     const taskStatuses = React.useMemo(() => {
         return ['all', ...Array.from(new Set(tasks.map(t => t.status)))].sort((a, b) => {
-            if (a === 'all') return -1;
-            if (b === 'all') return 1;
+            if (!a || a === 'all') return -1;
+            if (!b || b === 'all') return 1;
             return a.localeCompare(b);
         });
     }, [tasks]);
@@ -97,13 +99,14 @@ export function TaskList({
     const renderTaskItem = React.useCallback((index: number, task: Task) => {
         return (
             <MemoizedTaskListItem
-                key={task.taskId} // Stable key is crucial
+                key={task.id}
                 task={task}
                 assistantMap={assistantMap}
                 updateTask={updateTask}
+                onTaskUpdate={onTaskUpdate}
             />
         );
-    }, [assistantMap, updateTask]);
+    }, [assistantMap, updateTask, onTaskUpdate]);
 
     return (
         <div className="flex flex-col h-full bg-background">
@@ -129,8 +132,8 @@ export function TaskList({
                         </SelectTrigger>
                         <SelectContent>
                             {taskStatuses.map(status => (
-                                <SelectItem key={status} value={status}>
-                                    {status === 'all' ? 'All Statuses' : status}
+                                <SelectItem key={status} value={status ?? "all"}>
+                                    {!status || status === 'all' ? 'All Statuses' : status}
                                 </SelectItem>
                             ))}
                         </SelectContent>

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
 import { MessageSquare, Phone, Mail, Contact } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Assistant } from "@/types/assistants/assistant";
+import type { Assistant } from "@/types/team/assistant";
 import ActionButton from '../Common/Buttons/Action';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/UI/hover-card";
 

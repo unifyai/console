@@ -4,8 +4,8 @@ import { Button } from "@/components/UI/button";
 import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { Separator } from "@/components/UI/separator";
-import { Mail, Phone, Linkedin, Save, Undo2, X, Trash2, Loader2, AlertTriangle } from "lucide-react"; // Added Trash2, Loader2, AlertTriangle
-import type { Assistant } from '@/types/assistants/assistant'; // Assistant type now includes signedProfilePhotoUrl
+import { Mail, Phone, Save, Undo2, X, Trash2, Loader2, AlertTriangle } from "lucide-react";
+import type { Assistant } from '@/types/team/assistant';
 import { cn } from '@/lib/utils';
 import ActionButton from '../Common/Buttons/Action';
 import { ScrollArea } from '@/components/UI/scroll-area';
@@ -20,13 +20,13 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/UI/alert-dialog";
-import { toast } from "sonner"; // Assuming you use sonner for toasts
+import { toast } from "sonner";
 
 interface AssistantProfilePanelProps {
-    assistant: Assistant; // Assume non-null when rendered, includes potential signed URL
-    onClose: () => void; // Renamed from onOpenChange
+    assistant: Assistant;
+    onClose: () => void;
     onUpdateProfile: (id: string, about: string | null, phone: string | null, email: string | null) => Promise<any>;
-    onDeleteAssistant: (assistant: Assistant) => Promise<void>; // New prop for deletion
+    onDeleteAssistant: (assistant: Assistant) => Promise<void>;
 }
 
 export function AssistantProfilePanel({
@@ -38,35 +38,41 @@ export function AssistantProfilePanel({
 
     const [about, setAbout] = React.useState(assistant?.about || '');
     const [isEditingAbout, setIsEditingAbout] = React.useState(false);
+    const [isSavingAbout, setIsSavingAbout] = React.useState(false);
     const originalAbout = React.useRef(assistant?.about || '');
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [isAlertOpen, setIsAlertOpen] = React.useState(false);
 
-    // Update state if the assistant prop changes
     React.useEffect(() => {
         if (assistant) {
             setAbout(assistant.about ?? '');
             originalAbout.current = assistant.about ?? '';
-            setIsEditingAbout(false); // Reset edit state on assistant change
-            setIsDeleting(false); // Reset deleting state
+            setIsEditingAbout(false);
+            setIsSavingAbout(false);
+            setIsDeleting(false);
         } else {
-            // Clear state if assistant becomes null (panel closes/no selection)
             setAbout('');
             setIsEditingAbout(false);
+            setIsSavingAbout(false);
             setIsDeleting(false);
         }
     }, [assistant]);
 
     const handleSaveAbout = async () => {
-        console.log("Saving About for:", assistant?.agent_id, "New About:", about);
+        if (isSavingAbout || about === originalAbout.current) return;
+
+        setIsSavingAbout(true);
+        const toastId = toast.loading("Updating profile...");
         try {
             await onUpdateProfile(assistant.agent_id, about, assistant.phone, assistant.email);
             originalAbout.current = about;
             setIsEditingAbout(false);
-             toast.success(`${assistant.first_name}'s 'About' section updated.`);
+            toast.success(`${assistant.first_name}'s 'About' section updated.`, { id: toastId });
         } catch (error) {
             console.error("Failed to update about section:", error);
-             toast.error(`Failed to update 'About': ${error instanceof Error ? error.message : 'Unknown error'}`);
+            toast.error(`Failed to update 'About': ${error instanceof Error ? error.message : 'Unknown error'}`, { id: toastId });
+        } finally {
+            setIsSavingAbout(false);
         }
     };
 
@@ -80,22 +86,19 @@ export function AssistantProfilePanel({
 
         setIsDeleting(true);
         try {
-            await onDeleteAssistant(assistant); // Call the handler passed from Main
-            // Success is handled in Main (closing panel, removing from list)
-            // Toast is shown in Main
-            setIsAlertOpen(false); // Close the dialog on success pathway initiation
+            await onDeleteAssistant(assistant);
+            setIsAlertOpen(false);
         } catch (error) {
-            // Error is handled in Main, but we keep dialog open and stop loading
-             toast.error(`Failed to end contract: ${error instanceof Error ? error.message : 'Unknown error'}`);
-             setIsDeleting(false); // Stop loading indicator on error
+             console.error("Error occurred during delete confirmation (handled by parent):", error)
+             setIsAlertOpen(false);
+        } finally {
+             setIsDeleting(false);
         }
-        // No finally needed here as state is reset on success/error
      };
 
 
-    if (!assistant) return null; // Don't render anything if no assistant data
+    if (!assistant) return null;
 
-    // Determine the correct photo URL (prefer signed URL if available)
     const photoSrc = assistant.signedProfilePhotoUrl || assistant.profile_photo;
     const displayName = `${assistant.first_name} ${assistant.surname}`;
 
@@ -105,7 +108,7 @@ export function AssistantProfilePanel({
                 {/* Manual Header */}
                 <div className="px-4 py-3.5 sm:px-6 sm:py-3.5 border-b flex-shrink-0">
                     <div className='flex items-center justify-between'>
-                        <h2 className="text-lg font-semibold">{`${displayName}'s profile`}</h2> {/* Changed to h2 */}
+                        <h2 className="text-lg font-semibold">{`${displayName}'s profile`}</h2>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
                             <X className="h-4 w-4" />
                             <span className="sr-only">Close Profile</span>
@@ -116,7 +119,7 @@ export function AssistantProfilePanel({
                 <ScrollArea className="flex-1">
                     <div className="py-4 sm:py-6 space-y-6">
                         {/* Basic Info */}
-                        <div className="flex items-start gap-4 sm:gap-6 px-4 sm:px-4">
+                        <div className="flex items-start gap-4 sm:gap-6 px-4 sm:px-6">
                             <Avatar className="h-16 w-16 sm:h-20 sm:w-20 border">
                                 <AvatarImage src={photoSrc} alt={displayName} />
                                 <AvatarFallback className="text-xl">
@@ -138,38 +141,69 @@ export function AssistantProfilePanel({
                         <Separator />
 
                         {/* About Section */}
-                        <div className="px-4 sm:px-4 space-y-2 relative group">
+                        {/* Keep 'group' on the outer div for hover detection */}
+                        <div className="px-4 sm:px-6 space-y-2 group">
                             <Label htmlFor={`about-${assistant.agent_id}`} className="text-base font-semibold">About</Label>
-                            <Textarea
-                                id={`about-${assistant.agent_id}`}
-                                value={about}
-                                onChange={(e) => { setAbout(e.target.value); setIsEditingAbout(true); }}
-                                placeholder="Enter details about the assistant..."
-                                className={cn(
-                                    "text-sm min-h-[100px] resize-none",
-                                    isEditingAbout ? "border-primary focus-visible:ring-primary/50" : "border-transparent bg-transparent focus-visible:bg-background focus-visible:border-input focus-visible:ring-input"
+                            {/* Added a wrapper div and made IT relative */}
+                            <div className="relative">
+                                <Textarea
+                                    id={`about-${assistant.agent_id}`}
+                                    value={about}
+                                    onChange={(e) => { setAbout(e.target.value); setIsEditingAbout(true); }}
+                                    placeholder="Enter details about the assistant..."
+                                    disabled={isSavingAbout}
+                                    className={cn(
+                                        "text-sm min-h-[100px] resize-none peer", // Added peer class for potential focus-within alternatives if needed
+                                        // Buttons will overlay the bottom-right corner, ensure textarea has enough internal padding if needed (usually default is fine)
+                                        isEditingAbout ? "border-primary focus-visible:ring-primary/50" : "border-transparent bg-transparent focus-visible:bg-background focus-visible:border-input focus-visible:ring-input"
+                                    )}
+                                    rows={4}
+                                />
+                                {isEditingAbout && (
+                                    // Position absolutely relative to the new wrapper div.
+                                    // Adjusted bottom/right values for better placement inside padding area.
+                                    // group-hover/focus-within still work because the outer div is the 'group'
+                                    <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
+                                        <ActionButton
+                                            tooltip="Save About"
+                                            icon={isSavingAbout ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4 text-green-600"/>}
+                                            onClick={handleSaveAbout}
+                                            disabled={isSavingAbout || about === originalAbout.current}
+                                            variant="ghost"
+                                            size="sm"
+                                            // Added explicit padding for smaller button footprint
+                                            className="hover:bg-green-100 p-1.5 h-auto w-auto rounded-md"
+                                        />
+                                        <ActionButton
+                                            tooltip="Discard About"
+                                            icon={<Undo2 className="h-4 w-4 text-amber-600"/>}
+                                            onClick={handleDiscardAbout}
+                                            disabled={isSavingAbout}
+                                            variant="ghost"
+                                            size="sm"
+                                            // Added explicit padding for smaller button footprint
+                                            className="hover:bg-amber-100 p-1.5 h-auto w-auto rounded-md"
+                                        />
+                                    </div>
                                 )}
-                                rows={4}
-                            />
-                            {isEditingAbout && (
-                                <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                                    <ActionButton tooltip="Save About" icon={<Save className="h-4 w-4 text-green-600"/>} onClick={handleSaveAbout} variant="ghost" size="sm" className="hover:bg-green-100"/>
-                                    <ActionButton tooltip="Discard About" icon={<Undo2 className="h-4 w-4 text-amber-600"/>} onClick={handleDiscardAbout} variant="ghost" size="sm" className="hover:bg-amber-100"/>
-                                </div>
-                            )}
+                            </div> {/* End relative wrapper */}
                         </div>
 
                         <Separator />
 
                         {/* Contact Section */}
-                        <div className="px-4 sm:px-4 space-y-3">
+                        <div className="px-4 sm:px-6 space-y-3">
                             <h3 className="text-base font-semibold">Contact</h3>
                             <div className="space-y-2 text-sm">
                                 <div className="flex items-center gap-3">
                                     <Mail className="h-4 w-4 text-muted-foreground" />
-                                    <a href={`mailto:${assistant.email}`} className="hover:underline text-primary truncate">
-                                        {assistant.email}
-                                    </a>
+                                    {assistant.email ? (
+                                        <a href={`mailto:${assistant.email}`} className="hover:underline text-primary truncate">
+                                            {assistant.email}
+                                        </a>
+                                    ) : (
+                                        <span>N/A</span>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <Phone className="h-4 w-4 text-muted-foreground" />
@@ -182,10 +216,10 @@ export function AssistantProfilePanel({
 
                 {/* Footer Action Button */}
                 <div className="px-4 py-3 sm:px-6 sm:py-4 border-t flex justify-end flex-shrink-0">
-                    {/* Use AlertDialogTrigger to open the confirmation dialog */}
                     <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm">
-                            <Trash2 className="mr-2 h-4 w-4" /> End contract
+                        <Button variant="destructive" size="sm" disabled={isDeleting}>
+                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                            End contract
                         </Button>
                     </AlertDialogTrigger>
                 </div>
@@ -207,7 +241,10 @@ export function AssistantProfilePanel({
                     <AlertDialogAction
                         onClick={handleDeleteConfirm}
                         disabled={isDeleting}
-                        className="bg-destructive hover:bg-destructive/90"
+                        className={cn(
+                            "bg-destructive hover:bg-destructive/90",
+                            isDeleting && "cursor-not-allowed opacity-70"
+                        )}
                     >
                         {isDeleting ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
