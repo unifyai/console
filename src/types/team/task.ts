@@ -12,4 +12,5 @@ export interface Task {
 export interface TaskActions {
   get: (filterExpression: string | null, limit: number | null, offset: number | null) => Promise<LogsResponseProps | ResponseProps>;
   update: (ids: number[], entries: LogItemProps) => Promise<ResponseProps>;
+  unique: (groupByField: keyof Pick<Task, 'status' | 'description' | 'assignedAssistantIds' | 'title'>) => Promise<string[] | ResponseProps>;
 }

@@ -114,6 +114,11 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
     useDebounce(() => setDebouncedSearchTerm(searchTermInput), 300, [searchTermInput]);
     const [currentFilterExpr, setCurrentFilterExpr] = React.useState<string | null>(null);
 
+    // Status Filter state
+    const [availableStatuses, setAvailableStatuses] = React.useState<string[]>([]);
+    const [isLoadingStatuses, setIsLoadingStatuses] = React.useState(true);
+    const [statusFetchError, setStatusFetchError] = React.useState<string | null>(null);
+
     // UI State
     const [chatTargetAssistantId, setChatTargetAssistantId] = React.useState<string | null>(null);
     const [isChatOpen, setIsChatOpen] = React.useState(false);
@@ -171,9 +176,8 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         setHireValue("age", preset.age, { shouldValidate: true });
         setHireValue("region", preset.region, { shouldValidate: true });
         setHireValue("about", preset.about, { shouldValidate: true });
-        setHireValue("imagePreview", preset.profile_photo); // Set preview from preset URL
+        setHireValue("imagePreview", preset.profile_photo);
         clearHireErrors();
-        setIsAssistantPresetsOpen(false); // Close presets panel after selection
     };
 
      const uploadImageToGCS = async (file: File, signedUrl: string): Promise<boolean> => {
@@ -288,6 +292,8 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                     : task
             )
         );
+        // Potentially re-fetch statuses if the update changed a status
+        // fetchStatuses(); // Consider if this is needed immediately or if next load is fine
     }, []);
 
     // --- Data Fetching & Actions (Existing + Refreshes) ---
@@ -385,6 +391,28 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         }
     }, [taskActions, offset, isLoadingMore, hasMoreTasks, tasks.length]);
 
+    // Fetch Statuses Action
+    const fetchStatuses = React.useCallback(async () => {
+        setIsLoadingStatuses(true);
+        setStatusFetchError(null);
+        try {
+            const result = await taskActions.unique('status');
+            if (Array.isArray(result)) {
+                setAvailableStatuses(result);
+            } else {
+                // Assuming ResponseProps indicates an error
+                throw new Error(result.detail || "Failed to fetch statuses.");
+            }
+        } catch (error) {
+             const errorMsg = error instanceof Error ? error.message : "An unknown error occurred fetching statuses.";
+            console.error("Status fetch error:", errorMsg);
+            setStatusFetchError(errorMsg);
+            setAvailableStatuses([]);
+        } finally {
+            setIsLoadingStatuses(false);
+        }
+    }, [taskActions]);
+
     // Update Assistant Profile Action (Unchanged logic, but ensure refresh)
     const updateAssistantProfile = React.useCallback(async (id: string, about: string | null, phone: string | null, email: string | null): Promise<ResponseProps> => {
         try {
@@ -453,11 +481,12 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         }
     }, [assistantActions, setAssistants]);
 
-    // Effect 1: Fetch assistants on mount
+    // Effect 1: Fetch assistants and statuses on mount
     React.useEffect(() => {
         fetchAssistants();
+        fetchStatuses();
          // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // fetchAssistants is memoized
+    }, []); // fetchAssistants and fetchStatuses are memoized
 
     // Effect 2: Fetch tasks based on assistant status and filter changes (Unchanged)
     React.useEffect(() => {
@@ -563,6 +592,10 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                     setAssignedFilter={setAssignedFilter}
                     updateTask={taskActions.update}
                     onTaskUpdate={handleTaskUpdate}
+                    // Pass status filter related props
+                    availableStatuses={availableStatuses}
+                    isLoadingStatuses={isLoadingStatuses}
+                    statusFetchError={statusFetchError}
                  />
             </div>
         </div>
@@ -608,10 +641,10 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                         <motion.div // Use motion for subtle animation within dialog
                             key="hire-presets-panel"
                             initial={{ width: "0%", opacity: 0 }}
-                            animate={{ width: "40%", opacity: 1 }} // Adjust width as needed
+                            animate={{ width: "40%", opacity: 1 }}
                             exit={{ width: "0%", opacity: 0 }}
                             transition={{ type: "tween", ease: "easeInOut", duration: 0.2 }}
-                            className="h-full flex-shrink-0 overflow-hidden bg-background" // Removed border-l as panel has it
+                            className="h-full flex-shrink-0 overflow-hidden bg-background"
                         >
                             <PresetsPanel
                                 presets={sampledPresets}

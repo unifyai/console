@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Input } from "@/components/UI/input";
 import { ScrollArea } from "@/components/UI/scroll-area";
-import { Search, WifiOff, PlusCircle } from "lucide-react";
+import { Search, WifiOff, UserPlus } from "lucide-react";
 import type { Assistant } from "@/types/team/assistant";
 import { AssistantListItem } from "./AssistantListItem";
 import { ChatOverlay } from "./AssistantChat";
@@ -71,11 +71,11 @@ export function AssistantList({
                     <Button
                         variant="outline"
                         size="sm" // Match size with input height
-                        className="h-8" // Explicit height
+                        className="h-8 items-center" // Explicit height
                         onClick={onOpenHireDialog} // Call handler to open dialog
                         disabled={isLoading} // Disable if still loading assistants
                     >
-                        <PlusCircle className="mr-2 h-4 w-4" />
+                        <UserPlus className="h-4 w-4" />
                         New
                     </Button>
                  </div>

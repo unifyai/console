@@ -3,6 +3,7 @@ import Main from "@/components/Team/Main";
 import { 
     getTasks, 
     updateTask,
+    getUniqueFieldValues,
     listAssistants, 
     createAssistant,
     deleteAssistant, 
@@ -41,7 +42,8 @@ const TeamPage = async ({ searchParams }: { searchParams: { } }) => {
     
     const taskActions: TaskActions = {
         get: await getTasks(apiKey),
-        update: await updateTask(apiKey)
+        update: await updateTask(apiKey),
+        unique: await getUniqueFieldValues(apiKey),
     }
 
     return (
