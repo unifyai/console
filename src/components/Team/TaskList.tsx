@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Input } from "@/components/UI/input";
-import { Filter, Search, Users, Loader2, AlertCircle } from "lucide-react";
+import { Filter, Search, Users, Loader2, AlertCircle, WifiOff } from "lucide-react"; // Added WifiOff
 import type { Assistant } from "@/types/team/assistant";
 import type { Task, TaskActions } from "@/types/team/task";
 import { TaskListItem } from "./TaskListItem";
@@ -31,9 +31,9 @@ interface TaskListProps {
     assignedFilter: string[];
     setAssignedFilter: (ids: string[]) => void;
     isLoadingInitial: boolean;
+    initialLoadError: string | null;
     updateTask: TaskActions['update'];
     onTaskUpdate: (taskId: string, updatedFields: Partial<Task>) => void;
-    // Props for status filter population
     availableStatuses: string[];
     isLoadingStatuses: boolean;
     statusFetchError: string | null;
@@ -68,15 +68,16 @@ export function TaskList({
     assignedFilter,
     setAssignedFilter,
     isLoadingInitial,
+    initialLoadError,
     updateTask,
     onTaskUpdate,
-    // Destructure status filter props
     availableStatuses,
     isLoadingStatuses,
     statusFetchError
 }: TaskListProps) {
 
     // Create Assistant Map for efficient lookup in TaskListItem
+    // This map will be empty if assistants failed to load, which is handled gracefully by TaskListItem
     const assistantMap = React.useMemo(() => {
         const map = new Map<string, Assistant>();
         allAssistants.forEach(assistant => {
@@ -101,7 +102,7 @@ export function TaskList({
             <MemoizedTaskListItem
                 key={task.id}
                 task={task}
-                assistantMap={assistantMap}
+                assistantMap={assistantMap} // Pass potentially empty map
                 updateTask={updateTask}
                 onTaskUpdate={onTaskUpdate}
             />
@@ -115,6 +116,12 @@ export function TaskList({
              return a.localeCompare(b);
          });
     }, [availableStatuses]);
+
+    // Determine if filters should be disabled
+    // Disable if initial data is loading OR if the initial task load specifically failed
+    const disableFilters = isLoadingInitial || !!initialLoadError;
+    // Disable assistant filter specifically if assistants aren't loaded/available
+    const disableAssistantFilter = disableFilters || allAssistants.length === 0;
 
     return (
         <div className="flex flex-col h-full bg-background">
@@ -130,7 +137,7 @@ export function TaskList({
                             className="pl-8 w-full h-8"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            disabled={isLoadingInitial}
+                            disabled={disableFilters}
                          />
                     </div>
                     {/* Status Filter */}
@@ -138,7 +145,7 @@ export function TaskList({
                         <Select
                             value={statusFilter}
                             onValueChange={setStatusFilter}
-                            disabled={isLoadingStatuses || !!statusFetchError || isLoadingInitial} // Also disable when initially loading tasks/assistants
+                            disabled={disableFilters || isLoadingStatuses || !!statusFetchError}
                         >
                             <SelectTrigger className="w-[160px] flex-shrink-0 h-8">
                                 <Filter className="h-4 w-4 mr-2"/>
@@ -150,8 +157,9 @@ export function TaskList({
                                         <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading statuses...
                                     </div>
                                 ) : statusFetchError ? (
-                                    <div className="flex items-center p-2 text-sm text-destructive">
-                                        Error loading statuses
+                                    // Show error within dropdown if status fetch failed
+                                    <div className="flex items-center p-2 text-sm text-destructive justify-center">
+                                        <AlertCircle className="h-4 w-4 mr-1" /> Error loading
                                     </div>
                                 ) : sortedStatuses.length > 1 ? ( // Check length > 1 because 'all' is always present
                                     sortedStatuses.map(status => (
@@ -166,10 +174,12 @@ export function TaskList({
                         </Select>
                         {/* Error Tooltip for Status Filter */}
                         {statusFetchError && !isLoadingStatuses && (
-                            <TooltipProvider>
+                             <TooltipProvider delayDuration={100}>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <AlertCircle className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-destructive" />
+                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 flex items-center justify-center">
+                                            <AlertCircle className="h-full w-full text-destructive" />
+                                        </span>
                                     </TooltipTrigger>
                                     <TooltipContent side="bottom">
                                         <p className="text-xs max-w-xs">{statusFetchError}</p>
@@ -186,7 +196,7 @@ export function TaskList({
                         placeholder="Assigned"
                         triggerIcon={<Users className="mr-2 h-4 w-4" />}
                         className="w-[180px] h-8"
-                        disabled={isLoadingInitial}
+                        disabled={disableAssistantFilter}
                     />
                 </div>
             </div>
@@ -194,7 +204,7 @@ export function TaskList({
             {/* Task Rendering Area - Accordion contains Virtuoso or Skeletons */}
             <Accordion type="multiple" className="flex-1 h-full min-h-0 overflow-y-hidden">
                 {isLoadingInitial ? (
-                    // Render skeletons within a ScrollArea when initially loading
+                    // Render skeletons within a ScrollArea when initially loading (either assistants or tasks)
                     <ScrollArea className="h-full p-2">
                         <div className="space-y-1">
                             {[...Array(15)].map((_, i) => (
@@ -202,6 +212,12 @@ export function TaskList({
                             ))}
                         </div>
                     </ScrollArea>
+                ) : initialLoadError ? (
+                    // Render specific error message if initial *task* load failed
+                     <div className="flex flex-col items-center justify-center pt-10 text-center h-full">
+                         <WifiOff className="h-8 w-8 text-muted-foreground mb-3" />
+                         <p className="text-base font-medium text-muted-foreground">Could not load tasks</p>
+                     </div>
                 ) : tasks.length > 0 ? (
                     // Render Virtuoso list when not loading and tasks exist
                     // Virtuoso needs a defined height container to work correctly.

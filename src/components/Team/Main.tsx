@@ -103,7 +103,8 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
     const [hasMoreTasks, setHasMoreTasks] = React.useState(true);
     const [isLoadingInitialTasks, setIsLoadingInitialTasks] = React.useState(true);
     const [isLoadingMore, setIsLoadingMore] = React.useState(false);
-    const [taskError, setTaskError] = React.useState<string | null>(null);
+    const [taskError, setTaskError] = React.useState<string | null>(null); // Tracks generic task fetch errors
+    const [initialTaskLoadError, setInitialTaskLoadError] = React.useState<string | null>(null); // Specific error for initial task load failure
     const [initialTaskFetchTriggered, setInitialTaskFetchTriggered] = React.useState(false);
 
     // Filter state
@@ -156,7 +157,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
 
     const handleOpenHireDialog = () => {
         resetHireForm(); // Reset form when opening
-        setIsAssistantPresetsOpen(false); // Ensure presets are closed initially
+        setIsAssistantPresetsOpen(true); // Ensure presets are open initially
         setIsHireDialogOpen(true);
     };
 
@@ -231,6 +232,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                 const uploadSuccess = await uploadImageToGCS(imageFile, signedUrl);
                 if (!uploadSuccess) {
                     setIsHireSubmitting(false);
+                    // toast error is handled inside uploadImageToGCS
                     return;
                 }
 
@@ -248,13 +250,15 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                 finalImageUrlToSend = data.imagePreview;
             }
 
-            if (!finalImageUrlToSend) {
+            // Profile photo validation moved slightly down for clarity
+            if (!finalImageUrlToSend && !(imageFile instanceof File)) {
                 setHireError("imageFile", { type: "manual", message: "Profile photo is required." });
                 toast.error("Profile photo is required.", { id: toastId });
                 setIsHireSubmitting(false);
                 return;
             }
 
+            // Age validation
             const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
             if (!ageNumber || isNaN(ageNumber) || ageNumber <= 0) {
                 setHireError("age", { type: "manual", message: "Valid age is required." });
@@ -263,12 +267,13 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                 return;
             }
 
+            // Call create action
             const result = await assistantActions.assistant.create(data.first_name, data.surname, ageNumber, data.region, finalImageUrlToSend, data.about);
 
             if ("info" in result) {
                 toast.success(`Assistant ${result.first_name || data.first_name} hired!`, { id: toastId, duration: 4000 });
                 setIsHireDialogOpen(false); // Close dialog on success
-                await fetchAssistants(); // Refresh the assistant list
+                await fetchAssistants(false); // Refresh the assistant list without loading toast
             } else {
                 const errorResult = result as ResponseProps;
                 const errorMessage = errorResult?.detail || errorResult?.message || errorResult?.error || "Failed to hire assistant.";
@@ -284,6 +289,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         }
     };
 
+    // --- Task Update Callback  ---
     const handleTaskUpdate = React.useCallback((taskId: string, updatedFields: Partial<Task>) => {
         setTasks(prevTasks =>
             prevTasks.map(task =>
@@ -292,17 +298,22 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                     : task
             )
         );
-        // Potentially re-fetch statuses if the update changed a status
-        // fetchStatuses(); // Consider if this is needed immediately or if next load is fine
+        // Optionally re-fetch statuses if the update changed a status that wasn't previously known
+        // Consider if this is needed immediately or if next load is fine
+        // const existingStatuses = new Set(availableStatuses);
+        // if (updatedFields.status && !existingStatuses.has(updatedFields.status)) {
+        //     fetchStatuses();
+        // }
     }, []);
 
-    // --- Data Fetching & Actions (Existing + Refreshes) ---
+    // --- Data Fetching & Actions ---
 
     const fetchAssistants = React.useCallback(async (showLoadingToast = false) => {
         setIsLoadingAssistants(true);
-        setInitialTaskFetchTriggered(false);
-        setIsLoadingInitialTasks(true);
+        // Don't reset task state here when only assistants are being fetched/refreshed
         setAssistantError(null);
+        setAssistants([]); // Clear current assistants before fetch
+
         let toastId: string | number | undefined;
         if (showLoadingToast) {
             toastId = toast.loading("Refreshing assistants...");
@@ -311,19 +322,23 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         try {
             const listResult = await assistantActions.assistant.list();
 
+            // Check for error response first
             if (typeof listResult === 'object' && listResult !== null && 'detail' in listResult && typeof (listResult as ResponseProps).detail === 'string') {
                 throw new Error((listResult as ResponseProps).detail);
             }
+            // Check for invalid response type
             if (!Array.isArray(listResult)) {
                  const detail = (typeof listResult === 'object' && listResult !== null && 'detail' in listResult) ? (listResult as any).detail : "Invalid response format";
                  throw new Error(`Invalid response format received for assistants: ${detail}`);
             }
 
+            // Process valid assistants
             const validAssistants = listResult.filter(a => a && a.agent_id && a.first_name && a.surname);
             if (validAssistants.length !== listResult.length) {
                 console.warn("Some assistant data was incomplete and filtered out.");
             }
 
+            // Fetch signed URLs
             const assistantsWithSignedUrls = await Promise.all(
                 validAssistants.map(async (assistant) => {
                     if (isGcsPhoto(assistant.profile_photo)) {
@@ -332,40 +347,52 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                             if (photoResult.signedUrl) {
                                 return { ...assistant, signedProfilePhotoUrl: photoResult.signedUrl };
                             } else {
-                                console.warn(`[Main.tsx] Failed to get signed URL for ${assistant.agent_id} (${assistant.profile_photo}): ${photoResult.detail || 'Unknown error'}`);
+                                console.warn(`[Main.tsx fetchAssistants] Failed to get signed URL for ${assistant.agent_id} (${assistant.profile_photo}): ${photoResult.detail || 'Unknown error'}`);
                             }
                         } catch (error) {
-                            console.error(`[Main.tsx] Error fetching signed URL for ${assistant.agent_id} (${assistant.profile_photo}):`, error);
+                            console.error(`[Main.tsx fetchAssistants] Error fetching signed URL for ${assistant.agent_id} (${assistant.profile_photo}):`, error);
                         }
                     }
                     return assistant;
                 })
             );
             setAssistants(assistantsWithSignedUrls);
-             if (toastId) toast.success("Assistants refreshed.", { id: toastId });
+            if (toastId) toast.dismiss(toastId); // Dismiss loading toast on success
 
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "An unknown error occurred while fetching assistants.";
             console.error("Assistant fetch error:", errorMsg);
-            setAssistantError(errorMsg);
-            setAssistants([]);
-            if (toastId) toast.error(`Failed to refresh assistants: ${errorMsg}`, { id: toastId });
+            setAssistantError(errorMsg); // Set error state
+            setAssistants([]); // Ensure assistants list is empty on error
+            toast.error(`Failed to load assistants: ${errorMsg}`, { id: toastId });
         } finally {
-            setIsLoadingAssistants(false);
+            setIsLoadingAssistants(false); // Mark assistant loading as finished (successfully or not)
+            // Do NOT set initialTaskFetchTriggered here, that belongs to the task fetch logic
         }
-    }, [assistantActions]); // No change in dependencies
+    }, [assistantActions]);
 
-    // Fetch Tasks Action (Unchanged)
+    // Fetch Tasks Action (Handles initial load and pagination)
     const fetchTasks = React.useCallback(async (filterExpr: string | null, isInitialLoad = true) => {
+        // Prevent duplicate fetches for pagination
         if (!isInitialLoad && isLoadingMore) return;
+
         const fetchOffset = isInitialLoad ? 0 : offset;
+
         if (isInitialLoad) {
-            setIsLoadingInitialTasks(true); setTasks([]); setOffset(0); setHasMoreTasks(true); setCurrentFilterExpr(filterExpr);
+            setIsLoadingInitialTasks(true);
+            setTasks([]); // Clear tasks for initial load/filter change
+            setOffset(0); // Reset offset for initial load/filter change
+            setHasMoreTasks(true); // Assume more tasks initially
+            setCurrentFilterExpr(filterExpr); // Store the filter used for this load
+            setTaskError(null); // Clear generic error
+            setInitialTaskLoadError(null); // Clear specific initial load error
         } else {
-             if (!hasMoreTasks) return;
+             // Fetching more, check if we should proceed
+             if (!hasMoreTasks) return; // No more tasks to fetch
              setIsLoadingMore(true);
+             setTaskError(null); // Clear previous errors before fetching more
         }
-        setTaskError(null);
+
         try {
             const response = await taskActions.get(filterExpr, TASK_PAGE_LIMIT, fetchOffset);
             if (response.detail) {
@@ -373,75 +400,102 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
             }
             const fetchedLogs = Array.isArray(response.logs) ? response.logs : [];
             const mappedTasks: Task[] = fetchedLogs.map(mapLogToTask).filter((task): task is Task => task !== null);
+
             setTasks(prevTasks => isInitialLoad ? mappedTasks : [...prevTasks, ...mappedTasks]);
+
             const newTotalCount = (response as LogsResponseProps).count ?? (isInitialLoad ? mappedTasks.length : tasks.length + mappedTasks.length);
             setTotalCount(newTotalCount);
+
             const newLoadedCount = fetchOffset + mappedTasks.length;
             setOffset(newLoadedCount);
             setHasMoreTasks(newLoadedCount < newTotalCount && mappedTasks.length > 0);
+
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "An unknown error occurred while fetching tasks.";
             console.error("Task fetch error:", errorMsg);
-            setTaskError(errorMsg);
-            if (isInitialLoad) setTasks([]);
-            setHasMoreTasks(false);
+            setTaskError(errorMsg); // Set generic error state
+            toast.error(`Failed to load tasks: ${errorMsg}`); // Show toast notification
+
+            if (isInitialLoad) {
+                 setInitialTaskLoadError(errorMsg); // Set specific initial load error
+                 setTasks([]); // Ensure tasks are empty on initial load failure
+                 setHasMoreTasks(false); // Stop pagination if initial load fails
+            } else {
+                 // If fetching *more* tasks failed, keep existing tasks but stop loading more for now
+                 setHasMoreTasks(false);
+            }
         } finally {
              if (isInitialLoad) setIsLoadingInitialTasks(false);
-             setIsLoadingMore(false);
+             setIsLoadingMore(false); // Ensure loading indicators are turned off
         }
     }, [taskActions, offset, isLoadingMore, hasMoreTasks, tasks.length]);
 
-    // Fetch Statuses Action
+    // Fetch Statuses Action (Updated Error Handling)
     const fetchStatuses = React.useCallback(async () => {
         setIsLoadingStatuses(true);
         setStatusFetchError(null);
+        setAvailableStatuses([]); // Clear statuses before fetch
+
         try {
             const result = await taskActions.unique('status');
             if (Array.isArray(result)) {
-                setAvailableStatuses(result);
+                // Filter out null/undefined and ensure unique values
+                const uniqueStatuses = [...Array.from(new Set(result.filter(s => s != null)))];
+                setAvailableStatuses(uniqueStatuses);
             } else {
                 // Assuming ResponseProps indicates an error
                 throw new Error(result.detail || "Failed to fetch statuses.");
             }
         } catch (error) {
-             const errorMsg = error instanceof Error ? error.message : "An unknown error occurred fetching statuses.";
+            const errorMsg = error instanceof Error ? error.message : "An unknown error occurred fetching statuses.";
             console.error("Status fetch error:", errorMsg);
-            setStatusFetchError(errorMsg);
-            setAvailableStatuses([]);
+            setStatusFetchError(errorMsg); // Set error state for the filter component
+            setAvailableStatuses([]); // Ensure statuses are empty on error
+            toast.error(`Failed to load task statuses: ${errorMsg}`); // Show toast
         } finally {
-            setIsLoadingStatuses(false);
+            setIsLoadingStatuses(false); // Ensure loading indicator is off
         }
     }, [taskActions]);
 
-    // Update Assistant Profile Action (Unchanged logic, but ensure refresh)
+    // Update Assistant Profile Action (Error handled by caller via throw + toast)
     const updateAssistantProfile = React.useCallback(async (id: string, about: string | null, phone: string | null, email: string | null): Promise<ResponseProps> => {
         try {
-             // The API call happens first
             const result = await assistantActions.assistant.update(id, about, phone, email);
-             // Check for API error *before* optimistic update
              if (result && 'detail' in result) {
                  throw new Error((result as ResponseProps).detail);
              }
 
-            // Optimistic update only on API success
+            // Optimistic update only on API success - fetch updated signed URL
+            const updatedAssistant = assistants.find(a => a.agent_id === id);
+            let signedProfilePhotoUrl = updatedAssistant?.signedProfilePhotoUrl; // Keep existing if no change needed
+            if (updatedAssistant && isGcsPhoto(updatedAssistant.profile_photo) && !signedProfilePhotoUrl) {
+                // If photo exists but URL is missing (e.g., after error), try fetching it again
+                try {
+                    const photoResult = await assistantActions.photo.download(updatedAssistant.profile_photo);
+                    signedProfilePhotoUrl = photoResult.signedUrl; // Update signed URL
+                } catch (photoError) {
+                    console.warn(`[Main.tsx updateAssistantProfile] Could not refresh signed URL for ${id} after update.`, photoError)
+                }
+            }
+
+
             setAssistants((prevAssistants) =>
                 prevAssistants.map((assistant) =>
-                    assistant.agent_id === id ? { ...assistant, about, phone, email } : assistant
+                    assistant.agent_id === id ? { ...assistant, about, phone, email, signedProfilePhotoUrl } : assistant
                 )
             );
-            // Re-fetch signed URLs if needed, or assume they don't change on text update
-             return { info: "Profile updated successfully" }; // Return success structure
+             return { info: "Profile updated successfully" };
 
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "Unknown error";
             console.error("Assistant update error:", errorMsg);
-            // Optionally re-fetch all assistants on error to ensure consistency
-            fetchAssistants(); // Re-fetch might be needed if optimistic update failed mid-way
-            throw error; // Re-throw for the caller (AssistantProfilePanel) to handle
+            // Don't necessarily refetch all here, let the toast inform the user
+            // Consider refetching just the affected assistant if granular fetch is possible
+            throw error; // Re-throw for the caller (AssistantProfilePanel) to show toast
         }
-    }, [assistantActions, fetchAssistants]); // Add fetchAssistants dependency
+    }, [assistantActions, assistants]); // Added `assistants` to dependencies for signed URL logic
 
-    // Delete Assistant Action (Handler - Updated with Toasts)
+    // Delete Assistant Action (Error handled via toast)
     const handleDeleteAssistant = React.useCallback(async (assistantToDelete: Assistant) => {
         const assistantId = assistantToDelete.agent_id;
         const displayName = `${assistantToDelete.first_name} ${assistantToDelete.surname}`;
@@ -452,34 +506,40 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         try {
             // Step 1: Delete assistant record via API
             const deleteResult = await assistantActions.assistant.delete(assistantId);
-             // Check the response structure for success/failure
-             // Assuming .info indicates success and .detail indicates error based on updated action
              if (deleteResult.detail) {
                  throw new Error(deleteResult.detail || "Failed to delete assistant record.");
              }
 
-            // Step 2: Attempt GCS photo deletion (no change needed here)
-            let photoDeleteMessage = "";
+            // Step 2: Attempt GCS photo deletion
             if (isGcs && photoPath) {
-                const photoDeleteResult = await assistantActions.photo.delete(photoPath);
-                if (!photoDeleteResult.info) {
-                    console.error(`[Main.tsx handleDeleteAssistant] Problem deleting profile photo for ${displayName}.`, { description: photoDeleteResult.message });
-                }
+                 try {
+                     const photoDeleteResult = await assistantActions.photo.delete(photoPath);
+                     if (!photoDeleteResult.info) {
+                         // Log warning but don't block UI update for photo deletion failure
+                         console.warn(`[Main.tsx handleDeleteAssistant] Could not delete profile photo for ${displayName} (ID: ${assistantId}). Path: ${photoPath}`, { description: photoDeleteResult.detail });
+                     }
+                 } catch (photoError: any) {
+                     console.error(`[Main.tsx handleDeleteAssistant] Error during GCS photo deletion for ${displayName} (ID: ${assistantId}):`, photoError);
+                 }
             }
 
-            // Step 3: Update UI state (remove assistant, close panel) on success
+            // Step 3: Update UI state (remove assistant, close panel) on success of main deletion
             setAssistants((prev) => prev.filter((a) => a.agent_id !== assistantId));
-            handleProfileClose();
+            handleProfileClose(); // Close the profile panel
             toast.success(`${displayName} removed from team.`, { id: toastId });
+
+            // Step 4: Clear assistant filter if the deleted assistant was the only one selected
+            setAssignedFilter(prev => prev.filter(id => id !== assistantId));
+
 
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "An unknown error occurred.";
             console.error(`[Main.tsx handleDeleteAssistant] Error during deletion process for ${displayName}:`, errorMsg);
             toast.error(`Failed to remove ${displayName}: ${errorMsg}`, { id: toastId });
-            // Re-throw the error so the Profile Panel knows deletion failed
+            // Re-throw the error so the Profile Panel knows deletion failed and can keep the dialog open etc.
             throw error;
         }
-    }, [assistantActions, setAssistants]);
+    }, [assistantActions, setAssistants, setAssignedFilter]); // Added setAssignedFilter
 
     // Effect 1: Fetch assistants and statuses on mount
     React.useEffect(() => {
@@ -488,28 +548,44 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
          // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // fetchAssistants and fetchStatuses are memoized
 
-    // Effect 2: Fetch tasks based on assistant status and filter changes (Unchanged)
+    // Effect 2: Fetch tasks based on filters AFTER assistants have finished loading (or failed)
     React.useEffect(() => {
+        // Wait until the assistant loading attempt is complete (isLoadingAssistants is false)
         if (isLoadingAssistants) return;
-        if (assistantError) {
-            console.error("Cannot fetch tasks because assistants failed to load.");
-            setIsLoadingInitialTasks(false); setTaskError(`Assistants failed to load: ${assistantError}`); setTasks([]); setHasMoreTasks(false);
-            return;
-        }
-        const newFilterExpr = buildFilterExpression(debouncedSearchTerm, statusFilter, assignedFilter);
-        if (!initialTaskFetchTriggered) {
-            fetchTasks(newFilterExpr, true); setInitialTaskFetchTriggered(true);
-        } else if (newFilterExpr !== currentFilterExpr) {
-            fetchTasks(newFilterExpr, true);
-        }
-    }, [fetchTasks, isLoadingAssistants, assistantError, initialTaskFetchTriggered, debouncedSearchTerm, statusFilter, assignedFilter, currentFilterExpr]);
 
-    // Callback for TaskList infinite scroll (Unchanged)
-    const fetchMoreTasks = React.useCallback(() => {
-        if (!isLoadingAssistants && !assistantError) {
-             fetchTasks(currentFilterExpr, false);
+        // Build the filter expression based on current state
+        const newFilterExpr = buildFilterExpression(debouncedSearchTerm, statusFilter, assignedFilter);
+
+        // Trigger initial fetch IF:
+        // 1. It hasn't been triggered yet OR
+        // 2. The filter expression has changed since the last fetch
+        if (!initialTaskFetchTriggered || newFilterExpr !== currentFilterExpr) {
+            fetchTasks(newFilterExpr, true); // `true` indicates it's an initial load for these filters
+            if (!initialTaskFetchTriggered) {
+                 setInitialTaskFetchTriggered(true); // Mark that the first fetch attempt has happened
+            }
         }
-    }, [fetchTasks, currentFilterExpr, isLoadingAssistants, assistantError]);
+    }, [
+        fetchTasks, // Memoized fetch function
+        isLoadingAssistants, // Trigger when assistant loading finishes
+        initialTaskFetchTriggered, // Ensure it runs at least once
+        debouncedSearchTerm, // Trigger on search term change
+        statusFilter, // Trigger on status filter change
+        assignedFilter, // Trigger on assigned filter change
+        currentFilterExpr // Trigger if the effective filter expression changes
+    ]);
+
+
+    // Callback for TaskList infinite scroll
+    const fetchMoreTasks = React.useCallback(() => {
+        // Only fetch more if:
+        // - Not already loading more tasks
+        // - There are potentially more tasks to load
+        // - The initial task load did not fail
+        if (!isLoadingMore && hasMoreTasks && !initialTaskLoadError) {
+             fetchTasks(currentFilterExpr, false); // `false` indicates it's fetching the next page
+        }
+    }, [fetchTasks, isLoadingMore, hasMoreTasks, initialTaskLoadError, currentFilterExpr]);
 
     // UI Handlers (Unchanged)
     const handleChat = (id: string) => { setChatTargetAssistantId(id); setIsChatOpen(true); if (isProfileOpen && profileAssistantId !== id) { setIsProfileOpen(false); setProfileAssistantId(null); } };
@@ -521,22 +597,21 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
     const chatAssistant = React.useMemo(() => assistants.find(a => a.agent_id === chatTargetAssistantId) || null, [assistants, chatTargetAssistantId]);
     const profileAssistant = React.useMemo(() => assistants.find(a => a.agent_id === profileAssistantId) || null, [assistants, profileAssistantId]);
 
+    // Combined initial loading state for TaskList (true if either assistants OR initial tasks are loading)
+    const isCombinedLoadingInitial = isLoadingAssistants || isLoadingInitialTasks;
+
     // --- Render Logic ---
-     if (assistantError && assistants.length === 0 && !isLoadingAssistants) {
-         return <div className="flex items-center justify-center h-screen text-destructive p-6 text-center">Error loading team data: {assistantError}. Please try refreshing the page.</div>;
-     }
-    const showTaskSkeletons = isLoadingAssistants || isLoadingInitialTasks;
 
     return (
         <>
         {/* Toaster for notifications */}
-        <Toaster richColors position="bottom-right" />
+        <Toaster richColors position="bottom-right" closeButton />
 
         <div className="flex h-screen bg-background overflow-hidden">
             {/* Assistant List Panel */}
             <div className={cn(
                 "h-full transition-all duration-300 ease-in-out relative border-r",
-                "w-1/3 lg:w-[400px] xl:w-[450px] flex-shrink-0" // Responsive width
+                "w-1/3 lg:w-[400px] xl:w-[450px] flex-shrink-0"
             )}
             >
                  <AssistantList
@@ -550,7 +625,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                     isChatOpen={isChatOpen}
                     chatAssistant={chatAssistant}
                     onChatClose={handleChatClose}
-                    onOpenHireDialog={handleOpenHireDialog} // Pass handler to open dialog
+                    onOpenHireDialog={handleOpenHireDialog}
                 />
             </div>
 
@@ -569,7 +644,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                             assistant={profileAssistant}
                             onClose={handleProfileClose}
                             onUpdateProfile={updateAssistantProfile}
-                            onDeleteAssistant={handleDeleteAssistant} // Pass updated handler
+                            onDeleteAssistant={handleDeleteAssistant}
                         />
                     </motion.div>
                 )}
@@ -582,7 +657,8 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                     fetchMoreTasks={fetchMoreTasks}
                     hasMoreTasks={hasMoreTasks}
                     isLoadingMore={isLoadingMore}
-                    isLoadingInitial={showTaskSkeletons}
+                    isLoadingInitial={isCombinedLoadingInitial}
+                    initialLoadError={initialTaskLoadError}
                     allAssistants={assistants}
                     searchTerm={searchTermInput}
                     setSearchTerm={setSearchTermInput}
@@ -592,7 +668,6 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                     setAssignedFilter={setAssignedFilter}
                     updateTask={taskActions.update}
                     onTaskUpdate={handleTaskUpdate}
-                    // Pass status filter related props
                     availableStatuses={availableStatuses}
                     isLoadingStatuses={isLoadingStatuses}
                     statusFetchError={statusFetchError}
@@ -603,7 +678,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         {/* Hire Assistant Dialog */}
         <Dialog open={isHireDialogOpen} onOpenChange={setIsHireDialogOpen}>
              <DialogContent className={cn(
-                "max-w-4xl h-[85vh] flex flex-col p-0 gap-0", // Increased width, height, remove padding
+                "max-w-4xl h-[85vh] flex flex-col p-0 gap-0",
                  isAssistantPresetsOpen && "max-w-6xl" // Expand width when presets are open
              )} onInteractOutside={(e) => { if (isHireSubmitting) e.preventDefault(); }}> {/* Prevent closing during submit */}
                  <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
@@ -616,7 +691,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                     {/* Hire Form Area */}
                     <div className={cn(
                         "flex-1 h-full min-w-0 relative transition-all duration-300 ease-in-out",
-                        "px-6 py-4 overflow-y-auto" // Add padding and scroll
+                        "pl-6 pr-14 py-4 overflow-y-auto"
                     )}>
                         <Button
                             variant="outline"
@@ -638,7 +713,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
 
                      {/* Presets Panel (Conditional Render within Dialog) */}
                      {isAssistantPresetsOpen && (
-                        <motion.div // Use motion for subtle animation within dialog
+                        <motion.div
                             key="hire-presets-panel"
                             initial={{ width: "0%", opacity: 0 }}
                             animate={{ width: "40%", opacity: 1 }}

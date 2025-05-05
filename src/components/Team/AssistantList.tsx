@@ -33,7 +33,7 @@ export function AssistantList({
     isChatOpen,
     chatAssistant,
     onChatClose,
-    onOpenHireDialog // Destructure the new prop
+    onOpenHireDialog
 }: AssistantListProps) {
 
     const [searchTerm, setSearchTerm] = React.useState('');
@@ -92,10 +92,9 @@ export function AssistantList({
                         </>
                     ) : error ? (
                          <div className="flex flex-col items-center justify-center pt-10 text-center">
-                             <WifiOff className="h-6 w-6 text-destructive mb-2" />
-                            <p className="text-sm font-medium text-destructive">Failed to load assistants</p>
-                            <p className="text-xs text-muted-foreground px-4">{error}</p>
-                        </div>
+                             <WifiOff className="h-6 w-6 text-muted-foreground mb-2" />
+                             <p className="text-sm text-muted-foreground">Could not load assistants.</p>
+                         </div>
                     ) : filteredAssistants.length > 0 ? (
                         filteredAssistants.map((assistant) => (
                             <AssistantListItem
