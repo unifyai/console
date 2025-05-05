@@ -1,21 +1,21 @@
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
 import { cn } from '@/lib/utils';
-import type { HirePreset } from '@/types/assistants/hire';
-import { Skeleton } from "@/components/UI/skeleton"; // Import Skeleton
+import { AssistantPreset } from '@/types/team/assistant';
+import { Skeleton } from "@/components/UI/skeleton";
 
 type ImageLoadingStatus = "idle" | "loading" | "loaded" | "error";
 
 interface PresetListItemProps {
-  preset: HirePreset;
-  onSelect: (preset: HirePreset) => void;
+  preset: AssistantPreset;
+  onSelect: (preset: AssistantPreset) => void;
 }
 
 export function PresetListItem({ preset, onSelect }: PresetListItemProps) {
   const [loadingStatus, setLoadingStatus] = React.useState<ImageLoadingStatus>("loading");
 
-  const displayName = `${preset.first_name} ${preset.last_name}`;
-  const fallback = `${preset.first_name?.[0] ?? ''}${preset.last_name?.[0] ?? ''}`.toUpperCase();
+  const displayName = `${preset.first_name} ${preset.surname}`;
+  const fallback = `${preset.first_name?.[0] ?? ''}${preset.surname?.[0] ?? ''}`.toUpperCase();
 
   const handleLoadingStatusChange = (status: ImageLoadingStatus) => {
     setLoadingStatus(status);
@@ -33,7 +33,7 @@ export function PresetListItem({ preset, onSelect }: PresetListItemProps) {
           <Skeleton className="absolute inset-0 h-full w-full rounded-full" />
         )}
         <AvatarImage
-          src={preset.image_url}
+          src={preset.profile_photo}
           alt={displayName}
           onLoadingStatusChange={handleLoadingStatusChange}
           className={cn(loadingStatus !== 'loaded' && 'opacity-0')} // Hide image until loaded
@@ -41,7 +41,7 @@ export function PresetListItem({ preset, onSelect }: PresetListItemProps) {
         <AvatarFallback
           className={cn(
             // Ensure fallback is visible only when needed (loading, error, or idle without src)
-             (loadingStatus === 'loading' || loadingStatus === 'error' || !preset.image_url) ? 'opacity-100' : 'opacity-0'
+             (loadingStatus === 'loading' || loadingStatus === 'error' || !preset.profile_photo) ? 'opacity-100' : 'opacity-0'
           )}
         >
           {fallback}

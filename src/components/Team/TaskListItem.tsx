@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { Badge } from "@/components/UI/badge";
 import { Save, Undo2, Loader2 } from "lucide-react";
-import type { Task, TaskActions } from "@/types/assistants/task";
-import type { Assistant } from "@/types/assistants/assistant";
+import type { Task, TaskActions } from "@/types/team/task";
+import type { Assistant } from "@/types/team/assistant";
 import ActionButton from '../Common/Buttons/Action';
 import { Textarea } from "@/components/UI/textarea";
 import { cn } from '@/lib/utils';
@@ -19,15 +19,17 @@ import {
   TooltipTrigger,
 } from "@/components/UI/tooltip"
 import { ScrollArea } from '@/components/UI/scroll-area';
+import { toast } from 'sonner'; // Import toast
 
 
 interface TaskListItemProps {
     task: Task;
     assistantMap: Map<string, Assistant>;
     updateTask: TaskActions['update'];
+    onTaskUpdate: (taskId: string, updatedFields: Partial<Task>) => void;
 }
 
-export function TaskListItem({ task, assistantMap, updateTask }: TaskListItemProps) {
+export function TaskListItem({ task, assistantMap, updateTask, onTaskUpdate }: TaskListItemProps) {
 
     const [description, setDescription] = React.useState(task.description);
     const [isEditing, setIsEditing] = React.useState(false);
@@ -36,15 +38,15 @@ export function TaskListItem({ task, assistantMap, updateTask }: TaskListItemPro
     const originalDescription = React.useRef(task.description);
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
-    // Reset state if the task prop itself changes (e.g., due to parent re-render with new data)
+    // Reset state if the task prop changes
     React.useEffect(() => {
         if (task.description !== description && !isEditing) {
-            setDescription(task.description);
-            originalDescription.current = task.description;
+            setDescription(task.description ?? '');
+            originalDescription.current = task.description ?? '';
         }
-        // Reset error when task changes
-        setSaveError(null);
-    }, [task, description, isEditing]);
+        if (saveError) setSaveError(null);
+    }, [task.id, task.description, description, isEditing, saveError]);
+
 
     const getStatusVariant = (status: Task["status"]): "default" | "secondary" | "outline" | "destructive" => {
         switch (status) {
@@ -71,32 +73,32 @@ export function TaskListItem({ task, assistantMap, updateTask }: TaskListItemPro
 
         setIsSaving(true);
         setSaveError(null);
+        const toastId = toast.loading("Saving description...");
 
         try {
-            // Convert taskId string to number as expected by the backend action
-            const taskIdNumber = parseInt(task.taskId, 10);
-            if (isNaN(taskIdNumber)) {
+            const idNumber = parseInt(task.id, 10);
+            if (isNaN(idNumber)) {
                  throw new Error("Invalid Task ID format.");
             }
 
-            // Call the updateTask action passed via props
             const response = await updateTask(
-                [taskIdNumber],
+                [idNumber],
                 { description: description }
             );
 
-            if (!response.info) {
-                // Throw error if backend indicates failure
-                throw new Error(response.message || "Failed to update task description.");
+            if (response && (response.message || response.detail)) {
+                throw new Error(response.message || response.detail || "Failed to update task description.");
             }
 
-            // Success
-            originalDescription.current = description;
+            onTaskUpdate(task.id, { description: description });
             setIsEditing(false);
+            toast.success("Description saved.", { id: toastId });
+
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "An unknown error occurred.";
             console.error("Failed to save task description:", errorMsg);
-            setSaveError(errorMsg);
+            setSaveError(errorMsg); // Set local error state
+            toast.error(`Save failed: ${errorMsg}`, { id: toastId });
         } finally {
             setIsSaving(false);
         }
@@ -109,52 +111,42 @@ export function TaskListItem({ task, assistantMap, updateTask }: TaskListItemPro
         setSaveError(null);
     };
 
-    // Prevent accordion toggle when clicking inside the textarea wrapper or buttons
     const handleContentInteraction = (e: React.MouseEvent) => {
        e.stopPropagation();
     }
 
-    // Get assistant data from the map (includes potential signed URL)
     const getAssistantById = (id: string): Assistant | undefined => {
         return assistantMap.get(id);
     }
 
-    // Helper to get assistant avatar URL safely (prefer signed URL)
     const getAssistantAvatarUrl = (id: string): string | undefined => {
         const assistant = getAssistantById(id);
         return assistant?.signedProfilePhotoUrl || assistant?.profile_photo;
     }
 
     return (
-        // AccordionItem provides the boundary for each task
-        <AccordionItem value={task.taskId} className="border-b group px-2">
+        <AccordionItem value={task.id} className="border-b group px-2">
             <AccordionTrigger
                 className={cn(
                     "hover:bg-muted/50 hover:no-underline text-left",
-                    "p-0", // Remove default padding from trigger
-                    "[&>svg]:hidden" // Hide default chevron, handle expansion state visually if needed
+                    "p-0",
+                    "[&>svg]:hidden"
                 )}
             >
-                {/* Grid for layout within the trigger */}
                 <div className={cn(
                      "grid w-full items-center gap-x-4 px-3 py-3",
-                     "grid-cols-[minmax(0,_1fr)_auto_100px]" // Title (flex), Status (auto), Assigned (fixed)
+                     "grid-cols-[minmax(0,_1fr)_auto_100px]"
                  )}>
-                    {/* Column 1: Task Title */}
                     <div className="min-w-0 overflow-hidden">
                         <span className="font-medium text-sm break-words truncate" title={task.title}>
                             {task.title}
                         </span>
                     </div>
-
-                    {/* Column 2: Status */}
                     <div className="text-center">
                         <Badge variant={getStatusVariant(task.status)} className="whitespace-nowrap">
                             {task.status}
                         </Badge>
                     </div>
-
-                    {/* Column 3: Assigned Avatars */}
                     <div className="flex items-center justify-center -space-x-2 overflow-hidden">
                          {task.assignedAssistantIds.length > 0 ? (
                             <TooltipProvider delayDuration={100}>
@@ -197,18 +189,17 @@ export function TaskListItem({ task, assistantMap, updateTask }: TaskListItemPro
                 </div>
             </AccordionTrigger>
             <AccordionContent
-                className="p-4 pt-0 bg-muted/10"
+                className="p-4 pt-0 bg-muted/10 relative" // Added relative positioning for error message
                 onClick={handleContentInteraction}
             >
                  <div className='relative group/desc'>
-                     {/* ScrollArea wraps Textarea for description scrolling */}
                      <ScrollArea
                          className={cn(
                              "w-full rounded-md border transition-colors",
                              saveError ? "border-destructive" :
                              isEditing ? "border-primary" : "border-transparent group-hover/desc:border-input focus-within:border-input"
                          )}
-                         style={{ maxHeight: '200px' }}
+                         style={{ maxHeight: '200px' }} // Set max height for scroll
                      >
                         <Textarea
                             ref={textareaRef}
@@ -219,14 +210,14 @@ export function TaskListItem({ task, assistantMap, updateTask }: TaskListItemPro
                             className={cn(
                                 "text-sm text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 resize-none w-full block",
                                 "!border-0 !outline-none !ring-0 !shadow-none p-2",
-                                "min-h-[160px]",
+                                "min-h-[80px]", // Adjusted min-height
                                 isEditing ? "bg-background" : "bg-transparent"
                             )}
+                             // Calculate rows dynamically or set a fixed reasonable number
+                            rows={Math.max(3, description?.split('\n').length ?? 1)}
                         />
                     </ScrollArea>
-                    {/* Save/Discard Buttons */}
                      {(isEditing || isSaving) && (
-                        // Position save/discard buttons relative to the wrapper div
                         <div className="absolute bottom-2 right-2 flex justify-end gap-1 opacity-0 group-hover/desc:opacity-100 focus-within:opacity-100 transition-opacity z-10">
                             <ActionButton
                                 tooltip="Save changes"
@@ -251,7 +242,7 @@ export function TaskListItem({ task, assistantMap, updateTask }: TaskListItemPro
                             />
                         </div>
                      )}
-                     {/* Error Message Display */}
+                     {/* Error Message Display - Positioned below textarea */}
                     {saveError && (
                          <p className="text-xs text-destructive mt-1 px-1 absolute -bottom-5 left-1">
                              Error: {saveError}

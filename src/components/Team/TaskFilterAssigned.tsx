@@ -16,7 +16,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/UI/popover";
-import type { Assistant } from "@/types/assistants/assistant";
+import type { Assistant } from "@/types/team/assistant";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
 
 interface TaskAssignedFilterProps {
@@ -26,6 +26,7 @@ interface TaskAssignedFilterProps {
   placeholder?: string;
   triggerIcon?: React.ReactNode;
   className?: string;
+  disabled?: boolean;
 }
 
 export function TaskAssignedFilter({
@@ -35,6 +36,7 @@ export function TaskAssignedFilter({
   placeholder = "Select...",
   triggerIcon = <UserCircle className="mr-2 h-4 w-4" />,
   className,
+  disabled = false,
 }: TaskAssignedFilterProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -63,6 +65,7 @@ export function TaskAssignedFilter({
           role="combobox"
           aria-expanded={open}
           className={cn("w-[200px] justify-between h-10", className)}
+          disabled={disabled}
         >
             <div className="flex items-center gap-2 truncate">
                 {triggerIcon}
