@@ -78,11 +78,7 @@ export interface TableDataProps {
 }
 
 export interface PlotDataProps {
-    [key: string]: {
-        plotLogs: LogProps[],
-        plotArguments: PlotArguments,
-        plotFields: LogFieldsResponseProps,
-    }
+    [key: string]: PlotDataItem
 }
 
 export interface EditorDataProps {
@@ -161,7 +157,7 @@ export interface TabsDataProps {
 
 export interface InterfaceData {
     id?: string;
-    project_id: string;
+    project_id?: string;
     name: string;
     color?: string;
     active_tab_id?: string;
@@ -171,7 +167,7 @@ export interface InterfaceData {
 
 export interface TabData {
     id?: string;
-    interface_id: string;
+    interface_id?: string;
     name: string;
     visible?: boolean;
     active?: boolean;
@@ -185,13 +181,13 @@ export interface TabData {
 export interface TilePosition {
     x: number;
     y: number;
-    w: number;
-    h: number;
+    width: number;
+    height: number;
 }
 
 export interface TileData {
     id?: string;
-    tab_id: string;
+    tab_id?: string;
     name: string;
     type: string;
     position: TilePosition;
@@ -298,24 +294,65 @@ export interface DevboxActions {
 }
 
 export interface GranularInterfaceActions {
-    get: (projectId: string, name: string, checkpoint?: boolean) => Promise<InterfaceData | null>;
+    // Get interface by name (hierarchical path)
+    getByName: (projectId: string, name: string, checkpoint?: boolean) => Promise<InterfaceData | null>;
+    // Get interface by direct ID
+    getById: (interfaceId: string, checkpoint?: boolean) => Promise<InterfaceData | null>;
+    // Unified get method
+    get: (params: { interfaceId?: string; projectId?: string; name?: string; checkpoint?: boolean }) => Promise<InterfaceData | null>;
+    
+    // Create interface (no change, always needs projectId)
     create: (projectId: string, name: string, color?: string) => Promise<InterfaceData>;
-    update: (projectId: string, name: string, data: { name?: string, active_tab_id?: string, color?: string }, checkpoint?: boolean) => Promise<InterfaceData>;
-    delete: (projectId: string, name: string) => Promise<ResponseProps>;
+    
+    // Update methods
+    updateByName: (projectId: string, name: string, data: { name?: string, active_tab_id?: string, color?: string }, checkpoint?: boolean) => Promise<InterfaceData>;
+    updateById: (interfaceId: string, data: { name?: string, active_tab_id?: string, color?: string }, checkpoint?: boolean) => Promise<InterfaceData>;
+    update: (params: {
+        interfaceId?: string;
+        projectId?: string;
+        name?: string;
+        data: { name?: string, active_tab_id?: string, color?: string };
+        checkpoint?: boolean;
+    }) => Promise<InterfaceData>;
+    
+    // Delete methods
+    deleteByName: (projectId: string, name: string) => Promise<ResponseProps>;
+    deleteById: (interfaceId: string) => Promise<ResponseProps>;
+    delete: (params: { interfaceId?: string; projectId?: string; name?: string }) => Promise<ResponseProps>;
+    
+    // List interfaces (no change needed)
     list: (projectId: string, checkpoint?: boolean) => Promise<InterfaceData[]>;
-    checkpoint: (projectId: string, name: string, description: string) => Promise<ResponseProps>;
+    
+    // Checkpoint methods
+    checkpointByName: (projectId: string, name: string, description: string) => Promise<ResponseProps>;
+    checkpointById: (interfaceId: string, description: string) => Promise<ResponseProps>;
+    checkpoint: (params: { interfaceId?: string; projectId?: string; name?: string; description: string }) => Promise<ResponseProps>;
 }
 
 export interface GranularTabActions {
-    get: (projectId: string, interfaceName: string, tabName: string, checkpoint?: boolean) => Promise<TabData | null>;
-    create: (projectId: string, interfaceName: string, tabName: string, data: {
+    // Get tab by name (hierarchical path)
+    getByName: (interface_id: string, name: string, checkpoint?: boolean) => Promise<TabData | null>;
+    // Get tab by direct ID
+    getById: (id: string, checkpoint?: boolean) => Promise<TabData | null>;
+    // Unified get method
+    get: (params: { id?: string; interface_id?: string; name?: string; checkpoint?: boolean }) => Promise<TabData | null>;
+    
+    // Get tab with tiles - same pattern
+    getTabWithTilesByName: (interface_id: string, name: string, checkpoint?: boolean) => Promise<TabData | null>;
+    getTabWithTilesById: (id: string, checkpoint?: boolean) => Promise<TabData | null>;
+    getTabWithTiles: (params: { id?: string; interface_id?: string; name?: string; checkpoint?: boolean }) => Promise<TabData | null>;
+    
+    // Create tab (parent id + name pattern)
+    create: (interface_id: string, name: string, data: {
         visible?: boolean;
         active?: boolean;
         order?: number;
         global_context?: string;
         color?: string;
     }) => Promise<TabData>;
-    update: (projectId: string, interfaceName: string, tabName: string, data: {
+    
+    // Update methods
+    updateByName: (interface_id: string, name: string, data: {
         name?: string;
         visible?: boolean;
         active?: boolean;
@@ -323,17 +360,78 @@ export interface GranularTabActions {
         global_context?: string;
         color?: string;
     }, checkpoint?: boolean) => Promise<TabData>;
-    delete: (projectId: string, interfaceName: string, tabName: string) => Promise<ResponseProps>;
-    list: (projectId: string, interfaceName: string, checkpoint?: boolean) => Promise<TabData[]>;
-    checkpoint: (projectId: string, interfaceName: string, tabName: string, description: string) => Promise<ResponseProps>;
+    
+    updateById: (id: string, data: {
+        name?: string;
+        visible?: boolean;
+        active?: boolean;
+        order?: number;
+        global_context?: string;
+        color?: string;
+    }, checkpoint?: boolean) => Promise<TabData>;
+    
+    update: (params: {
+        id?: string;
+        interface_id?: string;
+        name?: string;
+        data: {
+            name?: string;
+            visible?: boolean;
+            active?: boolean;
+            order?: number;
+            global_context?: string;
+            color?: string;
+        };
+        checkpoint?: boolean;
+    }) => Promise<TabData>;
+    
+    // Delete methods
+    deleteByName: (interface_id: string, name: string) => Promise<ResponseProps>;
+    deleteById: (id: string) => Promise<ResponseProps>;
+    delete: (params: { id?: string; interface_id?: string; name?: string }) => Promise<ResponseProps>;
+    
+    // List tabs in an interface
+    list: (interface_id: string, checkpoint?: boolean) => Promise<TabData[]>;
+    
+    // Checkpoint methods
+    checkpointByName: (interface_id: string, name: string, description: string) => Promise<ResponseProps>;
+    checkpointById: (id: string, description: string) => Promise<ResponseProps>;
+    checkpoint: (params: { id?: string; interface_id?: string; name?: string; description: string }) => Promise<ResponseProps>;
 }
 
 export interface GranularTileActions {
-    get: (projectId: string, interfaceName: string, tabName: string, tileName: string, checkpoint?: boolean) => Promise<TileData | null>;
-    create: (projectId: string, interfaceName: string, tabName: string, tileName: string,tileType: string,position: TilePosition, data: { 
-        name: string;
-        type: string;
-        position: TilePosition;
+    // Get tile by name (hierarchical path)
+    getByName: (tabId: string, tileName: string, checkpoint?: boolean) => Promise<TileData | null>;
+    // Get tile by direct ID
+    getById: (id: string, checkpoint?: boolean) => Promise<TileData | null>;
+    // Unified get method that accepts either ID or tab_id+name
+    get: (params: { id?: string; tab_id?: string; name?: string; checkpoint?: boolean }) => Promise<TileData | null>;
+    
+    // Create tile (single parent id + name pattern)
+    create: (tab_id: string, name: string, type: string, position: TilePosition, data: { 
+        min_width?: number;
+        min_height?: number;
+        visible?: boolean;
+        locked?: boolean;
+        moved?: boolean;
+        static?: boolean;
+        context?: string;
+        table?: string;
+        auto_update?: string;
+        freeze?: string;
+        filters?: string;
+        common_filter?: string;
+        metric?: string;
+        table_tile?: TableTileData;
+        plot_tile?: PlotTileData;
+        view_tile?: ViewTileData;
+        editor_tile?: EditorTileData;
+    }) => Promise<TileData>;
+    
+    // Update by name (tab_id + name)
+    updateByName: (tab_id: string, name: string, data: {
+        name?: string;
+        position?: TilePosition;
         min_width?: number;
         min_height?: number;
         visible?: boolean;
@@ -349,8 +447,10 @@ export interface GranularTileActions {
         plot_tile?: PlotTileData;
         view_tile?: ViewTileData;
         editor_tile?: EditorTileData;
-    }) => Promise<TileData>;
-    update: (projectId: string, interfaceName: string, tabName: string, tileName: string, data: {
+    }, checkpoint?: boolean) => Promise<TileData>
+    
+    // Update by direct ID
+    updateById: (id: string, data: {
         name?: string;
         position?: TilePosition;
         min_width?: number;
@@ -369,11 +469,38 @@ export interface GranularTileActions {
         view_tile?: ViewTileData;
         editor_tile?: EditorTileData;
     }, checkpoint?: boolean) => Promise<TileData>;
-    patch: (
-        projectId: string, 
-        interfaceName: string, 
-        tabName: string, 
-        tileName: string, 
+    
+    // Unified update method that accepts either ID or tab_id+name
+    update: (params: { 
+        id?: string; 
+        tab_id?: string; 
+        name?: string; 
+        data: {
+            name?: string;
+            position?: TilePosition;
+            min_width?: number;
+            min_height?: number;
+            visible?: boolean;
+            locked?: boolean;
+            context?: string;
+            table?: string;
+            auto_update?: string;
+            freeze?: string;
+            filters?: string;
+            common_filter?: string;
+            metric?: string;
+            table_tile?: TableTileData;
+            plot_tile?: PlotTileData;
+            view_tile?: ViewTileData;
+            editor_tile?: EditorTileData;
+        }, 
+        checkpoint?: boolean 
+    }) => Promise<TileData>;
+    
+    // Patch methods follow the same pattern as update
+    patchByName: (
+        tab_id: string, 
+        name: string, 
         updateData: {
             name?: string;
             position?: TilePosition;
@@ -397,16 +524,96 @@ export interface GranularTileActions {
         }, 
         checkpoint?: boolean
     ) => Promise<TileData>;
-    patchSpecialized: (
-        projectId: string, 
-        interfaceName: string, 
-        tabName: string, 
-        tileName: string, 
+    
+    patchById: (
+        id: string,
+        updateData: {
+            name?: string;
+            position?: TilePosition;
+            min_width?: number;
+            min_height?: number;
+            visible?: boolean;
+            locked?: boolean;
+            moved?: boolean;
+            static?: boolean;
+            context?: string;
+            table?: string;
+            auto_update?: string;
+            freeze?: string;
+            filters?: string;
+            common_filter?: string;
+            metric?: string;
+            table_tile?: TableTileData;
+            plot_tile?: PlotTileData;
+            view_tile?: ViewTileData;
+            editor_tile?: EditorTileData;
+        }, 
+        checkpoint?: boolean
+    ) => Promise<TileData>;
+    
+    patch: (params: {
+        id?: string; 
+        tab_id?: string; 
+        name?: string;
+        updateData: {
+            name?: string;
+            position?: TilePosition;
+            min_width?: number;
+            min_height?: number;
+            visible?: boolean;
+            locked?: boolean;
+            moved?: boolean;
+            static?: boolean;
+            context?: string;
+            table?: string;
+            auto_update?: string;
+            freeze?: string;
+            filters?: string;
+            common_filter?: string;
+            metric?: string;
+            table_tile?: TableTileData;
+            plot_tile?: PlotTileData;
+            view_tile?: ViewTileData;
+            editor_tile?: EditorTileData;
+        },
+        checkpoint?: boolean
+    }) => Promise<TileData>;
+    
+    // Specialized patch methods follow the same pattern
+    patchSpecializedByName: (
+        tab_id: string, 
+        name: string, 
         tileType: "Table" | "Plot" | "View" | "Editor", 
         updateData: Record<string, any>, 
         checkpoint?: boolean
     ) => Promise<TileData>;
-    delete: (projectId: string, interfaceName: string, tabName: string, tileName: string) => Promise<ResponseProps>;
-    list: (projectId: string, interfaceName: string, tabName: string, type?: string, checkpoint?: boolean) => Promise<TileData[]>;
-    checkpoint: (projectId: string, interfaceName: string, tabName: string, tileName: string, description: string) => Promise<ResponseProps>;
+    
+    patchSpecializedById: (
+        id: string, 
+        tileType: "Table" | "Plot" | "View" | "Editor", 
+        updateData: Record<string, any>, 
+        checkpoint?: boolean
+    ) => Promise<TileData>;
+    
+    patchSpecialized: (params: {
+        id?: string; 
+        tab_id?: string; 
+        name?: string;
+        tileType: "Table" | "Plot" | "View" | "Editor";
+        updateData: Record<string, any>;
+        checkpoint?: boolean
+    }) => Promise<TileData>;
+    
+    // Delete methods
+    deleteByName: (tab_id: string, name: string) => Promise<ResponseProps>;
+    deleteById: (id: string) => Promise<ResponseProps>;
+    delete: (params: { id?: string; tab_id?: string; name?: string }) => Promise<ResponseProps>;
+    
+    // List tiles in a tab
+    list: (tab_id: string, type?: string, checkpoint?: boolean) => Promise<TileData[]>;
+    
+    // Checkpoint methods
+    checkpointByName: (tab_id: string, name: string, description: string) => Promise<ResponseProps>;
+    checkpointById: (id: string, description: string) => Promise<ResponseProps>;
+    checkpoint: (params: { id?: string; tab_id?: string; name?: string; description: string }) => Promise<ResponseProps>;
 }
