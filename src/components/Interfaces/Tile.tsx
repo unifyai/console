@@ -10,6 +10,7 @@ import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { useTileMeta, useTileUI, useTileItem } from '@/contexts/hooks/tile';
 import { ExpandProvider } from "@/contexts/ExpandContext";
 import Editor from "./Details/Editor/Editor";
+import { getTileButtonsRef, getTileCardRef } from '@/utils/refRegistry';
 
 // Dynamically import components
 const LogsTable = lazy(() => import("@/components/Interfaces/Table/Table"));
@@ -22,14 +23,15 @@ interface TileComponentProps {
     tabId: string;
     interfaceId: string;
     projectId: string;
-    updateTab: (savedTab?: TabProps | null, updatedTileProps?: TileProps[] | TileProps | null) => Promise<ResponseProps>;
     logsActions: LogsActions;
     fieldsActions: FieldsActions;
     derivedEntryActions: DerivedEntryActions;
     contextActions: ContextActions;
     codeActions: CodeActions;
-    tileButtonsRef?: React.RefObject<HTMLDivElement>;
-    tileCardRef: React.RefObject<HTMLDivElement>;
+    tableContent?: React.ReactNode;  // Server-rendered Table content
+    plotContent?: React.ReactNode;   // Server-rendered Plot content
+    viewContent?: React.ReactNode;   // Server-rendered View content
+    editorContent?: React.ReactNode; // Server-rendered Editor content
 }
 
 const Tile = ({
@@ -37,14 +39,15 @@ const Tile = ({
     tabId,
     interfaceId,
     projectId,
-    updateTab,
     logsActions,
     fieldsActions,
     derivedEntryActions,
     contextActions,
     codeActions,
-    tileButtonsRef,
-    tileCardRef
+    tableContent,
+    plotContent,
+    viewContent,
+    editorContent
 }: TileComponentProps) => {
     const router = useRouter();
     const [initial, setInitial] = useState(true);
@@ -53,6 +56,10 @@ const Tile = ({
     const { meta: tileMetaState } = useTileMeta(tileId, tabId, interfaceId);
     const { ui: tileUIState, uiActions: tileUIActions } = useTileUI(tileId, tabId, interfaceId);
     const { itemActions } = useTileItem(tileId, tabId, interfaceId);
+
+    // Get refs from registry
+    const tileButtonsRef = getTileButtonsRef(tileId);
+    const tileCardRef = getTileCardRef(tileId);
 
     // Extract required data
     const { type: tileType } = tileMetaState || {};
@@ -147,7 +154,7 @@ const Tile = ({
     const renderContent = () => {
         switch (tileType) {
             case 'Table':
-                return (
+                return tableContent || (
                     <Suspense fallback={
                         <div className="w-full h-full flex items-center justify-center">
                             <SkeletonLoader />
@@ -162,12 +169,11 @@ const Tile = ({
                             fieldsActions={fieldsActions}
                             derivedEntryActions={derivedEntryActions}
                             contextActions={contextActions}
-                            updateTab={updateTab}
                         />
                     </Suspense>
                 );
             case 'Plot':
-                return (
+                return plotContent || (
                     <Suspense fallback={
                         <div className="w-full h-full flex items-center justify-center">
                             <SkeletonLoader />
@@ -184,7 +190,7 @@ const Tile = ({
                     </Suspense>
                 );
             case 'View':
-                return (
+                return viewContent || (
                     <div className="w-full overflow-auto">
                         <ExpandProvider>
                             <Suspense fallback={
@@ -203,7 +209,7 @@ const Tile = ({
                     </div>
                 );
             case 'Editor':
-                return (
+                return editorContent || (
                     <div className="w-full h-full overflow-y-auto">
                         <Editor
                             tileId={tileId}

@@ -11,6 +11,7 @@ import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { useTiles } from "@/contexts/hooks/useStore";
 import { useInterfaceUI } from "@/contexts/hooks/interface";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
+import { cleanupTileRefs } from '@/utils/refRegistry';
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 const TileCard = lazy(() => import('./TileCard'));
@@ -23,13 +24,14 @@ interface TabComponentProps {
   setNewCounter: (newCounter: number) => void;
   setFocusDialog: (focusDialog: boolean) => void;
   setEditTile: (editTile: string | undefined) => void;
-  updateTab: (savedTab?: any, updatedItem?: any) => Promise<ResponseProps>;
   getLatestTab: () => void;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
   codeActions: CodeActions;
+  children?: React.ReactNode;
+  updateTab: (savedTab?: any, updatedItem?: any) => Promise<ResponseProps>;
 }
 
 const Tab = ({
@@ -46,6 +48,7 @@ const Tab = ({
   derivedEntryActions,
   contextActions,
   codeActions,
+  children,
 }: TabComponentProps) => {
   // Use granular hooks instead of a general hook
   const { ui: interfaceUIState, uiActions: interfaceUIActions } = useInterfaceUI(interfaceId);
@@ -86,6 +89,9 @@ const Tab = ({
 
   // Add a ref to track initial mount
   const isInitialMount = useRef(true);
+
+  // Get the unregisterTileRefs function from Zustand
+  const unregisterTileRefs = useStoreContext(state => state.unregisterTileRefs);
 
   // Set up effect to fetch the latest tab when project or tab changes
   useEffect(() => {
@@ -159,6 +165,18 @@ const Tab = ({
     return () => clearTimeout(timer);
   }, [tabUIState?.saveSuccess, tabUIActions]);
 
+  // Cleanup refs when Tab unmounts or when tiles change
+  useEffect(() => {
+    // Return cleanup function
+    return () => {
+      // Clean up refs for all current tiles
+      tileIds.forEach(tileId => {
+        unregisterTileRefs(tileId);
+        cleanupTileRefs(tileId);
+      });
+    };
+  }, [tileIds, unregisterTileRefs]);
+
   // Item layout change handler
   const onLayoutChange = (newLayout: any[]) => {
     if (!interfaceUIState?.pending && tabDataActions) {
@@ -171,9 +189,6 @@ const Tab = ({
       interfaceUIActions?.setPending(false);
     }
   };
-
-  // Set-up refs for tile buttons
-  const tileButtonsRefs = useRef<Record<string, React.RefObject<HTMLDivElement>>>({});
 
   // Show loading state if tab data is not yet available
   if (!tabDataState || !tabUIState) {
@@ -195,12 +210,8 @@ const Tab = ({
         draggableHandle=".drag"
         resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
     >
-        {/* Render tiles */}
-        {tileProps.map((item: TileProps, idx: number) => {
-            if (!tileButtonsRefs.current[item.i]) {
-              tileButtonsRefs.current[item.i] = createRef<HTMLDivElement>();
-            }
-            const tileButtonsRef = tileButtonsRefs.current[item.i];
+        {/* If children are provided, render them instead of mapping through tileProps */}
+        {children || tileProps.map((item: TileProps, idx: number) => {
             return (
                 !item.visible ? <></> : <div
                     key={item.i}
@@ -220,13 +231,11 @@ const Tab = ({
                             tabId={tabId}
                             interfaceId={interfaceId}
                             projectId={projectId}
-                            updateTab={updateTab}
                             logsActions={logsActions}
                             fieldsActions={fieldsActions}
                             derivedEntryActions={derivedEntryActions}
                             contextActions={contextActions}
                             codeActions={codeActions}
-                            tileButtonsRef={tileButtonsRef}
                         />
                     </Suspense>
 
@@ -245,7 +254,6 @@ const Tab = ({
                       contextActions={contextActions}
                       codeActions={codeActions}
                       tileCount={tileProps.length}
-                      buttonsRef={tileButtonsRef}
                     />
 
                 </div>

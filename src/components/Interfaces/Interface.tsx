@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, Suspense, useMemo, useEffect, useCallback, lazy } from 'react';
+import React, { useState, useRef, Suspense, useMemo, useEffect, lazy } from 'react';
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Tabs, TabsContent } from "../UI/tabs";
@@ -10,15 +10,14 @@ import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import InterfaceButtons from "./InterfaceButtons";
 import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./ProjectButtons";
-import { Context, TabProps, TileProps } from "@/types/evals/grid";
 import { useQueryState } from "nuqs";
-import { ProjectsActions, TabActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions } from '@/types/evals/grid';
-import { ResponseProps } from '@/types/common';
+import { ProjectsActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularInterfaceActions, GranularTabActions, GranularTileActions } from '@/types/evals/grid';
 
 import { useInterfaceData, useInterfaceUI } from '@/contexts/hooks/interface';
-import { useTabMeta, useTabData, useTabUI } from '@/contexts/hooks/tab';
-import { useProjectData, useProjectMeta } from '@/contexts/hooks/project';
+import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import AutoComplete from '../Common/Misc/AutoComplete';
+import { useCreateTabQuery, useUpdateTabQuery } from '@/hooks/Query/useTabsQuery';
+import { useSaveTabWithTilesQuery } from '@/hooks/Query/useSaveTabWithTilesQuery';
 
 // Lazy load components
 const Tab = lazy(() => import('./Tab'));
@@ -29,23 +28,29 @@ const EditTileName = lazy(() => import('./EditTileName'));
 interface InterfaceComponentProps {
   interfaceId: string;
   projectsActions: ProjectsActions;
-  tabActions: TabActions;
+  interfaceActions: GranularInterfaceActions;
+  tabActions: GranularTabActions;
+  tileActions: GranularTileActions;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
   codeActions: CodeActions;
+  children: React.ReactNode;
 }
 
 const Interface = ({ 
   interfaceId, 
   projectsActions,
-  tabActions: serverTabActions,
+  interfaceActions,
+  tabActions,
+  tileActions,
   logsActions,
   fieldsActions,
   derivedEntryActions,
   contextActions,
-  codeActions
+  codeActions,
+  children
 }: InterfaceComponentProps) => {
   const router = useRouter();
 
@@ -53,15 +58,19 @@ const Interface = ({
   const [tabQueryParam, setTabQueryParam] = useQueryState("tab", { shallow: false });
   const [projectQueryParam, setProjectQueryParam] = useQueryState("project", { shallow: false });
 
+  // Initialize React Query mutations for tab operations
+  const createTabMutation = useCreateTabQuery();
+  const updateTabMutation = useUpdateTabQuery();
+
+  // Replace createTabMutation and updateTabMutation with saveTabWithTilesMutation
+  const saveTabWithTilesMutation = useSaveTabWithTilesQuery(tabActions, tileActions, "Manual save");
+
   // Get interface and project data from hooks with granular access
-  const { data: projectDataState } = useProjectData(projectQueryParam || null);
-  const { meta: projectMetaState } = useProjectMeta(projectQueryParam || null);
   const { dataActions: interfaceDataActions } = useInterfaceData(interfaceId);
   const { ui: interfaceUIState, uiActions: interfaceUIActions } = useInterfaceUI(interfaceId);
 
   // Use granular tab hooks for better performance
-  const { meta: tabMetaState, metaActions: tabMetaActions } = useTabMeta(tabQueryParam || "", interfaceId);
-  const { data: tabDataState, dataActions: tabDataActions } = useTabData(tabQueryParam || "", interfaceId);
+  const { dataActions: tabDataActions } = useTabData(tabQueryParam || "", interfaceId);
   const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabQueryParam || "", interfaceId);
 
   // Local UI state - only keeping what's absolutely necessary as local state
@@ -73,9 +82,6 @@ const Interface = ({
   // Reference for the grid container
   const gridRef = useRef<HTMLDivElement>(null);
   
-  // Additional data preparation
-  const contexts: Context[] = useMemo(() => projectDataState?.contexts || [], [projectDataState]);
-
   // Get tile props using the getItems function from the tab data actions
   const tileProps = useMemo(() => {
     return (!tabDataActions) ? [] : tabDataActions.getItems();
@@ -83,98 +89,6 @@ const Interface = ({
 
   // Get tab names for the current interface
   const tabNames = useMemo(() => interfaceDataActions?.getTabNames() || [], [interfaceDataActions]);
-
-  // update interface – preserves context functionality
-  const updateTab = useCallback((savedTab: TabProps | null = null, updatedTileProps: TileProps[] | TileProps | null = null) => {
-    let currentTileProps: TileProps[] = [];
-    // If updatedTileProps is an array, we need to update all the tiles in the array
-    if (Array.isArray(updatedTileProps)) {
-      currentTileProps = updatedTileProps;
-    } else {
-      // If an updated tileProps is provided, create a new version of tileProps with the update
-      currentTileProps = updatedTileProps 
-        ? tileProps.map((tp: TileProps) => tp.i === updatedTileProps.i ? updatedTileProps : tp) 
-        : tileProps;
-    }
-    const context_1 = savedTab != null ? savedTab.context : tabDataState?.globalContext;
-    const items_1 = savedTab?.items ?? currentTileProps;
-    const newCounter_1 = savedTab?.new_counter ?? newCounter;
-    const color_1 = savedTab != null ? savedTab.color : tabUIState?.color;
-
-    if (
-        tabQueryParam &&
-        projectQueryParam &&
-        tabQueryParam === tabMetaState?.name &&
-        projectQueryParam === projectMetaState?.name &&
-        !interfaceUIState?.pending
-    ) {
-        if (tabMetaState?.tempTabCreated) {
-            return serverTabActions.update(
-                tabQueryParam,
-                projectQueryParam as string,
-                context_1,
-                items_1,
-                newCounter_1,
-                undefined,
-                true,
-                color_1,
-            );
-        } else {
-            return serverTabActions.create(
-                tabQueryParam,
-                projectQueryParam as string,
-                context_1,
-                items_1,
-                newCounter_1,
-                true,
-                color_1,
-            );
-        }
-    }
-    return Promise.reject(Error("updateTab conditions not met"));
-  }, [
-    tabQueryParam, 
-    projectQueryParam, 
-    tabDataState?.globalContext, 
-    tabMetaState?.tempTabCreated, 
-    interfaceUIState?.pending, 
-    serverTabActions,
-    tileProps,
-    newCounter,
-    tabUIState?.color,
-    tabMetaState?.name,
-    projectMetaState?.name
-  ]);
-
-  // Function to get the latest tab from the server and sync state
-  const getLatestTab = useCallback(() => {
-    if (!projectQueryParam || !tabQueryParam) return;
-
-    serverTabActions?.get(projectQueryParam, true).then((tabProps: TabProps[]) => {
-      const currentTab = tabProps.find(t => t.name == tabQueryParam);
-
-      if (currentTab && tabUIActions && tabDataActions && tabMetaActions && interfaceDataActions) {
-        // Update the tab's global context
-        tabDataActions.setGlobalContext(currentTab.context);
-
-        // Update items (tiles) with correct context
-        const updatedItems = currentTab.items.map(item => ({
-          ...item,
-          context: contexts.find(
-            ctx => ctx.name == currentTab.context
-          )?.name ?? item.context
-        }));
-
-        // For each item in the current tab, update the tile in the store
-        tabDataActions.setItems(updatedItems);
-
-        setNewCounter(currentTab.new_counter || 0);
-        tabMetaActions.setTempTabCreated(Boolean(currentTab));
-        interfaceUIActions.setPending(false);
-        interfaceDataActions?.setTabNames(tabProps.map(tab => tab.name));
-      }
-    });
-  }, [projectQueryParam, tabQueryParam, tabUIActions, tabDataActions, tabMetaActions, interfaceDataActions, contexts]);
 
   // Set active tab handler
   const handleTabChange = (value: string | undefined) => {
@@ -211,6 +125,63 @@ const Interface = ({
 
   const options: string[] = [];
 
+  // Add a useEffect to reset the error state and refresh data
+  useEffect(() => {
+    // Reset any error states when tab changes
+    if (createTabMutation.isError) {
+      createTabMutation.reset();
+    }
+    if (updateTabMutation.isError) {
+      updateTabMutation.reset();
+    }
+  }, [tabQueryParam, createTabMutation, updateTabMutation]);
+
+  // Handle save dialog submission
+  const handleSaveDialog = async () => {
+    if (!tabQueryParam || !projectQueryParam) {
+      console.error("Missing tab or project ID");
+      return;
+    }
+    
+    // Hide the dialog
+    setSaveDialog(false);
+    
+    // Show loading state
+    if (interfaceUIActions) {
+      interfaceUIActions.setPending(true);
+    }
+    
+    try {
+      // Get the tile IDs for this tab
+      const tileIds = tabDataActions?.getItems().map(item => item.i) || [];
+      
+      // Create a checkpoint of the tab and all its tiles
+      await saveTabWithTilesMutation.mutateAsync({
+        interface_id: projectQueryParam,
+        tab_name: tabQueryParam,
+        tile_ids: tileIds
+      });
+      
+      // Show success message
+      if (tabUIActions) {
+        tabUIActions.setSaveSuccess(true);
+      }
+      
+      // Refresh the UI
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to save tab:", error);
+      if (tabUIActions) {
+        tabUIActions.setSaveSuccess(false);
+      }
+    } finally {
+      // Hide loading state
+      if (interfaceUIActions) {
+        interfaceUIActions.setPending(false);
+      }
+    }
+  };
+
   return (
     <div className="w-full h-full overflow-auto relative bg-background" ref={gridRef}>
       <Tabs
@@ -228,7 +199,9 @@ const Interface = ({
             setTabQueryParam={setTabQueryParam}
             setProjectQueryParam={setProjectQueryParam}
             projectActions={projectsActions}
-            tabActions={serverTabActions}
+            interfaceActions={interfaceActions}
+            tabActions={tabActions}
+            tileActions={tileActions}
           />
 
           <AutoComplete
@@ -247,11 +220,13 @@ const Interface = ({
             tabQueryParam={tabQueryParam}
             newCounter={newCounter}
             setNewCounter={setNewCounter}
-            updateTab={updateTab}
             setFocusDialog={setFocusDialog}
             setSaveDialog={setSaveDialog}
             logsActions={logsActions}
             contextActions={contextActions}
+            tabActions={tabActions}
+            tileActions={tileActions}
+            disabled={saveTabWithTilesMutation.isPending}
           />
         </div>
 
@@ -264,7 +239,9 @@ const Interface = ({
             <Suspense fallback={<div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>}>
               <DefaultProject
                 projectActions={projectsActions}
-                tabActions={serverTabActions}
+                interfaceActions={interfaceActions}
+                tabActions={tabActions}
+                tileActions={tileActions}
                 logsActions={logsActions}
                 codeActions={codeActions}
                 derivedEntryActions={derivedEntryActions}
@@ -280,7 +257,7 @@ const Interface = ({
               value={tabName}
               className="mb-auto tutorial-selection-pane relative"
             >
-              {interfaceUIState?.pending ? (
+              {interfaceUIState?.pending || createTabMutation.isPending || updateTabMutation.isPending ? (
                 <div className="flex justify-center">
                   <Loader2 className="animate-spin my-36" />
                 </div>
@@ -289,8 +266,9 @@ const Interface = ({
                   <Loader2 className="animate-spin my-36" />
                 </div>
               ) : (
+                // Replace Tab component with the server-rendered children
                 <Suspense fallback={<div className="w-full h-full"><SkeletonLoader /></div>}>
-                  <Tab
+                  {/* <Tab
                     tabId={tabQueryParam || ""}
                     interfaceId={interfaceId}
                     projectId={projectQueryParam || ""}
@@ -304,7 +282,8 @@ const Interface = ({
                     derivedEntryActions={derivedEntryActions}
                     contextActions={contextActions}
                     codeActions={codeActions}
-                  />
+                  /> */}
+                  {children}
                 </Suspense>
               )}
             </TabsContent>
@@ -317,7 +296,7 @@ const Interface = ({
             interfaceId={interfaceId}
             newCounter={newCounter}
             tabQueryParam={tabQueryParam}
-            tabActions={serverTabActions}
+            tabActions={tabActions}
             setTabQueryParam={setTabQueryParam}
           />
         </div>}
@@ -332,7 +311,6 @@ const Interface = ({
                 tabId={tabQueryParam || ""}
                 interfaceId={interfaceId}
                 projectId={projectQueryParam || ""}
-                updateTab={updateTab}
                 setFocusDialog={setFocusDialog}
                 logsActions={logsActions}
                 fieldsActions={fieldsActions}
@@ -366,48 +344,30 @@ const Interface = ({
                 Are you sure you want to save the changes to{" "}
                 <span className="font-semibold">{tabQueryParam}</span>?
               </div>
-              <div className="flex justify-end pr-2">
-                <ActionButton
-                  className="w-fit remove cursor-pointer mr-0 justify-self-end"
-                  onClick={async () => {
-                    if (tabUIState?.saveSuccess == undefined) {
-                        let response: ResponseProps | undefined = undefined;
-                        if (tabMetaState?.tabCreated) {
-                            response = await serverTabActions.update(
-                                tabQueryParam as string,
-                                projectQueryParam as string,
-                                tabDataState?.globalContext,
-                                tileProps,
-                                newCounter,
-                                undefined,
-                                false,
-                                tabUIState?.color,
-                            );
-                            console.log("responses",response)
-                        } else {
-                            response = await serverTabActions.create(
-                                tabQueryParam as string,
-                                projectQueryParam as string,
-                                tabDataState?.globalContext,
-                                tileProps,
-                                newCounter,
-                                false,
-                                tabUIState?.color,
-                            );
-                        }
-                        if (response && "info" in response) {
-                            tabUIActions?.setSaveSuccess(true);
-                        } else {
-                            tabUIActions?.setSaveSuccess(false);
-                        }
-                        setSaveDialog(false);
-                        router.refresh();
-                    }
-                  }}
-                  text="Save"
-                  tooltip=""
-                  variant="primary"
-                />
+              <div className="flex flex-col gap-2">
+                {saveTabWithTilesMutation.isPending && (
+                  <div className="text-sm text-center">
+                    <Loader2 className="h-4 w-4 inline-block mr-2 animate-spin" />
+                    Saving changes...
+                  </div>
+                )}
+                {saveTabWithTilesMutation.isError && (
+                  <div className="text-sm text-destructive text-center">
+                    Error saving changes: {saveTabWithTilesMutation.error?.message || "Unknown error"}
+                    <br />
+                    Please try again.
+                  </div>
+                )}
+                <div className="flex justify-end pr-2">
+                  <ActionButton
+                    className="w-fit remove cursor-pointer mr-0 justify-self-end"
+                    onClick={handleSaveDialog}
+                    text="Save"
+                    tooltip="Save changes to tab and all tiles"
+                    variant="primary"
+                    disabled={saveTabWithTilesMutation.isPending}
+                  />
+                </div>
               </div>
             </div>
           </DialogContent>

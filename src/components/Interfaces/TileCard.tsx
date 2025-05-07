@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, Suspense, lazy, useRef } from "react";
+import React, { useMemo, Suspense, lazy, useEffect } from "react";
 import { Plus } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
@@ -14,6 +14,8 @@ import { TileColorContext } from '@/contexts/TileColorContext';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import { useTileData, useTileUI } from '@/contexts/hooks/tile';
 import { useLogLengths } from "@/contexts/hooks/useStore";
+import { useStoreContext } from '@/contexts/providers/StoreProvider';
+import { getTileCardRef, getTileButtonsRef } from '@/utils/refRegistry';
 
 const Tile = lazy(() => import('./Tile'));
 
@@ -23,13 +25,12 @@ interface TileCardProps {
   tabId: string;
   interfaceId: string;
   projectId: string;
-  updateTab: (savedTab?: TabProps | null, updatedTileProps?: TileProps[] | TileProps | null) => Promise<ResponseProps>;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
   codeActions: CodeActions;
-  tileButtonsRef?: React.RefObject<HTMLDivElement>
+  children?: React.ReactNode;
 }
 
 const TileCard = ({
@@ -38,16 +39,26 @@ const TileCard = ({
   tabId,
   interfaceId,
   projectId,
-  updateTab,
   logsActions,
   fieldsActions,
   derivedEntryActions,
   contextActions,
   codeActions,
-  tileButtonsRef
+  children
 }: TileCardProps) => {
 
-  const tileCardRef = useRef<HTMLDivElement>(null);
+  // Get refs from the registry instead of creating or receiving them via props
+  const tileCardRef = getTileCardRef(tileId);
+  const tileButtonsRef = getTileButtonsRef(tileId);
+  
+  // Register that this tile has initialized its refs via Zustand
+  const registerTileRefs = useStoreContext(state => state.registerTileRefs);
+  
+  // Register refs on mount
+  useEffect(() => {
+    registerTileRefs(tileId);
+    // Clean up is handled by the parent component 
+  }, [tileId, registerTileRefs]);
 
   // Use tab hooks for tab-level state
   const { ui: tabUIState } = useTabUI(tabId, interfaceId);
@@ -76,7 +87,7 @@ const TileCard = ({
   const logsLengths = useLogLengths();
 
   return (
-  <TileColorContext.Provider value={tileUIState?.color  || null}>
+  <TileColorContext.Provider value={tileUIState?.color || null}>
     <div ref={tileCardRef} className="relative flex w-full h-full border">
       <div className={"w-full flex-1 flex flex-col items-center " + ((!tabUIState?.edit && tab) ? "mt-4" : tab ? "mt-2" : "justify-center")}>
         <div className="flex gap-4 z-20">
@@ -152,20 +163,19 @@ const TileCard = ({
             <SkeletonLoader />
           </div>
         }>
-          <Tile
-              tileId={item?.i}
-              tabId={tabId}
-              interfaceId={interfaceId}
-              projectId={projectId}
-              updateTab={updateTab}
-              logsActions={logsActions}
-              fieldsActions={fieldsActions}
-              derivedEntryActions={derivedEntryActions}
-              contextActions={contextActions}
-              codeActions={codeActions}
-              tileButtonsRef={tileButtonsRef}
-              tileCardRef={tileCardRef}
-          />
+          {children || (
+            <Tile
+                tileId={item?.i}
+                tabId={tabId}
+                interfaceId={interfaceId}
+                projectId={projectId}
+                logsActions={logsActions}
+                fieldsActions={fieldsActions}
+                derivedEntryActions={derivedEntryActions}
+                contextActions={contextActions}
+                codeActions={codeActions}
+            />
+          )}
         </Suspense>
 
       </div>
