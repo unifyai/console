@@ -214,8 +214,11 @@ function recurseFlatten(
   If it's GroupedLogProps[], flattens it recursively into LogProps[].
 */
 export function maybeFlattenGroupedLogs(
-  logProps: LogProps[] | GroupedLogProps[]
+  logProps?: LogProps[] | GroupedLogProps[]
 ): LogProps[] {
+  if (!logProps || !Array.isArray(logProps) || logProps.length === 0) {
+    return [];
+  }
   const flattened: LogProps[] = [];
   recurseFlatten(logProps, flattened);
   return flattened;

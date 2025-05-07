@@ -1,40 +1,36 @@
 'use client';
 
 import * as React from 'react';
-import { useForm, UseFormReturn } from "react-hook-form";
-import type { PersonaFormData } from '@/types/assistants/hire';
+import { UseFormReturn } from "react-hook-form";
 import { Input } from "@/components/UI/input";
 import { Textarea } from "@/components/UI/textarea";
-import { Button } from "@/components/UI/button";
 import { Label } from "@/components/UI/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/UI/card";
 import { Separator } from "@/components/UI/separator";
-import { ImageUpload } from './ImageUpload';
-import { Loader2 } from "lucide-react";
+import { ImageUpload } from './AssistantHireImageUpload';
+import { AssistantFormData } from '@/types/team/assistant';
 
 const staticSkillsText = `I come with the same foundational skills as all other assistants on the platform. I can then specialize in whichever area you want me to, as you show me how to do the tasks and I can learn from examples and then take on these tasks myself if you want.`;
 
 interface HireFormProps {
-  formMethods: UseFormReturn<PersonaFormData>;
-  onSubmit: (data: PersonaFormData) => void;
+  formMethods: UseFormReturn<AssistantFormData>;
+  onSubmit: (data: AssistantFormData) => void;
   onImageRemove: () => void;
   isSubmitting: boolean;
+  // No need for 'children' prop if submit button is inside
 }
 
 export function HireForm({ formMethods, onSubmit, onImageRemove, isSubmitting }: HireFormProps) {
-  // Destructure formState.errors
-  const { register, handleSubmit, formState: { errors }, watch, setValue } = formMethods;
+  const { register, handleSubmit, formState: { errors }, watch, setValue, getValues } = formMethods; // Added getValues
 
   const imagePreviewUrl = watch("imagePreview");
 
   const handleFileChange = (file: File | null) => {
-    const currentPreview = watch("imagePreview");
+    const currentPreview = getValues("imagePreview"); // Use getValues here
     if (currentPreview && currentPreview.startsWith('blob:')) {
       URL.revokeObjectURL(currentPreview);
     }
 
-    // Use correct field name: imageFile
-    setValue("imageFile", file, { shouldValidate: false });
+    setValue("imageFile", file, { shouldValidate: false }); // No change needed here
 
     if (file) {
       const newPreviewUrl = URL.createObjectURL(file);
@@ -44,47 +40,45 @@ export function HireForm({ formMethods, onSubmit, onImageRemove, isSubmitting }:
     }
   };
 
-  return (
-    // Use the form's handleSubmit to automatically trigger validation
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 px-6 py-4 sm:px-8 sm:py-6 h-full overflow-y-auto">
-     {/* Disable fieldset during submission */}
-     <fieldset disabled={isSubmitting} className="group">
-      <Card className="rounded-none border-none shadow-none group-disabled:opacity-50 transition-opacity">
-         <CardHeader className="px-0 pt-0">
-          <CardTitle>Hire Assistant</CardTitle>
-          <CardDescription>Define the profile details for your new hire. All fields are required.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6 px-0 pb-0">
+  // This internal submit handler is called by RHF's handleSubmit
+  const internalOnSubmit = (data: AssistantFormData) => {
+      onSubmit(data); // Call the prop onSubmit passed from parent
+  };
 
+  return (
+    // Use the form's handleSubmit which wraps internalOnSubmit
+    <form onSubmit={handleSubmit(internalOnSubmit)} className="space-y-6 h-full flex flex-col"> 
+     {/* Disable fieldset during submission */}
+     <fieldset disabled={isSubmitting} className="group flex-1 space-y-6 min-h-0 overflow-y-auto pr-1">
           <div className="flex flex-col sm:flex-row items-start gap-6">
-            {/* Image Upload - Requirement checked in Main.tsx */}
+            {/* Image Upload */}
             <ImageUpload
               previewUrl={imagePreviewUrl}
               onFileChange={handleFileChange}
               onRemove={onImageRemove}
-              className="flex-shrink-0"
+              className="flex-shrink-0 pt-2" // Adjusted padding
               disabled={isSubmitting}
             />
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 flex-1">
               {/* First Name */}
               <div className="col-span-2 sm:col-span-1">
-                <Label htmlFor="firstName">First Name</Label>
+                <Label htmlFor="first_name">First Name</Label>
                 <Input
-                    id="firstName"
-                    aria-invalid={errors.firstName ? "true" : "false"}
-                    {...register("firstName", { required: "First name is required" })}
+                    id="first_name"
+                    aria-invalid={errors.first_name ? "true" : "false"}
+                    {...register("first_name", { required: "First name is required" })}
                 />
-                {errors.firstName && <p className="text-sm font-medium text-destructive mt-1">{errors.firstName.message}</p>}
+                {errors.first_name && <p className="text-sm font-medium text-destructive mt-1">{errors.first_name.message}</p>}
               </div>
               {/* Last Name */}
               <div className="col-span-2 sm:col-span-1">
-                <Label htmlFor="lastName">Last Name</Label>
+                <Label htmlFor="surname">Last Name</Label>
                 <Input
-                    id="lastName"
-                    aria-invalid={errors.lastName ? "true" : "false"}
-                    {...register("lastName", { required: "Last name is required" })}
+                    id="surname"
+                    aria-invalid={errors.surname ? "true" : "false"}
+                    {...register("surname", { required: "Last name is required" })}
                  />
-                 {errors.lastName && <p className="text-sm font-medium text-destructive mt-1">{errors.lastName.message}</p>}
+                 {errors.surname && <p className="text-sm font-medium text-destructive mt-1">{errors.surname.message}</p>}
               </div>
               {/* Age */}
               <div className="col-span-2 sm:col-span-1">
@@ -111,21 +105,6 @@ export function HireForm({ formMethods, onSubmit, onImageRemove, isSubmitting }:
                     {...register("region", { required: "Region is required" })}
                 />
                  {errors.region && <p className="text-sm font-medium text-destructive mt-1">{errors.region.message}</p>}
-              </div>
-              {/* Hire Button */}
-              <div className="col-span-2 flex items-center gap-3 pt-2">
-                 <Button
-                    type="submit"
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Hiring...
-                        </>
-                      ) : "Hire me" }
-                 </Button>
               </div>
             </div>
           </div>
@@ -154,10 +133,8 @@ export function HireForm({ formMethods, onSubmit, onImageRemove, isSubmitting }:
               {staticSkillsText}
             </p>
           </div>
-
-        </CardContent>
-      </Card>
      </fieldset>
+
     </form>
   );
 }

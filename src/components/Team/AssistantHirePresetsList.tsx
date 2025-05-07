@@ -1,15 +1,14 @@
 import * as React from 'react';
 import { ScrollArea } from "@/components/UI/scroll-area";
-import type { HirePreset } from '@/types/assistants/hire';
-import { PresetListItem } from './PresetListItem';
+import { AssistantPreset } from '@/types/team/assistant';
+import { PresetListItem } from './AssistantHirePresetsListItem';
 import { Button } from '@/components/UI/button';
 import { X } from 'lucide-react';
 
 interface PresetsPanelProps {
-  // Removed isOpen, onOpenChange
-  presets: HirePreset[];
-  onPresetSelect: (preset: HirePreset) => void;
-  onClose: () => void; // Added close handler
+  presets: AssistantPreset[];
+  onPresetSelect: (preset: AssistantPreset) => void;
+  onClose: () => void;
 }
 
 export function PresetsPanel({
@@ -18,15 +17,12 @@ export function PresetsPanel({
   onClose,
 }: PresetsPanelProps) {
 
-  // handleSelect logic remains the same, but doesn't call onOpenChange anymore
-  const handleSelect = (preset: HirePreset) => {
+  const handleSelect = (preset: AssistantPreset) => {
     onPresetSelect(preset);
-    // The parent now controls closing if needed after selection, or panel stays open
   }
 
   return (
-    // Replace SheetContent with div
-    <div className="h-full flex flex-col w-full bg-background">
+    <div className="h-full flex flex-col w-full bg-background border-l">
       {/* Manual Header */}
       <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2">

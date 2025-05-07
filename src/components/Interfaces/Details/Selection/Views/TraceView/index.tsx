@@ -3,8 +3,13 @@ import { Span } from "@/types/evals/traces";
 import { LogComparisonProps } from "../types";
 import UnifiedTraceView, { PersistedTraceViewState } from "./TraceView";
 
+// 
 interface TraceViewProps extends LogComparisonProps {
   persistedState?: PersistedTraceViewState;
+  cellEditMode?: boolean;
+  onSaveEdit?: (desc: { logIndex: number; path: (string | number)[]; newValue: any }) => void;
+  onGroupSaveEdit?: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void;
+  path?: (string | number)[];
 }
 
 const TraceView: React.FC<TraceViewProps> = ({
@@ -16,6 +21,10 @@ const TraceView: React.FC<TraceViewProps> = ({
   splitView = false,
   displayMode = "markdown",
   persistedState,
+  cellEditMode,
+  onSaveEdit,
+  onGroupSaveEdit, 
+  path,
 }) => {
   // Ensure the base "value" is an array of spans
   if (!Array.isArray(value)) {
@@ -39,6 +48,10 @@ const TraceView: React.FC<TraceViewProps> = ({
       splitView={splitView}
       displayMode={displayMode}
       persistedState={persistedState}
+      cellEditMode={cellEditMode}
+      onSaveEdit={onSaveEdit}
+      onGroupSaveEdit={onGroupSaveEdit}
+      path={path}
     />
   );
 };

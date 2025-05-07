@@ -174,6 +174,7 @@ export interface LogsActions {
     getLatest: (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, return_ids_only: string | null) => Promise<string>,
     getMetrics: (project: string, context: string | null, filterExpression: string | null, groupingExpression: string | null, metricName: string, keyNames: string[]) => Promise<{ [key: string]: number } | { [key: string]: { [key: string]: { [key: string]: number } } }>,
     delete: (project: string, context: string | null, ids_and_fields: LogFieldsProps, source_type: string | null) => Promise<ResponseProps>,
+    update: (project: string, context: string | null, logs: number[], entries: LogItemProps, params: LogItemProps, overwrite?: boolean) => Promise<ResponseProps>
 }
 
 export interface DerivedEntryActions {

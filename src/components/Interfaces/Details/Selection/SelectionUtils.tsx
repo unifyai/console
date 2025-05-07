@@ -27,27 +27,39 @@ export function isPdf(val: any): boolean {
   const pdfRegex = /\.pdf(\?.*)?$/i;  // matches "myfile.pdf?version=123" and .PDF
   return pdfRegex.test(val.trim());
 }
-export function isTrace(val: any): boolean {  
-  // Check if the value is an object
-  if (!val || typeof val !== "object" || Array.isArray(val)) {
-    return false;
+export function isTrace(val: any): boolean {
+  // ------------------------------------------------------------------
+  // 1) Handle the common case where a *single* trace object is provided.
+  // ------------------------------------------------------------------
+  function isTraceObject(obj: any): boolean {
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return false;
+
+    const hasTraceId = Boolean(obj.id && typeof obj.id === "string");
+    const hasType = Boolean(obj.type && typeof obj.type === "string");
+    const hasSpanName = Boolean(obj.span_name && typeof obj.span_name === "string");
+    const hasExecTime = Boolean(obj.exec_time !== undefined);
+    const hasTimestamp = Boolean(obj.timestamp && typeof obj.timestamp === "string");
+    const hasChildSpans = Boolean(obj.child_spans && Array.isArray(obj.child_spans));
+
+    const isMainTrace = hasTraceId && hasType && hasSpanName && hasTimestamp;
+    const hasTraceIndicators = hasExecTime || hasChildSpans;
+
+    return isMainTrace && hasTraceIndicators;
   }
 
-  // Check for trace-specific fields
-  const hasTraceId = Boolean(val.id && typeof val.id === "string");
-  const hasType = Boolean(val.type && typeof val.type === "string");
-  const hasSpanName = Boolean(val.span_name && typeof val.span_name === "string");
-  const hasExecTime = Boolean(val.exec_time !== undefined);
-  const hasTimestamp = Boolean(val.timestamp && typeof val.timestamp === "string");
-  const hasChildSpans = Boolean(val.child_spans && Array.isArray(val.child_spans));
-  
-  // Main trace characteristics
-  const isMainTrace = hasTraceId && hasType && hasSpanName && hasTimestamp;
-  // Additional signals that strongly indicate trace data
-  const hasTraceIndicators = hasExecTime || hasChildSpans;
-  
-  const result = isMainTrace && hasTraceIndicators;
-  return result;
+  // ------------------------------------------------------------------
+  // 2) Accept arrays-of-trace-objects as traces too, because the
+  //    application frequently stores a whole run as an array of spans.
+  // ------------------------------------------------------------------
+  if (Array.isArray(val)) {
+    if (val.length === 0) return false;
+    // If *any* element looks like a trace object, treat the array as a trace.
+    // (Using `some` avoids scanning the entire array in most cases.)
+    return val.some(isTraceObject);
+  }
+
+  // Fallback to single-object check
+  return isTraceObject(val);
 }
 export function isNumber(val: any): boolean {
   return typeof val === "number" || val instanceof Number;

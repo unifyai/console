@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useMemo, useEffect, useRef } from "react";
+
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   Accordion,
   AccordionItem,
@@ -135,6 +136,16 @@ function formatCost(value: any): string {
   return parseFloat(num.toFixed(4)).toString();
 }
 
+// Helper to safely apply toFixed on potentially non-number inputs
+function safeToFixed(val: any, digits: number = 2) {
+  const num = typeof val === "number" ? val : Number(val);
+  if (Number.isFinite(num)) {
+    return num.toFixed(digits);
+  }
+  // Fallback – return string representation unchanged for non-numeric values
+  return String(val);
+}
+
 function pickView(
   baseVal: any,
   comps: any[],
@@ -142,111 +153,50 @@ function pickView(
   comparisonLogsIndex: number[],
   diffMode: LogComparisonProps["diffMode"],
   splitView: LogComparisonProps["splitView"],
-  displayMode: "text" | "markdown" | undefined
+  displayMode: LogComparisonProps["displayMode"],
+  cellEditMode?: boolean,
+  onSaveEdit?: LogComparisonProps['onSaveEdit'],
+  onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
+  path: (string | number)[] = []
 ): JSX.Element {
+
+  const commonProps = {
+      value: baseVal,
+      comparables: comps,
+      baseLogIndex: baseLogIndex,
+      comparisonLogsIndex: comparisonLogsIndex,
+      diffMode: cellEditMode ? "none" : diffMode,
+      splitView: splitView ?? false,
+      displayMode: displayMode,
+      cellEditMode: cellEditMode,
+      onSaveEdit: onSaveEdit,
+      onGroupSaveEdit: onGroupSaveEdit,
+      path: path,
+  };
+
   if (isChat(baseVal)) {
-    return (
-      <ChatView
-        value={baseVal}
-        comparables={comps}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={comparisonLogsIndex}
-        diffMode={diffMode ?? "none"}
-        splitView={splitView ?? false}
-        displayMode={displayMode}
-      />
-    );
+    return <ChatView {...commonProps} />;
   }
   if (isDict(baseVal)) {
-    return (
-      <DictionaryView
-        value={baseVal}
-        comparables={comps}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={comparisonLogsIndex}
-        diffMode={diffMode ?? "none"}
-        splitView={splitView ?? false}
-        displayMode={displayMode}
-      />
-    );
+    return <DictionaryView {...commonProps} />;
   }
   if (isList(baseVal)) {
-    return (
-      <ListView
-        value={baseVal}
-        comparables={comps}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={comparisonLogsIndex}
-        diffMode={diffMode ?? "none"}
-        splitView={splitView ?? false}
-        displayMode={displayMode}
-      />
-    );
+    return <ListView {...commonProps} />;
   }
   if (isImage(baseVal)) {
-    return (
-      <ImageView
-        value={baseVal}
-        comparables={comps}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={comparisonLogsIndex}
-        diffMode={diffMode ?? "none"}
-        splitView={splitView ?? false}
-        displayMode={displayMode}
-      />
-    );
+    return <ImageView {...commonProps} />;
   }
   if (isMatrix(baseVal)) {
-    return (
-      <MatrixView
-        value={baseVal}
-        comparables={comps}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={comparisonLogsIndex}
-        diffMode={diffMode ?? "none"}
-        splitView={splitView ?? false}
-        displayMode={displayMode}
-      />
-    );
+    return <MatrixView {...commonProps} />;
   }
   if (isNumber(baseVal)) {
-    return (
-      <NumberView
-        value={baseVal}
-        comparables={comps}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={comparisonLogsIndex}
-        diffMode={diffMode ?? "none"}
-        splitView={splitView ?? false}
-        displayMode={displayMode}
-      />
-    );
+    return <NumberView {...commonProps} />;
   }
   if (isTimestamp(baseVal)) {
-    return (
-      <TimestampView
-        value={baseVal}
-        comparables={comps}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={comparisonLogsIndex}
-        diffMode={diffMode ?? "none"}
-        splitView={splitView ?? false}
-        displayMode={displayMode}
-      />
-    );
+    return <TimestampView {...commonProps} />;
   }
   // Fallback => string
-  return (
-    <StringView
-      value={baseVal}
-      comparables={comps}
-      baseLogIndex={baseLogIndex}
-      comparisonLogsIndex={comparisonLogsIndex}
-      diffMode={diffMode ?? "none"}
-      splitView={splitView ?? false}
-      displayMode={displayMode}
-    />
-  );
+  return <StringView {...commonProps} />;
 }
 
 // Define DictionarySectionItem component to handle dictionary-type sections
@@ -263,6 +213,10 @@ function DictionarySectionItem({
   openSections,
   setOpenSections,
   sectionIcons,
+  cellEditMode,
+  onSaveEdit,
+  onGroupSaveEdit,
+  parentPath,
 }: {
   title: string;
   baseVal: any;
@@ -271,15 +225,19 @@ function DictionarySectionItem({
   comparisonLogsIndex: number[];
   diffMode?: LogComparisonProps["diffMode"];
   splitView?: LogComparisonProps["splitView"];
-  displayMode?: "text" | "markdown" | undefined;
+  displayMode?: LogComparisonProps["displayMode"];
   persistedState?: PersistedTraceViewState;
   openSections: string[];
   setOpenSections: React.Dispatch<React.SetStateAction<string[]>>;
   sectionIcons: Record<string, JSX.Element>;
+  cellEditMode?: boolean;
+  onSaveEdit?: LogComparisonProps['onSaveEdit'];
+  onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'];
+  parentPath: (string | number)[];
 }) {
   // Create a custom icon mapping for the DictionaryView
   const customIconMapping: Record<string, JSX.Element> = {};
-  
+
   // IMPORTANT: Declare hooks before any conditional returns
   // This ensures hooks are always called in the same order
   const [allExpanded, setAllExpanded] = useState<boolean>(false);
@@ -305,27 +263,27 @@ function DictionarySectionItem({
         allPaths.push(...nestedPaths);
       }
     }
-    
+
     // Check if all paths are expanded
-    const allPathsExpanded = allPaths.length > 0 && 
+    const allPathsExpanded = allPaths.length > 0 &&
       allPaths.every(path => persistedState.traceExpandOpenKeys.has(path));
-    
+
     setAllExpanded(allPathsExpanded);
   }, [persistedState?.traceExpandOpenKeys, title, baseVal]);
 
   // Handlers for expand/collapse actions
   const handleExpandAll = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent accordion from toggling
-    
+
     if (!persistedState) return; // Early return if no persistedState
-    
+
     setAllExpanded(true);
-    
+
     // Ensure the parent accordion item is open
     if (!openSections.includes(title)) {
       setOpenSections(prev => [...prev, title]);
     }
-    
+
     // Get all subpaths and expand them
     // Use TraceExpandContext for persisted state
     const parentPath = title.toLowerCase();
@@ -333,15 +291,15 @@ function DictionarySectionItem({
     
     // Add the parent path itself to ensure it's opened
     subPaths.push(parentPath);
-    
+
     // Gather all keys
     const allKeys = Object.keys(baseVal || {});
-    
+
     // Add paths for all keys
     for (const key of allKeys) {
       const keyPath = `${parentPath}.${key}`;
       subPaths.push(keyPath);
-      
+
       // Get nested paths if the value is a dict or list
       const value = baseVal[key];
       if (isDict(value) || isList(value)) {
@@ -358,19 +316,19 @@ function DictionarySectionItem({
       return newSet;
     });
   };
-  
+
   const handleCollapseAll = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent accordion from toggling
-    
+
     if (!persistedState) return; // Early return if no persistedState
-    
+
     setAllExpanded(false);
-    
+
     // Get all subpaths and collapse them
     // Use TraceExpandContext for persisted state
     const parentPath = title.toLowerCase();
     let subPaths: string[] = [];
-    
+
     // Gather all keys
     const allKeys = Object.keys(baseVal || {});
     
@@ -398,7 +356,7 @@ function DictionarySectionItem({
       return newSet;
     });
   };
-  
+
   return (
     <AccordionItem key={title} value={title}>
       <AccordionTrigger className="relative group flex items-center justify-between">
@@ -430,20 +388,24 @@ function DictionarySectionItem({
             comparables={comps}
             baseLogIndex={baseLogIndex}
             comparisonLogsIndex={comparisonLogsIndex}
-            diffMode={diffMode ?? "none"}
+            diffMode={cellEditMode ? "none" : diffMode}
             splitView={splitView ?? false}
             displayMode={displayMode ?? "markdown"}
             nestingLevel={1}
             prefix={title.toLowerCase()} // Use lowercase section name as prefix
             parentPath={title.toLowerCase()} // Use lowercase section name as parent path
             customIconMapping={customIconMapping}
+            cellEditMode={cellEditMode}
+            onSaveEdit={onSaveEdit}
+            onGroupSaveEdit={onGroupSaveEdit}
+            path={parentPath}
           />
         </div>
       </AccordionContent>
     </AccordionItem>
   );
 }
-
+ 
 function PatchDetailPanel({
   node,
   baseRowIndex,
@@ -454,6 +416,10 @@ function PatchDetailPanel({
   splitView,
   displayMode,
   persistedState,
+  cellEditMode,
+  onSaveEdit,
+  onGroupSaveEdit,
+  path,
 }: {
   node: PatchDiffNode;
   baseRowIndex: number;
@@ -462,24 +428,27 @@ function PatchDetailPanel({
   allRowIndexes: number[];
   diffMode?: LogComparisonProps["diffMode"];
   splitView?: LogComparisonProps["splitView"];
-  displayMode?: "text" | "markdown" | undefined;
+  displayMode?: LogComparisonProps["displayMode"];
   persistedState?: PersistedTraceViewState;
+  cellEditMode?: boolean;
+  onSaveEdit?: LogComparisonProps['onSaveEdit'];
+  onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'];
+  path?: (string | number)[];
 }) {
   // IMPORTANT: Declare ALL hooks at the top level before any conditional logic
   
   // Track which accordion items are open
   const [openSections, setOpenSections] = useState<string[]>(["Inputs", "Outputs"]);
-  
   // Store stable references to props to avoid unnecessary re-renders
   const propsRef = React.useRef({
-    node,
+    node, 
     baseRowIndex,
     comparisonLogsIndex,
     diffMode,
     splitView,
     displayMode
   });
-  
+
   // Only update the reference if important props change
   React.useEffect(() => {
     const currentProps = propsRef.current;
@@ -502,7 +471,49 @@ function PatchDetailPanel({
       };
     }
   }, [node, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode]);
-  
+
+
+  // ------------------------------------------------------------------
+  // Determine the *full* path (indices + "child_spans" segments) from the
+  // root trace array to the currently selected span.  This guarantees that
+  // edits performed on deeply-nested spans are written back to the correct
+  // location in the trace structure.
+  // ------------------------------------------------------------------
+
+  const spanPathSegments = useMemo(() => {
+    const targetId = node.baseSpanRef?.id || node.targetSpanRef?.id;
+
+    function recurse(spans: Span[], acc: (string | number)[]): (string | number)[] | null {
+      for (let i = 0; i < spans.length; i++) {
+        const s = spans[i];
+        if (s.id === targetId) {
+          return [...acc, i];
+        }
+        if (s.child_spans && s.child_spans.length) {
+          const found = recurse(s.child_spans, [...acc, i, "child_spans"]);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+
+    const roots = (allTraces?.[0] ?? []) as Span[];
+    const res = recurse(roots, []);
+    return res ?? [0]; // default to first span if not found
+  }, [allTraces, node.baseSpanRef, node.targetSpanRef]);
+
+  // Helper to construct a fully-qualified edit path for a given field key
+  const buildFieldPath = useCallback(
+    (fieldKey: string | number) => {
+      return [
+        ...(path ?? []), // usually ["trace"]
+        ...spanPathSegments,
+        fieldKey,
+      ] as (string | number)[];
+    },
+    [path, spanPathSegments]
+  );
+
   // Early return after all hooks are declared
   if (!node.baseSpanRef && !node.targetSpanRef) {
     return <p className="italic text-sm">No base or target data</p>;
@@ -543,7 +554,7 @@ function PatchDetailPanel({
     }
   }
 
-  function findSpanByNameInRow(
+function findSpanByNameInRow(
     traces: Span[][],
     rowIndexes: number[],
     rowIndex: number,
@@ -578,36 +589,24 @@ function PatchDetailPanel({
     "IDs": <IdCard className="h-4 w-4 text-primary" />,
   };
 
-  // Helper to render a standard accordion item
-  function maybeRenderBlock(title: string, baseVal: any, comps: any[]): JSX.Element | null {
-    // Determine if we should render anything by checking emptiness first
+  // Helper to render a standard accordion item (updated to pass onGroupSaveEdit)
+  function maybeRenderBlock(title: string, baseVal: any, comps: any[], fieldKey: string): JSX.Element | null {
     const isEmpty = allEmpty(baseVal, comps);
-    if (isEmpty) {
-      return null;
-    }
+    if (isEmpty) return null;
+    const fullPath = buildFieldPath(fieldKey);
 
-    // Special handling for "Inputs" and "Outputs" sections
     if (title === "Inputs" || title === "Outputs") {
-      // If it's not a dictionary, fall back to standard rendering
       if (!isDict(baseVal)) {
-        const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown");
+         const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown", cellEditMode, onSaveEdit, onGroupSaveEdit, fullPath); // Pass group save
         return (
           <AccordionItem key={title} value={title}>
-            <AccordionTrigger className="relative group flex items-center justify-between">
-              <span className="inline-flex items-center gap-2">
-                {sectionIcons[title] || null}<span>{title}</span>
-              </span>
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="border-l ml-4 pl-1">{view}</div>
-            </AccordionContent>
+            <AccordionTrigger className="relative group flex items-center justify-between"><span className="inline-flex items-center gap-2">{sectionIcons[title] || null}<span>{title}</span></span></AccordionTrigger>
+            <AccordionContent><div className="border-l ml-4 pl-1">{view}</div></AccordionContent>
           </AccordionItem>
         );
       }
-
-      // Use a dedicated component for dictionary inputs/outputs to encapsulate hooks
       return (
-        <DictionarySectionItem 
+        <DictionarySectionItem
           title={title}
           baseVal={baseVal}
           comps={comps}
@@ -620,23 +619,23 @@ function PatchDetailPanel({
           openSections={openSections}
           setOpenSections={setOpenSections}
           sectionIcons={sectionIcons}
+          cellEditMode={cellEditMode}
+          onSaveEdit={onSaveEdit}
+          onGroupSaveEdit={onGroupSaveEdit}
+          parentPath={fullPath}
         />
       );
     }
 
-    // Standard rendering for other sections
-    const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown");
+    const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown", cellEditMode, onSaveEdit, onGroupSaveEdit, fullPath); // Pass group save
 
     return (
       <AccordionItem key={title} value={title}>
         <AccordionTrigger className="relative group flex items-center justify-between">
           <span className="inline-flex items-center gap-2">
             {sectionIcons[title] || null}<span>{title}</span>
-          </span>
-        </AccordionTrigger>
-        <AccordionContent>
-          <div className="border-l ml-4 pl-1">{view}</div>
-        </AccordionContent>
+          </span></AccordionTrigger>
+        <AccordionContent><div className="border-l ml-4 pl-1">{view}</div></AccordionContent>
       </AccordionItem>
     );
   }
@@ -673,7 +672,6 @@ function PatchDetailPanel({
           />
         )}
       </div>
-      
       <Accordion 
         type="multiple" 
         defaultValue={["Inputs", "Outputs"]} 
@@ -689,7 +687,7 @@ function PatchDetailPanel({
           const { baseVal: bErrors, comps: cErrors } = gatherField("errors");
           const { baseVal: bCost, comps: cCost } = gatherField("cost");
           const { baseVal: bCostIncCache, comps: cCostIncCache } = gatherField("cost_inc_cache");
-          
+
           // Gather IDs
           function gatherID() {
             const bSpan = node.baseSpanRef;
@@ -711,15 +709,14 @@ function PatchDetailPanel({
             return { baseVal: bId, comps: compsArr };
           }
           const { baseVal: bId, comps: cId } = gatherID();
-          
           // Determine if we're showing a single ID or multiple IDs
           const idSectionTitle = comparisonLogsIndex.length > 0 && cId.some(id => id !== "") ? "IDs" : "ID";
-          
+
           // Specialized renderer for cost section
           function renderCostBlock(): JSX.Element | null {
             const isEmpty = allEmpty(bCost, cCost) && allEmpty(bCostIncCache, cCostIncCache);
             if (isEmpty) return null;
-            
+
             const content = (
               <div className="flex flex-col gap-2">
                 <div>
@@ -734,6 +731,10 @@ function PatchDetailPanel({
                       splitView={splitView}
                       scientificNotation={true}
                       displayMode={displayMode}
+                      cellEditMode={cellEditMode}
+                      onSaveEdit={onSaveEdit}
+                      onGroupSaveEdit={onGroupSaveEdit}
+                      path={buildFieldPath("cost")}
                     />
                   </div>
                 </div>
@@ -749,36 +750,34 @@ function PatchDetailPanel({
                       splitView={splitView}
                       scientificNotation={true}
                       displayMode={displayMode}
+                      cellEditMode={cellEditMode}
+                      onSaveEdit={onSaveEdit}
+                      onGroupSaveEdit={onGroupSaveEdit}
+                      path={buildFieldPath("cost_inc_cache")}
                     />
                   </div>
                 </div>
               </div>
             );
-            
+
             return (
               <AccordionItem key="Cost" value="Cost">
                 <AccordionTrigger className="relative group flex items-center justify-between">
-                  <span className="inline-flex items-center gap-2">
-                    {sectionIcons["Cost"]} <span>Cost</span>
-                  </span>
+                  <span className="inline-flex items-center gap-2">{sectionIcons["Cost"]} <span>Cost</span></span>
                 </AccordionTrigger>
-                <AccordionContent>
-                  <div className="border-l ml-4 pl-1">{content}</div>
-                </AccordionContent>
+                <AccordionContent><div className="border-l ml-4 pl-1">{content}</div></AccordionContent>
               </AccordionItem>
             );
           }
-          
-          // Return all accordion sections
           return (
             <>
-              {maybeRenderBlock("Inputs", bInputs, cInputs)}
-              {maybeRenderBlock("Outputs", bOutputs, cOutputs)}
-              {maybeRenderBlock("Code", bCode, cCode)}
-              {maybeRenderBlock("Execution Time", bExecTime, cExecTime)}
-              {maybeRenderBlock("Errors", bErrors, cErrors)}
+              {maybeRenderBlock("Inputs", bInputs, cInputs, "inputs")}
+              {maybeRenderBlock("Outputs", bOutputs, cOutputs, "outputs")}
+              {maybeRenderBlock("Code", bCode, cCode, "code")}
+              {maybeRenderBlock("Execution Time", bExecTime, cExecTime, "exec_time")}
+              {maybeRenderBlock("Errors", bErrors, cErrors, "errors")}
               {renderCostBlock()}
-              {maybeRenderBlock(idSectionTitle, bId, cId)}
+              {maybeRenderBlock(idSectionTitle, bId, cId, idSectionTitle.toLowerCase())}
             </>
           );
         })()}
@@ -878,7 +877,7 @@ function CollapsiblePatchLineNode({
   if (!multiMode) {
     if (baseTime) {
       const { value, unit } = formatTime(baseTime);
-      timeLabel = `${value.toFixed(2)}${unit}`;
+      timeLabel = `${safeToFixed(value,2)}${unit}`;
       timeData = {
         title: "Execution Time",
         baseTime,
@@ -888,7 +887,7 @@ function CollapsiblePatchLineNode({
     if (node.marker === "+") {
       if (targetTime) {
         const { value, unit } = formatTime(targetTime);
-        timeLabel = `${value.toFixed(2)}${unit}`;
+        timeLabel = `${safeToFixed(value,2)}${unit}`;
         timeData = {
           title: "Execution Time (Comparison Only)",
           targetTime,
@@ -897,7 +896,7 @@ function CollapsiblePatchLineNode({
     } else if (node.marker === "-") {
       if (baseTime) {
         const { value, unit } = formatTime(baseTime);
-        timeLabel = `${value.toFixed(2)}${unit}`;
+        timeLabel = `${safeToFixed(value,2)}${unit}`;
         timeData = {
           title: "Execution Time (Base Only)",
           baseTime,
@@ -908,7 +907,7 @@ function CollapsiblePatchLineNode({
       if (baseTime || targetTime) {
         const { value, unit } = formatTime(Math.abs(diff));
         const sign = diff >= 0 ? "+" : "-";
-        timeLabel = `${sign}${value.toFixed(2)}${unit}`;
+        timeLabel = `${sign}${safeToFixed(value,2)}${unit}`;
         timeData = {
           title: "Execution Times",
           baseTime,
@@ -1183,20 +1182,20 @@ function CollapsiblePatchLineNode({
                   {timeData.baseTime !== undefined && (
                     <p>Base Execution Time: {(() => {
                       const { value, unit } = formatTime(timeData.baseTime);
-                      return `${value.toFixed(2)}${unit}`;
+                      return `${safeToFixed(value,2)}${unit}`;
                     })()}</p>
                   )}
                   {timeData.targetTime !== undefined && (
                     <p>
                       Comparison Execution Time: {(() => {
                         const { value, unit } = formatTime(timeData.targetTime);
-                        return `${value.toFixed(2)}${unit}`;
+                        return `${safeToFixed(value,2)}${unit}`;
                       })()}
                     </p>
                   )}
                   {timeData.diffSign && (
                     <p>
-                      Difference: {timeData.diffSign}{timeData.diffValue.toFixed(2)}{timeData.diffUnit}
+                      Difference: {timeData.diffSign}{safeToFixed(timeData.diffValue,2)}{timeData.diffUnit}
                     </p>
                   )}
                 </div>
@@ -1350,9 +1349,12 @@ interface UnifiedTraceViewProps {
   rowIndexes: number[];
   diffMode?: LogComparisonProps["diffMode"];
   splitView?: LogComparisonProps["splitView"];
-  displayMode?: "text" | "markdown" | undefined;
-  // New prop for persisted state (optional)
+  displayMode?: LogComparisonProps["displayMode"];
   persistedState?: PersistedTraceViewState;
+  cellEditMode?: boolean;
+  onSaveEdit?: LogComparisonProps['onSaveEdit'];
+  onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'];
+  path?: (string | number)[];
 }
 
 function flattenRootNode(root: PatchDiffNode | null): PatchDiffNode[] {
@@ -1384,10 +1386,14 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
   comparisonLogsIndex,
   allTraces,
   allRowIndexes,
-  diffMode,
+  diffMode, 
   splitView,
   displayMode,
-  persistedState
+  persistedState,
+  cellEditMode,
+  onSaveEdit,
+  onGroupSaveEdit,
+  path,
 }: {
   selectedNode: PatchDiffNode | null;
   baseRowIndex: number;
@@ -1396,8 +1402,12 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
   allRowIndexes: number[];
   diffMode?: LogComparisonProps["diffMode"];
   splitView?: LogComparisonProps["splitView"];
-  displayMode?: "text" | "markdown" | undefined;
+  displayMode?: LogComparisonProps["displayMode"];
   persistedState?: PersistedTraceViewState;
+  cellEditMode?: boolean;
+  onSaveEdit?: LogComparisonProps['onSaveEdit'];
+  onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'];
+  path?: (string | number)[];
 }) {
   if (!selectedNode) {
     return (
@@ -1406,7 +1416,6 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
       </div>
     );
   }
-
   return (
     <PatchDetailPanel
       node={selectedNode}
@@ -1418,39 +1427,60 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
       splitView={splitView}
       displayMode={displayMode}
       persistedState={persistedState}
+      cellEditMode={cellEditMode}
+      onSaveEdit={onSaveEdit}
+      onGroupSaveEdit={onGroupSaveEdit}
+      path={path}
     />
   );
 }, (prevProps, nextProps) => {
-  // More robust comparison to prevent unnecessary re-renders
-  
-  // Compare basic config
-  const configsEqual = prevProps.diffMode === nextProps.diffMode && 
-    prevProps.splitView === nextProps.splitView && 
-    prevProps.displayMode === nextProps.displayMode;
-  
+  // ------------------------------------------------------------------
+  // Custom comparator: allow re-render when either configuration OR the
+  // *underlying trace data* changes.  Previously we ignored `allTraces`,
+  // so edits to a span value didn't trigger an update.
+  // ------------------------------------------------------------------
+
+  // 1) Always re-render if the reference of the traces array changes – this
+  //    is a cheap shallow check because upstream code recreates `allTraces`
+  //    whenever any span content is modified.
+  if (prevProps.allTraces !== nextProps.allTraces) {
+    return false;
+  }
+
+  // 2) Re-render if any basic configuration toggles.
+  const configsEqual =
+    prevProps.diffMode === nextProps.diffMode &&
+    prevProps.splitView === nextProps.splitView &&
+    prevProps.displayMode === nextProps.displayMode &&
+    prevProps.cellEditMode === nextProps.cellEditMode;
+
   if (!configsEqual) return false;
-  
-  // Compare indices arrays by stringify
+
+  // 3) Compare row index arrays.
   const prevIndices = JSON.stringify(prevProps.comparisonLogsIndex);
   const nextIndices = JSON.stringify(nextProps.comparisonLogsIndex);
   if (prevIndices !== nextIndices) return false;
-  
-  // Compare base index
+
+  // 4) Base row index change.
   if (prevProps.baseRowIndex !== nextProps.baseRowIndex) return false;
-  
-  // If either node is null, compare strict equality
+
+  // 5) Selection change: if either node is null, compare directly.
   if (!prevProps.selectedNode || !nextProps.selectedNode) {
     return prevProps.selectedNode === nextProps.selectedNode;
   }
-  
-  // Deep comparison of the important node properties
+
+  // 6) Otherwise compare key identity fields of the nodes.
   const prevNode = prevProps.selectedNode;
   const nextNode = nextProps.selectedNode;
-  
-  return prevNode.name === nextNode.name && 
-         prevNode.marker === nextNode.marker &&
-         prevNode.baseSpanRef?.id === nextNode.baseSpanRef?.id &&
-         prevNode.targetSpanRef?.id === nextNode.targetSpanRef?.id;
+
+  return (
+    prevNode.name === nextNode.name &&
+    prevNode.marker === nextNode.marker &&
+    prevNode.baseSpanRef?.id === nextNode.baseSpanRef?.id &&
+    prevNode.targetSpanRef?.id === nextNode.targetSpanRef?.id &&
+    prevNode.baseSpanRef === nextNode.baseSpanRef &&
+    prevNode.targetSpanRef === nextNode.targetSpanRef
+  );
 });
 
 export default function UnifiedTraceView({
@@ -1460,6 +1490,10 @@ export default function UnifiedTraceView({
   splitView = false,
   displayMode = "markdown",
   persistedState,
+  cellEditMode,
+  onSaveEdit,
+  onGroupSaveEdit,
+  path,
 }: UnifiedTraceViewProps) {
   // NEW: state to hold live-updated base trace
   const [liveBaseTrace, setLiveBaseTrace] = useState<Span[]>(allTraces[0] ?? []);
@@ -1525,7 +1559,7 @@ export default function UnifiedTraceView({
   // Create refs for left and right scroll containers
   const leftScrollRef = useRef<HTMLDivElement>(null);
   const rightScrollRef = useRef<HTMLDivElement>(null);
-  
+
   // Add flags to prevent scroll restoration during manual scrolling
   const isManuallyScrollingLeft = useRef(false);
   const isManuallyScrollingRight = useRef(false);
@@ -1664,7 +1698,7 @@ export default function UnifiedTraceView({
     const firstRow = rowIndices[0];
     const i = rowIndexes.indexOf(firstRow);
     return allTraces[i] ?? [];
-  }
+  }  
 
   const finalPatchRoot = useMemo<PatchDiffNode | null>(() => {
     if (!allTraces.length) return null;
@@ -1687,7 +1721,7 @@ export default function UnifiedTraceView({
     if (!found) return [];
     return found.rowIndices;
   }, [groupSignature, groupedRows]);
-
+  
   useEffect(() => {
     if (!finalPatchRoot) return;
 
@@ -1748,6 +1782,7 @@ export default function UnifiedTraceView({
     setSelectedSpanId("");
   }, [setGroupSignature, setCollapsedNodes, setSelectedNode, setSelectedSpanId]);
 
+  // Tree rendering function (unchanged)
   function renderPatchTree() {
     if (!finalPatchRoot) {
       return <p className="text-sm italic text-muted-foreground mt-2">No trace data</p>;
@@ -1791,14 +1826,18 @@ export default function UnifiedTraceView({
         splitView={splitView}
         displayMode={displayMode}
         persistedState={persistedState}
+        cellEditMode={cellEditMode}
+        onSaveEdit={onSaveEdit}
+        onGroupSaveEdit={onGroupSaveEdit}
+        path={path}
       />
     );
-  }, [selectedNode, rowIndexes, groupCompareRows, allTraces, diffMode, splitView, displayMode, persistedState]);
+  }, [selectedNode, rowIndexes, groupCompareRows, allTraces, diffMode, splitView, displayMode, persistedState, cellEditMode, onSaveEdit, onGroupSaveEdit, path]);
 
   return (
     <TraceExpandProvider
-      externalOpenKeys={traceExpandOpenKeys}
-      setExternalOpenKeys={setTraceExpandOpenKeys}
+      externalOpenKeys={persistedState ? persistedState.traceExpandOpenKeys : localTraceExpandOpenKeys}
+      setExternalOpenKeys={persistedState ? persistedState.setTraceExpandOpenKeys : setLocalTraceExpandOpenKeys}
     >
       <div className="bg-background rounded-md w-full h-full p-4 flex flex-col gap-4">
         <div style={{ height: "600px" }}>
@@ -1810,11 +1849,11 @@ export default function UnifiedTraceView({
               <div
                 ref={leftScrollRef}
                 onScroll={handleLeftScroll}
-                style={{
-                  height: "100%",
-                  border: "1px solid var(--muted)",
-                  borderRadius: "0.25rem",
-                  position: "relative",
+                style={{ 
+                  height: "100%", 
+                  border: "1px solid var(--muted)", 
+                  borderRadius: "0.25rem", 
+                  position: "relative", 
                   overflowY: "auto",
                 }}
               >
@@ -1848,11 +1887,11 @@ export default function UnifiedTraceView({
               <div
                 ref={rightScrollRef}
                 onScroll={handleRightScroll}
-                style={{
-                  height: "100%",
-                  border: "1px solid var(--muted)",
-                  borderRadius: "0.25rem",
-                  overflowY: "auto",
+                style={{ 
+                  height: "100%", 
+                  border: "1px solid var(--muted)", 
+                  borderRadius: "0.25rem", 
+                  overflowY: "auto", 
                   padding: "0.5rem",
                 }}
               >
