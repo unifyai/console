@@ -1,7 +1,7 @@
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { getCurrentUser } from "@/lib/user/user";
 import { Suspense } from "react";
-import MainServer from "@/components/Interfaces/Server/MainServer";
+
 import {
     getLogFields,
     deleteLogs,
@@ -21,31 +21,63 @@ import {
     runCode,
     getDevbox,
     createDevbox,
-    // New granular actions
+    // Interface actions
     listInterfaces,
     getInterfaceByName,
+    getInterfaceById,
+    getInterfaceUnified,
     createNewInterface,
     updateInterfaceByName,
+    updateInterfaceById,
+    updateInterfaceUnified,
     deleteInterfaceByName,
+    deleteInterfaceById,
+    deleteInterfaceUnified,
     createInterfaceCheckpoint,
+    createInterfaceCheckpointById,
+    createInterfaceCheckpointUnified,
+    // Tab actions
     listTabs,
     getTabByName,
+    getTabById,
+    getTabUnified,
     createTab,
-    updateTab,
-    deleteTab,
+    updateTabByName,
+    updateTabById,
+    updateTabUnified,
+    deleteTabByName,
+    deleteTabById,
+    deleteTabUnified,
+    createTabCheckpointByName,
+    createTabCheckpointById,
+    createTabCheckpointUnified,
+    // Tile actions
     listTiles,
     getTileByName,
+    getTileById,
+    getTileUnified,
     createTile,
-    updateTile,
-    patchTile,
-    deleteTile,
-    createTabCheckpoint,
-    createTileCheckpoint,
-    patchSpecializedTile
+    updateTileByName,
+    updateTileById,
+    updateTileUnified,
+    patchTileByName,
+    patchTileById,
+    patchTileUnified,
+    patchSpecializedTileByName,
+    patchSpecializedTileById,
+    patchSpecializedTileUnified,
+    deleteTileByName,
+    deleteTileById,
+    deleteTileUnified,
+    createTileCheckpointByName,
+    createTileCheckpointById,
+    createTileCheckpointUnified
 } from "./actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { GranularInterfaceActions, GranularTabActions, GranularTileActions, TilePosition } from "@/types/evals/grid";
+import { GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
+import InterfaceWrapper from "@/components/Interfaces/Server/InterfaceWrapper.server";
+import { createInterfaceActions, createTabActions, createTileActions } from "./utils";
 
 const InterfacesPage = async ({ searchParams }: { searchParams: { project?: string, tab?: string } }) => {
     // get user and api key
@@ -98,51 +130,87 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
         create: await createDevbox(apiKey, userId),
     };
 
-    const interfaceActions: GranularInterfaceActions = {
-        get: await getInterfaceByName(apiKey),
-        create: await createNewInterface(apiKey),
-        update: await updateInterfaceByName(apiKey),
-        delete: await deleteInterfaceByName(apiKey),
-        list: await listInterfaces(apiKey),
-        checkpoint: await createInterfaceCheckpoint(apiKey),
-    }
+    // Create the granular actions using the factory functions
+    const interfaceActions: GranularInterfaceActions = await createInterfaceActions(
+        listInterfaces,
+        getInterfaceByName, 
+        getInterfaceById, 
+        createNewInterface, 
+        updateInterfaceByName, 
+        updateInterfaceById, 
+        deleteInterfaceByName, 
+        deleteInterfaceById, 
+        createInterfaceCheckpoint,
+        createInterfaceCheckpointById,
+        getInterfaceUnified,
+        updateInterfaceUnified,
+        deleteInterfaceUnified,
+        createInterfaceCheckpointUnified,
+        apiKey
+    );
 
-    const tabActions: GranularTabActions = {
-        get: await getTabByName(apiKey),
-        create: await createTab(apiKey),
-        update: await updateTab(apiKey),
-        delete: await deleteTab(apiKey),
-        list: await listTabs(apiKey),
-        checkpoint: await createTabCheckpoint(apiKey),
-    };
+    const tabActions: GranularTabActions = await createTabActions(
+        listTabs,
+        getTabByName,
+        getTabById,
+        getTabUnified,
+        createTab,
+        updateTabByName,
+        updateTabById,
+        updateTabUnified,
+        deleteTabByName,
+        deleteTabById,
+        deleteTabUnified,
+        createTabCheckpointByName,
+        createTabCheckpointById,
+        createTabCheckpointUnified,
+        apiKey
+    );
 
-    const tileActions: GranularTileActions = {
-        get: await getTileByName(apiKey),
-        create: await createTile(apiKey),
-        update: await updateTile(apiKey),
-        patch: await patchTile(apiKey),
-        patchSpecialized: await patchSpecializedTile(apiKey),
-        delete: await deleteTile(apiKey),
-        list: await listTiles(apiKey),
-        checkpoint: await createTileCheckpoint(apiKey),
-    };
+    const tileActions: GranularTileActions = await createTileActions(
+        listTiles,
+        getTileByName,
+        getTileById,
+        getTileUnified,
+        createTile,
+        updateTileByName,
+        updateTileById, 
+        updateTileUnified,
+        patchTileByName,
+        patchTileById,
+        patchTileUnified,
+        patchSpecializedTileByName,
+        patchSpecializedTileById,
+        patchSpecializedTileUnified,
+        deleteTileByName,
+        deleteTileById,
+        deleteTileUnified,
+        createTileCheckpointByName,
+        createTileCheckpointById,
+        createTileCheckpointUnified,
+        apiKey
+    );
 
     return (
         <div className="w-full h-full">
             <Suspense fallback={<SkeletonLoader />}>
-                <Main
-                    project={searchParams?.project}
+                <InterfaceWrapper
+                    project={searchParams?.project ?? null}
                     tab={searchParams?.tab}
-                    projectsActions={projectsActions}
-                    logsActions={logsActions}
-                    derivedEntryActions={derivedEntryActions}
-                    contextActions={contextActions}
-                    fieldsActions={fieldsActions}
-                    tabActions={tabActions}
-                    codeActions={codeActions}
-                    devboxActions={devboxActions}
-                    interfaceActions={interfaceActions}
-                    tileActions={tileActions}
+                    actions={
+                        {
+                            projectsActions,
+                            logsActions,
+                            derivedEntryActions,
+                            contextActions,
+                            fieldsActions,
+                            codeActions,
+                            devboxActions,
+                            interfaceActions,
+                            tabActions,
+                            tileActions
+                        }
+                    }
                 />
             </Suspense>
         </div>
