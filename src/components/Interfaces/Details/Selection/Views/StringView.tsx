@@ -8,6 +8,7 @@ import { LogComparisonProps } from "./types";
 import MarkdownRenderer from "./Markdown/MarkdownRenderer";
 import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
+import Tooltip from "@/components/Common/Misc/Tooltip";
 
 /**
  * Convert unknown value => string.
@@ -137,11 +138,13 @@ const EditableStringField = ({
   logIndices, // Pass all log indices for this group
   path,
   onGroupSave, // Use a group-aware save handler
+  isImmutable
 }: {
   initialValue: string;
   logIndices: number[]; // Indices sharing this value
   path: (string | number)[];
   onGroupSave: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void; // Handler accepts multiple indices
+  isImmutable?: boolean
 }) => {
   const { draft, inputProps } = useEditablePrimitive<string>(
     initialValue,
@@ -152,19 +155,45 @@ const EditableStringField = ({
   );
 
   const isMultiLine = draft.length > 80;
-  const commonProps = {
-    className: "w-full border rounded p-1 text-sm font-mono bg-input text-foreground",
-    ...inputProps,
-  } as const;
 
-  return (
-    <div>
-      {isMultiLine ? (
-        <textarea rows={4} {...commonProps} />
-      ) : (
-        <input type="text" {...commonProps} />
-      )}
-    </div>
+  return (isImmutable
+    ? <Tooltip content="Immutable field cannot be edited">
+        <div>
+          {isMultiLine ? (
+            <textarea 
+              className="w-full border rounded p-1 text-sm font-mono"
+              rows={4}
+              disabled
+              {...inputProps}
+            />
+          ) : (
+            <input 
+              style={{
+                backgroundImage: "repeating-linear-gradient(-45deg, color-mix(in srgb, var(--foreground) 20%, transparent) 0 1px, transparent 1px 6px)"
+              }}
+              className="w-full border rounded p-1 text-sm font-mono"
+              type="text"
+              disabled 
+              {...inputProps}
+            />
+          )}
+        </div>
+      </Tooltip>
+    :  <div>
+        {isMultiLine ? (
+          <textarea 
+            rows={4} 
+            className="w-full border rounded p-1 text-sm font-mono bg-input text-foreground"
+            {...inputProps}
+          />
+        ) : (
+          <input 
+            type="text"
+              className="w-full border rounded p-1 text-sm font-mono bg-input text-foreground"
+            {...inputProps}
+          />
+        )}
+      </div>
   );
 };
 
@@ -183,7 +212,9 @@ export default function StringView({
   onSaveEdit, // Expects { logIndex: number, path: ..., newValue: ... }
   onGroupSaveEdit, // Expects { logIndices: number[], path: ..., newValue: ... }
   path = [],
-}: LogComparisonProps) {
+  nested = false,
+  isImmutable
+}: LogComparisonProps  & { nested?: boolean, isImmutable?: boolean }) {
   // Prepare string values
   const singleMode = !comparables || comparables.length === 0;
 
@@ -217,18 +248,20 @@ export default function StringView({
             {valueGroups.map((group, index) => (
                 <div key={index}>
                     {/* Display RowBadges for the logs sharing this value */}
+                    {!nested &&
                     <div className="flex items-center gap-1 mb-1">
                         <RowBadge rowNumbers={group.rows} mode="none" />
                         <span className="text-xs text-muted-foreground">
                             {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
                         </span>
-                    </div>
+                    </div>}
                     {/* Render a single editable field for this group */}
                     <EditableStringField
                         initialValue={group.text}
                         logIndices={group.rows}
                         path={path}
                         onGroupSave={handleGroupSave}
+                        isImmutable={isImmutable}
                     />
                 </div>
             ))}

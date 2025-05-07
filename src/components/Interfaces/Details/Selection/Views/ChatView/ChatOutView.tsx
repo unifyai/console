@@ -61,7 +61,8 @@ function pickDataView(
   displayMode: LogComparisonProps["displayMode"],
   cellEditMode?: boolean,
   onSaveEdit?: LogComparisonProps["onSaveEdit"],
-  onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit']
+  onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
+  isImmutable?: boolean
 ) {
   let finalValue = baseValue;
   if (finalValue === undefined && comparables && comparables.length > 0) {
@@ -83,10 +84,10 @@ function pickDataView(
 
 
   if (isDict(finalValue)) {
-    return <DictionaryView {...commonProps} />;
+    return <DictionaryView {...commonProps} isImmutable={isImmutable}/>;
   }
   if (isList(finalValue)) {
-    return <ListView {...commonProps} />;
+    return <ListView {...commonProps} isImmutable={isImmutable}/>;
   }
   if (isImage(finalValue)) {
     return <ImageView {...commonProps} />;
@@ -95,13 +96,13 @@ function pickDataView(
     return <MatrixView {...commonProps} />;
   }
   if (isNumber(finalValue)) {
-    return <NumberView {...commonProps} />;
+    return <NumberView {...commonProps} isImmutable={isImmutable}/>;
   }
   if (isTimestamp(finalValue)) {
-    return <TimestampView {...commonProps} />;
+    return <TimestampView {...commonProps} isImmutable={isImmutable}/>;
   }
   // fallback => string
-  return <StringView {...commonProps} />;
+  return <StringView {...commonProps} isImmutable={isImmutable}/>;
 }
 
 /******************************************************************************
@@ -177,13 +178,14 @@ export default function ChatOutView({
   baseLogIndex,
   comparisonLogsIndex,
   diffMode = "none",
+  isImmutable,
   splitView = false,
   displayMode = "markdown",
   cellEditMode = false,
   onSaveEdit,
   onGroupSaveEdit,
   path = [],
-}: LogComparisonProps) {
+}: LogComparisonProps & {isImmutable?: boolean}) {
   // SINGLE MODE
   const singleMode = !comparables || comparables.length === 0;
   if (singleMode) {
@@ -235,7 +237,7 @@ export default function ChatOutView({
                           />
                         </div>
                         {/* Pass edit props down to potentially editable content */}
-                        {pickDataView(mainContent, [], baseLogIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
+                        {pickDataView(mainContent, [], baseLogIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
 
 
                         {/* Tool calls section */}
@@ -248,7 +250,7 @@ export default function ChatOutView({
                               copyMessage="Copied!"
                             />
                             {/* Tool calls are usually complex, less likely to be directly edited, but pass handlers */}
-                            {pickDataView(toolCalls, [], baseLogIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
+                            {pickDataView(toolCalls, [], baseLogIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                           </div>
                         )}
                       </div>
@@ -298,7 +300,7 @@ export default function ChatOutView({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border-l ml-4 pl-1">
-                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
+                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -314,7 +316,7 @@ export default function ChatOutView({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border-l ml-4 pl-1">
-                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
+                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -475,7 +477,7 @@ export default function ChatOutView({
                                       />
                                     </div>
                                     {/* Pass edit props */}
-                                    {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
+                                    {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
 
                                     {m.toolCalls.length > 0 && (
                                       <div className="mt-2 border-l-2 pl-2">
@@ -488,7 +490,7 @@ export default function ChatOutView({
                                           copyMessage="Copied!"
                                         />
                                         {/* Pass edit props */}
-                                        {pickDataView(m.toolCalls, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
+                                        {pickDataView(m.toolCalls, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                                       </div>
                                     )}
                                   </div>
@@ -533,7 +535,7 @@ export default function ChatOutView({
                                       />
                                     </div>
                                      {/* Pass edit props */}
-                                     {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
+                                     {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
 
                                     {m.toolCalls.length > 0 && (
                                       <div className="mt-2 border-l-2 pl-2">
@@ -546,7 +548,7 @@ export default function ChatOutView({
                                           copyMessage="Copied!"
                                         />
                                          {/* Pass edit props */}
-                                         {pickDataView(m.toolCalls, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
+                                         {pickDataView(m.toolCalls, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                                       </div>
                                     )}
                                   </div>
@@ -607,7 +609,8 @@ export default function ChatOutView({
                     displayMode,
                     cellEditMode,
                     onSaveEdit,
-                    onGroupSaveEdit // Pass group save
+                    onGroupSaveEdit,
+                    isImmutable
                   )}
                 </div>
               </AccordionContent>
@@ -633,7 +636,8 @@ export default function ChatOutView({
                     displayMode,
                     cellEditMode,
                     onSaveEdit,
-                    onGroupSaveEdit // Pass group save
+                    onGroupSaveEdit,
+                    isImmutable
                   )}
                 </div>
               </AccordionContent>
@@ -879,7 +883,8 @@ export default function ChatOutView({
                   displayMode,
                   cellEditMode,
                   onSaveEdit,
-                  onGroupSaveEdit
+                  onGroupSaveEdit,
+                  isImmutable
                 )}
               </div>
             </AccordionContent>
@@ -905,7 +910,8 @@ export default function ChatOutView({
                   displayMode,
                   cellEditMode,
                   onSaveEdit,
-                  onGroupSaveEdit
+                  onGroupSaveEdit,
+                  isImmutable
                 )}
               </div>
             </AccordionContent>
