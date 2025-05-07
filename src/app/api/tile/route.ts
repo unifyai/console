@@ -4,8 +4,24 @@ const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
 export async function GET(request: NextRequest) {
     const url = new URL(request.url);
+    const searchParams = new URLSearchParams(url.search);
+    
+    // Check if we're getting a tile by ID, by parent+name, or listing tiles
+    const hasId = searchParams.has('id');
+    const hasTabId = searchParams.has('tab_id');
+    const hasName = searchParams.has('name');
+    
+    // Determine endpoint based on parameters
+    let endpoint = "/tile";
+    
+    // If we have a tab_id but no id or name, we're listing tiles
+    if (hasTabId && !hasId && !hasName) {
+        endpoint = "/tile/list";
+    }
+    
+    // Let the backend handle the routing based on the query parameters
     return await fetch(
-        `${baseUrl}/tile${url.search}`,
+        `${baseUrl}${endpoint}${url.search}`,
         {
             method: "GET",
             headers: {
@@ -19,6 +35,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     const body = await request.json();
+    // For POST, we always create a new resource, so the endpoint is fixed
     return await fetch(
         `${baseUrl}/tile/`,
         {
@@ -35,6 +52,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
     const body = await request.json();
     const url = new URL(request.url);
+    
+    // Pass all query parameters to allow both ID and parent+name updates
     return await fetch(
         `${baseUrl}/tile${url.search}`,
         {
@@ -50,6 +69,8 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
     const url = new URL(request.url);
+    
+    // Pass all query parameters to allow both ID and parent+name deletion
     return await fetch(
         `${baseUrl}/tile${url.search}`,
         {
@@ -65,6 +86,8 @@ export async function DELETE(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const url = new URL(request.url);
+    
+    // Pass all query parameters to allow both ID and parent+name updates
     return await fetch(
         `${baseUrl}/tile${url.search}`,
         {
