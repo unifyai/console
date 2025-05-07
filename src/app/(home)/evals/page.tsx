@@ -14,7 +14,8 @@ import {
     renameProject,
     createDerivedEntry,
     updateDerivedEntry,
-    createLogs
+    createLogs,
+    updateLogs
 } from "../interfaces/actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -54,6 +55,7 @@ const EvalsPage = async (
         getMetrics: await getLogMetrics(apiKey),
         delete: await deleteLogs(apiKey),
         getLatest: await getLatestTimestamp(apiKey),
+        update: await updateLogs(apiKey)
     }
 
     const derivedEntryActions = {

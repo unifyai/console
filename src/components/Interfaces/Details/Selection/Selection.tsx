@@ -3,18 +3,17 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  useRef,
 } from "react";
 import SelectionHints from "./Hints";
-import ActionButton from "@/components/Common/Buttons/Action";
-import { SquareSplitHorizontal } from "lucide-react";
-import { TileProps, TableDataItem  } from "@/types/evals/grid";
-
+import { TileProps, TableDataItem, LogsActions  } from "@/types/evals/grid";
+import { getDeep, setDeep } from "@/utils/objectPath";
+import { LogItemProps } from "@/types/evals/logs";
 import {
   buildIndexToColumnsMapFromId,
   buildRowIndicesInSelectionOrder,
-} from "./SelectionUtils";
+} from "@/components/Interfaces/Details/Selection/SelectionUtils";
 
-// Define the PanelState interface to store panel-specific settings
 interface PanelState {
   displayMode: "markdown" | "text" | "raw";
   diffModeIdx: number;
@@ -28,7 +27,8 @@ interface PanelState {
   paramOrder: string[];
   localOpenKeys: Set<string>;
   savedOpenKeys: Set<string>;
-  viewTracesAsDict: boolean;  // New state for trace view mode
+  viewTracesAsDict: boolean;
+  cellEditMode: boolean;
 }
 
 // Default values for a new panel
@@ -45,10 +45,11 @@ const defaultPanelState: PanelState = {
   paramOrder: [],
   localOpenKeys: new Set<string>(),
   savedOpenKeys: new Set<string>(),
-  viewTracesAsDict: false,  // Default to standard TraceView
+  viewTracesAsDict: false,
+  cellEditMode: false,      
 };
-
-import SelectionPanel from "./SelectionPanel";
+import SelectionPanel from "@/components/Interfaces/Details/Selection/SelectionPanel";
+import { toast } from "sonner";
 
 import { useTile, useTileItem } from "@/contexts/hooks/tile";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
@@ -62,11 +63,13 @@ export default function Selection({
   tabId,
   interfaceId,
   projectId,
+  updateLog
 }: {
   tileId: string;
   tabId: string;
   interfaceId: string;
   projectId: string;
+  updateLog: LogsActions["update"]
 }) {
   /******************************************************************************
    * Prepare sorted logs & selection data
@@ -77,16 +80,16 @@ export default function Selection({
   const item = useMemo(() => tileItemActionsWithId?.asTileItem(), [tileItemActionsWithId]);
 
   // Get the table tile this selection references
-  const { meta: tileMetaStateWithTable, tableTile: tableTileStateWithTable, actions: tileActionsWithTable } = useTile(
-    item?.table || "", 
-    tabId, 
-    interfaceId, 
+  const { meta: tileMetaStateWithTable, tableTile: tableTileStateWithTable, actions: tileActionsWithTable, tableTileActions } = useTile(
+    item?.table || "",
+    tabId,
+    interfaceId,
     projectId
   );
   const { itemActions: tileItemActionsWithTable } = useTileItem(item?.table || "", tabId, interfaceId);
 
   // Create equivalent references to match the old pattern
-  const tableItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || 
+  const tableItem = useMemo(() => tileItemActionsWithTable?.asTileItem() ||
     { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileItemActionsWithTable, item?.table]);
   const relevantItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || undefined, [tileItemActionsWithTable]);
   const tableDataItem = useMemo(() => tableTileStateWithTable?.tableDataItem || {} as TableDataItem, [tableTileStateWithTable]);
@@ -118,7 +121,7 @@ export default function Selection({
       if (underscorePos < 1) return token;
       const rowPart = token.slice(0, underscorePos); // e.g. "277932"
       let colPart = token.slice(underscorePos + 1);  // e.g. "Entries/trace" or "Entries/context1/fieldA"
-      
+
       // Remove only the "Entries/" or "Parameters/" prefix if present, but preserve internal slashes
       let sanitizedCol = colPart;
       if (colPart.startsWith("Entries/")) {
@@ -126,11 +129,11 @@ export default function Selection({
       } else if (colPart.startsWith("Parameters/")) {
         sanitizedCol = colPart.substring("Parameters/".length);
       }
-      
+
       return rowPart + "_" + sanitizedCol; // => "277932_trace" or "277932_context1/fieldA"
     });
   }, [selection_]);
-  
+
   const indexToColumns = useMemo(() => {
     const map = buildIndexToColumnsMapFromId(selectedCells, sortedLogs);
     return map;
@@ -150,14 +153,14 @@ export default function Selection({
     if (columnOrdering_ && columnOrdering_.length > 0) {
       const entryColumns = new Set<string>();
       const paramColumns = new Set<string>();
-      
+
       columnOrdering_.split(',').forEach(col => {
         // Some columns might look like "Parameters/experiment" or "Entries/trace" or "Entries/context1/fieldA"
         if (col.startsWith('Parameters/')) {
           // Extract the parameter name without the "Parameters/" prefix but preserve internal slashes
           const paramName = col.substring('Parameters/'.length);
           paramColumns.add(paramName);
-        } 
+        }
         else if (col.startsWith('Entries/')) {
           // Extract the entry name without the "Entries/" prefix but preserve internal slashes
           const entryName = col.substring('Entries/'.length);
@@ -165,18 +168,18 @@ export default function Selection({
         }
         // Skip other entries like "Parameters" or "Entries" or "RowNumbering" which are categories
       });
-      
+
       return {
         entries: Array.from(entryColumns),
         params: Array.from(paramColumns)
       };
     }
-    
+
     // Fallback: if no columnOrdering_, gather from logs (less reliable)
     // This already preserves slashes since it's just accessing object keys directly
     const entryColumns = new Set<string>();
     const paramColumns = new Set<string>();
-    
+
     logs.forEach(log => {
       if (log.entries) {
         Object.keys(log.entries).forEach(key => entryColumns.add(key));
@@ -185,7 +188,7 @@ export default function Selection({
         Object.keys(log.params).forEach(key => paramColumns.add(key));
       }
     });
-    
+
     return {
       entries: Array.from(entryColumns),
       params: Array.from(paramColumns)
@@ -196,7 +199,16 @@ export default function Selection({
    * Panel Count State
    ******************************************************************************/
   const [panelCount, setPanelCount] = useState(1);
-  
+
+  // Ref to keep the latest in-flight PATCH so we can abort outdated ones
+  const bulkPatchAbortRef = useRef<AbortController | null>(null);
+
+  // Helper to rollback optimistic change when network fails
+  const rollbackLogs = useCallback((prevLogs: any[] | undefined) => {
+    if (!prevLogs) return;
+    tableTileActions?.mergeUpdatesIntoTableDataItem({ logs: prevLogs });
+  }, [tableTileActions]);
+
   /*******************************************************************************
    * Panel States - Keep track of each panel's state
    ******************************************************************************/
@@ -209,12 +221,12 @@ export default function Selection({
     setPanelStates(prev => ({
       ...prev,
       [panelId]: {
-        ...prev[panelId],
+        ...(prev[panelId] ?? { ...defaultPanelState }), // Use default if panel doesn't exist yet
         ...updates
       }
     }));
   }, []);
-  
+
   // Keep panelStates in sync with panelCount
   useEffect(() => {
     setPanelStates(prev => {
@@ -228,6 +240,80 @@ export default function Selection({
       return newStates;
     });
   }, [panelCount]);
+
+  /*******************************************************************************
+   * Save-many handler – optimistic update + backend PUT
+   ******************************************************************************/
+  const handleSaveMany = useCallback(
+    async (
+      rowIds: string[],
+      desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }
+    ) => {
+
+      if (!tableTileActions) {
+        console.warn("[DEBUG] handleSaveMany] Missing tableTileActions – optimistic update skipped");
+        return;
+      }
+      if (!rowIds.length) return;
+
+      // Snapshot previous logs for potential rollback
+      const prevLogs = tableTileStateWithTable?.tableDataItem?.logs;
+ 
+      // Optimistic local state update (for UI responsiveness)
+      tableTileActions.updateLogsDeep(rowIds, desc);
+ 
+      // Manually construct the *full* updated field for the backend
+      // Find the relevant log in the *previous* state
+      const prevLogForUpdate = prevLogs?.find(log => String(log.id) === rowIds[0]);
+ 
+      if (!prevLogForUpdate) {
+        console.error("Could not find the log in the previous state to construct update payload.");
+        rollbackLogs(prevLogs);
+        toast.error("Failed to update log.");
+        return;
+      }
+ 
+      let entriesUpdate: LogItemProps = {};
+      let paramsUpdate: LogItemProps = {};
+ 
+      if (desc.source === 'entries') {
+        if (desc.path.length > 0) {
+        const topLevelKey = desc.path[0] as string;
+        const originalTopLevelValue = getDeep(prevLogForUpdate.entries ?? {}, [topLevelKey]);
+        const updatedValue = setDeep(originalTopLevelValue, desc.path.slice(1), desc.newValue);
+          entriesUpdate = { [topLevelKey as string]: updatedValue };
+        } 
+        else { /* Handle edge case if path is empty? */ }
+      } else {
+        if (desc.path.length > 0) {
+        const topLevelKey = desc.path[0] as string;
+        const originalTopLevelValue = getDeep(prevLogForUpdate.params ?? {}, [topLevelKey]);
+        const updatedValue = setDeep(originalTopLevelValue, desc.path.slice(1), desc.newValue);
+          paramsUpdate = { [topLevelKey as string]: updatedValue };
+        } 
+        else { /* Handle edge case if path is empty? */ }
+      }
+      
+      try {
+        const response = await updateLog(
+          projectId, 
+          tableItem?.context ?? null, 
+          rowIds.map(id => parseInt(id, 10)),
+          entriesUpdate,
+          paramsUpdate
+        );
+        if (response.detail) {
+          toast.error(`Failed to update log entry: ${response.detail}`);
+        }
+      } catch (err: any) {
+        console.error("[DEBUG] handleSaveMany – backend error", err);
+        rollbackLogs(prevLogs);
+        toast.error(`Save failed: ${err.message || 'Unknown error'}`);
+      }
+
+    },
+    [projectId, tableItem?.context, tableTileActions, tableTileStateWithTable?.tableDataItem?.logs, rollbackLogs, updateLog]
+  );
 
   /*******************************************************************************
    * If no rows selected, just show hints
@@ -262,7 +348,8 @@ export default function Selection({
           if (!panelState.entryOrder) panelState.entryOrder = [];
           if (!panelState.paramOrder) panelState.paramOrder = [];
           if (panelState.viewTracesAsDict === undefined) panelState.viewTracesAsDict = false; // Initialize if missing
-          
+          if (panelState.cellEditMode === undefined) panelState.cellEditMode = false; // Initialize if missing
+
           return (
             <React.Fragment key={`panel-fragment-${idx}`}>
               {idx > 0 && <div className="w-px bg-border self-stretch mx-1" />}
@@ -287,6 +374,7 @@ export default function Selection({
                 selectedRowCount={selectedRowIndices.length}
                 currentPanelCount={panelCount}
                 onPanelCountChange={setPanelCount}
+                onSaveMany={handleSaveMany}
               />
             </React.Fragment>
           );

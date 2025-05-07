@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import { useStoreContext } from "../../providers/StoreProvider";
+import { useStoreContext, useStoreApiContext } from "../../providers/StoreProvider";
 import { useTileMeta } from "./useTileMeta";
 import { TableTile, TableTileMeta, TableTileData, TableTileUI } from "../../slices/selectors/tableTile";
 import { useShallow } from "zustand/react/shallow";
 import { TableDataItem } from "@/types/evals/grid";
+import { setDeep } from "@/utils/objectPath";
 
 /**
  * Default return value when no tile is specified or tile doesn't exist
@@ -45,6 +46,10 @@ export interface TableTileDataActions {
   setTableDataItem: (tableDataItem: TableDataItem | undefined) => void;
   updateTableDataItem: (updates: Partial<TableDataItem>) => void;
   mergeUpdatesIntoTableDataItem: (updates: Partial<TableDataItem>) => void;
+  updateLogsDeep: (
+    rowIds: string[],
+    desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }
+  ) => void;
 }
 
 /**
@@ -158,6 +163,7 @@ export function useTableTile(
   const storeUpdateTableTile = useStoreContext(state => state.updateTableTile);
   const storeUpdateTableDataItem = useStoreContext(state => state.updateTableDataItem);
   const storeMergeUpdatesIntoTableDataItem = useStoreContext(state => state.mergeUpdatesIntoTableDataItem);
+  const storeApi = useStoreApiContext();
 
   // Create memoized meta actions
   const tableMetaActions = useMemo<TableTileMetaActions | null>(() => {
@@ -252,9 +258,62 @@ export function useTableTile(
         if (tileId) {
           storeMergeUpdatesIntoTableDataItem(tileId, updates);
         }
-      }
+      },
+
+      updateLogsDeep: (rowIds, desc) => {
+
+        if (!tileId || rowIds.length === 0) {
+          console.log("[DEBUG] Aborting updateLogsDeep – missing tileId or empty rowIds");
+          return;
+        }
+
+        // Latest state snapshot
+        const state = storeApi.getState() as any;
+        const tileObj = state.tilesById?.[tileId];
+        const currentLogs: any[] | undefined = tileObj?.tableTile?.tableDataItem?.logs;
+
+        if (!currentLogs) {
+          console.log("[DEBUG] No currentLogs found – aborting");
+          return; // safety guard
+        }
+
+        const idSet = new Set(rowIds.map(String));
+
+        let changed = false;
+        const nextLogs = currentLogs.map((l: any) => {
+          if (!idSet.has(String(l.id))) return l;
+
+          const container = desc.source === "params" ? l.params ?? {} : l.entries ?? {};
+          const updated = setDeep(container, desc.path, desc.newValue);
+
+          if (updated === container) return l; // no real change
+
+          changed = true;
+
+          return {
+            ...l,
+            ...(desc.source === "params" ? { params: updated } : { entries: updated }),
+          };
+        });
+
+        if (!changed) {
+          console.log("[DEBUG] updateLogsDeep detected no changes – skipping state merge");
+          return; // nothing mutated
+        }
+
+        // IMPORTANT: Arrays should replace, not deep-merge. Use updateTableDataItem.
+        storeUpdateTableDataItem(tileId, {
+          logs: nextLogs,
+        });
+
+        // Guard: avoid clobbering entire container if path is empty
+        if (desc.path.length === 0) {
+          console.warn("[DEBUG] updateLogsDeep – empty path, skipping to avoid overwriting container", { desc });
+          return;
+        }
+      },
     };
-  }, [isTableTile, tileId, storeUpdateTableDataItem, storeMergeUpdatesIntoTableDataItem]);
+  }, [isTableTile, tileId, storeUpdateTableDataItem, storeMergeUpdatesIntoTableDataItem, storeApi]);
 
   // Create memoized UI actions
   const tableUIActions = useMemo<TableTileUIActions | null>(() => {
