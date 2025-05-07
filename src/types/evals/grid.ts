@@ -202,6 +202,8 @@ export interface TileData {
     filters?: string;
     common_filter?: string;
     metric?: string;
+    column_context?: string;
+    grouping?: string;
     table_tile?: TableTileData;
     plot_tile?: PlotTileData;
     view_tile?: ViewTileData;
@@ -212,12 +214,10 @@ export interface TileData {
 
 export interface TableTileData {
     table_type?: string;
-    column_context?: string;
     page_number?: string;
     column_order?: string;
     hidden_columns?: string;
     sorting?: string;
-    grouping?: string;
     group_sorting?: string;
     columns_pin_left?: string;
     columns_pin_right?: string;
@@ -422,6 +422,8 @@ export interface GranularTileActions {
         filters?: string;
         common_filter?: string;
         metric?: string;
+        column_context?: string;
+        grouping?: string;
         table_tile?: TableTileData;
         plot_tile?: PlotTileData;
         view_tile?: ViewTileData;
@@ -443,6 +445,8 @@ export interface GranularTileActions {
         filters?: string;
         common_filter?: string;
         metric?: string;
+        column_context?: string;
+        grouping?: string;
         table_tile?: TableTileData;
         plot_tile?: PlotTileData;
         view_tile?: ViewTileData;
@@ -464,6 +468,8 @@ export interface GranularTileActions {
         filters?: string;
         common_filter?: string;
         metric?: string;
+        column_context?: string;
+        grouping?: string;
         table_tile?: TableTileData;
         plot_tile?: PlotTileData;
         view_tile?: ViewTileData;
@@ -489,6 +495,8 @@ export interface GranularTileActions {
             filters?: string;
             common_filter?: string;
             metric?: string;
+            column_context?: string;
+            grouping?: string;
             table_tile?: TableTileData;
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
@@ -517,6 +525,8 @@ export interface GranularTileActions {
             filters?: string;
             common_filter?: string;
             metric?: string;
+            column_context?: string;
+            grouping?: string;
             table_tile?: TableTileData;
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
@@ -543,6 +553,8 @@ export interface GranularTileActions {
             filters?: string;
             common_filter?: string;
             metric?: string;
+            column_context?: string;
+            grouping?: string;
             table_tile?: TableTileData;
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
@@ -571,6 +583,8 @@ export interface GranularTileActions {
             filters?: string;
             common_filter?: string;
             metric?: string;
+            column_context?: string;
+            grouping?: string;
             table_tile?: TableTileData;
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;

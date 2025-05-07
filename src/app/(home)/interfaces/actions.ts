@@ -1274,6 +1274,8 @@ export const createTile = async (apiKey: string) => {
             filters?: string;
             common_filter?: string;
             metric?: string;
+            column_context?: string;
+            grouping?: string;
             table_tile?: TableTileData;
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
@@ -1324,6 +1326,8 @@ export const updateTileByName = async (apiKey: string) => {
             filters?: string;
             common_filter?: string;
             metric?: string;
+            column_context?: string;
+            grouping?: string;
             table_tile?: TableTileData;
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
@@ -1368,6 +1372,8 @@ export const updateTileById = async (apiKey: string) => {
             filters?: string;
             common_filter?: string;
             metric?: string;
+            column_context?: string;
+            grouping?: string;
             table_tile?: TableTileData;
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
@@ -1414,6 +1420,8 @@ export const updateTileUnified = async (apiKey: string) => {
             filters?: string;
             common_filter?: string;
             metric?: string;
+            column_context?: string;
+            grouping?: string;
             table_tile?: TableTileData;
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
@@ -1462,6 +1470,8 @@ export const patchTileByName = async (apiKey: string) => {
             filters?: string;
             common_filter?: string;
             metric?: string;
+            column_context?: string;
+            grouping?: string;
             table_tile?: TableTileData;
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
@@ -1508,6 +1518,8 @@ export const patchTileById = async (apiKey: string) => {
             filters?: string;
             common_filter?: string;
             metric?: string;
+            column_context?: string;
+            grouping?: string;
             table_tile?: TableTileData;
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
@@ -1556,6 +1568,8 @@ export const patchTileUnified = async (apiKey: string) => {
             filters?: string;
             common_filter?: string;
             metric?: string;
+            column_context?: string;
+            grouping?: string;
             table_tile?: TableTileData;
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;

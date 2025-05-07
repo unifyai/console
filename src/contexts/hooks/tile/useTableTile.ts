@@ -3,7 +3,6 @@ import { useStoreContext } from "../../providers/StoreProvider";
 import { useTileMeta } from "./useTileMeta";
 import { TableTile, TableTileMeta, TableTileData, TableTileUI } from "../../slices/selectors/tableTile";
 import { useShallow } from "zustand/react/shallow";
-import { TableDataItem } from "@/types/evals/grid";
 
 /**
  * Default return value when no tile is specified or tile doesn't exist
@@ -42,9 +41,6 @@ export interface TableTileDataActions {
   setColumnsPinLeft: (columnsPinLeft: string | undefined) => void;
   setColumnsPinRight: (columnsPinRight: string | undefined) => void;
   setSelected: (selected: string | undefined) => void;
-  setTableDataItem: (tableDataItem: TableDataItem | undefined) => void;
-  updateTableDataItem: (updates: Partial<TableDataItem>) => void;
-  mergeUpdatesIntoTableDataItem: (updates: Partial<TableDataItem>) => void;
 }
 
 /**
@@ -118,7 +114,6 @@ export function useTableTile(
       columns_pin_left: tableTile.columns_pin_left,
       columns_pin_right: tableTile.columns_pin_right,
       selected: tableTile.selected,
-      tableDataItem: tableTile.tableDataItem
     } as TableTileData;
   }, [
     isTableTile,
@@ -132,7 +127,6 @@ export function useTableTile(
     tableTile?.columns_pin_left,
     tableTile?.columns_pin_right,
     tableTile?.selected,
-    tableTile?.tableDataItem,
   ]);
 
   // Access store for table-specific UI state
@@ -156,8 +150,6 @@ export function useTableTile(
 
   // Get store update functions
   const storeUpdateTableTile = useStoreContext(state => state.updateTableTile);
-  const storeUpdateTableDataItem = useStoreContext(state => state.updateTableDataItem);
-  const storeMergeUpdatesIntoTableDataItem = useStoreContext(state => state.mergeUpdatesIntoTableDataItem);
 
   // Create memoized meta actions
   const tableMetaActions = useMemo<TableTileMetaActions | null>(() => {
@@ -234,27 +226,8 @@ export function useTableTile(
         };
         storeUpdateTableTile(tileId, update);
       },
-
-      setTableDataItem: (tableDataItem) => {
-        const update: Partial<TableTile> = { 
-          tableDataItem
-        };
-        storeUpdateTableTile(tileId, update);
-      },
-
-      updateTableDataItem: (updates) => {
-        if (tileId) {
-          storeUpdateTableDataItem(tileId, updates);
-        }
-      },
-
-      mergeUpdatesIntoTableDataItem: (updates) => {
-        if (tileId) {
-          storeMergeUpdatesIntoTableDataItem(tileId, updates);
-        }
-      }
     };
-  }, [isTableTile, tileId, storeUpdateTableDataItem, storeMergeUpdatesIntoTableDataItem]);
+  }, [isTableTile, tileId, storeUpdateTableTile]);
 
   // Create memoized UI actions
   const tableUIActions = useMemo<TableTileUIActions | null>(() => {

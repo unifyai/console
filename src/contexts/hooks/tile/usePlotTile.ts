@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useStoreContext } from "../../providers/StoreProvider";
 import { useTileMeta } from "./useTileMeta";
 import { PlotTile, PlotTileMeta, PlotTileData, PlotTileUI } from '../../slices/selectors/plotTile';
-import { PlotDataItem } from '@/types/evals/grid';
 import { useShallow } from "zustand/react/shallow";
 
 /**
@@ -46,7 +45,6 @@ export interface PlotTileDataActions {
   setPlotGroupBy: (plotGroupBy: string | undefined) => void;
   setBinCount: (binCount: string | undefined) => void;
   setRegressionLine: (regressionLine: string | undefined) => void;
-  setPlotDataItem: (plotDataItem: PlotDataItem | undefined) => void;
 }
 
 /**
@@ -119,7 +117,6 @@ export function usePlotTile(
       plot_group_by: plotTile.plot_group_by,
       bin_count: plotTile.bin_count,
       regression_line: plotTile.regression_line,
-      plotDataItem: plotTile.plotDataItem
     } as PlotTileData;
   }, [
     isPlotTile,
@@ -133,7 +130,6 @@ export function usePlotTile(
     plotTile?.plot_group_by,
     plotTile?.bin_count,
     plotTile?.regression_line,
-    plotTile?.plotDataItem,
   ]);
 
   // Access store for plot-specific UI state
@@ -222,12 +218,6 @@ export function usePlotTile(
         storeUpdatePlotTile(tileId, update);
       },
 
-      setPlotDataItem: (plotDataItem) => {
-        const update: Partial<PlotTile> = { 
-          plotDataItem: plotDataItem 
-        };
-        storeUpdatePlotTile(tileId, update);
-      }
     };
   }, [isPlotTile, tileId, storeUpdatePlotTile]);
 

@@ -22,9 +22,6 @@ export interface TableTileData {
   columns_pin_left?: string | null; // Columns pinned to the left
   columns_pin_right?: string | null; // Columns pinned to the right
   selected?: string | null;       // Selected items in the table
-
-  // Table data item
-  tableDataItem?: TableDataItem;
 }
 
 // Table tile UI - UI-related state
@@ -49,7 +46,7 @@ export const TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS: (keyof TableTile)[] = [
 // tableTileKeys: all fields for TableTile
 export const TABLE_TILE_KEYS: (keyof TableTile)[] = [
   ...TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS,
-  "tableDataItem","limit","offset",
+  "limit","offset",
 ];
 
 /**
@@ -73,26 +70,6 @@ export function initTableTile(initialState: Partial<TableTile> = {}): TableTile 
     columns_pin_left: initialState.columns_pin_left !== undefined ? initialState.columns_pin_left : null,
     columns_pin_right: initialState.columns_pin_right !== undefined ? initialState.columns_pin_right : null,
     selected: initialState.selected !== undefined ? initialState.selected : null,
-
-    // Fields from TableDataItem
-    tableDataItem: {
-      columnContexts: initialState.tableDataItem?.columnContexts || [],
-      baseIndex: initialState.tableDataItem?.baseIndex || undefined,
-      hiddenColumns: initialState.tableDataItem?.hiddenColumns || undefined,
-      columnOrdering: initialState.tableDataItem?.columnOrdering || undefined,
-      selection: initialState.tableDataItem?.selection || undefined,
-      fields: initialState.tableDataItem?.fields || {},
-      logsData: initialState.tableDataItem?.logsData || { params: {}, logs: [], count: 0, groups: {} },
-      totalPages: initialState.tableDataItem?.totalPages || 0,
-      entriesProperties: initialState.tableDataItem?.entriesProperties || [],
-      paramsProperties: initialState.tableDataItem?.paramsProperties || [],
-      logs: initialState.tableDataItem?.logs || [],
-      params: initialState.tableDataItem?.params || {},
-      metrics: initialState.tableDataItem?.metrics || {},
-      groupedMetrics: initialState.tableDataItem?.groupedMetrics,
-      boundaries: initialState.tableDataItem?.boundaries || { minimums: {}, maximums: {} },
-      ...initialState.tableDataItem,
-    } as TableDataItem,
 
     ...initialState,
   } as TableTile;

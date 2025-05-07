@@ -3,26 +3,26 @@ import { getQueryClient } from "@/components/Providers/QueryProvider";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import LogsTable from "../Table/Table";
+import { buildFilterExpression } from "@/utils/evals/filters";
+import { processContext } from "@/utils/evals/columnOperations";
+import { getLogsDetails } from "@/utils/evals/common";
+import { TableDataItem } from "@/types/evals/grid";
 
 import type {
   LogsActions,
   FieldsActions,
   DerivedEntryActions,
   ContextActions,
-  TileData
+  TileData,
 } from "@/types/evals/grid";
+import { LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 
-type TableWrapperProps = {
-  tile: TileData;
-  tabId: string;
-  interfaceId: string;
-  projectId: string;
-  actions: {
-    logsActions: LogsActions;
-    fieldsActions: FieldsActions;
-    derivedEntryActions: DerivedEntryActions;
-    contextActions: ContextActions;
-  };
+
+type TableWrapperActions = {
+  logsActions: LogsActions;
+  fieldsActions: FieldsActions;
+  derivedEntryActions: DerivedEntryActions;
+  contextActions: ContextActions;
 };
 
 export default async function TableWrapper({
@@ -31,7 +31,13 @@ export default async function TableWrapper({
   interfaceId,
   projectId,
   actions
-}: TableWrapperProps) {
+}: {
+  tile: TileData;
+  tabId: string;
+  interfaceId: string;
+  projectId: string;
+  actions: TableWrapperActions;
+}) {
   const qc = getQueryClient();
 
   // Only proceed if we have a table tile
@@ -39,35 +45,114 @@ export default async function TableWrapper({
     return <div>Table configuration missing</div>;
   }
 
-  // Prefetch table data
+  // Prefetch fields
   await qc.prefetchQuery({
-    queryKey: ["table", tile.id, 0],
-    queryFn: () =>
-      actions.logsActions.get(
-        projectId,
-        tile.context ?? null,
-        tile.table_tile?.column_context ?? null,
-        null, // filters
-        null, // common_filter
-        tile.table_tile?.sorting ?? null,
-        tile.table_tile?.grouping ?? null,
-        tile.table_tile?.group_sorting ?? null,
-        tile.table_tile?.table_type ?? null,
-        20, // rows per page
-        0,  // page number
-        null,
-        null,
-        Date.now().toString(),
-      ),
+    queryKey: ["fields", projectId, tile.context],
+    queryFn: () => actions.fieldsActions.get(projectId, tile.context ?? null)
   });
 
-  // Also fetch fields data if needed
-  if (tile.context) {
-    await qc.prefetchQuery({
-      queryKey: ["fields", projectId, tile.context],
-      queryFn: () => actions.fieldsActions.get(projectId, tile.context ?? null),
-    });
-  }
+  // Get fields from cache
+  const fields = qc.getQueryData<LogFieldsResponseProps>(["fields", projectId, tile.context]) || {};
+
+  // Build filter expression
+  const filterExpression = buildFilterExpression(
+    tile.filters,
+    tile.common_filter,
+    tile.column_context,
+    tile.freeze,
+    fields
+  );
+
+  // Handle sorting
+  const sortingObject = tile.table_tile?.sorting ? Object.fromEntries(
+    tile.table_tile.sorting.split(",").map(value => [
+      tile.column_context ? processContext("merge", tile.column_context, value.split("@")[0]) : value.split("@")[0],
+      value.split("@")[1].replace("true", "descending").replace("false", "ascending")
+    ]))
+    : "";
+  const sortingExpression = sortingObject ? JSON.stringify(sortingObject) : null;
+
+  // Handle grouping
+  const groupingExpression = tile.grouping ? tile.grouping : null;
+
+  // Handle group sorting
+  const groupSortingObject = tile.table_tile?.group_sorting && tile.grouping ? Object.fromEntries(
+    tile.table_tile.group_sorting.split(",").map(value => {
+      const group = tile.column_context ? processContext("merge", tile.column_context, tile.grouping!.split(",")[0]) : tile.grouping!.split(",")[0] 
+      const field = tile.column_context ? processContext("merge", tile.column_context, value.split("@")[0]) : value.split("@")[0]
+      const direction = value.split("@")[1].replace("true", "descending").replace("false", "ascending")
+      const metric = tile.metric ?? "mean"
+      return [group, {field, direction, metric}]
+    }))
+  : "";
+  const groupSortingExpression = groupSortingObject ? JSON.stringify(groupSortingObject) : null;
+
+  // Prefetch logs data
+  const limit = 20;
+  const offset = tile.table_tile?.page_number ? parseInt(tile.table_tile.page_number) * limit : 0;
+  
+  await qc.prefetchQuery({
+    queryKey: ["logs", projectId, tile.context, tile.column_context, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, limit, offset],
+    queryFn: () => actions.logsActions.get(
+      projectId,
+      tile.context ?? null,
+      tile.column_context ?? null,
+      filterExpression,
+      sortingExpression,
+      groupingExpression,
+      groupSortingExpression,
+      null,
+      null,
+      limit,
+      offset,
+      groupingExpression ? 0 : null,
+      null,
+      Date.now().toString()
+    )
+  });
+
+  // Get logs data from cache
+  const logsData = qc.getQueryData<LogsResponseProps>(["logs", projectId, tile.context, tile.column_context, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, limit, offset]) || { params: {}, logs: [], count: 0, groups: [] };
+
+  // Get logs details
+  const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
+    logsData,
+    fields,
+    tile.context ?? null,
+    tile.column_context ?? null,
+    projectId,
+    filterExpression,
+    groupingExpression,
+    tile.metric,
+    tile.table_tile?.sorting ?? null,
+    undefined,
+    actions.logsActions
+  );
+
+  // Construct table data item
+  const tableDataItem: TableDataItem = {
+    columnContexts: [], // This would need to be computed based on your logic
+    baseIndex: tile.table_tile?.selected,
+    hiddenColumns: tile.table_tile?.hidden_columns,
+    columnOrdering: tile.table_tile?.column_order,
+    selection: tile.table_tile?.selected,
+    fields,
+    logsData,
+    totalPages: Math.ceil(logsData.count / limit),
+    entriesProperties,
+    paramsProperties,
+    logs,
+    params,
+    metrics,
+    boundaries,
+    metric: tile.metric ?? "mean"
+  };
+
+  // Prefetch the table data item
+  await qc.prefetchQuery({
+    queryKey: ["tableData", tile.id],
+    queryFn: () => Promise.resolve(tableDataItem)
+  });
 
   return (
     <HydrationBoundary state={dehydrate(qc)}>

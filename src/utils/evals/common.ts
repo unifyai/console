@@ -137,7 +137,6 @@ export const getColumnMetrics = async (
 }
 
 export const getLogsDetails = async (
-  item: TileProps,
   logsData: LogsResponseProps,
   fields: LogFieldsResponseProps,
   context: string | null,
@@ -162,7 +161,7 @@ export const getLogsDetails = async (
   // Min / max bounds are used to set the filtering range for numeric columns
   const [metrics, minimums, maximums] = await Promise.all([
     getColumnMetrics(
-      project, context, column_context, columns, filterExpression, null, item.metric, logsActions
+      project, context, column_context, columns, filterExpression, null, metric, logsActions
     ) as Promise<{ [key: string]: number }>,
     getColumnMetrics(
       project, context, column_context, columns, null, null, "min", logsActions
