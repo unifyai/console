@@ -510,7 +510,7 @@ export const getUniqueFieldValues = async (apiKey: string) => {
 
 
 export const updateTask = async (apiKey: string) => {
-    return async (ids: number[], entries: LogItemProps): Promise<ResponseProps> => {
+    return async (logs: number[], entries: LogItemProps): Promise<ResponseProps> => {
         "use server";
 
         try {
@@ -523,7 +523,7 @@ export const updateTask = async (apiKey: string) => {
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        ids: ids,
+                        logs: logs,
                         project: "Unity",
                         context: "Tasks",
                         params: {},
@@ -548,15 +548,15 @@ export const updateTask = async (apiKey: string) => {
             }
 
             if (!response.ok) {
-                const errorMessage = data.detail || `Failed to update tasks ${ids}: ${response.statusText}`;
+                const errorMessage = data.detail || `Failed to update tasks ${logs}: ${response.statusText}`;
                 return { detail: errorMessage };
             }
 
-            const successMessage = data.info || `Tasks ${ids} successfully updated.`;
+            const successMessage = data.info || `Tasks ${logs} successfully updated.`;
             return { info: successMessage }
 
         } catch (error) {
-            console.error(`[actions.ts updateTask] Error updating task ${ids}:`, error);
+            console.error(`[actions.ts updateTask] Error updating task ${logs}:`, error);
             const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
             return { detail: errorMessage };
         }
