@@ -2,31 +2,6 @@ export default {
     gif: "table_grouping_dark",
     link: "interfaces/tables#grouping",
     description: "Grouping makes it very easy to quickly probe the data across all of your experiments, enabling you to easily transcending the boundaries of rigid “experiments” flexibly.",
-    project: "grouping-demo",
-    name: "tab1",
-    items: [
-        {
-            i: "Table",
-            x: 0.0,
-            y: 0.0,
-            w: 7.0,
-            h: 8.0,
-            tab: "Table",
-            table_type: "Data Table",
-            grouping: "Parameters/experiment",
-            sorting: "score@true"
-        },
-        {
-            i: "View",
-            x: 7.0,
-            y: 0.0,
-            w: 5.0,
-            h: 8.0,
-            tab: "View",
-            table: "Table"
-        }
-    ],
-    new_counter: 2,
     code: `import unify
 import random
 
@@ -56,5 +31,48 @@ for with_tool in [True, False]:
                     question=question,
                     score=i*0.25 +random.random()/2
                 )
-`
+`,
+    // Granular interface structure
+    interface: {
+        project_id: "grouping-demo",
+        name: "Grouping Demo",
+    },
+    // Tab structure
+    tab: {
+        name: "tab1",
+        visible: true,
+        active: true,
+        order: 0
+    },
+    // Tiles structure - matches the OpenAPI schemas
+    tiles: [
+        {
+            name: "Table",
+            type: "Table",
+            position: {
+                x: 0.0,
+                y: 0.0,
+                width: 7.0,
+                height: 8.0
+            },
+            table_tile: {
+                table_type: "Data Table",
+                grouping: "Parameters/experiment",
+                sorting: "score@true"
+            }
+        },
+        {
+            name: "View",
+            type: "View",
+            position: {
+                x: 7.0,
+                y: 0.0,
+                width: 5.0,
+                height: 8.0
+            },
+            table: "Table",
+            view_tile: {},
+        }
+    ],
+    new_counter: 2
 }

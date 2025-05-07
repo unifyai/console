@@ -2,29 +2,6 @@ export default {
     gif: "quick_start",
     link: "basics/quickstart",
     description: "Run your first eval ⬇️, and then check out the logs in your first interface 📊",
-    project: "Maths Assistant",
-    name: "tab1",
-    items: [
-        {
-            i: "Table",
-            x: 0.0,
-            y: 0.0,
-            w: 7.0,
-            h: 8.0,
-            tab: "Table",
-            table_type: "Data Table"
-        },
-        {
-            i: "View",
-            x: 7.0,
-            y: 0.0,
-            w: 5.0,
-            h: 8.0,
-            tab: "View",
-            table: "Table"
-        }
-    ],
-    new_counter: 2,
     code: `import unify
 from random import randint, choice
 
@@ -75,5 +52,46 @@ def evaluate(q: str):
 # execute + log your evaluation
 with unify.Experiment():
     unify.map(evaluate, qs)
-`
+`,
+    // Granular interface structure
+    interface: {
+        project_id: "Maths Assistant",
+        name: "Maths Assistant Demo"
+    },
+    // Tab structure
+    tab: {
+        name: "tab1",
+        visible: true,
+        active: true,
+        order: 0
+    },
+    // Tiles structure - matches the OpenAPI schemas
+    tiles: [
+        {
+            name: "Table",
+            type: "Table",
+            position: {
+                x: 0.0,
+                y: 0.0,
+                width: 7.0,
+                height: 8.0
+            },
+            table_tile: {
+                table_type: "Data Table"
+            }
+        },
+        {
+            name: "View",
+            type: "View",
+            position: {
+                x: 7.0,
+                y: 0.0,
+                width: 5.0,
+                height: 8.0
+            },
+            table: "Table",
+            view_tile: {}
+        }
+    ],
+    new_counter: 2
 }

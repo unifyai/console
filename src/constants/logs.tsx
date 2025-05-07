@@ -1,5 +1,5 @@
 import { ChartLine, Code, Eye, Table } from "lucide-react";
-import { TileProps } from "@/types/evals/grid";
+import { InterfaceData, TabData, TileData } from "@/types/evals/grid";
 import { getLogsParameters } from "@/types/evals/logs";
 import mathsAssistant from "./demos/maths_assistant";
 import contextDemo from "./demos/context-demo";
@@ -45,10 +45,23 @@ export const metrics = ["mean", "count", "sum", "var", "std", "min", "max", "med
 //         "table": "Table"
 //     }
 // ];
-export const defaultItems: TileProps[] = [];
 
 // export const defaultNewCounter = 2;
 export const defaultNewCounter = 0;
+
+// Default interface and tab templates for new projects
+export const defaultInterface: InterfaceData = {
+  name: "Default Interface",
+};
+
+export const defaultTab: TabData = {
+  name: "tab1",
+  visible: true,
+  active: true,
+  order: 0,
+};
+
+export const defaultTiles: TileData[] = [];
 
 export const icons = {
     "Table": <Table />,
@@ -83,9 +96,6 @@ export const fileTypes: { [key: string]: string } = {
 
 export const demos: {
     [key: string]: {
-        project: string,
-        name: string,
-        items: TileProps[],
         new_counter: number,
         code: string,
         gif: string,
@@ -98,6 +108,10 @@ export const demos: {
             equation: string,
             referenced_logs: { [table_name: string]: getLogsParameters },
         },
+        // New granular interface structure
+        interface?: InterfaceData;
+        tab?: TabData;
+        tiles?: TileData[];
     }
 } = {
     "Basics/Quickstart": mathsAssistant,

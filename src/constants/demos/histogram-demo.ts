@@ -2,31 +2,6 @@ export default {
     gif: "histogram_dark",
     link: "interfaces/plots#histograms",
     description: "Histograms take a single numeric column, and then bucket this data into n bins on the x-axis, and plot the count of data in each bin on the y-axis.",
-    project: "histogram-demo",
-    name: "tab1",
-    items: [
-        {
-            i: "Table",
-            x: 0.0,
-            y: 0.0,
-            w: 6.0,
-            h: 8.0,
-            tab: "Table",
-            table_type: "Data Table"
-        },
-        {
-            i: "Plot",
-            x: 7.0,
-            y: 0.0,
-            w: 6.0,
-            h: 8.0,
-            tab: "Plot",
-            plot_type: "Histogram",
-            x_axis: "Table.date",
-            bin_count: "84"
-        }
-    ],
-    new_counter: 2,
     code: `from datetime import date
 import random
 import unify
@@ -46,5 +21,49 @@ for month in range(1, 13):
             for _ in range(num_queries)
         ]
     )
-`
+`,
+    // Granular interface structure
+    interface: {
+        project_id: "histogram-demo",
+        name: "Histogram Demo"
+    },
+    // Tab structure
+    tab: {
+        name: "tab1",
+        visible: true,
+        active: true,
+        order: 0
+    },
+    // Tiles structure - matches the OpenAPI schemas
+    tiles: [
+        {
+            name: "Table",
+            type: "Table",
+            position: {
+                x: 0.0,
+                y: 0.0,
+                width: 6.0,
+                height: 8.0
+            },
+            table_tile: {
+                table_type: "Data Table"
+            }
+        },
+        {
+            name: "Plot",
+            type: "Plot",
+            position: {
+                x: 7.0,
+                y: 0.0,
+                width: 6.0,
+                height: 8.0
+            },
+            plot_tile: {
+                plot_type: "Histogram",
+                x_axis: "Table.date",
+                bin_count: "84",
+            }
+        }
+    ],
+    new_counter: 2
 }
