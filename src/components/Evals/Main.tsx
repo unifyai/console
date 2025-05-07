@@ -84,9 +84,9 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 		Object
 			.entries(fields)
 			.filter(([name, { data_type, field_type }]) => context ? name.startsWith(context) : name)
-			.map(([name, { data_type, field_type, artifacts }]) => {
+			.map(([name, { data_type, field_type, artifacts, created_at, mutable }]) => {
 				const newName = context ? processContext("split", context, name) : name;
-				return [newName, { data_type, field_type, artifacts }];
+				return [newName, { data_type, field_type, artifacts, created_at, mutable }];
 			})
 	);
 	if (project) {

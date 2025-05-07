@@ -7,6 +7,7 @@ import { CopyButton } from "@/components/Common/Buttons/Copy";
 import MarkdownRenderer from "./Markdown/MarkdownRenderer";
 import { useEditablePrimitive } from "@/hooks/useEditablePrimitive";
 import { toast } from "sonner";
+import Tooltip from "@/components/Common/Misc/Tooltip";
 
 /**
  * Convert unknown => finite number, or null if not a valid number.
@@ -32,12 +33,15 @@ const EditableNumberField = ({
   logIndices, // Pass all log indices for this group
   path,
   onGroupSave, // Use a group-aware save handler
+  isImmutable
 }: {
   initialValue: number | null;
   logIndices: number[]; // Indices sharing this value
   path: (string | number)[];
   onGroupSave: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void; // Handler accepts multiple indices
+  isImmutable?: boolean
 }) => {
+
   const { draft, inputProps } = useEditablePrimitive<number | null>(
     initialValue,
     (newValue) => {
@@ -51,14 +55,22 @@ const EditableNumberField = ({
   // Handle potential string values coming from inputProps.value
   const displayValue = draft === null ? '' : String(draft);
 
-  return (
-    <input
-      type="number"
-      step="any" // Allow decimals
-      className="w-full border rounded p-1 text-sm font-mono bg-input text-foreground"
-      {...inputProps}
-      value={displayValue} // Use the potentially stringified draft for the input value
-    />
+  return (isImmutable
+    ? <Tooltip content="Immutable field cannot be edited">
+        <input
+          className="w-full border rounded p-1 text-sm font-mono"
+          {...inputProps}
+          value={displayValue}
+          disabled
+        />
+      </Tooltip>
+    : <input
+        type="number"
+        step="any"
+        className="w-full border rounded p-1 text-sm font-mono bg-input text-foreground"
+        {...inputProps}
+        value={displayValue}
+      />
   );
 };
 
@@ -160,8 +172,9 @@ export default function NumberView({
   onGroupSaveEdit, 
   path = [],
   nested = false,
-}: LogComparisonProps & { scientificNotation?: boolean, nested?: boolean }) {
-
+  isImmutable
+}: LogComparisonProps & { scientificNotation?: boolean, nested?: boolean, isImmutable?: boolean }) {
+  
   // ------------------------------------------------------------------
   // Hooks must be called unconditionally. Declare state BEFORE any
   // potential early-return to keep hook order stable across renders.
@@ -223,6 +236,7 @@ export default function NumberView({
                             logIndices={group.rows} // Pass the indices associated with this group
                             path={path}
                             onGroupSave={handleGroupSave} // Pass the group save handler
+                            isImmutable={isImmutable}
                         />
                     </div>
                 )

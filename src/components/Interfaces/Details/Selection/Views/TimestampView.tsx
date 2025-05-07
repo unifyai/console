@@ -7,6 +7,7 @@ import { CopyButton } from "@/components/Common/Buttons/Copy";
 import MarkdownRenderer from "./Markdown/MarkdownRenderer";
 import { useEditablePrimitive } from "@/hooks/useEditablePrimitive";
 import { toast } from "sonner";
+import Tooltip from "@/components/Common/Misc/Tooltip";
 
 /**
  * parseTimestamp: Convert a string to a Date. If invalid, returns null.
@@ -121,11 +122,13 @@ const EditableTimestampField = ({
   logIndices, // Pass all log indices for this group
   path,
   onGroupSave, // Use a group-aware save handler
+  isImmutable
 }: {
   initialValue: string;
   logIndices: number[]; // Indices sharing this value
   path: (string | number)[];
   onGroupSave: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void; // Handler accepts multiple indices
+  isImmutable?: boolean;
 }) => {
   const { draft, inputProps } = useEditablePrimitive<string>(
     initialValue,
@@ -141,13 +144,23 @@ const EditableTimestampField = ({
     (val) => parseTimestamp(val) ? true : "Invalid timestamp format" // Validation function
   );
 
-  return (
-    <input
+  return (isImmutable
+  ? <Tooltip content="Immutable fields cannot be edited">
+      <input
+        type="text"
+        placeholder="e.g., YYYY-MM-DDTHH:mm:ssZ or RFC2822"
+        className="w-full border rounded p-1 text-sm font-mono"
+        {...inputProps}
+        value={draft}
+        disabled
+      />
+    </Tooltip>
+  : <input
       type="text"
       placeholder="e.g., YYYY-MM-DDTHH:mm:ssZ or RFC2822"
       className="w-full border rounded p-1 text-sm font-mono bg-input text-foreground"
       {...inputProps}
-      value={draft} // Use the draft value directly
+      value={draft}
     />
   );
 };
@@ -168,7 +181,8 @@ export default function TimestampView({
   onGroupSaveEdit, 
   path = [],
   nested = false,
-}: LogComparisonProps & { nested?: boolean }) {
+  isImmutable
+}: LogComparisonProps & { nested?: boolean, isImmutable?: boolean }) {
 
   // If editable, group and render editable fields
   if (cellEditMode && (onSaveEdit || onGroupSaveEdit)) {
@@ -213,6 +227,7 @@ export default function TimestampView({
                         logIndices={group.rows} // Pass the indices associated with this group
                         path={path}
                         onGroupSave={handleGroupSave} // Pass the group save handler
+                        isImmutable={isImmutable}
                     />
                 </div>
             ))}

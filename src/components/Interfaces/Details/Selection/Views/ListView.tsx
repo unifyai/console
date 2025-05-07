@@ -68,6 +68,7 @@ function unifyType(baseVal: any, comps: any[]): string {
   pickView => specialized child rendering
 ────────────────────────────────────────────────────────────────────────────*/
 function pickView(props: LogComparisonProps & {
+  isImmutable?: boolean;
   prefix?: string;
   parentPath?: string;
   nestingLevel?: number;
@@ -246,6 +247,7 @@ function renderNoDiffMode(
     expandRecursively: (paths: string[]) => void,
     collapseRecursively: (paths: string[]) => void,
     viewTracesAsDict?: boolean,
+    isImmutable?: boolean,
     cellEditMode?: boolean,
     onSaveEdit?: LogComparisonProps['onSaveEdit'], // Keep single save
     onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'], // Add group save
@@ -256,7 +258,7 @@ function renderNoDiffMode(
     baseLogIndex, comparisonLogsIndex, version, comparableVersions,
     diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
     expandRecursively, collapseRecursively,
-    path: parentEditPath, cellEditMode, onSaveEdit, onGroupSaveEdit, // Destructure group save handler
+    path: parentEditPath, isImmutable, cellEditMode, onSaveEdit, onGroupSaveEdit, // Destructure group save handler
   } = options;
 
   // Get indentation classes based on nesting level
@@ -460,6 +462,7 @@ function renderNoDiffMode(
                           prefix,
                           parentPath: path,
                           viewTracesAsDict,
+                          isImmutable,
                           cellEditMode,
                           onSaveEdit, // Pass single save (might be used by child if group save is missing)
                           // Crucially, pass the group save handler and ALL row indices
@@ -489,6 +492,7 @@ function renderNoDiffMode(
                           prefix,
                           parentPath: path,
                           viewTracesAsDict,
+                          isImmutable,
                           cellEditMode,
                           onSaveEdit,
                           onGroupSaveEdit,
@@ -1026,6 +1030,7 @@ function renderDiffMode(
 ────────────────────────────────────────────────────────────────────────────*/
 //
 interface ListViewProps extends LogComparisonProps {
+  isImmutable?: boolean;
   prefix?: string;
   parentPath?: string;    // parent's fully qualified path
   nestingLevel?: number;
@@ -1048,6 +1053,7 @@ export default function ListView({
   prefix = "entries",
   parentPath = "",
   viewTracesAsDict,
+  isImmutable,
   cellEditMode,
   onSaveEdit,
   onGroupSaveEdit,
@@ -1158,7 +1164,7 @@ export default function ListView({
               value: itemValue, comparables: [], baseLogIndex: rowIndex, comparisonLogsIndex: [],
               version, comparableVersions, diffMode, splitView, displayMode,
               nestingLevel: nestingLevel + 1, prefix, parentPath: accordionPathString,
-              path: itemEditPathForChild, viewTracesAsDict, cellEditMode,
+              path: itemEditPathForChild, viewTracesAsDict, isImmutable, cellEditMode,
               onSaveEdit, onGroupSaveEdit, // Pass both save handlers
             })}
           </div>
@@ -1253,7 +1259,7 @@ export default function ListView({
       { baseLogIndex, comparisonLogsIndex: finalRowIndices, version, comparableVersions,
         diffMode, splitView, displayMode, nestingLevel, prefix, parentPath,
         expandRecursively: effectiveExpandRecursively, collapseRecursively: effectiveCollapseRecursively,
-        viewTracesAsDict, cellEditMode,
+        viewTracesAsDict, cellEditMode, isImmutable,
         onSaveEdit, onGroupSaveEdit, // Pass both save handlers
         path: editPath
       }

@@ -5,6 +5,7 @@ import UnifiedTraceView, { PersistedTraceViewState } from "./TraceView";
 
 // 
 interface TraceViewProps extends LogComparisonProps {
+  isImmutable?: boolean;
   persistedState?: PersistedTraceViewState;
   cellEditMode?: boolean;
   onSaveEdit?: (desc: { logIndex: number; path: (string | number)[]; newValue: any }) => void;
@@ -21,6 +22,7 @@ const TraceView: React.FC<TraceViewProps> = ({
   splitView = false,
   displayMode = "markdown",
   persistedState,
+  isImmutable,
   cellEditMode,
   onSaveEdit,
   onGroupSaveEdit, 
@@ -48,6 +50,7 @@ const TraceView: React.FC<TraceViewProps> = ({
       splitView={splitView}
       displayMode={displayMode}
       persistedState={persistedState}
+      isImmutable={isImmutable}
       cellEditMode={cellEditMode}
       onSaveEdit={onSaveEdit}
       onGroupSaveEdit={onGroupSaveEdit}

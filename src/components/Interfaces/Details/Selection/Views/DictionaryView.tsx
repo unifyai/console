@@ -67,7 +67,7 @@ function unifyType(baseVal: any, comps: any[]): string {
 /*────────────────────────────────────────────────────────────────────────────
   pickView => specialized child rendering
 ────────────────────────────────────────────────────────────────────────────*/
-function pickView(props: LogComparisonProps & { prefix?: string; parentPath?: string; viewTracesAsDict?: boolean }) {
+function pickView(props: LogComparisonProps & { isImmutable?: boolean; prefix?: string; parentPath?: string; viewTracesAsDict?: boolean }) {
   const { value, parentPath = "", prefix = "", nestingLevel = 0, viewTracesAsDict } = props;
 
   // Handle trace rendering based on viewTracesAsDict flag
@@ -216,6 +216,7 @@ function groupRowsByValue(rowValuePairs: { rowIndex: number; val: any }[]) {
 ────────────────────────────────────────────────────────────────────────────*/
 //
 interface DictionaryViewProps extends LogComparisonProps {
+  isImmutable?: boolean;
   prefix?: string;
   parentPath?: string;        // The parent's fully qualified path (e.g. "entries.dict.0.a")
   nestingLevel?: number;
@@ -250,6 +251,7 @@ function renderNoDiffMode(
     parentPath: string,
     expandRecursively: (paths: string[]) => void,
     collapseRecursively: (paths: string[]) => void,
+    isImmutable?: boolean,
     customIconMapping?: Record<string, JSX.Element>, // Add custom icon mapping to options
     viewTracesAsDict?: boolean, // Receive the trace view setting
     cellEditMode?: boolean,
@@ -261,7 +263,7 @@ function renderNoDiffMode(
   const {
     baseLogIndex, comparisonLogsIndex, version, comparableVersions,
     diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
-    cellEditMode = false, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [], // Destructure group save handler and path
+    isImmutable, cellEditMode = false, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [], // Destructure group save handler and path
     expandRecursively, collapseRecursively, customIconMapping
   } = options;
 
@@ -421,6 +423,7 @@ function renderNoDiffMode(
                             prefix,
                             parentPath: path,
                             viewTracesAsDict,
+                            isImmutable,
                             cellEditMode,
                             onSaveEdit, // Pass single save (might be used by child if group save is missing)
                             // Crucially, pass the group save handler and ALL row indices for this group
@@ -454,6 +457,7 @@ function renderNoDiffMode(
                       prefix,
                       parentPath: path,
                       viewTracesAsDict,
+                      isImmutable,
                       cellEditMode,
                       onSaveEdit,
                       onGroupSaveEdit,
@@ -959,6 +963,7 @@ export default function DictionaryView({
   onSaveEdit,
   onGroupSaveEdit,
   path: editPath = [],
+  isImmutable,
 }: DictionaryViewProps) {
 
   // Context detection and state management
@@ -1078,6 +1083,7 @@ export default function DictionaryView({
         parentPath,
         expandRecursively: effectiveExpandRecursively,
         collapseRecursively: effectiveCollapseRecursively,
+        isImmutable,
         customIconMapping,
         viewTracesAsDict,
         cellEditMode,

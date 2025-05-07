@@ -191,9 +191,9 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
             Object
                 .entries(fields[idx])
                 .filter(([name, { data_type, field_type, artifacts }]) => columnContext ? name.startsWith(columnContext) : name)
-                .map(([name, { data_type, field_type, artifacts }]) => {
+                .map(([name, { data_type, field_type, artifacts, mutable, created_at }]) => {
                     const newName = columnContext ? processContext("split", columnContext, name) : name
-                    return [`${tile.i}.${newName}`, { data_type, field_type, artifacts }];
+                    return [`${tile.i}.${newName}`, { data_type, field_type, artifacts, mutable, created_at }];
                 })
         )
     }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
