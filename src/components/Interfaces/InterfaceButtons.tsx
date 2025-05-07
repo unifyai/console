@@ -1,6 +1,6 @@
 "use client";
 
-import { TabProps, ContextActions, TileProps, LogsActions } from "@/types/evals/grid";
+import { TabProps, ContextActions, TileProps, LogsActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
 import { Eye, Hammer, SquareMousePointer, Info, Ellipsis } from "lucide-react";
 import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon, Palette } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
@@ -23,30 +23,48 @@ import { useProject } from "@/contexts/hooks/project";
 import { useTiles } from "@/contexts/hooks/useStore";
 import { useInterfaceUI } from "@/contexts/hooks/interface";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
+import { useUpdateTabQuery } from '@/hooks/Query/useTabsQuery';
+import { useRestoreLastSavedTabWithTilesQuery } from '@/hooks/Query/useRestoreLastSavedTabWithTilesQuery';
+
+// Create a response object that matches ResponseProps interface
+const createResponse = (success: boolean, message: string): ResponseProps => {
+    return { 
+        success: success ? "true" : "false", 
+        message
+    };
+};
 
 const InterfaceButtons = ({
     interfaceId,
     tabQueryParam,
     newCounter,
     setNewCounter,
-    updateTab,
     setFocusDialog,
     setSaveDialog,
     logsActions,
     contextActions,
+    tabActions,
+    tileActions,
+    disabled,
 }: {
     interfaceId: string,
     tabQueryParam: string | null,
     newCounter: number,
     setNewCounter: (newCounter: number) => void,
-    updateTab: (savedTab?: TabProps | null, updatedTileProps?: TileProps[] | TileProps | null) => Promise<ResponseProps>,
     setFocusDialog: (value: SetStateAction<boolean>) => void,
     setSaveDialog: (value: SetStateAction<boolean>) => void,
     logsActions: LogsActions,
     contextActions: ContextActions,
+    tabActions: GranularTabActions,
+    tileActions: GranularTileActions,
+    disabled?: boolean,
 }) => {
     const router = useRouter();
-
+    
+    // Use hooks for tab operations
+    const updateTabMutation = useUpdateTabQuery();
+    const restoreTabMutation = useRestoreLastSavedTabWithTilesQuery();
+    
     // Get the project data and the contexts with granular access
     const project = useStoreContext((state) => state.activeProjectId);
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
@@ -81,11 +99,24 @@ const InterfaceButtons = ({
     const resetIcon = tabUIState?.resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
     const variant = tabUIState?.saveSuccess === false ? "destructive" : "ghost";
 
+    // Use combined disabled state from prop and other sources
+    const isDisabled = disabled || !project || interfaceUIState?.pending;
+
     // Handle context change 
     const handleContextChange = (ctx: string) => {
-        if (tabDataActions && tabUIActions) {
+        if (tabDataActions && tabUIActions && project && tabQueryParam) {
             // First update the tab's context
             tabDataActions.setGlobalContext(ctx);
+            
+            // Update the context in the backend using the update tab mutation
+            updateTabMutation.mutate({
+                interface_id: project,
+                name: tabQueryParam,
+                data: {
+                    global_context: ctx
+                },
+                actions: tabActions
+            });
 
             // Then update each tile's context-related properties if needed
             tiles.forEach(tile => {
@@ -165,7 +196,7 @@ const InterfaceButtons = ({
                             tooltip="Open focus pane"
                             icon={<FocusIcon />}
                             variant="ghost"
-                            disabled={!project || !tabQueryParam || interfaceUIState?.pending}
+                            disabled={isDisabled}
                             onClick={() => setFocusDialog(true)}
                         />
                     </div>
@@ -181,7 +212,29 @@ const InterfaceButtons = ({
                             setContext={handleContextChange}
                             logsActions={logsActions}
                             contextActions={contextActions}
-                            refresh={() => updateTab()}
+                            refresh={() => {
+                                // Simple UpdateTab call to update the context value when needed
+                                if (project && tabQueryParam) {
+                                    return updateTabMutation.mutateAsync({
+                                        interface_id: project,
+                                        name: tabQueryParam,
+                                        data: {
+                                            global_context: tabDataState?.globalContext || ""
+                                        },
+                                        actions: tabActions
+                                    }).then(() => {
+                                        router.refresh();
+                                        if (interfaceUIActions) {
+                                            interfaceUIActions.setPending(true);
+                                        }
+                                        return createResponse(true, "Context updated");
+                                    }).catch(error => {
+                                        console.error("Error updating context:", error);
+                                        return createResponse(false, String(error));
+                                    });
+                                }
+                                return Promise.resolve(createResponse(false, "Missing project or tab"));
+                            }}
                             setPending={interfaceUIActions?.setPending!}
                         />
                     </div>
@@ -193,7 +246,7 @@ const InterfaceButtons = ({
                             tooltip={!project ? "Select a project first" : "Save Interface"}
                             icon={saveIcon}
                             variant={variant}
-                            disabled={!project || !tabQueryParam || interfaceUIState?.pending}
+                            disabled={isDisabled}
                             onClick={async () => setSaveDialog(true)}
                         />
                     </div>
@@ -202,18 +255,39 @@ const InterfaceButtons = ({
                     <div className="border-b py-1">
                         <ActionButton
                             className="transition-all"
-                            tooltip={!project ? "Select a project first" : "Return to last saved interface"}
+                            tooltip={!project ? "Select a project first" : "Return to last saved tab"}
                             icon={resetIcon}
                             variant="ghost"
-                            disabled={!project || interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading}
-                            onClick={() => {
-                                updateTab(tabDataState?.savedTab).then(() => {
-                                    tabUIActions?.setResetting(true);
-                                    tabUIActions?.setEdit(true);
+                            disabled={isDisabled || tabUIState?.resetting}
+                            onClick={async () => {
+                                if (!tabQueryParam || !project || !tabUIActions) return;
+                                
+                                // Set resetting state
+                                tabUIActions.setResetting(true);
+                                
+                                try {
+                                    // Restore the tab from its checkpoint using the new hook
+                                    const result = await restoreTabMutation.mutateAsync({
+                                        interface_id: interfaceId,
+                                        tab_name: tabQueryParam,
+                                        tab_actions: tabActions,
+                                        tile_actions: tileActions
+                                    });
+                                    
+                                    // Log the result
+                                    console.log("Tab restore result:", result);
+                                    
+                                    // Update UI to show reset is complete
+                                    tabUIActions.setEdit(true);
                                     router.refresh();
-                                }).catch(error => {
-                                    console.error("Error updating interface:", error);
-                                });
+                                } catch (error: any) {
+                                    console.error("Error restoring tab:", error);
+                                } finally {
+                                    // Reset the resetting state after a delay
+                                    setTimeout(() => {
+                                        tabUIActions.setResetting(false);
+                                    }, 1500);
+                                }
                             }}
                         />
                     </div>
@@ -239,7 +313,7 @@ const InterfaceButtons = ({
                                     icon={<Eye />}
                                     tooltip="Show hidden"
                                     size="sm"
-                                    disabled={hiddenItems.length === 0 || interfaceUIState?.pending}
+                                    disabled={hiddenItems.length === 0 || isDisabled}
                                 />
                             }
                         >
@@ -276,7 +350,7 @@ const InterfaceButtons = ({
                             variant="ghost"
                             icon={<Clipboard />}
                             tooltip="Paste"
-                            disabled={!tabUIState?.copied || interfaceUIState?.pending}
+                            disabled={!tabUIState?.copied || isDisabled}
                             onClick={handlePaste}
                         />
                     </div>

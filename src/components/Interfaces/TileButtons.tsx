@@ -15,8 +15,9 @@ import { ResponseProps } from "@/types/common";
 import { Context } from "@/types/evals/grid";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
+import { getTileButtonsRef } from '@/utils/refRegistry';
 
-const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, logsActions, contextActions, updateTab, setFocusDialog, setEditTile, setNewCounter, tileCount, buttonsRef}: {
+const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, logsActions, contextActions, updateTab, setFocusDialog, setEditTile, setNewCounter, tileCount}: {
     item: TileProps;
     tileId: string;
     tabId: string;
@@ -31,7 +32,6 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
     contextActions: ContextActions;
     codeActions: CodeActions;
     tileCount: number;
-    buttonsRef: React.RefObject<HTMLDivElement>
 }) => {
     const {ui: tileUIState, uiActions: tileUIActions} = useTileUI(tileId, tabId, interfaceId);
     const {ui: tabUIState, uiActions: tabUIActions} = useTabUI(tabId, interfaceId)
@@ -39,6 +39,9 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
     const {ui: interfaceUIState, uiActions: interfaceUIActions} = useInterfaceUI(interfaceId);
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
     const disabled = interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading;
+
+    // Get the buttons ref from our registry
+    const buttonsRef = getTileButtonsRef(tileId);
 
     return (
         <div ref={buttonsRef} className={"w-full px-2 transition-all absolute -top-2 flex justify-between " + (tabUIState?.edit ? "h-16" : "h-10")}>

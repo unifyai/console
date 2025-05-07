@@ -12,6 +12,8 @@ import { Tile } from "./selectors/tile";
 export interface TileState {
   // State
   tilesById: Record<string, tileLogic.Tile>;
+  // Flag indicating whether a tile has registered refs
+  tileHasRegisteredRefs: Record<string, boolean>;
 }
 
 export interface TileActions {
@@ -21,6 +23,10 @@ export interface TileActions {
   removeTile: (tabId: string, tileId: string) => void;
   renameTile: (tabId: string, sourceTileId: string, newTileId: string, initialState?: Partial<tileLogic.Tile>) => void;
   updateTile: (tileId: string, updates: Partial<tileLogic.Tile>) => void;
+  // Ref registration flag
+  registerTileRefs: (tileId: string) => void;
+  unregisterTileRefs: (tileId: string) => void;
+  hasTileRegisteredRefs: (tileId: string) => boolean;
 }
 
 export type TileSlice = TileState & TileActions;
@@ -30,9 +36,23 @@ export const createTileSlice: StateCreator<
   [["zustand/immer", never]],
   [],
   TileSlice
-> = (set) => ({
+> = (set, get) => ({
   // State
   tilesById: {},
+  tileHasRegisteredRefs: {},
+  
+  // Ref registration methods
+  registerTileRefs: (tileId) => set(state => {
+    state.tileHasRegisteredRefs[tileId] = true;
+  }),
+  
+  unregisterTileRefs: (tileId) => set(state => {
+    state.tileHasRegisteredRefs[tileId] = false;
+  }),
+  
+  hasTileRegisteredRefs: (tileId) => {
+    return !!get().tileHasRegisteredRefs[tileId];
+  },
   
   // Actions
   initTile: (tabId, tileId, initialState) => set(state => {
@@ -43,6 +63,9 @@ export const createTileSlice: StateCreator<
     if (!state.tilesById[tileId]) {
       const newTile = tileLogic.initTile(tileId, initialState);
       state.tilesById[tileId] = newTile;
+      
+      // Initialize ref registration
+      state.tileHasRegisteredRefs[tileId] = false;
       
       // Initialize type-specific data if needed
       if (newTile.type === 'Table') {

@@ -6,17 +6,19 @@ import CreateProject from "./Table/Buttons/CreateProject";
 import CloseProject from "./Table/Buttons/CloseProject";
 import FileDirectory from "../Tree/Directory/FileDirectory";
 import DeleteDialog from "../Common/Dialogs/Delete";
-import { FileProps } from "@/types/common";
-import { TabActions, ProjectsActions } from "@/types/evals/grid";
+import { FileProps, ResponseProps } from "@/types/common";
+import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
-import { useState } from "react";
+import { useEffect } from "react";
 import { useInterface } from "@/contexts/hooks/interface";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useTabUI } from "@/contexts/hooks/tab";
-import { defaultItems, defaultNewCounter } from "@/constants/logs";
+import { defaultTiles, defaultInterface, defaultTab } from "@/constants/logs";
 import AutoComplete from "../Common/Misc/AutoComplete";
 import BaseDropdown from "../Common/Dropdowns/Base";
-import { DropdownMenuItem } from "../UI/dropdown-menu";
+import { useCreateProjectQuery } from "@/hooks/Query/useCreateProjectQuery";
+import { useListProjectsQuery, useCreateProjectQuery as useCreateSimpleProjectQuery } from "@/hooks/Query/useProjectsQuery";
+import { useDeleteInterfaceUnifiedQuery } from "@/hooks/Query/useInterfacesQuery";
 
 const ProjectButtons = ({
     interfaceId,
@@ -25,8 +27,10 @@ const ProjectButtons = ({
     defaultProject,
     setProjectQueryParam,
     setTabQueryParam,
-    projectActions: serverProjectActions,
-    tabActions: serverTabActions,
+    projectActions,
+    interfaceActions,
+    tabActions,
+    tileActions,
 }: {
     interfaceId: string;
     tabQueryParam: string | null;
@@ -35,10 +39,17 @@ const ProjectButtons = ({
     setProjectQueryParam: (project: string | null) => void;
     setTabQueryParam: (tab: string | null) => void;
     projectActions: ProjectsActions;
-    tabActions: TabActions;
+    interfaceActions: GranularInterfaceActions;
+    tabActions: GranularTabActions;
+    tileActions: GranularTileActions;
 }) => {
     const router = useRouter();
-    const [loading, setLoading] = useState(false);
+    
+    // Initialize React Query hooks
+    const createProjectMutation = useCreateProjectQuery();
+    const listProjectsQuery = useListProjectsQuery(projectActions);
+    const deleteInterfaceMutation = useDeleteInterfaceUnifiedQuery();
+    const createSimpleProjectMutation = useCreateSimpleProjectQuery();
 
     // Global states
     const project = projectQueryParam;
@@ -53,12 +64,16 @@ const ProjectButtons = ({
 
     const tabNames = interfaceDataActions?.getTabNames() || [];
 
+    // Use React Query to load projects instead of direct server call
+    useEffect(() => {
+        if (listProjectsQuery.data) {
+            setProjects(listProjectsQuery.data);
+        }
+    }, [listProjectsQuery.data, setProjects]);
+
     const onOpen = () => {
-        setLoading(true);
-        serverProjectActions.get().then(projects => {
-            setProjects(projects);
-            setLoading(false);
-        });
+        // Refetch projects using React Query
+        listProjectsQuery.refetch();
     }
 
     const setterFunction = (proj: FileProps | undefined) => {
@@ -69,6 +84,80 @@ const ProjectButtons = ({
         setTabQueryParam(null);
         setProject(newProj);
     }
+    
+    const handleCreateProject = async (name: string) => {
+        try {
+            // Create a default interface for the new project
+            const newInterface = {
+                ...defaultInterface,
+                project_id: name,
+            };
+            
+            // Use the create project mutation to create interface, tab, and tiles
+            const result = await createProjectMutation.mutateAsync({
+                interface: newInterface,
+                tab: defaultTab,
+                tiles: defaultTiles,
+                actions: {
+                    interfaceActions,
+                    tabActions,
+                    tileActions
+                }
+            });
+            
+            // Update UI state after successful creation
+            setProject(name);
+            setTabQueryParam("tab1");
+            interfaceUIActions?.setPending(true);
+            interfaceUIActions?.setDataPending(true);
+            interfaceDataActions?.setTabNames(["tab1"]);
+            
+            // Project list will be automatically updated through query invalidation
+            
+            return result.tab;
+        } catch (error) {
+            console.error("Error creating project:", error);
+            throw error;
+        }
+    };
+    
+    const handleDeleteProject = async (name: string) => {
+        try {
+            // Use the delete interface mutation with React Query
+            await deleteInterfaceMutation.mutateAsync({
+                params: { projectId: name },
+                actions: interfaceActions
+            });
+            
+            // Update UI state after successful deletion
+            interfaceUIActions?.setPending(true);
+            interfaceUIActions?.setDataPending(true);
+            setTabQueryParam(null);
+            interfaceDataActions?.setTabNames([]);
+            setProject(null);
+            
+            // Project list will be automatically updated through query invalidation
+            
+            // Return a response object that matches the expected ResponseProps type
+            return { info: "Project deleted successfully" } as unknown as ResponseProps;
+        } catch (error) {
+            console.error("Error deleting project:", error);
+            throw error;
+        }
+    };
+
+    // Wrapper for CreateProject component to match expected signature
+    const createProjectWrapper = (name: string, value: string) => {
+        // First create the basic project structure
+        return createSimpleProjectMutation.mutateAsync({
+            name,
+            actions: projectActions
+        }).then(async (response) => {
+            // Then create the interface, tab, and tiles
+            await handleCreateProject(name);
+            return response;
+        });
+    };
 
     return (
         <div className="w-fit gap-2 flex flex-row items-center px-4">
@@ -85,13 +174,13 @@ const ProjectButtons = ({
                     <div className="border-b pb-1">
                         <FileDirectory
                             data={projectsData}
-                            renamingFunction={serverProjectActions.rename}
+                            renamingFunction={projectActions.rename}
                             setterFunction={setterFunction}
                             type="Projects"
                             defaultValue={project || undefined}
                             isAutocompleteOpen={defaultProject ? true : undefined}
                             onOpen={onOpen}
-                            loading={loading}
+                            loading={listProjectsQuery.isLoading}
                         />
                     </div>
                     {project && <div className="border-b py-1">
@@ -110,45 +199,19 @@ const ProjectButtons = ({
                         <DeleteDialog
                             type="project"
                             args={[project]}
-                            deletingFunction={async (name: string) => {
-                                await Promise.all(tabNames.map(tabName => serverTabActions.delete(
-                                    tabName, project, true
-                                )))
-                                await Promise.all(tabNames.map(tabName => serverTabActions.delete(
-                                    tabName, project, false
-                                )))
-                                return await serverProjectActions.delete(name);
-                            }}
+                            deletingFunction={handleDeleteProject}
                             variant="ghost"
                             onDelete={() => {
-                                interfaceUIActions?.setPending(true);
-                                interfaceUIActions?.setDataPending(true);
-                                setTabQueryParam(null);
-                                interfaceDataActions?.setTabNames([]);
-                                setProject(null);
-                                serverProjectActions.get().then(projects => setProjects(projects));
+                                // UI updates handled in the handleDeleteProject function
                             }}
                         />
                     </div>}
                     {projects && <div className="pt-1">
-                        <CreateProject creationFunction={(name: string) => {
-                            const createProject = serverProjectActions.create(name).then(async () => {
-                                await serverTabActions.create(
-                                    "tab1", name, undefined, defaultItems, defaultNewCounter, true, undefined
-                                );
-                                const tabCreate = await serverTabActions.create(
-                                    "tab1", name, undefined, defaultItems, defaultNewCounter, false, undefined
-                                );
-                                setProject(name);
-                                setTabQueryParam("tab1");
-                                interfaceUIActions?.setPending(true);
-                                interfaceUIActions?.setDataPending(true);
-                                interfaceDataActions?.setTabNames(["tab1"]);
-                                setProjects([...projects, name]);
-                                return tabCreate;
-                            });
-                            return createProject;
-                        }} paths={projects} variant="ghost" />
+                        <CreateProject 
+                            creationFunction={createProjectWrapper}
+                            paths={projects} 
+                            variant="ghost" 
+                        />
                     </div>}
                 </div>
             </BaseDropdown>
@@ -159,7 +222,7 @@ const ProjectButtons = ({
                 isOpen={defaultProject ? true : undefined}
                 onSelect={(currentValue: string) => setterFunction({ path: currentValue })}
                 onOpen={onOpen}
-                loading={loading}
+                loading={listProjectsQuery.isLoading}
             />
             <ActionButton
                 variant="outline"
