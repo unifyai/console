@@ -167,7 +167,8 @@ export default function TimestampView({
   onSaveEdit,
   onGroupSaveEdit, 
   path = [],
-}: LogComparisonProps) {
+  nested = false,
+}: LogComparisonProps & { nested?: boolean }) {
 
   // If editable, group and render editable fields
   if (cellEditMode && (onSaveEdit || onGroupSaveEdit)) {
@@ -199,12 +200,13 @@ export default function TimestampView({
             {validGroups.map((group, index) => (
                 <div key={index}>
                     {/* Display RowBadges for the logs sharing this value */}
+                    {!nested &&
                     <div className="flex items-center gap-1 mb-1">
                         <RowBadge rowNumbers={group.rows} mode="none" />
                         <span className="text-xs text-muted-foreground">
                             {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
                         </span>
-                    </div>
+                    </div>}
                     {/* Render a single editable field for this group */}
                     <EditableTimestampField
                         initialValue={group.tsVal} // Pass the timestamp string

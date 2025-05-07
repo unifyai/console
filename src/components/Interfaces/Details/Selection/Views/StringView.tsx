@@ -183,7 +183,8 @@ export default function StringView({
   onSaveEdit, // Expects { logIndex: number, path: ..., newValue: ... }
   onGroupSaveEdit, // Expects { logIndices: number[], path: ..., newValue: ... }
   path = [],
-}: LogComparisonProps) {
+  nested = false
+}: LogComparisonProps  & { nested?: boolean }) {
   // Prepare string values
   const singleMode = !comparables || comparables.length === 0;
 
@@ -217,12 +218,13 @@ export default function StringView({
             {valueGroups.map((group, index) => (
                 <div key={index}>
                     {/* Display RowBadges for the logs sharing this value */}
+                    {!nested &&
                     <div className="flex items-center gap-1 mb-1">
                         <RowBadge rowNumbers={group.rows} mode="none" />
                         <span className="text-xs text-muted-foreground">
                             {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
                         </span>
-                    </div>
+                    </div>}
                     {/* Render a single editable field for this group */}
                     <EditableStringField
                         initialValue={group.text}

@@ -189,13 +189,13 @@ function pickView(
     return <MatrixView {...commonProps} />;
   }
   if (isNumber(baseVal)) {
-    return <NumberView {...commonProps} />;
+    return <NumberView {...commonProps} nested={true}/>;
   }
   if (isTimestamp(baseVal)) {
-    return <TimestampView {...commonProps} />;
+    return <TimestampView {...commonProps} nested={true}/>;
   }
   // Fallback => string
-  return <StringView {...commonProps} />;
+  return <StringView {...commonProps} nested={true}/>;
 }
 
 // Define DictionarySectionItem component to handle dictionary-type sections

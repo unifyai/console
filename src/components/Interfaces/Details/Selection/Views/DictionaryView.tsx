@@ -214,7 +214,7 @@ function groupRowsByValue(rowValuePairs: { rowIndex: number; val: any }[]) {
   DictionaryView => dictionary-level expansions, presence diffs, icons,
   "forceExpandAll / forceCollapseAll" logic in one pass
 ────────────────────────────────────────────────────────────────────────────*/
-// 
+//
 interface DictionaryViewProps extends LogComparisonProps {
   prefix?: string;
   parentPath?: string;        // The parent's fully qualified path (e.g. "entries.dict.0.a")
@@ -254,14 +254,14 @@ function renderNoDiffMode(
     viewTracesAsDict?: boolean, // Receive the trace view setting
     cellEditMode?: boolean,
     onSaveEdit?: LogComparisonProps['onSaveEdit'], // Keep single save handler
-    onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'], 
-    editPath?: (string | number)[],
+    onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
+    path: (string | number)[], // Pass down the current path
   }
 ) {
   const {
     baseLogIndex, comparisonLogsIndex, version, comparableVersions,
     diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
-    cellEditMode = false, onSaveEdit, onGroupSaveEdit, editPath = [], // Destructure group save handler
+    cellEditMode = false, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [], // Destructure group save handler and path
     expandRecursively, collapseRecursively, customIconMapping
   } = options;
 
@@ -285,7 +285,7 @@ function renderNoDiffMode(
     const oldSet = new Set(openValues);
     const nextSet = new Set(newVals);
     const changedAdded = Array.from(nextSet).filter((v) => !oldSet.has(v));
-    const changedRemoved = Array.from(oldSet).filter((v) => !oldSet.has(v));
+    const changedRemoved = Array.from(oldSet).filter((v) => !nextSet.has(v));
 
     setOpenKeys((prev) => {
       const updated = new Set(prev);
@@ -366,7 +366,7 @@ function renderNoDiffMode(
         const separatorClasses = getSeparatorClasses(idx, allKeys.length);
 
         // Build editing path for this child key
-        const childEditPath = [...editPath, k];
+        const childEditPath = [...parentEditPath, k];
 
         return (
           <AccordionItem key={k} value={path} className={separatorClasses}>
@@ -393,27 +393,61 @@ function renderNoDiffMode(
 
             <AccordionContent>
               <div className={contentIndentClass}>
-                {(() => {
-                  // For ALL types, treat the first value as base and rest as comparables
-                  // Extract the base value (from first rowValue pair)
-                  const baseVal = rowValuePairs[0]?.val;
-                  // Extract comparable values (all but the first)
-                  const compVals = rowValuePairs.slice(1).map(p => p.val);
+                 {/* Handle editable vs read-only rendering */}
+                {cellEditMode ? (
+                  // Editable mode: Group values and render editable fields
+                  <div className="space-y-3">
+                    {(() => {
+                      const groups = groupRowsByValue(rowValuePairs);
+                      return groups.map((group, gIdx) => (
+                        <div key={gIdx}>
+                          <div className="flex items-center gap-1 mb-1">
+                            <RowBadge rowNumbers={group.rows} mode="none" />
+                            <span className="text-xs text-muted-foreground">
+                              {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
+                            </span>
+                          </div>
+                          {pickView({
+                            value: group.value,
+                            comparables: [], // Not applicable in group edit mode
+                            baseLogIndex: group.rows[0], // Use first row as representative
+                            comparisonLogsIndex: group.rows.slice(1), // Pass remaining rows
+                            version,
+                            comparableVersions,
+                            diffMode: "none", // Force no-diff in edit mode
+                            splitView,
+                            displayMode,
+                            nestingLevel: nestingLevel + 1,
+                            prefix,
+                            parentPath: path,
+                            viewTracesAsDict,
+                            cellEditMode,
+                            onSaveEdit, // Pass single save (might be used by child if group save is missing)
+                            // Crucially, pass the group save handler and ALL row indices for this group
+                            onGroupSaveEdit: (desc) => onGroupSaveEdit?.({ ...desc, logIndices: group.rows }),
+                            path: childEditPath,
+                          })}
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                ) : (
+                  // Read-only mode: Render unified view
+                  (() => {
+                    // Use the first value as base, rest as comparables for the unified view
+                    const baseVal = rowValuePairs[0]?.val;
+                    const compVals = rowValuePairs.slice(1).map(p => p.val);
+                    const baseIdx = rowValuePairs[0]?.rowIndex ?? baseLogIndex;
+                    const compIdxs = rowValuePairs.slice(1).map(p => p.rowIndex);
 
-                  // Create row indices arrays
-                  const baseIdx = rowValuePairs[0]?.rowIndex || baseLogIndex;
-                  const compIdxs = rowValuePairs.slice(1).map(p => p.rowIndex);
-
-                  // Single row case - we need to explicitly show which row it belongs to
-                  if (rowValuePairs.length === 1) {
                     return pickView({
                       value: baseVal,
-                      comparables: [],
+                      comparables: compVals,
                       baseLogIndex: baseIdx,
-                      comparisonLogsIndex: [],
+                      comparisonLogsIndex: compIdxs,
                       version,
                       comparableVersions,
-                      diffMode: "none", // Force no-diff mode for single values
+                      diffMode, // Use the original diffMode for read-only
                       splitView,
                       displayMode,
                       nestingLevel: nestingLevel + 1,
@@ -421,238 +455,12 @@ function renderNoDiffMode(
                       parentPath: path,
                       viewTracesAsDict,
                       cellEditMode,
-                      onSaveEdit, 
-                      onGroupSaveEdit, 
+                      onSaveEdit,
+                      onGroupSaveEdit,
                       path: childEditPath,
                     });
-                  }
-
-                  // For complex types like dict or list, ensure consistent structure
-                  if (keyType === "dict" || keyType === "list") {
-                    // Check if we have type mismatches among the available values
-                    const allValues = rowValuePairs.map(p => p.val).filter(v => v !== undefined);
-                    const allTypes = new Set(allValues.map(getValueType));
-
-                    // If we have multiple distinct types, including some that are dicts/lists and some that aren't,
-                    // we should group by type and render separately to allow direct comparison
-                    if (allTypes.size > 1) {
-                      // First, extract values by their primary type
-                      const dictValues: {val: any, rowIndex: number}[] = [];
-                      const listValues: {val: any, rowIndex: number}[] = [];
-                      const otherValues: {val: any, rowIndex: number, type: string}[] = [];
-
-                      rowValuePairs.forEach(({val, rowIndex}) => {
-                        const valType = getValueType(val);
-                        if (valType === "dict") {
-                          dictValues.push({val, rowIndex});
-                        } else if (valType === "list") {
-                          listValues.push({val, rowIndex});
-                        } else {
-                          otherValues.push({val, rowIndex, type: valType});
-                        }
-                      });
-
-                      // Render all components
-                      return (
-                        <div className="space-y-2">
-                          {/* Merge all dicts in a unified view */}
-                          {dictValues.length > 0 && (
-                            <div>
-                              <div className="flex gap-1 mb-1">
-                                <RowBadge rowNumbers={dictValues.map(d => d.rowIndex).sort((a, b) => a - b)} mode="none" />
-                              </div>
-                              {/* Use the first dict as the base and others as comparables */}
-                              {pickView({
-                                value: dictValues[0].val,
-                                comparables: dictValues.slice(1).map(d => d.val),
-                                baseLogIndex: dictValues[0].rowIndex,
-                                comparisonLogsIndex: dictValues.slice(1).map(d => d.rowIndex),
-                                version,
-                                comparableVersions,
-                                diffMode,
-                                splitView,
-                                displayMode,
-                                nestingLevel: nestingLevel + 1,
-                                prefix,
-                                parentPath: path,
-                                viewTracesAsDict,
-                                cellEditMode,
-                                onSaveEdit, 
-                                onGroupSaveEdit, 
-                                path: childEditPath,
-                              })}
-                            </div>
-                          )}
-
-                          {/* Merge all lists in a unified view */}
-                          {listValues.length > 0 && (
-                            <div className={dictValues.length > 0 ? "mt-2 pt-2 border-t" : ""}>
-                              <div className="flex gap-1 mb-1">
-                                <RowBadge rowNumbers={listValues.map(l => l.rowIndex).sort((a, b) => a - b)} mode="none" />
-                              </div>
-                              {/* Use the first list as the base and others as comparables */}
-                              {pickView({
-                                value: listValues[0].val,
-                                comparables: listValues.slice(1).map(l => l.val),
-                                baseLogIndex: listValues[0].rowIndex,
-                                comparisonLogsIndex: listValues.slice(1).map(l => l.rowIndex),
-                                version,
-                                comparableVersions,
-                                diffMode,
-                                splitView,
-                                displayMode,
-                                nestingLevel: nestingLevel + 1,
-                                prefix,
-                                parentPath: path,
-                                viewTracesAsDict,
-                                cellEditMode,
-                                onSaveEdit, 
-                                onGroupSaveEdit, 
-                                path: childEditPath,
-                              })}
-                            </div>
-                          )}
-
-                          {/* Group other values by exact structure */}
-                          {otherValues.length > 0 && (
-                            <>
-                              {/* Group primitives by their type and value */}
-                              {(() => {
-                                const groups: {val: any, rows: number[]}[] = [];
-
-                                otherValues.forEach(({val, rowIndex}) => {
-                                  let found = false;
-                                  for (const group of groups) {
-                                    // For primitives, we can use direct equality
-                                    if (val === group.val ||
-                                        (typeof val === 'object' && typeof group.val === 'object' &&
-                                         JSON.stringify(val) === JSON.stringify(group.val))) {
-                                      group.rows.push(rowIndex);
-                                      found = true;
-                                      break;
-                                    }
-                                  }
-
-                                  if (!found) {
-                                    groups.push({val, rows: [rowIndex]});
-                                  }
-                                });
-
-                                return groups.map((group, i) => (
-                                  <div key={i} className={(dictValues.length > 0 || listValues.length > 0 || i > 0) ? "mt-2 pt-2 border-t" : ""}>
-                                    <div className="flex gap-1 mb-1">
-                                      <RowBadge rowNumbers={group.rows.sort((a, b) => a - b)} mode="none" />
-                                    </div>
-                                    {pickView({
-                                      value: group.val,
-                                      comparables: [],
-                                      baseLogIndex: group.rows[0],
-                                      comparisonLogsIndex: [],
-                                      version,
-                                      comparableVersions,
-                                      diffMode,
-                                      splitView,
-                                      displayMode,
-                                      nestingLevel: nestingLevel + 1,
-                                      prefix,
-                                      parentPath: path,
-                                      viewTracesAsDict,
-                                      cellEditMode,
-                                      onSaveEdit, 
-                                      onGroupSaveEdit, 
-                                      path: childEditPath,
-                                    })}
-                                  </div>
-                                ));
-                              })()}
-                            </>
-                          )}
-                        </div>
-                      );
-                    }
-                  } else {
-                    // For primitive types, also check if we have different representations
-                    // that should be grouped separately
-                    const allValues = rowValuePairs.map(p => p.val).filter(v => v !== undefined);
-                    if (allValues.length > 1) {
-                      // Try to group by JSON representation
-                      const groups: {val: any, rows: number[]}[] = [];
-
-                      rowValuePairs.forEach(({val, rowIndex}) => {
-                        let found = false;
-                        for (const group of groups) {
-                          // For primitives, we can use direct equality
-                          if (val === group.val ||
-                              (typeof val === 'object' && typeof group.val === 'object' &&
-                               JSON.stringify(val) === JSON.stringify(group.val))) {
-                            group.rows.push(rowIndex);
-                            found = true;
-                            break;
-                          }
-                        }
-
-                        if (!found) {
-                          groups.push({val, rows: [rowIndex]});
-                        }
-                      });
-
-                      // If we have multiple groups, render each separately
-                      if (groups.length > 1) {
-                        return (
-                          <div className="space-y-2">
-                            {groups.map((group, i) => (
-                              <div key={i} className={i > 0 ? "mt-2 pt-2 border-t" : ""}>
-                                <div className="flex gap-1 mb-1">
-                                  <RowBadge rowNumbers={group.rows} mode="none" />
-                                </div>
-                                {pickView({
-                                  value: group.val,
-                                  comparables: [],
-                                  baseLogIndex: group.rows[0],
-                                  comparisonLogsIndex: [],
-                                  version,
-                                  comparableVersions,
-                                  diffMode,
-                                  splitView,
-                                  displayMode,
-                                  nestingLevel: nestingLevel + 1,
-                                  prefix,
-                                  parentPath: path,
-                                  viewTracesAsDict,
-                                  cellEditMode,
-                                  onSaveEdit, 
-                                  onGroupSaveEdit, 
-                                  path: childEditPath,
-                                })}
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      }
-                    }
-                  }
-
-                  // Multi-row case with compatible types - use standard unified view
-                  return pickView({
-                    value: baseVal,
-                    comparables: compVals,
-                    baseLogIndex: baseIdx,
-                    comparisonLogsIndex: compIdxs,
-                    version,
-                    comparableVersions,
-                    diffMode,
-                    splitView,
-                    displayMode,
-                    nestingLevel: nestingLevel + 1,
-                    prefix,
-                    parentPath: path,
-                    viewTracesAsDict,
-                    cellEditMode,
-                    onSaveEdit, 
-                    onGroupSaveEdit, 
-                    path: childEditPath,
-                  });
-                })()}
+                  })()
+                )}
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -689,14 +497,14 @@ function renderDiffMode(
     viewTracesAsDict?: boolean, // Receive the trace view setting
     cellEditMode?: boolean,
     onSaveEdit?: LogComparisonProps['onSaveEdit'], // Keep single save handler
-    onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'], 
-    editPath?: (string | number)[],
+    onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
+    path: (string | number)[], // Pass down the current path
   }
 ) {
   const {
     baseLogIndex, comparisonLogsIndex, version, comparableVersions,
     diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
-    cellEditMode = false, onSaveEdit, onGroupSaveEdit, editPath = [], // Destructure group save handler
+    cellEditMode = false, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [], // Destructure group save handler and path
     expandRecursively, collapseRecursively, customIconMapping
   } = options;
 
@@ -812,7 +620,7 @@ function renderDiffMode(
         );
 
         // Build editing path for this child key
-        const childEditPath = [...editPath, k];
+        const childEditPath = [...parentEditPath, k];
 
         return (
           <AccordionItem key={k} value={path} className={separatorClasses}>
@@ -871,8 +679,8 @@ function renderDiffMode(
                       parentPath: path,
                       viewTracesAsDict,
                       cellEditMode,
-                      onSaveEdit, 
-                      onGroupSaveEdit, 
+                      onSaveEdit,
+                      onGroupSaveEdit,
                       path: childEditPath,
                     });
                   }
@@ -880,8 +688,8 @@ function renderDiffMode(
                   // For complex types like dict or list, ensure consistent structure before diffing
                   if (keyType === "dict" || keyType === "list") {
                     // Check if we have type mismatches among the available values
-                    const allVals = [baseVal, ...compVals.map(cv => cv.val)].filter(v => v !== undefined);
-                    const allTypes = new Set(allVals.map(getValueType));
+                    const allValues = [baseVal, ...compVals.map(cv => cv.val)].filter(v => v !== undefined);
+                    const allTypes = new Set(allValues.map(getValueType));
 
                     // If we have multiple distinct types or mixed with undefined values,
                     // we'll use a similar approach to no-diff mode to show a unified view
@@ -945,8 +753,8 @@ function renderDiffMode(
                                 parentPath: path,
                                 viewTracesAsDict,
                                 cellEditMode,
-                                onSaveEdit, 
-                                onGroupSaveEdit, 
+                                onSaveEdit,
+                                onGroupSaveEdit,
                                 path: childEditPath,
                               })}
                             </div>
@@ -974,8 +782,8 @@ function renderDiffMode(
                                 parentPath: path,
                                 viewTracesAsDict,
                                 cellEditMode,
-                                onSaveEdit, 
-                                onGroupSaveEdit, 
+                                onSaveEdit,
+                                onGroupSaveEdit,
                                 path: childEditPath,
                               })}
                             </div>
@@ -1015,8 +823,8 @@ function renderDiffMode(
                                         parentPath: path,
                                         viewTracesAsDict,
                                         cellEditMode,
-                                        onSaveEdit, 
-                                        onGroupSaveEdit, 
+                                        onSaveEdit,
+                                        onGroupSaveEdit,
                                         path: childEditPath,
                                       })}
                                     </div>
@@ -1064,8 +872,8 @@ function renderDiffMode(
                                       parentPath: path,
                                       viewTracesAsDict,
                                       cellEditMode,
-                                      onSaveEdit, 
-                                      onGroupSaveEdit, 
+                                      onSaveEdit,
+                                      onGroupSaveEdit,
                                       path: childEditPath,
                                     })}
                                   </div>
@@ -1096,8 +904,8 @@ function renderDiffMode(
                       parentPath: path,
                       viewTracesAsDict,
                       cellEditMode,
-                      onSaveEdit, 
-                      onGroupSaveEdit, 
+                      onSaveEdit,
+                      onGroupSaveEdit,
                       path: childEditPath,
                     });
                   }
@@ -1118,8 +926,8 @@ function renderDiffMode(
                     parentPath: path,
                     viewTracesAsDict,
                     cellEditMode,
-                    onSaveEdit, 
-                    onGroupSaveEdit, 
+                    onSaveEdit,
+                    onGroupSaveEdit,
                     path: childEditPath,
                   });
                 })()}
@@ -1149,7 +957,7 @@ export default function DictionaryView({
   viewTracesAsDict, // Receive the prop
   cellEditMode = false,
   onSaveEdit,
-  onGroupSaveEdit, 
+  onGroupSaveEdit,
   path: editPath = [],
 }: DictionaryViewProps) {
 
@@ -1217,7 +1025,7 @@ export default function DictionaryView({
       // Add deeper nested paths if they exist
       const baseVal = value?.[k];
       const comps = comparables.map((c) => c?.[k]);
-      
+
       if (isDict(baseVal) || isList(baseVal)) {
         if (comps.length > 0) {
           const nestedPaths = gatherAllSubPathsMulti(baseVal, comps, builtPath, prefix, nestingLevel + 1);
@@ -1237,10 +1045,10 @@ export default function DictionaryView({
       // When not in TraceView, rely on parent context
       return;
     }
-    
+
     // Handle local expand/collapse for TraceView mode
     if (traceForceExpandAll) {
-      const paths = gatherAllPaths();  
+      const paths = gatherAllPaths();
       effectiveExpandRecursively(paths);
     } else if (traceForceCollapseAll) {
       const paths = gatherAllPaths();
@@ -1273,9 +1081,9 @@ export default function DictionaryView({
         customIconMapping,
         viewTracesAsDict,
         cellEditMode,
-        onSaveEdit, 
-        onGroupSaveEdit, 
-        editPath,
+        onSaveEdit,
+        onGroupSaveEdit,
+        path: editPath,
       }
     );
   }
@@ -1304,9 +1112,9 @@ export default function DictionaryView({
       customIconMapping,
       viewTracesAsDict,
       cellEditMode,
-      onSaveEdit, 
-      onGroupSaveEdit, 
-      editPath,
+      onSaveEdit,
+      onGroupSaveEdit,
+      path: editPath,
     }
   );
 }
