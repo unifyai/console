@@ -1,71 +1,64 @@
-import { Tile, TileMeta, TileData, TileUI } from '@/contexts/slices/selectors/tile';
-import { TableTile, TableTileData, TableTileMeta, TableTileUI } from '@/contexts/slices/selectors/tableTile';
-import { PlotTile, PlotTileData, PlotTileMeta, PlotTileUI } from '@/contexts/slices/selectors/plotTile';
-import { ViewTile, ViewTileMeta, ViewTileData, ViewTileUI } from '@/contexts/slices/selectors/viewTile';
-import { PlotDataProps, TableDataProps, TileProps } from '@/types/evals/grid';
-import { EditorTile, EditorTileData, EditorTileMeta, EditorTileUI } from '@/contexts/slices/selectors/editorTile';
+import { Tile, TileMeta, TileData as TileSliceData, TileUI } from '@/contexts/slices/selectors/tile';
+import { TableTile, TableTileData as TableTileSliceData } from '@/contexts/slices/selectors/tableTile';
+import { PlotTile, PlotTileData as PlotTileSliceData } from '@/contexts/slices/selectors/plotTile';
+import { ViewTile, ViewTileMeta, ViewTileData as ViewTileSliceData, ViewTileUI } from '@/contexts/slices/selectors/viewTile';
+import { EditorTile, EditorTileData as EditorTileSliceData } from '@/contexts/slices/selectors/editorTile';
+import { TileData, TableTileData, PlotTileData, ViewTileData, EditorTileData } from '@/types/evals/grid';
+import { TableDataProps, PlotDataProps } from '@/types/evals/grid';
 
 /**
- * Build a generic tile state object
+ * Build tile state from API-returned tile data
  */
 export function buildTileState(
-  tabId: string | null = null,
-  interfaceId: string | null = null,
-  projectId: string | null = null,
-  tileProps: TileProps,
-  type: "Table" | "Plot" | "View" | "Editor" | null = "Table",
+  tileData: TileData,
+  tableData?: TableDataProps,
+  plotData?: PlotDataProps
 ): Tile {
-  // Generate the hierarchical tile ID
-  const tileId = `${tabId}>${tileProps.i}`;
+  if (!tileData || !tileData.id) {
+    throw new Error("Invalid tile data provided");
+  }
   
   // Build tile meta
   const tileMeta: TileMeta = {
-    id: tileId,
-    name: tileProps.i,
-    type: type,
-    position: {
-      x: tileProps.x,
-      y: tileProps.y,
-      width: tileProps.w,
-      height: tileProps.h
-    },
-    minW: tileProps.minW,
-    minH: tileProps.minH,
-    // createdAt: new Date().toISOString(),
-    // updatedAt: new Date().toISOString(),
+    id: tileData.id,
+    name: tileData.name,
+    type: tileData.type,
+    position: tileData.position,
+    minW: tileData.min_width,
+    minH: tileData.min_height,
   };
 
   // Build tile data
-  const tileData: TileData = {
-    context: tileProps.context,
-    table: tileProps.table,
-    auto_update: tileProps.auto_update,
-    freeze: tileProps.freeze,
-    filters: tileProps.filters,
-    common_filter: tileProps.common_filter,
-    metric: tileProps.metric,
+  const tileSliceData: TileSliceData = {
+    context: tileData.context,
+    table: tileData.table,
+    auto_update: tileData.auto_update,
+    freeze: tileData.freeze,
+    filters: tileData.filters,
+    common_filter: tileData.common_filter,
+    metric: tileData.metric,
   };
 
   // Build tile UI state
   const tileUI: TileUI = {
-    projectId,
-    interfaceId,
-    tabId,
-    visible: tileProps.visible,
-    locked: false,
+    projectId: null, // Will be derived from tab/interface if needed
+    interfaceId: null, // Will be derived from tab if needed
+    tabId: tileData.tab_id || null,
+    visible: tileData.visible,
+    locked: tileData.locked || false,
     pending: false,
     loading: false,
     error: null,
-    moved: tileProps.moved,
-    static: tileProps.static,
-    color: tileProps.color,
+    moved: false, // API doesn't track this UI state
+    static: false, // API doesn't track this UI state
+    color: undefined, // Might be derived from parent tab
     itemsNeedRecompute: false,
   };
 
-  // Create base tile
+  // Create initial tile with null specialized tile data
   const tile: Tile = {
     ...tileMeta,
-    ...tileData,
+    ...tileSliceData,
     ...tileUI,
     tableTile: null,
     plotTile: null,
@@ -73,190 +66,126 @@ export function buildTileState(
     editorTile: null,
   };
 
+  // Add specialized tile data based on type
+  return addSpecializedTileData(tile, tileData, tableData, plotData);
+}
+
+/**
+ * Add specialized tile data based on tile type
+ */
+function addSpecializedTileData(
+  tile: Tile, 
+  tileData: TileData,
+  tableData?: TableDataProps,
+  plotData?: PlotDataProps
+): Tile {
+  switch(tileData.type) {
+    case 'Table':
+      if (tileData.table_tile) {
+        const tableTileData = buildTableTileData(tileData.table_tile);
+        // Add tableDataItem if available
+        if (tableData && tableData[tileData.name]) {
+          tableTileData.tableDataItem = tableData[tileData.name];
+        }
+        tile.tableTile = tableTileData;
+      }
+      break;
+    case 'Plot':
+      if (tileData.plot_tile) {
+        const plotTileData = buildPlotTileData(tileData.plot_tile);
+        // Add plotDataItem if available
+        if (plotData && plotData[tileData.name]) {
+          plotTileData.plotDataItem = plotData[tileData.name];
+        }
+        tile.plotTile = plotTileData;
+      }
+      break;
+    case 'View':
+      if (tileData.view_tile) {
+        tile.viewTile = buildViewTileData(tileData.view_tile);
+      }
+      break;
+    case 'Editor':
+      if (tileData.editor_tile) {
+        tile.editorTile = buildEditorTileData(tileData.editor_tile);
+      }
+      break;
+  }
+  
   return tile;
 }
 
 /**
- * Build table tile state
+ * Build TableTile data from API-returned TableTileData
  */
-export function buildTableTileState(
-  tabId: string | null = null,
-  interfaceId: string | null = null,
-  projectId: string | null = null,
-  tileProps: TileProps,
-  tableData: TableDataProps = {},
-  limit: number = 10,
-  offsets: number[],
-  tileIndex: number = 0,
-): Tile {
-  // Create the base tile
-  const tile = buildTileState(tabId, interfaceId, projectId, tileProps, "Table");
-  
-  // Build table tile meta
-  const tableTileMeta: TableTileMeta = {
-  };
-
-  // Build table tile data
-  const tableTileData: TableTileData = {
-    table_type: tileProps.table_type,
-    column_order: tileProps.column_order,
-    hidden_columns: tileProps.hidden_columns,
-    sorting: tileProps.sorting,
-    grouping: tileProps.grouping,
-    group_sorting: tileProps.group_sorting,
-    columns_pin_left: tileProps.columns_pin_left,
-    columns_pin_right: tileProps.columns_pin_right,
-    selected: tileProps.selected,
-    tableDataItem: tableData[tileProps.i],
-  };
-
-  // Build table tile UI
-  const tableTileUI: TableTileUI = {
-    limit: limit,
-    offset: offsets[tileIndex],
-    column_context: tileProps.column_context,
-    page_number: tileProps.page_number,
-  };
-
-  // Build the complete table tile
-  const tableTile: TableTile = {
-    ...tableTileMeta,
-    ...tableTileData,
-    ...tableTileUI,
-  };
-  
-  // Build the complete tile with table-specific data
+function buildTableTileData(tableTileData: TableTileData): TableTile {
   return {
-    ...tile,
-    tableTile,
+    table_type: tableTileData.table_type,
+    column_context: tableTileData.column_context,
+    page_number: tableTileData.page_number,
+    column_order: tableTileData.column_order,
+    hidden_columns: tableTileData.hidden_columns,
+    sorting: tableTileData.sorting,
+    grouping: tableTileData.grouping,
+    group_sorting: tableTileData.group_sorting,
+    columns_pin_left: tableTileData.columns_pin_left,
+    columns_pin_right: tableTileData.columns_pin_right,
+    selected: tableTileData.selected,
+    tableDataItem: undefined, // Will be added separately if available
   };
 }
 
 /**
- * Build plot tile state
+ * Build PlotTile data from API-returned PlotTileData
  */
-export function buildPlotTileState(
-  tabId: string | null = null,
-  interfaceId: string | null = null,
-  projectId: string | null = null,
-  tileProps: TileProps,
-  plotData: PlotDataProps = {},
-): Tile {
-  // Create the base tile
-  const tile = buildTileState(tabId, interfaceId, projectId, tileProps, "Plot");
-
-  // Build plot tile meta
-  const plotTileMeta: PlotTileMeta = {
-  };
-
-  // Build plot tile data
-  const plotTileData: PlotTileData = {
-    plot_type: tileProps.plot_type,
-    plot_scale_x: tileProps.plot_scale_x,
-    plot_scale_y: tileProps.plot_scale_y,
-    plot_aggregate: tileProps.plot_aggregate,
-    x_axis: tileProps.x_axis,
-    y_axis: tileProps.y_axis,
-    plot_group_by: tileProps.plot_group_by,
-    bin_count: tileProps.bin_count,
-    regression_line: tileProps.regression_line,
-    plotDataItem: plotData[tileProps.i],
-  };
-
-  // Build plot tile UI
-  const plotTileUI: PlotTileUI = {
-  };
-
-  // Build the complete plot tile
-  const plotTile: PlotTile = {
-    ...plotTileMeta,
-    ...plotTileData,
-    ...plotTileUI,
-  };
-  
-  // Return the complete tile with plot-specific data
+function buildPlotTileData(plotTileData: PlotTileData): PlotTile {
   return {
-    ...tile,
-    plotTile,
+    plot_type: plotTileData.plot_type,
+    plot_scale_x: plotTileData.plot_scale_x,
+    plot_scale_y: plotTileData.plot_scale_y,
+    plot_aggregate: plotTileData.plot_aggregate,
+    x_axis: plotTileData.x_axis,
+    y_axis: plotTileData.y_axis,
+    plot_group_by: plotTileData.plot_group_by,
+    bin_count: plotTileData.bin_count,
+    regression_line: plotTileData.regression_line,
+    plotDataItem: undefined, // Will be added separately if available
   };
 }
 
 /**
- * Build view tile state
+ * Build ViewTile data from API-returned ViewTileData
  */
-export function buildViewTileState(
-  tabId: string | null = null,
-  interfaceId: string | null = null,
-  projectId: string | null = null,
-  tileProps: TileProps,
-): Tile {
-  // Create the base tile
-  const tile = buildTileState(tabId, interfaceId, projectId, tileProps, "View");
-  
-  // Build view tile meta
-  const viewTileMeta: ViewTileMeta = {
-  };
-
-  // Build view tile data
-  const viewTileData: ViewTileData = {
-    base_index: tileProps.base_index,
-  };
-
-  // Build view tile UI
-  const viewTileUI: ViewTileUI = {
-  };
-
-  // Build the complete view tile
-  const viewTile: ViewTile = {
-    ...viewTileMeta,
-    ...viewTileData,
-    ...viewTileUI,
-  };
-  
-  // Return the complete tile with view-specific data
+function buildViewTileData(viewTileData: ViewTileData): ViewTile {
   return {
-    ...tile,
-    viewTile,
+    base_index: viewTileData.base_index,
   };
 }
 
 /**
- * Build editor tile state
+ * Build EditorTile data from API-returned EditorTileData
  */
-export function buildEditorTileState(
-  tabId: string | null = null,
-  interfaceId: string | null = null,
-  projectId: string | null = null,
-  tileProps: TileProps,
-): Tile {
-  // Create the base tile
-  const tile = buildTileState(tabId, interfaceId, projectId, tileProps, "Editor");
-  
-  // Build editor tile meta
-  const editorTileMeta: EditorTileMeta = {
-  };
-
-  // Build editor tile data
-  const editorTileData: EditorTileData = {
-    file_name: tileProps.file_name,
-    file_type: tileProps.file_type,
-    content: tileProps.content,
-  };
-
-  // Build editor tile UI
-  const editorTileUI: EditorTileUI = {
-  };
-
-  // Build the complete editor tile
-  const editorTile: EditorTile = {
-    ...editorTileMeta,
-    ...editorTileData,
-    ...editorTileUI,
-  };
-  
-  // Return the complete tile with editor-specific data
+function buildEditorTileData(editorTileData: EditorTileData): EditorTile {
   return {
-    ...tile,
-    editorTile,
+    file_name: editorTileData.file_path,
+    file_type: editorTileData.file_type,
+    content: editorTileData.content,
+  };
+}
+
+/**
+ * Update a tile with parent references
+ */
+export function updateTileParentReferences(
+  tileState: Tile,
+  projectId: string | null,
+  interfaceId: string | null,
+  tabId: string | null
+): Tile {
+  return {
+    ...tileState,
+    projectId,
+    interfaceId,
+    tabId,
   };
 }
