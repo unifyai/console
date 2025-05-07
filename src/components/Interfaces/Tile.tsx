@@ -198,6 +198,7 @@ const Tile = ({
                                     tabId={tabId}
                                     interfaceId={interfaceId}
                                     projectId={projectId}
+                                    updateLog={logsActions.update}
                                 />
                             </Suspense>
                         </ExpandProvider>

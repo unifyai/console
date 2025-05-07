@@ -10,10 +10,13 @@ export interface LogComparisonProps {
   prefix?: string;                    // Optional: for path prefixing (e.g. "entries" or "params")
   diffMode?: "none" | "lines" | "words" | "characters";
   splitView?: boolean;
-  displayMode?: "text" | "markdown"
-  // Editing mode props (Task 8)
+  displayMode?: "text" | "markdown" | "raw";
+  // Editing mode props
   cellEditMode?: boolean;
-  onSaveEdit?: (desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }) => void;
+  // Called when a SINGLE cell's value is committed
+  onSaveEdit?: (desc: { logIndex: number; path: (string | number)[]; newValue: any }) => void;
+  // Called when a GROUPED cell's value is committed (affects multiple logs)
+  onGroupSaveEdit?: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void;
   path?: (string | number)[]; // Path to this value within its container for editing
   editable?: boolean; // alias for cellEditMode when used directly in leaf views
 }

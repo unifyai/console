@@ -58,7 +58,10 @@ function pickDataView(
   compLogIndexes: number[],
   diffMode: LogComparisonProps["diffMode"],
   splitView: boolean,
-  displayMode: "text" | "markdown" | undefined
+  displayMode: LogComparisonProps["displayMode"],
+  cellEditMode?: boolean,
+  onSaveEdit?: LogComparisonProps["onSaveEdit"],
+  onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'] 
 ) {
   // Decide which specialized view to use.
 
@@ -67,97 +70,40 @@ function pickDataView(
     finalValue = comparables.find((c) => c !== undefined);
   }
 
+  const commonProps = {
+      value: baseValue,
+      comparables: comparables,
+      baseLogIndex: baseLogIndex,
+      comparisonLogsIndex: compLogIndexes,
+      diffMode: diffMode,
+      splitView: splitView,
+      displayMode: displayMode,
+      cellEditMode: cellEditMode,
+      onSaveEdit: onSaveEdit, // Pass single save
+      onGroupSaveEdit: onGroupSaveEdit, 
+  }
+
   if (isDict(finalValue)) {
-    return (
-      <DictionaryView
-        value={baseValue}
-        comparables={comparables}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={compLogIndexes}
-        diffMode={diffMode}
-        splitView={splitView}
-        displayMode={displayMode}
-      />
-    );
+    return <DictionaryView {...commonProps} />;
   }
   if (isList(finalValue)) {
-    return (
-      <ListView
-        value={baseValue}
-        comparables={comparables}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={compLogIndexes}
-        diffMode={diffMode}
-        splitView={splitView}
-        displayMode={displayMode}
-      />
-    );
+    return <ListView {...commonProps} />;
   }
   if (isImage(finalValue)) {
-    return (
-      <ImageView
-        value={baseValue}
-        comparables={comparables}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={compLogIndexes}
-        diffMode={diffMode}
-        splitView={splitView}
-        displayMode={displayMode}
-      />
-    );
+    return <ImageView {...commonProps} />;
   }
   if (isMatrix(finalValue)) {
-    return (
-      <MatrixView
-        value={baseValue}
-        comparables={comparables}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={compLogIndexes}
-        diffMode={diffMode}
-        splitView={splitView}
-        displayMode={displayMode}
-      />
-    );
+    return <MatrixView {...commonProps} />;
   }
   if (isNumber(finalValue)) {
-    return (
-      <NumberView
-        value={baseValue}
-        comparables={comparables}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={compLogIndexes}
-        diffMode={diffMode}
-        splitView={splitView}
-        displayMode={displayMode}
-      />
-    );
+    return <NumberView {...commonProps} />;
   }
   if (isTimestamp(finalValue)) {
-    return (
-      <TimestampView
-        value={baseValue}
-        comparables={comparables}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={compLogIndexes}
-        diffMode={diffMode}
-        splitView={splitView}
-        displayMode={displayMode}
-      />
-    );
+    return <TimestampView {...commonProps} />;
   }
 
   // fallback => string
-  return (
-    <StringView
-      value={baseValue}
-      comparables={comparables}
-      baseLogIndex={baseLogIndex}
-      comparisonLogsIndex={compLogIndexes}
-      diffMode={diffMode}
-      splitView={splitView}
-      displayMode={displayMode}
-    />
-  );
+  return <StringView {...commonProps} />;
 }
 
 /******************************************************************************
@@ -236,6 +182,10 @@ export default function ChatInView({
   diffMode = "none",
   splitView = false,
   displayMode = "markdown",
+  cellEditMode = false,
+  onSaveEdit,
+  onGroupSaveEdit,
+  path = [],
 }: LogComparisonProps) {
   //
   // 1) SINGLE MODE => just a vertical list
@@ -250,6 +200,10 @@ export default function ChatInView({
     delete leftover.usage;
     const model = leftover.model ?? "";
     delete leftover.model;
+
+    // Build path for child views
+    const usagePath = [...path, 'usage'];
+    const metadataPath = [...path]; // Use base path for leftover items
 
     return (
       <div className="space-y-4 w-full">
@@ -268,6 +222,7 @@ export default function ChatInView({
                   {messages.map((m: any, idx: number) => {
                     const role = m.role ?? "assistant";
                     const label = formatRole(role);
+                    const messagePath = [...path, 'messages', idx, 'content']; // Path to message content
 
                     return (
                       <div
@@ -281,7 +236,8 @@ export default function ChatInView({
                             copyMessage="Copied!"
                           />
                         </div>
-                        {renderMessageContent(m.content)}
+                        {/* Pass edit props down to potentially editable content */}
+                        {pickDataView(m.content, [], baseLogIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
                       </div>
                     );
                   })}
@@ -309,6 +265,10 @@ export default function ChatInView({
                     diffMode={diffMode}
                     splitView={splitView}
                     displayMode={displayMode}
+                    cellEditMode={cellEditMode}
+                    onSaveEdit={onSaveEdit}
+                    onGroupSaveEdit={onGroupSaveEdit}
+                    path={[...path, 'model']}
                   />
                 </div>
               </AccordionContent>
@@ -325,7 +285,7 @@ export default function ChatInView({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border-l ml-4 pl-1">
-                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView, displayMode)}
+                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -341,7 +301,7 @@ export default function ChatInView({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border-l ml-4 pl-1">
-                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView, displayMode)}
+                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -454,8 +414,8 @@ export default function ChatInView({
                   if (!msgs.length) return null;
 
                   // Filter out cases where all messages are empty
-                  const allEmpty = msgs.every(m => 
-                    !m.content || 
+                  const allEmpty = msgs.every(m =>
+                    !m.content ||
                     (typeof m.content === 'string' && m.content.trim() === '') ||
                     (typeof m.content === 'object' && Object.keys(m.content).length === 0)
                   );
@@ -501,7 +461,8 @@ export default function ChatInView({
                                         copyMessage="Copied!"
                                       />
                                     </div>
-                                    {renderMessageContent(m.content)}
+                                     {/* Pass edit props down */}
+                                    {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
                                   </div>
                                 </TabsContent>
                               );
@@ -521,7 +482,7 @@ export default function ChatInView({
                                     key={m.rowIndex}
                                     value={String(m.rowIndex)}
                                   >
-                                    Row {m.rowIndex}
+                                    Row {m.rowIndex + 1}
                                   </TabsTrigger>
                                 ))}
                               </TabsList>
@@ -542,7 +503,8 @@ export default function ChatInView({
                                         copyMessage="Copied!"
                                       />
                                     </div>
-                                    {renderMessageContent(m.content)}
+                                     {/* Pass edit props down */}
+                                     {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
                                   </div>
                                 </TabsContent>
                               );
@@ -572,6 +534,10 @@ export default function ChatInView({
                   comparisonLogsIndex={comparisonLogsIndex}
                   diffMode={diffMode}
                   splitView={splitView}
+                  cellEditMode={cellEditMode}
+                  onSaveEdit={onSaveEdit}
+                  onGroupSaveEdit={onGroupSaveEdit} 
+                  path={[...path, 'model']} 
                 />
               </div>
             </AccordionContent>
@@ -593,7 +559,10 @@ export default function ChatInView({
                     comparisonLogsIndex,
                     diffMode,
                     splitView,
-                    displayMode
+                    displayMode,
+                    cellEditMode,
+                    onSaveEdit,
+                    onGroupSaveEdit 
                   )}
                 </div>
               </AccordionContent>
@@ -616,7 +585,10 @@ export default function ChatInView({
                     comparisonLogsIndex,
                     diffMode,
                     splitView,
-                    displayMode
+                    displayMode,
+                    cellEditMode,
+                    onSaveEdit,
+                    onGroupSaveEdit 
                   )}
                 </div>
               </AccordionContent>
@@ -651,8 +623,8 @@ export default function ChatInView({
                 if (!msgs.length) return null;
 
                 // Filter out cases where all messages are empty
-                const allEmpty = msgs.every(m => 
-                  !m.content || 
+                const allEmpty = msgs.every(m =>
+                  !m.content ||
                   (typeof m.content === 'string' && m.content.trim() === '') ||
                   (typeof m.content === 'object' && Object.keys(m.content).length === 0)
                 );
@@ -775,6 +747,10 @@ export default function ChatInView({
                 diffMode={diffMode}
                 splitView={splitView}
                 displayMode={displayMode}
+                cellEditMode={cellEditMode}
+                onSaveEdit={onSaveEdit}
+                onGroupSaveEdit={onGroupSaveEdit} 
+                path={[...path, 'model']} 
               />
             </div>
           </AccordionContent>
@@ -796,7 +772,10 @@ export default function ChatInView({
                   comparisonLogsIndex,
                   diffMode,
                   splitView,
-                  displayMode
+                  displayMode,
+                  cellEditMode,
+                  onSaveEdit,
+                  onGroupSaveEdit 
                 )}
               </div>
             </AccordionContent>
@@ -819,7 +798,10 @@ export default function ChatInView({
                   comparisonLogsIndex,
                   diffMode,
                   splitView,
-                  displayMode
+                  displayMode,
+                  cellEditMode,
+                  onSaveEdit,
+                  onGroupSaveEdit 
                 )}
               </div>
             </AccordionContent>

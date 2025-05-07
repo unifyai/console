@@ -5,6 +5,7 @@ import Main from "@/components/Interfaces/Main";
 import {
     getLogFields,
     deleteLogs,
+    updateLogs,
     deleteProject,
     getLogMetrics,
     getLogs,
@@ -54,6 +55,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
         getMetrics: await getLogMetrics(apiKey),
         delete: await deleteLogs(apiKey),
         getLatest: await getLatestTimestamp(apiKey),
+        update: await updateLogs(apiKey)
     }
 
     const derivedEntryActions = {

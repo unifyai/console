@@ -112,7 +112,7 @@ function groupVersionsForRows(
   compVers: string[]
 ) {
   const map = new Map<string, number[]>();
-  
+
   rows.forEach((r) => {
     const verStr =
       r === baseLogIndex
@@ -131,6 +131,44 @@ function groupVersionsForRows(
   }));
 }
 
+// Helper Component for a single editable field, now aware of its group
+const EditableStringField = ({
+  initialValue,
+  logIndices, // Pass all log indices for this group
+  path,
+  onGroupSave, // Use a group-aware save handler
+}: {
+  initialValue: string;
+  logIndices: number[]; // Indices sharing this value
+  path: (string | number)[];
+  onGroupSave: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void; // Handler accepts multiple indices
+}) => {
+  const { draft, inputProps } = useEditablePrimitive<string>(
+    initialValue,
+    (newValue) => {
+      // Call the group save handler with all associated indices
+      onGroupSave({ logIndices, path, newValue });
+    }
+  );
+
+  const isMultiLine = draft.length > 80;
+  const commonProps = {
+    className: "w-full border rounded p-1 text-sm font-mono bg-input text-foreground",
+    ...inputProps,
+  } as const;
+
+  return (
+    <div>
+      {isMultiLine ? (
+        <textarea rows={4} {...commonProps} />
+      ) : (
+        <input type="text" {...commonProps} />
+      )}
+    </div>
+  );
+};
+
+
 export default function StringView({
   value,
   comparables,
@@ -142,38 +180,63 @@ export default function StringView({
   comparableVersions = [""],
   displayMode = "markdown",
   cellEditMode = false,
-  onSaveEdit,
+  onSaveEdit, // Expects { logIndex: number, path: ..., newValue: ... }
+  onGroupSaveEdit, // Expects { logIndices: number[], path: ..., newValue: ... }
   path = [],
 }: LogComparisonProps) {
   // Prepare string values
   const singleMode = !comparables || comparables.length === 0;
-  const { draft, inputProps } = useEditablePrimitive<string>(toStringSafe(value), (newVal) => {
-    if (onSaveEdit) onSaveEdit({ source: "entries", path, newValue: newVal });
-  });
 
-  // If editable => simple input / textarea
-  if (cellEditMode) {
-    const isMultiLine = draft.length > 80;
+  // If editable => render editable fields
+  if (cellEditMode && (onSaveEdit || onGroupSaveEdit)) {
+    const baseStr = toStringSafe(value);
 
-    const commonProps = {
-      className: "w-full border rounded p-1 text-sm font-mono",
-      ...inputProps,
-    } as const;
+    // Group values by string content
+    const valueGroups = groupAllByValue(
+      baseStr,
+      comparables,
+      baseLogIndex,
+      comparisonLogsIndex
+    );
+
+     // Define the handler that will be called by EditableStringField's onSave
+    const handleGroupSave = ({ logIndices, path, newValue }: { logIndices: number[]; path: (string | number)[]; newValue: any }) => {
+        if (onGroupSaveEdit) {
+            // Call the group save handler directly with all indices
+            onGroupSaveEdit({ logIndices, path, newValue });
+        } else if (onSaveEdit && logIndices.length > 0) {
+            // Fallback: Call single save for the first index if group save handler is not provided
+            // This might happen if the parent component doesn't implement onGroupSaveEdit yet
+            console.warn("Using single onSaveEdit for grouped field. Consider implementing onGroupSaveEdit.");
+            onSaveEdit({ logIndex: logIndices[0], path, newValue });
+        }
+    };
 
     return (
-      <div>
-        {isMultiLine ? (
-          <textarea rows={4} {...commonProps} />
-        ) : (
-          <input
-            type="text"
-            {...commonProps}
-          />
-        )}
-      </div>
+        <div className="space-y-3">
+            {valueGroups.map((group, index) => (
+                <div key={index}>
+                    {/* Display RowBadges for the logs sharing this value */}
+                    <div className="flex items-center gap-1 mb-1">
+                        <RowBadge rowNumbers={group.rows} mode="none" />
+                        <span className="text-xs text-muted-foreground">
+                            {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
+                        </span>
+                    </div>
+                    {/* Render a single editable field for this group */}
+                    <EditableStringField
+                        initialValue={group.text}
+                        logIndices={group.rows}
+                        path={path}
+                        onGroupSave={handleGroupSave}
+                    />
+                </div>
+            ))}
+        </div>
     );
   }
 
+  // --- Read-only rendering logic ---
   const baseStr = toStringSafe(value);
   const compStrs = (comparables ?? []).map(toStringSafe);
 

@@ -261,8 +261,6 @@ export function useTableTile(
       },
 
       updateLogsDeep: (rowIds, desc) => {
-        // [DEBUG] Entry into updateLogsDeep
-        console.log("[DEBUG] updateLogsDeep called", { tileId, rowIds, desc });
 
         if (!tileId || rowIds.length === 0) {
           console.log("[DEBUG] Aborting updateLogsDeep – missing tileId or empty rowIds");
@@ -302,9 +300,6 @@ export function useTableTile(
           console.log("[DEBUG] updateLogsDeep detected no changes – skipping state merge");
           return; // nothing mutated
         }
-
-        // [DEBUG] Applying optimistic update with nextLogs length: ", nextLogs.length
-        console.log("[DEBUG] updateLogsDeep merging updated logs", { updatedCount: rowIds.length });
 
         // IMPORTANT: Arrays should replace, not deep-merge. Use updateTableDataItem.
         storeUpdateTableDataItem(tileId, {

@@ -15,13 +15,57 @@ function asFiniteNumber(val: unknown): number | null {
   if (typeof val === "number" && Number.isFinite(val)) {
     return val;
   }
-  // Return null instead of 0 for non-finite values
+  // Ensure string numbers are parsed correctly
+  if (typeof val === "string") {
+    const num = parseFloat(val);
+    if (Number.isFinite(num)) {
+      return num;
+    }
+  }
+  // Return null instead of NaN or Infinity for non-finite values
   return null;
 }
 
+// Helper Component for a single editable number field, group-aware
+const EditableNumberField = ({
+  initialValue,
+  logIndices, // Pass all log indices for this group
+  path,
+  onGroupSave, // Use a group-aware save handler
+}: {
+  initialValue: number | null;
+  logIndices: number[]; // Indices sharing this value
+  path: (string | number)[];
+  onGroupSave: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void; // Handler accepts multiple indices
+}) => {
+  const { draft, inputProps } = useEditablePrimitive<number | null>(
+    initialValue,
+    (newValue) => {
+        const finalValue = typeof newValue === 'string' ? parseFloat(newValue) : newValue;
+        // Ensure we only save valid numbers, pass null if parsing fails
+        onGroupSave({ logIndices, path, newValue: Number.isFinite(finalValue) ? finalValue : null });
+    },
+    (val) => typeof val === 'number' || val === null || !isNaN(parseFloat(String(val))) ? true : "Invalid number" // Validate as number or allow null
+  );
+
+  // Handle potential string values coming from inputProps.value
+  const displayValue = draft === null ? '' : String(draft);
+
+  return (
+    <input
+      type="number"
+      step="any" // Allow decimals
+      className="w-full border rounded p-1 text-sm font-mono bg-input text-foreground"
+      {...inputProps}
+      value={displayValue} // Use the potentially stringified draft for the input value
+    />
+  );
+};
+
+
 /**
  * If diffMode === "none," we show everything grouped by numeric value
- * (like StringView "none" mode). We'll gather base + comparables => map<number, rowIndices>.
+ * (like StringView "none" mode). We'll gather base + comparables => map<number | null, rowIndices>.
  */
 function groupAllNumbersByValue(
   baseVal: unknown,
@@ -113,14 +157,12 @@ export default function NumberView({
   displayMode = "markdown",
   cellEditMode = false,
   onSaveEdit,
+  onGroupSaveEdit, 
   path = [],
 }: LogComparisonProps & { scientificNotation?: boolean }) {
-  const { draft, inputProps } = useEditablePrimitive<number | null>(asFiniteNumber(value), (val)=>{
-    if(onSaveEdit) onSaveEdit({source:"entries", path, newValue: val});
-  }, (val)=> val===null ? "Invalid number" : true);
 
   // ------------------------------------------------------------------
-  // Hooks must be called unconditionally.  Declare state BEFORE any
+  // Hooks must be called unconditionally. Declare state BEFORE any
   // potential early-return to keep hook order stable across renders.
   // ------------------------------------------------------------------
   const [opIndex, setOpIndex] = React.useState(0);
@@ -129,35 +171,71 @@ export default function NumberView({
     setOpIndex((prev) => (prev + 1) % symbols.length);
   }
 
-  if (cellEditMode) {
-    return (
-      <input
-        type="number"
-        className="w-full border rounded p-1 text-sm font-mono"
-        {...inputProps}
-      />
-    );
-  }
-
-  // Single vs. multiple
-  const singleMode = !comparables || comparables.length === 0;
-
-  // Version strings
-  const baseVer = version || "";
-  const compVers = comparableVersions;
-  const versionEmpty = !baseVer && compVers.every((s) => !s);
-
-  // Always show base if single-mode
-  const baseNum = asFiniteNumber(value);
-
   // Helper function to format numbers when scientificNotation is enabled
   function formatNumberVal(val: number | null): string {
     if (val === null) return "(invalid number)";
     if (scientificNotation && val !== 0 && Math.abs(val) < 0.01) {
       return val.toExponential(2);
     }
+    // Ensure toString() is called on a valid number
     return val.toString();
   }
+
+  if (cellEditMode && (onSaveEdit || onGroupSaveEdit)) {
+    // Group numbers by value
+     const numberGroups = groupAllNumbersByValue(
+        value,
+        comparables,
+        baseLogIndex,
+        comparisonLogsIndex
+    );
+
+     // Define the handler that will be called by EditableNumberField's onSave
+    const handleGroupSave = ({ logIndices, path, newValue }: { logIndices: number[]; path: (string | number)[]; newValue: any }) => {
+        if (onGroupSaveEdit) {
+            // Call the group save handler directly with all indices
+            onGroupSaveEdit({ logIndices, path, newValue });
+        } else if (onSaveEdit && logIndices.length > 0) {
+             // Fallback: Call single save for the first index if group save handler is not provided
+            console.warn("Using single onSaveEdit for grouped number field. Consider implementing onGroupSaveEdit.");
+            onSaveEdit({ logIndex: logIndices[0], path, newValue });
+        }
+    };
+
+    return (
+        <div className="space-y-3">
+            {numberGroups.map((group, index) => (
+                 // Skip rendering for invalid number groups (null)
+                group.numVal === null ? null : (
+                    <div key={index}>
+                        {/* Display RowBadges for the logs sharing this value */}
+                        <div className="flex items-center gap-1 mb-1">
+                            <RowBadge rowNumbers={group.rows} mode="none" />
+                            <span className="text-xs text-muted-foreground">
+                                {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
+                            </span>
+                        </div>
+                        {/* Render a single editable field for this group */}
+                        <EditableNumberField
+                            initialValue={group.numVal} // Pass the numeric value
+                            logIndices={group.rows} // Pass the indices associated with this group
+                            path={path}
+                            onGroupSave={handleGroupSave} // Pass the group save handler
+                        />
+                    </div>
+                )
+            ))}
+        </div>
+    );
+  }
+
+  // --- Read-only rendering logic ---
+  const singleMode = !comparables || comparables.length === 0;
+  const baseVer = version || "";
+  const compVers = comparableVersions;
+  const versionEmpty = !baseVer && compVers.every((s) => !s);
+  const baseNum = asFiniteNumber(value);
+
 
   /////////////////////////////////////////////////////////////////////////
   // SINGLE MODE => Just show the base number
@@ -327,7 +405,7 @@ export default function NumberView({
 
         // Evaluate final result: compVal [symbol] base
         // Only calculate if both values are valid
-        const result = (baseNum !== null && compVal !== null) ? 
+        const result = (baseNum !== null && compVal !== null) ?
           applySymbol(baseNum, compVal, currentSymbol) : null;
 
         return (
@@ -407,7 +485,7 @@ export default function NumberView({
                     )}
                     <p className="text-sm">Result</p>
                     <p className="text-sm mt-2">
-                      {result === null ? "(cannot calculate)" : 
+                      {result === null ? "(cannot calculate)" :
                        Number.isFinite(result) ? formatNumberVal(result) : "∞"}
                     </p>
                   </div>

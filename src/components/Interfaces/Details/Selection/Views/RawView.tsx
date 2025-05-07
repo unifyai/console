@@ -24,6 +24,57 @@ function toRawString(val: unknown): string {
   return String(val);
 }
 
+// Helper Component for a single editable raw field, group-aware
+const EditableRawField = ({
+  initialValue,
+  logIndices, // Pass all log indices for this group
+  path,
+  onGroupSave, // Use a group-aware save handler
+  originalValue // Pass the original pre-stringified value for type coercion
+}: {
+  initialValue: string;
+  logIndices: number[]; // Indices sharing this value
+  path: (string | number)[];
+  onGroupSave: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void; // Handler accepts multiple indices
+  originalValue: any; // Original value before stringification
+}) => {
+  const { draft, inputProps } = useEditablePrimitive<string>(
+    initialValue,
+    (newVal) => {
+      // Attempt to coerce back to original type
+      let finalVal: any = newVal;
+      if (originalValue !== null && typeof originalValue === "object") {
+        try { finalVal = JSON.parse(newVal); } catch { /* Keep as string */ }
+      } else if (typeof originalValue === "number") {
+        const maybeNum = Number(newVal);
+        if (!Number.isNaN(maybeNum)) { finalVal = maybeNum; }
+      } else if (typeof originalValue === 'boolean') {
+        if (newVal.toLowerCase() === 'true') finalVal = true;
+        else if (newVal.toLowerCase() === 'false') finalVal = false;
+        // else keep as string if not clearly boolean
+      }
+      // Check if effectively unchanged before saving
+      try {
+        const unchanged = JSON.stringify(finalVal) === JSON.stringify(originalValue);
+        if (unchanged) return;
+      } catch { /* Continue */ }
+
+      onGroupSave({ logIndices, path, newValue: finalVal });
+    }
+  );
+
+   // Always render a textarea to comfortably edit potentially long JSON
+  return (
+    <textarea
+      rows={Math.min(12, Math.max(4, draft.split("\n").length))}
+      className="w-full border rounded p-1 text-sm font-mono bg-input text-foreground"
+      {...inputProps}
+      value={draft} // Use the draft value directly
+    />
+  );
+};
+
+
 /**
  * If diffMode === "none," we group identical raw strings among base/comparables.
  */
@@ -33,20 +84,24 @@ function groupAllRowsByValue(
   baseRow: number,
   compRows: number[]
 ) {
-  const allRaw = [baseVal, ...(comparables ?? [])].map(toRawString);
-  const allRowIndices = [baseRow, ...compRows];
+  // Store original values alongside stringified versions for edit coercion
+  const allData = [
+    { val: baseVal, str: toRawString(baseVal), idx: baseRow },
+    ...(comparables ?? []).map((c, i) => ({ val: c, str: toRawString(c), idx: compRows[i] }))
+  ];
 
-  const map = new Map<string, number[]>();
-  for (let i = 0; i < allRaw.length; i++) {
-    const txt = allRaw[i];
-    if (!map.has(txt)) {
-      map.set(txt, []);
+  const map = new Map<string, { originalValue: any, rows: number[] }>();
+  for (const item of allData) {
+    if (!map.has(item.str)) {
+      // Store the first encountered original value for this string representation
+      map.set(item.str, { originalValue: item.val, rows: [] });
     }
-    map.get(txt)!.push(allRowIndices[i]);
+    map.get(item.str)!.rows.push(item.idx);
   }
-  return Array.from(map.entries()).map(([rawText, rowSet]) => ({
+  return Array.from(map.entries()).map(([rawText, data]) => ({
     rawText,
-    rows: rowSet.sort((a, b) => a - b),
+    originalValue: data.originalValue, // Keep the original value for edit coercion
+    rows: data.rows.sort((a, b) => a - b),
   }));
 }
 
@@ -70,7 +125,7 @@ function groupComparableStrings(compStrs: string[], compRows: number[]) {
 }
 
 /**
- * Gather row sets that share the same param version text. 
+ * Gather row sets that share the same param version text.
  */
 function groupVersionsForRows(
   rows: number[],
@@ -107,68 +162,68 @@ export default function RawView({
   comparableVersions = [],
   cellEditMode = false,
   onSaveEdit,
-  path,
+  onGroupSaveEdit, 
+  path = [],
 }: LogComparisonProps) {
-  const singleMode = !comparables || comparables.length === 0;
-  const baseStr = toRawString(value);
-  const compStrs = (comparables ?? []).map(toRawString);
-
-  // Param version handling:
-  const baseVer = version || "";
-  const compVers = comparableVersions || [];
-  const versionEmpty = !baseVer && compVers.every((s) => !s);
 
   // ────────────────────────────────────────────────────────────────────────
   // Edit-mode – allow user to edit the raw string directly
   // ────────────────────────────────────────────────────────────────────────
-  if (cellEditMode) {
-    const { draft, inputProps } = useEditablePrimitive<string>(baseStr, (newVal) => {
-      // ------------------------------------------------------------------
-      // Attempt to coerce the edited *string* back to the original type so
-      // that switching out of "raw" mode restores the correct renderer
-      // (e.g. trace objects remain objects).
-      // ------------------------------------------------------------------
-      let finalVal: any = newVal;
+  if (cellEditMode && (onSaveEdit || onGroupSaveEdit)) {
+      const rawGroups = groupAllRowsByValue(
+          value,
+          comparables,
+          baseLogIndex,
+          comparisonLogsIndex
+      );
 
-      // 1) If the original value was an object/array, try JSON.parse
-      if (value !== null && typeof value === "object") {
-        try {
-          // Preserve numbers/booleans where possible inside JSON
-          finalVal = JSON.parse(newVal);
-        } catch {
-          // If parsing fails, keep as raw string – user intends plain text
-        }
-      } else if (typeof value === "number") {
-        // 2) If original was a number, attempt to parse to number
-        const maybeNum = Number(newVal);
-        if (!Number.isNaN(maybeNum)) {
-          finalVal = maybeNum;
-        }
-      }
+      // Define the handler that will be called by EditableRawField's onSave
+      const handleGroupSave = ({ logIndices, path, newValue }: { logIndices: number[]; path: (string | number)[]; newValue: any }) => {
+          if (onGroupSaveEdit) {
+              // Call the group save handler directly with all indices
+              onGroupSaveEdit({ logIndices, path, newValue });
+          } else if (onSaveEdit && logIndices.length > 0) {
+              // Fallback: Call single save for the first index if group save handler is not provided
+              console.warn("Using single onSaveEdit for grouped raw field. Consider implementing onGroupSaveEdit.");
+              onSaveEdit({ logIndex: logIndices[0], path, newValue });
+          }
+      };
 
-      // 3) If the resulting value is "effectively" unchanged (deep-equals), skip
-      //    emitting the save to avoid unnecessary churn.
-      try {
-        const unchanged = JSON.stringify(finalVal) === JSON.stringify(value);
-        if (unchanged) return;
-      } catch {
-        /* best-effort only – continue */
-      }
-
-      if (onSaveEdit) {
-        onSaveEdit({ source: "entries", path: path ?? [], newValue: finalVal });
-      }
-    });
-
-    // Always render a textarea to comfortably edit potentially long JSON
-    return (
-      <textarea
-        rows={Math.min(12, Math.max(4, draft.split("\n").length))}
-        className="w-full border rounded p-1 text-sm font-mono"
-        {...inputProps}
-      />
-    );
+      return (
+          <div className="space-y-3">
+              {rawGroups.map((group, index) => (
+                  <div key={index}>
+                      {/* Display RowBadges for the logs sharing this value */}
+                      <div className="flex items-center gap-1 mb-1">
+                          <RowBadge rowNumbers={group.rows} mode="none" />
+                          <span className="text-xs text-muted-foreground">
+                              {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
+                          </span>
+                      </div>
+                      {/* Render a single editable field for this group */}
+                      <EditableRawField
+                          initialValue={group.rawText}
+                          logIndices={group.rows} // Pass the indices associated with this group
+                          path={path}
+                          onGroupSave={handleGroupSave} // Pass the group save handler
+                          originalValue={group.originalValue} // Pass original value for type coercion
+                      />
+                  </div>
+              ))}
+          </div>
+      );
   }
+
+  //----------------------------------------------------------------------
+  // READ-ONLY MODE
+  //----------------------------------------------------------------------
+  const singleMode = !comparables || comparables.length === 0;
+  const baseStr = toRawString(value);
+  const compStrs = (comparables ?? []).map(toRawString);
+  const baseVer = version || "";
+  const compVers = comparableVersions || [];
+  const versionEmpty = !baseVer && compVers.every((s) => !s);
+
 
   //----------------------------------------------------------------------
   // SINGLE MODE => just show the base raw text + param version if present
@@ -336,7 +391,7 @@ export default function RawView({
                   const baseBadge = changed && baseRowPresent ? "delete" : "none";
                   const compBadge = changed && !baseRowPresent ? "insert" : "none";
 
-                  // If multiple comp rows, we just unify them as "insert" 
+                  // If multiple comp rows, we just unify them as "insert"
                   // for any that differ from base
                   return (
                     <div key={j} className="borderspace-y-2">
