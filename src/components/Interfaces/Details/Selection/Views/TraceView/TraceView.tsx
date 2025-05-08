@@ -42,6 +42,8 @@ import { DoublePanels } from "@/components/Common/Body/DoublePanels";
 import { TraceExpandProvider } from "./TraceExpandContext";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 import { useTracePolling } from "@/hooks/useTracePolling";
+import { LogsActions } from "@/types/evals/grid";
+import { LogProps } from "@/types/evals/logs";
 
 // --- Added types for lifted state ---
 export interface PersistedTraceViewState {
@@ -154,6 +156,11 @@ function pickView(
   diffMode: LogComparisonProps["diffMode"],
   splitView: LogComparisonProps["splitView"],
   displayMode: LogComparisonProps["displayMode"],
+  fieldName: string,
+  context: string | null,
+  baseLog: LogProps | undefined,
+  comparisonLogs: LogProps[] | undefined,
+  logsActions?: LogsActions,  
   isImmutable?: boolean,
   cellEditMode?: boolean,
   onSaveEdit?: LogComparisonProps['onSaveEdit'],
@@ -176,13 +183,13 @@ function pickView(
   };
 
   if (isChat(baseVal)) {
-    return <ChatView {...commonProps} isImmutable={isImmutable}/>;
+    return <ChatView {...commonProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
   }
   if (isDict(baseVal)) {
-    return <DictionaryView {...commonProps} isImmutable={isImmutable}/>;
+    return <DictionaryView {...commonProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
   }
   if (isList(baseVal)) {
-    return <ListView {...commonProps} isImmutable={isImmutable}/>;
+    return <ListView {...commonProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
   }
   if (isImage(baseVal)) {
     return <ImageView {...commonProps} />;
@@ -214,6 +221,11 @@ function DictionarySectionItem({
   openSections,
   setOpenSections,
   sectionIcons,
+  fieldName,
+  context,
+  baseLog,
+  comparisonLogs,
+  logsActions,
   isImmutable, 
   cellEditMode,
   onSaveEdit,
@@ -233,6 +245,11 @@ function DictionarySectionItem({
   openSections: string[];
   setOpenSections: React.Dispatch<React.SetStateAction<string[]>>;
   sectionIcons: Record<string, JSX.Element>;
+  fieldName: string,
+  context: string | null,
+  baseLog: LogProps | undefined,
+  comparisonLogs: LogProps[] | undefined,
+  logsActions?: LogsActions,
   isImmutable?: boolean; 
   cellEditMode?: boolean;
   onSaveEdit?: LogComparisonProps['onSaveEdit'];
@@ -397,13 +414,18 @@ function DictionarySectionItem({
             splitView={splitView ?? false}
             displayMode={displayMode ?? "markdown"}
             nestingLevel={1}
-            prefix={title.toLowerCase()} // Use lowercase section name as prefix
-            parentPath={title.toLowerCase()} // Use lowercase section name as parent path
+            prefix={title.toLowerCase()}
+            parentPath={title.toLowerCase()}
             customIconMapping={customIconMapping}
             cellEditMode={cellEditMode}
             onSaveEdit={onSaveEdit}
             onGroupSaveEdit={onGroupSaveEdit}
             path={parentPath}
+            logsActions={logsActions}
+            context={context}
+            baseLog={baseLog}
+            comparisonLogs={comparisonLogs}
+            fieldName={fieldName}
             nested
           />
         </div>
@@ -418,6 +440,11 @@ function PatchDetailPanel({
   comparisonLogsIndex,
   allTraces,
   allRowIndexes,
+  fieldName,
+  context,
+  baseLog,
+  comparisonLogs,
+  logsActions,
   diffMode,
   splitView,
   displayMode,
@@ -432,6 +459,11 @@ function PatchDetailPanel({
   comparisonLogsIndex: number[];
   allTraces: Span[][];
   allRowIndexes: number[];
+  fieldName: string,
+  context: string | null,
+  baseLog: LogProps | undefined,
+  comparisonLogs: LogProps[] | undefined,
+  logsActions?: LogsActions,  
   diffMode?: LogComparisonProps["diffMode"];
   splitView?: LogComparisonProps["splitView"];
   displayMode?: LogComparisonProps["displayMode"];
@@ -604,7 +636,7 @@ function findSpanByNameInRow(
 
     if (title === "Inputs" || title === "Outputs") {
       if (!isDict(baseVal)) {
-         const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown", isImmutable, cellEditMode, onSaveEdit, onGroupSaveEdit, fullPath); // Pass group save
+         const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown", fieldName, context, baseLog, comparisonLogs, logsActions, isImmutable, cellEditMode, onSaveEdit, onGroupSaveEdit, fullPath); // Pass group save
         return (
           <AccordionItem key={title} value={title}>
             <AccordionTrigger className="relative group flex items-center justify-between"><span className="inline-flex items-center gap-2">{sectionIcons[title] || null}<span>{title}</span></span></AccordionTrigger>
@@ -626,6 +658,11 @@ function findSpanByNameInRow(
           openSections={openSections}
           setOpenSections={setOpenSections}
           sectionIcons={sectionIcons}
+          logsActions={logsActions}
+          context={context}
+          baseLog={baseLog}
+          comparisonLogs={comparisonLogs}
+          fieldName={fieldName}
           isImmutable={isImmutable}
           cellEditMode={cellEditMode}
           onSaveEdit={onSaveEdit}
@@ -636,7 +673,7 @@ function findSpanByNameInRow(
       );
     }
 
-    const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown", isImmutable, cellEditMode, onSaveEdit, onGroupSaveEdit, fullPath); // Pass group save
+    const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown", fieldName, context, baseLog, comparisonLogs, logsActions, isImmutable, cellEditMode, onSaveEdit, onGroupSaveEdit, fullPath); // Pass group save
 
     return (
       <AccordionItem key={title} value={title}>
@@ -1367,6 +1404,11 @@ interface UnifiedTraceViewProps {
   onSaveEdit?: LogComparisonProps['onSaveEdit'];
   onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'];
   path?: (string | number)[];
+  logsActions?: LogsActions;
+  context: string | null;
+  baseLog: LogProps | undefined;
+  comparisonLogs: LogProps[] | undefined;
+  fieldName: string
 }
 
 function flattenRootNode(root: PatchDiffNode | null): PatchDiffNode[] {
@@ -1398,6 +1440,11 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
   comparisonLogsIndex,
   allTraces,
   allRowIndexes,
+  fieldName,
+  context,
+  baseLog,
+  comparisonLogs,
+  logsActions,
   isImmutable,
   diffMode, 
   splitView,
@@ -1413,6 +1460,11 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
   comparisonLogsIndex: number[];
   allTraces: Span[][];
   allRowIndexes: number[];
+  fieldName: string,
+  context: string | null,
+  baseLog: LogProps | undefined,
+  comparisonLogs: LogProps[] | undefined,
+  logsActions?: LogsActions,  
   isImmutable?: boolean;
   diffMode?: LogComparisonProps["diffMode"];
   splitView?: LogComparisonProps["splitView"];
@@ -1437,6 +1489,11 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
       comparisonLogsIndex={comparisonLogsIndex}
       allTraces={allTraces}
       allRowIndexes={allRowIndexes}
+      logsActions={logsActions}
+      context={context}
+      baseLog={baseLog}
+      comparisonLogs={comparisonLogs}
+      fieldName={fieldName}
       diffMode={diffMode}
       splitView={splitView}
       displayMode={displayMode}
@@ -1510,6 +1567,11 @@ export default function UnifiedTraceView({
   onSaveEdit,
   onGroupSaveEdit,
   path,
+  logsActions,
+  context,
+  baseLog,
+  comparisonLogs,
+  fieldName
 }: UnifiedTraceViewProps) {
   // NEW: state to hold live-updated base trace
   const [liveBaseTrace, setLiveBaseTrace] = useState<Span[]>(allTraces[0] ?? []);
@@ -1528,13 +1590,18 @@ export default function UnifiedTraceView({
   const traceDone = useMemo(() => isTraceComplete(liveBaseTrace), [liveBaseTrace]);
 
   // Poll while the trace is not complete
-  const baseRowId = rowIndexes?.[0]?.toString();
-  const { data: polled } = useTracePolling(!traceDone ? baseRowId : undefined, 500);
+  const { data: polled } = useTracePolling(
+    !traceDone ? baseLog : undefined,
+    logsActions,
+    context, 
+    fieldName,
+    500
+  );
 
   // Update live trace when fresh data arrives
   useEffect(() => {
-    if (polled?.trace) {
-      setLiveBaseTrace(polled.trace);
+    if (polled) {
+      setLiveBaseTrace(polled);
     }
   }, [polled]);
 
@@ -1838,6 +1905,11 @@ export default function UnifiedTraceView({
         comparisonLogsIndex={groupCompareRows}
         allTraces={allTraces}
         allRowIndexes={rowIndexes}
+        logsActions={logsActions}
+        context={context}
+        baseLog={baseLog}
+        comparisonLogs={comparisonLogs}
+        fieldName={fieldName}
         diffMode={diffMode}
         splitView={splitView}
         displayMode={displayMode}

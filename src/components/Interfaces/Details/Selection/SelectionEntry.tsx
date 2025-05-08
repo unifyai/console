@@ -59,7 +59,7 @@ import {
   gatherAllSubPathsMulti
 } from "@/utils/evals/pathUtils";
 
-import { ItemType, TileProps } from "@/types/evals/grid";
+import { ItemType, LogsActions, TileProps } from "@/types/evals/grid";
 
 import { createContext, useContextSelector } from "use-context-selector";
 import type { DraggableAttributes } from '@dnd-kit/core';
@@ -146,7 +146,9 @@ function getSelectionView(
   comps: any[],
   version: string,
   vers: string[],
+  baseLog: LogProps | undefined,
   baseLogIndex: number,
+  comparisonLogs: LogProps[] | undefined,
   compLogIndex: number[],
   diffMode: DiffMode,
   splitView: boolean,
@@ -155,13 +157,16 @@ function getSelectionView(
   prefix: string,
   parentPath: string,
   valueType: string,
+  fieldName: string,
   isImmutable?: boolean,
   viewTracesAsDict?: boolean,
   persistedTraceState?: PersistedTraceViewState,
   cellEditMode?: boolean,
   onSaveEdit?: LogComparisonProps['onSaveEdit'], // Signature includes logIndex
   onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'], // Signature includes logIndices
-  path?: (string | number)[]
+  path?: (string | number)[],
+  logsActions?: LogsActions,
+  context: string | null = null,
 ) {
   // Force diffMode to 'none' if cellEditMode is true
   const effectiveDiffMode = cellEditMode ? "none" : diffMode;
@@ -191,19 +196,19 @@ function getSelectionView(
   // Check if we should override trace view
   if (valueType === "trace" && viewTracesAsDict) {
     // When viewTracesAsDict is true, render the trace as a dictionary
-    return <DictionaryView {...commonViewProps} nestingLevel={nestingLevel} prefix={prefix} parentPath={parentPath} viewTracesAsDict={viewTracesAsDict} />;
+    return <DictionaryView {...commonViewProps} nestingLevel={nestingLevel} prefix={prefix} parentPath={parentPath} viewTracesAsDict={viewTracesAsDict} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
   }
 
   // Use the determined type instead of re-unifying
   switch (valueType) {
     case "trace":
-      return <TraceView {...commonViewProps} value={Array.isArray(val) ? val : [val]} comparables={comps.map((c) => (Array.isArray(c) ? c : c ? [c] : []))} persistedState={persistedTraceState} isImmutable={isImmutable}/>;
+      return <TraceView {...commonViewProps} value={Array.isArray(val) ? val : [val]} comparables={comps.map((c) => (Array.isArray(c) ? c : c ? [c] : []))} persistedState={persistedTraceState} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
     case "chat":
-      return <ChatOutView {...commonViewProps} isImmutable={isImmutable}/>;
+      return <ChatOutView {...commonViewProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
     case "dict":
-      return <DictionaryView {...commonViewProps} nestingLevel={nestingLevel} prefix={prefix} parentPath={parentPath} viewTracesAsDict={viewTracesAsDict} isImmutable={isImmutable}/>;
+      return <DictionaryView {...commonViewProps} nestingLevel={nestingLevel} prefix={prefix} parentPath={parentPath} viewTracesAsDict={viewTracesAsDict} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
     case "list":
-      return <ListView {...commonViewProps} nestingLevel={nestingLevel} prefix={prefix} parentPath={parentPath} viewTracesAsDict={viewTracesAsDict} isImmutable={isImmutable}/>;
+      return <ListView {...commonViewProps} nestingLevel={nestingLevel} prefix={prefix} parentPath={parentPath} viewTracesAsDict={viewTracesAsDict} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
     case "pdf":
       return <PdfView {...commonViewProps} />;
     case "image":
@@ -247,11 +252,14 @@ interface SelectionEntryProps {
   externalTraceState?: PersistedTraceViewState;
   dragAttributes?: DraggableAttributes;
   dragListeners?: SyntheticListenerMap;
+  fieldName: string;
   isImmutable?: boolean;
   cellEditMode?: boolean;
-  onSaveEdit?: (desc: { logIndex: number; source: SourceType; path: (string | number)[]; newValue: any }) => void; // For single edits
-  onGroupSaveEdit?: (desc: { logIndices: number[]; source: SourceType; path: (string | number)[]; newValue: any }) => void; // For group edits
+  onSaveEdit?: (desc: { logIndex: number; source: SourceType; path: (string | number)[]; newValue: any }) => void;
+  onGroupSaveEdit?: (desc: { logIndices: number[]; source: SourceType; path: (string | number)[]; newValue: any }) => void;
   path?: (string | number)[];
+  logsActions: LogsActions;
+  context: string | null
 }
 
 /**
@@ -285,11 +293,14 @@ export default function SelectionEntry({
   externalTraceState,
   dragAttributes,
   dragListeners,
+  fieldName,
   isImmutable,
   cellEditMode = false,
   onSaveEdit,
   onGroupSaveEdit,
   path: incomingPath,
+  logsActions,
+  context
 }: SelectionEntryProps) {
   // Context access for expand/collapse
   const expandRecursively = useMemo(() => {
@@ -372,18 +383,18 @@ export default function SelectionEntry({
   const renderedContent = useMemo(() => {
     if (isEmpty) return null;
     return getSelectionView(
-      rawValue, comps, version, comparableVersions, baseLogIndex, comparisonLogsIndex,
+      rawValue, comps, version, comparableVersions, baseLog, baseLogIndex, comparisonLogs, comparisonLogsIndex,
       diffMode, splitView, displayMode, childNesting, source === "entries" ? "entries" : "params",
-      topLevelPath, unifiedType, isImmutable, viewTracesAsDict, persistedTraceState, cellEditMode,
-      handleSaveEditForView, handleGroupSaveEditForView, // Pass both handlers
-      valuePath
+      topLevelPath, unifiedType, fieldName, isImmutable, viewTracesAsDict, persistedTraceState, cellEditMode,
+      handleSaveEditForView, handleGroupSaveEditForView, valuePath,
+      logsActions, context
     );
   }, [
-    rawValue, comps, version, comparableVersions, baseLogIndex, comparisonLogsIndex,
+    rawValue, comps, version, comparableVersions, baseLog, baseLogIndex, comparisonLogs, comparisonLogsIndex,
     diffMode, splitView, displayMode, childNesting, source, topLevelPath, unifiedType,
-    isEmpty, isImmutable, viewTracesAsDict, persistedTraceState, cellEditMode,
-    handleSaveEditForView, handleGroupSaveEditForView, // Include both in dependencies
-    valuePath
+    isEmpty, fieldName, isImmutable, viewTracesAsDict, persistedTraceState, cellEditMode,
+    handleSaveEditForView, handleGroupSaveEditForView, valuePath,
+    logsActions, context
   ]);
 
   const itemValue = property;

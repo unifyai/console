@@ -45,6 +45,8 @@ import StringView from "./StringView";
 import NumberView from "./NumberView";
 import TimestampView from "./TimestampView";
 import PdfView from "./PdfView";
+import { LogsActions } from "@/types/evals/grid";
+import { LogProps } from "@/types/evals/logs";
 
 /*────────────────────────────────────────────────────────────────────────────
   unifyType => merges base + comps => single type. If multiple distinct => "string."
@@ -73,19 +75,27 @@ function pickView(props: LogComparisonProps & {
   parentPath?: string;
   nestingLevel?: number;
   viewTracesAsDict?: boolean;
+  fieldName: string,
+  context: string | null,
+  baseLog: LogProps | undefined,
+  comparisonLogs: LogProps[] | undefined,
+  logsActions?: LogsActions,
  }) {
-  const { value, viewTracesAsDict } = props;
+  const { value, viewTracesAsDict, fieldName, context, baseLog, comparisonLogs, logsActions } = props;
 
   // Handle trace rendering based on viewTracesAsDict flag
   if (isTrace(value) && !viewTracesAsDict) {
-    return <TraceView {...props} />;
+    return <TraceView {...props} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}
+/>;
   }
 
   if (isChat(value)) {
-    return <ChatView {...props} />;
+    return <ChatView {...props} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}
+/>;
   }
   if (isDict(value)) {
-    return <DictionaryView {...props} />;
+    return <DictionaryView {...props} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}
+/>;
   }
   if (isList(value)) {
     return <ListView {...props} />;
@@ -248,6 +258,11 @@ function renderNoDiffMode(
     collapseRecursively: (paths: string[]) => void,
     viewTracesAsDict?: boolean,
     isImmutable?: boolean,
+    fieldName: string,
+    context: string | null,
+    baseLog: LogProps | undefined,
+    comparisonLogs: LogProps[] | undefined,
+    logsActions?: LogsActions,    
     cellEditMode?: boolean,
     onSaveEdit?: LogComparisonProps['onSaveEdit'], // Keep single save
     onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'], // Add group save
@@ -258,7 +273,8 @@ function renderNoDiffMode(
     baseLogIndex, comparisonLogsIndex, version, comparableVersions,
     diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
     expandRecursively, collapseRecursively,
-    path: parentEditPath, isImmutable, cellEditMode, onSaveEdit, onGroupSaveEdit, // Destructure group save handler
+    path: parentEditPath, isImmutable, cellEditMode, onSaveEdit, onGroupSaveEdit,
+    fieldName, context, baseLog, comparisonLogs, logsActions
   } = options;
 
   // Get indentation classes based on nesting level
@@ -463,6 +479,11 @@ function renderNoDiffMode(
                           parentPath: path,
                           viewTracesAsDict,
                           isImmutable,
+                          fieldName,
+                          context,
+                          baseLog,
+                          comparisonLogs,
+                          logsActions,
                           cellEditMode,
                           onSaveEdit, // Pass single save (might be used by child if group save is missing)
                           // Crucially, pass the group save handler and ALL row indices
@@ -493,6 +514,11 @@ function renderNoDiffMode(
                           parentPath: path,
                           viewTracesAsDict,
                           isImmutable,
+                          fieldName,
+                          context,
+                          baseLog,
+                          comparisonLogs,
+                          logsActions,
                           cellEditMode,
                           onSaveEdit,
                           onGroupSaveEdit,
@@ -537,17 +563,23 @@ function renderDiffMode(
     expandRecursively: (paths: string[]) => void,
     collapseRecursively: (paths: string[]) => void,
     viewTracesAsDict?: boolean,
-    cellEditMode?: boolean, // Included for consistency
+    fieldName: string,
+    context: string | null,
+    baseLog: LogProps | undefined,
+    comparisonLogs: LogProps[] | undefined,
+    logsActions?: LogsActions,    
+    cellEditMode?: boolean,
     onSaveEdit?: LogComparisonProps['onSaveEdit'],
-    onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'], // Add group save
-    path?: (string | number)[], // Included for consistency
+    onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
+    path?: (string | number)[],
   }
 ) {
   const {
     baseLogIndex, comparisonLogsIndex, version, comparableVersions,
     diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
     expandRecursively, collapseRecursively,
-    cellEditMode, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [] // Destructure group save
+    cellEditMode, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [],
+    fieldName, context, baseLog, comparisonLogs, logsActions, 
   } = options;
 
   // Get indentation classes based on nesting level
@@ -735,6 +767,11 @@ function renderDiffMode(
                       prefix,
                       parentPath: path,
                       viewTracesAsDict,
+                      fieldName,
+                      context,
+                      baseLog,
+                      comparisonLogs,
+                      logsActions,
                       cellEditMode,
                       onSaveEdit,
                       onGroupSaveEdit,
@@ -796,10 +833,10 @@ function renderDiffMode(
                               </div>
                               {/* Use the first dict as the base and others as comparables */}
                       {pickView({
-                                value: dictValues[0].val,
-                                comparables: dictValues.slice(1).map(d => d.val),
-                                baseLogIndex: dictValues[0].rowIndex,
-                                comparisonLogsIndex: dictValues.slice(1).map(d => d.rowIndex),
+                        value: dictValues[0].val,
+                        comparables: dictValues.slice(1).map(d => d.val),
+                        baseLogIndex: dictValues[0].rowIndex,
+                        comparisonLogsIndex: dictValues.slice(1).map(d => d.rowIndex),
                         version,
                         comparableVersions,
                         diffMode,
@@ -809,6 +846,11 @@ function renderDiffMode(
                         prefix,
                         parentPath: path,
                         viewTracesAsDict,
+                        fieldName,
+                        context,
+                        baseLog,
+                        comparisonLogs,
+                        logsActions,
                         cellEditMode,
                         onSaveEdit,
                         onGroupSaveEdit,
@@ -838,6 +880,11 @@ function renderDiffMode(
                                 prefix,
                                 parentPath: path,
                                 viewTracesAsDict,
+                                fieldName,
+                                context,
+                                baseLog,
+                                comparisonLogs,
+                                logsActions,
                                 cellEditMode,
                                 onSaveEdit,
                                 onGroupSaveEdit,
@@ -879,6 +926,11 @@ function renderDiffMode(
                                         prefix,
                                         parentPath: path,
                                         viewTracesAsDict,
+                                        fieldName,
+                                        context,
+                                        baseLog,
+                                        comparisonLogs,
+                                        logsActions,
                                         cellEditMode,
                                         onSaveEdit,
                                         onGroupSaveEdit,
@@ -928,6 +980,11 @@ function renderDiffMode(
                                       prefix,
                                       parentPath: path,
                                       viewTracesAsDict,
+                                      fieldName,
+                                      context,
+                                      baseLog,
+                                      comparisonLogs,
+                                      logsActions,
                                       cellEditMode,
                                       onSaveEdit,
                                       onGroupSaveEdit,
@@ -960,6 +1017,11 @@ function renderDiffMode(
                       prefix,
                       parentPath: path,
                       viewTracesAsDict,
+                      fieldName,
+                      context,
+                      baseLog,
+                      comparisonLogs,
+                      logsActions,
                       cellEditMode,
                       onSaveEdit,
                       onGroupSaveEdit,
@@ -988,6 +1050,11 @@ function renderDiffMode(
                       prefix,
                       parentPath: path,
                       viewTracesAsDict,
+                      fieldName,
+                      context,
+                      baseLog,
+                      comparisonLogs,
+                      logsActions,
                       cellEditMode,
                       onSaveEdit,
                       onGroupSaveEdit,
@@ -1010,6 +1077,11 @@ function renderDiffMode(
                     prefix,
                     parentPath: path,
                     viewTracesAsDict,
+                    fieldName,
+                    context,
+                    baseLog,
+                    comparisonLogs,
+                    logsActions,
                     cellEditMode,
                     onSaveEdit,
                     onGroupSaveEdit,
@@ -1031,6 +1103,11 @@ function renderDiffMode(
 //
 interface ListViewProps extends LogComparisonProps {
   isImmutable?: boolean;
+  fieldName: string,
+  context: string | null,
+  baseLog: LogProps | undefined,
+  comparisonLogs: LogProps[] | undefined,
+  logsActions?: LogsActions,  
   prefix?: string;
   parentPath?: string;    // parent's fully qualified path
   nestingLevel?: number;
@@ -1058,6 +1135,11 @@ export default function ListView({
   onSaveEdit,
   onGroupSaveEdit,
   path: editPath = [],
+  fieldName,
+  context,
+  baseLog,
+  comparisonLogs,
+  logsActions
 }: ListViewProps) {
 
   // Context detection and state management (unchanged)
@@ -1161,11 +1243,29 @@ export default function ListView({
         <AccordionContent>
           <div className={getContentIndentClasses(nestingLevel)}>
             {pickView({
-              value: itemValue, comparables: [], baseLogIndex: rowIndex, comparisonLogsIndex: [],
-              version, comparableVersions, diffMode, splitView, displayMode,
-              nestingLevel: nestingLevel + 1, prefix, parentPath: accordionPathString,
-              path: itemEditPathForChild, viewTracesAsDict, isImmutable, cellEditMode,
-              onSaveEdit, onGroupSaveEdit, // Pass both save handlers
+              value: itemValue, 
+              comparables: [], 
+              baseLogIndex: rowIndex, 
+              comparisonLogsIndex: [],
+              version, 
+              comparableVersions, 
+              diffMode, 
+              splitView, 
+              displayMode,
+              nestingLevel: nestingLevel + 1, 
+              prefix, 
+              parentPath: accordionPathString,
+              path: itemEditPathForChild, 
+              viewTracesAsDict, 
+              isImmutable, 
+              fieldName,
+              context,
+              baseLog,
+              comparisonLogs,
+              logsActions,
+              cellEditMode,
+              onSaveEdit, 
+              onGroupSaveEdit,
             })}
           </div>
         </AccordionContent>
@@ -1260,7 +1360,8 @@ export default function ListView({
         diffMode, splitView, displayMode, nestingLevel, prefix, parentPath,
         expandRecursively: effectiveExpandRecursively, collapseRecursively: effectiveCollapseRecursively,
         viewTracesAsDict, cellEditMode, isImmutable,
-        onSaveEdit, onGroupSaveEdit, // Pass both save handlers
+        fieldName, context, baseLog, comparisonLogs, logsActions,
+        onSaveEdit, onGroupSaveEdit,
         path: editPath
       }
     );
@@ -1278,8 +1379,8 @@ export default function ListView({
         { baseLogIndex, comparisonLogsIndex: finalRowIndices, version, comparableVersions,
           diffMode, splitView, displayMode, nestingLevel, prefix, parentPath,
           expandRecursively: effectiveExpandRecursively, collapseRecursively: effectiveCollapseRecursively,
-          viewTracesAsDict, cellEditMode,
-          onSaveEdit, onGroupSaveEdit, // Pass both save handlers
+          viewTracesAsDict, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode,
+          onSaveEdit, onGroupSaveEdit,
           path: editPath
         }
       );

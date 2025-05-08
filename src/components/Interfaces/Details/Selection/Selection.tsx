@@ -63,13 +63,13 @@ export default function Selection({
   tabId,
   interfaceId,
   projectId,
-  updateLog
+  logsActions
 }: {
   tileId: string;
   tabId: string;
   interfaceId: string;
   projectId: string;
-  updateLog: LogsActions["update"]
+  logsActions: LogsActions
 }) {
   /******************************************************************************
    * Prepare sorted logs & selection data
@@ -91,11 +91,15 @@ export default function Selection({
   // Get table fields
   const fields = useMemo(() => tableTileStateWithTable?.tableDataItem?.fields || {}, [tableTileStateWithTable?.tableDataItem?.fields]);
   
+  
   // Create equivalent references to match the old pattern
   const tableItem = useMemo(() => tileItemActionsWithTable?.asTileItem() ||
-    { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileItemActionsWithTable, item?.table]);
+  { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileItemActionsWithTable, item?.table]);
   const relevantItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || undefined, [tileItemActionsWithTable]);
   const tableDataItem = useMemo(() => tableTileStateWithTable?.tableDataItem || {} as TableDataItem, [tableTileStateWithTable]);
+  
+  // Get table context
+  const context = useMemo(() => tableItem.context ?? null, [tableItem.context]);
 
   // Create a generic updateItem function that checks property existence
   const updateItem = useCallback((item: TileProps, propName: string) => (value: any) => {
@@ -106,15 +110,15 @@ export default function Selection({
       tileActionsWithTable.updateTile({ [propName]: value });
     }
   }, [tileActionsWithId, tileActionsWithTable, tileMetaStateWithId, tileMetaStateWithTable]);
-
+  
   const params = useMemo(() => tableDataItem?.params || {}, [tableDataItem, item?.table]);
   const logs = useMemo(() => maybeFlattenGroupedLogs(tableDataItem?.logs || []), [tableDataItem, item?.table]);
   const selection_ = useMemo(() => relevantItem?.selected || undefined, [relevantItem?.selected]);
   const columnOrdering_ = useMemo(() => relevantItem?.column_order || undefined, [relevantItem?.column_order]);
   const baseIndex_ = useMemo(() => relevantItem?.base_index || undefined, [relevantItem?.base_index]);
-
+  
   const sortedLogs = useMemo(() => [...logs], [logs]);
-
+  
   const selectedCells = useMemo(() => {
     const arr = selection_ ? selection_.split(",") : [];
     return arr.map(token => {
@@ -298,9 +302,9 @@ export default function Selection({
       }
       
       try {
-        const response = await updateLog(
+        const response = await logsActions.update(
           projectId, 
-          tableItem?.context ?? null, 
+          context, 
           rowIds.map(id => parseInt(id, 10)),
           entriesUpdate,
           paramsUpdate
@@ -315,7 +319,7 @@ export default function Selection({
       }
 
     },
-    [projectId, tableItem?.context, tableTileActions, tableTileStateWithTable?.tableDataItem?.logs, rollbackLogs, updateLog]
+    [projectId, context, tableTileActions, tableTileStateWithTable?.tableDataItem?.logs, rollbackLogs, logsActions.update]
   );
 
   /*******************************************************************************
@@ -374,11 +378,12 @@ export default function Selection({
                 updateItem={updateItem}
                 initialBaseIndex={baseIndex_ ? parseInt(baseIndex_, 10) : 0}
                 allPossibleColumns={allPossibleColumns}
-                // Pass down selection/panel info
                 selectedRowCount={selectedRowIndices.length}
                 currentPanelCount={panelCount}
                 onPanelCountChange={setPanelCount}
                 onSaveMany={handleSaveMany}
+                logsActions={logsActions}
+                context={context}
               />
             </React.Fragment>
           );

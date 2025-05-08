@@ -1,49 +1,77 @@
 import { useQuery } from "@tanstack/react-query";
 import { Span } from "@/types/evals/traces";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
-
-interface TracePollingResult {
-  trace: Span[];
-  trace_complete?: boolean;
-}
+import { LogsActions } from "@/types/evals/grid";
+import { LogProps } from "@/types/evals/logs";
 
 /**
  * Poll the backend for an updated trace for a single log row.
- *
- * It calls the existing /api/logs route with:
- *     from_fields = "trace_id"
- *     filter_expr  = `id==${rowId}`
- *     limit        = 1
- *
  * The query automatically re-fires every `intervalMs` while enabled.
  */
-export function useTracePolling(rowId: string | undefined | null, intervalMs = 5000) {
-  // Resolve the active project (required by the logs endpoint)
-  const activeProjectId = useStoreContext((s) => s.activeProjectId);
+export function useTracePolling(
+  log: LogProps | undefined,
+  logsActions: LogsActions | undefined,
+  context: string | null,
+  fieldName: string,
+  intervalMs = 500
+) {
+  const project = useStoreContext((s) => s.activeProjectId);
+  const logId = log?.id;
+  console.log("Query ket",project, context, fieldName, logId)
+  return useQuery<Span[] | undefined>({
+    // Update query key to include logId and context
+    queryKey: [project, context, fieldName, logId],
+    // Enable only if logId, projectId, and logsActions are available
+    enabled: !!logId && !!project && !!logsActions,
+      refetchInterval: intervalMs,
+      staleTime: 0,
+      queryFn: async () => {
+        if (!logId || !project) return undefined;
+        // Guard against missing dependencies
+        if (!logId || !project || !logsActions) return undefined;
+    
+        try {
+          // Use the getLogs server action
+          const json = await logsActions.get(
+            project,               // project
+            context,               // context
+            null,                  // columnContext
+            null,                  // filter_expr
+            null,                  // sortingExpression
+            null,                  // groupingExpression
+            null,                  // groupSortingExpression
+            logId,                 // from_ids
+            fieldName,             // from_fields
+            null,                  // exclude_fields
+            1,                     // limit
+            0,                     // offset
+            null,                  // group_depth
+            null,                  // return_ids_only
+            Date.now().toString()  // _timestamp for cache busting
+          );
+    
+          if (json.detail) {
+            console.error("Error fetching trace row:", json.detail);
+            return undefined;
+          }
 
-  return useQuery<TracePollingResult | undefined>({
-    queryKey: ["trace-row", rowId, activeProjectId],
-    enabled: !!rowId && !!activeProjectId,
-    refetchInterval: intervalMs,
-    staleTime: 0,
-    queryFn: async () => {
-      if (!rowId || !activeProjectId) return undefined;
+          // Extract trace data
+          const first = (json?.logs as LogProps[])?.[0];
+          const trace = first?.entries?.[fieldName];
 
-      const params = new URLSearchParams();
-      params.append("project", activeProjectId);
-      params.append("from_fields", "trace_id");
-      params.append("filter_expr", `id==${rowId}`);
-      params.append("limit", "1");
-      params.append("offset", "0");
-      params.append("_timestamp", Date.now().toString());
+          if (!trace) {
+            // If trace is not found, return undefined but don't throw
+            console.warn(`Trace not found for logId: ${logId}`);
+            return undefined;
+          }
+          console.log("New trace", trace)
+          return Array.isArray(trace) ? trace as Span[] : [trace];
 
-      const res = await fetch(`/api/logs?${params.toString()}`);
-      if (!res.ok) throw new Error("Failed to fetch trace row");
-      const json = await res.json();
-      const first = json?.logs?.[0];
-      const trace: Span[] | undefined = first?.entries?.trace_id;
-      if (!trace || !Array.isArray(trace)) return undefined;
-      return { trace, trace_complete: first?.trace_complete } as TracePollingResult;
+        } catch (error) {
+          console.error("Error in useTracePolling queryFn:", error);
+          // Return undefined on error to prevent breaking the UI
+          return undefined;
+        }
     },
   });
-} 
+}

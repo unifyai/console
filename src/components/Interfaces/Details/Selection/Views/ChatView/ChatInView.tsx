@@ -36,6 +36,8 @@ import {
   isNumber,
   isTimestamp,
 } from "@/utils/evals/selection";
+import { LogsActions } from "@/types/evals/grid";
+import { LogProps } from "@/types/evals/logs";
 
 /******************************************************************************
  * A tiny helper to capitalize the role for display.
@@ -59,10 +61,15 @@ function pickDataView(
   diffMode: LogComparisonProps["diffMode"],
   splitView: boolean,
   displayMode: LogComparisonProps["displayMode"],
+  fieldName: string,
+  context: string | null,
+  baseLog: LogProps | undefined,
+  comparisonLogs: LogProps[] | undefined,
+  logsActions?: LogsActions,
   cellEditMode?: boolean,
   onSaveEdit?: LogComparisonProps["onSaveEdit"],
   onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
-  isImmutable?: boolean
+  isImmutable?: boolean,
 ) {
   // Decide which specialized view to use.
 
@@ -85,10 +92,10 @@ function pickDataView(
   }
 
   if (isDict(finalValue)) {
-    return <DictionaryView {...commonProps} isImmutable={isImmutable}/>;
+    return <DictionaryView {...commonProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
   }
   if (isList(finalValue)) {
-    return <ListView {...commonProps} isImmutable={isImmutable}/>;
+    return <ListView {...commonProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
   }
   if (isImage(finalValue)) {
     return <ImageView {...commonProps} />;
@@ -188,7 +195,19 @@ export default function ChatInView({
   onSaveEdit,
   onGroupSaveEdit,
   path = [],
-}: LogComparisonProps & {isImmutable?: boolean}) {
+  fieldName,
+  context,
+  baseLog,
+  comparisonLogs,
+  logsActions,
+}: LogComparisonProps & {
+  isImmutable?: boolean,
+  fieldName: string,
+  context: string | null,
+  baseLog: LogProps | undefined,
+  comparisonLogs: LogProps[] | undefined,
+  logsActions?: LogsActions,
+}) {
   //
   // 1) SINGLE MODE => just a vertical list
   //
@@ -239,7 +258,7 @@ export default function ChatInView({
                           />
                         </div>
                         {/* Pass edit props down to potentially editable content */}
-                        {pickDataView(m.content, [], baseLogIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                        {pickDataView(m.content, [], baseLogIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                       </div>
                     );
                   })}
@@ -287,7 +306,7 @@ export default function ChatInView({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border-l ml-4 pl-1">
-                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -303,7 +322,7 @@ export default function ChatInView({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border-l ml-4 pl-1">
-                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -464,7 +483,7 @@ export default function ChatInView({
                                       />
                                     </div>
                                      {/* Pass edit props down */}
-                                    {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                                    {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                                   </div>
                                 </TabsContent>
                               );
@@ -506,7 +525,7 @@ export default function ChatInView({
                                       />
                                     </div>
                                      {/* Pass edit props down */}
-                                     {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                                     {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                                   </div>
                                 </TabsContent>
                               );
@@ -562,6 +581,11 @@ export default function ChatInView({
                     diffMode,
                     splitView,
                     displayMode,
+                    fieldName, 
+                    context, 
+                    baseLog, 
+                    comparisonLogs, 
+                    logsActions,
                     cellEditMode,
                     onSaveEdit,
                     onGroupSaveEdit, 
@@ -589,6 +613,11 @@ export default function ChatInView({
                     diffMode,
                     splitView,
                     displayMode,
+                    fieldName,
+                    context,
+                    baseLog,
+                    comparisonLogs,
+                    logsActions,
                     cellEditMode,
                     onSaveEdit,
                     onGroupSaveEdit,
@@ -777,6 +806,11 @@ export default function ChatInView({
                   diffMode,
                   splitView,
                   displayMode,
+                  fieldName,
+                  context,
+                  baseLog,
+                  comparisonLogs,
+                  logsActions,
                   cellEditMode,
                   onSaveEdit,
                   onGroupSaveEdit,
@@ -804,6 +838,11 @@ export default function ChatInView({
                   diffMode,
                   splitView,
                   displayMode,
+                  fieldName,
+                  context,
+                  baseLog,
+                  comparisonLogs,
+                  logsActions,
                   cellEditMode,
                   onSaveEdit,
                   onGroupSaveEdit,

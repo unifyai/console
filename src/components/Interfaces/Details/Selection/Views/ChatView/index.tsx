@@ -4,6 +4,8 @@ import React from "react";
 import ChatInView from "./ChatInView";
 import ChatOutView from "./ChatOutView";
 import { LogComparisonProps } from "../types";
+import { LogsActions } from "@/types/evals/grid";
+import { LogProps } from "@/types/evals/logs";
 
 /**
  * A quick check for “chat-out”: has "id" and "choices" array.
@@ -27,7 +29,14 @@ function isChatInShape(obj: any): boolean {
  * ChatView: universal entry point for either ChatInView or ChatOutView.
  * If something looks like both shapes, you can pick a priority or do further checks.
  */
-export default function ChatView(props: LogComparisonProps & {isImmutable?: boolean}) {
+export default function ChatView(props: LogComparisonProps & {
+  isImmutable?: boolean,
+  fieldName: string,
+  context: string | null,
+  baseLog: LogProps | undefined,
+  comparisonLogs: LogProps[] | undefined,
+  logsActions?: LogsActions,  
+}) {
   const { value } = props;
 
   // If it matches the “chat-in” shape => ChatInView

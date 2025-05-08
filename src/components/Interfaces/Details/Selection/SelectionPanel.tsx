@@ -46,7 +46,7 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
-import { TileProps, ItemType } from "@/types/evals/grid";
+import { TileProps, ItemType, LogsActions } from "@/types/evals/grid";
 
 import {
   makePrefixedDictPath,
@@ -182,6 +182,8 @@ export default function SelectionPanel({
   currentPanelCount,
   onPanelCountChange,
   onSaveMany,
+  logsActions,
+  context
 }: {
   panelId: number;
   panelState: PanelState;
@@ -202,6 +204,8 @@ export default function SelectionPanel({
   currentPanelCount: number;
   onPanelCountChange: React.Dispatch<React.SetStateAction<number>>;
   onSaveMany: (rowIds: string[], desc: { source: "entries" | "params"; path: (string|number)[]; newValue: any }) => void;
+  logsActions: LogsActions;
+  context: string | null
 }) {
   // Extract all values from panelState
   const {
@@ -1171,10 +1175,13 @@ export default function SelectionPanel({
             panelSetOpenKeys={(updatedOpenKeys) => onPanelStateChange({ localOpenKeys: typeof updatedOpenKeys === 'function' ? updatedOpenKeys(localOpenKeys) : updatedOpenKeys })}
             externalTraceState={traceState}
             viewTracesAsDict={viewTracesAsDict}
+            fieldName={entryKey}
             isImmutable={isImmutable}
             cellEditMode={cellEditMode}
-            onSaveEdit={handleSaveEditLocal} // Pass handler for single edits
-            onGroupSaveEdit={handleGroupSaveEditLocal} // Pass handler for group edits
+            onSaveEdit={handleSaveEditLocal}
+            onGroupSaveEdit={handleGroupSaveEditLocal}
+            logsActions={logsActions}
+            context={context}
           />
         </SortableAccordionItem>
       );
@@ -1237,10 +1244,13 @@ export default function SelectionPanel({
             panelSetOpenKeys={(updatedOpenKeys) => onPanelStateChange({ localOpenKeys: typeof updatedOpenKeys === 'function' ? updatedOpenKeys(localOpenKeys) : updatedOpenKeys })}
             externalTraceState={traceState}
             viewTracesAsDict={viewTracesAsDict}
+            fieldName={paramKey}
             isImmutable={isImmutable}
             cellEditMode={cellEditMode}
-            onSaveEdit={handleSaveEditLocal} // Pass handler for single edits
-            onGroupSaveEdit={handleGroupSaveEditLocal} // Pass handler for group edits
+            onSaveEdit={handleSaveEditLocal}
+            onGroupSaveEdit={handleGroupSaveEditLocal}
+            logsActions={logsActions}
+            context={context}
           />
         </SortableAccordionItem>
       );
