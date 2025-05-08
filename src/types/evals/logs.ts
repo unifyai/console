@@ -69,7 +69,7 @@ export interface LogsResponseProps {
 export type LogFieldsProps = [number, string][]
 
 export interface LogFieldsResponseProps {
-    [name: string]: {data_type: string, field_type: "entry" | "param" | "derived_entry", artifacts: string}
+    [name: string]: {data_type: string, field_type: "entry" | "param" | "derived_entry", artifacts: string, mutable: "true" | "false", created_at: string}
 }
 
 export interface GroupedMetricNode {

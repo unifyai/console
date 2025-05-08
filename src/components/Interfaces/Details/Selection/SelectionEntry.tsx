@@ -155,6 +155,7 @@ function getSelectionView(
   prefix: string,
   parentPath: string,
   valueType: string,
+  isImmutable?: boolean,
   viewTracesAsDict?: boolean,
   persistedTraceState?: PersistedTraceViewState,
   cellEditMode?: boolean,
@@ -196,13 +197,13 @@ function getSelectionView(
   // Use the determined type instead of re-unifying
   switch (valueType) {
     case "trace":
-      return <TraceView {...commonViewProps} value={Array.isArray(val) ? val : [val]} comparables={comps.map((c) => (Array.isArray(c) ? c : c ? [c] : []))} persistedState={persistedTraceState} />;
+      return <TraceView {...commonViewProps} value={Array.isArray(val) ? val : [val]} comparables={comps.map((c) => (Array.isArray(c) ? c : c ? [c] : []))} persistedState={persistedTraceState} isImmutable={isImmutable}/>;
     case "chat":
-      return <ChatOutView {...commonViewProps} />;
+      return <ChatOutView {...commonViewProps} isImmutable={isImmutable}/>;
     case "dict":
-      return <DictionaryView {...commonViewProps} nestingLevel={nestingLevel} prefix={prefix} parentPath={parentPath} viewTracesAsDict={viewTracesAsDict} />;
+      return <DictionaryView {...commonViewProps} nestingLevel={nestingLevel} prefix={prefix} parentPath={parentPath} viewTracesAsDict={viewTracesAsDict} isImmutable={isImmutable}/>;
     case "list":
-      return <ListView {...commonViewProps} nestingLevel={nestingLevel} prefix={prefix} parentPath={parentPath} viewTracesAsDict={viewTracesAsDict} />;
+      return <ListView {...commonViewProps} nestingLevel={nestingLevel} prefix={prefix} parentPath={parentPath} viewTracesAsDict={viewTracesAsDict} isImmutable={isImmutable}/>;
     case "pdf":
       return <PdfView {...commonViewProps} />;
     case "image":
@@ -210,11 +211,11 @@ function getSelectionView(
     case "matrix":
       return <MatrixView {...commonViewProps} />;
     case "number":
-      return <NumberView {...commonViewProps} />;
+      return <NumberView {...commonViewProps} isImmutable={isImmutable}/>;
     case "timestamp":
-      return <TimestampView {...commonViewProps} />;
+      return <TimestampView {...commonViewProps} isImmutable={isImmutable}/>;
     default: // string
-      return <StringView {...commonViewProps} />;
+      return <StringView {...commonViewProps} isImmutable={isImmutable}/>;
   }
 }
 
@@ -246,6 +247,7 @@ interface SelectionEntryProps {
   externalTraceState?: PersistedTraceViewState;
   dragAttributes?: DraggableAttributes;
   dragListeners?: SyntheticListenerMap;
+  isImmutable?: boolean;
   cellEditMode?: boolean;
   onSaveEdit?: (desc: { logIndex: number; source: SourceType; path: (string | number)[]; newValue: any }) => void; // For single edits
   onGroupSaveEdit?: (desc: { logIndices: number[]; source: SourceType; path: (string | number)[]; newValue: any }) => void; // For group edits
@@ -283,6 +285,7 @@ export default function SelectionEntry({
   externalTraceState,
   dragAttributes,
   dragListeners,
+  isImmutable,
   cellEditMode = false,
   onSaveEdit,
   onGroupSaveEdit,
@@ -371,14 +374,14 @@ export default function SelectionEntry({
     return getSelectionView(
       rawValue, comps, version, comparableVersions, baseLogIndex, comparisonLogsIndex,
       diffMode, splitView, displayMode, childNesting, source === "entries" ? "entries" : "params",
-      topLevelPath, unifiedType, viewTracesAsDict, persistedTraceState, cellEditMode,
+      topLevelPath, unifiedType, isImmutable, viewTracesAsDict, persistedTraceState, cellEditMode,
       handleSaveEditForView, handleGroupSaveEditForView, // Pass both handlers
       valuePath
     );
   }, [
     rawValue, comps, version, comparableVersions, baseLogIndex, comparisonLogsIndex,
     diffMode, splitView, displayMode, childNesting, source, topLevelPath, unifiedType,
-    isEmpty, viewTracesAsDict, persistedTraceState, cellEditMode,
+    isEmpty, isImmutable, viewTracesAsDict, persistedTraceState, cellEditMode,
     handleSaveEditForView, handleGroupSaveEditForView, // Include both in dependencies
     valuePath
   ]);

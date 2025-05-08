@@ -68,6 +68,7 @@ function unifyType(baseVal: any, comps: any[]): string {
   pickView => specialized child rendering
 ────────────────────────────────────────────────────────────────────────────*/
 function pickView(props: LogComparisonProps & {
+  isImmutable?: boolean;
   prefix?: string;
   parentPath?: string;
   nestingLevel?: number;
@@ -96,16 +97,16 @@ function pickView(props: LogComparisonProps & {
     return <MatrixView {...props} />;
   }
   if (isNumber(value)) {
-    return <NumberView {...props} />;
+    return <NumberView {...props} nested={true}/>;
   }
   if (isTimestamp(value)) {
-    return <TimestampView {...props} />;
+    return <TimestampView {...props} nested={true}/>;
   }
   if (isPdf(value)) {
     return <PdfView {...props} />;
   }
 
-  return <StringView {...props} />;
+  return <StringView {...props} nested={true}/>;
 }
 
 /*────────────────────────────────────────────────────────────────────────────
@@ -246,6 +247,7 @@ function renderNoDiffMode(
     expandRecursively: (paths: string[]) => void,
     collapseRecursively: (paths: string[]) => void,
     viewTracesAsDict?: boolean,
+    isImmutable?: boolean,
     cellEditMode?: boolean,
     onSaveEdit?: LogComparisonProps['onSaveEdit'], // Keep single save
     onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'], // Add group save
@@ -256,7 +258,7 @@ function renderNoDiffMode(
     baseLogIndex, comparisonLogsIndex, version, comparableVersions,
     diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
     expandRecursively, collapseRecursively,
-    path: parentEditPath, cellEditMode, onSaveEdit, onGroupSaveEdit, // Destructure group save handler
+    path: parentEditPath, isImmutable, cellEditMode, onSaveEdit, onGroupSaveEdit, // Destructure group save handler
   } = options;
 
   // Get indentation classes based on nesting level
@@ -318,7 +320,7 @@ function renderNoDiffMode(
           rowValuePairs.push({ rowIndex: rowIndices[0], val: baseVal });
         }
 
-        // Create array of comparable values
+        // Create array of comparable values and their indices
         const compVals: any[] = [];
         const compRowIndices: number[] = [];
 
@@ -333,6 +335,11 @@ function renderNoDiffMode(
             }
           }
         });
+
+        // Skip empty entries
+        if (rowValuePairs.length === 0) {
+          return null;
+        }
 
         // Calculate presence differences for red/green badges (matching Dictionary View)
         const presenceInfo = presenceDiff(
@@ -384,82 +391,6 @@ function renderNoDiffMode(
         // Calculate the specific EDIT path for THIS item
         const currentItemEditPath = [...parentEditPath, i]; // e.g., ['my_list', 0]
 
-        // Skip empty entries
-        if (rowValuePairs.length === 0) {
-          return null;
-        }
-
-        if (rowValuePairs.length === 1) {
-          return (
-            <AccordionItem key={lbl} value={lbl} className={separatorClasses}>
-              <AccordionTrigger className="relative group flex items-center justify-between">
-                <span className="inline-flex items-center gap-2">
-                  {icon} {lbl}
-                  <div className="ml-2 flex gap-1 items-center">
-                    {/* Show presence diff badges in no-diff mode (matching Dictionary View) */}
-                    {(() => {
-                      // Only show neutral badge if it contains rows not covered by red/green badges
-                      const redGreenRows = new Set([...presenceInfo.redRows, ...presenceInfo.greenRows]);
-                      const uniqueNeutralRows = allRowsForIndex.filter(row => !redGreenRows.has(row));
-
-                      return uniqueNeutralRows.length > 0 ?
-                        <RowBadge rowNumbers={uniqueNeutralRows} mode="none" /> :
-                        null;
-                    })()}
-                    {presenceInfo.redRows.length > 0 && <RowBadge rowNumbers={presenceInfo.redRows} mode="delete" />}
-                    {presenceInfo.greenRows.length > 0 && <RowBadge rowNumbers={presenceInfo.greenRows} mode="insert" />}
-                  </div>
-                </span>
-                {(itemType === "dict" || itemType === "list") && (
-                  <div className="absolute right-5 flex gap-1 items-center">
-                    <ActionButton
-                      variant="ghost"
-                      size="icon"
-                      tooltip={isPathOpen ? "Collapse all children" : "Expand all children"}
-                      onClick={(e) => handleRecursiveToggle(
-                        e,
-                        path,
-                        baseVal,
-                        compVals,
-                        prefix,
-                        nestingLevel,
-                        expandRecursively,
-                        collapseRecursively,
-                        openKeys
-                      )}
-                      icon={isPathOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
-                    />
-                  </div>
-                )}
-              </AccordionTrigger>
-
-              <AccordionContent>
-                <div className={contentIndentClass}>
-                  {pickView({
-                    value: rowValuePairs[0].val,
-                    comparables: [],
-                    baseLogIndex: rowValuePairs[0].rowIndex,
-                    comparisonLogsIndex: [],
-                    version,
-                    comparableVersions,
-                    diffMode,
-                    splitView,
-                    displayMode,
-                    nestingLevel: nestingLevel + 1,
-                    prefix,
-                    parentPath: path,
-                    viewTracesAsDict,
-                    cellEditMode,
-                    onSaveEdit, 
-                    onGroupSaveEdit, 
-                    path: currentItemEditPath
-                  })}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          );
-        }
-
         return (
           <AccordionItem key={lbl} value={lbl} className={separatorClasses}>
             <AccordionTrigger className="relative group flex items-center justify-between">
@@ -505,32 +436,72 @@ function renderNoDiffMode(
 
             <AccordionContent>
               <div className={contentIndentClass}>
-                {groups.map((group, idx) => (
-                  <div key={idx} className={getSeparatorClasses(idx, groups.length)}>
-                    {group.rows.length > 1 && <RowBadge rowNumbers={group.rows} mode="none" />}
-                    <div className="mt-1">
-                      {pickView({
-                        value: group.value,
-                        comparables: [], // No comparables since we're showing a single unified value
-                        baseLogIndex: group.rows[0], // Use the first row as the base
-                        comparisonLogsIndex: [], // No comparison indices
-                        version,
-                        comparableVersions,
-                        diffMode,
-                        splitView,
-                        displayMode,
-                        nestingLevel: nestingLevel + 1,
-                        prefix,
-                        parentPath: path,
-                        viewTracesAsDict,
-                        cellEditMode,
-                        onSaveEdit, 
-                        onGroupSaveEdit, 
-                        path: currentItemEditPath
-                      })}
-                    </div>
+                 {/* Read-only or grouped editable rendering */}
+                {cellEditMode ? (
+                  // Editable mode: Render groups, passing group save handler
+                  <div className="space-y-3">
+                    {groups.map((group, gIdx) => (
+                      <div key={gIdx}>
+                        <div className="flex items-center gap-1 mb-1">
+                          <RowBadge rowNumbers={group.rows} mode="none" />
+                           <span className="text-xs text-muted-foreground">
+                             {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
+                           </span>
+                        </div>
+                        {pickView({
+                          value: group.value,
+                          comparables: [], // Not applicable in group edit mode
+                          baseLogIndex: group.rows[0], // Use first row as representative
+                          comparisonLogsIndex: group.rows.slice(1), // Pass remaining rows
+                          version,
+                          comparableVersions,
+                          diffMode,
+                          splitView,
+                          displayMode,
+                          nestingLevel: nestingLevel + 1,
+                          prefix,
+                          parentPath: path,
+                          viewTracesAsDict,
+                          isImmutable,
+                          cellEditMode,
+                          onSaveEdit, // Pass single save (might be used by child if group save is missing)
+                          // Crucially, pass the group save handler and ALL row indices
+                          onGroupSaveEdit: (desc) => onGroupSaveEdit?.({ ...desc, logIndices: group.rows }),
+                          path: currentItemEditPath,
+                        })}
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  // Read-only mode: Render each group separately
+                  groups.map((group, idx) => (
+                    <div key={idx} className={getSeparatorClasses(idx, groups.length)}>
+                      {group.rows.length > 1 && <RowBadge rowNumbers={group.rows} mode="none" />}
+                      <div className="mt-1">
+                        {pickView({
+                          value: group.value,
+                          comparables: [], // No comparables since we're showing a single unified value
+                          baseLogIndex: group.rows[0], // Use the first row as the base
+                          comparisonLogsIndex: [], // No comparison indices
+                          version,
+                          comparableVersions,
+                          diffMode,
+                          splitView,
+                          displayMode,
+                          nestingLevel: nestingLevel + 1,
+                          prefix,
+                          parentPath: path,
+                          viewTracesAsDict,
+                          isImmutable,
+                          cellEditMode,
+                          onSaveEdit,
+                          onGroupSaveEdit,
+                          path: currentItemEditPath
+                        })}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -765,8 +736,8 @@ function renderDiffMode(
                       parentPath: path,
                       viewTracesAsDict,
                       cellEditMode,
-                      onSaveEdit, 
-                      onGroupSaveEdit, 
+                      onSaveEdit,
+                      onGroupSaveEdit,
                       path: currentItemEditPath,
                     });
                   }
@@ -839,8 +810,8 @@ function renderDiffMode(
                         parentPath: path,
                         viewTracesAsDict,
                         cellEditMode,
-                        onSaveEdit, 
-                        onGroupSaveEdit, 
+                        onSaveEdit,
+                        onGroupSaveEdit,
                         path: currentItemEditPath,
                       })}
                     </div>
@@ -868,8 +839,8 @@ function renderDiffMode(
                                 parentPath: path,
                                 viewTracesAsDict,
                                 cellEditMode,
-                                onSaveEdit, 
-                                onGroupSaveEdit, 
+                                onSaveEdit,
+                                onGroupSaveEdit,
                                 path: currentItemEditPath,
                               })}
                             </div>
@@ -909,8 +880,8 @@ function renderDiffMode(
                                         parentPath: path,
                                         viewTracesAsDict,
                                         cellEditMode,
-                                        onSaveEdit, 
-                                        onGroupSaveEdit, 
+                                        onSaveEdit,
+                                        onGroupSaveEdit,
                                         path: currentItemEditPath,
                                       })}
                                     </div>
@@ -958,8 +929,8 @@ function renderDiffMode(
                                       parentPath: path,
                                       viewTracesAsDict,
                                       cellEditMode,
-                                      onSaveEdit, 
-                                      onGroupSaveEdit, 
+                                      onSaveEdit,
+                                      onGroupSaveEdit,
                                       path: currentItemEditPath,
                                     })}
                                   </div>
@@ -990,8 +961,8 @@ function renderDiffMode(
                       parentPath: path,
                       viewTracesAsDict,
                       cellEditMode,
-                      onSaveEdit, 
-                      onGroupSaveEdit, 
+                      onSaveEdit,
+                      onGroupSaveEdit,
                       path: currentItemEditPath,
                     });
                   }
@@ -1018,8 +989,8 @@ function renderDiffMode(
                       parentPath: path,
                       viewTracesAsDict,
                       cellEditMode,
-                      onSaveEdit, 
-                      onGroupSaveEdit, 
+                      onSaveEdit,
+                      onGroupSaveEdit,
                       path: currentItemEditPath,
                     });
                   }
@@ -1040,8 +1011,8 @@ function renderDiffMode(
                     parentPath: path,
                     viewTracesAsDict,
                     cellEditMode,
-                    onSaveEdit, 
-                    onGroupSaveEdit, 
+                    onSaveEdit,
+                    onGroupSaveEdit,
                     path: currentItemEditPath,
                   });
                 })()}
@@ -1057,8 +1028,9 @@ function renderDiffMode(
 /*────────────────────────────────────────────────────────────────────────────
   "ListView" main component
 ────────────────────────────────────────────────────────────────────────────*/
-// 
+//
 interface ListViewProps extends LogComparisonProps {
+  isImmutable?: boolean;
   prefix?: string;
   parentPath?: string;    // parent's fully qualified path
   nestingLevel?: number;
@@ -1081,9 +1053,10 @@ export default function ListView({
   prefix = "entries",
   parentPath = "",
   viewTracesAsDict,
+  isImmutable,
   cellEditMode,
   onSaveEdit,
-  onGroupSaveEdit, 
+  onGroupSaveEdit,
   path: editPath = [],
 }: ListViewProps) {
 
@@ -1191,7 +1164,7 @@ export default function ListView({
               value: itemValue, comparables: [], baseLogIndex: rowIndex, comparisonLogsIndex: [],
               version, comparableVersions, diffMode, splitView, displayMode,
               nestingLevel: nestingLevel + 1, prefix, parentPath: accordionPathString,
-              path: itemEditPathForChild, viewTracesAsDict, cellEditMode,
+              path: itemEditPathForChild, viewTracesAsDict, isImmutable, cellEditMode,
               onSaveEdit, onGroupSaveEdit, // Pass both save handlers
             })}
           </div>
@@ -1203,23 +1176,23 @@ export default function ListView({
   // Force expand/collapse effect (unchanged)
   useEffect(() => {
     if (!isValidBase && !isValidComparables) return;
-    
+
     if (effectiveForceExpandAll || effectiveForceCollapseAll) {
       const paths: string[] = [];
-      
+
       // Gather paths for each item and its nested content
       for (let i = 0; i < maxLength; i++) {
         const itemPath = buildItemPath(i);
         paths.push(itemPath);
-        
+
         // Get the value at this index
         const itemValue = Array.isArray(value) && i < value.length ? value[i] : undefined;
-        
+
         // Get comparable values at this index
-        const itemComparables = comparables ? comparables.map(c => 
+        const itemComparables = comparables ? comparables.map(c =>
           Array.isArray(c) && i < c.length ? c[i] : undefined
         ).filter(v => v !== undefined) : [];
-        
+
         // Add nested paths if this item contains nested data
         if (isDict(itemValue) || isList(itemValue)) {
           let subPaths = [];
@@ -1231,7 +1204,7 @@ export default function ListView({
           paths.push(...subPaths);
         }
       }
-      
+
       if (effectiveForceExpandAll) {
         effectiveExpandRecursively(paths);
       } else {
@@ -1286,7 +1259,7 @@ export default function ListView({
       { baseLogIndex, comparisonLogsIndex: finalRowIndices, version, comparableVersions,
         diffMode, splitView, displayMode, nestingLevel, prefix, parentPath,
         expandRecursively: effectiveExpandRecursively, collapseRecursively: effectiveCollapseRecursively,
-        viewTracesAsDict, cellEditMode,
+        viewTracesAsDict, cellEditMode, isImmutable,
         onSaveEdit, onGroupSaveEdit, // Pass both save handlers
         path: editPath
       }

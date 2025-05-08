@@ -88,9 +88,9 @@ function fetchAndMergeFields (tables: string[], args: PlotArguments, project: st
                         Object
                             .entries(fields)
                             .filter(([name, _]) => tableColumnContext ? name.startsWith(tableColumnContext) : name)
-                            .map(([name, { data_type, field_type, artifacts }]) => {
+                            .map(([name, { data_type, field_type, artifacts, created_at, mutable }]) => {
                                 const newName = tableColumnContext ? processContext("split", tableColumnContext, name) : name;
-                                return [`${table}.${newName}`, { data_type, field_type, artifacts }];
+                                return [`${table}.${newName}`, { data_type, field_type, artifacts, created_at, mutable }];
                             })
                     );
                     return newFields; // Return processed fields for this table

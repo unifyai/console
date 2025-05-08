@@ -61,7 +61,8 @@ function pickDataView(
   displayMode: LogComparisonProps["displayMode"],
   cellEditMode?: boolean,
   onSaveEdit?: LogComparisonProps["onSaveEdit"],
-  onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'] 
+  onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
+  isImmutable?: boolean
 ) {
   // Decide which specialized view to use.
 
@@ -84,26 +85,26 @@ function pickDataView(
   }
 
   if (isDict(finalValue)) {
-    return <DictionaryView {...commonProps} />;
+    return <DictionaryView {...commonProps} isImmutable={isImmutable}/>;
   }
   if (isList(finalValue)) {
-    return <ListView {...commonProps} />;
+    return <ListView {...commonProps} isImmutable={isImmutable}/>;
   }
   if (isImage(finalValue)) {
     return <ImageView {...commonProps} />;
   }
   if (isMatrix(finalValue)) {
-    return <MatrixView {...commonProps} />;
+    return <MatrixView {...commonProps}/>;
   }
   if (isNumber(finalValue)) {
-    return <NumberView {...commonProps} />;
+    return <NumberView {...commonProps} isImmutable={isImmutable}/>;
   }
   if (isTimestamp(finalValue)) {
-    return <TimestampView {...commonProps} />;
+    return <TimestampView {...commonProps} isImmutable={isImmutable}/>;
   }
 
   // fallback => string
-  return <StringView {...commonProps} />;
+  return <StringView {...commonProps} isImmutable={isImmutable}/>;
 }
 
 /******************************************************************************
@@ -182,11 +183,12 @@ export default function ChatInView({
   diffMode = "none",
   splitView = false,
   displayMode = "markdown",
+  isImmutable,
   cellEditMode = false,
   onSaveEdit,
   onGroupSaveEdit,
   path = [],
-}: LogComparisonProps) {
+}: LogComparisonProps & {isImmutable?: boolean}) {
   //
   // 1) SINGLE MODE => just a vertical list
   //
@@ -237,7 +239,7 @@ export default function ChatInView({
                           />
                         </div>
                         {/* Pass edit props down to potentially editable content */}
-                        {pickDataView(m.content, [], baseLogIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
+                        {pickDataView(m.content, [], baseLogIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                       </div>
                     );
                   })}
@@ -285,7 +287,7 @@ export default function ChatInView({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border-l ml-4 pl-1">
-                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
+                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -301,7 +303,7 @@ export default function ChatInView({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border-l ml-4 pl-1">
-                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
+                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -462,7 +464,7 @@ export default function ChatInView({
                                       />
                                     </div>
                                      {/* Pass edit props down */}
-                                    {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
+                                    {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                                   </div>
                                 </TabsContent>
                               );
@@ -504,7 +506,7 @@ export default function ChatInView({
                                       />
                                     </div>
                                      {/* Pass edit props down */}
-                                     {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit)}
+                                     {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                                   </div>
                                 </TabsContent>
                               );
@@ -562,7 +564,8 @@ export default function ChatInView({
                     displayMode,
                     cellEditMode,
                     onSaveEdit,
-                    onGroupSaveEdit 
+                    onGroupSaveEdit, 
+                    isImmutable 
                   )}
                 </div>
               </AccordionContent>
@@ -588,7 +591,8 @@ export default function ChatInView({
                     displayMode,
                     cellEditMode,
                     onSaveEdit,
-                    onGroupSaveEdit 
+                    onGroupSaveEdit,
+                    isImmutable 
                   )}
                 </div>
               </AccordionContent>
@@ -775,7 +779,8 @@ export default function ChatInView({
                   displayMode,
                   cellEditMode,
                   onSaveEdit,
-                  onGroupSaveEdit 
+                  onGroupSaveEdit,
+                  isImmutable 
                 )}
               </div>
             </AccordionContent>
@@ -801,7 +806,8 @@ export default function ChatInView({
                   displayMode,
                   cellEditMode,
                   onSaveEdit,
-                  onGroupSaveEdit 
+                  onGroupSaveEdit,
+                  isImmutable 
                 )}
               </div>
             </AccordionContent>

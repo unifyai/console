@@ -27,7 +27,7 @@ function isChatInShape(obj: any): boolean {
  * ChatView: universal entry point for either ChatInView or ChatOutView.
  * If something looks like both shapes, you can pick a priority or do further checks.
  */
-export default function ChatView(props: LogComparisonProps) {
+export default function ChatView(props: LogComparisonProps & {isImmutable?: boolean}) {
   const { value } = props;
 
   // If it matches the “chat-in” shape => ChatInView

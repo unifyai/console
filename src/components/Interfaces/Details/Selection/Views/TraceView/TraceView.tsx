@@ -154,10 +154,11 @@ function pickView(
   diffMode: LogComparisonProps["diffMode"],
   splitView: LogComparisonProps["splitView"],
   displayMode: LogComparisonProps["displayMode"],
+  isImmutable?: boolean,
   cellEditMode?: boolean,
   onSaveEdit?: LogComparisonProps['onSaveEdit'],
   onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
-  path: (string | number)[] = []
+  path: (string | number)[] = [],
 ): JSX.Element {
 
   const commonProps = {
@@ -175,13 +176,13 @@ function pickView(
   };
 
   if (isChat(baseVal)) {
-    return <ChatView {...commonProps} />;
+    return <ChatView {...commonProps} isImmutable={isImmutable}/>;
   }
   if (isDict(baseVal)) {
-    return <DictionaryView {...commonProps} />;
+    return <DictionaryView {...commonProps} isImmutable={isImmutable}/>;
   }
   if (isList(baseVal)) {
-    return <ListView {...commonProps} />;
+    return <ListView {...commonProps} isImmutable={isImmutable}/>;
   }
   if (isImage(baseVal)) {
     return <ImageView {...commonProps} />;
@@ -190,13 +191,13 @@ function pickView(
     return <MatrixView {...commonProps} />;
   }
   if (isNumber(baseVal)) {
-    return <NumberView {...commonProps} />;
+    return <NumberView {...commonProps} nested={true} isImmutable={isImmutable}/>;
   }
   if (isTimestamp(baseVal)) {
-    return <TimestampView {...commonProps} />;
+    return <TimestampView {...commonProps} nested={true} isImmutable={isImmutable}/>;
   }
   // Fallback => string
-  return <StringView {...commonProps} />;
+  return <StringView {...commonProps} nested={true} isImmutable={isImmutable}/>;
 }
 
 // Define DictionarySectionItem component to handle dictionary-type sections
@@ -213,6 +214,7 @@ function DictionarySectionItem({
   openSections,
   setOpenSections,
   sectionIcons,
+  isImmutable, 
   cellEditMode,
   onSaveEdit,
   onGroupSaveEdit,
@@ -230,6 +232,7 @@ function DictionarySectionItem({
   openSections: string[];
   setOpenSections: React.Dispatch<React.SetStateAction<string[]>>;
   sectionIcons: Record<string, JSX.Element>;
+  isImmutable?: boolean; 
   cellEditMode?: boolean;
   onSaveEdit?: LogComparisonProps['onSaveEdit'];
   onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'];
@@ -416,7 +419,7 @@ function PatchDetailPanel({
   splitView,
   displayMode,
   persistedState,
-  cellEditMode,
+  isImmutable, cellEditMode,
   onSaveEdit,
   onGroupSaveEdit,
   path,
@@ -430,6 +433,7 @@ function PatchDetailPanel({
   splitView?: LogComparisonProps["splitView"];
   displayMode?: LogComparisonProps["displayMode"];
   persistedState?: PersistedTraceViewState;
+  isImmutable?: boolean; 
   cellEditMode?: boolean;
   onSaveEdit?: LogComparisonProps['onSaveEdit'];
   onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'];
@@ -597,7 +601,7 @@ function findSpanByNameInRow(
 
     if (title === "Inputs" || title === "Outputs") {
       if (!isDict(baseVal)) {
-         const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown", cellEditMode, onSaveEdit, onGroupSaveEdit, fullPath); // Pass group save
+         const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown", isImmutable, cellEditMode, onSaveEdit, onGroupSaveEdit, fullPath); // Pass group save
         return (
           <AccordionItem key={title} value={title}>
             <AccordionTrigger className="relative group flex items-center justify-between"><span className="inline-flex items-center gap-2">{sectionIcons[title] || null}<span>{title}</span></span></AccordionTrigger>
@@ -619,6 +623,7 @@ function findSpanByNameInRow(
           openSections={openSections}
           setOpenSections={setOpenSections}
           sectionIcons={sectionIcons}
+          isImmutable={isImmutable}
           cellEditMode={cellEditMode}
           onSaveEdit={onSaveEdit}
           onGroupSaveEdit={onGroupSaveEdit}
@@ -627,7 +632,7 @@ function findSpanByNameInRow(
       );
     }
 
-    const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown", cellEditMode, onSaveEdit, onGroupSaveEdit, fullPath); // Pass group save
+    const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown", isImmutable, cellEditMode, onSaveEdit, onGroupSaveEdit, fullPath); // Pass group save
 
     return (
       <AccordionItem key={title} value={title}>
@@ -735,6 +740,7 @@ function findSpanByNameInRow(
                       onSaveEdit={onSaveEdit}
                       onGroupSaveEdit={onGroupSaveEdit}
                       path={buildFieldPath("cost")}
+                      isImmutable={isImmutable}
                     />
                   </div>
                 </div>
@@ -754,6 +760,7 @@ function findSpanByNameInRow(
                       onSaveEdit={onSaveEdit}
                       onGroupSaveEdit={onGroupSaveEdit}
                       path={buildFieldPath("cost_inc_cache")}
+                      isImmutable={isImmutable}
                     />
                   </div>
                 </div>
@@ -1351,6 +1358,7 @@ interface UnifiedTraceViewProps {
   splitView?: LogComparisonProps["splitView"];
   displayMode?: LogComparisonProps["displayMode"];
   persistedState?: PersistedTraceViewState;
+  isImmutable?: boolean;
   cellEditMode?: boolean;
   onSaveEdit?: LogComparisonProps['onSaveEdit'];
   onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'];
@@ -1386,6 +1394,7 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
   comparisonLogsIndex,
   allTraces,
   allRowIndexes,
+  isImmutable,
   diffMode, 
   splitView,
   displayMode,
@@ -1400,6 +1409,7 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
   comparisonLogsIndex: number[];
   allTraces: Span[][];
   allRowIndexes: number[];
+  isImmutable?: boolean;
   diffMode?: LogComparisonProps["diffMode"];
   splitView?: LogComparisonProps["splitView"];
   displayMode?: LogComparisonProps["displayMode"];
@@ -1428,6 +1438,7 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
       displayMode={displayMode}
       persistedState={persistedState}
       cellEditMode={cellEditMode}
+      isImmutable={isImmutable}
       onSaveEdit={onSaveEdit}
       onGroupSaveEdit={onGroupSaveEdit}
       path={path}
@@ -1490,6 +1501,7 @@ export default function UnifiedTraceView({
   splitView = false,
   displayMode = "markdown",
   persistedState,
+  isImmutable, 
   cellEditMode,
   onSaveEdit,
   onGroupSaveEdit,
@@ -1827,12 +1839,13 @@ export default function UnifiedTraceView({
         displayMode={displayMode}
         persistedState={persistedState}
         cellEditMode={cellEditMode}
+        isImmutable={isImmutable}
         onSaveEdit={onSaveEdit}
         onGroupSaveEdit={onGroupSaveEdit}
         path={path}
       />
     );
-  }, [selectedNode, rowIndexes, groupCompareRows, allTraces, diffMode, splitView, displayMode, persistedState, cellEditMode, onSaveEdit, onGroupSaveEdit, path]);
+  }, [selectedNode, rowIndexes, groupCompareRows, allTraces, diffMode, splitView, displayMode, persistedState, isImmutable, cellEditMode, onSaveEdit, onGroupSaveEdit, path]);
 
   return (
     <TraceExpandProvider

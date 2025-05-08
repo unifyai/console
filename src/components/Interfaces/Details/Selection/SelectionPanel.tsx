@@ -4,7 +4,7 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import { LogProps } from "@/types/evals/logs";
+import { LogFieldsResponseProps, LogProps } from "@/types/evals/logs";
 import SelectionEntry from "./SelectionEntry";
 import { Accordion } from "@/components/UI/accordion";
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -166,6 +166,7 @@ export default function SelectionPanel({
   panelId,
   panelState,
   onPanelStateChange,
+  fields,
   logs,
   sortedLogs,
   params,
@@ -185,6 +186,7 @@ export default function SelectionPanel({
   panelId: number;
   panelState: PanelState;
   onPanelStateChange: (updates: Partial<PanelState>) => void;
+  fields: LogFieldsResponseProps;
   logs: LogProps[];
   sortedLogs: LogProps[];
   params: Record<string, unknown>;
@@ -1135,6 +1137,7 @@ export default function SelectionPanel({
     const entryComponentsToRender = filtered.map((entryKey) => {
       const baseEntryVal = baseLog.entries?.[entryKey];
       const traceState = getTraceStateFor(`entries-${entryKey}`);
+      const isImmutable = fields[entryKey]?.mutable === "true";
       return (
         <SortableAccordionItem key={entryKey} id={entryKey} editMode={editMode}>
           <SelectionEntry
@@ -1158,6 +1161,7 @@ export default function SelectionPanel({
             panelSetOpenKeys={(updatedOpenKeys) => onPanelStateChange({ localOpenKeys: typeof updatedOpenKeys === 'function' ? updatedOpenKeys(localOpenKeys) : updatedOpenKeys })}
             externalTraceState={traceState}
             viewTracesAsDict={viewTracesAsDict}
+            isImmutable={isImmutable}
             cellEditMode={cellEditMode}
             onSaveEdit={handleSaveEditLocal} // Pass handler for single edits
             onGroupSaveEdit={handleGroupSaveEditLocal} // Pass handler for group edits
@@ -1199,6 +1203,7 @@ export default function SelectionPanel({
     const paramComponentsToRender = filtered.map((paramKey) => {
       const baseParamVal = baseLog.params?.[paramKey];
       const traceState = getTraceStateFor(`params-${paramKey}`);
+      const isImmutable = fields[paramKey]?.mutable === "false";
       return (
         <SortableAccordionItem key={paramKey} id={paramKey} editMode={editMode}>
           <SelectionEntry
@@ -1222,6 +1227,7 @@ export default function SelectionPanel({
             panelSetOpenKeys={(updatedOpenKeys) => onPanelStateChange({ localOpenKeys: typeof updatedOpenKeys === 'function' ? updatedOpenKeys(localOpenKeys) : updatedOpenKeys })}
             externalTraceState={traceState}
             viewTracesAsDict={viewTracesAsDict}
+            isImmutable={isImmutable}
             cellEditMode={cellEditMode}
             onSaveEdit={handleSaveEditLocal} // Pass handler for single edits
             onGroupSaveEdit={handleGroupSaveEditLocal} // Pass handler for group edits

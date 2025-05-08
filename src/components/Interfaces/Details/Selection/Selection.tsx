@@ -88,6 +88,9 @@ export default function Selection({
   );
   const { itemActions: tileItemActionsWithTable } = useTileItem(item?.table || "", tabId, interfaceId);
 
+  // Get table fields
+  const fields = useMemo(() => tableTileStateWithTable?.tableDataItem?.fields || {}, [tableTileStateWithTable?.tableDataItem?.fields]);
+  
   // Create equivalent references to match the old pattern
   const tableItem = useMemo(() => tileItemActionsWithTable?.asTileItem() ||
     { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileItemActionsWithTable, item?.table]);
@@ -359,6 +362,7 @@ export default function Selection({
                 // Pass panel state and updater function
                 panelState={panelState}
                 onPanelStateChange={(updates) => updatePanelState(idx, updates)}
+                fields={fields}
                 logs={logs}
                 sortedLogs={sortedLogs}
                 params={params}
