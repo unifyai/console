@@ -1016,8 +1016,8 @@ export default function SelectionPanel({
   }
 
   /*****************************************************************************
-   * Handle Save Edit Local (For single edits)
-   *****************************************************************************/
+     * Handle Save Edit Local (For single edits)
+     *****************************************************************************/
   type LocalEdit = { logIndex: number; source: "entries" | "params"; path: (string|number)[]; newValue: any };
 
   const handleSaveEditLocal = useCallback((desc: LocalEdit) => {
@@ -1025,23 +1025,31 @@ export default function SelectionPanel({
 
     // Path normalization and trace path fixing (unchanged)
     function coerceNumericStrings(original: (string|number)[]): (string|number)[] {
-      return original.map(seg => typeof seg === "string" && /^\d+$/.test(seg) ? Number(seg) : seg);
+      return original.map(seg => typeof seg === 'string' && /^\d+$/.test(seg) ? Number(seg) : seg);
     }
     const normalisedPath = coerceNumericStrings(desc.path);
+    let fixedPath = normalisedPath; // Start with the normalized path
 
-    function maybeFixTracePath(original: (string|number)[]): (string|number)[] {
-        if (!baseLog || original.length === 0) return original;
-        const [firstSeg, ...rest] = original;
-        const containerRoot = (desc.source === "params" ? baseLog.params : baseLog.entries) ?? {};
-        const candidate = (containerRoot as any)[firstSeg as any];
-        const looksLikeSpanArray = Array.isArray(candidate) && candidate.length > 0 && typeof candidate[0] === "object" && candidate[0] !== null && "span_name" in candidate[0];
-        const firstSegIsTraceKey = firstSeg === "trace";
-        if ((looksLikeSpanArray || firstSegIsTraceKey) && typeof rest[0] !== "number") {
-          return [firstSeg, 0, ...rest];
+    // --- Correction Logic ---
+    // Check if the path looks like ['trace', 0, ...] or similar
+    if (fixedPath.length > 1 && fixedPath[1] === 0) {
+        const traceKey = fixedPath[0] as string;
+        // Find the base log corresponding to the edited logIndex
+        const editedLog = sortedLogs[desc.logIndex];
+        const containerRoot = (desc.source === "params" ? editedLog?.params : editedLog?.entries) ?? {};
+        // Get the actual data stored under the first key (e.g., 'trace')
+        const actualTraceData = containerRoot[traceKey];
+
+        // If the actual data is an OBJECT (not an array), the '0' index is incorrect and should be removed.
+        // This happens when the trace structure is a single object root span.
+        if (actualTraceData && typeof actualTraceData === 'object' && !Array.isArray(actualTraceData)) {
+            console.debug("[SelectionPanel] Correcting path: Removing incorrect '0' index for object-based trace.", fixedPath);
+            fixedPath = [traceKey, ...fixedPath.slice(2)]; // Create new path: ['trace', 'inputs', 'a']
+            console.debug("[SelectionPanel] Corrected path:", fixedPath);
         }
-        return original;
+        // If actualTraceData *is* an array, the path ['trace', 0, ...] is likely correct, so we leave it.
+        // If actualTraceData is not found or not an object/array, we also leave the path as is.
     }
-    const fixedPath = maybeFixTracePath(normalisedPath);
 
     // Find the logId for the single log index
     const targetLog = sortedLogs[desc.logIndex];
@@ -1054,7 +1062,7 @@ export default function SelectionPanel({
     // Prepare descriptor for onSaveMany
     const saveDesc = {
       source: desc.source,
-      path: fixedPath,
+      path: fixedPath, // Use the potentially corrected path
       newValue: desc.newValue,
     };
 
@@ -1062,7 +1070,7 @@ export default function SelectionPanel({
     console.debug("[SelectionPanel] handleSaveEditLocal – invoking onSaveMany for single row", { rowIds: [targetRowId], desc: saveDesc });
     onSaveMany([targetRowId], saveDesc);
 
-  }, [sortedLogs, onSaveMany, baseLog]);
+  }, [sortedLogs, onSaveMany, baseLog]); // Added baseLog dependency for correction logic
 
   /*****************************************************************************
    * Handle Group Save Edit Local (For grouped edits)
@@ -1074,23 +1082,26 @@ export default function SelectionPanel({
 
     // Path normalization and trace path fixing (same as single edit)
     function coerceNumericStrings(original: (string|number)[]): (string|number)[] {
-      return original.map(seg => typeof seg === "string" && /^\d+$/.test(seg) ? Number(seg) : seg);
+      return original.map(seg => typeof seg === 'string' && /^\d+$/.test(seg) ? Number(seg) : seg);
     }
     const normalisedPath = coerceNumericStrings(desc.path);
+    let fixedPath = normalisedPath; // Start with the normalized path
 
-    function maybeFixTracePath(original: (string|number)[]): (string|number)[] {
-      if (!baseLog || original.length === 0) return original;
-      const [firstSeg, ...rest] = original;
-      const containerRoot = (desc.source === "params" ? baseLog.params : baseLog.entries) ?? {};
-      const candidate = (containerRoot as any)[firstSeg as any];
-      const looksLikeSpanArray = Array.isArray(candidate) && candidate.length > 0 && typeof candidate[0] === "object" && candidate[0] !== null && "span_name" in candidate[0];
-      const firstSegIsTraceKey = firstSeg === "trace";
-      if ((looksLikeSpanArray || firstSegIsTraceKey) && typeof rest[0] !== "number") {
-        return [firstSeg, 0, ...rest];
-      }
-      return original;
+    // --- Correction Logic (same as above, but check against the first log in the group) ---
+    if (fixedPath.length > 1 && fixedPath[1] === 0 && desc.logIndices.length > 0) {
+        const traceKey = fixedPath[0] as string;
+        // Find the first log corresponding to the edited logIndices
+        const firstEditedLog = sortedLogs[desc.logIndices[0]];
+        const containerRoot = (desc.source === "params" ? firstEditedLog?.params : firstEditedLog?.entries) ?? {};
+        const actualTraceData = containerRoot[traceKey];
+
+        // If the actual data is an OBJECT (not an array), remove the '0' index.
+        if (actualTraceData && typeof actualTraceData === 'object' && !Array.isArray(actualTraceData)) {
+            console.debug("[SelectionPanel] Correcting path (group): Removing incorrect '0' index for object-based trace.", fixedPath);
+            fixedPath = [traceKey, ...fixedPath.slice(2)];
+            console.debug("[SelectionPanel] Corrected path (group):", fixedPath);
+        }
     }
-    const fixedPath = maybeFixTracePath(normalisedPath);
 
     // Map logIndices to logIds
     const targetRowIds = desc.logIndices.map(logIndex => {
@@ -1110,7 +1121,7 @@ export default function SelectionPanel({
     // Prepare descriptor for onSaveMany
     const saveDesc = {
       source: desc.source,
-      path: fixedPath,
+      path: fixedPath, // Use the potentially corrected path
       newValue: desc.newValue,
     };
 
@@ -1118,8 +1129,7 @@ export default function SelectionPanel({
     console.debug("[SelectionPanel] handleGroupSaveEditLocal – invoking onSaveMany for group", { rowIds: targetRowIds, desc: saveDesc });
     onSaveMany(targetRowIds, saveDesc);
 
-  }, [sortedLogs, onSaveMany, baseLog]);
-
+  }, [sortedLogs, onSaveMany, baseLog]); // Added baseLog dependency
 
   /*****************************************************************************
    * EntriesSection Component - Pass both save handlers

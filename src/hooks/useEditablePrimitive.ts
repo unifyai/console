@@ -14,11 +14,6 @@ export function useEditablePrimitive<T>(
     initialRef.current = initial;
   }, [initial]);
 
-  // Revert draft to initial value on blur
-  const handleBlur = React.useCallback(() => {
-    setDraft(initial);
-  }, [initial]);
-
   const handleCommit = React.useCallback(() => {
     // Removed verbose debug logging – commit will now be silent
     if (validate) {
@@ -54,7 +49,6 @@ export function useEditablePrimitive<T>(
   const inputProps = {
     value: draft as any,
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setDraft((e.target as any).value as any),
-    onBlur: handleBlur,
     onKeyDown: handleKeyDown,
   } as const;
 
