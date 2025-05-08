@@ -450,7 +450,7 @@ export const listInterfaces = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interfaces?project_id=${projectId}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/interface?project=${projectId}&checkpoint=${checkpoint}`,
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
@@ -472,7 +472,7 @@ export const getInterfaceByName = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interfaces?project_id=${projectId}&name=${encodeURIComponent(name)}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/interface?project=${projectId}&name=${encodeURIComponent(name)}&checkpoint=${checkpoint}`,
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
@@ -495,7 +495,7 @@ export const getInterfaceById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interfaces?id=${id}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/interface?id=${id}&checkpoint=${checkpoint}`,
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
@@ -515,13 +515,13 @@ export const getInterfaceById = async (apiKey: string) => {
 export const getInterfaceUnified = async (apiKey: string) => {
     return async (params: { 
         id?: string; 
-        project_id?: string; 
+        project?: string; 
         name?: string; 
         checkpoint?: boolean 
     }) => {
         "use server";
         
-        const { id, project_id, name, checkpoint = false } = params;
+        const { id, project, name, checkpoint = false } = params;
         
         // If interface ID is provided, use it directly
         if (id) {
@@ -530,9 +530,9 @@ export const getInterfaceUnified = async (apiKey: string) => {
         }
         
         // Otherwise use project+name
-        if (project_id && name) {
+        if (project && name) {
             const getByName = await getInterfaceByName(apiKey);
-            return getByName(project_id, name, checkpoint);
+            return getByName(project, name, checkpoint);
         }
         
         return null;
@@ -545,12 +545,12 @@ export const createNewInterface = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interfaces`,
+            `${process.env.NEXTAUTH_URL}/api/interface`,
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
                 body: JSON.stringify({
-                    project_id: projectId,
+                    project: projectId,
                     name,
                     color
                 }),
@@ -571,7 +571,7 @@ export const updateInterfaceByName = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interfaces?project_id=${projectId}&name=${encodeURIComponent(name)}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/interface?project=${projectId}&name=${encodeURIComponent(name)}&checkpoint=${checkpoint}`,
             {
                 method: "PUT",
                 headers: { apiKey: apiKey },
@@ -601,7 +601,7 @@ export const updateInterfaceById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interfaces?id=${id}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/interface?id=${id}&checkpoint=${checkpoint}`,
             {
                 method: "PUT",
                 headers: { apiKey: apiKey },
@@ -621,7 +621,7 @@ export const updateInterfaceById = async (apiKey: string) => {
 export const updateInterfaceUnified = async (apiKey: string) => {
     return async (params: { 
         id?: string; 
-        project_id?: string; 
+        project?: string; 
         name?: string; 
         data: {
             name?: string;
@@ -632,7 +632,7 @@ export const updateInterfaceUnified = async (apiKey: string) => {
     }) => {
         "use server";
         
-        const { id, project_id, name, data, checkpoint = false } = params;
+        const { id, project, name, data, checkpoint = false } = params;
         
         // If interface ID is provided, use it directly
         if (id) {
@@ -641,9 +641,9 @@ export const updateInterfaceUnified = async (apiKey: string) => {
         }
         
         // Otherwise use project+name
-        if (project_id && name) {
+        if (project && name) {
             const updateByName = await updateInterfaceByName(apiKey);
-            return updateByName(project_id, name, data, checkpoint);
+            return updateByName(project, name, data, checkpoint);
         }
         
         return { error: "Missing required parameters to identify the interface" };
@@ -656,7 +656,7 @@ export const deleteInterfaceByName = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interfaces?project_id=${projectId}&name=${encodeURIComponent(name)}`,
+            `${process.env.NEXTAUTH_URL}/api/interface?project=${projectId}&name=${encodeURIComponent(name)}`,
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
@@ -677,7 +677,7 @@ export const deleteInterfaceById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interfaces?id=${id}`,
+            `${process.env.NEXTAUTH_URL}/api/interface?id=${id}`,
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
@@ -696,12 +696,12 @@ export const deleteInterfaceById = async (apiKey: string) => {
 export const deleteInterfaceUnified = async (apiKey: string) => {
     return async (params: { 
         id?: string; 
-        project_id?: string; 
+        project?: string; 
         name?: string; 
     }) => {
         "use server";
         
-        const { id, project_id, name } = params;
+        const { id, project, name } = params;
         
         // If interface ID is provided, use it directly
         if (id) {
@@ -710,9 +710,9 @@ export const deleteInterfaceUnified = async (apiKey: string) => {
         }
         
         // Otherwise use project+name
-        if (project_id && name) {
+        if (project && name) {
             const deleteByName = await deleteInterfaceByName(apiKey);
-            return deleteByName(project_id, name);
+            return deleteByName(project, name);
         }
         
         return { error: "Missing required parameters to identify the interface" };
@@ -725,7 +725,7 @@ export const createInterfaceCheckpoint = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interfaces/checkpoint?project_id=${projectId}&name=${encodeURIComponent(name)}`,
+            `${process.env.NEXTAUTH_URL}/api/interface/checkpoint?project=${projectId}&name=${encodeURIComponent(name)}`,
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
@@ -747,7 +747,7 @@ export const createInterfaceCheckpointById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interfaces/checkpoint?id=${id}`,
+            `${process.env.NEXTAUTH_URL}/api/interface/checkpoint?id=${id}`,
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
@@ -767,13 +767,13 @@ export const createInterfaceCheckpointById = async (apiKey: string) => {
 export const createInterfaceCheckpointUnified = async (apiKey: string) => {
     return async (params: { 
         id?: string; 
-        project_id?: string; 
+        project?: string; 
         name?: string;
         description: string 
     }) => {
         "use server";
         
-        const { id, project_id, name, description } = params;
+        const { id, project, name, description } = params;
         
         // If interface ID is provided, use it directly
         if (id) {
@@ -782,9 +782,9 @@ export const createInterfaceCheckpointUnified = async (apiKey: string) => {
         }
         
         // Otherwise use project+name
-        if (project_id && name) {
+        if (project && name) {
             const checkpointByName = await createInterfaceCheckpoint(apiKey);
-            return checkpointByName(project_id, name, description);
+            return checkpointByName(project, name, description);
         }
         
         return { error: "Missing required parameters to identify the interface" };
