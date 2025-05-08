@@ -17,7 +17,6 @@ export interface TableTileData {
   column_order?: string | null;   // Column ordering information
   hidden_columns?: string | null; // Hidden columns configuration
   sorting?: string | null;        // Sorting expression
-  grouping?: string | null;       // Grouping expression
   group_sorting?: string | null;  // How groups are sorted
   columns_pin_left?: string | null; // Columns pinned to the left
   columns_pin_right?: string | null; // Columns pinned to the right
@@ -28,7 +27,6 @@ export interface TableTileData {
 export interface TableTileUI {
   limit?: number;
   offset?: number;
-  column_context?: string | null; // Context for columns display
   page_number?: string | null;    // Current page for pagination
 }
 
@@ -39,8 +37,8 @@ export type TableTile = TableTileMeta & TableTileData & TableTileUI;
 // a TableTile into a TileProps
 export const TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS: (keyof TableTile)[] = [
   "table_type","column_order","hidden_columns","sorting",
-  "grouping","group_sorting","columns_pin_left","columns_pin_right",
-  "selected","column_context","page_number"
+  "group_sorting","columns_pin_left","columns_pin_right",
+  "selected","page_number"
 ];
 
 // tableTileKeys: all fields for TableTile
@@ -57,7 +55,6 @@ export function initTableTile(initialState: Partial<TableTile> = {}): TableTile 
     // UI
     limit: initialState.limit !== undefined ? initialState.limit : null,
     offset: initialState.offset !== undefined ? initialState.offset : null,
-    column_context: initialState.column_context !== undefined ? initialState.column_context : null,
     page_number: initialState.page_number !== undefined ? initialState.page_number : null,
 
     // Data
@@ -65,7 +62,6 @@ export function initTableTile(initialState: Partial<TableTile> = {}): TableTile 
     column_order: initialState.column_order !== undefined ? initialState.column_order : null,
     hidden_columns: initialState.hidden_columns !== undefined ? initialState.hidden_columns : null,
     sorting: initialState.sorting !== undefined ? initialState.sorting : null,
-    grouping: initialState.grouping !== undefined ? initialState.grouping : null,
     group_sorting: initialState.group_sorting !== undefined ? initialState.group_sorting : null,
     columns_pin_left: initialState.columns_pin_left !== undefined ? initialState.columns_pin_left : null,
     columns_pin_right: initialState.columns_pin_right !== undefined ? initialState.columns_pin_right : null,

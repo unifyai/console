@@ -3,7 +3,7 @@
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ActionButton from "../../../Common/Buttons/Action";
 import BaseDropdown from "../../../Common/Dropdowns/Base";
-import { Context, ContextActions, LogsActions } from "@/types/evals/grid";
+import { Context, ContextActions, LogsActions, GranularTileActions } from "@/types/evals/grid";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { Braces, FolderTree, Grid2x2, X } from "lucide-react";
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
@@ -14,9 +14,10 @@ import { buildNestedDropdownTree, getFieldsByColumnContext } from "@/utils/evals
 import { useMemo, useState } from "react";
 
 import { useTile, useTileItem } from "@/contexts/hooks/tile";
-import { useTableTile } from "@/contexts/hooks/tile/useTableTile";
 import { useProjectData } from "@/contexts/hooks/project";
 import { useTabData } from "@/contexts/hooks/tab";
+import { useTableDataQuery } from "@/hooks/Query/useTableDataQuery";
+import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 
 const ContextSelector = ({
     tileId,
@@ -27,6 +28,7 @@ const ContextSelector = ({
     context,
     setContext,
     button,
+    tileActions: serverTileActions,
     logsActions,
     contextActions,
     refresh,
@@ -40,6 +42,7 @@ const ContextSelector = ({
     context?: string,
     setContext?: (context: string) => void,
     button?: React.ReactNode,
+    tileActions?: GranularTileActions,
     logsActions: LogsActions,
     contextActions: ContextActions,
     refresh: () => Promise<ResponseProps>,
@@ -54,28 +57,41 @@ const ContextSelector = ({
     const { actions: tileActions, dataActions: tileDataActions } = useTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
     const { itemActions: tileItemActions } = useTileItem(tileId || null, tabId || null, interfaceId || null);
 
+    // Use React Query to access tableDataItem
     const { 
-        tableTile: tableTileState,
-        tableTileActions,
-    } = useTableTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
+        data: tableDataItem,
+        isLoading: isTableDataLoading,
+        isError: isTableDataError,
+        error: tableDataError
+    } = useTableDataQuery(tileId || null, tabId || null, interfaceId || null, projectId || null);
+
+    // SYNCHRONISED TABLE-SPECIFIC ACTIONS (optimistic + router refresh)
+    const { actions: syncedTileActions } = useTileSync(
+        tileId || null,
+        tabId || null,
+        interfaceId || null,
+        projectId || null,
+        serverTileActions,
+    );
+    const syncedTileDataActions = syncedTileActions?.data ?? null;
 
     const emptyLogs = useMemo(() => {
-        return tableTileState?.tableDataItem?.logs?.length == 0;
-    }, [tableTileState?.tableDataItem?.logs]);
+        return tableDataItem?.logs?.length == 0;
+    }, [tableDataItem?.logs]);
 
     const item = useMemo(() => tileItemActions?.asTileItem(), [tileItemActions]);
     
-    const finalSetContext = (tileActions && tileDataActions && tableTileActions && item != undefined) ? (ctx: string) => {
+    const finalSetContext = (tileActions && tileDataActions && syncedTileDataActions && item != undefined) ? (ctx: string) => {
         if (ctx !== item.context) {
             // Update the tile's column_context
-            tableTileActions.setColumnContext("");
+            syncedTileDataActions.setColumnContext("");
 
             // Update the tile's context
             tileDataActions.setContext(ctx);
         }
     } : setContext;
     
-    const empty = contexts.length == 0 && tableTileState?.tableDataItem?.columnContexts?.length == 0;
+    const empty = contexts.length == 0 && tableDataItem?.columnContexts?.length == 0;
 
     // Build and render the tree
     const contextNames = contexts.map(context => context.name).sort();
@@ -94,7 +110,7 @@ const ContextSelector = ({
                 return a.localeCompare(b);
             })
         );
-    const columnContextTree = buildNestedDropdownTree(tableTileState?.tableDataItem?.columnContexts || []);
+    const columnContextTree = buildNestedDropdownTree(tableDataItem?.columnContexts || []);
     const contextHeader = (item != undefined && context != undefined) ? (
         context == "" ? (context || "Context") : context
     ) : "Context";
@@ -185,7 +201,7 @@ const ContextSelector = ({
                             />
                         ))}
                     </div> : <></>}
-                    {item && tileActions && tableTileActions && (tableTileState?.tableDataItem?.columnContexts) && tableTileState.tableDataItem.columnContexts.length > 0 && <div className="pt-2">
+                    {item && tileActions && syncedTileDataActions && (tableDataItem?.columnContexts) && tableDataItem.columnContexts.length > 0 && <div className="pt-2">
                         <div className="font-bold text-sm px-2 pb-2 border-b flex justify-between items-center">
                             <div className="flex gap-2 items-center">
                                 <Grid2x2 size={18} /> Column Context
@@ -193,7 +209,7 @@ const ContextSelector = ({
                             {item.column_context && <Tooltip content="Clear column context">
                                 <X
                                     size={18}
-                                    onClick={() => tableTileActions?.setColumnContext("")}
+                                    onClick={() => syncedTileDataActions?.setColumnContext("")}
                                     className="cursor-pointer hover:text-primary"
                                 />
                             </Tooltip>}
@@ -211,7 +227,7 @@ const ContextSelector = ({
                                 showRoot={true}
                                 attr={item.column_context}
                                 isColumnContext={true}
-                                setter={(value) => tableTileActions?.setColumnContext(value)}
+                                setter={(value) => syncedTileDataActions?.setColumnContext(value)}
                                 deleteDialog={
                                     projectId ? <div onClick={(e) => e.stopPropagation()}>
                                         <DeleteDialog
@@ -222,7 +238,7 @@ const ContextSelector = ({
                                                     projectId,
                                                     context,
                                                     getFieldsByColumnContext(
-                                                        tableTileState?.tableDataItem?.fields as LogFieldsResponseProps,
+                                                        tableDataItem?.fields as LogFieldsResponseProps,
                                                         name !== "<root>" ? name : context ?? ""
                                                     ).map(field => [null, field])
                                                 ]

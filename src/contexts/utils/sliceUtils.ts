@@ -539,8 +539,8 @@ export function removeContextFromTab(
         tile.itemsNeedRecompute = true;
         itemsNeedRecompute = true;
       }
-      if (tile.tableTile?.column_context === context && context !== undefined) {
-        tile.tableTile.column_context = undefined;
+      if (tile?.column_context === context && context !== undefined) {
+        tile.column_context = undefined;
         tile.pending = true;
         tile.itemsNeedRecompute = true;
         itemsNeedRecompute = true;

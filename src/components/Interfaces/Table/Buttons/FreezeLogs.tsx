@@ -5,6 +5,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { Snowflake, LoaderCircle } from "lucide-react";
 import { useTileItem } from "@/contexts/hooks/tile/useTileItem";
 import { useTile } from "@/contexts/hooks/tile/useTile";
+import { useTableDataQuery } from "@/hooks/Query/useTableDataQuery";
 
 const FreezeLogs = ({ tileId, tabId, interfaceId, projectId }: {
     tileId: string,
@@ -22,9 +23,17 @@ const FreezeLogs = ({ tileId, tabId, interfaceId, projectId }: {
 
     const { tableTile: tableTileState, dataActions: tileDataActions } = useTile(tileId, tabId, interfaceId, projectId);
 
+    // Use React Query to access tableDataItem
+    const { 
+        data: tableDataItem,
+        isLoading: isTableDataLoading,
+        isError: isTableDataError,
+        error: tableDataError
+    } = useTableDataQuery(tileId, tabId, interfaceId, projectId);
+
     useEffect(() => {
         setLoading(false);
-    },[tableTileState?.tableDataItem?.logs])
+    },[tableDataItem?.logs])
 
     const onClick = () => {
         setLoading(true)

@@ -1,3 +1,5 @@
+"use client";
+
 import React, {
   useMemo,
   useState,
@@ -52,6 +54,7 @@ import SelectionPanel from "./SelectionPanel";
 
 import { useTile, useTileItem } from "@/contexts/hooks/tile";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
+import { useTableDataQuery } from "@/hooks/Query/useTableDataQuery";
 
 /*******************************************************************************
  * Main "Selection" Component
@@ -85,11 +88,18 @@ export default function Selection({
   );
   const { itemActions: tileItemActionsWithTable } = useTileItem(item?.table || "", tabId, interfaceId);
 
+  // Use React Query to access tableDataItem
+  const { 
+    data: tableDataItem,
+    isLoading: isTableDataLoading,
+    isError: isTableDataError,
+    error: tableDataError
+  } = useTableDataQuery(tileId || null, tabId || null, interfaceId || null, projectId || null);
+
   // Create equivalent references to match the old pattern
   const tableItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || 
     { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileItemActionsWithTable, item?.table]);
   const relevantItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || undefined, [tileItemActionsWithTable]);
-  const tableDataItem = useMemo(() => tableTileStateWithTable?.tableDataItem || {} as TableDataItem, [tableTileStateWithTable]);
 
   // Create a generic updateItem function that checks property existence
   const updateItem = useCallback((item: TileProps, propName: string) => (value: any) => {

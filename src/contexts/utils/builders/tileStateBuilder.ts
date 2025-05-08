@@ -37,6 +37,8 @@ export function buildTileState(
     filters: tileData.filters,
     common_filter: tileData.common_filter,
     metric: tileData.metric,
+    column_context: tileData.column_context,
+    grouping: tileData.grouping,
   };
 
   // Build tile UI state
@@ -83,20 +85,12 @@ function addSpecializedTileData(
     case 'Table':
       if (tileData.table_tile) {
         const tableTileData = buildTableTileData(tileData.table_tile);
-        // Add tableDataItem if available
-        if (tableData && tableData[tileData.name]) {
-          tableTileData.tableDataItem = tableData[tileData.name];
-        }
         tile.tableTile = tableTileData;
       }
       break;
     case 'Plot':
       if (tileData.plot_tile) {
         const plotTileData = buildPlotTileData(tileData.plot_tile);
-        // Add plotDataItem if available
-        if (plotData && plotData[tileData.name]) {
-          plotTileData.plotDataItem = plotData[tileData.name];
-        }
         tile.plotTile = plotTileData;
       }
       break;
@@ -121,17 +115,14 @@ function addSpecializedTileData(
 function buildTableTileData(tableTileData: TableTileData): TableTile {
   return {
     table_type: tableTileData.table_type,
-    column_context: tableTileData.column_context,
     page_number: tableTileData.page_number,
     column_order: tableTileData.column_order,
     hidden_columns: tableTileData.hidden_columns,
     sorting: tableTileData.sorting,
-    grouping: tableTileData.grouping,
     group_sorting: tableTileData.group_sorting,
     columns_pin_left: tableTileData.columns_pin_left,
     columns_pin_right: tableTileData.columns_pin_right,
     selected: tableTileData.selected,
-    tableDataItem: undefined, // Will be added separately if available
   };
 }
 
@@ -149,7 +140,6 @@ function buildPlotTileData(plotTileData: PlotTileData): PlotTile {
     plot_group_by: plotTileData.plot_group_by,
     bin_count: plotTileData.bin_count,
     regression_line: plotTileData.regression_line,
-    plotDataItem: undefined, // Will be added separately if available
   };
 }
 

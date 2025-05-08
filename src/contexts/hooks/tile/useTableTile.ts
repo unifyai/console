@@ -36,7 +36,6 @@ export interface TableTileDataActions {
   setColumnOrder: (columnOrder: string | undefined) => void;
   setHiddenColumns: (hiddenColumns: string | undefined) => void;
   setSorting: (sorting: string | undefined) => void;
-  setGrouping: (grouping: string | undefined) => void;
   setGroupSorting: (groupSorting: string | undefined) => void;
   setColumnsPinLeft: (columnsPinLeft: string | undefined) => void;
   setColumnsPinRight: (columnsPinRight: string | undefined) => void;
@@ -49,7 +48,6 @@ export interface TableTileDataActions {
 export interface TableTileUIActions {
   setLimit: (limit: number) => void;
   setOffset: (offset: number) => void;
-  setColumnContext: (columnContext: string | undefined) => void;
   setPageNumber: (pageNumber: string | undefined) => void;
 }
 
@@ -109,7 +107,6 @@ export function useTableTile(
       column_order: tableTile.column_order,
       hidden_columns: tableTile.hidden_columns,
       sorting: tableTile.sorting,
-      grouping: tableTile.grouping,
       group_sorting: tableTile.group_sorting,
       columns_pin_left: tableTile.columns_pin_left,
       columns_pin_right: tableTile.columns_pin_right,
@@ -122,7 +119,6 @@ export function useTableTile(
     tableTile?.column_order,
     tableTile?.hidden_columns,
     tableTile?.sorting,
-    tableTile?.grouping,
     tableTile?.group_sorting,
     tableTile?.columns_pin_left,
     tableTile?.columns_pin_right,
@@ -136,7 +132,6 @@ export function useTableTile(
     return {
       limit: tableTile.limit,
       offset: tableTile.offset,
-      column_context: tableTile.column_context,
       page_number: tableTile.page_number
     } as TableTileUI;
   }, [
@@ -144,7 +139,6 @@ export function useTableTile(
     tileId,
     tableTile?.limit,
     tableTile?.offset,
-    tableTile?.column_context,
     tableTile?.page_number,
   ]);
 
@@ -188,13 +182,6 @@ export function useTableTile(
       setSorting: (sorting) => {
         const update: Partial<TableTile> = { 
           sorting
-        };
-        storeUpdateTableTile(tileId, update);
-      },
-      
-      setGrouping: (grouping) => {
-        const update: Partial<TableTile> = { 
-          grouping
         };
         storeUpdateTableTile(tileId, update);
       },
@@ -244,13 +231,6 @@ export function useTableTile(
       setOffset: (offset) => {
         const update: Partial<TableTile> = { 
           offset
-        };
-        storeUpdateTableTile(tileId, update);
-      },
-      
-      setColumnContext: (columnContext) => {
-        const update: Partial<TableTile> = { 
-          column_context: columnContext
         };
         storeUpdateTableTile(tileId, update);
       },

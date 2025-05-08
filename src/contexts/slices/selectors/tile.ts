@@ -37,6 +37,8 @@ export interface TileData {
   filters?: string | null;
   common_filter?: string | null;
   metric?: string | null;         // Current metric being displayed
+  column_context?: string | null;
+  grouping?: string | null;
 }
 
 // Tile UI state - UI-related state
@@ -100,6 +102,8 @@ export function initTile(tileId: string, initialState: Partial<Tile> = {}): Tile
     filters: initialState.filters !== undefined ? initialState.filters : null,
     common_filter: initialState.common_filter !== undefined ? initialState.common_filter : null,
     metric: initialState.metric !== undefined ? initialState.metric : null,
+    column_context: initialState.column_context !== undefined ? initialState.column_context : null,
+    grouping: initialState.grouping !== undefined ? initialState.grouping : null,
     
     // UI
     projectId: initialState.projectId || null,

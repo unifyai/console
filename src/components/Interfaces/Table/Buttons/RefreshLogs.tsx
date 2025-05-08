@@ -10,6 +10,7 @@ import { buildFilterExpression } from "@/utils/evals/filters";
 import { useTileItem } from "@/contexts/hooks/tile/useTileItem";
 import { useTile } from "@/contexts/hooks/tile/useTile";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
+import { useTableDataQuery } from "@/hooks/Query/useTableDataQuery";
 
 const getNewCells = (
     previousLogs: LogProps[] | GroupedLogProps[],
@@ -150,6 +151,13 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
     const { itemActions } = useTileItem(tileId, tabId, interfaceId);
     const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
     const { tableTile: tableTileState, dataActions: tileDataActions } = useTile(tileId, tabId, interfaceId, projectId);
+    // Use React Query to access tableDataItem
+    const { 
+        data: tableDataItem,
+        isLoading: isTableDataLoading,
+        isError: isTableDataError,
+        error: tableDataError
+    } = useTableDataQuery(tileId);
     const currentLogs = logs || [];
     const limit = tableTileState?.limit as number;
     const offset = tableTileState?.offset as number;
@@ -205,7 +213,7 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
         abortControllerRef.current = new AbortController();
         const currentSignal = abortControllerRef.current.signal;
 
-        const logsBeforeFetch = tableTileState?.tableDataItem?.logs || [];
+        const logsBeforeFetch = tableDataItem?.logs || [];
 
         updateLogs(
             item as TileProps,
@@ -246,7 +254,7 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
              }
         });
 
-    }, [item, projectId, logsActions, fieldsActions, updateTableDataItem, sortingExpression, groupingExpression, groupSortingExpression, limit, offset, tableTileState?.tableDataItem?.logs]); // Dependencies for the fetch logic
+    }, [item, projectId, logsActions, fieldsActions, updateTableDataItem, sortingExpression, groupingExpression, groupSortingExpression, limit, offset, tableDataItem?.logs]); // Dependencies for the fetch logic
 
     // Effect to start/stop the fetching loop
     useEffect(() => {

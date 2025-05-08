@@ -18,6 +18,8 @@ export interface TileDataActions {
    setFilters: (filters?: string) => void;
    setCommonFilter: (commonFilter?: string) => void;
    setMetric: (metric: string | undefined) => void;
+   setColumnContext: (columnContext?: string) => void;
+   setGrouping: (grouping?: string) => void;
    
    // Type-specific updates
    updateTableTile: (updates: Partial<TableTile>) => void;
@@ -79,6 +81,16 @@ export function useTileData(
     return state.tilesById[tileId].metric;
   });
 
+  const columnContext = useStoreContext(state => {
+    if (!tileExists || !tileId) return null;
+    return state.tilesById[tileId].column_context;
+  });
+
+  const grouping = useStoreContext(state => {
+    if (!tileExists || !tileId) return null;
+    return state.tilesById[tileId].grouping;
+  });
+
   // Get store actions for data management
   const storeUpdateTile = useStoreContext(state => state.updateTile);
   const storeUpdateTableTile = useStoreContext(state => state.updateTableTile);
@@ -98,6 +110,8 @@ export function useTileData(
       filters,
       common_filter: commonFilter,
       metric,
+      column_context: columnContext,
+      grouping,
     };
   }, [
     tileExists, 
@@ -108,6 +122,8 @@ export function useTileData(
     filters, 
     commonFilter,
     metric,
+    columnContext,
+    grouping,
   ]);
 
   // Memoize the data actions to prevent unnecessary re-renders
@@ -151,6 +167,18 @@ export function useTileData(
     setMetric: (metric) => {
       if (tileId) {
         storeUpdateTile(tileId, { metric });
+      }
+    },
+
+    setColumnContext: (columnContext) => {
+      if (tileId) {
+        storeUpdateTile(tileId, { column_context: columnContext });
+      }
+    },
+
+    setGrouping: (grouping) => {
+      if (tileId) {
+        storeUpdateTile(tileId, { grouping });
       }
     },
     

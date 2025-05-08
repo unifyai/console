@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useId, useState, useMemo } from "react";
 import * as d3 from "d3";
-import { LogsActions, FieldsActions, PlotDataItem } from "@/types/evals/grid";
+import { LogsActions, FieldsActions, PlotDataItem, GranularTileActions } from "@/types/evals/grid";
 import { clearFixedTooltip } from "@/utils/evals/plots/tooltip";
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
@@ -10,12 +10,16 @@ import { useTab } from '@/contexts/hooks/tab';
 import PlotSettings from "./Sidebar";
 import { useInterface } from "@/contexts/hooks/interface";
 import { drawPlot } from "@/utils/evals/plots/main";
+import { usePlotDataQuery } from "@/hooks/Query/usePlotDataQuery";
+import { useUpdatePlotDataItem } from "@/hooks/Query/usePlotDataQuery";
+import { usePlotTileSync }   from '@/contexts/hooks/tile/sync/usePlotTileSync';
 
 const LogsPlot = ({ 
     tileId,
     tabId,
     interfaceId,
     projectId,
+    tileActions,
     logsActions,
     fieldsActions,
 }: {
@@ -23,18 +27,32 @@ const LogsPlot = ({
     tabId: string,
     interfaceId: string,
     projectId: string,
+    tileActions: GranularTileActions,
     logsActions: LogsActions,
     fieldsActions: FieldsActions
 }) => {
+
+    // Create a default empty PlotDataItem
+    const defaultPlotDataItem = useMemo(() => ({
+        plotLogs: [],
+        plotArguments: {},
+        plotFields: {}
+    } as PlotDataItem), []);
 
     // Use granular hooks for better performance
     const {
         ui: tileUIState,
         dataActions: tileDataActions,
-        actions: tileActions,
-        plotTile: plotTileState,
-        plotTileActions,
     } = useTile(tileId, tabId, interfaceId, projectId);
+
+    // SYNCHRONISED PLOT-SPECIFIC ACTIONS (optimistic + router refresh)
+    const { plotTileActions } = usePlotTileSync(
+        tileId,
+        tabId,
+        interfaceId,
+        projectId,
+        tileActions,
+    );
 
     const { itemActions } = useTileItem(tileId, tabId, interfaceId);
     
@@ -49,27 +67,29 @@ const LogsPlot = ({
     const interactive = tabUIState?.interactive || false;
     const pending = interfaceUIState?.pending || interfaceUIState?.dataPending || tileUIState?.pending || false;
 
-    // Use the plotDataItem from the tile's plot data
-    const plotDataItem = useMemo(() => plotTileState?.plotDataItem || {
-        plotLogs: [],
-        plotArguments: {},
-        plotFields: {}
-    } as PlotDataItem, [plotTileState?.plotDataItem]);
+    // Use React Query to access plotDataItem
+    const { 
+        data: plotDataItem = defaultPlotDataItem,
+        isLoading: isPlotDataLoading,
+        isError: isPlotDataError,
+        error: plotDataError
+    } = usePlotDataQuery(tileId);
 
+    // Use the custom hook for plot data updates
+    const { mutate: updatePlotData } = useUpdatePlotDataItem(tileId);
+
+    // Function to update the plot data item
     const setPlotDataItem = (newPlotDataItemOrUpdater: PlotDataItem | ((prev: PlotDataItem) => PlotDataItem)) => {
-        // Update plotDataItem in the store
-        if (plotTileActions && plotTileState) {
-          if (typeof newPlotDataItemOrUpdater === 'function') {
+        if (typeof newPlotDataItemOrUpdater === 'function') {
             // Handle function updater pattern: (prev) => next
             const updaterFn = newPlotDataItemOrUpdater as (prev: PlotDataItem) => PlotDataItem;
             const newPlotDataItem = updaterFn(plotDataItem);
-            plotTileActions.setPlotDataItem(newPlotDataItem);
-          } else {
+            updatePlotData(newPlotDataItem);
+        } else {
             // Handle direct value update
-            plotTileActions.setPlotDataItem(newPlotDataItemOrUpdater);
-          }
+            updatePlotData(newPlotDataItemOrUpdater);
         }
-    }
+    };
 
     // Init logs and handle local updates
     const {plotLogs: logs, plotArguments: args, plotFields: fields} = useMemo(() => plotDataItem, [plotDataItem]);
