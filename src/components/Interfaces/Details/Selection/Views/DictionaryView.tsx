@@ -91,15 +91,15 @@ function pickView(props: LogComparisonProps & { isImmutable?: boolean; prefix?: 
     return <MatrixView {...props} />;
   }
   if (isNumber(value)) {
-    return <NumberView {...props} />;
+    return <NumberView {...props} nested={true}/>;
   }
   if (isTimestamp(value)) {
-    return <TimestampView {...props} />;
+    return <TimestampView {...props} nested={true}/>;
   }
   if (isPdf(value)) {
     return <PdfView {...props} />;
   }
-  return <StringView {...props} />;
+  return <StringView {...props} nested={true}/>;
 }
 
 /*────────────────────────────────────────────────────────────────────────────
@@ -226,6 +226,7 @@ interface DictionaryViewProps extends LogComparisonProps {
   onSaveEdit?: (desc: { logIndex: number; path: (string | number)[]; newValue: any }) => void;
   onGroupSaveEdit?: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void; // New prop for group edits
   path?: (string | number)[];
+  nested?: boolean
 }
 
 /*─────────────────────────────────────────────────────────────────────────
@@ -964,6 +965,7 @@ export default function DictionaryView({
   onGroupSaveEdit,
   path: editPath = [],
   isImmutable,
+  nested,
 }: DictionaryViewProps) {
 
   // Context detection and state management

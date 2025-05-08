@@ -218,6 +218,7 @@ function DictionarySectionItem({
   onSaveEdit,
   onGroupSaveEdit,
   parentPath,
+  nested
 }: {
   title: string;
   baseVal: any;
@@ -236,6 +237,7 @@ function DictionarySectionItem({
   onSaveEdit?: LogComparisonProps['onSaveEdit'];
   onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'];
   parentPath: (string | number)[];
+  nested?: boolean;
 }) {
   // Create a custom icon mapping for the DictionaryView
   const customIconMapping: Record<string, JSX.Element> = {};
@@ -401,6 +403,7 @@ function DictionarySectionItem({
             onSaveEdit={onSaveEdit}
             onGroupSaveEdit={onGroupSaveEdit}
             path={parentPath}
+            nested
           />
         </div>
       </AccordionContent>
@@ -627,6 +630,7 @@ function findSpanByNameInRow(
           onSaveEdit={onSaveEdit}
           onGroupSaveEdit={onGroupSaveEdit}
           parentPath={fullPath}
+          nested
         />
       );
     }
