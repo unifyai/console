@@ -5,7 +5,7 @@ export default {
     // Granular interface structure
     interface: {
         project_id: "scatter-demo3",
-        name: "Scatter Two Groups Demo"
+        name: "interface1"
     },
     // Tab structure
     tab: {

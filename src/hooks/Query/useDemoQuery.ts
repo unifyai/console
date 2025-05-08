@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { 
   InterfaceData, 
   TabData, 
@@ -12,6 +12,7 @@ import {
   DerivedEntryActions
 } from '@/types/evals/grid';
 import { getLogsParameters } from '@/types/evals/logs';
+import { getQueryClient } from '@/lib/react-query/getQueryClient';
 
 /**
  * Input interface for the demo creation process
@@ -51,7 +52,7 @@ export interface DemoCreationResult {
  * A hook to create a complete demo with interface, tab, and tiles
  */
 export function useCreateDemoQuery() {
-  const queryClient = useQueryClient();
+  const queryClient = getQueryClient();
   
   return useMutation({
     mutationFn: async (input: DemoCreationInput): Promise<DemoCreationResult> => {

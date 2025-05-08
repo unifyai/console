@@ -5,7 +5,7 @@ export default {
     // Granular interface structure
     interface: {
         project_id: "context-demo",
-        name: "Context Demo",
+        name: "interface1",
     },
     // Tab structure
     tab: {

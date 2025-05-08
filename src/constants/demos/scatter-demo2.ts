@@ -23,7 +23,7 @@ for gender in ["male", "female"]:
     // Granular interface structure
     interface: {
         project_id: "scatter-demo2",
-        name: "Scatter Grouped Demo"
+        name: "interface1"
     },
     // Tab structure
     tab: {

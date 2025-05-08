@@ -1,13 +1,15 @@
 "use client";
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { GranularTabActions, GranularTileActions, TabData, TileData } from '@/types/evals/grid';
+import { getQueryClient } from '@/lib/react-query/getQueryClient';
+
 
 /**
  * Hook to restore a tab and all its tiles from checkpoints
  */
 export function useRestoreLastSavedTabWithTilesQuery() {
-  const queryClient = useQueryClient();
+  const queryClient = getQueryClient();
 
   return useMutation({
     mutationFn: async ({ 

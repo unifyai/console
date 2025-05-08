@@ -25,7 +25,7 @@ for month in range(1, 13):
     // Granular interface structure
     interface: {
         project_id: "histogram-demo",
-        name: "Histogram Demo"
+        name: "interface1"
     },
     // Tab structure
     tab: {

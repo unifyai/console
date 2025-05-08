@@ -79,7 +79,7 @@ import { GranularInterfaceActions, GranularTabActions, GranularTileActions } fro
 import InterfaceWrapper from "@/components/Interfaces/Server/InterfaceWrapper.server";
 import { createInterfaceActions, createTabActions, createTileActions } from "./utils";
 
-const InterfacesPage = async ({ searchParams }: { searchParams: { project?: string, tab?: string } }) => {
+const InterfacesPage = async ({ searchParams }: { searchParams: { project?: string, interface?: string, tab?: string } }) => {
     // get user and api key
     const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
     const user = await getCurrentUser();
@@ -196,6 +196,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
             <Suspense fallback={<SkeletonLoader />}>
                 <InterfaceWrapper
                     project={searchParams?.project ?? null}
+                    interface_={searchParams?.interface ?? null}
                     tab={searchParams?.tab}
                     actions={
                         {

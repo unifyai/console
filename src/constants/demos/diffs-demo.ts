@@ -38,7 +38,7 @@ unify.log(
     // Granular interface structure
     interface: {
         project_id: "diffs-demo",
-        name: "Diffs Demo",
+        name: "interface1",
     },
     // Tab structure
     tab: {

@@ -1,13 +1,14 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { DevboxActions } from '@/types/evals/grid';
+import { getQueryClient } from '@/lib/react-query/getQueryClient';
 
 /**
  * Hook to fetch devbox data
  */
 export function useGetDevboxQuery(devboxActions: DevboxActions) {
-  const queryClient = useQueryClient();
+  const queryClient = getQueryClient();
   
   // Query to get devbox
   const { data, isLoading, isError, error } = useQuery({

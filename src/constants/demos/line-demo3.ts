@@ -34,7 +34,7 @@ for i in range(25):
     // Granular interface structure
     interface: {
         project_id: "line-demo3",
-        name: "Line Chart Endpoint Demo"
+        name: "interface1"
     },
     // Tab structure
     tab: {

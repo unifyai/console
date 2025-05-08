@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import TileCard from "../TileCard";
 import TileWrapper from "./TileWrapper.server";
-import { getQueryClient } from "@/components/Providers/QueryProvider";
+import { getQueryClient } from '@/lib/react-query/getQueryClient'
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { StoreSliceUpdater } from "@/contexts/providers/StoreSliceUpdater";
@@ -70,6 +70,7 @@ export default async function TileCardWrapper({
           tabId={tabId}
           interfaceId={interfaceId}
           projectId={projectId}
+          tileActions={actions.tileActions}
           logsActions={actions.logsActions}
           fieldsActions={actions.fieldsActions}
           derivedEntryActions={actions.derivedEntryActions}

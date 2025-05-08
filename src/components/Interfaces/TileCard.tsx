@@ -5,9 +5,8 @@ import { Plus } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
-import { fileTypes, icons, tabTypes } from "@/constants/logs";
-import { ResponseProps } from "@/types/common";
-import { DerivedEntryActions, FieldsActions, ContextActions, TabProps, TileProps, CodeActions } from "@/types/evals/grid";
+import { icons, tabTypes } from "@/constants/logs";
+import { DerivedEntryActions, FieldsActions, ContextActions, TileProps, CodeActions, GranularTileActions } from "@/types/evals/grid";
 import { LogsActions } from "@/types/evals/grid";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { TileColorContext } from '@/contexts/TileColorContext';
@@ -15,7 +14,7 @@ import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import { useTileData, useTileUI } from '@/contexts/hooks/tile';
 import { useLogLengths } from "@/contexts/hooks/useStore";
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
-import { getTileCardRef, getTileButtonsRef } from '@/utils/refRegistry';
+import { getTileCardRef } from '@/utils/refRegistry';
 
 const Tile = lazy(() => import('./Tile'));
 
@@ -25,6 +24,7 @@ interface TileCardProps {
   tabId: string;
   interfaceId: string;
   projectId: string;
+  tileActions: GranularTileActions;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
@@ -39,6 +39,7 @@ const TileCard = ({
   tabId,
   interfaceId,
   projectId,
+  tileActions,
   logsActions,
   fieldsActions,
   derivedEntryActions,
@@ -49,7 +50,6 @@ const TileCard = ({
 
   // Get refs from the registry instead of creating or receiving them via props
   const tileCardRef = getTileCardRef(tileId);
-  const tileButtonsRef = getTileButtonsRef(tileId);
   
   // Register that this tile has initialized its refs via Zustand
   const registerTileRefs = useStoreContext(state => state.registerTileRefs);
@@ -169,6 +169,7 @@ const TileCard = ({
                 tabId={tabId}
                 interfaceId={interfaceId}
                 projectId={projectId}
+                tileActions={tileActions}
                 logsActions={logsActions}
                 fieldsActions={fieldsActions}
                 derivedEntryActions={derivedEntryActions}

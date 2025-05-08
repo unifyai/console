@@ -35,7 +35,7 @@ for with_tool in [True, False]:
     // Granular interface structure
     interface: {
         project_id: "grouping-demo",
-        name: "Grouping Demo",
+        name: "interface1",
     },
     // Tab structure
     tab: {

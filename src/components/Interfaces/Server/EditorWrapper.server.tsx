@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getQueryClient } from "@/components/Providers/QueryProvider";
+import { getQueryClient } from '@/lib/react-query/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import Editor from "../Details/Editor/Editor";

@@ -2,11 +2,12 @@ import { Suspense } from "react";
 import Tab from "../Tab";
 import TileCardWrapper from "./TileCardWrapper.server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import { getQueryClient } from "@/components/Providers/QueryProvider";
+import { getQueryClient } from '@/lib/react-query/getQueryClient';
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { StoreSliceUpdater } from "@/contexts/providers/StoreSliceUpdater";
 import { buildTabStateForStore } from "@/contexts/utils/stateBuilderUtils";
 import { IStoreState } from "@/contexts/store";
+import { redirect } from "next/navigation";
 
 import type {
   LogsActions,
@@ -32,13 +33,15 @@ type TabWrapperActions = {
 
 export default async function TabWrapper({
   project,
+  interfaceId,
   interfaceName,
   tab,
   actions,
 }: {
   project: string | null;
-  interfaceName: string;
-  tab?: string;
+  interfaceId: string;    // UUID for API calls
+  interfaceName: string;  // Name for query params
+  tab?: string;           // Tab name from query params
   actions: TabWrapperActions;
 }) {
   const qc = getQueryClient();
@@ -48,33 +51,62 @@ export default async function TabWrapper({
     return <div className="flex items-center justify-center h-full">Please select a project</div>;
   }
 
-  // Prefetch tabs using the query client
+  // Handle case where no interface is provided
+  if (!interfaceId) {
+    return <div className="flex items-center justify-center h-full">Please select an interface</div>;
+  }
+
+  // Prefetch tabs using the query client - use interfaceId for API calls
   await qc.prefetchQuery({
-    queryKey: ["tabs", interfaceName],
-    queryFn: () => actions.tabActions.list(interfaceName, false)
+    queryKey: ["tabs", interfaceId],
+    queryFn: () => actions.tabActions.list(interfaceId, false)
   });
 
   // Get the tabs from the query cache
-  const tabs = qc.getQueryData<TabData[]>(["tabs", interfaceName]) || [];
+  const tabs = qc.getQueryData<TabData[]>(["tabs", interfaceId]) || [];
   
-  const activeTab = tab 
-    ? tabs.find(t => t.name === tab) 
-    : tabs.find(t => t.active) || tabs[0];
+  // Find the current tab based on various scenarios
+  let activeTab: TabData | null = null;
   
+  // First check if a specific tab was requested in the URL
+  if (tab) {
+    activeTab = tabs.find(t => t.name === tab) || null;
+  } 
+  
+  // If no tab was found or specified, try to find an active tab
+  if (!activeTab) {
+    activeTab = tabs.find(t => t.active) || null;
+  }
+  
+  // If still no tab found, use the first tab if available
+  if (!activeTab && tabs.length > 0) {
+    activeTab = tabs[0];
+  }
+  
+  // Redirect if we have a valid interface but no tab in the URL
+  if (!tab && project && interfaceName && activeTab && activeTab.name) {
+    // Use interfaceName (not interfaceId) in query params 
+    redirect(`/interfaces?project=${encodeURIComponent(project)}&interface=${encodeURIComponent(interfaceName)}&tab=${encodeURIComponent(activeTab.name)}`);
+  }
+  
+  // If no active tab could be found, show a message
   if (!activeTab) {
     return <div className="flex items-center justify-center h-full">No tabs found</div>;
   }
 
-  // Prefetch tiles for the active tab
-  if (activeTab.id) {
+  // Prefetch tiles for the active tab - use tabId for API calls
+  const tabId = activeTab.id || "";
+  const tabName = activeTab.name || "";
+  
+  if (tabId) {
     await qc.prefetchQuery({
-      queryKey: ["tiles", activeTab.id],
-      queryFn: () => actions.tileActions.list(activeTab.id || "", undefined, false)
+      queryKey: ["tiles", tabId],
+      queryFn: () => actions.tileActions.list(tabId, undefined, false)
     });
   }
 
   // Get the tiles from the query cache
-  const tiles = qc.getQueryData<TileData[]>(["tiles", activeTab.id]) || [];
+  const tiles = qc.getQueryData<TileData[]>(["tiles", tabId]) || [];
 
   // Build tab state explicitly - we only need to build the tab state here
   let tabState = {};
@@ -83,7 +115,7 @@ export default async function TabWrapper({
       activeTab,
       {},  // tableArguments
       true, // isActive
-      interfaceName // interfaceId
+      interfaceId // Use interfaceId for the store
     );
   }
   
@@ -112,14 +144,15 @@ export default async function TabWrapper({
       
       <HydrationBoundary state={dehydrate(qc)}>
         <Tab
-          tabId={activeTab.id || ""}
-          interfaceId={interfaceName}
+          tabId={tabId}
+          interfaceId={interfaceId} /* Use interfaceId for component props */
           projectId={project}
           getLatestTab={getLatestTab}
           setNewCounter={setNewCounter}
           setFocusDialog={setFocusDialog}
           setEditTile={setEditTile}
           updateTab={updateTab}
+          tileActions={actions.tileActions}
           logsActions={actions.logsActions}
           fieldsActions={actions.fieldsActions}
           derivedEntryActions={actions.derivedEntryActions}
@@ -127,29 +160,15 @@ export default async function TabWrapper({
           codeActions={actions.codeActions}
         >
           {tiles.map(tile => (
-            <div
-              key={tile.id}
-              data-grid={{
-                i: tile.id,
-                x: tile.position?.x || 0,
-                y: tile.position?.y || 0,
-                w: tile.position?.width || 4,
-                h: tile.position?.height || 4,
-                visible: true
-              }}
-              className="relative"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Suspense fallback={<SkeletonLoader />}>
-                <TileCardWrapper
-                  tile={tile}
-                  tabId={activeTab.id || ""}
-                  interfaceId={interfaceName}
-                  projectId={project}
-                  actions={actions}
-                />
-              </Suspense>
-            </div>
+            <Suspense fallback={<SkeletonLoader />}>
+              <TileCardWrapper
+                tile={tile}
+                tabId={tabId}
+                interfaceId={interfaceId} /* Use interfaceId for API calls */
+                projectId={project}
+                actions={actions}
+              />
+            </Suspense>
           ))}
         </Tab>
       </HydrationBoundary>

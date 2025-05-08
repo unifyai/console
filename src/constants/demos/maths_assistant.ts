@@ -56,7 +56,7 @@ with unify.Experiment():
     // Granular interface structure
     interface: {
         project_id: "Maths Assistant",
-        name: "Maths Assistant Demo"
+        name: "interface1"
     },
     // Tab structure
     tab: {

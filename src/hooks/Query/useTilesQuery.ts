@@ -1,7 +1,8 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { GranularTileActions, TileData, TilePosition } from '@/types/evals/grid';
+import { getQueryClient } from '@/lib/react-query/getQueryClient';
 
 // Define TileType as a string union if not imported
 type TileType = "Table" | "Plot" | "View" | "Editor";
@@ -99,7 +100,7 @@ export function useGetTileUnifiedQuery(
  * Hook to create a new tile
  */
 export function useCreateTileQuery() {
-  const queryClient = useQueryClient();
+  const queryClient = getQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -138,7 +139,7 @@ export function useCreateTileQuery() {
  * Hook to update a tile
  */
 export function useUpdateTileQuery() {
-  const queryClient = useQueryClient();
+  const queryClient = getQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -176,7 +177,7 @@ export function useUpdateTileQuery() {
  * Note: This method needs to be added to the GranularTileActions interface
  */
 export function useUpdateTilesPositionsQuery() {
-  const queryClient = useQueryClient();
+  const queryClient = getQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -225,7 +226,7 @@ export function useUpdateTilesPositionsQuery() {
  * Hook to delete a tile
  */
 export function useDeleteTileQuery() {
-  const queryClient = useQueryClient();
+  const queryClient = getQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -261,7 +262,7 @@ export function useDeleteTileQuery() {
  * Hook to create a checkpoint for a tile
  */
 export function useCreateTileCheckpointQuery() {
-  const queryClient = useQueryClient();
+  const queryClient = getQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -326,7 +327,7 @@ export function useTileDataQuery(
  * Hook to patch a tile by name
  */
 export function usePatchTileQuery() {
-  const queryClient = useQueryClient();
+  const queryClient = getQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -371,7 +372,7 @@ export function usePatchTileQuery() {
 export function usePatchSpecializedTileQuery<
   T extends TileType
 >() {
-  const queryClient = useQueryClient();
+  const queryClient = getQueryClient();
   
   return useMutation({
     mutationFn: async ({ 

@@ -30,7 +30,7 @@ for question in ["what is 1 + 1?", "what is 2 + 2?", "what is 3 + 3?"]:
     // Granular interface structure
     interface: {
         project_id: "hidden-columns-demo",
-        name: "Hidden Columns Demo"
+        name: "interface1"
     },
     // Tab structure
     tab: {

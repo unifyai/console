@@ -16,7 +16,7 @@ for i in range(10):
     // Granular interface structure
     interface: {
         project_id: "line-demo",
-        name: "Line Chart Demo"
+        name: "interface1"
     },
     // Tab structure
     tab: {

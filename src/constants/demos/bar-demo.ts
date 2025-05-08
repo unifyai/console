@@ -5,7 +5,7 @@ export default {
     // Granular interface structure
     interface: {
         project_id: "bar-demo",
-        name: "Bar Chart Demo",
+        name: "interface1",
     },
     // Tab structure
     tab: {

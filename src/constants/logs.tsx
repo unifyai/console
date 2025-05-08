@@ -51,7 +51,7 @@ export const defaultNewCounter = 0;
 
 // Default interface and tab templates for new projects
 export const defaultInterface: InterfaceData = {
-  name: "Default Interface",
+  name: "interface1",
 };
 
 export const defaultTab: TabData = {

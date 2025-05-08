@@ -1,19 +1,19 @@
 import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedMetrics } from "@/types/evals/logs";
 import { getLogsDetails, replaceParamsIndicesWithValues, convertMetricsToLogs } from "@/utils/evals/common";
-import { Context, ContextActions, DerivedEntryActions, FieldsActions, TabProps, TabActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TabsDataProps, CodeActions, DevboxActions } from "@/types/evals/grid";
+import { Context, ContextActions, DerivedEntryActions, FieldsActions, TabProps, TabActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TabsDataProps, CodeActions, DevboxActions, TileProps, GranularInterfaceActions, GranularTileActions, GranularTabActions } from "@/types/evals/grid";
 import { buildFilterExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { redirect } from "next/navigation";
 // import { cookies } from "next/headers";
 import { defaultNewCounter } from "@/constants/logs";
-import { defaultItems } from "@/constants/logs";
+import { defaultTiles } from "@/constants/logs";
 import { IStoreState } from "@/contexts/store";
 import { Suspense } from "react";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
-import { buildInitialState } from "@/contexts/utils/stateBuilderUtils";
 import { StoreInitializer } from "../../contexts/providers/StoreInitializer";
+import Interface from "./Interface";
 
-const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, tabActions, codeActions, devboxActions }: {
+const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, interfaceActions, tabActions, granularTabActions, tileActions, codeActions, devboxActions }: {
     tab: string | undefined,
     project: string | undefined,
     projectsActions: ProjectsActions,
@@ -21,7 +21,10 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     derivedEntryActions: DerivedEntryActions,
     fieldsActions: FieldsActions,
     contextActions: ContextActions,
+    interfaceActions: GranularInterfaceActions,
     tabActions: TabActions,
+    granularTabActions: GranularTabActions,
+    tileActions: GranularTileActions,
     codeActions: CodeActions,
     devboxActions: DevboxActions
 }) => {
@@ -93,7 +96,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
         name: tab_1 as string,
         project: currentProject,
         context: undefined,
-        items: defaultItems,
+        items: [] as TileProps[],
         new_counter: defaultNewCounter
     } as TabProps;
     
@@ -342,7 +345,6 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
             const hiddenColumns = tile.hidden_columns;
 
             const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
-                tile,
                 logsData,
                 fields[idx],
                 context,
@@ -448,45 +450,26 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
         })
     }
 
-    // Now build the initial state
-    const initialState: Partial<IStoreState> = buildInitialState(
-        currentTabName,
-        tabNamesTemp,
-        currentInterfaceName,
-        currentProjectName,
-        projects,
-        contexts,
-        tabs,
-        tabsData,
-        tableData,
-        plotData,
-        tableArguments,
-        limit,
-        offsets,
-    );
-
-    // Initialize operations as an empty object in the initial state
-    initialState.operations = {};
-
-    // Mark this state as coming from the server
-    (initialState as any).stateSource = 'server';
-
     return (
         <Suspense fallback={
             <div className="w-full h-full flex items-center justify-center">
                 <SkeletonLoader />
             </div>
         }>
-            <StoreInitializer 
-                initialState={initialState}
+            <Interface
+                interfaceId={currentInterfaceName}
                 projectsActions={projectsActions}
+                interfaceActions={interfaceActions}
+                tabActions={granularTabActions}
+                tileActions={tileActions}
                 logsActions={logsActions}
-                derivedEntryActions={derivedEntryActions}
                 fieldsActions={fieldsActions}
+                derivedEntryActions={derivedEntryActions}
                 contextActions={contextActions}
-                tabActions={tabActions}
                 codeActions={codeActions}
-            />
+            >
+                <div>Hello</div>
+            </Interface>
         </Suspense>
     );
 };

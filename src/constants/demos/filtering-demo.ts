@@ -59,7 +59,7 @@ for age, catchphrase, last_login, otp in zip(
     // Granular interface structure
     interface: {
         project_id: "filtering-demo",
-        name: "Filtering Demo",
+        name: "interface1",
     },
     // Tab structure
     tab: {

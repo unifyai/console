@@ -33,6 +33,7 @@ const DefaultProject = ({
     codeActions,
     derivedEntryActions,
     setTabQueryParam,
+    setInterfaceQueryParam,
     setProjectQueryParam
 }: {
     projectActions: ProjectsActions,
@@ -43,6 +44,7 @@ const DefaultProject = ({
     codeActions: CodeActions,
     derivedEntryActions: DerivedEntryActions,
     setTabQueryParam: (value: string | null) => void,
+    setInterfaceQueryParam: (value: string | null) => void,
     setProjectQueryParam: (value: string | null) => void,
 }) => {
     // Access projects getter and setter from the store
@@ -127,6 +129,7 @@ const DefaultProject = ({
             // After all operations complete successfully
             setTimeout(() => {
                 setProjectQueryParam(demoInterface.project_id || null);
+                setInterfaceQueryParam(demoInterface.name || null);
                 setTabQueryParam(demoTab.name);
                 setDemo(null);
                 setCreate(null);

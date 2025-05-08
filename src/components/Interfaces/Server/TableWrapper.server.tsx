@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getQueryClient } from "@/components/Providers/QueryProvider";
+import { getQueryClient } from '@/lib/react-query/getQueryClient'
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import LogsTable from "../Table/Table";
@@ -14,11 +14,13 @@ import type {
   DerivedEntryActions,
   ContextActions,
   TileData,
+  GranularTileActions,
 } from "@/types/evals/grid";
 import { LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 
 
 type TableWrapperActions = {
+  tileActions: GranularTileActions;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
@@ -162,6 +164,7 @@ export default async function TableWrapper({
           tabId={tabId}
           interfaceId={interfaceId}
           projectId={projectId}
+          tileActions={actions.tileActions}
           logsActions={actions.logsActions}
           fieldsActions={actions.fieldsActions}
           derivedEntryActions={actions.derivedEntryActions}

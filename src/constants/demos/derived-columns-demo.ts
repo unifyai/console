@@ -5,7 +5,7 @@ export default {
     // Granular interface structure
     interface: {
         project_id: "derived-columns-demo",
-        name: "Derived Columns Demo",
+        name: "interface1",
     },
     // Tab structure
     tab: {

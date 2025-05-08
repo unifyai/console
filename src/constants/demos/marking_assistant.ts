@@ -26,7 +26,7 @@ unify.create_logs(entries=usage_data)
     // Granular interface structure
     interface: {
         project_id: "MarkingAssistant",
-        name: "Marking Assistant Demo"
+        name: "interface1"
     },
     // Tab structure
     tab: {

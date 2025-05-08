@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getQueryClient } from "@/components/Providers/QueryProvider";
+import { getQueryClient } from '@/lib/react-query/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import Interface from "../Interface";
@@ -21,6 +21,7 @@ import type {
   InterfaceData,
   Context
 } from "@/types/evals/grid";
+import { redirect } from "next/navigation";
 
 type InterfaceWrapperActions = {
   projectsActions: ProjectsActions;
@@ -37,64 +38,113 @@ type InterfaceWrapperActions = {
 
 export default async function InterfaceWrapper({
   project,
+  interface_,
   tab,
   actions,
 }: {
   project: string | null;
-  tab?: string;
+  interface_: string | null;  // This is the interface name from query param
+  tab?: string;  // This is the tab name from query param
   actions: InterfaceWrapperActions;
 }) {
   const qc = getQueryClient();
 
   /* Lightweight prefetch for projects and contexts */
+  let projects: string[] = [];
   await qc.prefetchQuery({ 
     queryKey: ["projects"], 
     queryFn: actions.projectsActions.get 
   });
-  
+  projects = qc.getQueryData<string[]>(["projects"]) || [];
+
+  // Get the current project if it was provided in the URL
+  const currentProject = projects.find(proj => proj == project) || null;
+
   // Project contexts
   let contexts: Context[] = [];
   
-  if (project) {
+  if (currentProject) {
     await qc.prefetchQuery({
-      queryKey: ["contexts", project],
-      queryFn: () => actions.contextActions.get(project),
+      queryKey: ["contexts", currentProject],
+      queryFn: () => actions.contextActions.get(currentProject),
     });
     
     // Get contexts from cache
-    contexts = qc.getQueryData<Context[]>(["contexts", project]) || [];
+    contexts = qc.getQueryData<Context[]>(["contexts", currentProject]) || [];
   }
 
-  /* Current interface meta */
-  const interfaceName = "interface";
-  let interfaceData: InterfaceData | null = null;
-  
-  if (project) {
+  // Get interfaces
+  let interfaces: InterfaceData[] = [];
+  if (currentProject) {
     await qc.prefetchQuery({
-      queryKey: ["interface", project, interfaceName, false],
-      queryFn: () => actions.interfaceActions.getByName(project, interfaceName, false)
+      queryKey: ["interfaces", currentProject, false],
+      queryFn: () => actions.interfaceActions.list(currentProject, false),
     });
-    
-    // Get interface data from cache
-    interfaceData = qc.getQueryData<InterfaceData>(["interface", project, interfaceName, false]) || null;
+
+    // Get interfaces from cache
+    interfaces = qc.getQueryData<InterfaceData[]>(["interfaces", currentProject, false]) || [];
   }
+
+  // Get the current interface 
+  // NOTE: interface_ from query params is the NAME, not the ID
+  let currentInterface: InterfaceData | null = null;
   
+  if (interface_) {
+    // Find by name from query param
+    currentInterface = interfaces.find(i => i.name === interface_) || null;
+  } else if (interfaces.length > 0) {
+    // Default to first interface if none specified
+    currentInterface = interfaces[0];
+  }
+
+  // Redirect if we have a project and interfaces but no interface in the URL
+  if (!interface_ && currentProject && currentInterface && currentInterface.name) {
+    redirect(`/interfaces?project=${encodeURIComponent(currentProject)}&interface=${encodeURIComponent(currentInterface.name)}`);
+  }
+
+  // Extract key interface properties needed for rendering
+  let interfaceName = ""; // The name to use in query params
+  let interfaceId = ""; // The UUID to use for API calls
+
+  if (currentInterface) {
+    interfaceName = currentInterface.name;
+    interfaceId = currentInterface.id || currentInterface.name; // Fall back to name if ID is missing
+  }
+
   // Build project state
   let projectState = {};
-  if (project) {
+  if (currentProject) {
+    // Create a list of all interface IDs from the fetched interfaces
+    const interfaceIds = interfaces.map(iface => iface.id || iface.name).filter(Boolean);
+    
+    // If there's a current interface, set it as the active one
+    const activeInterfaceId = currentInterface 
+      ? (currentInterface.id || currentInterface.name)
+      : undefined;
+    
     projectState = buildProjectStateForStore(
-      project, 
-      project, // Use project ID as name for now
+      currentProject, 
+      currentProject, // Use currentProject ID as name for now
       contexts,
-      interfaceData ? [interfaceData.id || interfaceName] : [interfaceName],
-      interfaceData?.id || interfaceName
+      interfaceIds, // Use all interface IDs
+      activeInterfaceId
     );
   }
   
   // Build interface state
-  const interfaceState = interfaceData ? 
-    buildInterfaceStateForStore(interfaceData, interfaceData.active_tab_id) : 
-    { activeInterfaceId: interfaceName };
+  let interfaceState = {};
+  if (currentInterface) {
+    // Extract the active tab id if available
+    const activeTabId = currentInterface.active_tab_id || undefined;
+    
+    interfaceState = buildInterfaceStateForStore(
+      currentInterface, 
+      activeTabId
+    );
+  } else if (interface_) {
+    // If we have an interface name but no data yet
+    interfaceState = { activeInterfaceId: interface_ };
+  }
   
   // Merge states
   const initialState = {
@@ -107,7 +157,7 @@ export default async function InterfaceWrapper({
     <StoreInitializer initialState={initialState}>
       <HydrationBoundary state={dehydrate(qc)}>
         <Interface
-          interfaceId={interfaceData?.id || interfaceName}
+          interfaceId={interfaceId}
           projectsActions={actions.projectsActions}
           interfaceActions={actions.interfaceActions}
           tabActions={actions.tabActions}
@@ -118,22 +168,25 @@ export default async function InterfaceWrapper({
           contextActions={actions.contextActions}
           codeActions={actions.codeActions}
         >
-          <Suspense fallback={<SkeletonLoader />}>
-            <TabWrapper
-              project={project}
-              interfaceName={interfaceData?.id || interfaceName}
-              tab={tab}
-              actions={{
-                tabActions: actions.tabActions,
-                tileActions: actions.tileActions,
-                logsActions: actions.logsActions,
-                fieldsActions: actions.fieldsActions,
-                derivedEntryActions: actions.derivedEntryActions,
-                contextActions: actions.contextActions,
-                codeActions: actions.codeActions
-              }}
-            />
-          </Suspense>
+          {currentInterface && (
+            <Suspense fallback={<SkeletonLoader />}>
+              <TabWrapper
+                project={currentProject}
+                interfaceId={interfaceId}
+                interfaceName={interfaceName}
+                tab={tab}
+                actions={{
+                  tabActions: actions.tabActions,
+                  tileActions: actions.tileActions,
+                  logsActions: actions.logsActions,
+                  fieldsActions: actions.fieldsActions,
+                  derivedEntryActions: actions.derivedEntryActions,
+                  contextActions: actions.contextActions,
+                  codeActions: actions.codeActions
+                }}
+              />
+            </Suspense>
+          )}
         </Interface>
       </HydrationBoundary>
     </StoreInitializer>

@@ -56,6 +56,7 @@ const Interface = ({
 
   // Query params
   const [tabQueryParam, setTabQueryParam] = useQueryState("tab", { shallow: false });
+  const [interfaceQueryParam, setInterfaceQueryParam] = useQueryState("interface", { shallow: false });
   const [projectQueryParam, setProjectQueryParam] = useQueryState("project", { shallow: false });
 
   // Initialize React Query mutations for tab operations
@@ -81,11 +82,6 @@ const Interface = ({
 
   // Reference for the grid container
   const gridRef = useRef<HTMLDivElement>(null);
-  
-  // Get tile props using the getItems function from the tab data actions
-  const tileProps = useMemo(() => {
-    return (!tabDataActions) ? [] : tabDataActions.getItems();
-  }, [tabDataActions]);
 
   // Get tab names for the current interface
   const tabNames = useMemo(() => interfaceDataActions?.getTabNames() || [], [interfaceDataActions]);
@@ -138,8 +134,8 @@ const Interface = ({
 
   // Handle save dialog submission
   const handleSaveDialog = async () => {
-    if (!tabQueryParam || !projectQueryParam) {
-      console.error("Missing tab or project ID");
+    if (!tabQueryParam || !projectQueryParam || !interfaceQueryParam) {
+      console.error("Missing tab or project or interface");
       return;
     }
     
@@ -157,7 +153,7 @@ const Interface = ({
       
       // Create a checkpoint of the tab and all its tiles
       await saveTabWithTilesMutation.mutateAsync({
-        interface_id: projectQueryParam,
+        interface_id: interfaceId,
         tab_name: tabQueryParam,
         tile_ids: tileIds
       });
@@ -197,6 +193,7 @@ const Interface = ({
             projectQueryParam={projectQueryParam}
             defaultProject={false}
             setTabQueryParam={setTabQueryParam}
+            setInterfaceQueryParam={setInterfaceQueryParam}
             setProjectQueryParam={setProjectQueryParam}
             projectActions={projectsActions}
             interfaceActions={interfaceActions}
@@ -231,11 +228,11 @@ const Interface = ({
         </div>
 
         {tabNames.length === 0 ? (
-          projectQueryParam && interfaceUIState?.pending ? (
+          projectQueryParam && interfaceQueryParam && interfaceUIState?.pending ? (
             <div className="flex justify-center">
               <Loader2 className="animate-spin my-36" />
             </div>
-          ) : !projectQueryParam ? (
+          ) : !projectQueryParam && !interfaceQueryParam ? (
             <Suspense fallback={<div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>}>
               <DefaultProject
                 projectActions={projectsActions}
@@ -246,6 +243,7 @@ const Interface = ({
                 codeActions={codeActions}
                 derivedEntryActions={derivedEntryActions}
                 setTabQueryParam={setTabQueryParam}
+                setInterfaceQueryParam={setInterfaceQueryParam}
                 setProjectQueryParam={setProjectQueryParam}
               />
             </Suspense>
@@ -291,7 +289,7 @@ const Interface = ({
         )}
 
         {/* Interface tabs */}
-        {projectQueryParam && <div className="sticky bottom-0 z-10 p-2 bg-background flex w-full justify-center">
+        {projectQueryParam && interfaceQueryParam && <div className="sticky bottom-0 z-10 p-2 bg-background flex w-full justify-center">
           <InterfaceTabs
             interfaceId={interfaceId}
             newCounter={newCounter}

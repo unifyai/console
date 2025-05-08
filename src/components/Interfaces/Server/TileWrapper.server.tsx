@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Tile from "../Tile";
-import { getQueryClient } from "@/components/Providers/QueryProvider";
+import { getQueryClient } from '@/lib/react-query/getQueryClient'
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 
@@ -16,10 +16,12 @@ import type {
   DerivedEntryActions,
   ContextActions,
   CodeActions,
-  TileData
+  TileData,
+  GranularTileActions
 } from "@/types/evals/grid";
 
 type TileWrapperActions = {
+  tileActions: GranularTileActions;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
@@ -53,6 +55,7 @@ export default async function TileWrapper({
             interfaceId={interfaceId}
             projectId={projectId}
             actions={{
+              tileActions: actions.tileActions,
               logsActions: actions.logsActions,
               fieldsActions: actions.fieldsActions,
               derivedEntryActions: actions.derivedEntryActions,
@@ -68,6 +71,7 @@ export default async function TileWrapper({
             interfaceId={interfaceId}
             projectId={projectId}
             actions={{
+              tileActions: actions.tileActions,
               logsActions: actions.logsActions,
               fieldsActions: actions.fieldsActions
             }}
@@ -106,6 +110,7 @@ export default async function TileWrapper({
         tabId={tabId}
         interfaceId={interfaceId}
         projectId={projectId}
+        tileActions={actions.tileActions}
         logsActions={actions.logsActions}
         fieldsActions={actions.fieldsActions}
         derivedEntryActions={actions.derivedEntryActions}

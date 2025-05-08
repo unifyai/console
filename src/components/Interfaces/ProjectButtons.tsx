@@ -26,6 +26,7 @@ const ProjectButtons = ({
     projectQueryParam,
     defaultProject,
     setProjectQueryParam,
+    setInterfaceQueryParam,
     setTabQueryParam,
     projectActions,
     interfaceActions,
@@ -37,6 +38,7 @@ const ProjectButtons = ({
     projectQueryParam: string | null;
     defaultProject: boolean,
     setProjectQueryParam: (project: string | null) => void;
+    setInterfaceQueryParam: (interface_: string | null) => void;
     setTabQueryParam: (tab: string | null) => void;
     projectActions: ProjectsActions;
     interfaceActions: GranularInterfaceActions;
@@ -61,8 +63,6 @@ const ProjectButtons = ({
     // Interface states and actions with granular access
     const { ui: interfaceUIState, uiActions: interfaceUIActions, dataActions: interfaceDataActions } = useInterface(interfaceId);
     const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabQueryParam || "");
-
-    const tabNames = interfaceDataActions?.getTabNames() || [];
 
     // Use React Query to load projects instead of direct server call
     useEffect(() => {
@@ -107,6 +107,7 @@ const ProjectButtons = ({
             
             // Update UI state after successful creation
             setProject(name);
+            setInterfaceQueryParam("interface1");
             setTabQueryParam("tab1");
             interfaceUIActions?.setPending(true);
             interfaceUIActions?.setDataPending(true);
@@ -134,6 +135,7 @@ const ProjectButtons = ({
             interfaceUIActions?.setDataPending(true);
             setTabQueryParam(null);
             interfaceDataActions?.setTabNames([]);
+            setInterfaceQueryParam(null);
             setProject(null);
             
             // Project list will be automatically updated through query invalidation
@@ -190,6 +192,7 @@ const ProjectButtons = ({
                                 interfaceUIActions?.setDataPending(true);
                                 setTabQueryParam(null);
                                 interfaceDataActions?.setTabNames([]);
+                                setInterfaceQueryParam(null);
                                 setProject(null);
                             }}
                             variant="ghost"

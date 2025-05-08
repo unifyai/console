@@ -1,7 +1,8 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { ContextActions } from '@/types/evals/grid';
+import { getQueryClient } from '@/lib/react-query/getQueryClient';
 
 /**
  * Hook to fetch all contexts for a project
@@ -24,7 +25,7 @@ export function useListContextsQuery(
  * Hook to create a new context
  */
 export function useCreateContextQuery() {
-  const queryClient = useQueryClient();
+  const queryClient = getQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -51,7 +52,7 @@ export function useCreateContextQuery() {
  * Hook to delete a context
  */
 export function useDeleteContextQuery() {
-  const queryClient = useQueryClient();
+  const queryClient = getQueryClient();
   
   return useMutation({
     mutationFn: async ({ 

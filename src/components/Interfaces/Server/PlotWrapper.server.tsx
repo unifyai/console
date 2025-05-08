@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getQueryClient } from "@/components/Providers/QueryProvider";
+import { getQueryClient } from '@/lib/react-query/getQueryClient'
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import LogsPlot from "../Details/Plot/Plot";
@@ -12,10 +12,12 @@ import type {
   LogsActions,
   FieldsActions,
   TileData,
+  GranularTileActions,
 } from "@/types/evals/grid";
 import { PlotArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedMetrics } from "@/types/evals/logs";
 
 type PlotWrapperActions = {
+  tileActions: GranularTileActions;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
 };
@@ -151,6 +153,7 @@ export default async function PlotWrapper({
           tabId={tabId}
           interfaceId={interfaceId}
           projectId={projectId}
+          tileActions={actions.tileActions}
           logsActions={actions.logsActions}
           fieldsActions={actions.fieldsActions}
         />
