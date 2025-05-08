@@ -157,7 +157,7 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
         isLoading: isTableDataLoading,
         isError: isTableDataError,
         error: tableDataError
-    } = useTableDataQuery(tileId);
+    } = useTableDataQuery(tileId, tabId, interfaceId, projectId);
     const currentLogs = logs || [];
     const limit = tableTileState?.limit as number;
     const offset = tableTileState?.offset as number;

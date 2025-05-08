@@ -29,7 +29,7 @@ const FreezeLogs = ({ tileId, tabId, interfaceId, projectId }: {
         isLoading: isTableDataLoading,
         isError: isTableDataError,
         error: tableDataError
-    } = useTableDataQuery(tileId, tabId, interfaceId, projectId);
+    } = useTableDataQuery(tileId || null, tabId || null, interfaceId || null, projectId || null);
 
     useEffect(() => {
         setLoading(false);
