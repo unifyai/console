@@ -36,6 +36,8 @@ import {
   isTimestamp,
 } from "@/utils/evals/selection";
 import { MessageSquare, BarChart2, FileText, Component } from "lucide-react";
+import { LogsActions } from "@/types/evals/grid";
+import { LogProps } from "@/types/evals/logs";
 
 /******************************************************************************
  * A tiny helper to capitalize or otherwise format a role for display.
@@ -59,6 +61,11 @@ function pickDataView(
   diffMode: LogComparisonProps["diffMode"],
   splitView: boolean,
   displayMode: LogComparisonProps["displayMode"],
+  fieldName: string,
+  context: string | null,
+  baseLog: LogProps | undefined,
+  comparisonLogs: LogProps[] | undefined,
+  logsActions?: LogsActions,  
   cellEditMode?: boolean,
   onSaveEdit?: LogComparisonProps["onSaveEdit"],
   onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
@@ -84,10 +91,10 @@ function pickDataView(
 
 
   if (isDict(finalValue)) {
-    return <DictionaryView {...commonProps} isImmutable={isImmutable}/>;
+    return <DictionaryView {...commonProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
   }
   if (isList(finalValue)) {
-    return <ListView {...commonProps} isImmutable={isImmutable}/>;
+    return <ListView {...commonProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
   }
   if (isImage(finalValue)) {
     return <ImageView {...commonProps} />;
@@ -185,7 +192,19 @@ export default function ChatOutView({
   onSaveEdit,
   onGroupSaveEdit,
   path = [],
-}: LogComparisonProps & {isImmutable?: boolean}) {
+  fieldName,
+  context,
+  baseLog,
+  comparisonLogs,
+  logsActions,
+}: LogComparisonProps & {
+  isImmutable?: boolean,
+  fieldName: string,
+  context: string | null,
+  baseLog: LogProps | undefined,
+  comparisonLogs: LogProps[] | undefined,
+  logsActions?: LogsActions,  
+}) {
   // SINGLE MODE
   const singleMode = !comparables || comparables.length === 0;
   if (singleMode) {
@@ -237,7 +256,7 @@ export default function ChatOutView({
                           />
                         </div>
                         {/* Pass edit props down to potentially editable content */}
-                        {pickDataView(mainContent, [], baseLogIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                        {pickDataView(mainContent, [], baseLogIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
 
 
                         {/* Tool calls section */}
@@ -250,7 +269,7 @@ export default function ChatOutView({
                               copyMessage="Copied!"
                             />
                             {/* Tool calls are usually complex, less likely to be directly edited, but pass handlers */}
-                            {pickDataView(toolCalls, [], baseLogIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                            {pickDataView(toolCalls, [], baseLogIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                           </div>
                         )}
                       </div>
@@ -300,7 +319,7 @@ export default function ChatOutView({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border-l ml-4 pl-1">
-                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -316,7 +335,7 @@ export default function ChatOutView({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border-l ml-4 pl-1">
-                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -477,7 +496,7 @@ export default function ChatOutView({
                                       />
                                     </div>
                                     {/* Pass edit props */}
-                                    {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                                    {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
 
                                     {m.toolCalls.length > 0 && (
                                       <div className="mt-2 border-l-2 pl-2">
@@ -490,7 +509,7 @@ export default function ChatOutView({
                                           copyMessage="Copied!"
                                         />
                                         {/* Pass edit props */}
-                                        {pickDataView(m.toolCalls, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                                        {pickDataView(m.toolCalls, [], m.rowIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                                       </div>
                                     )}
                                   </div>
@@ -535,7 +554,7 @@ export default function ChatOutView({
                                       />
                                     </div>
                                      {/* Pass edit props */}
-                                     {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                                     {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
 
                                     {m.toolCalls.length > 0 && (
                                       <div className="mt-2 border-l-2 pl-2">
@@ -548,7 +567,7 @@ export default function ChatOutView({
                                           copyMessage="Copied!"
                                         />
                                          {/* Pass edit props */}
-                                         {pickDataView(m.toolCalls, [], m.rowIndex, [], "none", false, displayMode, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                                         {pickDataView(m.toolCalls, [], m.rowIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                                       </div>
                                     )}
                                   </div>
@@ -607,6 +626,11 @@ export default function ChatOutView({
                     diffMode,
                     splitView,
                     displayMode,
+                    fieldName,
+                    context,
+                    baseLog,
+                    comparisonLogs,
+                    logsActions,
                     cellEditMode,
                     onSaveEdit,
                     onGroupSaveEdit,
@@ -634,6 +658,11 @@ export default function ChatOutView({
                     diffMode,
                     splitView,
                     displayMode,
+                    fieldName,
+                    context,
+                    baseLog,
+                    comparisonLogs,
+                    logsActions,
                     cellEditMode,
                     onSaveEdit,
                     onGroupSaveEdit,
@@ -881,6 +910,11 @@ export default function ChatOutView({
                   diffMode,
                   splitView,
                   displayMode,
+                  fieldName,
+                  context,
+                  baseLog,
+                  comparisonLogs,
+                  logsActions,
                   cellEditMode,
                   onSaveEdit,
                   onGroupSaveEdit,
@@ -908,6 +942,11 @@ export default function ChatOutView({
                   diffMode,
                   splitView,
                   displayMode,
+                  fieldName,
+                  context,
+                  baseLog,
+                  comparisonLogs,
+                  logsActions,
                   cellEditMode,
                   onSaveEdit,
                   onGroupSaveEdit,

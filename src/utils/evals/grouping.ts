@@ -381,6 +381,7 @@ export async function onGroupExpand(
       groupSortingExpression,
       null,
       null,
+      null,
       limit,
       offset,
       0,

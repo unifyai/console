@@ -77,6 +77,7 @@ function updateLogs(
                     groupSortingExpression,
                     null,
                     null,
+                    null,
                     limit,
                     offset,
                     groupingExpression ? 0 : null,
@@ -314,7 +315,7 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
     // Fetch initial timestamp
     useEffect(() => {
         logsActions
-            .getLatest(projectId, item?.context ?? null, item?.column_context ?? null, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, null, null, null, null, null, null)
+            .getLatest(projectId, item?.context ?? null, item?.column_context ?? null, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, null, null, null, null, null, null, null)
             .then(latest => {
                 if (isMounted.current) setLastUpdated(latest);
             })
@@ -330,7 +331,7 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
 
         const logsBeforeManualFetch = currentLogs; // Use the logs prop passed from parent
 
-        logsActions.getLatest(projectId, item?.context ?? null, item?.column_context ?? null, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, null, null, null, null, null, null)
+        logsActions.getLatest(projectId, item?.context ?? null, item?.column_context ?? null, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, null, null, null, null, null, null, null)
             .then(latest => {
                 const latestTs = new Date(latest).getTime();
                 const lastCheckTs = lastUpdated ? new Date(lastUpdated).getTime() : 0; // Handle initial empty state

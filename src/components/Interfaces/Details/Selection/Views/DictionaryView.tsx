@@ -45,6 +45,9 @@ import StringView from "./StringView";
 import NumberView from "./NumberView";
 import TimestampView from "./TimestampView";
 import PdfView from "./PdfView";
+import { LogProps } from "@/types/evals/logs";
+import { LogsActions } from "@/types/evals/grid";
+import { Span } from "@/types/evals/traces";
 
 /*────────────────────────────────────────────────────────────────────────────
   unifyType => merges base + comps => single type. If multiple distinct => "string."
@@ -67,22 +70,33 @@ function unifyType(baseVal: any, comps: any[]): string {
 /*────────────────────────────────────────────────────────────────────────────
   pickView => specialized child rendering
 ────────────────────────────────────────────────────────────────────────────*/
-function pickView(props: LogComparisonProps & { isImmutable?: boolean; prefix?: string; parentPath?: string; viewTracesAsDict?: boolean }) {
-  const { value, parentPath = "", prefix = "", nestingLevel = 0, viewTracesAsDict } = props;
+function pickView(props: LogComparisonProps & { 
+  isImmutable?: boolean; 
+  prefix?: string; 
+  parentPath?: string; 
+  viewTracesAsDict?: boolean;
+  logsActions?: LogsActions;
+  context: string | null;
+  baseLog: LogProps | undefined;
+  comparisonLogs: LogProps[] | undefined;
+  fieldName: string;
+  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
+}) {
+  const { value, parentPath = "", prefix = "", nestingLevel = 0, viewTracesAsDict, logsActions, context, baseLog, comparisonLogs, fieldName, onTraceUpdate } = props;
 
   // Handle trace rendering based on viewTracesAsDict flag
   if (isTrace(value) && !viewTracesAsDict) {
-    return <TraceView {...props} />;
+    return <TraceView {...props} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName} onTraceUpdate={onTraceUpdate}/>;
   }
   // For non-trace types, continue normal rendering
   if (isChat(value)) {
     return <ChatView {...props} />;
   }
   if (isDict(value)) {
-    return <DictionaryView {...props} />;
+    return <DictionaryView {...props} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName} onTraceUpdate={onTraceUpdate}/>;
   }
   if (isList(value)) {
-    return <ListView {...props} />;
+    return <ListView {...props} onTraceUpdate={onTraceUpdate}/>;
   }
   if (isImage(value)) {
     return <ImageView {...props} />;
@@ -226,7 +240,13 @@ interface DictionaryViewProps extends LogComparisonProps {
   onSaveEdit?: (desc: { logIndex: number; path: (string | number)[]; newValue: any }) => void;
   onGroupSaveEdit?: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void; // New prop for group edits
   path?: (string | number)[];
-  nested?: boolean
+  nested?: boolean;
+  logsActions?: LogsActions,
+  context: string | null,
+  baseLog: LogProps | undefined,
+  comparisonLogs: LogProps[] | undefined,
+  fieldName: string,
+  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void
 }
 
 /*─────────────────────────────────────────────────────────────────────────
@@ -259,13 +279,20 @@ function renderNoDiffMode(
     onSaveEdit?: LogComparisonProps['onSaveEdit'], // Keep single save handler
     onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
     path: (string | number)[], // Pass down the current path
+    logsActions?: LogsActions;
+    context: string | null;
+    baseLog: LogProps | undefined;
+    comparisonLogs: LogProps[] | undefined;
+    fieldName: string;
+    onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
   }
 ) {
   const {
     baseLogIndex, comparisonLogsIndex, version, comparableVersions,
     diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
-    isImmutable, cellEditMode = false, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [], // Destructure group save handler and path
-    expandRecursively, collapseRecursively, customIconMapping
+    isImmutable, cellEditMode = false, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [], onTraceUpdate,
+    expandRecursively, collapseRecursively, customIconMapping, 
+    logsActions, context, baseLog, comparisonLogs, fieldName
   } = options;
 
   // Get indentation classes based on nesting level
@@ -430,6 +457,12 @@ function renderNoDiffMode(
                             // Crucially, pass the group save handler and ALL row indices for this group
                             onGroupSaveEdit: (desc) => onGroupSaveEdit?.({ ...desc, logIndices: group.rows }),
                             path: childEditPath,
+                            logsActions,
+                            context,
+                            baseLog,
+                            comparisonLogs,
+                            fieldName,
+                            onTraceUpdate
                           })}
                         </div>
                       ));
@@ -463,6 +496,12 @@ function renderNoDiffMode(
                       onSaveEdit,
                       onGroupSaveEdit,
                       path: childEditPath,
+                      logsActions,
+                      context,
+                      baseLog,
+                      comparisonLogs,
+                      fieldName,
+                      onTraceUpdate
                     });
                   })()
                 )}
@@ -504,13 +543,20 @@ function renderDiffMode(
     onSaveEdit?: LogComparisonProps['onSaveEdit'], // Keep single save handler
     onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
     path: (string | number)[], // Pass down the current path
+    logsActions?: LogsActions,
+    context: string | null,
+    baseLog: LogProps | undefined,
+    comparisonLogs: LogProps[] | undefined,
+    fieldName: string,
+    onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void
   }
 ) {
   const {
     baseLogIndex, comparisonLogsIndex, version, comparableVersions,
     diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
-    cellEditMode = false, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [], // Destructure group save handler and path
-    expandRecursively, collapseRecursively, customIconMapping
+    cellEditMode = false, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [], onTraceUpdate,
+    expandRecursively, collapseRecursively, customIconMapping,
+    logsActions, context, baseLog, comparisonLogs, fieldName
   } = options;
 
   // Get indentation classes based on nesting level
@@ -687,6 +733,12 @@ function renderDiffMode(
                       onSaveEdit,
                       onGroupSaveEdit,
                       path: childEditPath,
+                      logsActions,
+                      context,
+                      baseLog,
+                      comparisonLogs,
+                      fieldName,
+                      onTraceUpdate
                     });
                   }
 
@@ -761,6 +813,12 @@ function renderDiffMode(
                                 onSaveEdit,
                                 onGroupSaveEdit,
                                 path: childEditPath,
+                                logsActions,
+                                context,
+                                baseLog,
+                                comparisonLogs,
+                                fieldName,
+                                onTraceUpdate   
                               })}
                             </div>
                           )}
@@ -790,6 +848,12 @@ function renderDiffMode(
                                 onSaveEdit,
                                 onGroupSaveEdit,
                                 path: childEditPath,
+                                logsActions,
+                                context,
+                                baseLog,
+                                comparisonLogs,
+                                fieldName,
+                                onTraceUpdate       
                               })}
                             </div>
                           )}
@@ -831,6 +895,12 @@ function renderDiffMode(
                                         onSaveEdit,
                                         onGroupSaveEdit,
                                         path: childEditPath,
+                                        logsActions,
+                                        context,
+                                        baseLog,
+                                        comparisonLogs,
+                                        fieldName,
+                                        onTraceUpdate
                                       })}
                                     </div>
                                   );
@@ -880,6 +950,12 @@ function renderDiffMode(
                                       onSaveEdit,
                                       onGroupSaveEdit,
                                       path: childEditPath,
+                                      logsActions,
+                                      context,
+                                      baseLog,
+                                      comparisonLogs,
+                                      fieldName,
+                                      onTraceUpdate
                                     })}
                                   </div>
                                 ));
@@ -912,6 +988,12 @@ function renderDiffMode(
                       onSaveEdit,
                       onGroupSaveEdit,
                       path: childEditPath,
+                      logsActions,
+                      context,
+                      baseLog,
+                      comparisonLogs,
+                      fieldName,
+                      onTraceUpdate
                     });
                   }
 
@@ -934,6 +1016,12 @@ function renderDiffMode(
                     onSaveEdit,
                     onGroupSaveEdit,
                     path: childEditPath,
+                    logsActions,
+                    context,
+                    baseLog,
+                    comparisonLogs,
+                    fieldName,
+                    onTraceUpdate
                   });
                 })()}
               </div>
@@ -966,6 +1054,11 @@ export default function DictionaryView({
   path: editPath = [],
   isImmutable,
   nested,
+  logsActions,
+  context,
+  baseLog,
+  comparisonLogs,
+  fieldName
 }: DictionaryViewProps) {
 
   // Context detection and state management
@@ -1092,6 +1185,11 @@ export default function DictionaryView({
         onSaveEdit,
         onGroupSaveEdit,
         path: editPath,
+        logsActions,
+        context,
+        baseLog,
+        comparisonLogs,
+        fieldName,
       }
     );
   }
@@ -1123,6 +1221,11 @@ export default function DictionaryView({
       onSaveEdit,
       onGroupSaveEdit,
       path: editPath,
+      logsActions,
+      context,
+      baseLog,
+      comparisonLogs,
+      fieldName,
     }
   );
 }

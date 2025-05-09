@@ -46,7 +46,7 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
-import { TileProps, ItemType } from "@/types/evals/grid";
+import { TileProps, ItemType, LogsActions } from "@/types/evals/grid";
 
 import {
   makePrefixedDictPath,
@@ -74,7 +74,8 @@ import {
 } from "@/components/UI/select";
 
 import { createContext, useContextSelector } from "use-context-selector";
-import { getDeep } from "@/utils/objectPath";
+import { TableActions } from "@/contexts/hooks/tile/useTableTile";
+import { Span } from "@/types/evals/traces";
 
 // Create a custom context for panel-specific state
 type PanelExpandContextType = {
@@ -182,6 +183,9 @@ export default function SelectionPanel({
   currentPanelCount,
   onPanelCountChange,
   onSaveMany,
+  logsActions,
+  tableTileActions,
+  context
 }: {
   panelId: number;
   panelState: PanelState;
@@ -202,6 +206,9 @@ export default function SelectionPanel({
   currentPanelCount: number;
   onPanelCountChange: React.Dispatch<React.SetStateAction<number>>;
   onSaveMany: (rowIds: string[], desc: { source: "entries" | "params"; path: (string|number)[]; newValue: any }) => void;
+  logsActions: LogsActions;
+  tableTileActions: TableActions | null; 
+  context: string | null
 }) {
   // Extract all values from panelState
   const {
@@ -1131,8 +1138,33 @@ export default function SelectionPanel({
 
   }, [sortedLogs, onSaveMany, baseLog]); // Added baseLog dependency
 
+    /*****************************************************************************
+     * Handle Trace Update (from polling)
+     *****************************************************************************/
+    const handleTraceUpdate = useCallback((logIndex: number, fieldName: string, newTrace: Span[]) => {
+      if (!tableTileActions) {
+          console.warn("[SelectionPanel] handleTraceUpdate: tableTileActions not available.");
+          return;
+      }
+
+      const targetLog = sortedLogs[logIndex];
+      if (!targetLog) {
+          console.error(`[SelectionPanel] handleTraceUpdate: Could not find log at index ${logIndex}`);
+          return;
+      }
+      const targetRowId = String(targetLog.id);
+
+      const source = fields[fieldName].field_type === 'param' ? 'params' : 'entries' // Need to add support for derived_entries in Traces 
+
+      tableTileActions.updateLogsDeep([targetRowId], {
+          source: source,
+          path: [fieldName],
+          newValue: newTrace
+      });
+  }, [sortedLogs, tableTileActions]);
+
   /*****************************************************************************
-   * EntriesSection Component - Pass both save handlers
+   * EntriesSection Component - Pass both save handlers and trace update handler
    *****************************************************************************/
   function EntriesSection() {
     if (!baseLog) return null;
@@ -1149,7 +1181,7 @@ export default function SelectionPanel({
       const traceState = getTraceStateFor(`entries-${entryKey}`);
       const isImmutable = fields[entryKey]?.mutable === "true";
       return (
-        <SortableAccordionItem key={entryKey} id={entryKey} editMode={editMode}>
+        <SortableAccordionItem key={entryKey} id={entryKey} editMode={editMode} onTraceUpdate={handleTraceUpdate}>
           <SelectionEntry
             property={entryKey}
             source="entries"
@@ -1171,10 +1203,14 @@ export default function SelectionPanel({
             panelSetOpenKeys={(updatedOpenKeys) => onPanelStateChange({ localOpenKeys: typeof updatedOpenKeys === 'function' ? updatedOpenKeys(localOpenKeys) : updatedOpenKeys })}
             externalTraceState={traceState}
             viewTracesAsDict={viewTracesAsDict}
+            fieldName={entryKey}
             isImmutable={isImmutable}
             cellEditMode={cellEditMode}
-            onSaveEdit={handleSaveEditLocal} // Pass handler for single edits
-            onGroupSaveEdit={handleGroupSaveEditLocal} // Pass handler for group edits
+            onSaveEdit={handleSaveEditLocal}
+            onGroupSaveEdit={handleGroupSaveEditLocal}
+            onTraceUpdate={handleTraceUpdate}
+            logsActions={logsActions}
+            context={context}
           />
         </SortableAccordionItem>
       );
@@ -1198,7 +1234,7 @@ export default function SelectionPanel({
   }
 
   /*****************************************************************************
-   * ParamSection Component - Pass both save handlers
+   * ParamSection Component - Pass both save handlers and trace update handler
    *****************************************************************************/
   function ParamSection() {
     if (!baseLog) return null;
@@ -1215,7 +1251,7 @@ export default function SelectionPanel({
       const traceState = getTraceStateFor(`params-${paramKey}`);
       const isImmutable = fields[paramKey]?.mutable === "false";
       return (
-        <SortableAccordionItem key={paramKey} id={paramKey} editMode={editMode}>
+        <SortableAccordionItem key={paramKey} id={paramKey} editMode={editMode} onTraceUpdate={handleTraceUpdate}>
           <SelectionEntry
             source="params"
             property={paramKey}
@@ -1237,10 +1273,14 @@ export default function SelectionPanel({
             panelSetOpenKeys={(updatedOpenKeys) => onPanelStateChange({ localOpenKeys: typeof updatedOpenKeys === 'function' ? updatedOpenKeys(localOpenKeys) : updatedOpenKeys })}
             externalTraceState={traceState}
             viewTracesAsDict={viewTracesAsDict}
+            fieldName={paramKey}
             isImmutable={isImmutable}
             cellEditMode={cellEditMode}
-            onSaveEdit={handleSaveEditLocal} // Pass handler for single edits
-            onGroupSaveEdit={handleGroupSaveEditLocal} // Pass handler for group edits
+            onSaveEdit={handleSaveEditLocal}
+            onGroupSaveEdit={handleGroupSaveEditLocal}
+            onTraceUpdate={handleTraceUpdate}
+            logsActions={logsActions}
+            context={context}
           />
         </SortableAccordionItem>
       );

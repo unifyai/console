@@ -46,7 +46,7 @@ const defaultPanelState: PanelState = {
   localOpenKeys: new Set<string>(),
   savedOpenKeys: new Set<string>(),
   viewTracesAsDict: false,
-  cellEditMode: false,      
+  cellEditMode: false,
 };
 import SelectionPanel from "@/components/Interfaces/Details/Selection/SelectionPanel";
 import { toast } from "sonner";
@@ -63,13 +63,13 @@ export default function Selection({
   tabId,
   interfaceId,
   projectId,
-  updateLog
+  logsActions,
 }: {
   tileId: string;
   tabId: string;
   interfaceId: string;
   projectId: string;
-  updateLog: LogsActions["update"]
+  logsActions: LogsActions;
 }) {
   /******************************************************************************
    * Prepare sorted logs & selection data
@@ -80,7 +80,7 @@ export default function Selection({
   const item = useMemo(() => tileItemActionsWithId?.asTileItem(), [tileItemActionsWithId]);
 
   // Get the table tile this selection references
-  const { meta: tileMetaStateWithTable, tableTile: tableTileStateWithTable, actions: tileActionsWithTable, tableTileActions } = useTile(
+  const { meta: tileMetaStateWithTable, tableTile: tableTileStateWithTable, actions: tileActionsWithTable, tableTileActions: hookTableTileActions } = useTile(
     item?.table || "",
     tabId,
     interfaceId,
@@ -88,14 +88,21 @@ export default function Selection({
   );
   const { itemActions: tileItemActionsWithTable } = useTileItem(item?.table || "", tabId, interfaceId);
 
+  // Use the provided tableTileActions from the store
+  const tableTileActions = useMemo(() => hookTableTileActions, [hookTableTileActions]);
+
   // Get table fields
   const fields = useMemo(() => tableTileStateWithTable?.tableDataItem?.fields || {}, [tableTileStateWithTable?.tableDataItem?.fields]);
-  
+
+
   // Create equivalent references to match the old pattern
   const tableItem = useMemo(() => tileItemActionsWithTable?.asTileItem() ||
-    { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileItemActionsWithTable, item?.table]);
+  { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileItemActionsWithTable, item?.table]);
   const relevantItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || undefined, [tileItemActionsWithTable]);
   const tableDataItem = useMemo(() => tableTileStateWithTable?.tableDataItem || {} as TableDataItem, [tableTileStateWithTable]);
+
+  // Get table context
+  const context = useMemo(() => tableItem.context ?? null, [tableItem.context]);
 
   // Create a generic updateItem function that checks property existence
   const updateItem = useCallback((item: TileProps, propName: string) => (value: any) => {
@@ -261,31 +268,31 @@ export default function Selection({
 
       // Snapshot previous logs for potential rollback
       const prevLogs = tableTileStateWithTable?.tableDataItem?.logs;
- 
+
       // Optimistic local state update (for UI responsiveness)
       tableTileActions.updateLogsDeep(rowIds, desc);
- 
+
       // Manually construct the *full* updated field for the backend
       // Find the relevant log in the *previous* state
       const prevLogForUpdate = prevLogs?.find(log => String(log.id) === rowIds[0]);
- 
+
       if (!prevLogForUpdate) {
         console.error("Could not find the log in the previous state to construct update payload.");
         rollbackLogs(prevLogs);
         toast.error("Failed to update log.");
         return;
       }
- 
+
       let entriesUpdate: LogItemProps = {};
       let paramsUpdate: LogItemProps = {};
- 
+
       if (desc.source === 'entries') {
         if (desc.path.length > 0) {
         const topLevelKey = desc.path[0] as string;
         const originalTopLevelValue = getDeep(prevLogForUpdate.entries ?? {}, [topLevelKey]);
         const updatedValue = setDeep(originalTopLevelValue, desc.path.slice(1), desc.newValue);
           entriesUpdate = { [topLevelKey as string]: updatedValue };
-        } 
+        }
         else { /* Handle edge case if path is empty? */ }
       } else {
         if (desc.path.length > 0) {
@@ -293,14 +300,14 @@ export default function Selection({
         const originalTopLevelValue = getDeep(prevLogForUpdate.params ?? {}, [topLevelKey]);
         const updatedValue = setDeep(originalTopLevelValue, desc.path.slice(1), desc.newValue);
           paramsUpdate = { [topLevelKey as string]: updatedValue };
-        } 
+        }
         else { /* Handle edge case if path is empty? */ }
       }
-      
+
       try {
-        const response = await updateLog(
-          projectId, 
-          tableItem?.context ?? null, 
+        const response = await logsActions.update(
+          projectId,
+          context,
           rowIds.map(id => parseInt(id, 10)),
           entriesUpdate,
           paramsUpdate
@@ -315,7 +322,7 @@ export default function Selection({
       }
 
     },
-    [projectId, tableItem?.context, tableTileActions, tableTileStateWithTable?.tableDataItem?.logs, rollbackLogs, updateLog]
+    [projectId, context, tableTileActions, tableTileStateWithTable?.tableDataItem?.logs, rollbackLogs, logsActions.update]
   );
 
   /*******************************************************************************
@@ -340,7 +347,7 @@ export default function Selection({
           // Get the panel state or use default if not found
           // Use nullish coalescing instead of || to only use default when truly missing
           const panelState = panelStates[idx] ?? { ...defaultPanelState };
-          
+
           // Ensure all properties that should be objects are initialized
           if (!panelState.localOpenKeys) panelState.localOpenKeys = new Set<string>();
           if (!panelState.savedOpenKeys) panelState.savedOpenKeys = new Set<string>();
@@ -374,11 +381,13 @@ export default function Selection({
                 updateItem={updateItem}
                 initialBaseIndex={baseIndex_ ? parseInt(baseIndex_, 10) : 0}
                 allPossibleColumns={allPossibleColumns}
-                // Pass down selection/panel info
                 selectedRowCount={selectedRowIndices.length}
                 currentPanelCount={panelCount}
                 onPanelCountChange={setPanelCount}
                 onSaveMany={handleSaveMany}
+                logsActions={logsActions}
+                tableTileActions={tableTileActions}
+                context={context}
               />
             </React.Fragment>
           );
