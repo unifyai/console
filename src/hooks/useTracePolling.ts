@@ -17,19 +17,21 @@ export function useTracePolling(
 ) {
   const project = useStoreContext((s) => s.activeProjectId);
   const logId = log?.id;
-  console.log("Query ket",project, context, fieldName, logId)
+
   return useQuery<Span[] | undefined>({
     // Update query key to include logId and context
-    queryKey: [project, context, fieldName, logId],
-    // Enable only if logId, projectId, and logsActions are available
-    enabled: !!logId && !!project && !!logsActions,
+    queryKey: ['tracePolling', project, context, fieldName, logId], // Added 'tracePolling' prefix for clarity
+    // Enable only if logId, projectId, and logsActions are available AND log is defined
+    enabled: !!logId && !!project && !!logsActions && !!log,
       refetchInterval: intervalMs,
-      staleTime: 0,
+      staleTime: 0, // Ensure data is always considered fresh for polling
+      gcTime: intervalMs * 2, // Keep data slightly longer than interval
+      refetchIntervalInBackground: false, // Don't poll when tab is inactive
+      refetchOnWindowFocus: false, // Don't refetch just because window gained focus
       queryFn: async () => {
-        if (!logId || !project) return undefined;
-        // Guard against missing dependencies
+        // Guard against missing dependencies - recheck inside queryFn
         if (!logId || !project || !logsActions) return undefined;
-    
+
         try {
           // Use the getLogs server action
           const json = await logsActions.get(
@@ -40,7 +42,7 @@ export function useTracePolling(
             null,                  // sortingExpression
             null,                  // groupingExpression
             null,                  // groupSortingExpression
-            logId,                 // from_ids
+            String(logId),         // from_ids - ensure it's a string
             fieldName,             // from_fields
             null,                  // exclude_fields
             1,                     // limit
@@ -49,7 +51,7 @@ export function useTracePolling(
             null,                  // return_ids_only
             Date.now().toString()  // _timestamp for cache busting
           );
-    
+
           if (json.detail) {
             console.error("Error fetching trace row:", json.detail);
             return undefined;
@@ -57,15 +59,26 @@ export function useTracePolling(
 
           // Extract trace data
           const first = (json?.logs as LogProps[])?.[0];
+          // Access the specific fieldName within entries
           const trace = first?.entries?.[fieldName];
 
-          if (!trace) {
+          if (trace === undefined) { // Check specifically for undefined
             // If trace is not found, return undefined but don't throw
-            console.warn(`Trace not found for logId: ${logId}`);
+            console.warn(`Trace field '${fieldName}' not found for logId: ${logId}`);
             return undefined;
           }
-          console.log("New trace", trace)
-          return Array.isArray(trace) ? trace as Span[] : [trace];
+
+          // Ensure the result is always an array of spans
+          if (Array.isArray(trace)) {
+             return trace as Span[];
+          } else if (trace !== null && typeof trace === 'object') {
+             // If it's a single span object, wrap it in an array
+             return [trace as Span];
+          } else {
+             // If it's neither an array nor a valid object, consider it invalid
+             console.warn(`Invalid trace data structure for logId: ${logId}, field: ${fieldName}`);
+             return undefined;
+          }
 
         } catch (error) {
           console.error("Error in useTracePolling queryFn:", error);

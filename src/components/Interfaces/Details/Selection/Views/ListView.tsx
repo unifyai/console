@@ -47,6 +47,7 @@ import TimestampView from "./TimestampView";
 import PdfView from "./PdfView";
 import { LogsActions } from "@/types/evals/grid";
 import { LogProps } from "@/types/evals/logs";
+import { Span } from "@/types/evals/traces";
 
 /*────────────────────────────────────────────────────────────────────────────
   unifyType => merges base + comps => single type. If multiple distinct => "string."
@@ -80,25 +81,23 @@ function pickView(props: LogComparisonProps & {
   baseLog: LogProps | undefined,
   comparisonLogs: LogProps[] | undefined,
   logsActions?: LogsActions,
+  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
  }) {
-  const { value, viewTracesAsDict, fieldName, context, baseLog, comparisonLogs, logsActions } = props;
+  const { value, viewTracesAsDict, fieldName, context, baseLog, comparisonLogs, logsActions, onTraceUpdate } = props;
 
   // Handle trace rendering based on viewTracesAsDict flag
   if (isTrace(value) && !viewTracesAsDict) {
-    return <TraceView {...props} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}
-/>;
+    return <TraceView {...props} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName} onTraceUpdate={onTraceUpdate}/>;
   }
 
   if (isChat(value)) {
-    return <ChatView {...props} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}
-/>;
+    return <ChatView {...props} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
   }
   if (isDict(value)) {
-    return <DictionaryView {...props} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}
-/>;
+    return <DictionaryView {...props} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName} onTraceUpdate={onTraceUpdate}/>;
   }
   if (isList(value)) {
-    return <ListView {...props} />;
+    return <ListView {...props} onTraceUpdate={onTraceUpdate}/>;
   }
   if (isImage(value)) {
     return <ImageView {...props} />;
@@ -267,13 +266,14 @@ function renderNoDiffMode(
     onSaveEdit?: LogComparisonProps['onSaveEdit'], // Keep single save
     onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'], // Add group save
     path: (string | number)[],
+    onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void
   }
 ) {
   const {
     baseLogIndex, comparisonLogsIndex, version, comparableVersions,
     diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
     expandRecursively, collapseRecursively,
-    path: parentEditPath, isImmutable, cellEditMode, onSaveEdit, onGroupSaveEdit,
+    path: parentEditPath, isImmutable, cellEditMode, onSaveEdit, onGroupSaveEdit, onTraceUpdate,
     fieldName, context, baseLog, comparisonLogs, logsActions
   } = options;
 
@@ -489,6 +489,7 @@ function renderNoDiffMode(
                           // Crucially, pass the group save handler and ALL row indices
                           onGroupSaveEdit: (desc) => onGroupSaveEdit?.({ ...desc, logIndices: group.rows }),
                           path: currentItemEditPath,
+                          onTraceUpdate
                         })}
                       </div>
                     ))}
@@ -522,7 +523,8 @@ function renderNoDiffMode(
                           cellEditMode,
                           onSaveEdit,
                           onGroupSaveEdit,
-                          path: currentItemEditPath
+                          path: currentItemEditPath,
+                          onTraceUpdate
                         })}
                       </div>
                     </div>
@@ -572,13 +574,14 @@ function renderDiffMode(
     onSaveEdit?: LogComparisonProps['onSaveEdit'],
     onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
     path?: (string | number)[],
+    onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void
   }
 ) {
   const {
     baseLogIndex, comparisonLogsIndex, version, comparableVersions,
     diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
     expandRecursively, collapseRecursively,
-    cellEditMode, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [],
+    cellEditMode, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [], onTraceUpdate,
     fieldName, context, baseLog, comparisonLogs, logsActions, 
   } = options;
 
@@ -776,6 +779,7 @@ function renderDiffMode(
                       onSaveEdit,
                       onGroupSaveEdit,
                       path: currentItemEditPath,
+                      onTraceUpdate
                     });
                   }
 
@@ -855,6 +859,7 @@ function renderDiffMode(
                         onSaveEdit,
                         onGroupSaveEdit,
                         path: currentItemEditPath,
+                        onTraceUpdate
                       })}
                     </div>
                           )}
@@ -889,6 +894,7 @@ function renderDiffMode(
                                 onSaveEdit,
                                 onGroupSaveEdit,
                                 path: currentItemEditPath,
+                                onTraceUpdate
                               })}
                             </div>
                           )}
@@ -935,6 +941,7 @@ function renderDiffMode(
                                         onSaveEdit,
                                         onGroupSaveEdit,
                                         path: currentItemEditPath,
+                                        onTraceUpdate
                                       })}
                                     </div>
                                   );
@@ -989,6 +996,7 @@ function renderDiffMode(
                                       onSaveEdit,
                                       onGroupSaveEdit,
                                       path: currentItemEditPath,
+                                      onTraceUpdate
                                     })}
                                   </div>
                                 ));
@@ -1026,6 +1034,7 @@ function renderDiffMode(
                       onSaveEdit,
                       onGroupSaveEdit,
                       path: currentItemEditPath,
+                      onTraceUpdate
                     });
                   }
 
@@ -1059,6 +1068,7 @@ function renderDiffMode(
                       onSaveEdit,
                       onGroupSaveEdit,
                       path: currentItemEditPath,
+                      onTraceUpdate
                     });
                   }
 
@@ -1086,6 +1096,7 @@ function renderDiffMode(
                     onSaveEdit,
                     onGroupSaveEdit,
                     path: currentItemEditPath,
+                    onTraceUpdate
                   });
                 })()}
               </div>
@@ -1112,6 +1123,7 @@ interface ListViewProps extends LogComparisonProps {
   parentPath?: string;    // parent's fully qualified path
   nestingLevel?: number;
   viewTracesAsDict?: boolean;
+  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
   // Note: cellEditMode and onSaveEdit are inherited from LogComparisonProps
   // onGroupSaveEdit is also inherited
 }
@@ -1139,7 +1151,8 @@ export default function ListView({
   context,
   baseLog,
   comparisonLogs,
-  logsActions
+  logsActions,
+  onTraceUpdate
 }: ListViewProps) {
 
   // Context detection and state management (unchanged)
@@ -1266,6 +1279,7 @@ export default function ListView({
               cellEditMode,
               onSaveEdit, 
               onGroupSaveEdit,
+              onTraceUpdate
             })}
           </div>
         </AccordionContent>

@@ -47,6 +47,7 @@ import TimestampView from "./TimestampView";
 import PdfView from "./PdfView";
 import { LogProps } from "@/types/evals/logs";
 import { LogsActions } from "@/types/evals/grid";
+import { Span } from "@/types/evals/traces";
 
 /*────────────────────────────────────────────────────────────────────────────
   unifyType => merges base + comps => single type. If multiple distinct => "string."
@@ -79,22 +80,23 @@ function pickView(props: LogComparisonProps & {
   baseLog: LogProps | undefined;
   comparisonLogs: LogProps[] | undefined;
   fieldName: string;
+  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
 }) {
-  const { value, parentPath = "", prefix = "", nestingLevel = 0, viewTracesAsDict, logsActions, context, baseLog, comparisonLogs, fieldName } = props;
+  const { value, parentPath = "", prefix = "", nestingLevel = 0, viewTracesAsDict, logsActions, context, baseLog, comparisonLogs, fieldName, onTraceUpdate } = props;
 
   // Handle trace rendering based on viewTracesAsDict flag
   if (isTrace(value) && !viewTracesAsDict) {
-    return <TraceView {...props} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
+    return <TraceView {...props} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName} onTraceUpdate={onTraceUpdate}/>;
   }
   // For non-trace types, continue normal rendering
   if (isChat(value)) {
     return <ChatView {...props} />;
   }
   if (isDict(value)) {
-    return <DictionaryView {...props} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
+    return <DictionaryView {...props} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName} onTraceUpdate={onTraceUpdate}/>;
   }
   if (isList(value)) {
-    return <ListView {...props} />;
+    return <ListView {...props} onTraceUpdate={onTraceUpdate}/>;
   }
   if (isImage(value)) {
     return <ImageView {...props} />;
@@ -243,7 +245,8 @@ interface DictionaryViewProps extends LogComparisonProps {
   context: string | null,
   baseLog: LogProps | undefined,
   comparisonLogs: LogProps[] | undefined,
-  fieldName: string
+  fieldName: string,
+  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void
 }
 
 /*─────────────────────────────────────────────────────────────────────────
@@ -281,12 +284,13 @@ function renderNoDiffMode(
     baseLog: LogProps | undefined;
     comparisonLogs: LogProps[] | undefined;
     fieldName: string;
+    onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
   }
 ) {
   const {
     baseLogIndex, comparisonLogsIndex, version, comparableVersions,
     diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
-    isImmutable, cellEditMode = false, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [], // Destructure group save handler and path
+    isImmutable, cellEditMode = false, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [], onTraceUpdate,
     expandRecursively, collapseRecursively, customIconMapping, 
     logsActions, context, baseLog, comparisonLogs, fieldName
   } = options;
@@ -457,7 +461,8 @@ function renderNoDiffMode(
                             context,
                             baseLog,
                             comparisonLogs,
-                            fieldName
+                            fieldName,
+                            onTraceUpdate
                           })}
                         </div>
                       ));
@@ -496,6 +501,7 @@ function renderNoDiffMode(
                       baseLog,
                       comparisonLogs,
                       fieldName,
+                      onTraceUpdate
                     });
                   })()
                 )}
@@ -541,13 +547,14 @@ function renderDiffMode(
     context: string | null,
     baseLog: LogProps | undefined,
     comparisonLogs: LogProps[] | undefined,
-    fieldName: string
+    fieldName: string,
+    onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void
   }
 ) {
   const {
     baseLogIndex, comparisonLogsIndex, version, comparableVersions,
     diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
-    cellEditMode = false, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [], // Destructure group save handler and path
+    cellEditMode = false, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [], onTraceUpdate,
     expandRecursively, collapseRecursively, customIconMapping,
     logsActions, context, baseLog, comparisonLogs, fieldName
   } = options;
@@ -731,6 +738,7 @@ function renderDiffMode(
                       baseLog,
                       comparisonLogs,
                       fieldName,
+                      onTraceUpdate
                     });
                   }
 
@@ -809,7 +817,8 @@ function renderDiffMode(
                                 context,
                                 baseLog,
                                 comparisonLogs,
-                                fieldName,          
+                                fieldName,
+                                onTraceUpdate   
                               })}
                             </div>
                           )}
@@ -843,7 +852,8 @@ function renderDiffMode(
                                 context,
                                 baseLog,
                                 comparisonLogs,
-                                fieldName,          
+                                fieldName,
+                                onTraceUpdate       
                               })}
                             </div>
                           )}
@@ -890,6 +900,7 @@ function renderDiffMode(
                                         baseLog,
                                         comparisonLogs,
                                         fieldName,
+                                        onTraceUpdate
                                       })}
                                     </div>
                                   );
@@ -944,6 +955,7 @@ function renderDiffMode(
                                       baseLog,
                                       comparisonLogs,
                                       fieldName,
+                                      onTraceUpdate
                                     })}
                                   </div>
                                 ));
@@ -981,6 +993,7 @@ function renderDiffMode(
                       baseLog,
                       comparisonLogs,
                       fieldName,
+                      onTraceUpdate
                     });
                   }
 
@@ -1008,6 +1021,7 @@ function renderDiffMode(
                     baseLog,
                     comparisonLogs,
                     fieldName,
+                    onTraceUpdate
                   });
                 })()}
               </div>

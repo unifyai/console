@@ -65,6 +65,7 @@ import { createContext, useContextSelector } from "use-context-selector";
 import type { DraggableAttributes } from '@dnd-kit/core';
 import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
 import { LogComparisonProps } from "./Views/types";
+import { Span } from "@/types/evals/traces";
 
 //////////////////////////////////////////////////////////////////////////////
 // Type definitions
@@ -162,8 +163,9 @@ function getSelectionView(
   viewTracesAsDict?: boolean,
   persistedTraceState?: PersistedTraceViewState,
   cellEditMode?: boolean,
-  onSaveEdit?: LogComparisonProps['onSaveEdit'], // Signature includes logIndex
-  onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'], // Signature includes logIndices
+  onSaveEdit?: LogComparisonProps['onSaveEdit'],
+  onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
+  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void,
   path?: (string | number)[],
   logsActions?: LogsActions,
   context: string | null = null,
@@ -184,7 +186,7 @@ function getSelectionView(
       displayMode: displayMode,
       cellEditMode: cellEditMode,
       onSaveEdit: onSaveEdit,
-      onGroupSaveEdit: onGroupSaveEdit, // Pass the group save handler
+      onGroupSaveEdit: onGroupSaveEdit,
       path: path,
   };
 
@@ -202,13 +204,13 @@ function getSelectionView(
   // Use the determined type instead of re-unifying
   switch (valueType) {
     case "trace":
-      return <TraceView {...commonViewProps} value={Array.isArray(val) ? val : [val]} comparables={comps.map((c) => (Array.isArray(c) ? c : c ? [c] : []))} persistedState={persistedTraceState} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
+      return <TraceView {...commonViewProps} value={Array.isArray(val) ? val : [val]} comparables={comps.map((c) => (Array.isArray(c) ? c : c ? [c] : []))} persistedState={persistedTraceState} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName} onTraceUpdate={onTraceUpdate}/>;
     case "chat":
       return <ChatOutView {...commonViewProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
     case "dict":
-      return <DictionaryView {...commonViewProps} nestingLevel={nestingLevel} prefix={prefix} parentPath={parentPath} viewTracesAsDict={viewTracesAsDict} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
+      return <DictionaryView {...commonViewProps} nestingLevel={nestingLevel} prefix={prefix} parentPath={parentPath} viewTracesAsDict={viewTracesAsDict} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName} onTraceUpdate={onTraceUpdate}/>;
     case "list":
-      return <ListView {...commonViewProps} nestingLevel={nestingLevel} prefix={prefix} parentPath={parentPath} viewTracesAsDict={viewTracesAsDict} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
+      return <ListView {...commonViewProps} nestingLevel={nestingLevel} prefix={prefix} parentPath={parentPath} viewTracesAsDict={viewTracesAsDict} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName} onTraceUpdate={onTraceUpdate}/>;
     case "pdf":
       return <PdfView {...commonViewProps} />;
     case "image":
@@ -257,6 +259,7 @@ interface SelectionEntryProps {
   cellEditMode?: boolean;
   onSaveEdit?: (desc: { logIndex: number; source: SourceType; path: (string | number)[]; newValue: any }) => void;
   onGroupSaveEdit?: (desc: { logIndices: number[]; source: SourceType; path: (string | number)[]; newValue: any }) => void;
+  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
   path?: (string | number)[];
   logsActions: LogsActions;
   context: string | null
@@ -298,6 +301,7 @@ export default function SelectionEntry({
   cellEditMode = false,
   onSaveEdit,
   onGroupSaveEdit,
+  onTraceUpdate,
   path: incomingPath,
   logsActions,
   context
@@ -386,14 +390,14 @@ export default function SelectionEntry({
       rawValue, comps, version, comparableVersions, baseLog, baseLogIndex, comparisonLogs, comparisonLogsIndex,
       diffMode, splitView, displayMode, childNesting, source === "entries" ? "entries" : "params",
       topLevelPath, unifiedType, fieldName, isImmutable, viewTracesAsDict, persistedTraceState, cellEditMode,
-      handleSaveEditForView, handleGroupSaveEditForView, valuePath,
+      handleSaveEditForView, handleGroupSaveEditForView, onTraceUpdate, valuePath,
       logsActions, context
     );
   }, [
     rawValue, comps, version, comparableVersions, baseLog, baseLogIndex, comparisonLogs, comparisonLogsIndex,
     diffMode, splitView, displayMode, childNesting, source, topLevelPath, unifiedType,
     isEmpty, fieldName, isImmutable, viewTracesAsDict, persistedTraceState, cellEditMode,
-    handleSaveEditForView, handleGroupSaveEditForView, valuePath,
+    handleSaveEditForView, handleGroupSaveEditForView, onTraceUpdate, valuePath,
     logsActions, context
   ]);
 
@@ -428,7 +432,7 @@ export default function SelectionEntry({
   const contentNode = useMemo(() => renderedContent, [isLeaf, cellEditMode, rawValue, renderedContent]);
 
   if (isEmpty) return null;
-  
+
   return (
     <AccordionItem value={itemValue}>
       <AccordionTrigger

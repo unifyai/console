@@ -11,6 +11,7 @@ interface TraceViewProps extends LogComparisonProps {
   cellEditMode?: boolean;
   onSaveEdit?: (desc: { logIndex: number; path: (string | number)[]; newValue: any }) => void;
   onGroupSaveEdit?: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void;
+  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
   path?: (string | number)[];
   logsActions?: LogsActions,
   context: string | null,
@@ -31,7 +32,8 @@ const TraceView: React.FC<TraceViewProps> = ({
   isImmutable,
   cellEditMode,
   onSaveEdit,
-  onGroupSaveEdit, 
+  onGroupSaveEdit,
+  onTraceUpdate,
   path,
   logsActions,
   context,
@@ -65,9 +67,10 @@ const TraceView: React.FC<TraceViewProps> = ({
       cellEditMode={cellEditMode}
       onSaveEdit={onSaveEdit}
       onGroupSaveEdit={onGroupSaveEdit}
+      onTraceUpdate={onTraceUpdate}
       path={path}
       logsActions={logsActions}
-      context={context}
+      context={context || null}
       baseLog={baseLog}
       comparisonLogs={comparisonLogs}
       fieldName={fieldName}
