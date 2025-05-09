@@ -3,19 +3,17 @@
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ActionButton from "../../../Common/Buttons/Action";
 import BaseDropdown from "../../../Common/Dropdowns/Base";
-import { Context, ContextActions, LogsActions, GranularTileActions } from "@/types/evals/grid";
+import { Context, ContextActions, LogsActions, GranularTileActions, GranularTabActions } from "@/types/evals/grid";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { Braces, FolderTree, Grid2x2, X } from "lucide-react";
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
-import { ResponseProps } from "@/types/common";
-import { useRouter } from "next/navigation";
 import RenderMenuItems from "../../../Common/Dropdowns/RenderMenuItems";
 import { buildNestedDropdownTree, getFieldsByColumnContext } from "@/utils/evals/common";
 import { useMemo, useState } from "react";
 
 import { useTile, useTileItem } from "@/contexts/hooks/tile";
 import { useProjectData } from "@/contexts/hooks/project";
-import { useTabData } from "@/contexts/hooks/tab";
+import { useTabSync } from "@/contexts/hooks/tab/sync";
 import { useTableDataQuery } from "@/hooks/Query/useTableDataQuery";
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 
@@ -28,10 +26,10 @@ const ContextSelector = ({
     context,
     setContext,
     button,
+    tabActions: serverTabActions,
     tileActions: serverTileActions,
     logsActions,
     contextActions,
-    refresh,
     setPending
 }: {
     tileId?: string,
@@ -42,18 +40,24 @@ const ContextSelector = ({
     context?: string,
     setContext?: (context: string) => void,
     button?: React.ReactNode,
+    tabActions?: GranularTabActions,
     tileActions?: GranularTileActions,
     logsActions: LogsActions,
     contextActions: ContextActions,
-    refresh: () => Promise<ResponseProps>,
     setPending: (pending: boolean) => void
 }) => {
     const [open, setOpen] = useState(false);
     const [start, setStart] = useState(true);
-    const router = useRouter();
 
     const { dataActions: projectDataActions } = useProjectData(projectId || null);
-    const { dataActions: tabDataActions } = useTabData(tabId || null, interfaceId || null, projectId || null);
+    const { actions: tabSyncActions } = useTabSync(
+        tabId || null, 
+        interfaceId || null, 
+        projectId || null, 
+        serverTabActions, 
+        serverTileActions,
+        setPending
+    );
     const { actions: tileActions, dataActions: tileDataActions } = useTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
     const { itemActions: tileItemActions } = useTileItem(tileId || null, tabId || null, interfaceId || null);
 
@@ -117,13 +121,8 @@ const ContextSelector = ({
 
     const onDelete = (ctx: string) => {
         if (ctx) {
-            tabDataActions?.removeContextFromTab(ctx);
+            tabSyncActions?.removeContextFromTab(ctx);
         }
-
-        refresh().then(() => {
-            router.refresh();
-            setPending(true);
-        });
     }
 
     return (
