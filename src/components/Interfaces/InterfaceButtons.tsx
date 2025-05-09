@@ -112,7 +112,7 @@ const InterfaceButtons = ({
             // Then update each tile's context-related properties if needed
             tiles.forEach(tile => {
                 // Get the corresponding item to check current context
-                const item = items.find(i => i.i === tile.name);
+                const item = items.find(i => i.name === tile.name);
                 if (item) {
                     const validContext = contexts.some(c => c.name === ctx);
                     const validItemContext = item.context?.startsWith(ctx);
@@ -128,16 +128,10 @@ const InterfaceButtons = ({
                                 : undefined;
 
                     // Update the tile's context
-                    tabDataActions.updateTile(tile.name || "", {
-                        context: newContext
+                    tabDataActions.updateTile(tile.id || "", {
+                        context: newContext,
+                        column_context: validItemContext ? item.column_context : undefined
                     });
-
-                    // Update the tile's column_context
-                    if (tile.type === "Table" && tile.tableTile) {
-                        tabDataActions.updateTableTile(tile.name || "", {
-                            column_context: validItemContext ? item.column_context : undefined
-                        });
-                    }
                 }
             });
 
@@ -286,8 +280,8 @@ const InterfaceButtons = ({
                                 <DropdownMenuItem
                                     key={idx}
                                     onSelect={() => {
-                                        if (tabDataActions && item.i) {
-                                            tabDataActions.updateTile(item.i, {
+                                        if (tabDataActions && item.name) {
+                                            tabDataActions.updateTile(item.name, {
                                                 position: {
                                                     x: (tileIds.length * 2) % 12,
                                                     y: (tileIds.length * 2) / 12,
@@ -303,7 +297,7 @@ const InterfaceButtons = ({
                                     disabled={hiddenItems.length === 0}
                                     className="w-64"
                                 >
-                                    {item.i}
+                                    {item.name}
                                 </DropdownMenuItem>
                             ))}
                         </BaseDropdown>

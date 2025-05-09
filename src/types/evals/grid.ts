@@ -2,7 +2,8 @@ import { ResponseProps } from "../common";
 import { getLogsParameters, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps, GroupedLogProps, PlotArguments } from "./logs";
 
 export interface TileProps {
-    i: string;
+    id: string;
+    name: string;
     x: number;
     y: number;
     w: number;
@@ -64,12 +65,11 @@ export interface TableDataItem {
     metrics: { [key: string]: number },
     groupedMetrics?: { [key: string]: { [key: string]: { [key: string]: { [key: string]: number | string } } } },
     boundaries: { minimums: { [key: string]: number }, maximums: { [key: string]: number } },
-    metric: string
+    metric: string,
 }
 
 export interface PlotDataItem {
     plotLogs: LogProps[];
-    plotArguments: PlotArguments;
     plotFields: LogFieldsResponseProps;
 }
 
@@ -328,7 +328,6 @@ export interface GranularInterfaceActions {
     checkpointById: (interfaceId: string, description: string) => Promise<ResponseProps>;
     checkpoint: (params: { interfaceId?: string; projectId?: string; name?: string; description: string }) => Promise<ResponseProps>;
 }
-
 export interface GranularTabActions {
     // Get tab by name (hierarchical path)
     getByName: (interface_id: string, name: string, checkpoint?: boolean) => Promise<TabData | null>;

@@ -2,6 +2,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { TableDataItem } from "@/types/evals/grid";
 import { getQueryClient } from '@/lib/react-query/getQueryClient'
 import { useTileMeta } from "@/contexts/hooks/tile";
+import { TableArguments } from "@/types/evals/logs";
+import { useTabMeta } from "@/contexts/hooks/tab";
 
 /**
  * Hook for accessing table data cached by the server component
@@ -10,20 +12,37 @@ import { useTileMeta } from "@/contexts/hooks/tile";
 export function useTableDataQuery(
   tileName: string | null,
   tabName: string | null,
-  interfaceName: string | null,
-  projectName?: string | null
 ) {
   // Get tile meta information using the useTileMeta hook
-  const { tileId } = useTileMeta(tileName, tabName || null, interfaceName || null, projectName || null);
+  const { tileId } = useTileMeta(tileName, tabName || null);
 
   return useQuery<TableDataItem>({
-    queryKey: ["tableData", tileId],
+    queryKey: ["tableDataItem", tileId],
     // The data is prefetched by the server component
     // so we don't need to provide a queryFn
     staleTime: 30000, // 30 seconds before considering data stale
   });
 }
 
+/**
+ * Hook for accessing table arguments (API call parameters) cached by the server component
+ * @param tabName The name of the tab containing the tables
+ * @param interfaceName Optional interface name
+ */
+export function useTableArgumentsQuery(
+  tabName: string | null,
+  interfaceName?: string | null,
+) {
+  // Get tab meta information using the useTabMeta hook
+  const { tabId } = useTabMeta(tabName, interfaceName || null);
+
+  return useQuery<TableArguments>({
+    queryKey: ["tableArguments", tabId],
+    // The data is prefetched by the server component
+    staleTime: 30000, // 30 seconds before considering data stale
+    enabled: !!tabId, // Only run the query if we have a valid tabId
+  });
+}
 
 /**
  * Hook for updating table data with optimistic updates
@@ -43,7 +62,7 @@ export function useUpdateTableDataItem(tileId: string) {
       
       // Simulating API response
       return {
-        ...(queryClient.getQueryData<TableDataItem>(["tableData", tileId]) || {}),
+        ...(queryClient.getQueryData<TableDataItem>(["tableDataItem", tileId]) || {}),
         ...newData
       } as TableDataItem;
     },
@@ -51,13 +70,13 @@ export function useUpdateTableDataItem(tileId: string) {
     // When mutate is called:
     onMutate: async (newData) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
-      await queryClient.cancelQueries({ queryKey: ["tableData", tileId] });
+      await queryClient.cancelQueries({ queryKey: ["tableDataItem", tileId] });
       
       // Snapshot the previous value
-      const previousData = queryClient.getQueryData<TableDataItem>(["tableData", tileId]);
+      const previousData = queryClient.getQueryData<TableDataItem>(["tableDataItem", tileId]);
       
       // Optimistically update to the new value
-      queryClient.setQueryData<TableDataItem>(["tableData", tileId], (old) => ({
+      queryClient.setQueryData<TableDataItem>(["tableDataItem", tileId], (old) => ({
         ...(old || {}),
         ...newData
       } as TableDataItem));
@@ -69,12 +88,12 @@ export function useUpdateTableDataItem(tileId: string) {
     // If mutation fails, use the context returned from onMutate to roll back
     onError: (err, newData, context) => {
       console.error("Error updating table data:", err);
-      queryClient.setQueryData(["tableData", tileId], context?.previousData);
+      queryClient.setQueryData(["tableDataItem", tileId], context?.previousData);
     },
     
     // Always refetch after error or success to ensure cache is correct
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["tableData", tileId] });
+      queryClient.invalidateQueries({ queryKey: ["tableDataItem", tileId] });
     },
   });
 }

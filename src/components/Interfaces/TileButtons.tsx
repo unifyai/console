@@ -27,11 +27,11 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, logsActio
     codeActions: CodeActions;
 }) => {
     // Get the item representation for the current tile
-    const { itemActions } = useTileItem(tileId, tabId, interfaceId);
+    const { itemActions } = useTileItem(tileId, tabId);
     const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
 
-    const {ui: tileUIState, uiActions: tileUIActions} = useTileUI(tileId, tabId, interfaceId);
-    const {ui: tabUIState, uiActions: tabUIActions} = useTabUI(tabId, interfaceId)
+    const {ui: tileUIState, uiActions: tileUIActions} = useTileUI(tileId, tabId);
+    const {ui: tabUIState, uiActions: tabUIActions} = useTabUI(tabId);
     const {data: tabDataState, dataActions: tabDataActions} = useTabData(tabId, interfaceId);
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
     const disabled = tabUIState?.pending || tabUIState?.resetting || anyTileLoading;
@@ -56,13 +56,13 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, logsActio
                     <Badge
                         className="cursor-pointer text-sm font-normal mb-1 flex gap-2 items-center"
                         variant="primary"
-                        onClick={() => tabUIState?.edit ? tabUIActions?.setEditTile(item?.i) : undefined}
+                        onClick={() => tabUIState?.edit ? tabUIActions?.setEditTile(item?.name) : undefined}
                     >
-                        {item?.i}{tileUIState?.loading && <Loader2 className="animate-spin" size={16} />}
+                        {item?.name}{tileUIState?.loading && <Loader2 className="animate-spin" size={16} />}
                     </Badge>
                 </Tooltip>
                 {item?.context && item?.tab == "Table" && <ContextSelector
-                    tileId={item?.i}
+                    tileId={item?.id}
                     tabId={tabId}
                     interfaceId={interfaceId}
                     projectId={projectId}
@@ -81,7 +81,7 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, logsActio
                     setPending={tabUIActions.setPending}
                 />}
                 {(item?.column_context) && item?.tab == "Table" && <ContextSelector
-                    tileId={item?.i}
+                    tileId={item?.id}
                     tabId={tabId}
                     interfaceId={interfaceId}
                     projectId={projectId}
@@ -103,27 +103,27 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, logsActio
                     className="cursor-pointer hover:z-10"
                     onClick={() => {
                         const focusedTileNames = tabUIState?.focusedTileNames || [undefined, undefined];
-                        if (!focusedTileNames.includes(item?.i)) {
-                            tabUIActions?.setFocusedTileNames([item?.i, focusedTileNames[0] || focusedTileNames[1]] as [string | undefined, string | undefined]);
+                        if (!focusedTileNames.includes(item?.name)) {
+                            tabUIActions?.setFocusedTileNames([item?.name, focusedTileNames[0] || focusedTileNames[1]] as [string | undefined, string | undefined]);
                         }
                         tabUIActions?.setFocusDialog(true);
                     }}
                     icon={<Maximize2 />}
                     tooltip="Open in focus pane"
-                    variant={(tabUIState?.focusedTileNames || [undefined, undefined]).includes(item?.i) ? "primary" : "outline"}
+                    variant={(tabUIState?.focusedTileNames || [undefined, undefined]).includes(item?.name) ? "primary" : "outline"}
                 />
                 {tabUIState?.edit && (
                     <>
                         <ActionButton
                             className="cursor-pointer hover:z-10"
-                            onClick={() => tabDataActions?.updateTile(item?.i || "", { visible: false })}
+                            onClick={() => tabDataActions?.updateTile(item?.id || "", { visible: false })}
                             icon={<EyeOff />}
                             tooltip={"Hide"}
                             variant="outline"
                         />
                         <ActionButton
                             className="cursor-pointer hover:z-10"
-                            onClick={() => tabUIActions?.setCopied(item?.i)}
+                            onClick={() => tabUIActions?.setCopied(item?.name)}
                             icon={<Copy />}
                             tooltip={"Copy"}
                             variant="outline"
@@ -149,7 +149,7 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, logsActio
                         <ActionButton
                             className="remove cursor-pointer hover:z-10"
                             disabled={disabled}
-                            onClick={() => tabDataActions?.removeTile(item?.i || "")}
+                            onClick={() => tabDataActions?.removeTile(item?.id || "")}
                             icon={<X />}
                             tooltip="Remove"
                             variant="outline"

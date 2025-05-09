@@ -53,13 +53,12 @@ const ContextSelector = ({
     const { actions: tabSyncActions } = useTabSync(
         tabId || null, 
         interfaceId || null, 
-        projectId || null, 
         serverTabActions, 
         serverTileActions,
         setPending
     );
-    const { actions: tileActions, dataActions: tileDataActions } = useTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
-    const { itemActions: tileItemActions } = useTileItem(tileId || null, tabId || null, interfaceId || null);
+    const { actions: tileActions, dataActions: tileDataActions } = useTile(tileId || null, tabId || null);
+    const { itemActions: tileItemActions } = useTileItem(tileId || null, tabId || null);
 
     // Use React Query to access tableDataItem
     const { 
@@ -67,14 +66,12 @@ const ContextSelector = ({
         isLoading: isTableDataLoading,
         isError: isTableDataError,
         error: tableDataError
-    } = useTableDataQuery(tileId || null, tabId || null, interfaceId || null, projectId || null);
+    } = useTableDataQuery(tileId || null, tabId || null);
 
     // SYNCHRONISED TABLE-SPECIFIC ACTIONS (optimistic + router refresh)
     const { actions: syncedTileActions } = useTileSync(
         tileId || null,
         tabId || null,
-        interfaceId || null,
-        projectId || null,
         serverTileActions,
     );
     const syncedTileDataActions = syncedTileActions?.data ?? null;

@@ -25,8 +25,8 @@ const Editor = ({
     projectId: string,
     codeActions: CodeActions
 }) => {
-    const { editorTile: editorTileState, editorTileActions } = useTile(tileId, tabId, interfaceId, projectId);
-    const { data: tabData } = useTabData(tabId, interfaceId, projectId);
+    const { editorTile: editorTileState, editorTileActions } = useTile(tileId, tabId);
+    const { data: tabData } = useTabData(tabId, interfaceId);
     const tileIds = tabData?.tileIds;
     const tiles = useTiles(tileIds, ["type", "editorTile.file_name", "editorTile.file_type", "editorTile.content"]);
     const editorTiles = tiles.filter((tile) => tile.type == "Editor");

@@ -51,8 +51,8 @@ const Tile = ({
 }: TileComponentProps) => {
 
     // Use granular hooks for better code organization
-    const { meta: tileMetaState } = useTileMeta(tileId, tabId, interfaceId);
-    const { ui: tileUIState } = useTileUI(tileId, tabId, interfaceId);
+    const { meta: tileMetaState } = useTileMeta(tileId, tabId);
+    const { ui: tileUIState } = useTileUI(tileId, tabId);
 
     // Get refs from registry
     const tileButtonsRef = getTileButtonsRef(tileId);
@@ -141,8 +141,6 @@ const Tile = ({
                                 <Selection
                                     tileId={tileId}
                                     tabId={tabId}
-                                    interfaceId={interfaceId}
-                                    projectId={projectId}
                                 />
                             </Suspense>
                         </ExpandProvider>

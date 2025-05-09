@@ -51,7 +51,7 @@ import { useTab } from "@/contexts/hooks/tab";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { useProject } from "@/contexts/hooks/project";
 import { shallow } from "zustand/vanilla/shallow";
-import { useTableDataQuery } from "@/hooks/Query/useTableDataQuery";
+import { useTableArgumentsQuery, useTableDataQuery } from "@/hooks/Query/useTableDataQuery";
 import { useUpdateTableDataItem } from "@/hooks/Query/useTableDataQuery";
 import { getQueryClient } from '@/lib/react-query/getQueryClient'
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
@@ -102,30 +102,35 @@ const LogsTable = ({
   const contexts = projectDataState?.contexts || [];
 
   // Get access to the tab data and actions with granular access
-  const { ui: tabUIState, data: tabDataState } = useTab(tabId, interfaceId, projectId);
+  const { ui: tabUIState, data: tabDataState } = useTab(tabId, interfaceId);
   const context_ = tabDataState?.globalContext;
-  const tableArguments = tabDataState?.tableArguments as unknown as TableArguments;
-  const filterExpression = tableArguments?.[tileId]?.getLogs_parameters?.filter_expr || null;
-  const sortingExpression = tableArguments?.[tileId]?.getLogs_parameters?.sorting || null;
-  const groupingExpression = tableArguments?.[tileId]?.getLogs_parameters?.grouping || null;
-  const groupSortingExpression = tableArguments?.[tileId]?.getLogs_parameters?.group_sorting || null;
-  
+
   // Use granular hooks for better performance
   const {
+    meta: tileMetaState,
     ui: tileUIState,
     tableTile: tableTileState,
     uiActions: tileUIActions,
     dataActions: tileDataActions,
-  } = useTile(tileId, tabId, interfaceId, projectId);
+  } = useTile(tileId, tabId);
+
+  // Use React Query to access tableDataItem and tableArguments
+  const { 
+    data: tableDataItem = defaultTableDataItem,
+    isLoading: isTableDataLoading,
+    isError: isTableDataError,
+    error: tableDataError
+  } = useTableDataQuery(tileId || null, tabId || null);
+
+  const tileName = tileMetaState?.name || "";
+  const {data: tableArguments = {} as TableArguments} = useTableArgumentsQuery(tabId || null);
+  const filterExpression = tableArguments?.[tileName]?.getLogs_parameters?.filter_expr || null;
+  const sortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.sorting || null;
+  const groupingExpression = tableArguments?.[tileName]?.getLogs_parameters?.grouping || null;
+  const groupSortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.group_sorting || null;
 
   // SYNCHRONISED TABLE-SPECIFIC ACTIONS (optimistic + router refresh)
-  const { actions: syncedTileActions,  tableTile } = useTileSync(
-    tileId,
-    tabId,
-    interfaceId,
-    projectId ?? null,
-    tileActions,
-  );
+  const { actions: syncedTileActions,  tableTile } = useTileSync(tileId, tabId, tileActions);
   const syncedTileDataActions = syncedTileActions?.data ?? null;
   const { tableTileActions } = tableTile ?? { tableTileActions: null };
   
@@ -134,7 +139,7 @@ const LogsTable = ({
   const offset = tableTileState?.offset as number;
   
   // Get the item representation for the current tile
-  const { itemActions } = useTileItem(tileId, tabId, interfaceId);
+  const { itemActions } = useTileItem(tileId, tabId);
   const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
 
   // Setup query client for mutations
@@ -145,14 +150,6 @@ const LogsTable = ({
     queryClient.invalidateQueries({ queryKey: ['table-data', tileId] });
     return Promise.resolve({ status: 'success', message: 'Data refreshed' });
   }, [queryClient, tileId]);
-
-  // Use React Query to access tableDataItem
-  const { 
-    data: tableDataItem = defaultTableDataItem,
-    isLoading: isTableDataLoading,
-    isError: isTableDataError,
-    error: tableDataError
-  } = useTableDataQuery(tileId || null, tabId || null, interfaceId || null, projectId || null);
 
   // Use the custom hook for table data updates
   const { mutate: updateTableData } = useUpdateTableDataItem(tileId);
@@ -609,7 +606,7 @@ const LogsTable = ({
     metric,
     fields,
     logsActions,
-    item?.i,
+    item?.name,
   ]);
 
   // Top area: filters, page, etc.
@@ -634,7 +631,7 @@ const LogsTable = ({
             commonFilter={commonFilter}
             setCommonFilter={tileDataActions?.setCommonFilter!}
             logs={logs}
-            currentTable={item?.i || ""}
+            currentTable={item?.name || ""}
             tableArguments={tableArguments}
           />
           <VisibilityFilter
@@ -786,7 +783,7 @@ const LogsTable = ({
                       project={projectId}
                       context={item?.context}
                       columnContext={item?.column_context}
-                      currentTable={item?.i || ""}
+                      currentTable={item?.name || ""}
                       tableArguments={tableArguments}
                       logs={logs}
                       create={derivedEntryActions.create}
@@ -806,7 +803,7 @@ const LogsTable = ({
                       open={open}
                       setOpen={setOpen}
                       previousEquation={fields[sanitizeId(colId)].artifacts}
-                      currentTable={item?.i || ""}
+                      currentTable={item?.name || ""}
                       tableArguments={tableArguments}
                       logs={logs}
                       update={derivedEntryActions.update}

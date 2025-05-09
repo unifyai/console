@@ -158,7 +158,7 @@ const Tab = ({
   const onLayoutChange = (newLayout: any[]) => {
     if (!tabUIState?.pending && tabDataActions) {
       const layoutItems = newLayout.map((item) => {
-        const originalItem = tileProps.find((t) => t.i === item.i);
+        const originalItem = tileProps.find((t) => t.name === item.name);
         return { ...originalItem, ...item };
       });
       tabDataActions.setItems(layoutItems);
@@ -181,36 +181,29 @@ const Tab = ({
      – Otherwise fall back to the old behaviour and create <TileCard>s
        here in the client.
   ------------------------------------------------------------------ */
-  const tilesToRender = useMemo(() => {
-    if (children) {
-      return Children.toArray(children);
-    }
-
-    return tileProps.map((item: TileProps, idx: number) => (
-      <Suspense
-        key={item.i}
-        fallback={
-          <div className="w-full h-full flex items-center justify-center border p-4">
-            <SkeletonLoader />
-          </div>
-        }
-      >
-        <TileCard
-          index={idx}
-          tileId={item.i}
-          tabId={tabId}
-          interfaceId={interfaceId}
-          projectId={projectId}
-          tileActions={tileActions}
-          logsActions={logsActions}
-          fieldsActions={fieldsActions}
-          derivedEntryActions={derivedEntryActions}
-          contextActions={contextActions}
-          codeActions={codeActions}
-        />
-      </Suspense>
-    ));
-  }, [children, tileProps, tabId, interfaceId, projectId]);
+  const tilesToRender = (children) ? Children.toArray(children) : tileProps.map((item: TileProps, idx: number) => (
+    <Suspense
+      key={item.name}
+      fallback={
+        <div className="w-full h-full flex items-center justify-center border p-4">
+          <SkeletonLoader />
+        </div>
+      }
+    >
+      <TileCard
+        tileId={item.id}
+        tabId={tabId}
+        interfaceId={interfaceId}
+        projectId={projectId}
+        tileActions={tileActions}
+        logsActions={logsActions}
+        fieldsActions={fieldsActions}
+        derivedEntryActions={derivedEntryActions}
+        contextActions={contextActions}
+        codeActions={codeActions}
+      />
+    </Suspense>
+  ));
 
   return (
     <ResponsiveReactGridLayout
@@ -231,7 +224,7 @@ const Tab = ({
 
         return (
           <div
-            key={item.i}
+            key={item.id}
             data-grid={item}
             className="relative"
             onClick={(e) => e.stopPropagation()}
@@ -241,7 +234,7 @@ const Tab = ({
 
             {/* Extra client-side controls */}
             <TileButtons
-              tileId={item.i}
+              tileId={item.id}
               tabId={tabId}
               interfaceId={interfaceId}
               projectId={projectId}

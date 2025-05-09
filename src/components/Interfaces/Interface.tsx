@@ -145,7 +145,7 @@ const Interface = ({
     
     try {
       // Get the tile IDs for this tab
-      const tileIds = tabDataActions?.getItems().map(item => item.i) || [];
+      const tileIds = tabDataActions?.getItems().map(item => item.name) || [];
       
       // Create a checkpoint of the tab and all its tiles
       await saveTabWithTilesMutation.mutateAsync({

@@ -16,7 +16,7 @@ const AddTile = ({
     anyTileLoading: boolean,
 }) => {
     // Get tab data and actions using useTab hook with granular access
-    const { ui: tabUIState, dataActions: tabDataActions, exists } = useTab(tabId, interfaceId, project);
+    const { ui: tabUIState, dataActions: tabDataActions, exists } = useTab(tabId, interfaceId);
 
     // Use the getItems function from the useTab hook to get TileProps array
     const [items, visibleItems] = useMemo(() => {
@@ -37,7 +37,7 @@ const AddTile = ({
             disabled={!tabUIState?.edit || !project || !exists || tabUIState?.pending || tabUIState?.resetting || anyTileLoading}
             onClick={() => {
                 let initialIndex = items.length;
-                while (items.some(item => item.i == "Tile_" + initialIndex))
+                while (items.some(item => item.name == "Tile_" + initialIndex))
                     initialIndex++;
                 const newTileName = "Tile_" + initialIndex;
 

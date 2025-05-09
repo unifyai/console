@@ -9,9 +9,10 @@ import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { useTab } from '@/contexts/hooks/tab';
 import PlotSettings from "./Sidebar";
 import { drawPlot } from "@/utils/evals/plots/main";
-import { usePlotDataQuery } from "@/hooks/Query/usePlotDataQuery";
+import { usePlotArgumentsQuery, usePlotDataQuery } from "@/hooks/Query/usePlotDataQuery";
 import { useUpdatePlotDataItem } from "@/hooks/Query/usePlotDataQuery";
 import { usePlotTileSync }   from '@/contexts/hooks/tile/sync/usePlotTileSync';
+import { PlotArguments } from "@/types/evals/logs";
 
 const LogsPlot = ({ 
     tileId,
@@ -34,29 +35,19 @@ const LogsPlot = ({
     // Create a default empty PlotDataItem
     const defaultPlotDataItem = useMemo(() => ({
         plotLogs: [],
-        plotArguments: {},
         plotFields: {}
     } as PlotDataItem), []);
 
     // Use granular hooks for better performance
-    const {
-        ui: tileUIState,
-        dataActions: tileDataActions,
-    } = useTile(tileId, tabId, interfaceId, projectId);
+    const { ui: tileUIState, dataActions: tileDataActions } = useTile(tileId, tabId);
 
     // SYNCHRONISED PLOT-SPECIFIC ACTIONS (optimistic + router refresh)
-    const { plotTileActions } = usePlotTileSync(
-        tileId,
-        tabId,
-        interfaceId,
-        projectId,
-        tileActions,
-    );
+    const { plotTileActions } = usePlotTileSync(tileId, tabId, tileActions);
 
-    const { itemActions } = useTileItem(tileId, tabId, interfaceId);
+    const { itemActions } = useTileItem(tileId, tabId);
     
     // Get access to the tab context and actions with granular access
-    const { ui: tabUIState } = useTab(tabId, interfaceId, projectId);
+    const { ui: tabUIState } = useTab(tabId, interfaceId);
 
     // Get the item representation for the current tile
     const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
@@ -65,13 +56,15 @@ const LogsPlot = ({
     const interactive = tabUIState?.interactive || false;
     const pending = tabUIState?.pending || tileUIState?.pending || false;
 
-    // Use React Query to access plotDataItem
+    // Use React Query to access plotDataItem and plotArguments
     const { 
         data: plotDataItem = defaultPlotDataItem,
         isLoading: isPlotDataLoading,
         isError: isPlotDataError,
         error: plotDataError
     } = usePlotDataQuery(tileId);
+
+    const { data: args } = usePlotArgumentsQuery(tabId);
 
     // Use the custom hook for plot data updates
     const { mutate: updatePlotData } = useUpdatePlotDataItem(tileId);
@@ -90,7 +83,7 @@ const LogsPlot = ({
     };
 
     // Init logs and handle local updates
-    const {plotLogs: logs, plotArguments: args, plotFields: fields} = useMemo(() => plotDataItem, [plotDataItem]);
+    const {plotLogs: logs, plotFields: fields} = useMemo(() => plotDataItem, [plotDataItem]);
 
     // Initialize refs and container dimensions
     let svgRef = useRef<SVGSVGElement>(null);
@@ -107,7 +100,7 @@ const LogsPlot = ({
 
     let metric = item?.metric ? item?.metric : "mean";
     let aggregateProperty = item?.plot_aggregate;
-    const groupings = Object.fromEntries(Object.entries(args).filter(([_, tableArgs]) => tableArgs.grouping).map(([table, tableArgs]) => ([table, tableArgs.grouping.split(",")])));
+    const groupings = Object.fromEntries(Object.entries(args as PlotArguments).filter(([_, tableArgs]) => tableArgs.grouping).map(([table, tableArgs]) => ([table, tableArgs.grouping.split(",")])));
     
     let binCount = item?.bin_count ? parseFloat(item?.bin_count) : 10;
     let [binCounts, setBinCounts] = useState([1, 100])
@@ -269,7 +262,7 @@ return (
             tabId={tabId}
             interfaceId={interfaceId}
             projectId={projectId}
-            args={args}
+            args={args as PlotArguments}
             setPlotDataItem={setPlotDataItem}
             logsActions={logsActions}
             fieldsActions={fieldsActions}

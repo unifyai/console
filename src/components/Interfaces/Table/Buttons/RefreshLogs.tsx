@@ -148,16 +148,17 @@ const RefreshLogs = ({ tileId, tabId, interfaceId, projectId, pending, fields, f
     logsActions: LogsActions,
     fieldsActions: FieldsActions
 }) => {
-    const { itemActions } = useTileItem(tileId, tabId, interfaceId);
+    const { itemActions } = useTileItem(tileId, tabId);
     const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
-    const { tableTile: tableTileState, dataActions: tileDataActions } = useTile(tileId, tabId, interfaceId, projectId);
+    const { tableTile: tableTileState, dataActions: tileDataActions } = useTile(tileId, tabId);
+    
     // Use React Query to access tableDataItem
     const { 
         data: tableDataItem,
         isLoading: isTableDataLoading,
         isError: isTableDataError,
         error: tableDataError
-    } = useTableDataQuery(tileId, tabId, interfaceId, projectId);
+    } = useTableDataQuery(tileId, tabId);
     const currentLogs = logs || [];
     const limit = tableTileState?.limit as number;
     const offset = tableTileState?.offset as number;

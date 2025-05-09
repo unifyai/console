@@ -63,30 +63,24 @@ import { useTableDataQuery } from "@/hooks/Query/useTableDataQuery";
 export default function Selection({
   tileId,
   tabId,
-  interfaceId,
-  projectId,
 }: {
   tileId: string;
   tabId: string;
-  interfaceId: string;
-  projectId: string;
 }) {
   /******************************************************************************
    * Prepare sorted logs & selection data
    ******************************************************************************/
-  const { meta: tileMetaStateWithId, actions: tileActionsWithId } = useTile(tileId, tabId, interfaceId, projectId);
-  const { itemActions: tileItemActionsWithId } = useTileItem(tileId, tabId, interfaceId);
+  const { meta: tileMetaStateWithId, actions: tileActionsWithId } = useTile(tileId, tabId);
+  const { itemActions: tileItemActionsWithId } = useTileItem(tileId, tabId);
 
   const item = useMemo(() => tileItemActionsWithId?.asTileItem(), [tileItemActionsWithId]);
 
   // Get the table tile this selection references
   const { meta: tileMetaStateWithTable, tableTile: tableTileStateWithTable, actions: tileActionsWithTable } = useTile(
     item?.table || "", 
-    tabId, 
-    interfaceId, 
-    projectId
+    tabId,
   );
-  const { itemActions: tileItemActionsWithTable } = useTileItem(item?.table || "", tabId, interfaceId);
+  const { itemActions: tileItemActionsWithTable } = useTileItem(item?.table || "", tabId);
 
   // Use React Query to access tableDataItem
   const { 
@@ -94,16 +88,16 @@ export default function Selection({
     isLoading: isTableDataLoading,
     isError: isTableDataError,
     error: tableDataError
-  } = useTableDataQuery(tileId || null, tabId || null, interfaceId || null, projectId || null);
+  } = useTableDataQuery(tileId || null, tabId || null);
 
   // Create equivalent references to match the old pattern
   const tableItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || 
-    { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileItemActionsWithTable, item?.table]);
+    { name: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileItemActionsWithTable, item?.table]);
   const relevantItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || undefined, [tileItemActionsWithTable]);
 
   // Create a generic updateItem function that checks property existence
   const updateItem = useCallback((item: TileProps, propName: string) => (value: any) => {
-    if (tileActionsWithId && item.i == tileMetaStateWithId?.name) {
+    if (tileActionsWithId && item.name == tileMetaStateWithId?.name) {
       tileActionsWithId.updateTile({ [propName]: value });
     }
     else if (tileActionsWithTable && item.table == tileMetaStateWithTable?.name) {

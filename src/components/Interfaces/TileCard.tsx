@@ -15,11 +15,12 @@ import { useTileData, useTileUI } from '@/contexts/hooks/tile';
 import { useLogLengths } from "@/contexts/hooks/useStore";
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { getTileCardRef } from '@/utils/refRegistry';
+import { useTileMeta } from "@/contexts/hooks/tile/useTileMeta";
+import { useShallow } from "zustand/react/shallow";
 
 const Tile = lazy(() => import('./Tile'));
 
 interface TileCardProps {
-  index: number;
   tileId: string;
   tabId: string;
   interfaceId: string;
@@ -34,7 +35,6 @@ interface TileCardProps {
 }
 
 const TileCard = ({
-  index,
   tileId,
   tabId,
   interfaceId,
@@ -62,11 +62,12 @@ const TileCard = ({
 
   // Use tab hooks for tab-level state
   const { ui: tabUIState } = useTabUI(tabId, interfaceId);
-  const { dataActions: tabDataActions } = useTabData(tabId, interfaceId);
+  const { data: tabData, dataActions: tabDataActions } = useTabData(tabId, interfaceId);
   
   // Use granular tile hooks for tile-specific state
-  const {ui: tileUIState} = useTileUI(tileId, tabId, interfaceId);
-  const { dataActions: tileDataActions } = useTileData(tileId, tabId, interfaceId);
+  const { meta: tileMetaState } = useTileMeta(tileId, tabId);
+  const { ui: tileUIState } = useTileUI(tileId, tabId);
+  const { dataActions: tileDataActions } = useTileData(tileId, tabId);
 
   // Get tile props using the getItems function from the tabDataActions
   const tileProps = useMemo(() => {
@@ -76,11 +77,11 @@ const TileCard = ({
   const tableNames = useMemo(() => {
     // Only return table names for table tiles
     // Return should be an array of strings only
-    return tileProps.map((item: TileProps) => item.tab === "Table" ? item.i : null).filter(Boolean) as string[];
+    return tileProps.map((item: TileProps) => item.tab === "Table" ? item.name : null).filter(Boolean) as string[];
   }, [tileProps]);
 
-  // Get the current item based on the index prop
-  const item = tileProps[index];
+  // Get the current item based on the tile name
+  const item = tileProps.find((item: TileProps) => item.name === tileMetaState?.name);
   const tab = item?.tab;
   
   // Define logsLengths as a computed property based on the tiles
@@ -107,7 +108,7 @@ const TileCard = ({
                   <DropdownMenuItem
                     key={idx}
                     onSelect={() => {
-                      if (item?.i) {
+                      if (item?.name) {
                         // If tabType is either a "Table" or "Plot" and the item.table is already set,
                         // then we need to first mark it as null
                         if (tabType === "Table" || tabType === "Plot" && item.table) {
@@ -115,9 +116,9 @@ const TileCard = ({
                         }
 
                         if (item?.tab === undefined && tabType === "Table") {
-                          tabDataActions?.updateTableTile(item.i, { table_type: "Data Table" });
+                          tabDataActions?.updateTableTile(item.id, { table_type: "Data Table" });
                         }
-                        tabDataActions?.updateTile(item.i, { type: tabType });
+                        tabDataActions?.updateTile(item.id, { type: tabType });
                       }
                     }}
                     className="w-64 flex justify-between items-center"
@@ -165,7 +166,7 @@ const TileCard = ({
         }>
           {children || (
             <Tile
-                tileId={item?.i}
+                tileId={tileId}
                 tabId={tabId}
                 interfaceId={interfaceId}
                 projectId={projectId}

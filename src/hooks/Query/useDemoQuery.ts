@@ -140,8 +140,6 @@ export function useCreateDemoQuery() {
             
             // Prepare tile data with all available properties
             const tileData: Omit<Partial<TileData>, 'id' | 'tab_id' | 'name' | 'type' | 'position' | 'created_at' | 'updated_at'> = {
-              min_width: position.width,
-              min_height: position.height,
               ...restTileProps,
               ...specializedData
             };

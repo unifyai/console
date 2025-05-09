@@ -47,20 +47,18 @@ const FocusDialog = ({
 
     const focusedTileItems: [TileProps | undefined, TileProps | undefined] = safeFocusedTileNames.map(
         focusedTileName => {
-            const index = tileProps.findIndex(item => item.i === focusedTileName);
+            const index = tileProps.findIndex(item => item.name === focusedTileName);
             const item = index !== -1 ? tileProps[index] : undefined;
             return index !== -1 ? item : undefined;
         }
     ) as [TileProps | undefined, TileProps | undefined];
 
     const tiles = focusedTileItems.map((item: TileProps | undefined, idx: number) => {
-        const index = tileProps.findIndex(it => it.i === item?.i);
         return (
             item
                 ? <div className="h-full relative pt-2">
                     <TileCard
-                        index={index}
-                        tileId={item.i}
+                        tileId={item.id}
                         tabId={tabId}
                         interfaceId={interfaceId}
                         projectId={projectId}
@@ -73,7 +71,7 @@ const FocusDialog = ({
                     />
                     <div className={"w-full px-2 transition-all absolute -top-1 flex justify-between " + (tabUIState?.edit ? "h-20" : "h-10")}>
                         <div>
-                            <Badge variant="primary">{item.i}</Badge>
+                            <Badge variant="primary">{item.name}</Badge>
                         </div>
                         <div className="mb-auto">
                             <ActionButton
@@ -102,16 +100,16 @@ const FocusDialog = ({
                                 size="default"
                             />}
                         >
-                            {tileProps.filter(item => !safeFocusedTileNames.includes(item.i)).map((item, idx_) => <DropdownMenuItem
+                            {tileProps.filter(item => !safeFocusedTileNames.includes(item.name)).map((item, idx_) => <DropdownMenuItem
                                 key={idx_}
                                 onSelect={() => {
                                     const newFocusedTileNames = [...safeFocusedTileNames];
-                                    newFocusedTileNames[idx] = item.i;
+                                    newFocusedTileNames[idx] = item.name;
                                     tabUIActions?.setFocusedTileNames(newFocusedTileNames as [string | undefined, string | undefined]);
                                 }}
                                 className="w-64 flex justify-between items-center"
                             >
-                                <span>{item.i}</span>{item.tab ? icons[item.tab as keyof typeof icons] : ""}
+                                <span>{item.name}</span>{item.tab ? icons[item.tab as keyof typeof icons] : ""}
                             </DropdownMenuItem>)}
                         </BaseDropdown>
                     </div>

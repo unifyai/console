@@ -16,6 +16,7 @@ import {
   useUpdateTabQuery, 
   useDeleteTabQuery 
 } from "@/hooks/Query/useTabsQuery";
+import { updateTabParentReferences, buildTabState } from "@/contexts/utils/builders/tabStateBuilder";
 
 const InterfaceTabs = ({ 
   interfaceId, 
@@ -117,7 +118,7 @@ const InterfaceTabs = ({
             const newTabName = `tab${initialIndex}`;
 
             // Use React Query mutation to create a new tab
-            await createTabMutation.mutateAsync({
+            const newTab = await createTabMutation.mutateAsync({
                 interface_id: project as string,
                 name: newTabName,
                 data: {
@@ -129,8 +130,17 @@ const InterfaceTabs = ({
                 actions: tabActions
             });
 
+            // Now build the new tab state object 
+            // Build tab
+            const tab = buildTabState(newTab, true);
+
+            // Update parent references if interfaceId is provided
+            const updatedTab = interfaceId ? 
+                updateTabParentReferences(tab, interfaceId) : 
+                tab;
+
             // Update local state
-            interfaceDataActions?.addTab(tabQueryParam || "", newTabName);
+            interfaceDataActions?.addTab(updatedTab.id || "", updatedTab.name || "", updatedTab);
             tabUIActions?.setPending(true);
             setTabQueryParam(newTabName);
             setTabQueryParamState(newTabName);
