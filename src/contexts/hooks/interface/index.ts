@@ -1,8 +1,8 @@
-// Export all interface hooks
-export { useInterfaceMeta } from './useInterfaceMeta';
-export { useInterfaceData } from './useInterfaceData';
-export { useInterfaceUI } from './useInterfaceUI';
-export { useInterfaceOperations } from './useInterfaceOperations';
+/**
+ * Export all interface hooks for easy access
+ */
 
-// Export combined hook
-export { useInterface } from './useInterface'; 
+export * from './useInterfaceMeta';
+export * from './useInterfaceData';
+export * from './useInterfaceUI';
+export * from './useInterface'; 

@@ -64,20 +64,16 @@ export interface PlotActions extends
 
 /**
  * Custom hook to access plot-specific tile state and actions
- * @param tileName The name of the tile to access
- * @param tabName Optional name of the tab containing the tile
- * @param interfaceName Optional name of the interface containing the tab
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param tileIdOrName The ID or name of the tile to access
+ * @param tabIdOrName Optional ID or name of the tab containing the tile
  * @returns Object containing plot-specific tile state, actions, and existence flag
  */
 export function usePlotTile(
-  tileName: string | null,
-  tabName?: string | null,
-  interfaceName?: string | null,
-  projectName?: string | null
+  tileIdOrName: string | null,
+  tabIdOrName?: string | null
 ) {
   // Get tile meta information using the useTileMeta hook
-  const { tileId, tileExists } = useTileMeta(tileName, tabName || null, interfaceName || null, projectName || null);
+  const { tileId, tileExists } = useTileMeta(tileIdOrName, tabIdOrName || null);
   
   // Get the tile type to check if it's a plot
   const tileType = useStoreContext(
@@ -252,7 +248,7 @@ export function usePlotTile(
   }, [plotMetaActions, plotDataActions, plotUIActions]);
 
   // If no tile name is provided or tile doesn't exist, return default
-  if (!tileName || !isPlotTile) {
+  if (!tileIdOrName || !isPlotTile) {
     return DEFAULT_USE_PLOT_TILE_RETURN;
   }
 

@@ -14,7 +14,8 @@ import { constructHierarchicalId, getParentId } from '@/contexts/utils/sliceUtil
 export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
   // Create a base TileProps object with common properties
   const tileProps: TileProps = {
-    i: tile.name || '',
+    id: tile.id || '',
+    name: tile.name || '',
     x: tile.position?.x || 0,
     y: tile.position?.y || 0,
     w: tile.position?.width || 2,
@@ -28,6 +29,8 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
     moved: tile.moved,
     static: tile.static,
     context: tile.context || undefined,
+    column_context: tile.column_context || undefined,
+    grouping: tile.grouping || undefined,
     color: tile.color || undefined,
     table: tile.table || undefined,
     auto_update: tile.auto_update || undefined,
@@ -42,12 +45,10 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
     // Add table-specific properties
     Object.assign(tileProps, {
       table_type: tile.tableTile.table_type,
-      column_context: tile.tableTile.column_context,
       page_number: tile.tableTile.page_number,
       column_order: tile.tableTile.column_order,
       hidden_columns: tile.tableTile.hidden_columns,
       sorting: tile.tableTile.sorting,
-      grouping: tile.tableTile.grouping,
       group_sorting: tile.tableTile.group_sorting,
       columns_pin_left: tile.tableTile.columns_pin_left,
       columns_pin_right: tile.tableTile.columns_pin_right,
@@ -92,14 +93,14 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
  */
 export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
   // Create core Tile properties from base TileProps
-  const hierarchicalTileId = tileItem.i.includes('>') 
-    ? tileItem.i
-    : constructHierarchicalId(tileItem.i, [getParentId(tileId)]);
+  const hierarchicalTileId = tileItem.name.includes('>') 
+    ? tileItem.name
+    : constructHierarchicalId(tileItem.name, [getParentId(tileId)]);
 
   // Create core Tile properties from base TileProps
   const tileUpdates: Partial<Tile> = {
     id: hierarchicalTileId,
-    name: tileItem.i,
+    name: tileItem.name,
     position: {
       x: tileItem.x,
       y: tileItem.y,
@@ -115,6 +116,8 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
     moved: tileItem.moved,
     static: tileItem.static,
     context: tileItem.context,
+    column_context: tileItem.column_context,
+    grouping: tileItem.grouping,
     table: tileItem.table,
     auto_update: tileItem.auto_update,
     freeze: tileItem.freeze,
@@ -132,12 +135,10 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
   if (tileItem.tab === 'Table') {
     tableTileUpdates = {
       table_type: tileItem.table_type,
-      column_context: tileItem.column_context,
       page_number: tileItem.page_number,
       column_order: tileItem.column_order,
       hidden_columns: tileItem.hidden_columns,
       sorting: tileItem.sorting,
-      grouping: tileItem.grouping,
       group_sorting: tileItem.group_sorting,
       columns_pin_left: tileItem.columns_pin_left,
       columns_pin_right: tileItem.columns_pin_right,

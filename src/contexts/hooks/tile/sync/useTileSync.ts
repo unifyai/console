@@ -60,8 +60,6 @@ export interface TileSyncResult {
 export function useTileSync(
   tileName: string | null,
   tabId: string | null,
-  interfaceName: string | null,
-  projectName?: string | null,
   granularTileActions?: GranularTileActions
 ): TileSyncResult {
   // Get the original tile state and actions
@@ -75,24 +73,18 @@ export function useTileSync(
   } = useTile(
     tileName, 
     tabId, 
-    interfaceName, 
-    projectName
   );
 
   // Get specialized tile sync results
   const plotTileSync = usePlotTileSync(
     tileName,
     tabId,
-    interfaceName,
-    projectName,
     granularTileActions
   );
 
   const tableTileSync = useTableTileSync(
     tileName,
     tabId,
-    interfaceName,
-    projectName,
     granularTileActions
   );
 

@@ -30,20 +30,16 @@ export interface TileDataActions {
 
 /**
  * Custom hook to access tile data and related actions
- * @param tileName The name of the tile to access
- * @param tabName The name of the tab containing the tile
- * @param interfaceName The name of the interface containing the tab
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param tileIdOrName The ID or name of the tile to access
+ * @param tabIdOrName The ID or name of the tab containing the tile
  * @returns Object containing tile data, actions, and related state
  */
 export function useTileData(
-  tileName: string | null,
-  tabName: string | null,
-  interfaceName: string | null,
-  projectName?: string | null
+  tileIdOrName: string | null,
+  tabIdOrName: string | null
 ) {
   // Use the tile meta hook to get common tile info
-  const {tileId, tileExists } = useTileMeta(tileName, tabName, interfaceName, projectName);
+  const {tileId, tileExists } = useTileMeta(tileIdOrName, tabIdOrName);
 
   // Subscribe to data properties
   const context = useStoreContext(state => {

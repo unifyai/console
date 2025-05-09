@@ -15,7 +15,6 @@ type TabSyncActions = {
  *
  * @param tabId - The ID of the tab
  * @param interfaceId - The ID of the interface
- * @param projectId - The ID of the project
  * @param tabActions - The granular tab actions for server-side operations
  * @param tileActions - The granular tile actions for server-side operations
  * @param setExternalPending - Optional function to set external pending state during operations
@@ -23,13 +22,12 @@ type TabSyncActions = {
 export function useTabSync(
   tabId: string | null,
   interfaceId: string | null,
-  projectId: string | null,
   tabActions: GranularTabActions | undefined,
   tileActions: GranularTileActions | undefined,
   setExternalPending?: (pending: boolean) => void
 ) {
   // Get tab UI actions for router refresh coordination
-  const { actions: tabOriginalActions, ui: tabUi, data: tabData, dataActions: tabDataActions } = useTab(tabId, interfaceId, projectId);
+  const { actions: tabOriginalActions, data: tabData, dataActions: tabDataActions } = useTab(tabId, interfaceId);
   
   // Mutation hooks for server state updates
   const updateTabMutation = useUpdateTabUnifiedQuery();
@@ -66,34 +64,49 @@ export function useTabSync(
         });
       }
 
-      // Update all tiles in the tab that use this context
+      // Create a mapping of tileIds to tileNames before the operation
       const tileIds = tabOriginalActions.data.getTileIds();
+      const tileNames = tabOriginalActions.data.getTileNames();
+      
+      // Create a tile id to name mapping using the corresponding arrays
+      const tileIdToNameMap = new Map<string, string>();
+      tileIds.forEach((tileId, index) => {
+        if (tileNames[index]) {
+          tileIdToNameMap.set(tileId, tileNames[index]);
+        }
+      });
+
+      // Update all tiles in the tab that use this context
       const promises = tileIds.map(async (tileId: string) => {
-        // Get tile using the provided tile name
-        const tileName = tileId.split('>').pop() || '';
-        const tile = tabOriginalActions.data.getTile(tileName);
+        // Get the tile name from our mapping
+        const tileName = tileIdToNameMap.get(tileId);
         
-        if (tile) {
-          const updates: { context?: string; column_context?: string } = {};
-          let needsUpdate = false;
+        if (tileName) {
+          // Get tile using the provided tile name
+          const tile = tabOriginalActions.data.getTile(tileName);
           
-          if (tile.context === context) {
-            updates.context = "";
-            needsUpdate = true;
-          }
-          
-          if (tile.column_context === context) {
-            updates.column_context = "";
-            needsUpdate = true;
-          }
-          
-          if (needsUpdate && tileActions) {
-            return patchTileMutation.mutateAsync({
-              tab_id: tabId,
-              name: tileName,
-              updateData: updates,
-              actions: tileActions
-            });
+          if (tile) {
+            const updates: { context?: string; column_context?: string } = {};
+            let needsUpdate = false;
+            
+            if (tile.context === context) {
+              updates.context = "";
+              needsUpdate = true;
+            }
+            
+            if (tile.column_context === context) {
+              updates.column_context = "";
+              needsUpdate = true;
+            }
+            
+            if (needsUpdate && tileActions) {
+              return patchTileMutation.mutateAsync({
+                tab_id: tabId,
+                name: tileName,
+                updateData: updates,
+                actions: tileActions
+              });
+            }
           }
         }
         
@@ -113,6 +126,7 @@ export function useTabSync(
       tileActions,
       tabOriginalActions,
       tabData,
+      tabDataActions,
       updateTabMutation,
       patchTileMutation,
       refreshRouter

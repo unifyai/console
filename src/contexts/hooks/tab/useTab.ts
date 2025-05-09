@@ -39,15 +39,13 @@ export interface TabActions {
 
 /**
  * Custom hook to access all tab state and actions
- * @param tabName The name of the tab to access
- * @param interfaceName The name of the interface containing the tab
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param tabIdOrName The ID or name of the tab to access
+ * @param interfaceIdOrName The ID or name of the interface containing the tab
  * @returns Object containing all tab state, actions, and existence flag
  */
 export function useTab(
-  tabName: string | null,
-  interfaceName?: string | null,
-  projectName?: string | null
+  tabIdOrName: string | null,
+  interfaceIdOrName?: string | null
 ) {
   // Use specialized hooks
   const {
@@ -55,25 +53,19 @@ export function useTab(
     metaActions,
     tabId,
     tabExists,
-    activeProjectId,
     activeInterfaceId
-  } = useTabMeta(tabName, interfaceName, projectName);
+  } = useTabMeta(tabIdOrName, interfaceIdOrName);
   
   const {
     data,
     dataActions
-  } = useTabData(tabName, interfaceName, projectName);
+  } = useTabData(tabIdOrName, interfaceIdOrName);
   
   const {
     ui,
     uiActions
-  } = useTabUI(tabName, interfaceName, projectName);
+  } = useTabUI(tabIdOrName, interfaceIdOrName);
   
-  // const {
-  //   operations,
-  //   operationsActions
-  // } = useTabOperations(tabName, interfaceName, projectName);
-
   // Get store actions for core tab management
   const storeInitTab = useStoreContext(state => state.initTab);
   const storeUpdateTab = useStoreContext(state => state.updateTab);
@@ -84,10 +76,9 @@ export function useTab(
     return {
       // Basic tab management
       initTab: (initialState) => {
-        if (activeProjectId && activeInterfaceId && tabId) {
+        if (activeInterfaceId && tabId) {
           storeInitTab(activeInterfaceId, tabId, {
             id: tabId,
-            projectId: activeProjectId,
             interfaceId: activeInterfaceId,
             ...initialState
           });
@@ -114,7 +105,6 @@ export function useTab(
   }, [
     tabId,
     activeInterfaceId,
-    activeProjectId,
     metaActions,
     dataActions,
     uiActions,
@@ -135,7 +125,7 @@ export function useTab(
   }, [meta, data, ui]);
 
   // Use tabId to conditionally return values, but only after all hooks are called
-  if (!tabName) {
+  if (!tabIdOrName) {
     return DEFAULT_USE_TAB_RETURN;
   }
 
@@ -148,8 +138,6 @@ export function useTab(
     dataActions,
     uiActions,
     actions,
-    // operationsActions,
-    // operations,
     exists: tabExists,
     tabId
   };

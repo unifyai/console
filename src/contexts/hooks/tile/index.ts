@@ -3,12 +3,12 @@
  */
 
 export * from './useTileMeta';
-export * from './useTileData';
 export * from './useTileUI';
-export * from './useTileOperations';
+export * from './useTileData';
 export * from './useTileItem';
+export * from './useTableTile';
+export * from './usePlotTile';
+export * from './useViewTile';
+export * from './useEditorTile';
 export * from './useTile';
-export { useTableTile } from './useTableTile';
-export { usePlotTile } from './usePlotTile';
-export { useViewTile } from './useViewTile';
-export { useEditorTile } from './useEditorTile';
+export * from './tileItemUtils';

@@ -30,24 +30,20 @@ export interface TabUIActions {
 
 /**
  * Custom hook to access tab UI state and actions
- * @param tabName The name of the tab to access
- * @param interfaceName Optional interface name (if not provided, active interface will be used)
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param tabIdOrName The ID or name of the tab to access
+ * @param interfaceIdOrName Optional interface ID or name (if not provided, active interface will be used)
  * @returns Object containing tab UI state and actions
  */
 export function useTabUI(
-  tabName: string | null, 
-  interfaceName?: string | null,
-  projectName?: string | null
+  tabIdOrName: string | null, 
+  interfaceIdOrName?: string | null
 ) {
 
   // Use the meta hook to get common tab info
   const { 
     tabId, 
-    activeProjectId, 
-    activeInterfaceId, 
     tabExists 
-  } = useTabMeta(tabName, interfaceName, projectName);
+  } = useTabMeta(tabIdOrName, interfaceIdOrName);
 
   // Get tileIds from the store
   const tileIds = useStoreContext(
@@ -58,11 +54,6 @@ export function useTabUI(
   );
 
   // Granular subscriptions to UI properties
-  const projectIdFromState = useStoreContext(state => {
-    if (!tabExists || !tabId) return null;
-    return state.tabsById[tabId].projectId;
-  });
-  
   const interfaceIdFromState = useStoreContext(state => {
     if (!tabExists || !tabId) return null;
     return state.tabsById[tabId].interfaceId;
@@ -149,7 +140,6 @@ export function useTabUI(
     if (!tabExists) return null;
     
     return {
-      projectId: projectIdFromState,
       interfaceId: interfaceIdFromState,
       focusedTileNames: focusedTileNames,
       saveSuccess,
@@ -168,7 +158,6 @@ export function useTabUI(
     };
   }, [
     tabExists,
-    projectIdFromState,
     interfaceIdFromState,
     focusedTileNames,
     saveSuccess,
@@ -246,11 +235,7 @@ export function useTabUI(
       if (tabId && tileIds.length) {
         // Update all tiles in the tab
         tileIds.forEach(tileId => {
-          const hierarchicalTileId = tileId.includes('>')
-            ? tileId
-            : `${tabId}>${tileId}`;
-          
-          storeUpdateTile(hierarchicalTileId, { pending });
+          storeUpdateTile(tileId, { pending });
         });
       }
     },

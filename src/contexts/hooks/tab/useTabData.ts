@@ -2,17 +2,19 @@ import { useMemo, useRef, useCallback, useEffect } from 'react';
 import { useStoreContext } from '../../providers/StoreProvider';
 import { TabData } from '../../slices/selectors/tab';
 import { Tile } from '../../slices/selectors/tile';
-import { TabProps, TileProps } from '@/types/evals/grid';
+import { TileProps } from '@/types/evals/grid';
 import { useTabMeta } from './useTabMeta';
 import { useShallow } from 'zustand/react/shallow';
 import { useTileItemActions } from '../tile/useTileItem';
 import isEqual from 'fast-deep-equal';
-import { deconstructHierarchicalId } from '@/contexts/utils/sliceUtils';
-import { TableArguments } from '@/types/evals/logs';
+import { ViewTile } from '@/contexts/slices/selectors/viewTile';
+import { TableTile } from '@/contexts/slices/selectors/tableTile';
+import { PlotTile } from '@/contexts/slices/selectors/plotTile';
+import { EditorTile } from '@/contexts/slices/selectors/editorTile';
 
 // Define stable fallback references
-const EMPTY_TABLE_ARGUMENTS = {};
 const EMPTY_TILE_IDS: string[] = [];
+const EMPTY_TILE_NAMES: string[] = [];
 const EMPTY_TILES: Record<string, Tile> = {};
 const EMPTY_TILE_PROPS: TileProps[] = [];
 
@@ -22,29 +24,28 @@ const EMPTY_TILE_PROPS: TileProps[] = [];
 export interface TabDataActions {
   setGlobalContext: (context: string | undefined) => void;
   removeContextFromTab: (context: string) => void;
-  setSavedTab: (savedTab: TabProps | null) => void;
-  setTableArguments: (tableArguments: TableArguments) => void;
 
   // Tile management
-  initTile: (tileName: string, initialState?: { type?: 'Table' | 'Plot' | 'View' | 'Editor' } & any) => void;
-  addTile: (tileName: string, newName: string, initialState?: Partial<Tile>) => void;
-  removeTile: (tileName: string) => void;
-  updateTile: (tileName: string, updates: any) => void;
-  renameTile: (tileName: string, newName: string) => void;
+  initTile: (tileId: string, tileName: string, initialState?: Partial<Tile>) => void;
+  addTile: (newTileId: string, initialState?: Partial<Tile>) => void;
+  removeTile: (tileId: string) => void;
+  updateTile: (tileId: string, updates: Partial<Tile>) => void;
+  renameTile: (tileId: string, newTileName: string) => void;
   
   // Type-specific tile actions
-  initTableTile: (tileName: string, initialState?: any) => void;
-  updateTableTile: (tileName: string, updates: any) => void;
-  initPlotTile: (tileName: string, initialState?: any) => void;
-  updatePlotTile: (tileName: string, updates: any) => void;
-  initViewTile: (tileName: string, initialState?: any) => void;
-  updateViewTile: (tileName: string, updates: any) => void;
-  initEditorTile: (tileName: string, initialState?: any) => void;
-  updateEditorTile: (tileName: string, updates: any) => void;
+  initTableTile: (tileId: string, initialState?: Partial<TableTile>) => void;
+  updateTableTile: (tileId: string, updates: Partial<TableTile>) => void;
+  initPlotTile: (tileId: string, initialState?: Partial<PlotTile>) => void;
+  updatePlotTile: (tileId: string, updates: Partial<PlotTile>) => void;
+  initViewTile: (tileId: string, initialState?: Partial<ViewTile>) => void;
+  updateViewTile: (tileId: string, updates: Partial<ViewTile>) => void;
+  initEditorTile: (tileId: string, initialState?: Partial<EditorTile>) => void;
+  updateEditorTile: (tileId: string, updates: Partial<EditorTile>) => void;
   
   // Helper methods for tiles
   getTileIds: () => string[];
-  getTile: (tileName: string) => Tile | null;
+  getTileNames: () => string[];
+  getTile: (tileIdOrName: string) => Tile | null;
   
   // Grid-related actions
   getItems: () => TileProps[];
@@ -54,23 +55,20 @@ export interface TabDataActions {
 
 /**
  * Custom hook to access tab data state and actions
- * @param tabName The name of the tab to access
- * @param interfaceName Optional interface name (if not provided, active interface will be used)
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param tabIdOrName The ID or name of the tab to access
+ * @param interfaceIdOrName Optional interface ID or name (if not provided, active interface will be used)
  * @returns Object containing tab data state and actions
  */
 export function useTabData(
-  tabName: string | null, 
-  interfaceName?: string | null,
-  projectName?: string | null
+  tabIdOrName: string | null, 
+  interfaceIdOrName?: string | null
 ) {
   // Use the meta hook to get common tab info
   const { 
     tabId, 
-    activeProjectId, 
     activeInterfaceId, 
     tabExists 
-  } = useTabMeta(tabName, interfaceName, projectName);
+  } = useTabMeta(tabIdOrName, interfaceIdOrName);
 
   // Get the tile item actions getter at the top level
   const { getTileItemActions } = useTileItemActions();
@@ -81,24 +79,17 @@ export function useTabData(
     return state.tabsById[tabId].globalContext;
   });
   
-  const savedTab = useStoreContext(
-    useShallow(state => {
-      if (!tabExists || !tabId) return null;
-      return state.tabsById[tabId].savedTab;
-    })
-  );
-
-  const tableArguments = useStoreContext(
-    useShallow(state => {
-      if (!tabExists || !tabId) return EMPTY_TABLE_ARGUMENTS;
-      return state.tabsById[tabId].tableArguments || EMPTY_TABLE_ARGUMENTS;
-    })
-  );
-  
   const tileIds = useStoreContext(
     useShallow(state => {
       if (!tabExists || !tabId) return EMPTY_TILE_IDS;
       return state.tabsById[tabId].tileIds;
+    })
+  );
+
+  const tileNames = useStoreContext(
+    useShallow(state => {
+      if (!tabExists || !tabId) return EMPTY_TILE_NAMES;
+      return state.tabsById[tabId].tileNames;
     })
   );
 
@@ -109,24 +100,28 @@ export function useTabData(
     // The actual tile data will be accessed through the tile-specific hooks
     const tileMap: Record<string, Tile> = {};
     
-    tileIds.forEach(tileId => {
-      const tileNameFromId = deconstructHierarchicalId(tileId).name;
-      const itemActions = getTileItemActions(tileNameFromId, tabName, interfaceName, projectName);
+    // Use tileIds and tileNames arrays which should have corresponding indices
+    tileIds.forEach((tileId, index) => {
+      const tileName = tileNames[index] || '';
       
-      if (itemActions) {
-        const tileItem = itemActions.asTileItem();
-        tileMap[tileId] = {
-          id: tileId,
-          name: tileItem.i,
-          table: tileItem.table,
-          itemsNeedRecompute: itemActions.getItemsNeedRecompute(),
-          // Include other necessary tile properties
-        } as Tile;
+      if (tileName) {
+        const itemActions = getTileItemActions(tileName, tabIdOrName);
+        
+        if (itemActions) {
+          const tileItem = itemActions.asTileItem();
+          tileMap[tileId] = {
+            id: tileId,
+            name: tileName,
+            table: tileItem.table,
+            itemsNeedRecompute: itemActions.getItemsNeedRecompute(),
+            // Include other necessary tile properties
+          } as Tile;
+        }
       }
     });
     
     return tileMap;
-  }, [tabExists, tabId, tileIds, getTileItemActions, tabName, interfaceName, projectName]);
+  }, [tabExists, tabId, tileIds, tileNames, getTileItemActions, tabIdOrName]);
 
   const itemsNeedRecompute = useStoreContext(state => {
     if (!tabExists || !tabId) return false;
@@ -139,21 +134,14 @@ export function useTabData(
     // If no tab or tiles, return an empty array
     if (!tabExists || !tabId || !Object.keys(tiles).length) return EMPTY_TILE_PROPS;
 
-    // if (!itemsNeedRecompute && itemsRef.current.length > 0) { 
-    //   return itemsRef.current;
-    // }
-
     // Build the array from each tile ID
     const newItems = Object.values(tiles).map(tile => {
-      // Extract tile name from hierarchical ID
-      const tileNameFromId = deconstructHierarchicalId(tile.id).name;
-      
-      // Get itemActions for this tile using our getter
-      const itemActions = getTileItemActions(tileNameFromId, tabName, interfaceName, projectName);
+      // Get itemActions for this tile using its name
+      const itemActions = getTileItemActions(tile.name, tabIdOrName);
       
       // Call `asTileItem()` or use a fallback
       return itemActions?.asTileItem() || {
-        i: tileNameFromId,
+        name: tile.name,
         x: 0,
         y: 0,
         w: 1,
@@ -169,7 +157,7 @@ export function useTabData(
     // Update the ref and return the new items
     itemsRef.current = newItems;
     return newItems;
-  }, [tabExists, tabId, tiles, getTileItemActions, tabName, interfaceName, projectName, itemsNeedRecompute]);
+  }, [tabExists, tabId, tiles, getTileItemActions, tabIdOrName, itemsNeedRecompute]);
 
   // Get all the store actions needed for data
   const storeUpdateTab = useStoreContext(state => state.updateTab);
@@ -196,28 +184,27 @@ export function useTabData(
     
     return {
       globalContext,
-      savedTab,
-      tableArguments,
-      tileIds
+      tileIds,
+      tileNames
     };
-  }, [tabExists, globalContext, savedTab, tileIds, tableArguments]);
+  }, [tabExists, globalContext, tileIds, tileNames]);
 
   // Define setItems as a callback to avoid dependency cycles
   const setItems = useCallback((newItems: TileProps[]) => {
     if (!tabId || !Object.keys(tiles).length) return;
     
     newItems.forEach(item => {
-      const tileItemName = item.i;
+      const tileItemName = item.name;
       
       // Get itemActions using our getter
-      const itemActions = getTileItemActions(tileItemName, tabName, interfaceName, projectName);
+      const itemActions = getTileItemActions(tileItemName, tabIdOrName);
       
       // Update the tile using fromTileItem
       if (itemActions) {
         itemActions.fromTileItem(item);
       }
     });
-  }, [tabId, tiles, getTileItemActions, tabName, interfaceName, projectName]);
+  }, [tabId, tiles, getTileItemActions, tabIdOrName]);
 
   // Memoize the data actions
   const dataActions = useMemo<TabDataActions>(() => ({
@@ -233,35 +220,16 @@ export function useTabData(
       }
     },
     
-    setSavedTab: (savedTab) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { savedTab });
-      }
-    },
-
-    setTableArguments: (tableArguments) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { tableArguments });
-      }
-    },
-    
     // Tile management
-    initTile: (tileName, initialState = {}) => {
-      if (activeProjectId && activeInterfaceId && tabId) {
-        // Create hierarchical tileId
-        const hierarchicalTileId = tileName.includes('>')
-          ? tileName
-          : `${tabId}>${tileName}`;
-        
+    initTile: (tileId, tileName, initialState = {}) => {
+      if (activeInterfaceId && tabId) {
         // Initialize the tile with proper IDs
         storeInitTile(
           tabId, 
-          hierarchicalTileId, 
+          tileId, 
           {
-            id: hierarchicalTileId,
+            id: tileId,
             name: tileName,
-            projectId: activeProjectId,
-            interfaceId: activeInterfaceId,
             tabId: tabId,
             ...initialState
           }
@@ -269,185 +237,106 @@ export function useTabData(
       }
     },
 
-    addTile: (tileName, newName, initialState = {}) => {
-      if (activeProjectId && activeInterfaceId && tabId) {
-        // Check if the tileId is already hierarchical
-        const sourceTileId = tileName.includes('>')
-          ? tileName
-          : `${tabId}>${tileName}`;
-          
-        const newTileId = newName.includes('>')
-          ? newName
-          : `${tabId}>${newName}`;
-
+    addTile: (newTileId, initialState = {}) => {
+      if (activeInterfaceId && tabId) {
         // Add the tile with proper IDs
         storeAddTile(
           tabId, 
-          sourceTileId,
           newTileId,
-          {
-            id: newTileId,
-            name: newName,
-            projectId: activeProjectId,
-            interfaceId: activeInterfaceId,
-            tabId: tabId,
-            ...initialState
-          }
+          initialState
         );
       }
     },
     
-    removeTile: (tileName) => {
-      if (activeProjectId && activeInterfaceId && tabId) {
-        // Check if tileId is already hierarchical
-        const hierarchicalTileId = tileName.includes('>')
-          ? tileName
-          : `${tabId}>${tileName}`;
-        
-        storeRemoveTile(tabId, hierarchicalTileId);
+    removeTile: (tileId) => {
+      if (activeInterfaceId && tabId) {
+        storeRemoveTile(tabId, tileId);
       }
     },
     
-    updateTile: (tileName, updates) => {
+    updateTile: (tileId, updates) => {
       if (tabId) {
-        // Check if tileId is already hierarchical
-        const hierarchicalTileId = tileName.includes('>')
-          ? tileName
-          : `${tabId}>${tileName}`;
-        
-        storeUpdateTile(hierarchicalTileId, updates);
+        storeUpdateTile(tileId, updates);
       }
     },
     
-    renameTile: (tileName, newName) => {
-      if (activeProjectId && activeInterfaceId && tabId) {
-        // Check if the tileIds are already hierarchical
-        const sourceTileId = tileName.includes('>')
-          ? tileName
-          : `${tabId}>${tileName}`;
-
-        const newTileId = newName.includes('>')
-          ? newName
-          : `${tabId}>${newName}`;
-
+    renameTile: (tileId, newTileName) => {
+      if (activeInterfaceId && tabId) {
         // Add the tile with proper IDs
         storeRenameTile(
           tabId, 
-          sourceTileId,
-          newTileId,
-          {
-            id: newTileId,
-            name: newName,
-            projectId: activeProjectId,
-            interfaceId: activeInterfaceId,
-            tabId: tabId,
-          }
+          tileId,
+          newTileName,
         );
       }
     },
 
     // Table tile specific actions
-    initTableTile: (tileName, initialState = {}) => {
-      if (activeProjectId && activeInterfaceId && tabId) {
-        // Check if tileId is already hierarchical
-        const hierarchicalTileId = tileName.includes('>')
-          ? tileName
-          : `${tabId}>${tileName}`;
-        
-        storeInitTableTile(hierarchicalTileId, initialState);
+    initTableTile: (tileId, initialState = {}) => {
+      if (activeInterfaceId && tabId) {
+        storeInitTableTile(tileId, initialState);
       }
     },
     
-    updateTableTile: (tileName, updates) => {
-      if (activeProjectId && activeInterfaceId && tabId) {
-        // Check if tileId is already hierarchical
-        const hierarchicalTileId = tileName.includes('>')
-          ? tileName
-          : `${tabId}>${tileName}`;
-        
-        storeUpdateTableTile(hierarchicalTileId, updates);
+    updateTableTile: (tileId, updates) => {
+      if (activeInterfaceId && tabId) {
+        storeUpdateTableTile(tileId, updates);
       }
     },
     
     // Plot tile specific actions
-    initPlotTile: (tileName, initialState = {}) => {
-      if (activeProjectId && activeInterfaceId && tabId) {
-        // Check if tileId is already hierarchical
-        const hierarchicalTileId = tileName.includes('>')
-          ? tileName
-          : `${tabId}>${tileName}`;
-        
-        storeInitPlotTile(hierarchicalTileId, initialState);
+    initPlotTile: (tileId, initialState = {}) => {
+      if (activeInterfaceId && tabId) {
+        storeInitPlotTile(tileId, initialState);
       }
     },
     
-    updatePlotTile: (tileName, updates) => {
-      if (activeProjectId && activeInterfaceId && tabId) {
-        // Check if tileId is already hierarchical
-        const hierarchicalTileId = tileName.includes('>')
-          ? tileName
-          : `${tabId}>${tileName}`;
-        
-        storeUpdatePlotTile(hierarchicalTileId, updates);
+    updatePlotTile: (tileId, updates) => {
+      if (activeInterfaceId && tabId) {
+        storeUpdatePlotTile(tileId, updates);
       }
     },
     
     // View tile specific actions
-    initViewTile: (tileName, initialState = {}) => {
-      if (activeProjectId && activeInterfaceId && tabId) {
-        // Check if tileId is already hierarchical
-        const hierarchicalTileId = tileName.includes('>')
-          ? tileName
-          : `${tabId}>${tileName}`;
-        
-        storeInitViewTile(hierarchicalTileId, initialState);
+    initViewTile: (tileId, initialState = {}) => {
+      if (activeInterfaceId && tabId) {
+        storeInitViewTile(tileId, initialState);
       }
     },
     
-    updateViewTile: (tileName, updates) => {
-      if (activeProjectId && activeInterfaceId && tabId) {
-        // Check if tileId is already hierarchical
-        const hierarchicalTileId = tileName.includes('>')
-          ? tileName
-          : `${tabId}>${tileName}`;
-        
-        storeUpdateViewTile(hierarchicalTileId, updates);
+    updateViewTile: (tileId, updates) => {
+      if (activeInterfaceId && tabId) {
+        storeUpdateViewTile(tileId, updates);
       }
     },
 
     // Editor tile specific actions
-    initEditorTile: (tileName, initialState = {}) => {
-      if (activeProjectId && activeInterfaceId && tabId) {
-        // Check if tileId is already hierarchical
-        const hierarchicalTileId = tileName.includes('>')
-          ? tileName
-          : `${tabId}>${tileName}`;
-        
-        storeInitEditorTile(hierarchicalTileId, initialState);
+    initEditorTile: (tileId, initialState = {}) => {
+      if (activeInterfaceId && tabId) {
+        storeInitEditorTile(tileId, initialState);
       }
     },
     
-    updateEditorTile: (tileName, updates) => {
-      if (activeProjectId && activeInterfaceId && tabId) {
-        // Check if tileId is already hierarchical
-        const hierarchicalTileId = tileName.includes('>')
-          ? tileName
-          : `${tabId}>${tileName}`;
-        
-        storeUpdateEditorTile(hierarchicalTileId, updates);
+    updateEditorTile: (tileId, updates) => {
+      if (activeInterfaceId && tabId) {
+        storeUpdateEditorTile(tileId, updates);
       }
     },
 
     // Helper methods for tiles
     getTileIds: () => tileIds,
+
+    getTileNames: () => tileNames,
     
-    getTile: (tileName) => {
-      // Check if tileId is already hierarchical
-      const hierarchicalTileId = tileName.includes('>')
-        ? tileName
-        : `${tabId}>${tileName}`;
+    getTile: (tileIdOrName) => {
+      // First try direct lookup by ID
+      if (tiles[tileIdOrName]) {
+        return tiles[tileIdOrName];
+      }
       
-      return tiles[hierarchicalTileId] || null;
+      // If not found by ID, try looking up by name
+      const tileByName = Object.values(tiles).find(tile => tile.name === tileIdOrName);
+      return tileByName || null;
     },
     
     getItems: () => items,
@@ -463,8 +352,8 @@ export function useTabData(
     tabId,
     tiles,
     tileIds,
+    tileNames,
     items,
-    activeProjectId,
     activeInterfaceId,
     setItems,
     storeUpdateTab,
@@ -493,16 +382,13 @@ export function useTabData(
       // Also reset the flag on all tiles in this tab
       Object.values(tiles).forEach(tile => {
         if (tile.itemsNeedRecompute) {
-          // Extract tile name from hierarchical ID
-          const tileNameFromId = deconstructHierarchicalId(tile.id).name;
-          
-          // Get itemActions for this tile using our getter
-          const itemActions = getTileItemActions(tileNameFromId, tabName, interfaceName, projectName);
+          // Get itemActions for this tile using its name directly
+          const itemActions = getTileItemActions(tile.name, tabIdOrName);
           itemActions?.setItemsNeedRecompute(false);
         }
       });
     }
-  }, [tabId, itemsNeedRecompute, tiles, dataActions, getTileItemActions, tabName, interfaceName, projectName]);
+  }, [tabId, itemsNeedRecompute, tiles, dataActions, getTileItemActions, tabIdOrName]);
 
   return {
     data,

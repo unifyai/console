@@ -6,6 +6,7 @@ import { GranularTileActions } from "@/types/evals/grid";
 import { useTableTile, TableActions } from "../useTableTile";
 import { useTileUI } from "../useTileUI";
 import { useTileRouterRefresh } from "@/contexts/hooks/tile/sync/useTileRouterRefresh";
+import { useTileMeta } from "@/contexts/hooks/tile/useTileMeta";
 
 /**
  * Properties of the TableTile that will be synced with the server
@@ -57,27 +58,17 @@ export interface TableTileSyncResult {
  * loading and error state information.
  */
 export function useTableTileSync(
-  tileName: string | null,
+  tileId: string | null,
   tabId: string | null,
-  interfaceName: string | null,
-  projectName?: string | null,
   granularTileActions?: GranularTileActions
 ): TableTileSyncResult {
   // Get the original table tile state and actions
-  const { tableTile, tableTileActions, exists } = useTableTile(
-    tileName, 
-    tabId, 
-    interfaceName, 
-    projectName
-  );
+  const { tableTile, tableTileActions, exists } = useTableTile(tileId, tabId, );
 
   // Get UI actions to update loading state
-  const { uiActions } = useTileUI(
-    tileName,
-    tabId,
-    interfaceName,
-    projectName
-  );
+  const { meta } = useTileMeta(tileId, tabId);
+  const { uiActions } = useTileUI(tileId, tabId);
+  const tileName = meta?.name;
 
   // React router refresh handling
   const refreshRouter = useTileRouterRefresh(uiActions);
@@ -227,11 +218,6 @@ export function useTableTileSync(
       tileType: "Table",
       updateData: { column_order: value },
       actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
-      }
     });
   };
 
@@ -251,11 +237,6 @@ export function useTableTileSync(
       tileType: "Table",
       updateData: { hidden_columns: value },
       actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
-      }
     });
   };    
 
@@ -275,11 +256,6 @@ export function useTableTileSync(
       tileType: "Table",
       updateData: { columns_pin_left: value },
       actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
-      }
     });
   };
 
@@ -299,11 +275,6 @@ export function useTableTileSync(
       tileType: "Table",
       updateData: { columns_pin_right: value },
       actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
-      }
     });
   };
 
@@ -323,11 +294,6 @@ export function useTableTileSync(
       tileType: "Table",
       updateData: { selected: value },
       actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
-      }
     });
   };
 
@@ -375,7 +341,7 @@ export function useTableTileSync(
   }, [
     tableTileActions,
     tabId,
-    tileName,
+    tileId,
     granularTileActions,
     refreshRouter
   ]);

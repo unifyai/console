@@ -6,6 +6,7 @@ import { GranularTileActions, } from "@/types/evals/grid";
 import { usePlotTile, PlotActions } from "../usePlotTile";
 import { useTileUI } from "../useTileUI";
 import { useTileRouterRefresh } from "@/contexts/hooks/tile/sync/useTileRouterRefresh";
+import { useTileMeta } from "../useTileMeta";
 
 /**
  * Properties of the PlotTile that will be synced with the server
@@ -49,27 +50,17 @@ export interface PlotTileSyncResult {
  * loading and error state information.
  */
 export function usePlotTileSync(
-  tileName: string | null,
+  tileId: string | null,
   tabId: string | null,
-  interfaceName: string | null,
-  projectName?: string | null,
   granularTileActions?: GranularTileActions
 ): PlotTileSyncResult {
   // Get the original plot tile state and actions
-  const { plotTile, plotTileActions, exists } = usePlotTile(
-    tileName, 
-    tabId, 
-    interfaceName, 
-    projectName
-  );
+  const { plotTile, plotTileActions, exists } = usePlotTile(tileId, tabId);
 
   // Get UI actions to update loading state
-  const { uiActions } = useTileUI(
-    tileName,
-    tabId,
-    interfaceName,
-    projectName
-  );
+  const { meta } = useTileMeta(tileId, tabId);
+  const { uiActions } = useTileUI(tileId, tabId);
+  const tileName = meta?.name;
 
   // React router refresh handling
   const refreshRouter = useTileRouterRefresh(uiActions);

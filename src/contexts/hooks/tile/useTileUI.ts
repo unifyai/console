@@ -19,32 +19,18 @@ export interface TileUIActions {
 
 /**
  * Custom hook to access tile UI state and actions
- * @param tileName The name of the tile to access
- * @param tabName The name of the tab containing the tile
- * @param interfaceName The name of the interface containing the tab
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param tileIdOrName The ID or name of the tile to access
+ * @param tabIdOrName The ID or name of the tab containing the tile
  * @returns Object containing tile UI state and actions
  */
 export function useTileUI(
-  tileName: string | null,
-  tabName: string | null,
-  interfaceName: string | null,
-  projectName?: string | null
+  tileIdOrName: string | null,
+  tabIdOrName: string | null
 ) {
   // Use the tile meta hook to get common tile info
-  const { tileId, tileExists } = useTileMeta(tileName, tabName, interfaceName, projectName);
+  const { tileId, tileExists } = useTileMeta(tileIdOrName, tabIdOrName);
 
   // Subscribe to UI properties
-  const projectIdFromState = useStoreContext(state => {
-    if (!tileExists || !tileId) return null;
-    return state.tilesById[tileId].projectId;
-  });
-  
-  const interfaceIdFromState = useStoreContext(state => {
-    if (!tileExists || !tileId) return null;
-    return state.tilesById[tileId].interfaceId;
-  });
-  
   const tabIdFromState = useStoreContext(state => {
     if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].tabId;
@@ -98,8 +84,6 @@ export function useTileUI(
     if (!tileExists) return null;
     
     return {
-      projectId: projectIdFromState,
-      interfaceId: interfaceIdFromState,
       tabId: tabIdFromState,
       visible,
       locked,
@@ -112,8 +96,6 @@ export function useTileUI(
     };
   }, [
     tileExists,
-    projectIdFromState,
-    interfaceIdFromState,
     tabIdFromState,
     visible,
     locked,

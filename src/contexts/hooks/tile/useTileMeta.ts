@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useStoreContext } from '../../providers/StoreProvider';
 import { useTabMeta } from '../tab/useTabMeta';
 import { TileMeta, TilePosition } from '../../slices/selectors/tile';
+import { useShallow } from 'zustand/react/shallow';
 
 /**
  * Interface for tile meta-related actions
@@ -17,32 +18,45 @@ export interface TileMetaActions {
 
 /**
  * Custom hook to access tile metadata and related actions
- * @param tileName The name of the tile to access
- * @param tabName Optional name of the tab containing the tile
- * @param interfaceName Optional name of the interface containing the tab
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param tileIdOrName The ID or name of the tile to access
+ * @param tabIdOrName Optional ID or name of the tab containing the tile
  * @returns Object containing tile metadata, actions, and related IDs
  */
 export function useTileMeta(
-  tileName: string | null,
-  tabName: string | null,
-  interfaceName?: string | null,
-  projectName?: string | null
+  tileIdOrName: string | null,
+  tabIdOrName: string | null
 ) {
   // Use the tab meta hook to get tab information
-  const { tabId } = useTabMeta(tabName, interfaceName, projectName);
+  const { tabId } = useTabMeta(tabIdOrName);
   
-  // Construct tile ID hierarchically
+  // First attempt: Look for the tile directly by ID
+  const tileInStoreById = useStoreContext(
+    useShallow(state => {
+      if (!tileIdOrName) return null;
+      return state.tilesById[tileIdOrName] || null;
+    })
+  );
+
+  // Second attempt: Find the tile by tab + name combination
+  const tileInStoreByName = useStoreContext(
+    useShallow(state => {
+      if (!tileIdOrName || !tabId || tileInStoreById) return null;
+      
+    // Find tile with matching name and tab ID
+    return Object.values(state.tilesById).find(
+      tile => tile.name === tileIdOrName && tile.tabId === tabId
+    ) || null;
+  }));
+
+  // Determine the tile ID based on lookup results
   const tileId = useMemo(() => {
-    if (!tabId || !tileName) return null;
-    return `${tabId}>${tileName}`;
-  }, [tabId, tileName]);
+    if (!tileIdOrName) return null;
+    if (tileInStoreById) return tileIdOrName;
+    return tileInStoreByName?.id || null;
+  }, [tileIdOrName, tileInStoreById, tileInStoreByName]);
 
   // Check if tile exists
-  const tileExists = useStoreContext(state => {
-    if (!tileId) return false;
-    return !!state.tilesById?.[tileId];
-  });
+  const tileExists = !!tileId && !!(tileInStoreById || tileInStoreByName);
 
   // Subscribe to metadata properties
   const id = useStoreContext(state => {

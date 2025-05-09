@@ -62,17 +62,13 @@ export interface TileActions {
 
 /**
  * Custom hook to access all tile state and actions
- * @param tileName The name of the tile to access
- * @param tabName The name of the tab containing the tile
- * @param interfaceName The name of the interface containing the tab
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param tileIdOrName The ID or name of the tile to access
+ * @param tabIdOrName The ID or name of the tab containing the tile
  * @returns Object containing all tile state, actions, and existence flag
  */
 export function useTile(
-  tileName: string | null,
-  tabName?: string | null,
-  interfaceName?: string | null,
-  projectName?: string | null
+  tileIdOrName: string | null,
+  tabIdOrName?: string | null
 ) {
   // Use specialized hooks for base tile data
   const {
@@ -80,47 +76,47 @@ export function useTile(
     metaActions,
     tileId,
     tileExists
-  } = useTileMeta(tileName, tabName || null, interfaceName || null, projectName);
+  } = useTileMeta(tileIdOrName, tabIdOrName || null);
   
   const {
     data,
     dataActions,
-  } = useTileData(tileName, tabName || null, interfaceName || null, projectName);
+  } = useTileData(tileIdOrName, tabIdOrName || null);
   
   const {
     ui,
     uiActions
-  } = useTileUI(tileName, tabName || null, interfaceName || null, projectName);
+  } = useTileUI(tileIdOrName, tabIdOrName || null);
   
   // Get the item actions
   const {
     itemActions
-  } = useTileItem(tileName, tabName || null, interfaceName || null, projectName);
+  } = useTileItem(tileIdOrName, tabIdOrName || null);
 
   // Use type-specific hooks based on the tile type
   const {
     tableTile,
     tableTileActions,
     exists: tableExists
-  } = useTableTile(tileName, tabName || null, interfaceName || null, projectName);
+  } = useTableTile(tileIdOrName, tabIdOrName || null);
   
   const {
     plotTile,
     plotTileActions,
     exists: plotExists
-  } = usePlotTile(tileName, tabName || null, interfaceName || null, projectName);
+  } = usePlotTile(tileIdOrName, tabIdOrName || null);
   
   const {
     viewTile,
     viewTileActions,
     exists: viewExists
-  } = useViewTile(tileName, tabName || null, interfaceName || null, projectName);
+  } = useViewTile(tileIdOrName, tabIdOrName || null);
 
   const {
     editorTile,
     editorTileActions,
     exists: editorExists
-  } = useEditorTile(tileName, tabName || null, interfaceName || null, projectName);
+  } = useEditorTile(tileIdOrName, tabIdOrName || null);
 
   // Get active IDs from the store context
   const activeProjectId = useStoreContext(state => state.activeProjectId);
@@ -145,14 +141,12 @@ export function useTile(
     const baseActions: TileActions = {
       // Basic tile management
       initTile: (initialState?: Partial<Tile>) => {
-        if (activeProjectId && activeInterfaceId && activeTabId && tileId) {
+        if (activeTabId && tileId) {
           storeInitTile(
             activeTabId,
             tileId,
             {
               id: tileId,
-              projectId: activeProjectId,
-              interfaceId: activeInterfaceId,
               tabId: activeTabId,
               ...initialState
             }
@@ -186,8 +180,6 @@ export function useTile(
   }, [
     tileId,
     activeTabId,
-    activeInterfaceId,
-    activeProjectId,
     metaActions,
     dataActions,
     uiActions,
@@ -224,7 +216,7 @@ export function useTile(
   }, [meta, data, ui, tableTile, plotTile, viewTile, editorTile]);
 
   // Use tileId to conditionally return values, but only after all hooks are called
-  if (!tileName) {
+  if (!tileIdOrName) {
     return DEFAULT_USE_TILE_RETURN;
   }
 
