@@ -10,22 +10,18 @@ export interface TabMeta {
   visible: boolean;
   active: boolean;
   order: number;
-  tabCreated: boolean;
-  tempTabCreated: boolean;
 }
 
 // Tab data - business data and relationships
 export interface TabData {
   globalContext?: string;
-  savedTab: TabProps | null; // This needs to match exactly the TabProps type from grid.ts
-  tableArguments: TableArguments;
   tileIds: string[]; // References to tiles instead of containing them directly
+  tileNames: string[]; // Names of tiles in the tab
   itemsNeedRecompute: boolean; // Flag to indicate when items need recomputing
 }
 
 // Tab UI state - UI-related state
 export interface TabUI {
-  projectId: string | null;
   interfaceId: string | null;
   focusedTileNames: [string | undefined, string | undefined];
   saveSuccess?: boolean;
@@ -57,20 +53,16 @@ export function initTab(tabId: string, initialState: Partial<Tab> = {}): Tab {
     visible: initialState.visible !== undefined ? initialState.visible : true,
     active: initialState.active !== undefined ? initialState.active : false,
     order: initialState.order !== undefined ? initialState.order : 0,
-    tabCreated: initialState.tabCreated !== undefined ? initialState.tabCreated : false,
-    tempTabCreated: initialState.tempTabCreated !== undefined ? initialState.tempTabCreated : false,
     // createdAt: initialState.createdAt || new Date().toISOString(),
     // updatedAt: initialState.updatedAt || new Date().toISOString(),
     
     // Data
     globalContext: initialState.globalContext,
-    savedTab: initialState.savedTab !== undefined ? initialState.savedTab : null,
-    tableArguments: initialState.tableArguments || {},
     tileIds: initialState.tileIds || [],
+    tileNames: initialState.tileNames || [],
     itemsNeedRecompute: initialState.itemsNeedRecompute !== undefined ? initialState.itemsNeedRecompute : false,
     
     // UI
-    projectId: initialState.projectId || null,
     interfaceId: initialState.interfaceId || null,
     focusedTileNames: initialState.focusedTileNames !== undefined ? initialState.focusedTileNames : [undefined, undefined],
     saveSuccess: initialState.saveSuccess,

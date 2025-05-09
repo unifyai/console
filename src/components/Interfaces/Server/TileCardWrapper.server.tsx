@@ -4,9 +4,6 @@ import TileWrapper from "./TileWrapper.server";
 import { getQueryClient } from '@/lib/react-query/getQueryClient'
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
-import { StoreSliceUpdater } from "@/contexts/providers/StoreSliceUpdater";
-import { buildTileStateForStore } from "@/contexts/utils/stateBuilderUtils";
-import { IStoreState } from "@/contexts/store";
 
 import type {
   LogsActions,
@@ -42,30 +39,10 @@ export default async function TileCardWrapper({
 }) {
   const qc = getQueryClient();
   
-  // Build the tile state explicitly for this specific tile
-  const tileState = buildTileStateForStore(
-    tile,
-    undefined, // tableData
-    undefined, // plotData
-    tabId,
-    interfaceId,
-    projectId
-  );
-  
-  // Create tile-specific slice - only include tile state
-  const slice: Partial<IStoreState> = {
-    // Only include tile state, no need for global navigation properties
-    ...tileState
-  };
-  
   return (
     <>
-      {/* Update the store with only tile state */}
-      <StoreSliceUpdater slice={slice} />
-      
       <HydrationBoundary state={dehydrate(qc)}>
         <TileCard
-          index={0} // This would need to be provided correctly
           tileId={tile.id || ""}
           tabId={tabId}
           interfaceId={interfaceId}

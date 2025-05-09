@@ -12,15 +12,11 @@ import type {
 type SelectionWrapperProps = {
   tile: TileData;
   tabId: string;
-  interfaceId: string;
-  projectId: string;
 };
 
 export default async function SelectionWrapper({
   tile,
   tabId,
-  interfaceId,
-  projectId
 }: SelectionWrapperProps) {
   const qc = getQueryClient();
 
@@ -35,8 +31,6 @@ export default async function SelectionWrapper({
           <Selection
             tileId={tile.id || ""}
             tabId={tabId}
-            interfaceId={interfaceId}
-            projectId={projectId}
           />
         </ExpandProvider>
       </Suspense>

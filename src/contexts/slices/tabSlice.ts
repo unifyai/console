@@ -12,9 +12,9 @@ export interface TabState {
 export interface TabActions {
   // Actions
   initTab: (interfaceId: string, tabId: string, initialState?: Partial<tabLogic.Tab>) => void;
-  addTab: (interfaceId: string, sourceTabId: string, newTabId: string, initialState?: Partial<tabLogic.Tab>) => void;
+  addTab: (interfaceId: string, newTabId: string, newTabName: string, initialState?: Partial<tabLogic.Tab>) => void;
   removeTab: (interfaceId: string, tabId: string) => void;
-  renameTab: (interfaceId: string, sourceTabId: string, newTabId: string, initialState?: Partial<tabLogic.Tab>) => void;
+  renameTab: (interfaceId: string, sourceTabId: string, newTabName: string) => void;
   updateTab: (tabId: string, updates: Partial<tabLogic.Tab>) => void;
   setActiveTab: (interfaceId: string, tabId: string | null) => void;
   removeContextFromTab: (tabId: string, context: string) => void;
@@ -48,16 +48,16 @@ export const createTabSlice: StateCreator<
     state.interfacesById[interfaceId] = interfaceLogic.addTabId(interfaceObj, tabId);
   }),
 
-  addTab: (interfaceId, sourceTabId, newTabId, initialState) => set(state => {
-    sliceUtils.addTab(state, interfaceId, sourceTabId, newTabId, initialState);
+  addTab: (interfaceId, newTabId, newTabName, initialState) => set(state => {
+    sliceUtils.addTab(state, interfaceId, newTabId, newTabName, initialState);
   }),
   
   removeTab: (interfaceId, tabId) => set(state => {
     sliceUtils.removeTab(state, interfaceId, tabId);
   }),
 
-  renameTab: (interfaceId, sourceTabId, newTabId, initialState) => set(state => {
-    sliceUtils.renameTab(state, interfaceId, sourceTabId, newTabId, initialState);
+  renameTab: (interfaceId, sourceTabId, newTabName) => set(state => {
+    sliceUtils.renameTab(state, interfaceId, sourceTabId, newTabName);
   }),
   
   updateTab: (tabId, updates) => set(state => {

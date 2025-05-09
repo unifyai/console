@@ -1,6 +1,5 @@
 import { Tab, TabMeta, TabData as TabSliceData, TabUI } from "@/contexts/slices/selectors/tab";
-import { TabData, TabProps } from "@/types/evals/grid";
-import { TableArguments } from "@/types/evals/logs";
+import { TabData } from "@/types/evals/grid";
 
 /**
  * Build tab state from API-returned tab data
@@ -8,9 +7,9 @@ import { TableArguments } from "@/types/evals/logs";
  */
 export function buildTabState(
   tabData: TabData,
-  tableArguments: TableArguments = {},
   isActive: boolean = false,
-  savedTab?: TabProps | null
+  tileIds: string[] = [],
+  tileNames: string[] = []
 ): Tab {
   if (!tabData || !tabData.id) {
     throw new Error("Invalid tab data provided");
@@ -23,24 +22,19 @@ export function buildTabState(
     visible: tabData.visible ?? true,
     active: isActive,
     order: tabData.order ?? 1,
-    // We'll set these based on our app's knowledge, not from the API
-    tabCreated: true, 
-    tempTabCreated: false,
   };
   
   // Create tab data - initially empty tile collections
   // These will be populated as tiles are added to the store
   const tabSliceData: TabSliceData = {
-    tileIds: [],
+    tileIds: tileIds,
+    tileNames: tileNames,
     globalContext: tabData.global_context,
-    savedTab: savedTab || null,
     itemsNeedRecompute: false,
-    tableArguments,
   };
   
   // Create tab UI
   const tabUI: TabUI = {
-    projectId: null, // Will be derived from the interface if needed
     interfaceId: tabData.interface_id || null,
     focusedTileNames: [undefined, undefined],
     resetting: false,
@@ -68,7 +62,8 @@ export function buildTabState(
  */
 export function addTileToTab(
   tabState: Tab, 
-  tileId: string
+  tileId: string,
+  tileName: string
 ): Tab {
   // Don't duplicate tile IDs
   if (tabState.tileIds.includes(tileId)) {
@@ -78,6 +73,7 @@ export function addTileToTab(
   return {
     ...tabState,
     tileIds: [...tabState.tileIds, tileId],
+    tileNames: [...tabState.tileNames, tileName],
   };
 }
 
@@ -86,13 +82,11 @@ export function addTileToTab(
  */
 export function updateTabParentReferences(
   tabState: Tab,
-  projectId: string | null,
   interfaceId: string | null
 ): Tab {
   return {
     ...tabState,
-    projectId,
     interfaceId,
-  };
+  } as Tab;
 }
   

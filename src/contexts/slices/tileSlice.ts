@@ -19,9 +19,9 @@ export interface TileState {
 export interface TileActions {
   // Actions
   initTile: (tabId: string, tileId: string, initialState?: Partial<tileLogic.Tile>) => void;
-  addTile: (tabId: string, sourceTileId: string, newTileId: string, initialState?: Partial<tileLogic.Tile>) => void;
+  addTile: (tabId: string, newTileId: string, initialState?: Partial<tileLogic.Tile>) => void;
   removeTile: (tabId: string, tileId: string) => void;
-  renameTile: (tabId: string, sourceTileId: string, newTileId: string, initialState?: Partial<tileLogic.Tile>) => void;
+  renameTile: (tabId: string, sourceTileId: string, newTileName: string) => void;
   updateTile: (tileId: string, updates: Partial<tileLogic.Tile>) => void;
   // Ref registration flag
   registerTileRefs: (tileId: string) => void;
@@ -83,16 +83,16 @@ export const createTileSlice: StateCreator<
     }
   }),
 
-  addTile: (tabId, sourceTileId, newTileId, initialState) => set(state => {
-    sliceUtils.addTile(state, tabId, sourceTileId, newTileId, initialState);
+  addTile: (tabId, newTileId, initialState) => set(state => {
+    sliceUtils.addTile(state, tabId, newTileId, initialState);
   }),
   
   removeTile: (tabId, tileId) => set(state => {
     sliceUtils.removeTile(state, tabId, tileId);
   }),
 
-  renameTile: (tabId, sourceTileId, newTileId, initialState) => set(state => {
-    sliceUtils.renameTile(state, tabId, sourceTileId, newTileId, initialState);
+  renameTile: (tabId, sourceTileId, newTileName) => set(state => {
+    sliceUtils.renameTile(state, tabId, sourceTileId, newTileName);
   }),
   
   updateTile: (tileId, updates) => set(state => {

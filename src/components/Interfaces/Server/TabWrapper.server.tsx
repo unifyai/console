@@ -5,7 +5,7 @@ import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { getQueryClient } from '@/lib/react-query/getQueryClient';
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { StoreSliceUpdater } from "@/contexts/providers/StoreSliceUpdater";
-import { buildTabStateForStore } from "@/contexts/utils/stateBuilderUtils";
+import { buildTabStateForStore, buildTileStateForStore } from "@/contexts/utils/stateBuilderUtils";
 import { IStoreState } from "@/contexts/store";
 import { redirect } from "next/navigation";
 
@@ -20,6 +20,7 @@ import type {
   TabData,
   TileData
 } from "@/types/evals/grid";
+import { TableArguments, PlotArguments } from "@/types/evals/logs";
 
 type TabWrapperActions = {
   tabActions: GranularTabActions;
@@ -96,7 +97,6 @@ export default async function TabWrapper({
 
   // Prefetch tiles for the active tab - use tabId for API calls
   const tabId = activeTab.id || "";
-  const tabName = activeTab.name || "";
   
   if (tabId) {
     await qc.prefetchQuery({
@@ -108,27 +108,51 @@ export default async function TabWrapper({
   // Get the tiles from the query cache
   const tiles = qc.getQueryData<TileData[]>(["tiles", tabId]) || [];
 
-  // Build tab state explicitly - we only need to build the tab state here
-  let tabState = {};
-  if (activeTab) {
-    tabState = buildTabStateForStore(
-      activeTab,
-      {},  // tableArguments
-      true, // isActive
-      interfaceId // Use interfaceId for the store
-    );
+  // Just initialize empty caches for tableArguments and plotArguments
+  // Individual tile wrappers will populate their entries
+  if (tabId) {
+    // Initialize empty tableArguments
+    await qc.prefetchQuery({
+      queryKey: ["tableArguments", tabId],
+      queryFn: () => Promise.resolve({} as TableArguments)
+    });
+
+    // Initialize empty plotArguments
+    await qc.prefetchQuery({
+      queryKey: ["plotArguments", tabId],
+      queryFn: () => Promise.resolve({} as PlotArguments)
+    });
   }
-  
+
+  // Build tab state explicitly - we only need to build the tab state here
+  const tabState: Partial<IStoreState> = {};
+  if (activeTab) {
+    const builtTabState = buildTabStateForStore(
+      activeTab,
+      true, // isActive
+      interfaceId, // Use interfaceId for the store
+      tiles.map(tile => tile.id || ''),
+      tiles.map(tile => tile.name || '')
+    );
+    Object.assign(tabState, builtTabState);
+  }
+
+  // Build tile state explicitly - we only need to build the tile state here
+  const tileState: Partial<IStoreState> = {};
+  if (tiles.length > 0) {
+    const builtTileState = buildTileStateForStore(
+      tiles,
+      tabId
+    );
+    Object.assign(tileState, builtTileState);
+  }
+
   // Create tab slice - only include tab-specific state
   const slice: Partial<IStoreState> = {
     // Only include tab state, activeTabId is fine since it's part of tab's domain
     activeTabId: activeTab.id || null,
-    ...tabState
-  };
-  
-  // Define a dummy updateTab function that returns a promise
-  const updateTab = async () => {
-    return { success: "true", message: "Updated" };
+    ...tabState,
+    ...tileState,
   };
 
   return (
@@ -139,7 +163,7 @@ export default async function TabWrapper({
       <HydrationBoundary state={dehydrate(qc)}>
         <Tab
           tabId={tabId}
-          interfaceId={interfaceId} /* Use interfaceId for component props */
+          interfaceId={interfaceId}
           projectId={project}
           tileActions={actions.tileActions}
           logsActions={actions.logsActions}
@@ -149,11 +173,11 @@ export default async function TabWrapper({
           codeActions={actions.codeActions}
         >
           {tiles.map(tile => (
-            <Suspense fallback={<SkeletonLoader />}>
+            <Suspense key={tile.id} fallback={<SkeletonLoader />}>
               <TileCardWrapper
                 tile={tile}
                 tabId={tabId}
-                interfaceId={interfaceId} /* Use interfaceId for API calls */
+                interfaceId={interfaceId}
                 projectId={project}
                 actions={actions}
               />

@@ -82,8 +82,6 @@ export default async function TileWrapper({
           <SelectionWrapper
             tile={tile}
             tabId={tabId}
-            interfaceId={interfaceId}
-            projectId={projectId}
           />
         );
       case "Editor":

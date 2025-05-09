@@ -4,20 +4,15 @@ import { PlotTile, PlotTileData as PlotTileSliceData } from '@/contexts/slices/s
 import { ViewTile, ViewTileMeta, ViewTileData as ViewTileSliceData, ViewTileUI } from '@/contexts/slices/selectors/viewTile';
 import { EditorTile, EditorTileData as EditorTileSliceData } from '@/contexts/slices/selectors/editorTile';
 import { TileData, TableTileData, PlotTileData, ViewTileData, EditorTileData } from '@/types/evals/grid';
-import { TableDataProps, PlotDataProps } from '@/types/evals/grid';
 
 /**
  * Build tile state from API-returned tile data
  */
-export function buildTileState(
-  tileData: TileData,
-  tableData?: TableDataProps,
-  plotData?: PlotDataProps
-): Tile {
+export function buildTileState(tileData: TileData): Tile {
   if (!tileData || !tileData.id) {
     throw new Error("Invalid tile data provided");
   }
-  
+
   // Build tile meta
   const tileMeta: TileMeta = {
     id: tileData.id,
@@ -43,8 +38,6 @@ export function buildTileState(
 
   // Build tile UI state
   const tileUI: TileUI = {
-    projectId: null, // Will be derived from tab/interface if needed
-    interfaceId: null, // Will be derived from tab if needed
     tabId: tileData.tab_id || null,
     visible: tileData.visible,
     locked: tileData.locked || false,
@@ -69,7 +62,7 @@ export function buildTileState(
   };
 
   // Add specialized tile data based on type
-  return addSpecializedTileData(tile, tileData, tableData, plotData);
+  return addSpecializedTileData(tile, tileData);
 }
 
 /**
@@ -78,8 +71,6 @@ export function buildTileState(
 function addSpecializedTileData(
   tile: Tile, 
   tileData: TileData,
-  tableData?: TableDataProps,
-  plotData?: PlotDataProps
 ): Tile {
   switch(tileData.type) {
     case 'Table':
@@ -168,14 +159,10 @@ function buildEditorTileData(editorTileData: EditorTileData): EditorTile {
  */
 export function updateTileParentReferences(
   tileState: Tile,
-  projectId: string | null,
-  interfaceId: string | null,
   tabId: string | null
 ): Tile {
   return {
     ...tileState,
-    projectId,
-    interfaceId,
     tabId,
   };
 }

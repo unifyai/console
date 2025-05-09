@@ -7,7 +7,9 @@ import { InterfaceData } from "@/types/evals/grid";
  */
 export function buildInterfaceState(
   interfaceData: InterfaceData,
-  activeTabId?: string
+  activeTabId?: string,
+  tabIds?: string[],
+  tabNames?: string[]
 ): Interface {
   if (!interfaceData || !interfaceData.id) {
     throw new Error("Invalid interface data provided");
@@ -23,16 +25,14 @@ export function buildInterfaceState(
   // Create interface data - initially empty tab collections
   // These will be populated as tabs are added to the store
   const interfaceSliceData: InterfaceSliceData = {
-    tabIds: [],
-    tabNames: [],
+    tabIds: tabIds || [],
+    tabNames: tabNames || [],
   };
   
   // Create interface UI
   const interfaceUI: InterfaceUI = {
     projectId: interfaceData.project_id || null,
     activeTabId: activeTabId || interfaceData.active_tab_id || null,
-    dataPending: false,
-    pending: false,
   };
   
   return {

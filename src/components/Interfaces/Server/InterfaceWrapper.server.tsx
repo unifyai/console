@@ -5,7 +5,7 @@ import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import Interface from "../Interface";
 import TabWrapper from "./TabWrapper.server";
 import { StoreInitializer } from "@/contexts/providers/StoreInitializer";
-import { buildInterfaceStateForStore, buildProjectStateForStore } from "@/contexts/utils/stateBuilderUtils";
+import { buildInterfaceStateForStore, buildProjectStateForStore, buildTabStateForStore } from "@/contexts/utils/stateBuilderUtils";
 
 import type {
   ProjectsActions,
@@ -19,7 +19,8 @@ import type {
   GranularTileActions,
   DevboxActions,
   InterfaceData,
-  Context
+  Context,
+  TabData
 } from "@/types/evals/grid";
 import { redirect } from "next/navigation";
 
@@ -134,12 +135,24 @@ export default async function InterfaceWrapper({
   // Build interface state
   let interfaceState = {};
   if (currentInterface) {
+
+    // Prefetch tabs using the query client - use interfaceId for API calls
+    await qc.prefetchQuery({
+      queryKey: ["tabs", currentInterface.id],
+      queryFn: () => actions.tabActions.list(currentInterface.id!, false)
+    });
+
+    // Get the tabs from the query cache
+    const tabs = qc.getQueryData<TabData[]>(["tabs", currentInterface.id]) || [];
+
     // Extract the active tab id if available
     const activeTabId = currentInterface.active_tab_id || undefined;
     
     interfaceState = buildInterfaceStateForStore(
       currentInterface, 
-      activeTabId
+      activeTabId,
+      tabs.map(tab => tab.id || '') || [],
+      tabs.map(tab => tab.name || '') || []
     );
   } else if (interface_) {
     // If we have an interface name but no data yet

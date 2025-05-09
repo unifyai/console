@@ -43,8 +43,6 @@ export interface TileData {
 
 // Tile UI state - UI-related state
 export interface TileUI {
-  projectId: string | null;
-  interfaceId: string | null;
   tabId: string | null;
   visible?: boolean;
   locked?: boolean;
@@ -75,7 +73,7 @@ export const TILE_PROPS_KEYS_AS_TILE_KEYS: (keyof Tile)[] = [
 
 export const TILE_KEYS: (keyof Tile)[] = [
   ...TILE_PROPS_KEYS_AS_TILE_KEYS,
-  "projectId","interfaceId","tabId","locked","pending","loading", "error",
+  "tabId","locked","pending","loading", "error",
   "itemsNeedRecompute","tableTile","plotTile","viewTile","editorTile"
 ];
 
@@ -106,8 +104,6 @@ export function initTile(tileId: string, initialState: Partial<Tile> = {}): Tile
     grouping: initialState.grouping !== undefined ? initialState.grouping : null,
     
     // UI
-    projectId: initialState.projectId || null,
-    interfaceId: initialState.interfaceId || null,
     tabId: initialState.tabId || null,
     visible: initialState.visible,
     locked: initialState.locked !== undefined ? initialState.locked : false,

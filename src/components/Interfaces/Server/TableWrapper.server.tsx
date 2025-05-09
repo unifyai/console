@@ -7,6 +7,7 @@ import { buildFilterExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { getLogsDetails } from "@/utils/evals/common";
 import { TableDataItem } from "@/types/evals/grid";
+import { buildTableArgumentsForTile } from "@/utils/arguments/buildTableArguments";
 
 import type {
   LogsActions,
@@ -16,7 +17,7 @@ import type {
   TileData,
   GranularTileActions,
 } from "@/types/evals/grid";
-import { LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
+import { LogFieldsResponseProps, LogsResponseProps, TableArguments } from "@/types/evals/logs";
 
 
 type TableWrapperActions = {
@@ -41,7 +42,9 @@ export default async function TableWrapper({
   actions: TableWrapperActions;
 }) {
   const qc = getQueryClient();
-
+  const tileId = tile.id || "";
+  const tileName = tile.name; // We'll use this as the key in tableArguments
+  
   // Only proceed if we have a table tile
   if (!tile.table_tile) {
     return <div>Table configuration missing</div>;
@@ -75,7 +78,7 @@ export default async function TableWrapper({
   const sortingExpression = sortingObject ? JSON.stringify(sortingObject) : null;
 
   // Handle grouping
-  const groupingExpression = tile.grouping ? tile.grouping : null;
+  const groupingExpression = tile.grouping || null;
 
   // Handle group sorting
   const groupSortingObject = tile.table_tile?.group_sorting && tile.grouping ? Object.fromEntries(
@@ -88,6 +91,15 @@ export default async function TableWrapper({
     }))
   : "";
   const groupSortingExpression = groupSortingObject ? JSON.stringify(groupSortingObject) : null;
+
+  // Get existing tableArguments from cache
+  let tableArguments = qc.getQueryData<TableArguments>(["tableArguments", tabId]) || {};
+  
+  // Use the utility to build/update tableArguments
+  tableArguments = await buildTableArgumentsForTile(tile, fields, tableArguments);
+  
+  // Update the cache
+  qc.setQueryData(["tableArguments", tabId], tableArguments);
 
   // Prefetch logs data
   const limit = 20;
@@ -131,6 +143,19 @@ export default async function TableWrapper({
     actions.logsActions
   );
 
+  // Update available fields in the tableArguments
+  tableArguments[tileName].available_fields = Object.fromEntries(
+    Object.entries(fields)
+      .filter((([field, attributes]) => 
+        entriesProperties.map(property => tile.column_context ? processContext("merge", tile.column_context, property) : property)
+        .concat(paramsProperties.map(property => tile.column_context ? processContext("merge", tile.column_context, property) : property))
+        .includes(field))
+      )
+  );
+  
+  // Update the cache again with available fields
+  qc.setQueryData(["tableArguments", tabId], tableArguments);
+
   // Construct table data item
   const tableDataItem: TableDataItem = {
     columnContexts: [], // This would need to be computed based on your logic
@@ -152,7 +177,7 @@ export default async function TableWrapper({
 
   // Prefetch the table data item
   await qc.prefetchQuery({
-    queryKey: ["tableData", tile.id],
+    queryKey: ["tableDataItem", tileId],
     queryFn: () => Promise.resolve(tableDataItem)
   });
 
@@ -160,7 +185,7 @@ export default async function TableWrapper({
     <HydrationBoundary state={dehydrate(qc)}>
       <Suspense fallback={<SkeletonLoader />}>
         <LogsTable
-          tileId={tile.id || ""}
+          tileId={tileId}
           tabId={tabId}
           interfaceId={interfaceId}
           projectId={projectId}
