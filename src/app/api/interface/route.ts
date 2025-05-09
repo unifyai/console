@@ -8,13 +8,13 @@ export async function GET(request: NextRequest) {
     
     // Check if we're getting interface by ID, by path components, or listing interfaces
     const hasId = searchParams.has('id');
-    const hasProjectId = searchParams.has('project_id');
+    const hasProjectId = searchParams.has('project');
     const hasName = searchParams.has('name');
     
     // Determine endpoint based on parameters
     let endpoint = "/interfaces";
     
-    // If project_id is present but no name or id, we're listing
+    // If project is present but no name or id, we're listing
     if (hasProjectId && !hasName && !hasId) {
         endpoint = "/interfaces/list";
     }

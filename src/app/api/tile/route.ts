@@ -86,10 +86,22 @@ export async function DELETE(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const url = new URL(request.url);
+    const searchParams = new URLSearchParams(url.search);
+
+    // Check if this is a specialized patch
+    const hasTileType = searchParams.has('tile_type');
+
+    // Determine endpoint based on parameters
+    let endpoint = "/tile";
     
+    // If we have a tileType, we're patching a specialized tile
+    if (hasTileType) {
+        endpoint = "/tile/specialized";
+    }
+
     // Pass all query parameters to allow both ID and parent+name updates
     return await fetch(
-        `${baseUrl}/tile${url.search}`,
+        `${baseUrl}${endpoint}${url.search}`,
         {
             method: "PATCH",
             headers: {

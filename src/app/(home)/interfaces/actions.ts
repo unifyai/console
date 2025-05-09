@@ -1618,7 +1618,7 @@ export const patchSpecializedTileByName = async (apiKey: string) => {
         queryParams.append("checkpoint", checkpoint.toString());
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile/specialized?${queryParams.toString()}`,
+            `${process.env.NEXTAUTH_URL}/api/tile?${queryParams.toString()}`,
             {
                 method: "PATCH",
                 headers: { apiKey: apiKey },
@@ -1653,7 +1653,7 @@ export const patchSpecializedTileById = async (apiKey: string) => {
         queryParams.append("checkpoint", checkpoint.toString());
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile/specialized?${queryParams.toString()}`,
+            `${process.env.NEXTAUTH_URL}/api/tile?${queryParams.toString()}`,
             {
                 method: "PATCH",
                 headers: { apiKey: apiKey },
