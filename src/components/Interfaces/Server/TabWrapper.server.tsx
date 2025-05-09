@@ -125,12 +125,6 @@ export default async function TabWrapper({
     activeTabId: activeTab.id || null,
     ...tabState
   };
-
-  // Only need getLatestTab as a dummy function since the others are handled by Zustand
-  const getLatestTab = () => {};
-  const setNewCounter = () => {};
-  const setFocusDialog = () => {};
-  const setEditTile = () => {};
   
   // Define a dummy updateTab function that returns a promise
   const updateTab = async () => {
@@ -147,11 +141,6 @@ export default async function TabWrapper({
           tabId={tabId}
           interfaceId={interfaceId} /* Use interfaceId for component props */
           projectId={project}
-          getLatestTab={getLatestTab}
-          setNewCounter={setNewCounter}
-          setFocusDialog={setFocusDialog}
-          setEditTile={setEditTile}
-          updateTab={updateTab}
           tileActions={actions.tileActions}
           logsActions={actions.logsActions}
           fieldsActions={actions.fieldsActions}

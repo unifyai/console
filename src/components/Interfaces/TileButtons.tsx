@@ -2,43 +2,39 @@
 
 import ColorPicker from "../Common/Misc/ColorPicker";
 import ActionButton from "../Common/Buttons/Action";
-import { useInterfaceUI, useTabUI, useTileUI } from "@/contexts/hooks";
+import { useTabUI, useTileItem, useTileUI } from "@/contexts/hooks";
 import { useTabData } from "@/contexts/hooks";
 import { Maximize2, EyeOff, Copy, Grip, X, Braces, Grid2x2, Palette, Loader2 } from "lucide-react";
 import { Badge } from "../UI/badge";
 import Tooltip from "../Common/Misc/Tooltip";
 import ContextSelector from "./Table/Content/ContextSelector";
 import TutorialButton from "./TutorialButton";
-import { TileProps } from "@/types/evals/grid";
 import { LogsActions, ContextActions, CodeActions } from "@/types/evals/grid";
-import { ResponseProps } from "@/types/common";
 import { Context } from "@/types/evals/grid";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { getTileButtonsRef } from '@/utils/refRegistry';
+import { useMemo } from "react";
 
-const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, logsActions, contextActions, updateTab, setFocusDialog, setEditTile, setNewCounter, tileCount}: {
-    item: TileProps;
+const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, logsActions, contextActions}: {
     tileId: string;
     tabId: string;
     interfaceId: string;
     projectId:string;
     contexts: Context[],
-    setNewCounter: (newCounter: number) => void;
-    setFocusDialog: (focusDialog: boolean) => void;
-    setEditTile: (editTile: string | undefined) => void;
-    updateTab: (savedTab?: any, updatedItem?: any) => Promise<ResponseProps>;
     logsActions: LogsActions;
     contextActions: ContextActions;
     codeActions: CodeActions;
-    tileCount: number;
 }) => {
+    // Get the item representation for the current tile
+    const { itemActions } = useTileItem(tileId, tabId, interfaceId);
+    const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
+
     const {ui: tileUIState, uiActions: tileUIActions} = useTileUI(tileId, tabId, interfaceId);
     const {ui: tabUIState, uiActions: tabUIActions} = useTabUI(tabId, interfaceId)
     const {data: tabDataState, dataActions: tabDataActions} = useTabData(tabId, interfaceId);
-    const {ui: interfaceUIState, uiActions: interfaceUIActions} = useInterfaceUI(interfaceId);
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
-    const disabled = interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading;
+    const disabled = tabUIState?.pending || tabUIState?.resetting || anyTileLoading;
 
     // Get the buttons ref from our registry
     const buttonsRef = getTileButtonsRef(tileId);
@@ -49,9 +45,9 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
                 {tabUIState?.help && 
                     <TutorialButton 
                         url={
-                            item.tab === "Plot" ? "https://docs.unify.ai/interfaces/plots" :
-                            item.tab === "View" ? "https://docs.unify.ai/interfaces/views" :
-                            item.tab === "Editor" ? "https://docs.unify.ai/interfaces/views" :
+                            item?.tab === "Plot" ? "https://docs.unify.ai/interfaces/plots" :
+                            item?.tab === "View" ? "https://docs.unify.ai/interfaces/views" :
+                            item?.tab === "Editor" ? "https://docs.unify.ai/interfaces/views" :
                             "https://docs.unify.ai/interfaces/tables"
                         }
                     />
@@ -60,13 +56,13 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
                     <Badge
                         className="cursor-pointer text-sm font-normal mb-1 flex gap-2 items-center"
                         variant="primary"
-                        onClick={() => tabUIState?.edit ? setEditTile(item.i) : undefined}
+                        onClick={() => tabUIState?.edit ? tabUIActions?.setEditTile(item?.i) : undefined}
                     >
-                        {item.i}{tileUIState?.loading && <Loader2 className="animate-spin" size={16} />}
+                        {item?.i}{tileUIState?.loading && <Loader2 className="animate-spin" size={16} />}
                     </Badge>
                 </Tooltip>
-                {item.context && item.tab == "Table" && <ContextSelector
-                    tileId={item.i}
+                {item?.context && item?.tab == "Table" && <ContextSelector
+                    tileId={item?.i}
                     tabId={tabId}
                     interfaceId={interfaceId}
                     projectId={projectId}
@@ -78,15 +74,14 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
                         <Tooltip content="Context">
                             <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
                                 <Braces size={18} />
-                                {item.context}
+                                {item?.context}
                             </Badge>
                         </Tooltip>
                     }
-                    refresh={() => updateTab()}
-                    setPending={interfaceUIActions.setPending}
+                    setPending={tabUIActions.setPending}
                 />}
-                {(item.column_context) && item.tab == "Table" && <ContextSelector
-                    tileId={item.i}
+                {(item?.column_context) && item?.tab == "Table" && <ContextSelector
+                    tileId={item?.i}
                     tabId={tabId}
                     interfaceId={interfaceId}
                     projectId={projectId}
@@ -97,11 +92,10 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
                     button={<Tooltip content="Column context">
                         <Badge variant="primary" className="flex gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
                             <Grid2x2 size={18} />
-                            {item.column_context}
+                            {item?.column_context}
                         </Badge>
                     </Tooltip>}
-                    refresh={() => updateTab()}
-                    setPending={interfaceUIActions.setPending}
+                    setPending={tabUIActions.setPending}
                 />}
             </div>
             <div className="flex-1 flex justify-end gap-2 mb-auto opacity-0 hover:opacity-100">
@@ -109,27 +103,27 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
                     className="cursor-pointer hover:z-10"
                     onClick={() => {
                         const focusedTileNames = tabUIState?.focusedTileNames || [undefined, undefined];
-                        if (!focusedTileNames.includes(item.i)) {
-                            tabUIActions?.setFocusedTileNames([item.i, focusedTileNames[0] || focusedTileNames[1]] as [string | undefined, string | undefined]);
+                        if (!focusedTileNames.includes(item?.i)) {
+                            tabUIActions?.setFocusedTileNames([item?.i, focusedTileNames[0] || focusedTileNames[1]] as [string | undefined, string | undefined]);
                         }
-                        setFocusDialog(true);
+                        tabUIActions?.setFocusDialog(true);
                     }}
                     icon={<Maximize2 />}
                     tooltip="Open in focus pane"
-                    variant={(tabUIState?.focusedTileNames || [undefined, undefined]).includes(item.i) ? "primary" : "outline"}
+                    variant={(tabUIState?.focusedTileNames || [undefined, undefined]).includes(item?.i) ? "primary" : "outline"}
                 />
                 {tabUIState?.edit && (
                     <>
                         <ActionButton
                             className="cursor-pointer hover:z-10"
-                            onClick={() => tabDataActions?.updateTile(item.i, { visible: false })}
+                            onClick={() => tabDataActions?.updateTile(item?.i || "", { visible: false })}
                             icon={<EyeOff />}
                             tooltip={"Hide"}
                             variant="outline"
                         />
                         <ActionButton
                             className="cursor-pointer hover:z-10"
-                            onClick={() => tabUIActions?.setCopied(item.i)}
+                            onClick={() => tabUIActions?.setCopied(item?.i)}
                             icon={<Copy />}
                             tooltip={"Copy"}
                             variant="outline"
@@ -155,12 +149,7 @@ const TileButtons = ({item, tileId, tabId, interfaceId, projectId, contexts, log
                         <ActionButton
                             className="remove cursor-pointer hover:z-10"
                             disabled={disabled}
-                            onClick={() => {
-                                tabDataActions?.removeTile(item.i);
-                                if (tileCount <= 1) {
-                                    setNewCounter(0);
-                                }
-                                }}
+                            onClick={() => tabDataActions?.removeTile(item?.i || "")}
                             icon={<X />}
                             tooltip="Remove"
                             variant="outline"

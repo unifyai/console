@@ -22,6 +22,10 @@ export interface TabUIActions {
   setRefreshing: (refreshing: boolean) => void;
   setTilesPending: (pending: boolean) => void;
   setColor: (color: string | undefined) => void;
+  setFocusDialog: (focusDialog: boolean) => void;
+  setEditTile: (editTile: string | undefined) => void;
+  setDataPending: (dataPending: boolean) => void;
+  setPending: (pending: boolean) => void;
 }
 
 /**
@@ -116,6 +120,26 @@ export function useTabUI(
     return state.tabsById[tabId].color;
   });
 
+  const focusDialog = useStoreContext(state => {
+    if (!tabExists || !tabId) return false;
+    return state.tabsById[tabId].focusDialog;
+  });
+
+  const editTile = useStoreContext(state => { 
+    if (!tabExists || !tabId) return undefined;
+    return state.tabsById[tabId].editTile;
+  });
+
+  const dataPending = useStoreContext(state => {
+    if (!tabExists || !tabId) return false;
+    return state.tabsById[tabId].dataPending;
+  });
+
+  const pending = useStoreContext(state => {  
+    if (!tabExists || !tabId) return false;
+    return state.tabsById[tabId].pending;
+  });
+
   // Get store actions needed for UI
   const storeUpdateTab = useStoreContext(state => state.updateTab);
   const storeUpdateTile = useStoreContext(state => state.updateTile);
@@ -136,7 +160,11 @@ export function useTabUI(
       copied,
       deleting,
       refreshing,
-      color
+      color,
+      focusDialog,
+      editTile,
+      dataPending,
+      pending,
     };
   }, [
     tabExists,
@@ -151,7 +179,11 @@ export function useTabUI(
     copied,
     deleting,
     refreshing,
-    color
+    color,
+    focusDialog,
+    editTile,
+    dataPending,
+    pending,
   ]);
 
   // Memoize the UI actions
@@ -227,7 +259,31 @@ export function useTabUI(
       if (tabId) {
         storeUpdateTab(tabId, { color });
       }
-    }
+    },
+
+    setFocusDialog: (focusDialog) => {
+      if (tabId) {
+        storeUpdateTab(tabId, { focusDialog });
+      }
+    },
+
+    setEditTile: (editTile) => {
+      if (tabId) {
+        storeUpdateTab(tabId, { editTile });
+      }
+    },
+
+    setDataPending: (dataPending) => {
+      if (tabId) {
+        storeUpdateTab(tabId, { dataPending });
+      }
+    },
+
+    setPending: (pending) => {
+      if (tabId) {
+        storeUpdateTab(tabId, { pending });
+      }
+    },
   }), [
     tabId,
     tileIds,

@@ -36,7 +36,11 @@ export interface TabUI {
   copied?: string;
   deleting: boolean;
   refreshing: boolean;
-  color?: string
+  color?: string;
+  focusDialog: boolean;
+  editTile: string | undefined;
+  dataPending: boolean;
+  pending: boolean;
 }
 
 // Combined Tab state definition
@@ -63,6 +67,7 @@ export function initTab(tabId: string, initialState: Partial<Tab> = {}): Tab {
     savedTab: initialState.savedTab !== undefined ? initialState.savedTab : null,
     tableArguments: initialState.tableArguments || {},
     tileIds: initialState.tileIds || [],
+    itemsNeedRecompute: initialState.itemsNeedRecompute !== undefined ? initialState.itemsNeedRecompute : false,
     
     // UI
     projectId: initialState.projectId || null,
@@ -77,8 +82,11 @@ export function initTab(tabId: string, initialState: Partial<Tab> = {}): Tab {
     deleting: initialState.deleting !== undefined ? initialState.deleting : false,
     refreshing: initialState.refreshing !== undefined ? initialState.refreshing : false,
     color: initialState.color,
-    itemsNeedRecompute: initialState.itemsNeedRecompute !== undefined ? initialState.itemsNeedRecompute : false,
-    
+    focusDialog: initialState.focusDialog !== undefined ? initialState.focusDialog : false,
+    editTile: initialState.editTile,
+    dataPending: initialState.dataPending !== undefined ? initialState.dataPending : false,
+    pending: initialState.pending !== undefined ? initialState.pending : false,
+
     ...initialState,
   };
 }

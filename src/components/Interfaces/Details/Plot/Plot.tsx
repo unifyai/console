@@ -8,7 +8,6 @@ import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { useTab } from '@/contexts/hooks/tab';
 import PlotSettings from "./Sidebar";
-import { useInterface } from "@/contexts/hooks/interface";
 import { drawPlot } from "@/utils/evals/plots/main";
 import { usePlotDataQuery } from "@/hooks/Query/usePlotDataQuery";
 import { useUpdatePlotDataItem } from "@/hooks/Query/usePlotDataQuery";
@@ -58,14 +57,13 @@ const LogsPlot = ({
     
     // Get access to the tab context and actions with granular access
     const { ui: tabUIState } = useTab(tabId, interfaceId, projectId);
-    const { ui: interfaceUIState } = useInterface(interfaceId);
 
     // Get the item representation for the current tile
     const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
 
     // UI state from the tab
     const interactive = tabUIState?.interactive || false;
-    const pending = interfaceUIState?.pending || interfaceUIState?.dataPending || tileUIState?.pending || false;
+    const pending = tabUIState?.pending || tileUIState?.pending || false;
 
     // Use React Query to access plotDataItem
     const { 

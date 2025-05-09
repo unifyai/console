@@ -1,5 +1,3 @@
-import { TableArguments } from "@/types/evals/logs";
-
 // Interface metadata - core identifying information
 export interface InterfaceMeta {
   id: string;
@@ -18,8 +16,6 @@ export interface InterfaceData {
 export interface InterfaceUI {
   projectId: string | null;
   activeTabId: string | null;
-  dataPending: boolean;
-  pending: boolean;
 }
 
 // Combined Interface state definition
@@ -43,8 +39,6 @@ export function initInterface(interfaceId: string, initialState: Partial<Interfa
     // UI
     projectId: initialState.projectId || null,
     activeTabId: initialState.activeTabId || null,
-    dataPending: initialState.dataPending !== undefined ? initialState.dataPending : false,
-    pending: initialState.pending !== undefined ? initialState.pending : false,
     
     ...initialState,
   };

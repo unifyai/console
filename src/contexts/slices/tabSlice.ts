@@ -18,6 +18,8 @@ export interface TabActions {
   updateTab: (tabId: string, updates: Partial<tabLogic.Tab>) => void;
   setActiveTab: (interfaceId: string, tabId: string | null) => void;
   removeContextFromTab: (tabId: string, context: string) => void;
+  setFocusDialog: (tabId: string, focusDialog: boolean) => void;
+  setEditTile: (tabId: string, editTile: string | undefined) => void;
 }
 
 export type TabSlice = TabState & TabActions;
@@ -94,4 +96,13 @@ export const createTabSlice: StateCreator<
   removeContextFromTab: (tabId, context) => set(state => {
     sliceUtils.removeContextFromTab(state, tabId, context);
   }),
+
+  setFocusDialog: (tabId, focusDialog) => set(state => {
+    state.tabsById[tabId].focusDialog = focusDialog;
+  }),
+
+  setEditTile: (tabId, editTile) => set(state => {
+    state.tabsById[tabId].editTile = editTile;
+  }),
+  
 }); 

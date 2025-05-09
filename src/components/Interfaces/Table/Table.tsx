@@ -51,7 +51,6 @@ import { useTab } from "@/contexts/hooks/tab";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { useProject } from "@/contexts/hooks/project";
 import { shallow } from "zustand/vanilla/shallow";
-import { useInterface } from "@/contexts/hooks/interface";
 import { useTableDataQuery } from "@/hooks/Query/useTableDataQuery";
 import { useUpdateTableDataItem } from "@/hooks/Query/useTableDataQuery";
 import { getQueryClient } from '@/lib/react-query/getQueryClient'
@@ -100,7 +99,6 @@ const LogsTable = ({
 
   // Get access to the project data and actions
   const { data: projectDataState } = useProject(projectId ?? null);
-  const { ui: interfaceUIState } = useInterface(interfaceId);
   const contexts = projectDataState?.contexts || [];
 
   // Get access to the tab data and actions with granular access
@@ -185,7 +183,7 @@ const LogsTable = ({
 
   // UI state from the tab
   const interactive = tabUIState?.interactive || false;
-  const pending = interfaceUIState?.pending || interfaceUIState?.dataPending || tileUIState?.pending || isTableDataLoading;
+  const pending = tabUIState?.pending || tabUIState?.dataPending || tileUIState?.pending || isTableDataLoading;
 
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false);
@@ -628,7 +626,6 @@ const LogsTable = ({
             context={item?.context || context_}
             logsActions={logsActions}
             contextActions={contextActions}
-            refresh={refresh}
             setPending={setPending}
           />
           <GlobalFilter

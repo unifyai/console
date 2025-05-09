@@ -61,7 +61,7 @@ const ProjectButtons = ({
     const setProject = setProjectQueryParam;
 
     // Interface states and actions with granular access
-    const { ui: interfaceUIState, uiActions: interfaceUIActions, dataActions: interfaceDataActions } = useInterface(interfaceId);
+    const { dataActions: interfaceDataActions } = useInterface(interfaceId);
     const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabQueryParam || "");
 
     // Use React Query to load projects instead of direct server call
@@ -78,8 +78,8 @@ const ProjectButtons = ({
 
     const setterFunction = (proj: FileProps | undefined) => {
         const newProj = proj ? proj.path : null;
-        interfaceUIActions?.setPending(true);
-        interfaceUIActions?.setDataPending(true);
+        tabUIActions?.setPending(true);
+        tabUIActions?.setDataPending(true);
         interfaceDataActions?.setTabNames([]);
         setTabQueryParam(null);
         setProject(newProj);
@@ -109,8 +109,8 @@ const ProjectButtons = ({
             setProject(name);
             setInterfaceQueryParam("interface1");
             setTabQueryParam("tab1");
-            interfaceUIActions?.setPending(true);
-            interfaceUIActions?.setDataPending(true);
+            tabUIActions?.setPending(true);
+            tabUIActions?.setDataPending(true);
             interfaceDataActions?.setTabNames(["tab1"]);
             
             // Project list will be automatically updated through query invalidation
@@ -131,8 +131,8 @@ const ProjectButtons = ({
             });
             
             // Update UI state after successful deletion
-            interfaceUIActions?.setPending(true);
-            interfaceUIActions?.setDataPending(true);
+            tabUIActions?.setPending(true);
+            tabUIActions?.setDataPending(true);
             setTabQueryParam(null);
             interfaceDataActions?.setTabNames([]);
             setInterfaceQueryParam(null);
@@ -188,8 +188,8 @@ const ProjectButtons = ({
                     {project && <div className="border-b py-1">
                         <CloseProject
                             onClick={() => {
-                                interfaceUIActions?.setPending(true);
-                                interfaceUIActions?.setDataPending(true);
+                                tabUIActions?.setPending(true);
+                                tabUIActions?.setDataPending(true);
                                 setTabQueryParam(null);
                                 interfaceDataActions?.setTabNames([]);
                                 setInterfaceQueryParam(null);
@@ -231,7 +231,7 @@ const ProjectButtons = ({
                 variant="outline"
                 icon={tabUIState?.refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
                 tooltip={"Refresh Interface"}
-                disabled={!project || interfaceUIState?.pending || interfaceUIState?.dataPending}
+                disabled={!project || tabUIState?.pending || tabUIState?.dataPending}
                 onClick={() => {
                     tabUIActions?.setRefreshing(true);
                     router.refresh();

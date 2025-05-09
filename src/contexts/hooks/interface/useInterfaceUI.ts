@@ -8,8 +8,6 @@ import { useInterfaceMeta } from './useInterfaceMeta';
  */
 export interface InterfaceUIActions {
   setActiveTabId: (tabName: string | null) => void;
-  setDataPending: (dataPending: boolean) => void;
-  setPending: (pending: boolean) => void;
 }
 
 /**
@@ -36,16 +34,6 @@ export function useInterfaceUI(interfaceName: string | null, projectName?: strin
     if (!interfaceExists || !interfaceId) return null;
     return state.interfacesById[interfaceId].activeTabId;
   });
-  
-  const dataPending = useStoreContext(state => {
-    if (!interfaceExists || !interfaceId) return false;
-    return state.interfacesById[interfaceId].dataPending;
-  });
-  
-  const pending = useStoreContext(state => {
-    if (!interfaceExists || !interfaceId) return false;
-    return state.interfacesById[interfaceId].pending;
-  });
 
   // Get store actions for UI state management
   const storeUpdateInterface = useStoreContext(state => state.updateInterface);
@@ -58,15 +46,11 @@ export function useInterfaceUI(interfaceName: string | null, projectName?: strin
     return {
       projectId: projectIdFromState,
       activeTabId,
-      dataPending,
-      pending,
     };
   }, [
     interfaceExists, 
     projectIdFromState, 
     activeTabId,
-    dataPending,
-    pending,
   ]);
 
   // Memoize the UI actions to prevent unnecessary re-renders
@@ -88,17 +72,6 @@ export function useInterfaceUI(interfaceName: string | null, projectName?: strin
       }
     },
 
-    setDataPending: (dataPending) => {
-      if (interfaceId) {
-        storeUpdateInterface(interfaceId, { dataPending });
-      }
-    },
-
-    setPending: (pending) => {
-      if (interfaceId) {
-        storeUpdateInterface(interfaceId, { pending });
-      }
-    },
   }), [
     activeProjectId, 
     interfaceId, 

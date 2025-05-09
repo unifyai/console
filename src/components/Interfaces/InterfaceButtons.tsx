@@ -21,7 +21,6 @@ import { SetStateAction, useMemo } from "react";
 import { useTab } from "@/contexts/hooks/tab";
 import { useProject } from "@/contexts/hooks/project";
 import { useTiles } from "@/contexts/hooks/useStore";
-import { useInterfaceUI } from "@/contexts/hooks/interface";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { useUpdateTabQuery } from '@/hooks/Query/useTabsQuery';
 import { useRestoreLastSavedTabWithTilesQuery } from '@/hooks/Query/useRestoreLastSavedTabWithTilesQuery';
@@ -37,9 +36,6 @@ const createResponse = (success: boolean, message: string): ResponseProps => {
 const InterfaceButtons = ({
     interfaceId,
     tabQueryParam,
-    newCounter,
-    setNewCounter,
-    setFocusDialog,
     setSaveDialog,
     logsActions,
     contextActions,
@@ -49,9 +45,6 @@ const InterfaceButtons = ({
 }: {
     interfaceId: string,
     tabQueryParam: string | null,
-    newCounter: number,
-    setNewCounter: (newCounter: number) => void,
-    setFocusDialog: (value: SetStateAction<boolean>) => void,
     setSaveDialog: (value: SetStateAction<boolean>) => void,
     logsActions: LogsActions,
     contextActions: ContextActions,
@@ -69,8 +62,6 @@ const InterfaceButtons = ({
     const project = useStoreContext((state) => state.activeProjectId);
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
     const { data: projectDataState } = useProject(project);
-    const { ui: interfaceUIState, uiActions: interfaceUIActions } = useInterfaceUI(interfaceId);
-
     const contexts = projectDataState?.contexts || [];
 
     // Tab states and actions with granular access
@@ -100,7 +91,7 @@ const InterfaceButtons = ({
     const variant = tabUIState?.saveSuccess === false ? "destructive" : "ghost";
 
     // Use combined disabled state from prop and other sources
-    const isDisabled = disabled || !project || interfaceUIState?.pending;
+    const isDisabled = disabled || !project || tabUIState?.pending;
 
     // Handle context change 
     const handleContextChange = (ctx: string) => {
@@ -151,7 +142,7 @@ const InterfaceButtons = ({
             });
 
             // Set data pending and refresh
-            interfaceUIActions.setDataPending(true);
+            tabUIActions.setDataPending(true);
             router.refresh();
         }
     };
@@ -159,10 +150,9 @@ const InterfaceButtons = ({
     // Handler for pasting tile
     const handlePaste = () => {
         if (tabUIState?.copied && tabDataActions) {
+            const newCounter = tileIds.length + 1;
             const newName = "Tile_" + newCounter;
             tabDataActions.addTile(tabUIState.copied, newName);
-
-            setNewCounter(newCounter + 1);
             tabUIActions?.setCopied(undefined);
         }
     };
@@ -197,7 +187,7 @@ const InterfaceButtons = ({
                             icon={<FocusIcon />}
                             variant="ghost"
                             disabled={isDisabled}
-                            onClick={() => setFocusDialog(true)}
+                            onClick={() => tabUIActions?.setFocusDialog(true)}
                         />
                     </div>
 
@@ -212,30 +202,7 @@ const InterfaceButtons = ({
                             setContext={handleContextChange}
                             logsActions={logsActions}
                             contextActions={contextActions}
-                            refresh={() => {
-                                // Simple UpdateTab call to update the context value when needed
-                                if (project && tabQueryParam) {
-                                    return updateTabMutation.mutateAsync({
-                                        interface_id: project,
-                                        name: tabQueryParam,
-                                        data: {
-                                            global_context: tabDataState?.globalContext || ""
-                                        },
-                                        actions: tabActions
-                                    }).then(() => {
-                                        router.refresh();
-                                        if (interfaceUIActions) {
-                                            interfaceUIActions.setPending(true);
-                                        }
-                                        return createResponse(true, "Context updated");
-                                    }).catch(error => {
-                                        console.error("Error updating context:", error);
-                                        return createResponse(false, String(error));
-                                    });
-                                }
-                                return Promise.resolve(createResponse(false, "Missing project or tab"));
-                            }}
-                            setPending={interfaceUIActions?.setPending!}
+                            setPending={tabUIActions?.setPending!}
                         />
                     </div>
 
@@ -298,9 +265,7 @@ const InterfaceButtons = ({
                             project={project || ""}
                             interfaceId={interfaceId}
                             tabId={tabQueryParam || ""}
-                            newCounter={newCounter}
                             anyTileLoading={anyTileLoading}
-                            setNewCounter={setNewCounter}
                         />
                     </div>
 

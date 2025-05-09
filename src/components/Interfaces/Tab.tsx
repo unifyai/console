@@ -3,12 +3,9 @@
 import React, { useEffect, useMemo, useRef, Suspense, lazy, Children } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
-import { ResponseProps } from "@/types/common";
-// import Cookies from "js-cookie";
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions, CodeActions, GranularTileActions } from "@/types/evals/grid";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
-import { useInterfaceUI } from "@/contexts/hooks/interface";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { cleanupTileRefs } from '@/utils/refRegistry';
 
@@ -20,10 +17,6 @@ interface TabComponentProps {
   interfaceId: string;
   tabId: string;
   projectId: string;
-  setNewCounter: (newCounter: number) => void;
-  setFocusDialog: (focusDialog: boolean) => void;
-  setEditTile: (editTile: string | undefined) => void;
-  getLatestTab: () => void;
   tileActions: GranularTileActions;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
@@ -31,18 +24,12 @@ interface TabComponentProps {
   contextActions: ContextActions;
   codeActions: CodeActions;
   children?: React.ReactNode;
-  updateTab: (savedTab?: any, updatedItem?: any) => Promise<ResponseProps>;
 }
 
 const Tab = ({
   interfaceId,
   tabId,
   projectId,
-  setNewCounter,
-  setFocusDialog,
-  setEditTile,
-  updateTab,
-  getLatestTab,
   tileActions,
   logsActions,
   fieldsActions,
@@ -52,7 +39,6 @@ const Tab = ({
   children,
 }: TabComponentProps) => {
   // Use granular hooks instead of a general hook
-  const { ui: interfaceUIState, uiActions: interfaceUIActions } = useInterfaceUI(interfaceId);
   const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
 
   const { 
@@ -91,64 +77,64 @@ const Tab = ({
   // Get the unregisterTileRefs function from Zustand
   const unregisterTileRefs = useStoreContext(state => state.unregisterTileRefs);
 
-  // Set up effect to fetch the latest tab when project or tab changes
-  useEffect(() => {
-    if (projectId && tabId) {
-      // Store current selections in cookies
-      // const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      // Cookies.set("project", projectId, { expires: expirationDate });
-      // Cookies.set("tab", tabId, { expires: expirationDate });
+  // // Set up effect to fetch the latest tab when project or tab changes
+  // useEffect(() => {
+  //   if (projectId && tabId) {
+  //     // Store current selections in cookies
+  //     // const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  //     // Cookies.set("project", projectId, { expires: expirationDate });
+  //     // Cookies.set("tab", tabId, { expires: expirationDate });
       
-      // Only fetch data on initial mount or when project/tab actually changes
-      if (isInitialMount.current) {
-        getLatestTab();
-        isInitialMount.current = false;
-      }
-    }
-    // else if (!projectId) {
-    //   Cookies.remove("project");
-    // }
-    // else if (!tabId) {
-    //   Cookies.remove("tab");
-    // }
-  }, [projectId, tabId, getLatestTab]);
+  //     // Only fetch data on initial mount or when project/tab actually changes
+  //     if (isInitialMount.current) {
+  //       getLatestTab();
+  //       isInitialMount.current = false;
+  //     }
+  //   }
+  //   // else if (!projectId) {
+  //   //   Cookies.remove("project");
+  //   // }
+  //   // else if (!tabId) {
+  //   //   Cookies.remove("tab");
+  //   // }
+  // }, [projectId, tabId, getLatestTab]);
 
-  // Only call updateInterface when items have truly changed.
-  useEffect(() => {
-    (() => {
-      try {
-        if (!tabUIState?.resetting) {
-          updateTab(null, tileProps);
-        }
-      } catch (err) {
-        console.error("updateTab failed:", err);
-      }
-    })();
-  }, [tileProps, tabDataState?.globalContext]);
+  // // Only call updateInterface when items have truly changed.
+  // useEffect(() => {
+  //   (() => {
+  //     try {
+  //       if (!tabUIState?.resetting) {
+  //         updateTab(null, tileProps);
+  //       }
+  //     } catch (err) {
+  //       console.error("updateTab failed:", err);
+  //     }
+  //   })();
+  // }, [tileProps, tabDataState?.globalContext]);
 
-  // Trigger update when data changes in React Query (instead of table data)
-  useEffect(() => {
-    if (!tabDataState || !tabUIActions || !tabDataActions) return;
+  // // Trigger update when data changes in React Query (instead of table data)
+  // useEffect(() => {
+  //   if (!tabDataState || !tabUIActions || !tabDataActions) return;
 
-    // Use setTimeout to delay execution
-    setTimeout(() => {
-      // Reset loading states
-      if (interfaceUIState?.dataPending === true) {
-        interfaceUIActions.setDataPending(false);
-      }
-      if (tabUIState?.refreshing === true) {
-        tabUIActions.setRefreshing(false);
-      }
+  //   // Use setTimeout to delay execution
+  //   setTimeout(() => {
+  //     // Reset loading states
+  //     if (interfaceUIState?.dataPending === true) {
+  //       interfaceUIActions.setDataPending(false);
+  //     }
+  //     if (tabUIState?.refreshing === true) {
+  //       tabUIActions.setRefreshing(false);
+  //     }
 
-      // If tab is pending or resetting, get latest data
-      if ((interfaceUIState?.pending || tabUIState?.resetting) && projectId && tabId) {
-        getLatestTab();
-      }
+  //     // If tab is pending or resetting, get latest data
+  //     if ((interfaceUIState?.pending || tabUIState?.resetting) && projectId && tabId) {
+  //       getLatestTab();
+  //     }
 
-      // Reset resetting state
-      tabUIActions.setResetting(false);
-    }, 1500);
-  }, [tileRefreshKey]);
+  //     // Reset resetting state
+  //     tabUIActions.setResetting(false);
+  //   }, 1500);
+  // }, [tileRefreshKey]);
 
   // End success green after 3 seconds
   useEffect(() => { 
@@ -170,14 +156,14 @@ const Tab = ({
 
   // Item layout change handler
   const onLayoutChange = (newLayout: any[]) => {
-    if (!interfaceUIState?.pending && tabDataActions) {
+    if (!tabUIState?.pending && tabDataActions) {
       const layoutItems = newLayout.map((item) => {
         const originalItem = tileProps.find((t) => t.i === item.i);
         return { ...originalItem, ...item };
       });
       tabDataActions.setItems(layoutItems);
     } else {
-      interfaceUIActions?.setPending(false);
+      tabUIActions?.setPending(false);
     }
   };
 
@@ -186,7 +172,7 @@ const Tab = ({
     return null;
   }
 
-  const dragResizeDisabled = interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading;
+  const dragResizeDisabled = tabUIState?.pending || tabUIState?.resetting || anyTileLoading;
 
   /* ------------------------------------------------------------------
      Build the list of tiles we will *actually* render.
@@ -255,20 +241,14 @@ const Tab = ({
 
             {/* Extra client-side controls */}
             <TileButtons
-              item={item}
               tileId={item.i}
               tabId={tabId}
               interfaceId={interfaceId}
               projectId={projectId}
               contexts={contexts}
-              setNewCounter={setNewCounter}
-              setFocusDialog={setFocusDialog}
-              setEditTile={setEditTile}
-              updateTab={updateTab}
               logsActions={logsActions}
               contextActions={contextActions}
               codeActions={codeActions}
-              tileCount={tileProps.length}
             />
           </div>
         );

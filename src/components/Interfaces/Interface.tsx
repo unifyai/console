@@ -13,7 +13,7 @@ import ProjectButtons from "./ProjectButtons";
 import { useQueryState } from "nuqs";
 import { ProjectsActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularInterfaceActions, GranularTabActions, GranularTileActions } from '@/types/evals/grid';
 
-import { useInterfaceData, useInterfaceUI } from '@/contexts/hooks/interface';
+import { useInterfaceData } from '@/contexts/hooks/interface';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import AutoComplete from '../Common/Misc/AutoComplete';
 import { useCreateTabQuery, useUpdateTabQuery } from '@/hooks/Query/useTabsQuery';
@@ -68,17 +68,13 @@ const Interface = ({
 
   // Get interface and project data from hooks with granular access
   const { dataActions: interfaceDataActions } = useInterfaceData(interfaceId);
-  const { ui: interfaceUIState, uiActions: interfaceUIActions } = useInterfaceUI(interfaceId);
 
   // Use granular tab hooks for better performance
-  const { dataActions: tabDataActions } = useTabData(tabQueryParam || "", interfaceId);
+  const { data: tabDataState, dataActions: tabDataActions } = useTabData(tabQueryParam || "", interfaceId);
   const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabQueryParam || "", interfaceId);
 
   // Local UI state - only keeping what's absolutely necessary as local state
-  const [focusDialog, setFocusDialog] = useState(false);
   const [saveDialog, setSaveDialog] = useState(false);
-  const [editTile, setEditTile] = useState<string | undefined>();
-  const [newCounter, setNewCounter] = useState(0);
 
   // Reference for the grid container
   const gridRef = useRef<HTMLDivElement>(null);
@@ -89,9 +85,9 @@ const Interface = ({
   // Set active tab handler
   const handleTabChange = (value: string | undefined) => {
     if (tabUIState && !tabUIState?.deleting) {
-      if (interfaceUIActions) {
-        interfaceUIActions.setPending(true);
-        interfaceUIActions.setDataPending(true);
+      if (tabUIActions) {
+        tabUIActions.setPending(true);
+        tabUIActions.setDataPending(true);
       }
       // Update URL query param
       setTabQueryParam(value || null);
@@ -104,7 +100,7 @@ const Interface = ({
       top: gridRef.current?.scrollHeight,
       behavior: "smooth",
     });
-  }, [newCounter]);
+  }, [tabDataState?.tileIds]);
 
   // Update tab primary and accent colors
   useEffect(() => {
@@ -143,8 +139,8 @@ const Interface = ({
     setSaveDialog(false);
     
     // Show loading state
-    if (interfaceUIActions) {
-      interfaceUIActions.setPending(true);
+    if (tabUIActions) {
+      tabUIActions.setPending(true);
     }
     
     try {
@@ -172,8 +168,8 @@ const Interface = ({
       }
     } finally {
       // Hide loading state
-      if (interfaceUIActions) {
-        interfaceUIActions.setPending(false);
+      if (tabUIActions) {
+        tabUIActions.setPending(false);
       }
     }
   };
@@ -215,9 +211,6 @@ const Interface = ({
           <InterfaceButtons
             interfaceId={interfaceId}
             tabQueryParam={tabQueryParam}
-            newCounter={newCounter}
-            setNewCounter={setNewCounter}
-            setFocusDialog={setFocusDialog}
             setSaveDialog={setSaveDialog}
             logsActions={logsActions}
             contextActions={contextActions}
@@ -228,7 +221,7 @@ const Interface = ({
         </div>
 
         {tabNames.length === 0 ? (
-          projectQueryParam && interfaceQueryParam && interfaceUIState?.pending ? (
+          projectQueryParam && interfaceQueryParam && tabUIState?.pending ? (
             <div className="flex justify-center">
               <Loader2 className="animate-spin my-36" />
             </div>
@@ -255,7 +248,7 @@ const Interface = ({
               value={tabName}
               className="mb-auto tutorial-selection-pane relative"
             >
-              {interfaceUIState?.pending || createTabMutation.isPending || updateTabMutation.isPending ? (
+              {tabUIState?.pending || createTabMutation.isPending || updateTabMutation.isPending ? (
                 <div className="flex justify-center">
                   <Loader2 className="animate-spin my-36" />
                 </div>
@@ -270,11 +263,6 @@ const Interface = ({
                     tabId={tabQueryParam || ""}
                     interfaceId={interfaceId}
                     projectId={projectQueryParam || ""}
-                    setNewCounter={setNewCounter}
-                    setEditTile={setEditTile}
-                    updateTab={updateTab}
-                    getLatestTab={getLatestTab}
-                    setFocusDialog={setFocusDialog}
                     logsActions={logsActions}
                     fieldsActions={fieldsActions}
                     derivedEntryActions={derivedEntryActions}
@@ -292,7 +280,6 @@ const Interface = ({
         {projectQueryParam && interfaceQueryParam && <div className="sticky bottom-0 z-10 p-2 bg-background flex w-full justify-center">
           <InterfaceTabs
             interfaceId={interfaceId}
-            newCounter={newCounter}
             tabQueryParam={tabQueryParam}
             tabActions={tabActions}
             setTabQueryParam={setTabQueryParam}
@@ -301,15 +288,15 @@ const Interface = ({
       </Tabs>
 
       {/* Focus Dialog */}
-      {focusDialog && (
-        <Dialog open={true} onOpenChange={() => setFocusDialog(false)}>
+      {tabUIState?.focusDialog && (
+        <Dialog open={true} onOpenChange={() => tabUIActions?.setFocusDialog(false)}>
           <DialogContent className="min-w-full h-full overflow-y-auto">
             <Suspense fallback={<SkeletonLoader />}>
               <FocusDialog
                 tabId={tabQueryParam || ""}
                 interfaceId={interfaceId}
                 projectId={projectQueryParam || ""}
-                setFocusDialog={setFocusDialog}
+                tileActions={tileActions}
                 logsActions={logsActions}
                 fieldsActions={fieldsActions}
                 derivedEntryActions={derivedEntryActions}
@@ -322,13 +309,11 @@ const Interface = ({
       )}
 
       {/* Edit Tile Name Dialog */}
-      {tabUIState?.edit && editTile && (
+      {tabUIState?.edit && tabUIState?.editTile && (
         <Suspense fallback={<div className="w-full h-16"><SkeletonLoader /></div>}>
           <EditTileName
             tabId={tabQueryParam || ""}
             interfaceId={interfaceId}
-            editTile={editTile}
-            setEditTile={setEditTile}
           />
         </Suspense>
       )}

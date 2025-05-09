@@ -1,13 +1,12 @@
 "use client";
 
-import { Dispatch, SetStateAction, useMemo } from "react";
+import { useMemo } from "react";
 import { DoublePanels } from "../Common/Body/DoublePanels";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { Badge } from "../UI/badge";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
-import { ResponseProps } from "@/types/common";
-import { DerivedEntryActions, LogsActions, FieldsActions, TileProps, ContextActions, CodeActions } from "@/types/evals/grid";
+import { DerivedEntryActions, LogsActions, FieldsActions, TileProps, ContextActions, CodeActions, GranularTileActions } from "@/types/evals/grid";
 import { Plus, X } from "lucide-react";
 import { icons } from "@/constants/logs";
 import TileCard from "./TileCard";
@@ -17,22 +16,22 @@ const FocusDialog = ({
     interfaceId,
     projectId,
     tabId,
+    tileActions,
     logsActions,
     fieldsActions,
     derivedEntryActions,
     contextActions,
     codeActions,
-    setFocusDialog,
 }: {
     interfaceId: string;
     projectId: string;
     tabId: string;
+    tileActions: GranularTileActions,
     logsActions: LogsActions,
     fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
     contextActions: ContextActions,
     codeActions: CodeActions,
-    setFocusDialog: Dispatch<SetStateAction<boolean>>,
 }) => {
     const { ui: tabUIState, uiActions: tabUIActions, dataActions: tabDataActions } = useTab(tabId, interfaceId);
 
@@ -65,6 +64,7 @@ const FocusDialog = ({
                         tabId={tabId}
                         interfaceId={interfaceId}
                         projectId={projectId}
+                        tileActions={tileActions}
                         logsActions={logsActions}
                         fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}
@@ -83,7 +83,7 @@ const FocusDialog = ({
                                     newFocusedTileNames[idx] = undefined;
                                     tabUIActions?.setFocusedTileNames(newFocusedTileNames as [string | undefined, string | undefined]);
                                     if (newFocusedTileNames[0] == undefined && newFocusedTileNames[1] == undefined)
-                                        setFocusDialog(false);
+                                        tabUIActions?.setFocusDialog(false);
                                 }}
                                 icon={<X />}
                                 tooltip="Remove from focus pane"

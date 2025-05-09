@@ -4,10 +4,9 @@ import { X } from "lucide-react";
 import { Plus } from "lucide-react";
 import { TabsList, TabsTrigger } from "../UI/tabs";
 import { Input } from "../UI/input";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import ActionButton from "../Common/Buttons/Action";
-import { GranularTabActions, TileProps } from "@/types/evals/grid";
-import { defaultTiles } from "@/constants/logs";
+import { GranularTabActions } from "@/types/evals/grid";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useInterface } from "@/contexts/hooks/interface";
 import { useTab } from "@/contexts/hooks/tab";
@@ -20,13 +19,11 @@ import {
 
 const InterfaceTabs = ({ 
   interfaceId, 
-  newCounter, 
   tabQueryParam, 
   tabActions, 
   setTabQueryParam 
 }: {
     interfaceId: string,
-    newCounter: number,
     tabQueryParam: string | null,
     tabActions: GranularTabActions,
     setTabQueryParam: (tabQueryParam: string | null) => void,
@@ -44,7 +41,7 @@ const InterfaceTabs = ({
     const project = useStoreContext((s) => s.activeProjectId);
 
     // Interface states and actions with granular access
-    const { ui: interfaceUIState, dataActions: interfaceDataActions, uiActions: interfaceUIActions } = useInterface(interfaceId);
+    const { dataActions: interfaceDataActions } = useInterface(interfaceId);
 
     const tabNames = interfaceDataActions?.getTabNames() || [];
 
@@ -96,7 +93,7 @@ const InterfaceTabs = ({
 
             // Update UI if deleting the active tab
             if (tabQueryParam === tabName) {
-                interfaceUIActions?.setPending(true);
+                tabUIActions?.setPending(true);
                 const tabIdx = tabNames.indexOf(tabName);
                 const nextTabIdx = tabIdx > 0 ? tabIdx - 1 : tabNames.length > 1 ? 1 : -1;
                 const nextTabName = nextTabIdx !== -1 ? tabNames[nextTabIdx] : null;
@@ -134,7 +131,7 @@ const InterfaceTabs = ({
 
             // Update local state
             interfaceDataActions?.addTab(tabQueryParam || "", newTabName);
-            interfaceUIActions?.setPending(true);
+            tabUIActions?.setPending(true);
             setTabQueryParam(newTabName);
             setTabQueryParamState(newTabName);
         } catch (error) {
@@ -155,7 +152,7 @@ const InterfaceTabs = ({
                     >
                         {tabQueryParam == tab_ ? <Input
                             value={tabQueryParamState}
-                            disabled={interfaceUIState?.pending || interfaceUIState?.dataPending || updateTabMutation.isPending}
+                            disabled={tabUIState?.pending || tabUIState?.dataPending || updateTabMutation.isPending}
                             onInput={(event: React.ChangeEvent<HTMLInputElement>) => setTabQueryParamState(event.target.value)}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter" && tab_ != tabQueryParamState && !tabNames.includes(tabQueryParamState)) {
@@ -182,7 +179,7 @@ const InterfaceTabs = ({
                     variant="outline"
                     icon={<Plus />}
                     tooltip={"Add new tab"}
-                    disabled={interfaceUIState?.pending || createTabMutation.isPending}
+                    disabled={tabUIState?.pending || createTabMutation.isPending}
                     onClick={handleCreateTab}
                 />
             </div>
