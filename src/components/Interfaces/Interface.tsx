@@ -22,6 +22,7 @@ import AutoComplete from '../Common/Misc/AutoComplete';
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { Command } from '@/contexts/slices/commandsSlice';
 import { iconMap } from '@/constants/logs';
+import { Toaster } from 'sonner';
 
 // Lazy load components
 const Tab = lazy(() => import('./Tab'));
@@ -252,6 +253,7 @@ const Interface = ({
 
   return (
     <div className="w-full h-full overflow-auto relative bg-background" ref={gridRef}>
+      <Toaster richColors position="bottom-right" closeButton />
       <Tabs
         value={tabQueryParam || undefined}
         onValueChange={handleTabChange}

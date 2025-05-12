@@ -865,6 +865,8 @@ export default function SelectionPanel({
 
   /*****************************************************************************
    * Detect if a base value + comps are all empty => skip column
+   * This function is no longer used to filter columns, but kept for potential future use
+   * or if specific conditional rendering based on emptiness is needed elsewhere.
    *****************************************************************************/
   function isAllEmpty(baseVal: any, comps: any[]): boolean {
     const arr = [baseVal, ...comps];
@@ -1028,7 +1030,6 @@ export default function SelectionPanel({
   type LocalEdit = { logIndex: number; source: "entries" | "params"; path: (string|number)[]; newValue: any };
 
   const handleSaveEditLocal = useCallback((desc: LocalEdit) => {
-    console.debug("[SelectionPanel] handleSaveEditLocal (single)", { logIndex: desc.logIndex, path: desc.path });
 
     // Path normalization and trace path fixing (unchanged)
     function coerceNumericStrings(original: (string|number)[]): (string|number)[] {
@@ -1050,9 +1051,7 @@ export default function SelectionPanel({
         // If the actual data is an OBJECT (not an array), the '0' index is incorrect and should be removed.
         // This happens when the trace structure is a single object root span.
         if (actualTraceData && typeof actualTraceData === 'object' && !Array.isArray(actualTraceData)) {
-            console.debug("[SelectionPanel] Correcting path: Removing incorrect '0' index for object-based trace.", fixedPath);
             fixedPath = [traceKey, ...fixedPath.slice(2)]; // Create new path: ['trace', 'inputs', 'a']
-            console.debug("[SelectionPanel] Corrected path:", fixedPath);
         }
         // If actualTraceData *is* an array, the path ['trace', 0, ...] is likely correct, so we leave it.
         // If actualTraceData is not found or not an object/array, we also leave the path as is.
@@ -1074,7 +1073,6 @@ export default function SelectionPanel({
     };
 
     // Propagate save for the single row ID
-    console.debug("[SelectionPanel] handleSaveEditLocal – invoking onSaveMany for single row", { rowIds: [targetRowId], desc: saveDesc });
     onSaveMany([targetRowId], saveDesc);
 
   }, [sortedLogs, onSaveMany, baseLog]); // Added baseLog dependency for correction logic
@@ -1085,7 +1083,6 @@ export default function SelectionPanel({
   type GroupLocalEdit = { logIndices: number[]; source: "entries" | "params"; path: (string|number)[]; newValue: any };
 
   const handleGroupSaveEditLocal = useCallback((desc: GroupLocalEdit) => {
-    console.debug("[SelectionPanel] handleGroupSaveEditLocal (group)", { logIndices: desc.logIndices, path: desc.path });
 
     // Path normalization and trace path fixing (same as single edit)
     function coerceNumericStrings(original: (string|number)[]): (string|number)[] {
@@ -1104,9 +1101,7 @@ export default function SelectionPanel({
 
         // If the actual data is an OBJECT (not an array), remove the '0' index.
         if (actualTraceData && typeof actualTraceData === 'object' && !Array.isArray(actualTraceData)) {
-            console.debug("[SelectionPanel] Correcting path (group): Removing incorrect '0' index for object-based trace.", fixedPath);
             fixedPath = [traceKey, ...fixedPath.slice(2)];
-            console.debug("[SelectionPanel] Corrected path (group):", fixedPath);
         }
     }
 
@@ -1133,7 +1128,6 @@ export default function SelectionPanel({
     };
 
     // Propagate save for ALL row IDs in the group
-    console.debug("[SelectionPanel] handleGroupSaveEditLocal – invoking onSaveMany for group", { rowIds: targetRowIds, desc: saveDesc });
     onSaveMany(targetRowIds, saveDesc);
 
   }, [sortedLogs, onSaveMany, baseLog]); // Added baseLog dependency
@@ -1161,7 +1155,7 @@ export default function SelectionPanel({
           path: [fieldName],
           newValue: newTrace
       });
-  }, [sortedLogs, tableTileActions]);
+  }, [sortedLogs, tableTileActions, fields]);
 
   /*****************************************************************************
    * EntriesSection Component - Pass both save handlers and trace update handler
@@ -1169,7 +1163,8 @@ export default function SelectionPanel({
   function EntriesSection() {
     if (!baseLog) return null;
     const cols = entryOrder.filter((col) => entriesFilter[col] !== false);
-    const filtered = cols.filter((col) => !isAllEmpty(baseLog.entries?.[col], comparisonLogs.map((cl) => cl.entries?.[col])));
+    // Do not filter out columns based on isAllEmpty. Show all selected & visible columns.
+    const filtered = [...cols];
     if (!filtered.length) return null;
     const allOpen = areAllOpenEntries();
     const accordionValue = filtered.filter((prop) => localOpenKeys.has(makePrefixedDictPath("entries", 0, prop)));
@@ -1177,6 +1172,9 @@ export default function SelectionPanel({
     const compIndicesForSelection = comparisonRowIndices;
 
     const entryComponentsToRender = filtered.map((entryKey) => {
+      if (!baseLog.entries?.hasOwnProperty(entryKey)) {
+        return null;
+      }
       const baseEntryVal = baseLog.entries?.[entryKey];
       const traceState = getTraceStateFor(`entries-${entryKey}`);
       const isImmutable = fields[entryKey]?.mutable === "true";
@@ -1239,7 +1237,8 @@ export default function SelectionPanel({
   function ParamSection() {
     if (!baseLog) return null;
     const cols = paramOrder.filter((col) => paramsFilter[col] !== false);
-    const filtered = cols.filter((col) => !isAllEmpty(baseLog.params?.[col], comparisonLogs.map((cl) => cl.params?.[col])));
+    // Do not filter out columns based on isAllEmpty. Show all selected & visible columns.
+    const filtered = [...cols]; 
     if (!filtered.length) return null;
     const allOpen = areAllOpenParams();
     const accordionValue = filtered.filter((prop) => localOpenKeys.has(makePrefixedDictPath("params", 0, prop)));
@@ -1247,6 +1246,9 @@ export default function SelectionPanel({
     const compIndicesForSelection = comparisonRowIndices;
 
     const paramComponentsToRender = filtered.map((paramKey) => {
+      if (!baseLog.params?.hasOwnProperty(paramKey)) {
+        return null;
+      }
       const baseParamVal = baseLog.params?.[paramKey];
       const traceState = getTraceStateFor(`params-${paramKey}`);
       const isImmutable = fields[paramKey]?.mutable === "false";

@@ -12,6 +12,8 @@ import { LogItemProps } from "@/types/evals/logs";
 import {
   buildIndexToColumnsMapFromId,
   buildRowIndicesInSelectionOrder,
+  PythonType,
+  castToPythonType
 } from "@/components/Interfaces/Details/Selection/SelectionUtils";
 
 interface PanelState {
@@ -269,41 +271,78 @@ export default function Selection({
       // Snapshot previous logs for potential rollback
       const prevLogs = tableTileStateWithTable?.tableDataItem?.logs;
 
-      // Optimistic local state update (for UI responsiveness)
-      tableTileActions.updateLogsDeep(rowIds, desc);
+      // --- Casting logic for null/undefined original values ---
+      const prevLogForOriginalValue = prevLogs?.find(log => String(log.id) === rowIds[0]); // Use first rowId for type checking if multiple are updated
+      if (prevLogForOriginalValue) {
+        const originalValueAtPath = getDeep(prevLogForOriginalValue[desc.source] ?? {}, desc.path);
+        // Check if original was null/undefined and the new value is a string
+        if ((originalValueAtPath === null || originalValueAtPath === undefined) && typeof desc.newValue === 'string') {
+          if (desc.path.length > 0) { // Ensure path is not empty
+            const topLevelFieldName = String(desc.path[0]);
+            // Use the corresponding field to get the type
+            const fieldInfo = fields[topLevelFieldName]; 
+            if (fieldInfo && fieldInfo.data_type) {
+              const pyType = fieldInfo.data_type as PythonType; // e.g., "int", "str", "list"
+              const castedResult = castToPythonType(desc.newValue, pyType);
+              if (castedResult && typeof castedResult === 'object' && 'error' in castedResult) {
+                // If casting fails, show a warning. desc.newValue remains the user-provided string.
+                // toast.warning(`Could not cast "${desc.newValue}" to type "${pyType}". Saving as string. Error: ${castedResult.error}`);
+              } else {
+                // Casting was successful, update desc.newValue
+                desc.newValue = castedResult;
+              }
+            } else {
+              console.warn(`Field info or data_type for '${topLevelFieldName}' not found. Saving as string.`);
+            }
+          }
+        }
+      }
 
       // Manually construct the *full* updated field for the backend
-      // Find the relevant log in the *previous* state
-      const prevLogForUpdate = prevLogs?.find(log => String(log.id) === rowIds[0]);
-
+      // Find the relevant log in the *previous* state (before optimistic update) to correctly build the patch
+      const prevLogForUpdate = prevLogs?.find(log => String(log.id) === rowIds[0]); 
+      
       if (!prevLogForUpdate) {
         console.error("Could not find the log in the previous state to construct update payload.");
-        rollbackLogs(prevLogs);
-        toast.error("Failed to update log.");
+        if (tableTileActions) rollbackLogs(prevLogs);
+        toast.error("Failed to update log: Inconsistent log data.");
         return;
       }
-
+      
       let entriesUpdate: LogItemProps = {};
       let paramsUpdate: LogItemProps = {};
-
+      
       if (desc.source === 'entries') {
         if (desc.path.length > 0) {
-        const topLevelKey = desc.path[0] as string;
-        const originalTopLevelValue = getDeep(prevLogForUpdate.entries ?? {}, [topLevelKey]);
-        const updatedValue = setDeep(originalTopLevelValue, desc.path.slice(1), desc.newValue);
-          entriesUpdate = { [topLevelKey as string]: updatedValue };
+          const topLevelKey = desc.path[0] as string;
+          const originalTopLevelValue = getDeep(prevLogForUpdate.entries ?? {}, [topLevelKey]);
+          const updatedValueContainer = setDeep(originalTopLevelValue, desc.path.slice(1), desc.newValue);
+          entriesUpdate = { [topLevelKey as string]: updatedValueContainer };
+        } else {
+          // This case (empty path) should ideally not happen for field updates.
+          console.warn("Attempting to update 'entries' with an empty path. New value:", desc.newValue);
+          if (typeof desc.newValue === 'object' && desc.newValue !== null) {
+             entriesUpdate = desc.newValue as LogItemProps;
+          } else {
+            return;
+          }
         }
-        else { /* Handle edge case if path is empty? */ }
       } else {
         if (desc.path.length > 0) {
-        const topLevelKey = desc.path[0] as string;
-        const originalTopLevelValue = getDeep(prevLogForUpdate.params ?? {}, [topLevelKey]);
-        const updatedValue = setDeep(originalTopLevelValue, desc.path.slice(1), desc.newValue);
-          paramsUpdate = { [topLevelKey as string]: updatedValue };
+          const topLevelKey = desc.path[0] as string;
+          const originalTopLevelValue = getDeep(prevLogForUpdate.params ?? {}, [topLevelKey]);
+          const updatedValueContainer = setDeep(originalTopLevelValue, desc.path.slice(1), desc.newValue);
+          paramsUpdate = { [topLevelKey as string]: updatedValueContainer };
+        } else {
+          console.warn("Attempting to update 'params' with an empty path. New value:", desc.newValue);
+          if (typeof desc.newValue === 'object' && desc.newValue !== null) {
+            paramsUpdate = desc.newValue as LogItemProps;
+          } else {
+            return;
+          }
         }
-        else { /* Handle edge case if path is empty? */ }
       }
-
+      
       try {
         const response = await logsActions.update(
           projectId,
@@ -313,16 +352,23 @@ export default function Selection({
           paramsUpdate
         );
         if (response.detail) {
+          console.error("[DEBUG] handleSaveMany – error", response.detail);
           toast.error(`Failed to update log entry: ${response.detail}`);
+          return;
         }
       } catch (err: any) {
         console.error("[DEBUG] handleSaveMany – backend error", err);
-        rollbackLogs(prevLogs);
         toast.error(`Save failed: ${err.message || 'Unknown error'}`);
+        return;
+      }
+      
+      // Optimistic local state update provided the endpoint call is successful
+      if (tableTileActions) {
+        tableTileActions.updateLogsDeep(rowIds, desc);
       }
 
     },
-    [projectId, context, tableTileActions, tableTileStateWithTable?.tableDataItem?.logs, rollbackLogs, logsActions.update]
+    [projectId, context, tableTileActions, tableTileStateWithTable?.tableDataItem?.logs, rollbackLogs, logsActions.update, fields]
   );
 
   /*******************************************************************************

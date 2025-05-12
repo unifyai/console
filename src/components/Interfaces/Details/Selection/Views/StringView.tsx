@@ -332,7 +332,7 @@ export default function StringView({
             </div>
           </div>
         ) : (
-          <p className="italic text-sm text-muted-foreground">No string</p>
+          <p className="italic text-sm text-muted-foreground">No value</p>
         )}
       </div>
     );

@@ -244,3 +244,118 @@ return {
     params: newParams,
 };
 }
+
+/*******************************************************************************
+ * castToPythonType
+ *   Utility for casting string values to Python-like types.
+ ******************************************************************************/
+export type PythonType =
+  | 'str'
+  | 'int'
+  | 'float'
+  | 'bool'
+  | 'list'
+  | 'tuple'
+  | 'dict'
+  | 'timestamp' // typically a number (seconds or ms since epoch) or ISO string
+  | 'datetime'  // typically an ISO string
+  | 'timedelta'; // typically a number (seconds or ms) or "D days, HH:MM:SS" string
+
+export function castToPythonType(value: string, pyType: PythonType): any {
+  try {
+    switch (pyType) {
+      case 'str':
+        return value;
+
+      case 'int': {
+        // Allow empty string to become null or handle as error if strict
+        if (value.trim() === "") return { error: `Invalid int: empty string` }; 
+        const intVal = parseInt(value, 10);
+        if (isNaN(intVal) || String(intVal) !== value.trim()) throw new Error(`Invalid int: ${value}`); // Stricter check
+        return intVal;
+      }
+
+      case 'float': {
+        if (value.trim() === "") return { error: `Invalid float: empty string` };
+        const floatVal = parseFloat(value);
+        if (isNaN(floatVal)) throw new Error(`Invalid float: ${value}`);
+        return floatVal;
+      }
+
+      case 'bool': {
+        const val = value.trim().toLowerCase();
+        if (val === 'true') return true;
+        if (val === 'false') return false;
+        throw new Error(`Invalid bool: ${value}`);
+      }
+
+      case 'list':
+      case 'tuple': // Tuples are often represented as lists in JS/JSON
+      case 'dict': {
+        if (value.trim() === "") { // Allow empty string for empty structures if desired, or error
+            if (pyType === 'list' || pyType === 'tuple') return [];
+            if (pyType === 'dict') return {};
+        }
+        const parsed = JSON.parse(value);
+        if (pyType === 'list' || pyType === 'tuple') {
+          if (!Array.isArray(parsed)) throw new Error(`Not a ${pyType}: ${value}`);
+          return pyType === 'tuple' ? Object.freeze(parsed) : parsed;
+        }
+        if (pyType === 'dict') {
+          if (typeof parsed !== 'object' || Array.isArray(parsed) || parsed === null) {
+            throw new Error(`Not a dict: ${value}`);
+          }
+          return parsed;
+        }
+        break; // Should not be reached due to above checks
+      }
+
+      case 'timestamp': { // Assuming timestamp is expected as ISO string or unix epoch number
+        if (value.trim() === "") return { error: `Invalid timestamp: empty string` };
+        // Try parsing as number first (unix epoch in s or ms)
+        const numVal = Number(value);
+        if (!isNaN(numVal)) {
+            // Could be seconds or milliseconds. Assume seconds if it's not obviously ms.
+            // This is a heuristic. Backend might need to clarify expected format.
+            return numVal; // Or new Date(numVal * (numVal < 1e12 ? 1000 : 1)) if Date object is needed
+        }
+        // Try parsing as date string
+        const date = new Date(value);
+        if (isNaN(date.getTime())) throw new Error(`Invalid timestamp/datetime string: ${value}`);
+        return date.toISOString(); // Standard format
+      }
+
+      case 'datetime': { // Expects an ISO string
+        if (value.trim() === "") return { error: `Invalid datetime: empty string` };
+        const date = new Date(value);
+        if (isNaN(date.getTime())) throw new Error(`Invalid datetime string: ${value}`);
+        return date.toISOString();
+      }
+
+      case 'timedelta': { // Expects a number (seconds) or specific string format
+        if (value.trim() === "") return { error: `Invalid timedelta: empty string` };
+        const seconds = Number(value);
+        if (!isNaN(seconds)) {
+          return seconds; // Assume seconds if it's a plain number
+        }
+        // Add parsing for "D days, HH:MM:SS" or similar if needed by your backend
+        // For now, only numeric strings are supported directly for timedelta.
+        // const regex = /(?:(\d+)\s*day[s]?,\s*)?(\d{1,2}):(\d{2}):(\d{2})/;
+        // const match = value.match(regex);
+        // if (match) { ... }
+        throw new Error(`Invalid or unsupported timedelta format: ${value}. Expected number (seconds).`);
+      }
+
+      default:
+        // For unknown pyTypes, or if data_type is more complex like 'list<str>',
+        // we might just return the string or try a JSON.parse as a general fallback.
+        try {
+            return JSON.parse(value);
+        } catch (e) {
+            return value; // Fallback to raw string if not JSON and not a known type
+        }
+    }
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}

@@ -335,9 +335,9 @@ export default function SelectionEntry({
     rawValue = value.paramValue;
   }
   const allVals = [rawValue, ...comps];
-  const isEmpty = allVals.every(isEmptyOrBlank);
-  const unifiedType = !isEmpty ? unifyType(rawValue, comps) : "";
-  const icon = !isEmpty ? getTypeIcon(unifiedType) : null;
+  const isEmpty = allVals.every(isEmptyOrBlank); // Still useful for conditional logic, just not for early return
+  const unifiedType = unifyType(rawValue, comps); // unifyType will return "string" if all are empty/null
+  const icon = getTypeIcon(unifiedType); // getTypeIcon will return Text icon for "string"
   const isTopLevelExpandable = !isEmpty && (unifiedType === "dict" || unifiedType === "list" || (unifiedType === "trace" && viewTracesAsDict));
   const childNesting = 0;
   const topLevelPath = useMemo(() => {
@@ -385,7 +385,7 @@ export default function SelectionEntry({
 
   // Render content memo (now passes both save handlers)
   const renderedContent = useMemo(() => {
-    if (isEmpty) return null;
+    // If isEmpty is true, unifiedType will be "string", so getSelectionView will render StringView
     return getSelectionView(
       rawValue, comps, version, comparableVersions, baseLog, baseLogIndex, comparisonLogs, comparisonLogsIndex,
       diffMode, splitView, displayMode, childNesting, source === "entries" ? "entries" : "params",
@@ -431,7 +431,8 @@ export default function SelectionEntry({
   // Content node rendering
   const contentNode = useMemo(() => renderedContent, [isLeaf, cellEditMode, rawValue, renderedContent]);
 
-  if (isEmpty) return null;
+  // No longer returning null if isEmpty is true. Always render the accordion item.
+  // if (isEmpty) return null; 
 
   return (
     <AccordionItem value={itemValue}>

@@ -43,6 +43,7 @@ import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data
 import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import ContextSelector from "./Content/ContextSelector";
 import ResetServerAction from "./Buttons/ResetServerAction";
+import CreateEmptyLogRow from "./Buttons/CreateEmptyLogRow"; // Import the new button
 import { getGroupedMetrics } from "@/utils/evals/common";
 import { deselectFromClickOutside } from "@/hooks/Logs/useCellSelection";
 
@@ -52,6 +53,7 @@ import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { useProject } from "@/contexts/hooks/project";
 import { shallow } from "zustand/vanilla/shallow";
 import { useInterface } from "@/contexts/hooks/interface";
+import { useRouter } from "next/navigation"; // Import useRouter
 
 const LogsTable = ({
   tileId,
@@ -74,6 +76,7 @@ const LogsTable = ({
   contextActions: ContextActions,
   updateTab: (savedTab?: TabProps | null, updatedTileProps?: TileProps[] | TileProps | null) => Promise<ResponseProps>,
 }) => {
+  const router = useRouter(); // Initialize useRouter
 
   // Get access to the project data and actions
   const { data: projectDataState } = useProject(projectId ?? null);
@@ -631,6 +634,27 @@ const LogsTable = ({
             setColumnVisibility={setColumnVisibility}
             context={item?.context ?? null}
           />
+           {projectId && (
+            <CreateEmptyLogRow
+              projectId={projectId}
+              globalContext={item?.context || context_}
+              fields={tableDataItem.fields}
+              interactive={interactive}
+              createLogsAction={logsActions.create}
+              onSuccess={() => {
+                updateTab().then(() => { // Using updateTab for refresh logic
+                  router.refresh();
+                  setPending(true);
+                });
+              }}
+              onError={(errorMessage) => {
+                // Handle error, e.g., show a toast notification
+                console.error("Failed to create log:", errorMessage);
+                // You might want to use a more sophisticated error display mechanism
+                alert(`Error: ${errorMessage}`);
+              }}
+            />
+          )}
           <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => {setGrouping([]); setGroupSorting([])}}/>
           <ResetServerAction condition={(sorting.length > 0 || groupSorting.length > 0)} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => {setSorting([]); setGroupSorting([])}}/>
           <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); tileDataActions?.setCommonFilter(undefined)}}/>
@@ -947,4 +971,3 @@ const LogsTable = ({
 };
 
 export default LogsTable;
-
