@@ -1,5 +1,5 @@
 import { ResponseProps } from "../common";
-import { getLogsParameters, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps, GroupedLogProps, PlotArguments } from "./logs";
+import { getLogsParameters, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps, GroupedLogProps, PlotsArguments } from "./logs";
 
 export interface TileProps {
     id: string;

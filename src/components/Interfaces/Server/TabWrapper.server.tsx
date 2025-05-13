@@ -20,7 +20,7 @@ import type {
   TabData,
   TileData
 } from "@/types/evals/grid";
-import { TableArguments, PlotArguments } from "@/types/evals/logs";
+import { TablesArguments, PlotsArguments } from "@/types/evals/logs";
 
 type TabWrapperActions = {
   tabActions: GranularTabActions;
@@ -114,13 +114,13 @@ export default async function TabWrapper({
     // Initialize empty tableArguments
     await qc.prefetchQuery({
       queryKey: ["tableArguments", tabId],
-      queryFn: () => Promise.resolve({} as TableArguments)
+      queryFn: () => Promise.resolve({} as TablesArguments)
     });
 
     // Initialize empty plotArguments
     await qc.prefetchQuery({
       queryKey: ["plotArguments", tabId],
-      queryFn: () => Promise.resolve({} as PlotArguments)
+      queryFn: () => Promise.resolve({} as PlotsArguments)
     });
   }
 

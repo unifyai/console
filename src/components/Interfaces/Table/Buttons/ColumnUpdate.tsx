@@ -3,7 +3,7 @@
 import { KeyboardEventHandler, useState, useEffect, Dispatch, SetStateAction } from "react";
 import { useRouter } from "next/navigation";
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import { getLogsParameters, TableArguments, LogProps, GroupedLogProps } from "@/types/evals/logs"
+import { getLogsParameters, TablesArguments, LogProps, GroupedLogProps } from "@/types/evals/logs"
 import ActionButton from "@/components/Common/Buttons/Action";
 import { ResponseProps } from "@/types/common";
 import FormulaInput from "@/components/Common/Input/Formula";
@@ -38,7 +38,7 @@ const ColumnUpdate = ({
     colId: string,
     previousEquation: string,
     currentTable: string,
-    tableArguments: TableArguments,
+    tableArguments: TablesArguments,
     logs: LogProps[] | GroupedLogProps[]
     update: DerivedEntryActions["update"],
     setPending: (pending: boolean) => void,
@@ -55,7 +55,7 @@ const ColumnUpdate = ({
     const options = Object
         .entries(tableArguments)
             .map(([table, args]) => ({name: table, type: "Table Name", children: Object.keys(args.available_fields)}))  // Add all displayed tables
-        .concat(Object.entries(tableArguments[currentTable as keyof TableArguments].available_fields)                   // Add all columns of current table
+        .concat(Object.entries(tableArguments[currentTable as keyof TablesArguments].available_fields)                   // Add all columns of current table
             .map(([column, _]) => ({name: column, type: "Column Name", children: []}))
         )
     const tables = options.filter(option => option.type === "Table Name").map(option => option.name)
@@ -82,7 +82,7 @@ const ColumnUpdate = ({
     // Handle submission    
     const onSubmit = () => {
 
-        let previousReferencedTables : (keyof TableArguments)[] = tables.filter(table => previousEquation.includes(table))
+        let previousReferencedTables : (keyof TablesArguments)[] = tables.filter(table => previousEquation.includes(table))
         if (!previousReferencedTables.length) previousReferencedTables = [currentTable]
         const target_derived_logs = Object.fromEntries(
             Object.entries(tableArguments)

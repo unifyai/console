@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { PlotDataItem } from "@/types/evals/grid";
 import { getQueryClient } from '@/lib/react-query/getQueryClient'
-import { PlotArguments } from "@/types/evals/logs";
+import { PlotsArguments } from "@/types/evals/logs";
 import { useMemo, useRef, useEffect, useCallback } from "react";
 
 // Default empty plot data item
@@ -100,7 +100,7 @@ export function usePlotDataQueryWithTracking(tileId: string) {
  * @param tabId The id of the tab containing the plots
  */
 export function usePlotArgumentsQuery(tabId: string | null) {
-  return useQuery<PlotArguments>({
+  return useQuery<PlotsArguments>({
     queryKey: ["plotArguments", tabId],
     // The data is prefetched by the server component
     staleTime: 30000, // 30 seconds before considering data stale

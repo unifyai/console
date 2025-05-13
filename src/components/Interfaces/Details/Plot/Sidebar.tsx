@@ -7,7 +7,7 @@ import { Button } from "@/components/UI/button";
 import { Accordion } from "@/components/UI/accordion";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 
-import { LogFieldsResponseProps, LogProps, PlotArguments } from '@/types/evals/logs';
+import { LogFieldsResponseProps, LogProps, PlotsArguments } from '@/types/evals/logs';
 import { FieldsActions, LogsActions, PlotDataItem } from '@/types/evals/grid';
 
 import { PlotActions } from '@/contexts/hooks/tile/usePlotTile';
@@ -114,7 +114,7 @@ const PlotSettings = ({
   tabId: string;
   interfaceId: string;
   projectId: string;
-  args: PlotArguments;
+  args: PlotsArguments;
   setPlotDataItem: Dispatch<SetStateAction<PlotDataItem>>,
   
   /* Fixed tooltip */

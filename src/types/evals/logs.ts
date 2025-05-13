@@ -97,14 +97,14 @@ export interface getLogsParameters {
     [parameter: string]: string
 }
 
-export interface TableArguments {
+export interface TablesArguments {
     [table_name: string]: {
         available_fields: LogFieldsResponseProps 
         getLogs_parameters: getLogsParameters
     }
 }
 
-export interface PlotArguments {
+export interface PlotsArguments {
     [table_name: string]: getLogsParameters
 }
 

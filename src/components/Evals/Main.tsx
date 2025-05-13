@@ -1,7 +1,7 @@
 import React from "react";
 import { DoublePanels } from "../Common/Body/DoublePanels";
 import LogsTable from "./Table/Table";
-import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedLogProps } from "@/types/evals/logs";
+import { getLogsParameters, TablesArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedLogProps } from "@/types/evals/logs";
 import { extractLogsData } from "@/utils/evals/common";
 import Details from "./Details/Details";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
@@ -114,7 +114,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 	
 	
 	/* Aggregate table arguments */
-	let tableArguments : TableArguments = { 
+	let tableArguments : TablesArguments = { 
 		"table": {
 			getLogs_parameters: {filter_expr: ""}, 
 			available_fields: Object.fromEntries(

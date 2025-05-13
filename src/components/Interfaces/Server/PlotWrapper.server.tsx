@@ -16,7 +16,7 @@ import type {
   TileData,
   GranularTileActions,
 } from "@/types/evals/grid";
-import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedMetrics } from "@/types/evals/logs";
+import { PlotsArguments, TablesArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedMetrics } from "@/types/evals/logs";
 
 type PlotWrapperActions = {
   tileActions: GranularTileActions;
@@ -66,7 +66,7 @@ export default async function PlotWrapper({
   });
 
   // Get or build tableArguments 
-  let tableArguments = qc.getQueryData<TableArguments>(["tableArguments", tabId]) || {};
+  let tableArguments = qc.getQueryData<TablesArguments>(["tableArguments", tabId]) || {};
   
   // If tableArguments is empty (not yet created by TableWrapper), build it
   if (Object.keys(tableArguments).length === 0) {
@@ -75,7 +75,7 @@ export default async function PlotWrapper({
   }
 
   // Build plotArguments from tableArguments
-  let plotArguments = qc.getQueryData<PlotArguments>(["plotArguments", tabId]) || {};
+  let plotArguments = qc.getQueryData<PlotsArguments>(["plotArguments", tabId]) || {};
   plotArguments = buildPlotArguments(tableArguments, plotArguments);
   
   // Update plotArguments for tables used by this plot

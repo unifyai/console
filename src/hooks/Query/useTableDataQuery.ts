@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueries, UseQueryOptions, UseQueryResult } fr
 import { TableDataItem } from "@/types/evals/grid";
 import { getQueryClient } from '@/lib/react-query/getQueryClient'
 import { useTileMeta } from "@/contexts/hooks/tile";
-import { TableArguments } from "@/types/evals/logs";
+import { TablesArguments } from "@/types/evals/logs";
 import { useTabMeta } from "@/contexts/hooks/tab";
 import { useMemo, useRef, useEffect, useCallback } from "react";
 
@@ -201,7 +201,7 @@ export function useTableArgumentsQuery(
   // Get tab meta information using the useTabMeta hook
   const { tabId } = useTabMeta(tabName, interfaceName || null);
 
-  return useQuery<TableArguments>({
+  return useQuery<TablesArguments>({
     queryKey: ["tableArguments", tabId],
     // The data is prefetched by the server component
     staleTime: 30000, // 30 seconds before considering data stale

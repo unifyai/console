@@ -3,7 +3,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { RefreshCw, Power, Check } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { TileProps, LogsActions, FieldsActions, PlotDataItem } from "@/types/evals/grid";
-import { PlotArguments, LogFieldsResponseProps, LogsResponseProps, GroupedMetrics, LogProps } from "@/types/evals/logs"; // Added LogProps
+import { PlotsArguments, LogFieldsResponseProps, LogsResponseProps, GroupedMetrics, LogProps } from "@/types/evals/logs"; // Added LogProps
 import { replaceParamsIndicesWithValues, convertMetricsToLogs } from "@/utils/evals/common";
 import { processContext } from "@/utils/evals/columnOperations";
 import { buildFilterExpression } from "@/utils/evals/filters";
@@ -12,7 +12,7 @@ import { useTab } from "@/contexts/hooks/tab/useTab";
 import { useTiles } from "@/contexts/hooks/useStore";
 import { useTile } from "@/contexts/hooks/tile/useTile";
 
-function fetchLatestTimestamps(tables: string[], args: PlotArguments, project: string, logsActions: LogsActions, signal?: AbortSignal): Promise<string> {
+function fetchLatestTimestamps(tables: string[], args: PlotsArguments, project: string, logsActions: LogsActions, signal?: AbortSignal): Promise<string> {
     return new Promise((resolve, reject) => {
         if (signal?.aborted) return reject(new DOMException('Aborted', 'AbortError'));
         const promises = tables.map(table => {
@@ -73,7 +73,7 @@ const mergePlotData = (plotData_: {[x: string]: { plotLogs: LogProps[] }}) => {
     return mergedPlotData;
 }
 
-function fetchAndMergeFields (tables: string[], args: PlotArguments, project: string, fieldsActions: FieldsActions, signal?: AbortSignal): Promise<LogFieldsResponseProps> {
+function fetchAndMergeFields (tables: string[], args: PlotsArguments, project: string, fieldsActions: FieldsActions, signal?: AbortSignal): Promise<LogFieldsResponseProps> {
      return new Promise((resolve, reject) => {
          if (signal?.aborted) return reject(new DOMException('Aborted', 'AbortError'));
          const fieldPromises = tables.map(table => {
@@ -111,7 +111,7 @@ function fetchAndMergeFields (tables: string[], args: PlotArguments, project: st
      });
 }
 
-function fetchAndMergeLogs (tables: string[], item: TileProps | undefined, args: PlotArguments, project: string, logsActions: LogsActions, plotFields: LogFieldsResponseProps, signal?: AbortSignal): Promise<LogProps[]> {
+function fetchAndMergeLogs (tables: string[], item: TileProps | undefined, args: PlotsArguments, project: string, logsActions: LogsActions, plotFields: LogFieldsResponseProps, signal?: AbortSignal): Promise<LogProps[]> {
      return new Promise((resolve, reject) => {
          if (signal?.aborted) return reject(new DOMException('Aborted', 'AbortError'));
          const dataPromises = tables.map(table => {
@@ -185,7 +185,7 @@ function fetchAndMergeLogs (tables: string[], item: TileProps | undefined, args:
 
 function updatePlotLogs(
     tables: string[],
-    args: PlotArguments,
+    args: PlotsArguments,
     project: string,
     logsActions: LogsActions,
     fieldsActions: FieldsActions,
@@ -223,7 +223,7 @@ const PlotRefresh = ({tileId, tabId, interfaceId, projectId, pending, args, setP
     interfaceId: string,
     projectId: string,
     pending: boolean,
-    args: PlotArguments,
+    args: PlotsArguments,
     setPlotDataItem: Dispatch<SetStateAction<PlotDataItem>>,
     logs: LogProps[] | undefined,
     logsActions: LogsActions,

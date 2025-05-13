@@ -1,5 +1,5 @@
 import { TileData } from "@/types/evals/grid";
-import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
+import { TablesArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import { buildFilterExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 
@@ -10,8 +10,8 @@ import { processContext } from "@/utils/evals/columnOperations";
 export async function buildTableArgumentsForTile(
   tile: TileData,
   fields: LogFieldsResponseProps,
-  existingArguments: TableArguments = {}
-): Promise<TableArguments> {
+  existingArguments: TablesArguments = {}
+): Promise<TablesArguments> {
   const tileName = tile.name;
   const tableArguments = { ...existingArguments };
   
@@ -80,8 +80,8 @@ export async function buildTableArgumentsForTile(
 export async function buildTableArguments(
   tiles: TileData[],
   fieldsMap: Record<string, LogFieldsResponseProps>,
-  existingArguments: TableArguments = {}
-): Promise<TableArguments> {
+  existingArguments: TablesArguments = {}
+): Promise<TablesArguments> {
   let tableArguments = { ...existingArguments };
   
   // Process each table tile

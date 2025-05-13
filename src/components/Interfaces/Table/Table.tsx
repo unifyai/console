@@ -2,7 +2,7 @@
 
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
-import { TableArguments, LogProps, GroupedLogProps, LogItemProps } from "@/types/evals/logs";
+import { TablesArguments, LogProps, GroupedLogProps, LogItemProps } from "@/types/evals/logs";
 import {
   ColumnFiltersState,
   ColumnSort,
@@ -114,7 +114,7 @@ const LogsTable = ({
   } = tableDataItem;
 
   const tileName = tileMetaState?.name || "";
-  const {data: tableArguments = {} as TableArguments} = useTableArgumentsQuery(tabId || null);
+  const {data: tableArguments = {} as TablesArguments} = useTableArgumentsQuery(tabId || null);
   const filterExpression = tableArguments?.[tileName]?.getLogs_parameters?.filter_expr || null;
   const sortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.sorting || null;
   const groupingExpression = tableArguments?.[tileName]?.getLogs_parameters?.grouping || null;

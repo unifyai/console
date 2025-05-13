@@ -17,7 +17,7 @@ import type {
   TileData,
   GranularTileActions,
 } from "@/types/evals/grid";
-import { LogFieldsResponseProps, LogsResponseProps, TableArguments } from "@/types/evals/logs";
+import { LogFieldsResponseProps, LogsResponseProps, TablesArguments } from "@/types/evals/logs";
 
 
 type TableWrapperActions = {
@@ -101,7 +101,7 @@ export default async function TableWrapper({
   const groupSortingExpression = groupSortingObject ? JSON.stringify(groupSortingObject) : null;
 
   // Get existing tableArguments from cache
-  let tableArguments = qc.getQueryData<TableArguments>(["tableArguments", tabId]) || {};
+  let tableArguments = qc.getQueryData<TablesArguments>(["tableArguments", tabId]) || {};
   
   // Use the utility to build/update tableArguments
   tableArguments = await buildTableArgumentsForTile(tile, fields, tableArguments);
