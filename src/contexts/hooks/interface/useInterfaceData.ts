@@ -14,9 +14,9 @@ const EMPTY_TAB_IDS: string[] = [];
  */
 export interface InterfaceDataActions {
   // Tab management
-  addTab: (newTabId: string, newTabName: string, initialState?: Tab) => void;
-  removeTab: (tabId: string) => void;
-  renameTab: (sourceTabId: string, newTabName: string) => void;
+  addTab: (newTabName: string, initialState?: Partial<Tab>) => void;
+  removeTab: (tabName: string) => void;
+  renameTab: (sourceTabName: string, newTabName: string) => void;
   getTabNames: () => string[];
   setTabNames: (tabNames: string[]) => void;
   getTabIds: () => string[];
@@ -70,31 +70,34 @@ export function useInterfaceData(interfaceIdOrName: string | null, projectIdOrNa
 
   // Memoize the data actions to prevent unnecessary re-renders
   const dataActions = useMemo<InterfaceDataActions>(() => ({
-    addTab: (newTabId, newTabName, initialState) => {
-      if (activeProjectId && interfaceId) {
+    addTab: (newTabName, initialState = {}) => {
+      if (interfaceId) {
         // Add the new tab to the interface
         storeAddTab(
           interfaceId,
-          newTabId,
           newTabName,
-          initialState
+          {
+            ...initialState,
+            id: initialState?.id || newTabName,
+            name: newTabName,
+          }
         );
       }
     },
 
-    removeTab: (tabId) => {
+    removeTab: (tabName) => {
       if (activeProjectId && interfaceId) {
         // Remove the tab
-        storeRemoveTab(interfaceId, tabId);
+        storeRemoveTab(interfaceId, tabName);
       }
     },
 
-    renameTab: (sourceTabId, newTabName) => {
+    renameTab: (sourceTabName, newTabName) => {
       if (activeProjectId && interfaceId) {
         // Rename the tab
         storeRenameTab(
           interfaceId,
-          sourceTabId,
+          sourceTabName,
           newTabName,
         );
       }

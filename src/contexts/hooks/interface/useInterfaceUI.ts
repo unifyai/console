@@ -8,6 +8,7 @@ import { useInterfaceMeta } from './useInterfaceMeta';
  */
 export interface InterfaceUIActions {
   setActiveTabId: (tabId: string | null) => void;
+  setPending: (pending: boolean) => void;
 }
 
 /**
@@ -64,6 +65,12 @@ export function useInterfaceUI(interfaceIdOrName: string | null, projectIdOrName
         
         // Update the interface's active tab
         storeUpdateInterface(interfaceId, { activeTabId: tabId });
+      }
+    },
+
+    setPending: (pending) => {
+      if (activeProjectId && interfaceId) {
+        storeUpdateInterface(interfaceId, { pending });
       }
     },
 

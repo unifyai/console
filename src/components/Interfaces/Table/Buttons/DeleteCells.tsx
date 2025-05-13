@@ -40,14 +40,30 @@ const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context, c
 		return flattenedLogs.findIndex(log => idMatch(log) && valueMatch(log)) != -1 
 	})
 
-	useKeyPressEvent("Backspace", () => {
-		if (deletableCells.length > 0) {
+	useKeyPressEvent("Backspace", (event) => {
+		// Check if the event target is an input, textarea, or other editable element
+		const target = event.target as HTMLElement;
+		const isEditableElement = 
+			target.tagName === "INPUT" || 
+			target.tagName === "TEXTAREA" || 
+			target.contentEditable === "true";
+		
+		// Only proceed if not in an editable element and we have deletable cells
+		if (!isEditableElement && deletableCells.length > 0) {
 			setShowDialog(true);
 		}
 	});
 
-	useKeyPressEvent("Delete", () => {
-		if (deletableCells.length > 0) {
+	useKeyPressEvent("Delete", (event) => {
+		// Check if the event target is an input, textarea, or other editable element
+		const target = event.target as HTMLElement;
+		const isEditableElement = 
+			target.tagName === "INPUT" || 
+			target.tagName === "TEXTAREA" || 
+			target.contentEditable === "true";
+		
+		// Only proceed if not in an editable element and we have deletable cells
+		if (!isEditableElement && deletableCells.length > 0) {
 			setShowDialog(true);
 		}
 	});

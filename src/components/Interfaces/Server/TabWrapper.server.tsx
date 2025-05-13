@@ -8,6 +8,7 @@ import { StoreSliceUpdater } from "@/contexts/providers/StoreSliceUpdater";
 import { buildTabStateForStore, buildTileStateForStore } from "@/contexts/utils/stateBuilderUtils";
 import { IStoreState } from "@/contexts/store";
 import { redirect } from "next/navigation";
+import { buildTabArguments } from '@/utils/arguments/buildTabArguments';
 
 import type {
   LogsActions,
@@ -20,7 +21,7 @@ import type {
   TabData,
   TileData
 } from "@/types/evals/grid";
-import { TablesArguments, PlotsArguments } from "@/types/evals/logs";
+import { TablesArguments, PlotsArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 
 type TabWrapperActions = {
   tabActions: GranularTabActions;
@@ -108,20 +109,47 @@ export default async function TabWrapper({
   // Get the tiles from the query cache
   const tiles = qc.getQueryData<TileData[]>(["tiles", tabId]) || [];
 
-  // Just initialize empty caches for tableArguments and plotArguments
-  // Individual tile wrappers will populate their entries
-  if (tabId) {
-    // Initialize empty tableArguments
-    await qc.prefetchQuery({
-      queryKey: ["tableArguments", tabId],
-      queryFn: () => Promise.resolve({} as TablesArguments)
+  // Filter to get table and plot tiles
+  const tableTiles = tiles.filter(t => t.type === "Table");
+  const plotTiles = tiles.filter(t => t.type === "Plot");
+  
+  // Get unique contexts from table tiles
+  const uniqueContexts = new Set<string>();
+  tableTiles.forEach(tile => {
+    if (tile.context) uniqueContexts.add(tile.context);
+  });
+  
+  // Fetch fields for all unique contexts
+  const fieldsMap: Record<string, LogFieldsResponseProps> = {};
+  if (project) {
+    const fieldsPromises = Array.from(uniqueContexts).map(context => 
+      actions.fieldsActions.get(project, context || null)
+    );
+    const fieldsResults = await Promise.all(fieldsPromises);
+    
+    // Create a map of context to fields
+    Array.from(uniqueContexts).forEach((context, index) => {
+      fieldsMap[context] = fieldsResults[index];
     });
-
-    // Initialize empty plotArguments
-    await qc.prefetchQuery({
-      queryKey: ["plotArguments", tabId],
-      queryFn: () => Promise.resolve({} as PlotsArguments)
-    });
+  }
+  
+  // Get existing arguments from cache
+  let tableArguments = qc.getQueryData<TablesArguments>(["tableArguments", tabId]) || {};
+  let plotArguments = qc.getQueryData<PlotsArguments>(["plotArguments", tabId]) || {};
+  
+  // Build arguments for all tiles
+  if (tableTiles.length > 0 || plotTiles.length > 0) {
+    const { tableArguments: newTableArguments, plotArguments: newPlotArguments } = 
+      await buildTabArguments(tiles, fieldsMap, tableArguments, plotArguments);
+    
+    // Store the built arguments in the cache
+    qc.setQueryData(["tableArguments", tabId], newTableArguments);
+    qc.setQueryData(["plotArguments", tabId], newPlotArguments);
+    
+  } else {
+    // Initialize empty arguments if no tiles
+    qc.setQueryData(["tableArguments", tabId], {});
+    qc.setQueryData(["plotArguments", tabId], {});
   }
 
   // Build tab state explicitly - we only need to build the tab state here

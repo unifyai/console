@@ -113,6 +113,187 @@ export function useTabSync(
   };
 
   /**
+   * Rename a tile
+   */
+  const wrapRenameTile = (tileId: string, newTileName: string) => {
+    if (!tileId || !tabDataActions || !tileActions) return;
+
+    // Get the old tile name
+    const oldTileName = tabDataActions.getTileName(tileId);
+
+    if (!oldTileName) return;
+
+    const referencedTileIds = tabDataActions.getReferencedTileIdsByName(oldTileName);
+    const referencedPlotTileIds = tabDataActions.getReferencedPlotTileIdsByName(oldTileName);
+    
+    // 1) Update local state immediately
+    tabDataActions.renameTile(tileId, newTileName);
+
+    // 2) Update the tile name on the server
+    patchTileMutation.mutate({
+      id: tileId,
+      updateData: {
+        name: newTileName
+      },
+      actions: tileActions
+    });
+
+    // 3) Then update any references to this tile in other tiles
+    // Start with updating the `tile.table` property for all tiles that reference this tile by name via the `table` property
+    // Optimistically update the referenced tiles on the server
+    referencedTileIds.forEach(id => {
+      patchTileMutation.mutate({
+        id: id,
+        updateData: {
+          table: newTileName
+        },
+        actions: tileActions
+      });
+    });
+
+    // 4) Update x_axis, y_axis, and plot_group_by references for Plot tiles
+    // Update x_axis references
+    referencedPlotTileIds.xAxis.forEach(id => {
+      // Get the tile
+      const tile = tabDataActions.getPartialTile(id);
+      if (tile?.plotTile) {
+        patchTileMutation.mutate({
+          id: id,
+        updateData: {
+          plot_tile: {
+            x_axis: tile.plotTile.x_axis // This has already been updated in the zustand renameTile action above
+          }
+        },
+          actions: tileActions
+        });
+      }
+    });
+
+    // Update y_axis references
+    referencedPlotTileIds.yAxis.forEach(id => {
+      // Get the tile
+      const tile = tabDataActions.getPartialTile(id);
+      if (tile?.plotTile) {
+        patchTileMutation.mutate({
+          id: id,
+        updateData: {
+          plot_tile: {
+            y_axis: tile.plotTile.y_axis // This has already been updated in the zustand renameTile action above
+          }
+        },
+          actions: tileActions
+        });
+      }
+    });
+
+    // Update plot_group_by references
+    referencedPlotTileIds.plotGroupBy.forEach(id => {
+      // Get the tile
+      const tile = tabDataActions.getPartialTile(id);
+      if (tile?.plotTile) {
+        patchTileMutation.mutate({
+          id: id,
+        updateData: {
+          plot_tile: {
+            plot_group_by: tile.plotTile.plot_group_by // This has already been updated in the zustand renameTile action above
+          }
+          },
+          actions: tileActions
+        });
+      }
+    });
+  };
+
+  /**
+   * Remove a tile from a tab
+   */
+  const wrapRemoveTile = (tileId: string) => {
+    if (!tileId || !tabDataActions || !tileActions) return;
+
+    // Get the old tile name
+    const oldTileName = tabDataActions.getTileName(tileId);
+
+    if (!oldTileName) return;
+
+    const referencedTileIds = tabDataActions.getReferencedTileIdsByName(oldTileName);
+    const referencedPlotTileIds = tabDataActions.getReferencedPlotTileIdsByName(oldTileName);
+
+    // 1) Update local state immediately
+    tabDataActions.removeTile(tileId);
+
+    // 2) Optimistic server update
+    deleteTileMutation.mutate({
+      id: tileId,
+      actions: tileActions
+    });
+
+    // 3) Then update any references to this tile in other tiles
+    // Start with updating the `tile.table` property for all tiles that reference this tile by name via the `table` property
+    // Optimistically update the referenced tiles on the server
+    referencedTileIds.forEach(id => {
+      patchTileMutation.mutate({
+        id: id,
+        updateData: {
+          table: null
+        },
+        actions: tileActions
+      });
+    });
+
+    // 4) Update x_axis, y_axis, and plot_group_by references for Plot tiles
+    // Update x_axis references
+    referencedPlotTileIds.xAxis.forEach(id => {
+      // Get the tile
+      const tile = tabDataActions.getPartialTile(id);
+      if (tile?.plotTile) {
+        patchTileMutation.mutate({
+          id: id,
+        updateData: {
+          plot_tile: {
+            x_axis: null
+          }
+        },
+          actions: tileActions
+        });
+      }
+    });
+
+    // Update y_axis references
+    referencedPlotTileIds.yAxis.forEach(id => {
+      // Get the tile
+      const tile = tabDataActions.getPartialTile(id);
+      if (tile?.plotTile) {
+        patchTileMutation.mutate({
+          id: id,
+        updateData: {
+          plot_tile: {
+            y_axis: null
+          }
+        },
+          actions: tileActions
+        });
+      }
+    });
+
+    // Update plot_group_by references
+    referencedPlotTileIds.plotGroupBy.forEach(id => {
+      // Get the tile
+      const tile = tabDataActions.getPartialTile(id);
+      if (tile?.plotTile) {
+        patchTileMutation.mutate({
+          id: id,
+        updateData: {
+          plot_tile: {
+            plot_group_by: null
+          }
+          },
+          actions: tileActions
+        });
+      }
+    });
+  };
+
+  /**
    * Paste a copied tile with a generated UUID
    */
   const wrapPasteCopiedTile = async (newTileName: string, sourceTileName: string) => {
@@ -290,192 +471,6 @@ export function useTabSync(
     refreshRouter({
       externalPendingSetters: setPending ? [setPending] : []
     });
-  };
-
-  /**
-   * Rename a tile
-   */
-  const wrapRenameTile = (tileId: string, newTileName: string) => {
-    if (!tileId || !tabDataActions || !tileActions) return;
-
-    // Get the old tile name
-    const oldTileName = tabDataActions.getTileName(tileId);
-
-    if (!oldTileName) return;
-
-    const referencedTileIds = tabDataActions.getReferencedTileIdsByName(oldTileName);
-    const referencedPlotTileIds = tabDataActions.getReferencedPlotTileIdsByName(oldTileName);
-    
-    // 1) Update local state immediately
-    tabDataActions.renameTile(tileId, newTileName);
-
-    // 2) Update the tile name on the server
-    patchTileMutation.mutate({
-      id: tileId,
-      updateData: {
-        name: newTileName
-      },
-      actions: tileActions
-    });
-
-    // 3) Then update any references to this tile in other tiles
-
-    // Start with updating the `tile.table` property for all tiles that reference this tile by name via the `table` property
-    // Optimistically update the referenced tiles on the server
-    referencedTileIds.forEach(id => {
-      patchTileMutation.mutate({
-        id: id,
-        updateData: {
-          table: newTileName
-        },
-        actions: tileActions
-      });
-    });
-
-    // 4) Update x_axis, y_axis, and plot_group_by references for Plot tiles
-    // Update x_axis references
-    referencedPlotTileIds.xAxis.forEach(id => {
-
-      // Get the tile
-      const tile = tabDataActions.getPartialTile(id);
-      if (tile?.plotTile) {
-        patchTileMutation.mutate({
-          id: id,
-        updateData: {
-          plot_tile: {
-            x_axis: tile.plotTile.x_axis // This has already been updated in the zustand renameTile action above
-          }
-        },
-          actions: tileActions
-        });
-      }
-    });
-
-    // Update y_axis references
-    referencedPlotTileIds.yAxis.forEach(id => {
-      // Get the tile
-      const tile = tabDataActions.getPartialTile(id);
-      if (tile?.plotTile) {
-        patchTileMutation.mutate({
-          id: id,
-        updateData: {
-          plot_tile: {
-            y_axis: tile.plotTile.y_axis // This has already been updated in the zustand renameTile action above
-          }
-        },
-          actions: tileActions
-        });
-      }
-    });
-
-    // Update plot_group_by references
-    referencedPlotTileIds.plotGroupBy.forEach(id => {
-      // Get the tile
-      const tile = tabDataActions.getPartialTile(id);
-      if (tile?.plotTile) {
-        patchTileMutation.mutate({
-          id: id,
-        updateData: {
-          plot_tile: {
-            plot_group_by: tile.plotTile.plot_group_by // This has already been updated in the zustand renameTile action above
-          }
-          },
-          actions: tileActions
-        });
-      }
-    });
-  };
-
-  /**
-   * Remove a tile from a tab
-   */
-  const wrapRemoveTile = (tileId: string) => {
-    if (!tileId || !tabDataActions || !tileActions) return;
-
-    // Get the old tile name
-    const oldTileName = tabDataActions.getTileName(tileId);
-
-    if (!oldTileName) return;
-
-    const referencedTileIds = tabDataActions.getReferencedTileIdsByName(oldTileName);
-    const referencedPlotTileIds = tabDataActions.getReferencedPlotTileIdsByName(oldTileName);
-
-    // 1) Update local state immediately
-    tabDataActions.removeTile(tileId);
-
-    // 2) Optimistic server update
-    deleteTileMutation.mutate({
-      id: tileId,
-      actions: tileActions
-    });
-
-    // 3) Then update any references to this tile in other tiles
-
-    // Start with updating the `tile.table` property for all tiles that reference this tile by name via the `table` property
-    // Optimistically update the referenced tiles on the server
-    referencedTileIds.forEach(id => {
-      patchTileMutation.mutate({
-        id: id,
-        updateData: {
-          table: null
-        },
-        actions: tileActions
-      });
-    });
-
-    // 4) Update x_axis, y_axis, and plot_group_by references for Plot tiles
-    // Update x_axis references
-    referencedPlotTileIds.xAxis.forEach(id => {
-
-      // Get the tile
-      const tile = tabDataActions.getPartialTile(id);
-      if (tile?.plotTile) {
-        patchTileMutation.mutate({
-          id: id,
-        updateData: {
-          plot_tile: {
-            x_axis: null
-          }
-        },
-          actions: tileActions
-        });
-      }
-    });
-
-    // Update y_axis references
-    referencedPlotTileIds.yAxis.forEach(id => {
-      // Get the tile
-      const tile = tabDataActions.getPartialTile(id);
-      if (tile?.plotTile) {
-        patchTileMutation.mutate({
-          id: id,
-        updateData: {
-          plot_tile: {
-            y_axis: tile.plotTile.y_axis // This has already been updated in the zustand renameTile action above
-          }
-        },
-          actions: tileActions
-        });
-      }
-    });
-
-    // Update plot_group_by references
-    referencedPlotTileIds.plotGroupBy.forEach(id => {
-      // Get the tile
-      const tile = tabDataActions.getPartialTile(id);
-      if (tile?.plotTile) {
-        patchTileMutation.mutate({
-          id: id,
-        updateData: {
-          plot_tile: {
-            plot_group_by: tile.plotTile.plot_group_by // This has already been updated in the zustand renameTile action above
-          }
-          },
-          actions: tileActions
-        });
-      }
-    });
-    
   };
 
   /**

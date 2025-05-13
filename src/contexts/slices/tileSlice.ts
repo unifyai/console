@@ -53,7 +53,11 @@ export const createTileSlice: StateCreator<
   hasTileRegisteredRefs: (tileId) => {
     return !!get().tileHasRegisteredRefs[tileId];
   },
-  
+
+  pasteCopiedTile: (tabId, sourceTileId, newTileId, initialState) => set(state => {
+    sliceUtils.pasteCopiedTile(state, tabId, sourceTileId, newTileId, initialState);
+  }),
+
   // Actions
   initTile: (tabId, tileId, initialState) => set(state => {
     const tab = state.tabsById[tabId];
@@ -81,10 +85,6 @@ export const createTileSlice: StateCreator<
       // Add the tile to the tab
       state.tabsById[tabId] = tabLogic.addTile(tab, tileId, newTile.name);
     }
-  }),
-
-  pasteCopiedTile: (tabId, sourceTileId, newTileId, initialState) => set(state => {
-    sliceUtils.pasteCopiedTile(state, tabId, sourceTileId, newTileId, initialState);
   }),
   
   removeTile: (tabId, tileId) => set(state => {

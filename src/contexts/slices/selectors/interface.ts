@@ -16,6 +16,7 @@ export interface InterfaceData {
 export interface InterfaceUI {
   projectId: string | null;
   activeTabId: string | null;
+  pending?: boolean;  // Pending state for async operations
 }
 
 // Combined Interface state definition
@@ -39,6 +40,7 @@ export function initInterface(interfaceId: string, initialState: Partial<Interfa
     // UI
     projectId: initialState.projectId || null,
     activeTabId: initialState.activeTabId || null,
+    pending: initialState.pending || false,
     
     ...initialState,
   };

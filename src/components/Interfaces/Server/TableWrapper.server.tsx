@@ -7,7 +7,6 @@ import { buildFilterExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { getLogsDetails } from "@/utils/evals/common";
 import { TableDataItem } from "@/types/evals/grid";
-import { buildTableArgumentsForTile } from "@/utils/arguments/buildTableArguments";
 
 import type {
   LogsActions,
@@ -18,7 +17,6 @@ import type {
   GranularTileActions,
 } from "@/types/evals/grid";
 import { LogFieldsResponseProps, LogsResponseProps, TablesArguments } from "@/types/evals/logs";
-
 
 type TableWrapperActions = {
   tileActions: GranularTileActions;
@@ -67,6 +65,16 @@ export default async function TableWrapper({
       }).flat().sort())
   );
 
+  // Get pre-built tableArguments from cache instead of building them here
+  const tableArguments = qc.getQueryData<TablesArguments>(["tableArguments", tabId]) || {};
+  
+  // // If no arguments found for this tile, log a warning but proceed with empty arguments
+  // if (!tableArguments[tileName]) {
+  //   console.warn(`No table arguments found for tile ${tileId} in the cache`);
+  // }
+
+  // The rest of the tableDataItem calculation remains unchanged
+  
   // Build filter expression
   const filterExpression = buildFilterExpression(
     tile.filters,
@@ -100,15 +108,6 @@ export default async function TableWrapper({
   : "";
   const groupSortingExpression = groupSortingObject ? JSON.stringify(groupSortingObject) : null;
 
-  // Get existing tableArguments from cache
-  let tableArguments = qc.getQueryData<TablesArguments>(["tableArguments", tabId]) || {};
-  
-  // Use the utility to build/update tableArguments
-  tableArguments = await buildTableArgumentsForTile(tile, fields, tableArguments);
-  
-  // Update the cache
-  qc.setQueryData(["tableArguments", tabId], tableArguments);
-
   // Prefetch logs data
   const limit = 20;
   const offset = tile.table_tile?.page_number ? parseInt(tile.table_tile.page_number) * limit : 0;
@@ -132,7 +131,7 @@ export default async function TableWrapper({
       Date.now().toString()
     )
   });
-
+  
   // Get logs data from cache
   const logsData = qc.getQueryData<LogsResponseProps>(["logs", projectId, tile.context, tile.column_context, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, limit, offset]) || { params: {}, logs: [], count: 0, groups: [] };
 
@@ -151,20 +150,20 @@ export default async function TableWrapper({
     actions.logsActions
   );
 
-  // Update available fields in the tableArguments
-  tableArguments[tileName].available_fields = Object.fromEntries(
-    Object.entries(fields)
-      .filter((([field, attributes]) => 
-        entriesProperties.map(property => tile.column_context ? processContext("merge", tile.column_context, property) : property)
-        .concat(paramsProperties.map(property => tile.column_context ? processContext("merge", tile.column_context, property) : property))
-        .includes(field))
-      )
-  );
-  
-  // Update the cache again with available fields
-  qc.setQueryData(["tableArguments", tabId], tableArguments);
-
-  console.log(`[TableWrapper] tableArguments`, tableArguments);
+  // Update available fields in the tableArguments (if we have tableArguments for this tile)
+  if (tableArguments[tileName]) {
+    tableArguments[tileName].available_fields = Object.fromEntries(
+      Object.entries(fields)
+        .filter((([field, attributes]) => 
+          entriesProperties.map(property => tile.column_context ? processContext("merge", tile.column_context, property) : property)
+          .concat(paramsProperties.map(property => tile.column_context ? processContext("merge", tile.column_context, property) : property))
+          .includes(field))
+        )
+    );
+    
+    // Update the cache with available fields
+    qc.setQueryData(["tableArguments", tabId], tableArguments);
+  }
 
   // Construct table data item
   const tableDataItem: TableDataItem = {
@@ -198,7 +197,7 @@ export default async function TableWrapper({
             <SkeletonLoader />
         </div>
       }>
-        <LogsTable
+        <LogsTable 
           tileId={tileId}
           tabId={tabId}
           interfaceId={interfaceId}

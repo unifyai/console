@@ -281,6 +281,7 @@ const Interface = ({
           <InterfaceTabs
             tabIdOrName={tabQueryParam || ""}
             interfaceId={interfaceId}
+            interfaceActions={interfaceActions}
             tabActions={tabActions}
             setTabQueryParam={setTabQueryParam}
           />

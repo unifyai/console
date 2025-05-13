@@ -109,19 +109,17 @@ export default async function InterfaceWrapper({
 
   if (currentInterface) {
     interfaceName = currentInterface.name;
-    interfaceId = currentInterface.id || currentInterface.name; // Fall back to name if ID is missing
+    interfaceId = currentInterface.id || "";
   }
 
   // Build project state
   let projectState = {};
   if (currentProject) {
     // Create a list of all interface IDs from the fetched interfaces
-    const interfaceIds = interfaces.map(iface => iface.id || iface.name).filter(Boolean);
+    const interfaceIds = interfaces.map(iface => iface.id).filter(Boolean) as string[];
     
     // If there's a current interface, set it as the active one
-    const activeInterfaceId = currentInterface 
-      ? (currentInterface.id || currentInterface.name)
-      : undefined;
+    const activeInterfaceId = currentInterface ? currentInterface.id : undefined;
     
     projectState = buildProjectStateForStore(
       currentProject, 
@@ -142,12 +140,20 @@ export default async function InterfaceWrapper({
       queryFn: () => actions.tabActions.list(currentInterface.id!, false)
     });
 
-    // Get the tabs from the query cache
+    // Fetch the tabs and set them
     const tabs = qc.getQueryData<TabData[]>(["tabs", currentInterface.id]) || [];
 
-    // Extract the active tab id if available
-    const activeTabId = currentInterface.active_tab_id || undefined;
-    
+    // Extract the active tab id if available otherwise use the tab which matches with the tab prop
+    const activeTabId = tabs.find(tab_ => tab_.name === tab)?.id || currentInterface.active_tab_id ||undefined;
+
+    if (activeTabId && currentInterface.active_tab_id !== activeTabId) {
+      // Update the active tab id
+      await actions.interfaceActions.update({
+        interface_id: interfaceId,
+        data: { active_tab_id: activeTabId }
+      });
+    }
+
     interfaceState = buildInterfaceStateForStore(
       currentInterface, 
       activeTabId,

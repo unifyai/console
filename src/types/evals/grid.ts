@@ -309,18 +309,18 @@ export interface GranularInterfaceActions {
     // Get interface by name (hierarchical path)
     getByName: (projectId: string, name: string, checkpoint?: boolean) => Promise<InterfaceData | null>;
     // Get interface by direct ID
-    getById: (interfaceId: string, checkpoint?: boolean) => Promise<InterfaceData | null>;
+    getById: (interface_id: string, checkpoint?: boolean) => Promise<InterfaceData | null>;
     // Unified get method
-    get: (params: { interfaceId?: string; projectId?: string; name?: string; checkpoint?: boolean }) => Promise<InterfaceData | null>;
+    get: (params: { interface_id?: string; projectId?: string; name?: string; checkpoint?: boolean }) => Promise<InterfaceData | null>;
     
     // Create interface (no change, always needs projectId)
     create: (projectId: string, name: string, color?: string) => Promise<InterfaceData>;
     
     // Update methods
     updateByName: (projectId: string, name: string, data: { name?: string, active_tab_id?: string, color?: string }, checkpoint?: boolean) => Promise<InterfaceData>;
-    updateById: (interfaceId: string, data: { name?: string, active_tab_id?: string, color?: string }, checkpoint?: boolean) => Promise<InterfaceData>;
+    updateById: (interface_id: string, data: { name?: string, active_tab_id?: string, color?: string }, checkpoint?: boolean) => Promise<InterfaceData>;
     update: (params: {
-        interfaceId?: string;
+        interface_id?: string;
         projectId?: string;
         name?: string;
         data: { name?: string, active_tab_id?: string, color?: string };
@@ -329,16 +329,16 @@ export interface GranularInterfaceActions {
     
     // Delete methods
     deleteByName: (projectId: string, name: string) => Promise<ResponseProps>;
-    deleteById: (interfaceId: string) => Promise<ResponseProps>;
-    delete: (params: { interfaceId?: string; projectId?: string; name?: string }) => Promise<ResponseProps>;
+    deleteById: (interface_id: string) => Promise<ResponseProps>;
+    delete: (params: { interface_id?: string; projectId?: string; name?: string }) => Promise<ResponseProps>;
     
     // List interfaces (no change needed)
     list: (projectId: string, checkpoint?: boolean) => Promise<InterfaceData[]>;
     
     // Checkpoint methods
     checkpointByName: (projectId: string, name: string, description: string) => Promise<ResponseProps>;
-    checkpointById: (interfaceId: string, description: string) => Promise<ResponseProps>;
-    checkpoint: (params: { interfaceId?: string; projectId?: string; name?: string; description: string }) => Promise<ResponseProps>;
+    checkpointById: (interface_id: string, description: string) => Promise<ResponseProps>;
+    checkpoint: (params: { interface_id?: string; projectId?: string; name?: string; description: string }) => Promise<ResponseProps>;
 }
 export interface GranularTabActions {
     // Get tab by name (hierarchical path)

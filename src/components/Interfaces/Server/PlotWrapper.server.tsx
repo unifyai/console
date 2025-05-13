@@ -7,8 +7,6 @@ import { buildFilterExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { convertMetricsToLogs, replaceParamsIndicesWithValues } from "@/utils/evals/common";
 import { PlotDataItem } from "@/types/evals/grid";
-import { buildTableArguments } from "@/utils/arguments/buildTableArguments";
-import { buildPlotArguments, updatePlotArgumentsForUsedTables } from "@/utils/arguments/buildPlotArguments";
 
 import type {
   LogsActions,
@@ -16,7 +14,7 @@ import type {
   TileData,
   GranularTileActions,
 } from "@/types/evals/grid";
-import { PlotsArguments, TablesArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedMetrics } from "@/types/evals/logs";
+import { PlotsArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedMetrics } from "@/types/evals/logs";
 
 type PlotWrapperActions = {
   tileActions: GranularTileActions;
@@ -40,7 +38,7 @@ export default async function PlotWrapper({
   const qc = getQueryClient();
   const tileId = tile.id || "";
 
-  // Fetch all tiles for this tab - we need this to build arguments properly
+  // Fetch all tiles for this tab
   if (tabId) {
     await qc.prefetchQuery({
       queryKey: ["tiles", tabId],
@@ -53,37 +51,9 @@ export default async function PlotWrapper({
   // Filter to get just the table tiles
   const tableTiles = allTiles.filter(t => t.type === "Table");
 
-  // Fetch all necessary fields for table tiles
-  const fieldsPromises = tableTiles.map(tableTile => 
-    actions.fieldsActions.get(projectId, tableTile.context ?? null)
-  );
-  const fieldsResults = await Promise.all(fieldsPromises);
-  
-  // Create a map of context to fields
-  const fieldsMap: Record<string, LogFieldsResponseProps> = {};
-  tableTiles.forEach((tableTile, index) => {
-    fieldsMap[tableTile.context || ""] = fieldsResults[index];
-  });
-
-  // Get or build tableArguments 
-  let tableArguments = qc.getQueryData<TablesArguments>(["tableArguments", tabId]) || {};
-  
-  // If tableArguments is empty (not yet created by TableWrapper), build it
-  if (Object.keys(tableArguments).length === 0) {
-    tableArguments = await buildTableArguments(tableTiles, fieldsMap);
-    qc.setQueryData(["tableArguments", tabId], tableArguments);
-  }
-
-  // Build plotArguments from tableArguments
-  let plotArguments = qc.getQueryData<PlotsArguments>(["plotArguments", tabId]) || {};
-  plotArguments = buildPlotArguments(tableArguments, plotArguments);
-  
-  // Update plotArguments for tables used by this plot
-  plotArguments = updatePlotArgumentsForUsedTables(tile, tableTiles, plotArguments);
-  
-  // Update the cache with plotArguments
-  qc.setQueryData(["plotArguments", tabId], plotArguments);
-
+  // Get pre-built plotArguments from cache - all processing is done in TabWrapper
+  const plotArguments = qc.getQueryData<PlotsArguments>(["plotArguments", tabId]) || {};
+    
   // Identify which tables are used in this plot by name
   const usedTableNames: string[] = [];
   
@@ -102,109 +72,85 @@ export default async function PlotWrapper({
       usedTableNames.push(tableName);
     }
   }
+  
+  // Check plot-group-by
+  if (tile.plot_tile?.plot_group_by && tile.plot_tile?.plot_group_by?.includes(".")) {
+    const tableName = tile.plot_tile?.plot_group_by?.split(".")[0];
+    if (!usedTableNames.includes(tableName)) {
+      usedTableNames.push(tableName);
+    }
+  }
 
   // Create plotFields object
-  const plotFields: LogFieldsResponseProps = {};
+  const plotFields: {[name: string]: {data_type: string, field_type: "entry" | "param" | "derived_entry", artifacts: string}} = {};
   
-  // fetch plot data for each table
+  // fetch plot data for each table using the already built plotArguments
   const plotData_ = await Promise.all(usedTableNames.map(async (tableName) => {
     // Find the table tile for this name
     const tableTile = tableTiles.find(t => t.name === tableName);
     
-    // Skip if table not found
-    if (!tableTile) {
+    // Skip if table not found or no plot arguments
+    if (!tableTile || !plotArguments[tableName]) {
       return { [tableName]: { plotLogs: [], plotFields: {} } };
     }
     
-    // Get table context and parameters
-    const context = tableTile.context;
-    const columnContext = tableTile.column_context;
-    const freeze = tableTile.freeze;
-    const commonFilter = tableTile.common_filter;
-    const filters = tableTile.filters;
-    const metric = tableTile.metric;
-    const grouping = tableTile.grouping;
+    // Get params from pre-built plotArguments - all processing is already done in TabWrapper
+    const context = plotArguments[tableName].context;
+    const columnContext = plotArguments[tableName].column_context;
+    const filterExpression = plotArguments[tableName].filter_expr;
+    const subset = plotArguments[tableName].subset;
+    const metric = plotArguments[tableName].metric;
+    const grouping = plotArguments[tableName].grouping;
     
-    // Get filter expression for this table
-    const tableFields = fieldsMap[context || ""] || {};
-    const filterExpression = buildFilterExpression(
-      filters,
-      commonFilter,
-      columnContext,
-      freeze,
-      tableFields
-    );
+    // Get fields for this table context
+    const tableFieldsData = await actions.fieldsActions.get(projectId, context ?? null);
+    const tableFields = tableFieldsData.docs || {};
     
     // Get table fields for plotFields
     Object.entries(tableFields).forEach(([fieldName, fieldProps]) => {
       const newFieldName = columnContext 
         ? processContext("split", columnContext, fieldName) 
         : fieldName;
-      plotFields[`${tableName}.${newFieldName}`] = fieldProps;
+      plotFields[`${tableName}.${newFieldName}`] = fieldProps as any;
     });
     
     // Get plot data
     let data: LogsResponseProps = { params: {}, logs: [], count: 0, groups: [] };
-    let [xAxis, yAxis, group] = [
-      tile.plot_tile?.x_axis,
-      tile.plot_tile?.y_axis, 
-      tile.plot_tile?.plot_group_by
-    ];
-    let subset = null;
     
-    if (xAxis && xAxis.split(".").length > 1) {
-      // Extract required fields
-      xAxis = xAxis.split(".")[1];
-      xAxis = columnContext ? processContext("merge", columnContext, xAxis) : xAxis;
-      subset = xAxis;
-      
-      if (yAxis && yAxis.split(".").length > 1) {
-        yAxis = yAxis.split(".")[1];
-        yAxis = columnContext ? processContext("merge", columnContext, yAxis) : yAxis;
-        subset += `&${yAxis}`;
-      }
-      
-      if (group && group.split(".").length > 1) {
-        group = group.split(".")[1];
-        group = columnContext ? processContext("merge", columnContext, group) : group;
-        subset += `&${group}`;
-      }
-      
-      if (subset) plotArguments[tableName].subset = subset;
-      
-      // Update cache with updated subset
-      qc.setQueryData(["plotArguments", tabId], plotArguments);
-      
-      // Get raw logs values or grouped metrics as logs
-      if (
-        (tile.plot_tile?.plot_aggregate && tile.plot_tile?.plot_aggregate.split(".").length > 1) // `plot_aggregate` has the format `table.column`
-        && tile.plot_tile?.plot_aggregate.split(".")[0] === tableName                          // `table` in `plot_aggregate` is the current table name
-        && grouping                                                                          // the current table has grouping applied
-      ) {
-        const groupFields = grouping.split(",").slice(0, grouping.split(",").indexOf(tile.plot_tile?.plot_aggregate.split(".")[1]) + 1);
-        const metrics = await actions.logsActions.getMetrics(
-          projectId, 
-          context ?? null, 
-          filterExpression, 
-          groupFields.join(","), 
-          metric ? metric : "mean",
-          subset.split("&")
-        );
-        data.logs = convertMetricsToLogs(groupFields, metric ? metric : "mean", tableFields, metrics as GroupedMetrics);
-      }
-      else {
-        const rawData = await actions.logsActions.get(
-          projectId, 
-          context ?? null, 
-          columnContext ?? null, 
-          filterExpression, 
-          null, null, null, 
-          subset, 
-          null, null, null, null, null, 
-          Date.now().toString()
-        );
-        data = replaceParamsIndicesWithValues(rawData);
-      }
+    // Get raw logs values or grouped metrics as logs
+    if (
+      (tile.plot_tile?.plot_aggregate && tile.plot_tile?.plot_aggregate.split(".").length > 1)
+      && tile.plot_tile?.plot_aggregate.split(".")[0] === tableName
+      && grouping
+    ) {
+      const groupFields = grouping.split(",").slice(0, grouping.split(",").indexOf(tile.plot_tile?.plot_aggregate.split(".")[1]) + 1);
+      const metrics = await actions.logsActions.getMetrics(
+        projectId, 
+        context ?? null, 
+        filterExpression, 
+        groupFields.join(","), 
+        metric ? metric : "mean",
+        subset ? subset.split("&") : []
+      );
+      data.logs = convertMetricsToLogs(
+        groupFields, 
+        metric ? metric : "mean", 
+        tableFields as any, 
+        metrics as GroupedMetrics
+      );
+    }
+    else if (subset) {
+      const rawData = await actions.logsActions.get(
+        projectId, 
+        context ?? null, 
+        columnContext ?? null, 
+        filterExpression, 
+        null, null, null, 
+        subset, 
+        null, null, null, null, null, 
+        Date.now().toString()
+      );
+      data = replaceParamsIndicesWithValues(rawData);
     }
     
     // Return data for this table
@@ -263,7 +209,7 @@ export default async function PlotWrapper({
           <SkeletonLoader />
         </div>
       }>
-        <LogsPlot
+        <LogsPlot 
           tileId={tileId}
           tabId={tabId}
           interfaceId={interfaceId}

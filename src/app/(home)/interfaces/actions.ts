@@ -491,11 +491,11 @@ export const getInterfaceByName = async (apiKey: string) => {
 
 // Get interface by ID
 export const getInterfaceById = async (apiKey: string) => {
-    return async (id: string, checkpoint: boolean = false) => {
+    return async (interface_id: string, checkpoint: boolean = false) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interface?interface_id=${id}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/interface?interface_id=${interface_id}&checkpoint=${checkpoint}`,
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
@@ -514,19 +514,19 @@ export const getInterfaceById = async (apiKey: string) => {
 // Unified get interface function that accepts either ID or path
 export const getInterfaceUnified = async (apiKey: string) => {
     return async (params: { 
-        id?: string; 
+        interface_id?: string; 
         project?: string; 
         name?: string; 
         checkpoint?: boolean 
     }) => {
         "use server";
         
-        const { id, project, name, checkpoint = false } = params;
+        const { interface_id, project, name, checkpoint = false } = params;
         
         // If interface ID is provided, use it directly
-        if (id) {
+        if (interface_id) {
             const getById = await getInterfaceById(apiKey);
-            return getById(id, checkpoint);
+            return getById(interface_id, checkpoint);
         }
         
         // Otherwise use project+name
@@ -590,7 +590,7 @@ export const updateInterfaceByName = async (apiKey: string) => {
 // Update interface by ID
 export const updateInterfaceById = async (apiKey: string) => {
     return async (
-        id: string,
+        interface_id: string,
         data: {
             name?: string,
             active_tab_id?: string,
@@ -601,7 +601,7 @@ export const updateInterfaceById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interface?interface_id=${id}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/interface?interface_id=${interface_id}&checkpoint=${checkpoint}`,
             {
                 method: "PUT",
                 headers: { apiKey: apiKey },
@@ -620,7 +620,7 @@ export const updateInterfaceById = async (apiKey: string) => {
 // Unified update interface function that accepts either ID or path
 export const updateInterfaceUnified = async (apiKey: string) => {
     return async (params: { 
-        id?: string; 
+        interface_id?: string; 
         project?: string; 
         name?: string; 
         data: {
@@ -632,12 +632,12 @@ export const updateInterfaceUnified = async (apiKey: string) => {
     }) => {
         "use server";
         
-        const { id, project, name, data, checkpoint = false } = params;
+        const { interface_id, project, name, data, checkpoint = false } = params;
         
         // If interface ID is provided, use it directly
-        if (id) {
+        if (interface_id) {
             const updateById = await updateInterfaceById(apiKey);
-            return updateById(id, data, checkpoint);
+            return updateById(interface_id, data, checkpoint);
         }
         
         // Otherwise use project+name
@@ -673,11 +673,11 @@ export const deleteInterfaceByName = async (apiKey: string) => {
 
 // Delete interface by ID
 export const deleteInterfaceById = async (apiKey: string) => {
-    return async (id: string) => {
+    return async (interface_id: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interface?interface_id=${id}`,
+            `${process.env.NEXTAUTH_URL}/api/interface?interface_id=${interface_id}`,
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
@@ -695,18 +695,18 @@ export const deleteInterfaceById = async (apiKey: string) => {
 // Unified delete interface function that accepts either ID or path
 export const deleteInterfaceUnified = async (apiKey: string) => {
     return async (params: { 
-        id?: string; 
+        interface_id?: string; 
         project?: string; 
         name?: string; 
     }) => {
         "use server";
         
-        const { id, project, name } = params;
+        const { interface_id, project, name } = params;
         
         // If interface ID is provided, use it directly
-        if (id) {
+        if (interface_id) {
             const deleteById = await deleteInterfaceById(apiKey);
-            return deleteById(id);
+            return deleteById(interface_id);
         }
         
         // Otherwise use project+name
@@ -743,11 +743,11 @@ export const createInterfaceCheckpoint = async (apiKey: string) => {
 
 // Create checkpoint for interface by ID
 export const createInterfaceCheckpointById = async (apiKey: string) => {
-    return async (id: string, description: string) => {
+    return async (interface_id: string, description: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interface/checkpoint?interface_id=${id}`,
+            `${process.env.NEXTAUTH_URL}/api/interface/checkpoint?interface_id=${interface_id}`,
             {
                 method: "POST",
                 headers: { apiKey: apiKey },

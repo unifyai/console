@@ -223,7 +223,7 @@ export function useUpdateTableDataItem(tileId: string) {
     mutationFn: async (newData) => {
       // In a real application, you would make an API call here
       // For now, we're just simulating a successful update
-      console.log(`Updating table data for tile ${tileId}:`, newData);
+      // console.log(`Updating table data for tile ${tileId}:`, newData);
       
       // Simulating API response
       return {

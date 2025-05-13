@@ -531,7 +531,6 @@ export function renameTile(
 export function addTab(
   state: WritableDraft<StoreSlice>,
   interfaceId: string,
-  newTabId: string,
   newTabName: string,
   initialState: Partial<Tab> | undefined,
 ): void {
@@ -539,20 +538,44 @@ export function addTab(
 
   if (!interfaceObj) return;
 
+  const newTabId = initialState?.id || null;
+
+  if (!newTabId) return;
+
   // Only initialize if it doesn't exist
   if (!state.tabsById[newTabId]) {
+    // First, set any existing active tabs to inactive
+    if (interfaceObj.activeTabId && state.tabsById[interfaceObj.activeTabId]) {
+      state.tabsById[interfaceObj.activeTabId].active = false;
+    }
+
+    // Create the new tab and mark it as active
     const newTab = tabLogic.initTab(newTabId, {
       ...initialState,
+      active: true
     });
     state.tabsById[newTabId] = newTab;
+
+
+    // Mark other tabs as inactive
+    Object.keys(state.tabsById).forEach(id => {
+      if (id !== newTabId) {
+        state.tabsById[id].active = false;
+      }
+    });
+    
+    // Update the interface's tabIds array using the proper function
+    state.interfacesById[interfaceId] = interfaceLogic.addTabId(interfaceObj, newTabId);
+    
+    // Update the interface's tabNames array using the proper function
+    state.interfacesById[interfaceId] = interfaceLogic.addTabName(interfaceObj, newTab.name || "");
+    
+    // Set this tab as the active tab in the interface
+    state.interfacesById[interfaceId].activeTabId = newTabId;
+    
+    // Set this tab as the global active tab
+    state.activeTabId = newTabId;
   }
-
-  // Update the interface's tabIds array using the proper function
-  state.interfacesById[interfaceId] = interfaceLogic.addTabId(interfaceObj, newTabId);
-
-  // Update the interface's tabNames array using the proper function
-  state.interfacesById[interfaceId] = interfaceLogic.addTabName(interfaceObj, newTabName);
-
 }
 
 /**
@@ -561,26 +584,19 @@ export function addTab(
 export function removeTab(
   state: WritableDraft<StoreSlice>,
   interfaceId: string,
-  tabId: string
+  tabName: string
 ): void {
   const interfaceObj = state.interfacesById[interfaceId];
-  const tab = state.tabsById[tabId];
+  const tabId = Object.keys(state.tabsById).find(id => state.tabsById[id].name === tabName);
   
-  if (!interfaceObj || !tab) return;
+  if (!interfaceObj || !tabId) return;
+  
+  const tab = state.tabsById[tabId];
   
   // Clean up associated tiles
   if (tab.tileIds) {
     tab.tileIds.forEach(tileId => {
-      const tile = state.tilesById[tileId];
-      if (tile) {
-        // Clean up tile-specific data
-        if (tile.type === 'Table') state.tilesById[tileId].tableTile = null;
-        else if (tile.type === 'Plot') state.tilesById[tileId].plotTile = null;
-        else if (tile.type === 'View') state.tilesById[tileId].viewTile = null;
-        else if (tile.type === 'Editor') state.tilesById[tileId].editorTile = null;
-      }
-      // Remove the tile
-      delete state.tilesById[tileId];
+      removeTile(state, tabId, tileId);
     });
   }
   
@@ -589,17 +605,21 @@ export function removeTab(
   
   // Update the interface's tabIds and tabNames arrays
   if (interfaceObj.tabIds) {
-    interfaceObj.tabIds = interfaceObj.tabIds.filter(tid => tid !== tabId);
+    state.interfacesById[interfaceId].tabIds = interfaceObj.tabIds.filter(tid => tid !== tabId);
   }
   if (interfaceObj.tabNames) {
-    interfaceObj.tabNames = interfaceObj.tabNames.filter(name => name !== tab.name);
+    state.interfacesById[interfaceId].tabNames = interfaceObj.tabNames.filter(name => name !== tab.name);
   }
   
   // Reset active tab if it matches the removed tab
   if (state.activeTabId === tabId) {
     state.activeTabId = null;
   }
-
+  
+  // Reset active tab in the interface if it matches the removed tab
+  if (interfaceObj.activeTabId === tabId) {
+    state.interfacesById[interfaceId].activeTabId = null;
+  }
 }
 
 /**
@@ -608,18 +628,31 @@ export function removeTab(
 export function renameTab(
   state: WritableDraft<StoreSlice>,
   interfaceId: string,
-  sourceTabId: string,
-  newName: string,
+  sourceTabName: string,
+  newTabName: string,
 ): void {
   const interfaceObj = state.interfacesById[interfaceId];
-
+  
   // Get the source tab
+  const sourceTabId = Object.keys(state.tabsById).find(id => state.tabsById[id].name === sourceTabName);
+
+  if (!interfaceObj || !sourceTabId) return;
+
   const sourceTab = state.tabsById[sourceTabId];
-
-  if (!interfaceObj || !sourceTab) return;
-
+  
+  // Store the old name before changing it
+  const oldTabName = sourceTab.name;
+  
   // Change the name of the tab
-  sourceTab.name = newName;
+  sourceTab.name = newTabName;
+  
+  // Update the interface's tabNames array if the old name exists
+  if (interfaceObj.tabNames && oldTabName) {
+    const nameIndex = interfaceObj.tabNames.indexOf(oldTabName);
+    if (nameIndex >= 0) {
+      state.interfacesById[interfaceId].tabNames[nameIndex] = newTabName;
+    }
+  }
 }
 
 /**

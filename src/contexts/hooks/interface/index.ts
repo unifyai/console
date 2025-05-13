@@ -2,7 +2,8 @@
  * Export all interface hooks for easy access
  */
 
-export * from './useInterfaceMeta';
+export * from './useInterface';
 export * from './useInterfaceData';
 export * from './useInterfaceUI';
-export * from './useInterface'; 
+export * from './useInterfaceMeta';
+export * from './sync/useInterfaceSync'; 

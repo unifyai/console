@@ -223,20 +223,21 @@ export function useUpdateInterfaceUnifiedQuery() {
   
   return useMutation({
     mutationFn: async ({ 
-      params,
+      interfaceId,
+      projectId,
+      name,
+      data,
+      checkpoint,
       actions 
     }: { 
-      params: {
-        interfaceId?: string;
-        projectId?: string;
-        name?: string;
-        data: Partial<Omit<InterfaceData, 'id' | 'project_id' | 'created_at' | 'updated_at'>>;
-        checkpoint?: boolean;
-      };
+      interfaceId?: string;
+      projectId?: string;
+      name?: string;
+      data: Partial<Omit<InterfaceData, 'id' | 'project_id' | 'created_at' | 'updated_at'>>;
+      checkpoint?: boolean;
       actions: GranularInterfaceActions;
     }) => {
-      const { interfaceId, projectId, name, data, checkpoint } = params;
-      
+
       if (interfaceId) {
         return actions.updateById(interfaceId, data, checkpoint);
       } else if (projectId && name) {
@@ -246,7 +247,7 @@ export function useUpdateInterfaceUnifiedQuery() {
       throw new Error("Missing required parameters to identify the interface");
     },
     onSuccess: (result, variables) => {
-      const { interfaceId, projectId, name } = variables.params;
+      const { interfaceId, projectId, name } = variables;
       
       // Invalidate based on the parameters used
       if (interfaceId) {

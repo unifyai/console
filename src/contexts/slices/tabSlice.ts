@@ -12,9 +12,9 @@ export interface TabState {
 export interface TabActions {
   // Actions
   initTab: (interfaceId: string, tabId: string, initialState?: Partial<tabLogic.Tab>) => void;
-  addTab: (interfaceId: string, newTabId: string, newTabName: string, initialState?: Partial<tabLogic.Tab>) => void;
-  removeTab: (interfaceId: string, tabId: string) => void;
-  renameTab: (interfaceId: string, sourceTabId: string, newTabName: string) => void;
+  addTab: (interfaceId: string, newTabName: string, initialState?: Partial<tabLogic.Tab>) => void;
+  removeTab: (interfaceId: string, tabName: string) => void;
+  renameTab: (interfaceId: string, sourceTabName: string, newTabName: string) => void;
   updateTab: (tabId: string, updates: Partial<tabLogic.Tab>) => void;
   setActiveTab: (interfaceId: string, tabId: string | null) => void;
   removeContextFromTab: (tabId: string, context: string) => void;
@@ -48,16 +48,16 @@ export const createTabSlice: StateCreator<
     state.interfacesById[interfaceId] = interfaceLogic.addTabId(interfaceObj, tabId);
   }),
 
-  addTab: (interfaceId, newTabId, newTabName, initialState) => set(state => {
-    sliceUtils.addTab(state, interfaceId, newTabId, newTabName, initialState);
+  addTab: (interfaceId, newTabName, initialState) => set(state => {
+    sliceUtils.addTab(state, interfaceId, newTabName, initialState);
   }),
   
-  removeTab: (interfaceId, tabId) => set(state => {
-    sliceUtils.removeTab(state, interfaceId, tabId);
+  removeTab: (interfaceId, tabName) => set(state => {
+    sliceUtils.removeTab(state, interfaceId, tabName);
   }),
 
-  renameTab: (interfaceId, sourceTabId, newTabName) => set(state => {
-    sliceUtils.renameTab(state, interfaceId, sourceTabId, newTabName);
+  renameTab: (interfaceId, sourceTabName, newTabName) => set(state => {
+    sliceUtils.renameTab(state, interfaceId, sourceTabName, newTabName);
   }),
   
   updateTab: (tabId, updates) => set(state => {
@@ -79,7 +79,7 @@ export const createTabSlice: StateCreator<
       const iface = state.interfacesById[interfaceId];
       
       // Deactivate the currently active tab if any
-      if (iface.activeTabId && iface.tabIds[iface.activeTabId as unknown as number]) {
+      if (iface.activeTabId && iface.tabIds.includes(iface.activeTabId)) {
         state.tabsById[iface.activeTabId].active = false;
       }
       
@@ -87,7 +87,7 @@ export const createTabSlice: StateCreator<
       state.interfacesById[interfaceId].activeTabId = tabId;
       
       // Mark the new tab as active if it exists
-      if (tabId && iface.tabIds[tabId as unknown as number]) {
+      if (tabId && iface.tabIds.includes(tabId)) {
         state.tabsById[tabId].active = true;
       }
     }
