@@ -116,10 +116,353 @@ export function useTileSync(
   const movedMutation = usePatchTileQuery();
   const staticMutation = usePatchTileQuery();
 
+  // Create a mapping for the mutations to use in the loading and error states
+  const mutations = {
+    type: typeMutation,
+    table: tableMutation,
+    filters: filtersMutation,
+    context: contextMutation,
+    column_context: columnContextMutation,
+    common_filter: commonFilterMutation,
+    grouping: groupingMutation,
+    metric: metricMutation,
+    freeze: freezeMutation,
+    auto_update: autoUpdateMutation,
+    visible: visibleMutation,
+    locked: lockedMutation,
+    pending: pendingMutation,
+    loading: loadingMutation,
+    error: errorMutation,
+    moved: movedMutation,
+    static: staticMutation,
+    color: colorMutation,
+  };
+
+  // Individual wrapper functions for each property
+  const wrapType = (type?: string) => {
+    if (!metaActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // 1) Update local state immediately
+    metaActions.setType(type);
+
+    // 2) Optimistic server update
+    typeMutation.mutate({
+      tab_id: tabId,
+      name: tileName,
+      updateData: { type: type ?? null } as Partial<TileData>,
+      actions: granularTileActions
+    }, {
+      onSettled: () => {
+        // 3. Refresh the router and set the loading state
+        refreshRouter({ withLoading: true, withPending: true });
+      }
+    });
+  };
+
+  const wrapTable = (table?: string) => {
+    if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // 1) Update local state immediately
+    dataActions.setTable(table);
+    
+    // 2) Optimistic server update
+    tableMutation.mutate({
+      tab_id: tabId,
+      name: tileName,
+      updateData: { table: table ?? null } as Partial<TileData>,
+      actions: granularTileActions
+    }, {
+      onSettled: () => {
+        // 3. Refresh the router
+        refreshRouter();
+      }
+    });
+  };
+
+  const wrapFilters = (filters?: string) => {
+    if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // 1) Update local state immediately
+    dataActions.setFilters(filters);
+    
+    // 2) Optimistic server update
+    filtersMutation.mutate({
+      tab_id: tabId,
+      name: tileName,
+      updateData: { filters: filters ?? null } as Partial<TileData>,
+      actions: granularTileActions
+    }, {
+      onSettled: () => {
+        // 3. Refresh the router and set the loading state
+        refreshRouter({ withLoading: true });
+      }
+    });
+  };
+
+  const wrapContext = (context?: string) => {
+    if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // 1) Update local state immediately
+    dataActions.setContext(context);
+
+    // 2) Optimistic server update
+    contextMutation.mutate({
+      tab_id: tabId,
+      name: tileName,
+      updateData: { context: context ?? null } as Partial<TileData>,
+      actions: granularTileActions
+    }, {
+      onSettled: () => {
+        // 3. Refresh the router and set the loading state
+        refreshRouter({ withLoading: true, withPending: true });
+      }
+    });
+  };
+
+  const wrapColumnContext = (columnContext?: string) => {
+    if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // 1) Update local state immediately
+    dataActions.setColumnContext(columnContext);
+    
+    // 2) Optimistic server update
+    columnContextMutation.mutate({
+      tab_id: tabId,
+      name: tileName,
+      updateData: { column_context: columnContext ?? null } as Partial<TileData>,
+      actions: granularTileActions
+    }, {
+      onSettled: () => {
+        // 3. Refresh the router and set the loading state
+        refreshRouter({ withLoading: true, withPending: true });
+      }
+    });
+  };
+
+  const wrapCommonFilter = (commonFilter?: string) => {
+    if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // 1) Update local state immediately
+    dataActions.setCommonFilter(commonFilter);
+
+    // 2) Optimistic server update
+    commonFilterMutation.mutate({
+      tab_id: tabId,
+      name: tileName,
+      updateData: { common_filter: commonFilter ?? null } as Partial<TileData>,
+      actions: granularTileActions
+    }, {
+      onSettled: () => {
+        // 3. Refresh the router and set the loading state
+        refreshRouter({ withLoading: true });
+      }
+    });
+  };
+
+  const wrapGrouping = (grouping?: string) => {
+    if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // 1) Update local state immediately
+    dataActions.setGrouping(grouping);
+
+    // 2) Optimistic server update
+    groupingMutation.mutate({
+      tab_id: tabId,
+      name: tileName,
+      updateData: { grouping: grouping ?? null } as Partial<TileData>,
+      actions: granularTileActions
+    }, {
+      onSettled: () => {
+        // 3. Refresh the router and set the loading state
+        refreshRouter({ withLoading: true });
+      }
+    });
+  };
+
+  const wrapMetric = (metric?: string) => {
+    if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // 1) Update local state immediately
+    dataActions.setMetric(metric);
+    
+    // 2) Optimistic server update
+    metricMutation.mutate({
+      tab_id: tabId,
+      name: tileName,
+      updateData: { metric: metric ?? null } as Partial<TileData>,
+      actions: granularTileActions
+    }, {
+      onSettled: () => {
+        // 3. Refresh the router and set the loading state
+        refreshRouter({ withLoading: true });
+      }
+    });
+  };
+
+  const wrapFreeze = (freeze?: string) => {
+    if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // 1) Update local state immediately
+    dataActions.setFreeze(freeze);
+    
+    // 2) Optimistic server update
+    freezeMutation.mutate({
+      tab_id: tabId,
+      name: tileName,
+      updateData: { freeze: freeze ?? null } as Partial<TileData>,
+      actions: granularTileActions
+    }, {
+      onSettled: () => {
+        // 3. Refresh the router and set the loading state
+        refreshRouter({ withLoading: true });
+      }
+    });
+  };
+
+  const wrapAutoUpdate = (autoUpdate?: string) => {
+    if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // 1) Update local state immediately
+    dataActions.setAutoUpdate(autoUpdate);
+    
+    // 2) Optimistic server update
+    autoUpdateMutation.mutate({
+      tab_id: tabId,
+      name: tileName,
+      updateData: { auto_update: autoUpdate ?? null } as Partial<TileData>,
+      actions: granularTileActions
+    }, {
+      onSettled: () => {
+        // 3. Refresh the router
+        refreshRouter();
+      }
+    });
+  };
+
+  const wrapVisible = (visible?: boolean) => {
+    if (!uiActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // 1) Update local state immediately
+    uiActions.setVisible(visible ?? true);
+    
+    // 2) Optimistic server update
+    visibleMutation.mutate({
+      tab_id: tabId,
+      name: tileName,
+      updateData: { visible: visible ?? true } as Partial<TileData>,
+      actions: granularTileActions
+    });
+  };
+
+  const wrapColor = (color?: string) => {
+    if (!uiActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // 1) Update local state immediately
+    uiActions.setColor(color);
+    
+    // 2) Optimistic server update
+    colorMutation.mutate({
+      tab_id: tabId,
+      name: tileName,
+      updateData: { color: color ?? null } as Partial<TileData>,
+      actions: granularTileActions
+    });
+  };
+
+  // Create the enhanced actions object with the wrapped setters
+  const syncedMetaActions = useMemo<TileMetaActions | null>(() => {
+    if (!metaActions || !tileName || !tabId || !granularTileActions) return null;
+
+    return {
+      ...metaActions,
+      // Use the specialized wrapper functions for each property
+      setType: wrapType,
+    } as TileMetaActions;
+  }, [
+    metaActions,
+    tabId,
+    tileName,
+    granularTileActions,
+  ]);
+
+  // Create the enhanced actions object with the wrapped setters
+  const syncedDataActions = useMemo<TileDataActions | null>(() => {
+    if (!dataActions || !tileName || !tabId || !granularTileActions) return null;
+
+    return {
+      ...dataActions,
+      // Use the specialized wrapper functions for each property
+      setType: wrapType,
+      setTable: wrapTable,
+      setFilters: wrapFilters, 
+      setContext: wrapContext,
+      setColumnContext: wrapColumnContext,
+      setCommonFilter: wrapCommonFilter,
+      setGrouping: wrapGrouping,
+      setMetric: wrapMetric,
+      setFreeze: wrapFreeze,
+      setAutoUpdate: wrapAutoUpdate,
+      setColor: wrapColor,
+    } as TileDataActions;
+  }, [
+    dataActions,
+    tabId,
+    tileName,
+    granularTileActions,
+    uiActions
+  ]);
+
+  // Create the enhanced actions object with the wrapped setters
+  const syncedUIActions = useMemo<TileUIActions | null>(() => {
+    if (!uiActions || !tileName || !tabId || !granularTileActions) return null;
+
+    return {
+      ...uiActions,
+      // Use the specialized wrapper functions for each property
+      setVisible: wrapVisible,
+      setColor: wrapColor,
+    } as TileUIActions;
+  }, [
+    uiActions,
+    tabId,
+    tileName,
+    granularTileActions,
+  ]);
+
+  // Create the full actions object that incorporates the synced data actions
+  const syncedActions = useMemo(() => {
+    if (!actions || !syncedDataActions || !syncedMetaActions || !syncedUIActions) return null;
+
+    // Create a new actions object with the right structure
+    const newActions: TileActions = {
+      ...actions,
+      // Replace the data and ui actions with our synced versions
+      data: syncedDataActions,
+      ui: syncedUIActions,
+      // Copy over the meta and UI actions as is
+      meta: syncedMetaActions,
+      // Include specialized actions
+      tableTileActions: tableTileSync.tableTileActions || undefined,
+      plotTileActions: plotTileSync.plotTileActions || undefined,
+      // Keep the existing actions for view and editor
+      viewTileActions: actions.viewTileActions,
+      editorTileActions: actions.editorTileActions,
+    } as TileActions;
+
+    return newActions;
+  }, [
+    actions,
+    syncedDataActions,
+    metaActions,
+    uiActions,
+    tableTileSync.tableTileActions,
+    plotTileSync.plotTileActions
+  ]);
+
   if (!granularTileActions) {
     return {
       actions: null,
-        exists: false,
+      exists: false,
       loading: {
         type: false,
         table: false,
@@ -152,385 +495,6 @@ export function useTileSync(
       tableTile: null
     };
   } 
-
-  // Create a mapping for the mutations to use in the loading and error states
-  const mutations = {
-    type: typeMutation,
-    table: tableMutation,
-    filters: filtersMutation,
-    context: contextMutation,
-    column_context: columnContextMutation,
-    common_filter: commonFilterMutation,
-    grouping: groupingMutation,
-    metric: metricMutation,
-    freeze: freezeMutation,
-    auto_update: autoUpdateMutation,
-    visible: visibleMutation,
-    locked: lockedMutation,
-    pending: pendingMutation,
-    loading: loadingMutation,
-    error: errorMutation,
-    moved: movedMutation,
-    static: staticMutation,
-    color: colorMutation,
-  };
-
-  // Individual wrapper functions for each property
-  const wrapType = (type?: string) => {
-    if (!metaActions) return;
-    
-    // 1) Update local state immediately
-    metaActions.setType(type);
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
-
-    // 2) Optimistic server update
-    typeMutation.mutate({
-      tab_id: tabId,
-      name: tileName,
-      updateData: { type: type ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true, withPending: true });
-      }
-    });
-  };
-
-  const wrapTable = (table?: string) => {
-    if (!dataActions) return;
-    
-    // 1) Update local state immediately
-    dataActions.setTable(table);
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
-
-    // 2) Optimistic server update
-    tableMutation.mutate({
-      tab_id: tabId,
-      name: tileName,
-      updateData: { table: table ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router
-        refreshRouter();
-      }
-    });
-  };
-
-  const wrapFilters = (filters?: string) => {
-    if (!dataActions) return;
-    
-    // 1) Update local state immediately
-    dataActions.setFilters(filters);
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
-
-    // 2) Optimistic server update
-    filtersMutation.mutate({
-      tab_id: tabId,
-      name: tileName,
-      updateData: { filters: filters ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
-      }
-    });
-  };
-
-  const wrapContext = (context?: string) => {
-    if (!dataActions) return;
-    
-    // 1) Update local state immediately
-    dataActions.setContext(context);
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
-
-    // 2) Optimistic server update
-    contextMutation.mutate({
-      tab_id: tabId,
-      name: tileName,
-      updateData: { context: context ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true, withPending: true });
-      }
-    });
-  };
-
-  const wrapColumnContext = (columnContext?: string) => {
-    if (!dataActions) return;
-    
-    // 1) Update local state immediately
-    dataActions.setColumnContext(columnContext);
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
-
-    // 2) Optimistic server update
-    columnContextMutation.mutate({
-      tab_id: tabId,
-      name: tileName,
-      updateData: { column_context: columnContext ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true, withPending: true });
-      }
-    });
-  };
-
-  const wrapCommonFilter = (commonFilter?: string) => {
-    if (!dataActions) return;
-    
-    // 1) Update local state immediately
-    dataActions.setCommonFilter(commonFilter);
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
-
-    // 2) Optimistic server update
-    commonFilterMutation.mutate({
-      tab_id: tabId,
-      name: tileName,
-      updateData: { common_filter: commonFilter ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
-      }
-    });
-  };
-
-  const wrapGrouping = (grouping?: string) => {
-    if (!dataActions) return;
-    
-    // 1) Update local state immediately
-    dataActions.setGrouping(grouping);
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
-
-    // 2) Optimistic server update
-    groupingMutation.mutate({
-      tab_id: tabId,
-      name: tileName,
-      updateData: { grouping: grouping ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
-      }
-    });
-  };
-
-  const wrapMetric = (metric?: string) => {
-    if (!dataActions) return;
-    
-    // 1) Update local state immediately
-    dataActions.setMetric(metric);
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
-
-    // 2) Optimistic server update
-    metricMutation.mutate({
-      tab_id: tabId,
-      name: tileName,
-      updateData: { metric: metric ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
-      }
-    });
-  };
-
-  const wrapFreeze = (freeze?: string) => {
-    if (!dataActions) return;
-    
-    // 1) Update local state immediately
-    dataActions.setFreeze(freeze);
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
-
-    // 2) Optimistic server update
-    freezeMutation.mutate({
-      tab_id: tabId,
-      name: tileName,
-      updateData: { freeze: freeze ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
-      }
-    });
-  };
-
-  const wrapAutoUpdate = (autoUpdate?: string) => {
-    if (!dataActions) return;
-    
-    // 1) Update local state immediately
-    dataActions.setAutoUpdate(autoUpdate);
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
-
-    // 2) Optimistic server update
-    autoUpdateMutation.mutate({
-      tab_id: tabId,
-      name: tileName,
-      updateData: { auto_update: autoUpdate ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router
-        refreshRouter();
-      }
-    });
-  };
-
-  const wrapVisible = (visible?: boolean) => {
-    if (!uiActions) return;
-    
-    // 1) Update local state immediately
-    uiActions.setVisible(visible ?? true);
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
-
-    // 2) Optimistic server update
-    visibleMutation.mutate({
-      tab_id: tabId,
-      name: tileName,
-      updateData: { visible: visible ?? true } as Partial<TileData>,
-      actions: granularTileActions
-    });
-  };
-
-  const wrapColor = (color?: string) => {
-    if (!uiActions) return;
-    
-    // 1) Update local state immediately
-    uiActions.setColor(color);
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
-
-    // 2) Optimistic server update
-    colorMutation.mutate({
-      tab_id: tabId,
-      name: tileName,
-      updateData: { color: color ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    });
-  };
-
-  // Create the enhanced actions object with the wrapped setters
-  const syncedMetaActions = useMemo<TileMetaActions | null>(() => {
-    if (!metaActions) return null;
-
-    return {
-      ...metaActions,
-      // Use the specialized wrapper functions for each property
-      setType: wrapType,
-    } as TileMetaActions;
-  }, [
-    metaActions,
-    tabId,
-    tileName,
-    granularTileActions,
-  ]);
-
-  // Create the enhanced actions object with the wrapped setters
-  const syncedDataActions = useMemo<TileDataActions | null>(() => {
-    if (!dataActions) return null;
-
-    return {
-      ...dataActions,
-      // Use the specialized wrapper functions for each property
-      setType: wrapType,
-      setTable: wrapTable,
-      setFilters: wrapFilters, 
-      setContext: wrapContext,
-      setColumnContext: wrapColumnContext,
-      setCommonFilter: wrapCommonFilter,
-      setGrouping: wrapGrouping,
-      setMetric: wrapMetric,
-      setFreeze: wrapFreeze,
-      setAutoUpdate: wrapAutoUpdate,
-      setColor: wrapColor,
-    } as TileDataActions;
-  }, [
-    dataActions,
-    tabId,
-    tileName,
-    granularTileActions,
-    uiActions
-  ]);
-
-  // Create the enhanced actions object with the wrapped setters
-  const syncedUIActions = useMemo<TileUIActions | null>(() => {
-    if (!uiActions) return null;
-
-    return {
-      ...uiActions,
-      // Use the specialized wrapper functions for each property
-      setVisible: wrapVisible,
-      setColor: wrapColor,
-    } as TileUIActions;
-  }, [
-    uiActions,
-    tabId,
-    tileName,
-    granularTileActions,
-  ]);
-
-  // Create the full actions object that incorporates the synced data actions
-  const syncedActions = useMemo(() => {
-    if (!actions || !syncedDataActions) return null;
-
-    // Create a new actions object with the right structure
-    const newActions: TileActions = {
-      ...actions,
-      // Replace the data and ui actions with our synced versions
-      data: syncedDataActions,
-      ui: syncedUIActions,
-      // Copy over the meta and UI actions as is
-      meta: syncedMetaActions,
-      // Include specialized actions
-      tableTileActions: tableTileSync.tableTileActions || undefined,
-      plotTileActions: plotTileSync.plotTileActions || undefined,
-      // Keep the existing actions for view and editor
-      viewTileActions: actions.viewTileActions,
-      editorTileActions: actions.editorTileActions,
-    } as TileActions;
-
-    return newActions;
-  }, [
-    actions,
-    syncedDataActions,
-    metaActions,
-    uiActions,
-    tableTileSync.tableTileActions,
-    plotTileSync.plotTileActions
-  ]);
 
   // Prepare loading states
   const loading: TileLoadingStates = {
