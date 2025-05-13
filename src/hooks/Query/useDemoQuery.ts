@@ -146,10 +146,11 @@ export function useCreateDemoQuery() {
             
             return actions.tileActions.create(
               createdTab.id || "", 
-              tileName, 
-              type, 
+              tileName,  
               position, 
-              tileData
+              tileData,
+              undefined,
+              type,
             );
           })
         );

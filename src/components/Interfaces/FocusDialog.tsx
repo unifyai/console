@@ -6,16 +6,16 @@ import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { Badge } from "../UI/badge";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
-import { DerivedEntryActions, LogsActions, FieldsActions, TileProps, ContextActions, CodeActions, GranularTileActions } from "@/types/evals/grid";
+import { DerivedEntryActions, LogsActions, FieldsActions, TileProps, ContextActions, CodeActions, GranularTileActions, GranularTabActions } from "@/types/evals/grid";
 import { Plus, X } from "lucide-react";
 import { icons } from "@/constants/logs";
 import TileCard from "./TileCard";
 import { useTab } from "@/contexts/hooks/tab";
 
 const FocusDialog = ({
+    tabIdOrName,
     interfaceId,
     projectId,
-    tabId,
     tileActions,
     logsActions,
     fieldsActions,
@@ -23,9 +23,9 @@ const FocusDialog = ({
     contextActions,
     codeActions,
 }: {
+    tabIdOrName: string;
     interfaceId: string;
     projectId: string;
-    tabId: string;
     tileActions: GranularTileActions,
     logsActions: LogsActions,
     fieldsActions: FieldsActions,
@@ -33,7 +33,7 @@ const FocusDialog = ({
     contextActions: ContextActions,
     codeActions: CodeActions,
 }) => {
-    const { ui: tabUIState, uiActions: tabUIActions, dataActions: tabDataActions } = useTab(tabId, interfaceId);
+    const { meta: tabMetaState, ui: tabUIState, uiActions: tabUIActions, dataActions: tabDataActions } = useTab(tabIdOrName, interfaceId);
 
     // Get tile props using the getItems function from the tabActions
     const tileProps = useMemo(() => {
@@ -59,7 +59,7 @@ const FocusDialog = ({
                 ? <div className="h-full relative pt-2">
                     <TileCard
                         tileId={item.id}
-                        tabId={tabId}
+                        tabId={tabMetaState?.id || ""}
                         interfaceId={interfaceId}
                         projectId={projectId}
                         tileActions={tileActions}

@@ -6,17 +6,15 @@ import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
 import { icons, tabTypes } from "@/constants/logs";
-import { DerivedEntryActions, FieldsActions, ContextActions, TileProps, CodeActions, GranularTileActions } from "@/types/evals/grid";
+import { DerivedEntryActions, FieldsActions, ContextActions, CodeActions, GranularTileActions } from "@/types/evals/grid";
 import { LogsActions } from "@/types/evals/grid";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { TileColorContext } from '@/contexts/TileColorContext';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
-import { useTileData, useTileUI } from '@/contexts/hooks/tile';
-import { useLogLengths } from "@/contexts/hooks/useStore";
+import { useTileItem, useTileUI } from '@/contexts/hooks/tile';
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { getTileCardRef } from '@/utils/refRegistry';
-import { useTileMeta } from "@/contexts/hooks/tile/useTileMeta";
-import { useShallow } from "zustand/react/shallow";
+import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 
 const Tile = lazy(() => import('./Tile'));
 
@@ -62,35 +60,28 @@ const TileCard = ({
 
   // Use tab hooks for tab-level state
   const { ui: tabUIState } = useTabUI(tabId, interfaceId);
-  const { data: tabData, dataActions: tabDataActions } = useTabData(tabId, interfaceId);
-  
+  const { dataActions: tabDataActions } = useTabData(tabId, interfaceId);
+
   // Use granular tile hooks for tile-specific state
-  const { meta: tileMetaState } = useTileMeta(tileId, tabId);
   const { ui: tileUIState } = useTileUI(tileId, tabId);
-  const { dataActions: tileDataActions } = useTileData(tileId, tabId);
+  
+  // SYNCHRONISED TILE-SPECIFIC ACTIONS (optimistic + router refresh)
+  const { actions: syncedTileActions } = useTileSync(tileId, tabId, tileActions);
+  const syncedTileDataActions = syncedTileActions?.data ?? null;
+  const syncedTileMetaActions = syncedTileActions?.meta ?? null;
+  const syncedTableTileActions = syncedTileActions?.tableTileActions ?? null;
 
-  // Get tile props using the getItems function from the tabDataActions
-  const tileProps = useMemo(() => {
-    return !tabDataActions ? [] : tabDataActions.getItems();
-  }, [tabDataActions]);
-
-  const tableNames = useMemo(() => {
-    // Only return table names for table tiles
-    // Return should be an array of strings only
-    return tileProps.map((item: TileProps) => item.tab === "Table" ? item.name : null).filter(Boolean) as string[];
-  }, [tileProps]);
+  const tableNames = tabDataActions?.getTileNamesByType("Table").filter(Boolean) as string[];
 
   // Get the current item based on the tile name
-  const item = tileProps.find((item: TileProps) => item.name === tileMetaState?.name);
-  const tab = item?.tab;
-  
-  // Define logsLengths as a computed property based on the tiles
-  const logsLengths = useLogLengths();
+  const { itemActions } = useTileItem(tileId, tabId);
+  const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
+  const tileType = item?.tab;
 
   return (
   <TileColorContext.Provider value={tileUIState?.color || null}>
     <div ref={tileCardRef} className="relative flex w-full h-full border">
-      <div className={"w-full flex-1 flex flex-col items-center " + ((!tabUIState?.edit && tab) ? "mt-4" : tab ? "mt-2" : "justify-center")}>
+      <div className={"w-full flex-1 flex flex-col items-center " + ((!tabUIState?.edit && tileType) ? "mt-4" : tileType ? "mt-2" : "justify-center")}>
         <div className="flex gap-4 z-20">
           {tabUIState?.edit && <div className="w-fit">
             <BaseDropdown
@@ -112,13 +103,13 @@ const TileCard = ({
                         // If tabType is either a "Table" or "Plot" and the item.table is already set,
                         // then we need to first mark it as null
                         if (tabType === "Table" || tabType === "Plot" && item.table) {
-                          tileDataActions?.setTable("");
+                          syncedTileDataActions?.setTable(undefined);
                         }
 
                         if (item?.tab === undefined && tabType === "Table") {
-                          tabDataActions?.updateTableTile(item.id, { table_type: "Data Table" });
+                          syncedTableTileActions?.setTableType("Data Table");
                         }
-                        tabDataActions?.updateTile(item.id, { type: tabType });
+                        syncedTileMetaActions?.setType(tabType);
                       }
                     }}
                     className="w-64 flex justify-between items-center"
@@ -129,7 +120,7 @@ const TileCard = ({
               })}
             </BaseDropdown>
           </div>}
-          {tab && tabUIState?.edit && tab === "View" && <div className="w-fit">
+          {tileType && tabUIState?.edit && tileType === "View" && <div className="w-fit">
             <BaseDropdown
               context="tile"
               button={<ActionButton
@@ -144,13 +135,11 @@ const TileCard = ({
                   <DropdownMenuItem
                     key={idx}
                     onSelect={() => {
-                      tileDataActions?.setTable(tile);
+                      syncedTileDataActions?.setTable(tile);
                     }}
-                    disabled={!logsLengths[tile]}
                     className="w-64"
                   >
                     {tile}
-                    {logsLengths[tile] ? "" : " (empty table)"}
                   </DropdownMenuItem>
                 )
               })}

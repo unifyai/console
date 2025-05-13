@@ -48,9 +48,12 @@ export function useTileRouterRefresh(uiActions: TileUIActions | null) {
           counter.current -= 1;
 
           if (counter.current === 0) {
-            // last one finished – clear the requested flags
-            if (withLoading) uiActions?.setLoading(false);
-            if (withPending) uiActions?.setPending(false);
+            // Add a short delay before clearing UI states for smoother transitions
+            setTimeout(() => {
+              // last one finished – clear the requested flags
+              if (withLoading) uiActions?.setLoading(false);
+              if (withPending) uiActions?.setPending(false);
+            }, 300);
           }
         }
       });

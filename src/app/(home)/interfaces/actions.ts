@@ -495,7 +495,7 @@ export const getInterfaceById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interface?id=${id}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/interface?interface_id=${id}&checkpoint=${checkpoint}`,
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
@@ -601,7 +601,7 @@ export const updateInterfaceById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interface?id=${id}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/interface?interface_id=${id}&checkpoint=${checkpoint}`,
             {
                 method: "PUT",
                 headers: { apiKey: apiKey },
@@ -677,7 +677,7 @@ export const deleteInterfaceById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interface?id=${id}`,
+            `${process.env.NEXTAUTH_URL}/api/interface?interface_id=${id}`,
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
@@ -747,7 +747,7 @@ export const createInterfaceCheckpointById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/interface/checkpoint?id=${id}`,
+            `${process.env.NEXTAUTH_URL}/api/interface/checkpoint?interface_id=${id}`,
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
@@ -844,7 +844,7 @@ export const getTabById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tab?id=${id}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/tab?tab_id=${id}&checkpoint=${checkpoint}`,
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
@@ -896,7 +896,8 @@ export const createTab = async (apiKey: string) => {
         order?: number,
         global_context?: string,
         color?: string
-    }) => {
+    },
+    tab_id?: string) => {
         "use server";
 
         const response = await fetch(
@@ -907,6 +908,7 @@ export const createTab = async (apiKey: string) => {
                 body: JSON.stringify({
                     interface_id,
                     name,
+                    tab_id,
                     ...data
                 }),
             }
@@ -962,7 +964,7 @@ export const updateTabById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tab?id=${id}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/tab?tab_id=${id}&checkpoint=${checkpoint}`,
             {
                 method: "PUT",
                 headers: { apiKey: apiKey },
@@ -1041,7 +1043,7 @@ export const deleteTabById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tab?id=${id}`,
+            `${process.env.NEXTAUTH_URL}/api/tab?tab_id=${id}`,
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
@@ -1111,7 +1113,7 @@ export const createTabCheckpointById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tab/checkpoint?id=${id}`,
+            `${process.env.NEXTAUTH_URL}/api/tab/checkpoint?tab_id=${id}`,
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
@@ -1210,7 +1212,7 @@ export const getTileById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile?id=${id}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/tile?tile_id=${id}&checkpoint=${checkpoint}`,
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
@@ -1258,15 +1260,15 @@ export const createTile = async (apiKey: string) => {
     return async (
         tab_id: string, 
         name: string, 
-        type: string,
         position: TilePosition,
         data: {
-            min_width?: number;
-            min_height?: number;
+            minW?: number;
+            minH?: number;
             visible?: boolean;
             locked?: boolean;
             moved?: boolean;
             static?: boolean;
+            color?: string;
             context?: string;
             table?: string;
             auto_update?: string;
@@ -1280,7 +1282,9 @@ export const createTile = async (apiKey: string) => {
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
             editor_tile?: EditorTileData;
-        }
+        },
+        tile_id?: string,
+        type?: string
     ) => {
         "use server";
 
@@ -1292,8 +1296,9 @@ export const createTile = async (apiKey: string) => {
                 body: JSON.stringify({
                     tab_id,
                     name,
-                    type,
                     position,
+                    type,
+                    tile_id,
                     ...data
                 }),
             }
@@ -1315,10 +1320,12 @@ export const updateTileByName = async (apiKey: string) => {
         data: {
             name?: string;
             position?: TilePosition;
-            min_width?: number;
-            min_height?: number;
+            type?: string;
+            minW?: number;
+            minH?: number;
             visible?: boolean;
             locked?: boolean;
+            color?: string;
             context?: string;
             table?: string;
             auto_update?: string;
@@ -1361,10 +1368,12 @@ export const updateTileById = async (apiKey: string) => {
         data: {
             name?: string;
             position?: TilePosition;
-            min_width?: number;
-            min_height?: number;
+            type?: string;
+            minW?: number;
+            minH?: number;
             visible?: boolean;
             locked?: boolean;
+            color?: string;
             context?: string;
             table?: string;
             auto_update?: string;
@@ -1384,7 +1393,7 @@ export const updateTileById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile?id=${id}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/tile?tile_id=${id}&checkpoint=${checkpoint}`,
             {
                 method: "PUT",
                 headers: { apiKey: apiKey },
@@ -1409,10 +1418,12 @@ export const updateTileUnified = async (apiKey: string) => {
         data: {
             name?: string;
             position?: TilePosition;
-            min_width?: number;
-            min_height?: number;
+            type?: string;
+            minW?: number;
+            minH?: number;
             visible?: boolean;
             locked?: boolean;
+            color?: string;
             context?: string;
             table?: string;
             auto_update?: string;
@@ -1457,12 +1468,14 @@ export const patchTileByName = async (apiKey: string) => {
         updateData: {
             name?: string;
             position?: TilePosition;
-            min_width?: number;
-            min_height?: number;
+            type?: string;
+            minW?: number;
+            minH?: number;
             visible?: boolean;
             locked?: boolean;
             moved?: boolean;
             static?: boolean;
+            color?: string;
             context?: string;
             table?: string;
             auto_update?: string;
@@ -1505,12 +1518,14 @@ export const patchTileById = async (apiKey: string) => {
         updateData: {
             name?: string;
             position?: TilePosition;
-            min_width?: number;
-            min_height?: number;
+            type?: string;
+            minW?: number;
+            minH?: number;
             visible?: boolean;
             locked?: boolean;
             moved?: boolean;
             static?: boolean;
+            color?: string;
             context?: string;
             table?: string;
             auto_update?: string;
@@ -1530,7 +1545,7 @@ export const patchTileById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile?id=${id}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/tile?tile_id=${id}&checkpoint=${checkpoint}`,
             {
                 method: "PATCH",
                 headers: { apiKey: apiKey },
@@ -1555,12 +1570,14 @@ export const patchTileUnified = async (apiKey: string) => {
         updateData: {
             name?: string;
             position?: TilePosition;
-            min_width?: number;
-            min_height?: number;
+            type?: string;
+            minW?: number;
+            minH?: number;
             visible?: boolean;
             locked?: boolean;
             moved?: boolean;
             static?: boolean;
+            color?: string;
             context?: string;
             table?: string;
             auto_update?: string;
@@ -1726,7 +1743,7 @@ export const deleteTileById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile?id=${id}`,
+            `${process.env.NEXTAUTH_URL}/api/tile?tile_id=${id}`,
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
@@ -1796,7 +1813,7 @@ export const createTileCheckpointById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile/checkpoint?id=${id}`,
+            `${process.env.NEXTAUTH_URL}/api/tile/checkpoint?tile_id=${id}`,
             {
                 method: "POST",
                 headers: { apiKey: apiKey },

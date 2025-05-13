@@ -19,8 +19,8 @@ export function buildTileState(tileData: TileData): Tile {
     name: tileData.name,
     type: tileData.type,
     position: tileData.position,
-    minW: tileData.min_width,
-    minH: tileData.min_height,
+    minW: tileData.minW,
+    minH: tileData.minH,
   };
 
   // Build tile data

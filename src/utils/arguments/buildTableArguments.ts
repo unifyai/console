@@ -15,11 +15,6 @@ export async function buildTableArgumentsForTile(
   const tileName = tile.name;
   const tableArguments = { ...existingArguments };
   
-  // Only process table tiles
-  if (!tile.table_tile) {
-    return tableArguments;
-  }
-  
   // Build filter expression
   const filterExpression = buildFilterExpression(
     tile.filters,

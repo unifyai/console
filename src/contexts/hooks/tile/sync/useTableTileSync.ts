@@ -84,38 +84,6 @@ export function useTableTileSync(
   const selectedMutation = usePatchSpecializedTileQuery<"Table">();
   const pageNumberMutation = usePatchSpecializedTileQuery<"Table">();
 
-  if (!tableTileActions || !granularTileActions) {
-    return {
-      tableTile,
-      tableTileActions: null,
-      loading: {
-        table_type: false,
-        column_order: false,
-        hidden_columns: false,
-        sorting: false,
-        group_sorting: false,
-        columns_pin_left: false,
-        columns_pin_right: false,
-        selected: false,
-        page_number: false,
-        any: false
-      },
-      error: {
-        table_type: null,
-        sorting: null,
-        group_sorting: null,
-        column_order: null,
-        hidden_columns: null,
-        columns_pin_left: null,
-        columns_pin_right: null,
-        selected: null,
-        page_number: null,
-        any: false
-      },
-      exists: false
-    };
-  }
-
   // Create a mapping for the mutations to use in the loading and error states
   const mutations = {
     table_type: tableTypeMutation,
@@ -131,7 +99,7 @@ export function useTableTileSync(
 
   // Individual wrapper functions for each property
   const wrapTableType = (value: string | undefined) => {
-    if (!tableTileActions) return;
+    if (!tableTileActions || !granularTileActions) return;
     
     // 1) Update local state immediately
     tableTileActions.setTableType(value);
@@ -144,7 +112,7 @@ export function useTableTileSync(
       tab_id: tabId,
       name: tileName,
       tileType: "Table",
-      updateData: { table_type: value },
+      updateData: { table_type: value ?? null },
       actions: granularTileActions
     }, {
       onSettled: () => {
@@ -155,7 +123,7 @@ export function useTableTileSync(
   };
 
   const wrapSorting = (value: string | undefined) => {
-    if (!tableTileActions) return;
+    if (!tableTileActions || !granularTileActions) return;
     
     // 1) Update local state immediately
     tableTileActions.setSorting(value);
@@ -168,7 +136,7 @@ export function useTableTileSync(
       tab_id: tabId,
       name: tileName,
       tileType: "Table",
-      updateData: { sorting: value },
+      updateData: { sorting: value ?? null },
       actions: granularTileActions
     }, {
       onSettled: () => {
@@ -179,7 +147,7 @@ export function useTableTileSync(
   };
 
   const wrapGroupSorting = (value: string | undefined) => {
-    if (!tableTileActions) return;
+    if (!tableTileActions || !granularTileActions) return;
     
     // 1) Update local state immediately
     tableTileActions.setGroupSorting(value);
@@ -192,7 +160,7 @@ export function useTableTileSync(
       tab_id: tabId,
       name: tileName,
       tileType: "Table",
-      updateData: { group_sorting: value },
+      updateData: { group_sorting: value ?? null },
       actions: granularTileActions
     }, {
       onSettled: () => {
@@ -203,7 +171,7 @@ export function useTableTileSync(
   };
 
   const wrapColumnOrder = (value: string | undefined) => {
-    if (!tableTileActions) return;
+    if (!tableTileActions || !granularTileActions) return;
     
     // 1) Update local state immediately
     tableTileActions.setColumnOrder(value);
@@ -216,13 +184,13 @@ export function useTableTileSync(
       tab_id: tabId,
       name: tileName,
       tileType: "Table",
-      updateData: { column_order: value },
+      updateData: { column_order: value ?? null },
       actions: granularTileActions
     });
   };
 
   const wrapHiddenColumns = (value: string | undefined) => {
-    if (!tableTileActions) return;
+    if (!tableTileActions || !granularTileActions) return;
     
     // 1) Update local state immediately
     tableTileActions.setHiddenColumns(value);   
@@ -235,13 +203,13 @@ export function useTableTileSync(
       tab_id: tabId,    
       name: tileName,
       tileType: "Table",
-      updateData: { hidden_columns: value },
+      updateData: { hidden_columns: value ?? null },
       actions: granularTileActions
     });
   };    
 
   const wrapColumnsPinLeft = (value: string | undefined) => {
-    if (!tableTileActions) return;
+    if (!tableTileActions || !granularTileActions) return;
     
     // 1) Update local state immediately
     tableTileActions.setColumnsPinLeft(value);
@@ -254,13 +222,13 @@ export function useTableTileSync(
       tab_id: tabId,
       name: tileName,   
       tileType: "Table",
-      updateData: { columns_pin_left: value },
+      updateData: { columns_pin_left: value ?? null },
       actions: granularTileActions
     });
   };
 
   const wrapColumnsPinRight = (value: string | undefined) => {  
-    if (!tableTileActions) return;
+    if (!tableTileActions || !granularTileActions) return;
     
     // 1) Update local state immediately
     tableTileActions.setColumnsPinRight(value);
@@ -273,13 +241,13 @@ export function useTableTileSync(
       tab_id: tabId,
       name: tileName,   
       tileType: "Table",
-      updateData: { columns_pin_right: value },
+      updateData: { columns_pin_right: value ?? null },
       actions: granularTileActions
     });
   };
 
   const wrapSelected = (value: string | undefined) => { 
-    if (!tableTileActions) return;
+    if (!tableTileActions || !granularTileActions) return;
     
     // 1) Update local state immediately
     tableTileActions.setSelected(value);
@@ -292,13 +260,13 @@ export function useTableTileSync(
       tab_id: tabId,
       name: tileName,   
       tileType: "Table",
-      updateData: { selected: value },
+      updateData: { selected: value ?? null },
       actions: granularTileActions
     });
   };
 
   const wrapPageNumber = (value: string | undefined) => {   
-    if (!tableTileActions) return;
+    if (!tableTileActions || !granularTileActions) return;
     
     // 1) Update local state immediately
     tableTileActions.setPageNumber(value);
@@ -311,7 +279,7 @@ export function useTableTileSync(
       tab_id: tabId,
       name: tileName,   
       tileType: "Table",
-      updateData: { page_number: value },
+      updateData: { page_number: value ?? null },
       actions: granularTileActions
     }, {
       onSettled: () => {
@@ -345,6 +313,38 @@ export function useTableTileSync(
     granularTileActions,
     refreshRouter
   ]);
+
+  if (!tableTileActions || !granularTileActions) {
+    return {
+      tableTile,
+      tableTileActions: null,
+      loading: {
+        table_type: false,
+        column_order: false,
+        hidden_columns: false,
+        sorting: false,
+        group_sorting: false,
+        columns_pin_left: false,
+        columns_pin_right: false,
+        selected: false,
+        page_number: false,
+        any: false
+      },
+      error: {
+        table_type: null,
+        sorting: null,
+        group_sorting: null,
+        column_order: null,
+        hidden_columns: null,
+        columns_pin_left: null,
+        columns_pin_right: null,
+        selected: null,
+        page_number: null,
+        any: false
+      },
+      exists: false
+    };
+  }
 
   // Prepare loading states
   const loading: TableLoadingStates = {

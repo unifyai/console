@@ -44,11 +44,6 @@ export default async function TableWrapper({
   const qc = getQueryClient();
   const tileId = tile.id || "";
   const tileName = tile.name; // We'll use this as the key in tableArguments
-  
-  // Only proceed if we have a table tile
-  if (!tile.table_tile) {
-    return <div>Table configuration missing</div>;
-  }
 
   // Prefetch fields
   await qc.prefetchQuery({
@@ -58,6 +53,19 @@ export default async function TableWrapper({
 
   // Get fields from cache
   const fields = qc.getQueryData<LogFieldsResponseProps>(["fields", projectId, tile.context]) || {};
+  const prefixes = Object.keys(fields).map(
+    key => key.includes("/") ? key.split("/").slice(0, -1).join("/") : null
+  ).filter(key => key != null);
+  const columnContexts = Array.from(
+    new Set(prefixes.map(prefix => {
+        const parts = prefix.split("/");
+        let context = "";
+        return parts.map(part => {
+              context += part + "/";
+              return context;
+          });    
+      }).flat().sort())
+  );
 
   // Build filter expression
   const filterExpression = buildFilterExpression(
@@ -156,9 +164,11 @@ export default async function TableWrapper({
   // Update the cache again with available fields
   qc.setQueryData(["tableArguments", tabId], tableArguments);
 
+  console.log(`[TableWrapper] tableArguments`, tableArguments);
+
   // Construct table data item
   const tableDataItem: TableDataItem = {
-    columnContexts: [], // This would need to be computed based on your logic
+    columnContexts: columnContexts,
     baseIndex: tile.table_tile?.selected,
     hiddenColumns: tile.table_tile?.hidden_columns,
     columnOrdering: tile.table_tile?.column_order,
@@ -183,7 +193,11 @@ export default async function TableWrapper({
 
   return (
     <HydrationBoundary state={dehydrate(qc)}>
-      <Suspense fallback={<SkeletonLoader />}>
+      <Suspense fallback={
+        <div className="w-full h-full flex items-center justify-center">
+            <SkeletonLoader />
+        </div>
+      }>
         <LogsTable
           tileId={tileId}
           tabId={tabId}

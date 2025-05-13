@@ -184,8 +184,8 @@ const Interface = ({
         <div className="sticky top-0 z-10 bg-background p-2 flex justify-between w-full">
           {/* Project buttons and add/delete buttons */}
           <ProjectButtons
+            tabIdOrName={tabQueryParam || ""}
             interfaceId={interfaceId}
-            tabQueryParam={tabQueryParam}
             projectQueryParam={projectQueryParam}
             defaultProject={false}
             setTabQueryParam={setTabQueryParam}
@@ -209,8 +209,8 @@ const Interface = ({
 
           {/* Interface buttons */}
           <InterfaceButtons
+            tabIdOrName={tabQueryParam || ""}
             interfaceId={interfaceId}
-            tabQueryParam={tabQueryParam}
             setSaveDialog={setSaveDialog}
             logsActions={logsActions}
             contextActions={contextActions}
@@ -279,8 +279,8 @@ const Interface = ({
         {/* Interface tabs */}
         {projectQueryParam && interfaceQueryParam && <div className="sticky bottom-0 z-10 p-2 bg-background flex w-full justify-center">
           <InterfaceTabs
+            tabIdOrName={tabQueryParam || ""}
             interfaceId={interfaceId}
-            tabQueryParam={tabQueryParam}
             tabActions={tabActions}
             setTabQueryParam={setTabQueryParam}
           />
@@ -293,7 +293,7 @@ const Interface = ({
           <DialogContent className="min-w-full h-full overflow-y-auto">
             <Suspense fallback={<SkeletonLoader />}>
               <FocusDialog
-                tabId={tabQueryParam || ""}
+                tabIdOrName={tabQueryParam || ""}
                 interfaceId={interfaceId}
                 projectId={projectQueryParam || ""}
                 tileActions={tileActions}
@@ -312,8 +312,10 @@ const Interface = ({
       {tabUIState?.edit && tabUIState?.editTile && (
         <Suspense fallback={<div className="w-full h-16"><SkeletonLoader /></div>}>
           <EditTileName
-            tabId={tabQueryParam || ""}
+            tabIdOrName={tabQueryParam || ""}
             interfaceId={interfaceId}
+            tabActions={tabActions}
+            tileActions={tileActions}
           />
         </Suspense>
       )}

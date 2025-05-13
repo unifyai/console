@@ -9,8 +9,7 @@ import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { useTab } from '@/contexts/hooks/tab';
 import PlotSettings from "./Sidebar";
 import { drawPlot } from "@/utils/evals/plots/main";
-import { usePlotArgumentsQuery, usePlotDataQuery } from "@/hooks/Query/usePlotDataQuery";
-import { useUpdatePlotDataItem } from "@/hooks/Query/usePlotDataQuery";
+import { usePlotArgumentsQuery, usePlotDataQueryWithTracking } from "@/hooks/Query/usePlotDataQuery";
 import { usePlotTileSync }   from '@/contexts/hooks/tile/sync/usePlotTileSync';
 import { PlotArguments } from "@/types/evals/logs";
 
@@ -32,12 +31,6 @@ const LogsPlot = ({
     fieldsActions: FieldsActions
 }) => {
 
-    // Create a default empty PlotDataItem
-    const defaultPlotDataItem = useMemo(() => ({
-        plotLogs: [],
-        plotFields: {}
-    } as PlotDataItem), []);
-
     // Use granular hooks for better performance
     const { ui: tileUIState, dataActions: tileDataActions } = useTile(tileId, tabId);
 
@@ -58,32 +51,20 @@ const LogsPlot = ({
 
     // Use React Query to access plotDataItem and plotArguments
     const { 
-        data: plotDataItem = defaultPlotDataItem,
+        plotDataItem,
         isLoading: isPlotDataLoading,
         isError: isPlotDataError,
-        error: plotDataError
-    } = usePlotDataQuery(tileId);
+        error: plotDataError,
+        updatePlotDataItemWithUpdater
+    } = usePlotDataQueryWithTracking(tileId);
 
     const { data: args } = usePlotArgumentsQuery(tabId);
 
-    // Use the custom hook for plot data updates
-    const { mutate: updatePlotData } = useUpdatePlotDataItem(tileId);
-
-    // Function to update the plot data item
-    const setPlotDataItem = (newPlotDataItemOrUpdater: PlotDataItem | ((prev: PlotDataItem) => PlotDataItem)) => {
-        if (typeof newPlotDataItemOrUpdater === 'function') {
-            // Handle function updater pattern: (prev) => next
-            const updaterFn = newPlotDataItemOrUpdater as (prev: PlotDataItem) => PlotDataItem;
-            const newPlotDataItem = updaterFn(plotDataItem);
-            updatePlotData(newPlotDataItem);
-        } else {
-            // Handle direct value update
-            updatePlotData(newPlotDataItemOrUpdater);
-        }
-    };
-
     // Init logs and handle local updates
     const {plotLogs: logs, plotFields: fields} = useMemo(() => plotDataItem, [plotDataItem]);
+    
+    // PlotSettings component needs setPlotDataItem to update the plot
+    const setPlotDataItem = updatePlotDataItemWithUpdater;
 
     // Initialize refs and container dimensions
     let svgRef = useRef<SVGSVGElement>(null);

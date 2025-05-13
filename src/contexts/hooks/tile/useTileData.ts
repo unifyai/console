@@ -135,7 +135,7 @@ export function useTileData(
         storeUpdateTile(tileId, { table });
       }
     },
-    
+
     setAutoUpdate: (autoUpdate) => {
       if (tileId) {
         storeUpdateTile(tileId, { auto_update: autoUpdate });

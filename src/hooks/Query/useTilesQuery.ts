@@ -106,19 +106,21 @@ export function useCreateTileQuery() {
     mutationFn: async ({ 
       tab_id, 
       name,
-      type,
       position,
       data, 
+      type,
+      tile_id,
       actions 
     }: { 
       tab_id: string; 
       name: string;
-      type: string;
       position: TilePosition;
       data: Omit<Partial<TileData>, 'id' | 'tab_id' | 'name' | 'type' | 'position' | 'created_at' | 'updated_at'>; 
+      tile_id?: string;
+      type?: string;
       actions: GranularTileActions;
     }) => {
-      return actions.create(tab_id, name, type, position, data);
+      return actions.create(tab_id, name, position, data, tile_id, type);
     },
     onSuccess: (result, variables) => {
       // Invalidate tiles for this tab
@@ -143,31 +145,50 @@ export function useUpdateTileQuery() {
   
   return useMutation({
     mutationFn: async ({ 
+      id,
       tab_id, 
       name, 
       data, 
       actions 
     }: { 
-      tab_id: string; 
-      name: string;
+      id?: string;
+      tab_id?: string; 
+      name?: string;
       data: Omit<Partial<TileData>, 'id' | 'tab_id' | 'created_at' | 'updated_at'>; 
       actions: GranularTileActions;
     }) => {
-      return actions.updateByName(tab_id, name, data);
+      if (id) {
+        return actions.updateById(id, data);
+      } else if (tab_id && name) {
+        return actions.updateByName(tab_id, name, data);
+      } else {
+        throw new Error("Invalid arguments");
+      }
     },
     onSuccess: (result, variables) => {
       // Invalidate specific tile and tiles list
-      const { tab_id, name } = variables;
-      queryClient.invalidateQueries({ 
-        queryKey: ['tile', tab_id, name] 
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: ['tiles', tab_id] 
-      });
+      const { id, tab_id, name } = variables;
+      if (id) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['tile-by-id', id] 
+        });
+      } else if (tab_id && name) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['tile', tab_id, name] 
+        });
+      }
+      // Invalidate tiles list
+      if (tab_id) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['tiles', tab_id] 
+        });
+      }
       // Also invalidate tab with tiles
-      queryClient.invalidateQueries({ 
-        queryKey: ['tab-with-tiles-by-id', tab_id] 
-      });
+      if (tab_id) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['tab-with-tiles-by-id', tab_id] 
+        });
+      }
     },
   });
 }
@@ -230,30 +251,48 @@ export function useDeleteTileQuery() {
   
   return useMutation({
     mutationFn: async ({ 
+      id,
       tab_id, 
       name, 
       actions 
     }: { 
-      tab_id: string; 
-      name: string;
+      id?: string;
+      tab_id?: string; 
+      name?: string;
       actions: GranularTileActions;
     }) => {
-      return actions.deleteByName(tab_id, name);
+      if (id) {
+        return actions.deleteById(id);
+      } else if (tab_id && name) {
+        return actions.deleteByName(tab_id, name);
+      } else {
+        throw new Error("Invalid arguments");
+      }
     },
     onSuccess: (_, variables) => {
-      const { tab_id, name } = variables;
+      const { id, tab_id, name } = variables;
       // Invalidate tiles list
-      queryClient.invalidateQueries({ 
-        queryKey: ['tiles', tab_id] 
-      });
+      if (tab_id) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['tiles', tab_id] 
+        });
+      }
       // Remove deleted tile from cache
-      queryClient.removeQueries({ 
-        queryKey: ['tile', tab_id, name] 
-      });
+      if (id) {
+        queryClient.removeQueries({ 
+          queryKey: ['tile-by-id', id] 
+        });
+      } else if (tab_id && name) {
+        queryClient.removeQueries({ 
+          queryKey: ['tile', tab_id, name] 
+        });
+      }
       // Also invalidate tab with tiles
-      queryClient.invalidateQueries({ 
-        queryKey: ['tab-with-tiles-by-id', tab_id] 
-      });
+      if (tab_id) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['tab-with-tiles-by-id', tab_id] 
+        });
+      }
     },
   });
 }
@@ -262,8 +301,6 @@ export function useDeleteTileQuery() {
  * Hook to create a checkpoint for a tile
  */
 export function useCreateTileCheckpointQuery() {
-  const queryClient = getQueryClient();
-  
   return useMutation({
     mutationFn: async ({ 
       tab_id,
@@ -330,31 +367,47 @@ export function usePatchTileQuery() {
   const queryClient = getQueryClient();
   
   return useMutation({
-    mutationFn: async ({ 
+    mutationFn: async ({
+      id,
       tab_id, 
       name, 
       updateData, 
       actions 
     }: { 
-      tab_id: string; 
-      name: string;
-      updateData: Omit<Partial<TileData>, 'id' | 'tab_id' | 'created_at' | 'updated_at'>;
+      id?: string;
+      tab_id?: string; 
+      name?: string;
+      updateData: Record<string, any>;
       actions: GranularTileActions;
     }) => {
-      return actions.patchByName(tab_id, name, updateData);
+      if (id) {
+        return actions.patchById(id, updateData);
+      } else if (tab_id && name) {
+        return actions.patchByName(tab_id, name, updateData);
+      } else {
+        throw new Error("Invalid arguments");
+      }
     },
     onSuccess: (result, variables) => {
-      const { tab_id, name } = variables;
+      const { id, tab_id, name } = variables;
       
       // Invalidate tile
-      queryClient.invalidateQueries({ 
-        queryKey: ['tile', tab_id, name] 
-      });
+      if (id) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['tile-by-id', id] 
+        });
+      } else {
+        queryClient.invalidateQueries({ 
+          queryKey: ['tile', tab_id, name] 
+        });
+      }
       
       // Invalidate tiles list
-      queryClient.invalidateQueries({ 
-        queryKey: ['tiles', tab_id] 
-      });
+      if (tab_id) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['tiles', tab_id] 
+        });
+      }
       
       // Invalidate tab with tiles if we know the tab
       if (tab_id) {

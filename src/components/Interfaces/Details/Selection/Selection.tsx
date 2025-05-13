@@ -88,7 +88,7 @@ export default function Selection({
     isLoading: isTableDataLoading,
     isError: isTableDataError,
     error: tableDataError
-  } = useTableDataQuery(tileId || null, tabId || null);
+  } = useTableDataQuery(item?.table || null, tabId || null);
 
   // Create equivalent references to match the old pattern
   const tableItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || 

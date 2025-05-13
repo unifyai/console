@@ -1,6 +1,3 @@
-import { TabProps } from "@/types/evals/grid";
-import { TableArguments } from "@/types/evals/logs";
-
 // Tab metadata - core identifying information
 export interface TabMeta {
   id: string | null;
@@ -112,7 +109,7 @@ export function setTabProperty<K extends keyof Tab>(
 /**
  * Add a tile to a tab
  */
-export function addTileId(tab: Tab, tileId: string, insert_after?: string): Tab {
+export function addTile(tab: Tab, tileId: string, tileName: string, insert_after?: string): Tab {
   // If the tile already exists in the tab, don't add it again
   if (tab.tileIds.includes(tileId)) {
     return tab;
@@ -120,20 +117,24 @@ export function addTileId(tab: Tab, tileId: string, insert_after?: string): Tab 
   
   // Create a new array with the new tile ID
   const tileIds = [...tab.tileIds];
+  const tileNames = [...tab.tileNames];
   if (insert_after) {
     const index = tileIds.indexOf(insert_after);
     if (index !== -1) {
       tileIds.splice(index + 1, 0, tileId);
+      tileNames.splice(index + 1, 0, tileName);
     }
   }
   else {
     tileIds.push(tileId);
+    tileNames.push(tileName);
   }
   
   // Return the updated tab
   return {
     ...tab,
     tileIds,
+    tileNames,
     // updatedAt: new Date().toISOString()
   };
 }
@@ -141,20 +142,24 @@ export function addTileId(tab: Tab, tileId: string, insert_after?: string): Tab 
 /**
  * Remove a tile from a tab
  */
-export function removeTileId(tab: Tab, tileId: string): Tab {
+export function removeTile(tab: Tab, tileId: string, tileName: string): Tab {
   // Filter out the tile ID to remove
   const tileIds = tab.tileIds.filter(id => id !== tileId);
+
+  // Filter out the tile names  
+  const tileNames = tab.tileNames.filter(name => name !== tileName);
   
   // Update the focused tiles if needed
-  let focusedTileIds = [...tab.focusedTileNames] as [string | undefined, string | undefined];
-  if (focusedTileIds[0] === tileId) focusedTileIds[0] = undefined;
-  if (focusedTileIds[1] === tileId) focusedTileIds[1] = undefined;
+  let focusedTileNames = [...tab.focusedTileNames] as [string | undefined, string | undefined];
+  if (focusedTileNames[0] === tileName) focusedTileNames[0] = undefined;
+  if (focusedTileNames[1] === tileName) focusedTileNames[1] = undefined;
   
   // Return the updated tab
   return {
     ...tab,
     tileIds,
-    focusedTileNames: focusedTileIds,
+    tileNames,
+    focusedTileNames,
     // updatedAt: new Date().toISOString()
   };
 }

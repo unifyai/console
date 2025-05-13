@@ -24,18 +24,11 @@ import { useTiles } from "@/contexts/hooks/useStore";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { useUpdateTabQuery } from '@/hooks/Query/useTabsQuery';
 import { useRestoreLastSavedTabWithTilesQuery } from '@/hooks/Query/useRestoreLastSavedTabWithTilesQuery';
-
-// Create a response object that matches ResponseProps interface
-const createResponse = (success: boolean, message: string): ResponseProps => {
-    return { 
-        success: success ? "true" : "false", 
-        message
-    };
-};
+import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
 
 const InterfaceButtons = ({
+    tabIdOrName,
     interfaceId,
-    tabQueryParam,
     setSaveDialog,
     logsActions,
     contextActions,
@@ -43,8 +36,8 @@ const InterfaceButtons = ({
     tileActions,
     disabled,
 }: {
+    tabIdOrName: string | null,
     interfaceId: string,
-    tabQueryParam: string | null,
     setSaveDialog: (value: SetStateAction<boolean>) => void,
     logsActions: LogsActions,
     contextActions: ContextActions,
@@ -66,11 +59,19 @@ const InterfaceButtons = ({
 
     // Tab states and actions with granular access
     const {
+        meta: tabMetaState,
         data: tabDataState,
         ui: tabUIState,
         dataActions: tabDataActions,
         uiActions: tabUIActions,
-    } = useTab(tabQueryParam || "", interfaceId);
+    } = useTab(tabIdOrName || "", interfaceId);
+    const tabId = tabMetaState?.id || null;
+    const tabName = tabMetaState?.name || null;
+
+    // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
+    const { actions: syncedTabActions } = useTabSync(tabId, interfaceId, tabActions, tileActions);
+    const syncedTabDataActions = syncedTabActions?.data ?? null;
+    const syncedTabUIActions = syncedTabActions?.ui ?? null;
 
     // Get tileIds from tab data properly
     const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
@@ -95,14 +96,14 @@ const InterfaceButtons = ({
 
     // Handle context change 
     const handleContextChange = (ctx: string) => {
-        if (tabDataActions && tabUIActions && project && tabQueryParam) {
+        if (tabDataActions && tabUIActions && project && tabName) {
             // First update the tab's context
             tabDataActions.setGlobalContext(ctx);
             
             // Update the context in the backend using the update tab mutation
             updateTabMutation.mutate({
                 interface_id: project,
-                name: tabQueryParam,
+                name: tabName,
                 data: {
                     global_context: ctx
                 },
@@ -128,7 +129,7 @@ const InterfaceButtons = ({
                                 : undefined;
 
                     // Update the tile's context
-                    tabDataActions.updateTile(tile.id || "", {
+                    syncedTabDataActions?.updateTile(tile.id || "", {
                         context: newContext,
                         column_context: validItemContext ? item.column_context : undefined
                     });
@@ -143,10 +144,10 @@ const InterfaceButtons = ({
 
     // Handler for pasting tile
     const handlePaste = () => {
-        if (tabUIState?.copied && tabDataActions) {
+        if (tabUIState?.copied && syncedTabDataActions) {
             const newCounter = tileIds.length + 1;
             const newName = "Tile_" + newCounter;
-            tabDataActions.addTile(tabUIState.copied, newName);
+            syncedTabDataActions.pasteCopiedTile(newName, tabUIState.copied);
             tabUIActions?.setCopied(undefined);
         }
     };
@@ -188,7 +189,7 @@ const InterfaceButtons = ({
                     {/* Context selector */}
                     <div className="border-b py-1">
                         <ContextSelector
-                            tabId={tabQueryParam || undefined}
+                            tabId={tabId || undefined}
                             interfaceId={interfaceId}
                             projectId={project || undefined}
                             context={tabDataState?.globalContext}
@@ -221,7 +222,7 @@ const InterfaceButtons = ({
                             variant="ghost"
                             disabled={isDisabled || tabUIState?.resetting}
                             onClick={async () => {
-                                if (!tabQueryParam || !project || !tabUIActions) return;
+                                if (!tabName || !project || !tabUIActions) return;
                                 
                                 // Set resetting state
                                 tabUIActions.setResetting(true);
@@ -230,7 +231,7 @@ const InterfaceButtons = ({
                                     // Restore the tab from its checkpoint using the new hook
                                     const result = await restoreTabMutation.mutateAsync({
                                         interface_id: interfaceId,
-                                        tab_name: tabQueryParam,
+                                        tab_name: tabName,
                                         tab_actions: tabActions,
                                         tile_actions: tileActions
                                     });
@@ -258,8 +259,10 @@ const InterfaceButtons = ({
                         <AddTile
                             project={project || ""}
                             interfaceId={interfaceId}
-                            tabId={tabQueryParam || ""}
+                            tabId={tabId || ""}
                             anyTileLoading={anyTileLoading}
+                            tabActions={tabActions}
+                            tileActions={tileActions}
                         />
                     </div>
 
@@ -280,16 +283,16 @@ const InterfaceButtons = ({
                                 <DropdownMenuItem
                                     key={idx}
                                     onSelect={() => {
-                                        if (tabDataActions && item.name) {
-                                            tabDataActions.updateTile(item.name, {
+                                        if (tabDataActions && item.id) {
+                                            syncedTabDataActions?.updateTile(item.id, {
                                                 position: {
                                                     x: (tileIds.length * 2) % 12,
                                                     y: (tileIds.length * 2) / 12,
                                                     width: 4,
                                                     height: 4,
                                                 },
-                                                minW: undefined,
-                                                minH: undefined,
+                                                minW: null,
+                                                minH: null,
                                                 visible: true
                                             });
                                         }
@@ -318,7 +321,7 @@ const InterfaceButtons = ({
                     <div className="pt-1">
                         <ColorPicker
                             value={tabUIState?.color ?? getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()}
-                            onChange={(color) => tabUIActions?.setColor(color)}
+                            onChange={(color) => syncedTabUIActions?.setColor(color)}
                         >
                             <ActionButton
                                 className="cursor-pointer hover:z-10"

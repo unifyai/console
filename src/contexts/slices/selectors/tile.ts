@@ -68,7 +68,8 @@ export interface Tile extends TileMeta, TileData, TileUI {
 // a Tile into a TileProps
 export const TILE_PROPS_KEYS_AS_TILE_KEYS: (keyof Tile)[] = [
   "id","name","type","position","minW","minH","context","table","auto_update",
-  "freeze","filters","common_filter","metric","visible","moved","static","color",
+  "freeze","filters","common_filter","metric","column_context","grouping",
+  "visible","moved","static","color",
 ];
 
 export const TILE_KEYS: (keyof Tile)[] = [

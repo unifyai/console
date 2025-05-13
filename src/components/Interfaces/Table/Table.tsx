@@ -51,8 +51,7 @@ import { useTab } from "@/contexts/hooks/tab";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { useProject } from "@/contexts/hooks/project";
 import { shallow } from "zustand/vanilla/shallow";
-import { useTableArgumentsQuery, useTableDataQuery } from "@/hooks/Query/useTableDataQuery";
-import { useUpdateTableDataItem } from "@/hooks/Query/useTableDataQuery";
+import { useTableArgumentsQuery, useTableDataQueryWithTracking } from "@/hooks/Query/useTableDataQuery";
 import { getQueryClient } from '@/lib/react-query/getQueryClient'
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 
@@ -77,26 +76,6 @@ const LogsTable = ({
   derivedEntryActions: DerivedEntryActions,
   contextActions: ContextActions,
 }) => {
-  // Create a default empty TableDataItem - moved up before it's used
-  const defaultTableDataItem = useMemo(() => ({
-    columnContexts: [],
-    baseIndex: undefined,
-    hiddenColumns: undefined,
-    columnOrdering: undefined,
-    selection: undefined,
-    fields: {},
-    logsData: { params: {}, logs: [], count: 0, groups: {} },
-    totalPages: 0,
-    entriesProperties: [],
-    paramsProperties: [],
-    logs: [],
-    params: [],
-    metrics: {},
-    groupedMetrics: {},
-    boundaries: { minimums: {}, maximums: {} },
-    metric: ""
-  } as TableDataItem), []);
-
   // Get access to the project data and actions
   const { data: projectDataState } = useProject(projectId ?? null);
   const contexts = projectDataState?.contexts || [];
@@ -111,16 +90,28 @@ const LogsTable = ({
     ui: tileUIState,
     tableTile: tableTileState,
     uiActions: tileUIActions,
-    dataActions: tileDataActions,
   } = useTile(tileId, tabId);
 
-  // Use React Query to access tableDataItem and tableArguments
+  // Use the enhanced hook that includes state tracking
   const { 
-    data: tableDataItem = defaultTableDataItem,
+    tableData: tableDataItem, 
     isLoading: isTableDataLoading,
     isError: isTableDataError,
-    error: tableDataError
-  } = useTableDataQuery(tileId || null, tabId || null);
+    error: tableDataError,
+    updateTableDataItemWithUpdater
+  } = useTableDataQueryWithTracking(tileId || null, tabId || null);
+
+  const {
+    fields,
+    logs,
+    params,
+    entriesProperties,
+    paramsProperties,
+    metrics,
+    logsData,
+    totalPages,
+    boundaries
+  } = tableDataItem;
 
   const tileName = tileMetaState?.name || "";
   const {data: tableArguments = {} as TableArguments} = useTableArgumentsQuery(tabId || null);
@@ -130,7 +121,7 @@ const LogsTable = ({
   const groupSortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.group_sorting || null;
 
   // SYNCHRONISED TABLE-SPECIFIC ACTIONS (optimistic + router refresh)
-  const { actions: syncedTileActions,  tableTile } = useTileSync(tileId, tabId, tileActions);
+  const { actions: syncedTileActions, tableTile, loading } = useTileSync(tileId, tabId, tileActions);
   const syncedTileDataActions = syncedTileActions?.data ?? null;
   const { tableTileActions } = tableTile ?? { tableTileActions: null };
   
@@ -151,22 +142,7 @@ const LogsTable = ({
     return Promise.resolve({ status: 'success', message: 'Data refreshed' });
   }, [queryClient, tileId]);
 
-  // Use the custom hook for table data updates
-  const { mutate: updateTableData } = useUpdateTableDataItem(tileId);
-
   const setPending = (pending: boolean) => tileUIActions?.setPending(pending);
-
-  const {
-    fields,
-    logs,
-    params,
-    entriesProperties,
-    paramsProperties,
-    metrics,
-    logsData,
-    totalPages,
-    boundaries
-  } = tableDataItem;
 
   // Display loaders for group metrics and shared values
   const [loadingGroups, setLoadingGroups] = useState<Set<string>>(new Set());
@@ -180,7 +156,7 @@ const LogsTable = ({
 
   // UI state from the tab
   const interactive = tabUIState?.interactive || false;
-  const pending = tabUIState?.pending || tabUIState?.dataPending || tileUIState?.pending || isTableDataLoading;
+  const pending = tabUIState?.pending || tabUIState?.dataPending || tileUIState?.pending;
 
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false);
@@ -330,7 +306,7 @@ const LogsTable = ({
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const setLogsFilters = (filtersObj: FiltersByColumn) => {
     const keys = Object.keys(filtersObj);
-    tileDataActions?.setFilters(
+    syncedTileDataActions?.setFilters(
       keys.length
         ? Object.entries(filtersObj)
           .map(([cKey, val]) =>
@@ -420,7 +396,7 @@ const LogsTable = ({
   };
   const setState = {
     setSelectedCells: (cells: string[]) => tableTileActions?.setSelected(cells.join(",")),
-    setMetric: (newMetric: string) => tileDataActions?.setMetric(newMetric),
+    setMetric: (newMetric: string) => syncedTileDataActions?.setMetric(newMetric),
     setSorting,
     setGroupSorting,
     setColumnVisibility,
@@ -521,29 +497,6 @@ const LogsTable = ({
     }
   }, [columnIDs, manualColumnOrderOverride]);
 
-  // Adapter that accepts an updater function as well as partial updates
-  // and handles both direct overwriting updates as well as partial updates.
-  // If no partialUpdates are provided, the updater function will be used to update the tableDataItem.
-  // There is an optional merge parameter that defaults to false.
-  // If merge is true, the updates will be merged into the previous tableDataItem using mergeUpdatesIntoTableDataItem.
-  // If merge is false, the updates will overwrite the previous tableDataItem using updateTableDataItem.
-  const updateTableDataItemWithUpdater = (
-    updater?: (prev: TableDataItem) => TableDataItem,
-    partialUpdates?: Partial<TableDataItem>,
-    merge?: boolean
-  ) => {
-    if (updater) {
-      if (partialUpdates) {
-        updateTableData(partialUpdates);
-      } else {
-        const newData = updater(tableDataItem);
-        updateTableData(newData);
-      }
-    } else if (partialUpdates) {
-      updateTableData(partialUpdates);
-    }
-  }
-
   // Helper function to safely access the property
   function safeUpdatedFilterExpression(item: TableDataItem): boolean {
     return (item as any).updatedFilterExpression;
@@ -629,7 +582,7 @@ const LogsTable = ({
             interactive={interactive}
             logsFilters={logsFilters}
             commonFilter={commonFilter}
-            setCommonFilter={tileDataActions?.setCommonFilter!}
+            setCommonFilter={syncedTileDataActions?.setCommonFilter!}
             logs={logs}
             currentTable={item?.name || ""}
             tableArguments={tableArguments}
@@ -642,7 +595,7 @@ const LogsTable = ({
           />
           <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => {setGrouping([]); setGroupSorting([])}}/>
           <ResetServerAction condition={(sorting.length > 0 || groupSorting.length > 0)} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => {setSorting([]); setGroupSorting([])}}/>
-          <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); tileDataActions?.setCommonFilter(undefined)}}/>
+          <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); syncedTileDataActions?.setCommonFilter(undefined)}}/>
         </div>
       )}
       {projectId && (

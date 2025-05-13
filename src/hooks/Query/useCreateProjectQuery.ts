@@ -114,8 +114,6 @@ export function useCreateProjectQuery() {
             
             // Prepare tile data with all available properties
             const tileData = {
-              min_width: position.width,
-              min_height: position.height,
               ...restTileProps,
               ...specializedData
             };
@@ -123,9 +121,10 @@ export function useCreateProjectQuery() {
             return actions.tileActions.create(
               createdTab.id || "", 
               tileName, 
-              type, 
               position, 
-              tileData
+              tileData,
+              undefined,
+              type, 
             );
           })
         );

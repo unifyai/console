@@ -50,13 +50,16 @@ const ContextSelector = ({
     const [start, setStart] = useState(true);
 
     const { dataActions: projectDataActions } = useProjectData(projectId || null);
-    const { actions: tabSyncActions } = useTabSync(
+
+    // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
+    const { actions: syncedTabActions } = useTabSync(
         tabId || null, 
         interfaceId || null, 
         serverTabActions, 
         serverTileActions,
-        setPending
     );
+    const syncedTabDataActions = syncedTabActions?.data ?? null;
+
     const { actions: tileActions, dataActions: tileDataActions } = useTile(tileId || null, tabId || null);
     const { itemActions: tileItemActions } = useTileItem(tileId || null, tabId || null);
 
@@ -118,7 +121,7 @@ const ContextSelector = ({
 
     const onDelete = (ctx: string) => {
         if (ctx) {
-            tabSyncActions?.removeContextFromTab(ctx);
+            syncedTabDataActions?.removeContextFromTab(ctx, setPending);
         }
     }
 

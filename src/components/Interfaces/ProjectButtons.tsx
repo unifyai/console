@@ -17,12 +17,11 @@ import { defaultTiles, defaultInterface, defaultTab } from "@/constants/logs";
 import AutoComplete from "../Common/Misc/AutoComplete";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { useCreateProjectQuery } from "@/hooks/Query/useCreateProjectQuery";
-import { useListProjectsQuery, useCreateProjectQuery as useCreateSimpleProjectQuery } from "@/hooks/Query/useProjectsQuery";
-import { useDeleteInterfaceUnifiedQuery } from "@/hooks/Query/useInterfacesQuery";
+import { useListProjectsQuery, useCreateProjectQuery as useCreateSimpleProjectQuery, useDeleteProjectQuery } from "@/hooks/Query/useProjectsQuery";
 
 const ProjectButtons = ({
+    tabIdOrName,
     interfaceId,
-    tabQueryParam,
     projectQueryParam,
     defaultProject,
     setProjectQueryParam,
@@ -33,8 +32,8 @@ const ProjectButtons = ({
     tabActions,
     tileActions,
 }: {
+    tabIdOrName: string | null;
     interfaceId: string;
-    tabQueryParam: string | null;
     projectQueryParam: string | null;
     defaultProject: boolean,
     setProjectQueryParam: (project: string | null) => void;
@@ -50,7 +49,7 @@ const ProjectButtons = ({
     // Initialize React Query hooks
     const createProjectMutation = useCreateProjectQuery();
     const listProjectsQuery = useListProjectsQuery(projectActions);
-    const deleteInterfaceMutation = useDeleteInterfaceUnifiedQuery();
+    const deleteProjectMutation = useDeleteProjectQuery();
     const createSimpleProjectMutation = useCreateSimpleProjectQuery();
 
     // Global states
@@ -62,7 +61,7 @@ const ProjectButtons = ({
 
     // Interface states and actions with granular access
     const { dataActions: interfaceDataActions } = useInterface(interfaceId);
-    const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabQueryParam || "");
+    const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabIdOrName || "");
 
     // Use React Query to load projects instead of direct server call
     useEffect(() => {
@@ -125,9 +124,9 @@ const ProjectButtons = ({
     const handleDeleteProject = async (name: string) => {
         try {
             // Use the delete interface mutation with React Query
-            await deleteInterfaceMutation.mutateAsync({
-                params: { projectId: name },
-                actions: interfaceActions
+            await deleteProjectMutation.mutateAsync({
+                name,
+                actions: projectActions
             });
             
             // Update UI state after successful deletion

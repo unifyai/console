@@ -26,14 +26,20 @@ export default async function SelectionWrapper({
 
   return (
     <HydrationBoundary state={dehydrate(qc)}>
-      <Suspense fallback={<SkeletonLoader />}>
+      <div className="w-full overflow-auto">
         <ExpandProvider>
-          <Selection
-            tileId={tile.id || ""}
-            tabId={tabId}
-          />
+          <Suspense fallback={
+            <div className="w-full h-full flex items-center justify-center">
+              <SkeletonLoader />
+            </div>
+          }>
+            <Selection
+              tileId={tile.id || ""}
+              tabId={tabId}
+            />
+          </Suspense>
         </ExpandProvider>
-      </Suspense>
+      </div>
     </HydrationBoundary>
   );
 } 

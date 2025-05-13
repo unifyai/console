@@ -115,6 +115,7 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
     // Common fields shared across tile types
     moved: tileItem.moved,
     static: tileItem.static,
+    color: tileItem.color,
     context: tileItem.context,
     column_context: tileItem.column_context,
     grouping: tileItem.grouping,

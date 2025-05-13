@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import React, { Suspense } from "react";
 import Tab from "../Tab";
 import TileCardWrapper from "./TileCardWrapper.server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
@@ -165,6 +165,7 @@ export default async function TabWrapper({
           tabId={tabId}
           interfaceId={interfaceId}
           projectId={project}
+          tabActions={actions.tabActions}
           tileActions={actions.tileActions}
           logsActions={actions.logsActions}
           fieldsActions={actions.fieldsActions}
@@ -173,15 +174,17 @@ export default async function TabWrapper({
           codeActions={actions.codeActions}
         >
           {tiles.map(tile => (
-            <Suspense key={tile.id} fallback={<SkeletonLoader />}>
-              <TileCardWrapper
-                tile={tile}
-                tabId={tabId}
-                interfaceId={interfaceId}
-                projectId={project}
-                actions={actions}
-              />
-            </Suspense>
+            <React.Fragment key={tile.id}>
+              <Suspense fallback={<SkeletonLoader />}>
+                <TileCardWrapper
+                  tile={tile}
+                  tabId={tabId}
+                  interfaceId={interfaceId}
+                  projectId={project}
+                  actions={actions}
+                />
+              </Suspense>
+            </React.Fragment>
           ))}
         </Tab>
       </HydrationBoundary>

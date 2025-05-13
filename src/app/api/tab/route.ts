@@ -7,12 +7,12 @@ export async function GET(request: NextRequest) {
     const searchParams = new URLSearchParams(url.search);
     
     // Check if we're getting tab by ID, by parent+name, or listing tabs
-    const hasId = searchParams.has('id');
+    const hasId = searchParams.has('tab_id');
     const hasInterfaceId = searchParams.has('interface_id');
     const hasName = searchParams.has('name');
     
     // Determine endpoint based on parameters
-    let endpoint = "/tab";
+    let endpoint = "/tab/";
     
     // If we have an interface_id but no id or name, we're listing tabs
     if (hasInterfaceId && !hasId && !hasName) {
@@ -55,7 +55,7 @@ export async function PUT(request: NextRequest) {
     
     // Pass all query parameters to allow both ID and parent+name updates
     return await fetch(
-        `${baseUrl}/tab${url.search}`,
+        `${baseUrl}/tab/${url.search}`,
         {
             method: "PUT",
             headers: {
@@ -72,7 +72,7 @@ export async function DELETE(request: NextRequest) {
     
     // Pass all query parameters to allow both ID and parent+name deletion
     return await fetch(
-        `${baseUrl}/tab${url.search}`,
+        `${baseUrl}/tab/${url.search}`,
         {
             method: "DELETE",
             headers: {
@@ -89,7 +89,7 @@ export async function PATCH(request: NextRequest) {
     
     // Pass all query parameters to allow both ID and parent+name updates
     return await fetch(
-        `${baseUrl}/tab${url.search}`,
+        `${baseUrl}/tab/${url.search}`,
         {
             method: "PATCH",
             headers: {

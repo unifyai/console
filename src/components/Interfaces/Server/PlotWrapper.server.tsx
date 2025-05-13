@@ -39,12 +39,6 @@ export default async function PlotWrapper({
 }) {
   const qc = getQueryClient();
   const tileId = tile.id || "";
-  const tileName = tile.name;
-  
-  // Only proceed if we have a plot tile
-  if (!tile.plot_tile) {
-    return <div>Plot configuration missing</div>;
-  }
 
   // Fetch all tiles for this tab - we need this to build arguments properly
   if (tabId) {
@@ -94,16 +88,16 @@ export default async function PlotWrapper({
   const usedTableNames: string[] = [];
   
   // Check x-axis
-  if (tile.plot_tile.x_axis && tile.plot_tile.x_axis.includes(".")) {
-    const tableName = tile.plot_tile.x_axis.split(".")[0];
+  if (tile.plot_tile?.x_axis && tile.plot_tile?.x_axis?.includes(".")) {
+    const tableName = tile.plot_tile?.x_axis?.split(".")[0];
     if (!usedTableNames.includes(tableName)) {
       usedTableNames.push(tableName);
     }
   }
   
   // Check y-axis
-  if (tile.plot_tile.y_axis && tile.plot_tile.y_axis.includes(".")) {
-    const tableName = tile.plot_tile.y_axis.split(".")[0];
+  if (tile.plot_tile?.y_axis && tile.plot_tile?.y_axis?.includes(".")) {
+    const tableName = tile.plot_tile?.y_axis?.split(".")[0];
     if (!usedTableNames.includes(tableName)) {
       usedTableNames.push(tableName);
     }
@@ -264,7 +258,11 @@ export default async function PlotWrapper({
 
   return (
     <HydrationBoundary state={dehydrate(qc)}>
-      <Suspense fallback={<SkeletonLoader />}>
+      <Suspense fallback={
+        <div className="w-full h-full flex items-center justify-center">
+          <SkeletonLoader />
+        </div>
+      }>
         <LogsPlot
           tileId={tileId}
           tabId={tabId}

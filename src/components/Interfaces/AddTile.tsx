@@ -1,31 +1,40 @@
-import { TileProps } from "@/types/evals/grid";
+import { GranularTabActions, GranularTileActions, TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
 import { Plus } from "lucide-react";
 import { useTab } from "@/contexts/hooks/tab";
 import { useMemo } from "react";
+import { useTabSync } from "@/contexts/hooks/tab/sync";
 
 const AddTile = ({
-    project,
-    interfaceId,
     tabId,
+    interfaceId,
+    project,
     anyTileLoading,
+    tabActions, 
+    tileActions,
 }: {
-    project: string | null,
-    interfaceId: string,
     tabId: string,
+    interfaceId: string,
+    project: string | null,
     anyTileLoading: boolean,
+    tabActions: GranularTabActions,
+    tileActions: GranularTileActions,
 }) => {
     // Get tab data and actions using useTab hook with granular access
-    const { ui: tabUIState, dataActions: tabDataActions, exists } = useTab(tabId, interfaceId);
+    const { ui: tabUIState, exists } = useTab(tabId, interfaceId);
+
+    // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
+    const { actions: syncedTabActions } = useTabSync(tabId, interfaceId, tabActions, tileActions);
+    const syncedTabDataActions = syncedTabActions?.data ?? null;
 
     // Use the getItems function from the useTab hook to get TileProps array
     const [items, visibleItems] = useMemo(() => {
-        const allItems = tabDataActions?.getItems();
-        return !exists || !tabDataActions ? [[], []] : [
+        const allItems = syncedTabDataActions?.getItems();
+        return !exists || !syncedTabDataActions ? [[], []] : [
             allItems as TileProps[],
             allItems?.filter(item => item.visible) as TileProps[]
         ];
-    }, [exists, tabDataActions]);
+    }, [exists, syncedTabDataActions]);
 
     return (
         <ActionButton
@@ -117,11 +126,10 @@ const AddTile = ({
                 };
 
                 // Initialize the new tile with the calculated position
-                tabDataActions?.initTile(newTileName, {
-                    name: newTileName,
+                syncedTabDataActions?.initTile(newTileName, {
                     position,
-                    minW: undefined,
-                    minH: undefined,
+                    minW: null,
+                    minH: null,
                     type: null,
                     visible: true,
                 });

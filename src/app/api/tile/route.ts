@@ -7,12 +7,12 @@ export async function GET(request: NextRequest) {
     const searchParams = new URLSearchParams(url.search);
     
     // Check if we're getting a tile by ID, by parent+name, or listing tiles
-    const hasId = searchParams.has('id');
+    const hasId = searchParams.has('tile_id');
     const hasTabId = searchParams.has('tab_id');
     const hasName = searchParams.has('name');
     
     // Determine endpoint based on parameters
-    let endpoint = "/tile";
+    let endpoint = "/tile/";
     
     // If we have a tab_id but no id or name, we're listing tiles
     if (hasTabId && !hasId && !hasName) {
@@ -55,7 +55,7 @@ export async function PUT(request: NextRequest) {
     
     // Pass all query parameters to allow both ID and parent+name updates
     return await fetch(
-        `${baseUrl}/tile${url.search}`,
+        `${baseUrl}/tile/${url.search}`,
         {
             method: "PUT",
             headers: {
@@ -72,7 +72,7 @@ export async function DELETE(request: NextRequest) {
     
     // Pass all query parameters to allow both ID and parent+name deletion
     return await fetch(
-        `${baseUrl}/tile${url.search}`,
+        `${baseUrl}/tile/${url.search}`,
         {
             method: "DELETE",
             headers: {
@@ -92,7 +92,7 @@ export async function PATCH(request: NextRequest) {
     const hasTileType = searchParams.has('tile_type');
 
     // Determine endpoint based on parameters
-    let endpoint = "/tile";
+    let endpoint = "/tile/";
     
     // If we have a tileType, we're patching a specialized tile
     if (hasTileType) {

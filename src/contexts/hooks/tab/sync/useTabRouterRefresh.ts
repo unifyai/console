@@ -7,23 +7,24 @@ type RefreshOpts = {
   withDataPending?: boolean;
   /** setPending(true/false) around the transition */
   withPending?: boolean;
+  /** List of external pending setters to call before and after the transition */
+  externalPendingSetters?: Array<(pending: boolean) => void>;
 };
 
 /**
  * Make `router.refresh()` tab-aware.
  *
  * Every call will:
- *   1. turn the requested UI flags and external pending state **on**
+ *   1. turn the requested UI flags and external pending states **on**
  *   2. perform `router.refresh()` inside a React transition
- *   3. turn the flags and external pending state **off** when the transition settles
+ *   3. turn the flags and external pending states **off** when the transition settles
  *
  * The hook internally reference-counts concurrent refreshes, so if
  * multiple refreshes run in parallel, flags are cleared
  * only after the very last one completes.
  */
 export function useTabRouterRefresh(
-  uiActions: TabUIActions | null,
-  setExternalPending?: (pending: boolean) => void
+  uiActions: TabUIActions | null
 ) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -33,8 +34,12 @@ export function useTabRouterRefresh(
 
   /** call inside a setter */
   const refreshRouter = useCallback(
-    (opts: RefreshOpts = { withPending: false , withDataPending: false}) => {
-      const { withPending = false, withDataPending = false } = opts;
+    (opts: RefreshOpts = { withPending: false, withDataPending: false, externalPendingSetters: [] }) => {
+      const { 
+        withPending = false, 
+        withDataPending = false, 
+        externalPendingSetters = [] 
+      } = opts;
 
       // Set UI pending states if UI actions are available
       if (withPending) {
@@ -49,9 +54,11 @@ export function useTabRouterRefresh(
         }
       }
 
-      // Also set external pending state if provided
-      if (setExternalPending) {
-        setExternalPending(true);
+      // Always set external pending states if provided
+      if (externalPendingSetters && externalPendingSetters.length > 0) {
+        for (const setter of externalPendingSetters) {
+          setter(true);
+        }
       }
       
       counter.current += 1;
@@ -79,15 +86,17 @@ export function useTabRouterRefresh(
                 }
             }
 
-            // Also clear external pending state if provided
-            if (setExternalPending) {
-                setExternalPending(false);
+            // Always clear external pending states if provided
+            if (externalPendingSetters && externalPendingSetters.length > 0) {
+              for (const setter of externalPendingSetters) {
+                setter(false);
+              }
             }
           }
         }
       });
     },
-    [router, isPending, uiActions, setExternalPending]
+    [router, isPending, uiActions]
   );
 
   return refreshRouter;

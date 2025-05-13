@@ -18,10 +18,10 @@ const FreezeLogs = ({ tileId, tabId, interfaceId, projectId }: {
     const [spinnerColor, setSpinnerColor] = useState("white");
 
     // Get the item representation for the current tile
-    const { itemActions } = useTileItem(tileId, tabId, interfaceId);
+    const { itemActions } = useTileItem(tileId, tabId);
     const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
 
-    const { tableTile: tableTileState, dataActions: tileDataActions } = useTile(tileId, tabId, interfaceId, projectId);
+    const { tableTile: tableTileState, dataActions: tileDataActions } = useTile(tileId, tabId);
 
     // Use React Query to access tableDataItem
     const { 
@@ -29,7 +29,7 @@ const FreezeLogs = ({ tileId, tabId, interfaceId, projectId }: {
         isLoading: isTableDataLoading,
         isError: isTableDataError,
         error: tableDataError
-    } = useTableDataQuery(tileId || null, tabId || null, interfaceId || null, projectId || null);
+    } = useTableDataQuery(tileId || null, tabId || null);
 
     useEffect(() => {
         setLoading(false);

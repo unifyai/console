@@ -9,19 +9,23 @@ import { Badge } from "../UI/badge";
 import Tooltip from "../Common/Misc/Tooltip";
 import ContextSelector from "./Table/Content/ContextSelector";
 import TutorialButton from "./TutorialButton";
-import { LogsActions, ContextActions, CodeActions } from "@/types/evals/grid";
+import { LogsActions, ContextActions, CodeActions, GranularTileActions, GranularTabActions } from "@/types/evals/grid";
 import { Context } from "@/types/evals/grid";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { getTileButtonsRef } from '@/utils/refRegistry';
 import { useMemo } from "react";
+import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
+import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 
-const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, logsActions, contextActions}: {
+const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, tabActions, tileActions, logsActions, contextActions}: {
     tileId: string;
     tabId: string;
     interfaceId: string;
     projectId:string;
     contexts: Context[],
+    tabActions: GranularTabActions;
+    tileActions: GranularTileActions;
     logsActions: LogsActions;
     contextActions: ContextActions;
     codeActions: CodeActions;
@@ -30,9 +34,18 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, logsActio
     const { itemActions } = useTileItem(tileId, tabId);
     const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
 
-    const {ui: tileUIState, uiActions: tileUIActions} = useTileUI(tileId, tabId);
-    const {ui: tabUIState, uiActions: tabUIActions} = useTabUI(tabId);
-    const {data: tabDataState, dataActions: tabDataActions} = useTabData(tabId, interfaceId);
+    const { ui: tileUIState} = useTileUI(tileId, tabId);
+    const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabId);
+    const { data: tabDataState} = useTabData(tabId, interfaceId);
+    
+    // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
+    const { actions: syncedTabActions } = useTabSync(tabId, interfaceId, tabActions, tileActions);
+    const syncedTabDataActions = syncedTabActions?.data ?? null;
+
+    // SYNCHRONISED TILE-SPECIFIC ACTIONS (optimistic + router refresh)
+    const { actions: syncedTileActions } = useTileSync(tileId, tabId, tileActions);
+    const syncedTileUIActions = syncedTileActions?.ui ?? null;
+
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
     const disabled = tabUIState?.pending || tabUIState?.resetting || anyTileLoading;
 
@@ -116,7 +129,7 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, logsActio
                     <>
                         <ActionButton
                             className="cursor-pointer hover:z-10"
-                            onClick={() => tabDataActions?.updateTile(item?.id || "", { visible: false })}
+                            onClick={() => syncedTileUIActions?.setVisible(false)}
                             icon={<EyeOff />}
                             tooltip={"Hide"}
                             variant="outline"
@@ -130,7 +143,7 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, logsActio
                         />
                         <ColorPicker
                             value={tileUIState?.color ?? getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()}
-                            onChange={(color) => tileUIActions?.setColor(color)}
+                            onChange={(color) => syncedTileUIActions?.setColor(color)}
                         >
                             <ActionButton 
                                 className="cursor-pointer hover:z-10"
@@ -149,7 +162,7 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, logsActio
                         <ActionButton
                             className="remove cursor-pointer hover:z-10"
                             disabled={disabled}
-                            onClick={() => tabDataActions?.removeTile(item?.id || "")}
+                            onClick={() => syncedTabDataActions?.removeTile(tileId)}
                             icon={<X />}
                             tooltip="Remove"
                             variant="outline"

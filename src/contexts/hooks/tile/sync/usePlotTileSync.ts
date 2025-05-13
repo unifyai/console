@@ -72,30 +72,6 @@ export function usePlotTileSync(
   const plotGroupByMutation = usePatchSpecializedTileQuery<"Plot">();
   const plotAggregateMutation = usePatchSpecializedTileQuery<"Plot">();
 
-  if (!plotTileActions || !granularTileActions) {
-    return {
-      plotTile,
-      plotTileActions: null,
-      loading: {
-        plot_type: false,
-        x_axis: false,
-        y_axis: false,
-        plot_group_by: false,
-        plot_aggregate: false,
-        any: false
-      },
-      error: {
-        plot_type: null,
-        x_axis: null,
-        y_axis: null,
-        plot_group_by: null,
-        plot_aggregate: null,
-        any: false
-      },
-      exists: false
-    };
-  }
-
   // Create a mapping for the mutations to use in the loading and error states
   const mutations = {
     plot_type: plotTypeMutation,
@@ -107,7 +83,7 @@ export function usePlotTileSync(
 
   // Helper function to create wrapped setters
   const wrapPlotType = (value: string | undefined) => {
-    if (!plotTileActions) return;
+    if (!plotTileActions || !granularTileActions) return;
     
     // 1) Update local state immediately
     plotTileActions.setPlotType(value);
@@ -120,7 +96,7 @@ export function usePlotTileSync(
       tab_id: tabId,
       name: tileName,
       tileType: "Plot",
-      updateData: { plot_type: value },
+      updateData: { plot_type: value ?? null },
       actions: granularTileActions
     }, {
       onSettled: () => {
@@ -131,7 +107,7 @@ export function usePlotTileSync(
   };
 
   const wrapXAxis = (value: string | undefined) => {
-    if (!plotTileActions) return;
+    if (!plotTileActions || !granularTileActions) return;
     
     // 1) Update local state immediately
     plotTileActions.setXAxis(value);
@@ -144,7 +120,7 @@ export function usePlotTileSync(
       tab_id: tabId,
       name: tileName,
       tileType: "Plot",
-      updateData: { x_axis: value },
+      updateData: { x_axis: value ?? null },
       actions: granularTileActions
     }, {
       onSettled: () => {
@@ -155,7 +131,7 @@ export function usePlotTileSync(
   };
 
   const wrapYAxis = (value: string | undefined) => {
-    if (!plotTileActions) return;
+    if (!plotTileActions || !granularTileActions) return;
     
     // 1) Update local state immediately
     plotTileActions.setYAxis(value);
@@ -168,7 +144,7 @@ export function usePlotTileSync(
       tab_id: tabId,
       name: tileName,
       tileType: "Plot",
-      updateData: { y_axis: value },
+      updateData: { y_axis: value ?? null },
       actions: granularTileActions
     }, {
       onSettled: () => {
@@ -179,7 +155,7 @@ export function usePlotTileSync(
   };
 
   const wrapPlotGroupBy = (value: string | undefined) => {
-    if (!plotTileActions) return;
+    if (!plotTileActions || !granularTileActions) return;
     
     // 1) Update local state immediately
     plotTileActions.setPlotGroupBy(value);
@@ -192,7 +168,7 @@ export function usePlotTileSync(
       tab_id: tabId,
       name: tileName,
       tileType: "Plot",
-      updateData: { plot_group_by: value },
+      updateData: { plot_group_by: value ?? null },
       actions: granularTileActions
     }, {
       onSettled: () => {
@@ -203,7 +179,7 @@ export function usePlotTileSync(
   };
 
   const wrapAggregateProperty = (value: string | undefined) => {
-    if (!plotTileActions) return;
+    if (!plotTileActions || !granularTileActions) return;
     
     // 1) Update local state immediately
     plotTileActions.setAggregateProperty(value);
@@ -216,7 +192,7 @@ export function usePlotTileSync(
       tab_id: tabId,
       name: tileName,
       tileType: "Plot",
-      updateData: { plot_aggregate: value },
+      updateData: { plot_aggregate: value ?? null },
       actions: granularTileActions
     }, {
       onSettled: () => {
@@ -246,6 +222,30 @@ export function usePlotTileSync(
     granularTileActions,
     refreshRouter
   ]);
+
+  if (!plotTileActions || !granularTileActions) {
+    return {
+      plotTile,
+      plotTileActions: null,
+      loading: {
+        plot_type: false,
+        x_axis: false,
+        y_axis: false,
+        plot_group_by: false,
+        plot_aggregate: false,
+        any: false
+      },
+      error: {
+        plot_type: null,
+        x_axis: null,
+        y_axis: null,
+        plot_group_by: null,
+        plot_aggregate: null,
+        any: false
+      },
+      exists: false
+    };
+  }
 
   // Prepare loading states
   const loading: PlotLoadingStates = {

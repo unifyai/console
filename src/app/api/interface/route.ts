@@ -7,15 +7,15 @@ export async function GET(request: NextRequest) {
     const searchParams = new URLSearchParams(url.search);
     
     // Check if we're getting interface by ID, by path components, or listing interfaces
-    const hasId = searchParams.has('id');
+    const hasInterfaceId = searchParams.has('interface_id');
     const hasProjectId = searchParams.has('project');
     const hasName = searchParams.has('name');
     
     // Determine endpoint based on parameters
-    let endpoint = "/interfaces";
+    let endpoint = "/interfaces/";
     
     // If project is present but no name or id, we're listing
-    if (hasProjectId && !hasName && !hasId) {
+    if (hasProjectId && !hasName && !hasInterfaceId) {
         endpoint = "/interfaces/list";
     }
     
@@ -39,7 +39,7 @@ export async function PUT(request: NextRequest) {
     
     // Pass all query parameters to allow both ID and path-based updates
     return await fetch(
-        `${baseUrl}/interfaces${url.search}`,
+        `${baseUrl}/interfaces/${url.search}`,
         {
             method: "PUT",
             headers: {
@@ -72,7 +72,7 @@ export async function DELETE(request: NextRequest) {
     
     // Pass all query parameters to allow both ID and path-based deletion
     return await fetch(
-        `${baseUrl}/interfaces${url.search}`,
+        `${baseUrl}/interfaces/${url.search}`,
         {
             method: "DELETE",
             headers: {

@@ -9,7 +9,7 @@ import { useShallow } from 'zustand/react/shallow';
  */
 export interface TileMetaActions {
    setName: (name: string) => void;
-   setType: (type: 'Table' | 'Plot' | 'View' | 'Editor') => void;
+   setType: (type?: string) => void;
    setPosition: (position: Partial<TilePosition>) => void;
    setMinW: (minW?: number) => void;
    setMinH: (minH?: number) => void;

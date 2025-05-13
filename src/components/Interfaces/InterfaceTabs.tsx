@@ -19,18 +19,18 @@ import {
 import { updateTabParentReferences, buildTabState } from "@/contexts/utils/builders/tabStateBuilder";
 
 const InterfaceTabs = ({ 
-  interfaceId, 
-  tabQueryParam, 
+  tabIdOrName,
+  interfaceId,  
   tabActions, 
   setTabQueryParam 
 }: {
+    tabIdOrName: string | null,
     interfaceId: string,
-    tabQueryParam: string | null,
     tabActions: GranularTabActions,
     setTabQueryParam: (tabQueryParam: string | null) => void,
 }) => {
     const [_, setTabQueryParamNoReload] = useQueryState("tab");
-    const [tabQueryParamState, setTabQueryParamState] = useState(tabQueryParam || "");
+    const [tabQueryParamState, setTabQueryParamState] = useState(tabIdOrName || "");
     const [hoveredTab, setHoveredTab] = useState<string | undefined>();
 
     // Initialize React Query mutations
@@ -47,13 +47,12 @@ const InterfaceTabs = ({
     const tabNames = interfaceDataActions?.getTabNames() || [];
 
     // Tab states and actions with granular access
-    const { data: tabDataState, ui: tabUIState, uiActions: tabUIActions } = useTab(tabQueryParam || "");
-    
+    const { data: tabDataState, ui: tabUIState, uiActions: tabUIActions } = useTab(tabIdOrName || "");
     const context = tabDataState?.globalContext!;
 
     useEffect(() => {
-        setTabQueryParamState(tabQueryParam || "");
-    }, [tabQueryParam]);
+        setTabQueryParamState(tabIdOrName || "");
+    }, [tabIdOrName]);
 
     // Handle tab rename
     const handleRenameTab = async (oldName: string, newName: string) => {
@@ -93,7 +92,7 @@ const InterfaceTabs = ({
             });
 
             // Update UI if deleting the active tab
-            if (tabQueryParam === tabName) {
+            if (tabIdOrName === tabName) {
                 tabUIActions?.setPending(true);
                 const tabIdx = tabNames.indexOf(tabName);
                 const nextTabIdx = tabIdx > 0 ? tabIdx - 1 : tabNames.length > 1 ? 1 : -1;
@@ -160,7 +159,7 @@ const InterfaceTabs = ({
                         onMouseEnter={() => setHoveredTab(tab_)}
                         onMouseLeave={() => setHoveredTab(undefined)}
                     >
-                        {tabQueryParam == tab_ ? <Input
+                        {tabIdOrName == tab_ ? <Input
                             value={tabQueryParamState}
                             disabled={tabUIState?.pending || tabUIState?.dataPending || updateTabMutation.isPending}
                             onInput={(event: React.ChangeEvent<HTMLInputElement>) => setTabQueryParamState(event.target.value)}
@@ -175,8 +174,8 @@ const InterfaceTabs = ({
                         /> : <div className="h-5 w-16 text-center" onClick={() => setTabQueryParam(tab_)}>{tab_}</div>}
                         <div
                             className={`z-10 absolute -top-1 -right-1 cursor-pointer mb-auto hover:text-white hover:bg-primary rounded-sm ${hoveredTab == tab_ ? "opacity-100" : "opacity-0"}`}
-                            onMouseEnter={() => tabQueryParam != tab_ && tabUIActions?.setDeleting(true)}
-                            onMouseLeave={() => tabQueryParam != tab_ && tabUIActions?.setDeleting(false)}
+                            onMouseEnter={() => tabIdOrName != tab_ && tabUIActions?.setDeleting(true)}
+                            onMouseLeave={() => tabIdOrName != tab_ && tabUIActions?.setDeleting(false)}
                             onClick={() => handleDeleteTab(tab_)}
                         >
                             <X size={14} />

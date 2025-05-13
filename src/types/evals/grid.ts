@@ -178,6 +178,17 @@ export interface TabData {
     updated_at?: string;
 }
 
+export interface TileLayout {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    minW?: number;
+    minH?: number;
+    moved?: boolean;
+    static?: boolean;
+}
+
 export interface TilePosition {
     x: number;
     y: number;
@@ -191,10 +202,11 @@ export interface TileData {
     name: string;
     type: string;
     position: TilePosition;
-    min_width?: number;
-    min_height?: number;
+    minW?: number;
+    minH?: number;
     visible?: boolean;
     locked?: boolean;
+    color?: string;
     context?: string;
     table?: string;
     auto_update?: string;
@@ -348,7 +360,8 @@ export interface GranularTabActions {
         order?: number;
         global_context?: string;
         color?: string;
-    }) => Promise<TabData>;
+    },
+    tab_id?: string) => Promise<TabData>;
     
     // Update methods
     updateByName: (interface_id: string, name: string, data: {
@@ -407,13 +420,14 @@ export interface GranularTileActions {
     get: (params: { id?: string; tab_id?: string; name?: string; checkpoint?: boolean }) => Promise<TileData | null>;
     
     // Create tile (single parent id + name pattern)
-    create: (tab_id: string, name: string, type: string, position: TilePosition, data: { 
-        min_width?: number;
-        min_height?: number;
+    create: (tab_id: string, name: string, position: TilePosition, data: { 
+        minW?: number;
+        minH?: number;
         visible?: boolean;
         locked?: boolean;
         moved?: boolean;
         static?: boolean;
+        color?: string;
         context?: string;
         table?: string;
         auto_update?: string;
@@ -427,17 +441,20 @@ export interface GranularTileActions {
         plot_tile?: PlotTileData;
         view_tile?: ViewTileData;
         editor_tile?: EditorTileData;
-    }) => Promise<TileData>;
+    },
+    tile_id?: string,
+    type?: string) => Promise<TileData>;
     
     // Update by name (tab_id + name)
     updateByName: (tab_id: string, name: string, data: {
         name?: string;
         position?: TilePosition;
-        min_width?: number;
-        min_height?: number;
+        minW?: number;
+        minH?: number;
         visible?: boolean;
         locked?: boolean;
         context?: string;
+        color?: string;
         table?: string;
         auto_update?: string;
         freeze?: string;
@@ -456,10 +473,11 @@ export interface GranularTileActions {
     updateById: (id: string, data: {
         name?: string;
         position?: TilePosition;
-        min_width?: number;
-        min_height?: number;
+        minW?: number;
+        minH?: number;
         visible?: boolean;
         locked?: boolean;
+        color?: string;
         context?: string;
         table?: string;
         auto_update?: string;
@@ -483,10 +501,11 @@ export interface GranularTileActions {
         data: {
             name?: string;
             position?: TilePosition;
-            min_width?: number;
-            min_height?: number;
+            minW?: number;
+            minH?: number;
             visible?: boolean;
             locked?: boolean;
+            color?: string;
             context?: string;
             table?: string;
             auto_update?: string;
@@ -511,10 +530,11 @@ export interface GranularTileActions {
         updateData: {
             name?: string;
             position?: TilePosition;
-            min_width?: number;
-            min_height?: number;
+            minW?: number;
+            minH?: number;
             visible?: boolean;
             locked?: boolean;
+            color?: string;
             moved?: boolean;
             static?: boolean;
             context?: string;
@@ -539,12 +559,13 @@ export interface GranularTileActions {
         updateData: {
             name?: string;
             position?: TilePosition;
-            min_width?: number;
-            min_height?: number;
+            minW?: number;
+            minH?: number;
             visible?: boolean;
             locked?: boolean;
             moved?: boolean;
             static?: boolean;
+            color?: string;
             context?: string;
             table?: string;
             auto_update?: string;
@@ -569,12 +590,13 @@ export interface GranularTileActions {
         updateData: {
             name?: string;
             position?: TilePosition;
-            min_width?: number;
-            min_height?: number;
+            minW?: number;
+            minH?: number;
             visible?: boolean;
             locked?: boolean;
             moved?: boolean;
             static?: boolean;
+            color?: string;
             context?: string;
             table?: string;
             auto_update?: string;

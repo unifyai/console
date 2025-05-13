@@ -19,7 +19,7 @@ export interface TileState {
 export interface TileActions {
   // Actions
   initTile: (tabId: string, tileId: string, initialState?: Partial<tileLogic.Tile>) => void;
-  addTile: (tabId: string, newTileId: string, initialState?: Partial<tileLogic.Tile>) => void;
+  pasteCopiedTile: (tabId: string, sourceTileId: string, newTileId: string, initialState?: Partial<tileLogic.Tile>) => void;
   removeTile: (tabId: string, tileId: string) => void;
   renameTile: (tabId: string, sourceTileId: string, newTileName: string) => void;
   updateTile: (tileId: string, updates: Partial<tileLogic.Tile>) => void;
@@ -79,12 +79,12 @@ export const createTileSlice: StateCreator<
       }
       
       // Add the tile to the tab
-      state.tabsById[tabId] = tabLogic.addTileId(tab, tileId);
+      state.tabsById[tabId] = tabLogic.addTile(tab, tileId, newTile.name);
     }
   }),
 
-  addTile: (tabId, newTileId, initialState) => set(state => {
-    sliceUtils.addTile(state, tabId, newTileId, initialState);
+  pasteCopiedTile: (tabId, sourceTileId, newTileId, initialState) => set(state => {
+    sliceUtils.pasteCopiedTile(state, tabId, sourceTileId, newTileId, initialState);
   }),
   
   removeTile: (tabId, tileId) => set(state => {

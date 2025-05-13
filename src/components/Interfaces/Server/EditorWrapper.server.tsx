@@ -28,11 +28,6 @@ export default async function EditorWrapper({
 }: EditorWrapperProps) {
   const qc = getQueryClient();
 
-  // Only proceed if we have an editor tile
-  if (!tile.editor_tile) {
-    return <div>Editor configuration missing</div>;
-  }
-
   // Prefetch editor content if available
   await qc.prefetchQuery({
     queryKey: ["editor", tile.id],
@@ -45,15 +40,21 @@ export default async function EditorWrapper({
 
   return (
     <HydrationBoundary state={dehydrate(qc)}>
-      <Suspense fallback={<SkeletonLoader />}>
-        <Editor
-          tileId={tile.id || ""}
-          tabId={tabId}
-          interfaceId={interfaceId}
-          projectId={projectId}
-          codeActions={actions.codeActions}
-        />
-      </Suspense>
+      <div className="w-full h-full overflow-y-auto">
+        <Suspense fallback={
+          <div className="w-full h-full flex items-center justify-center">
+            <SkeletonLoader />
+          </div>
+        }>
+          <Editor
+            tileId={tile.id || ""}
+            tabId={tabId}
+            interfaceId={interfaceId}
+            projectId={projectId}
+            codeActions={actions.codeActions}
+          />
+        </Suspense>
+      </div>
     </HydrationBoundary>
   );
 } 

@@ -174,14 +174,16 @@ export function useCreateTabQuery() {
       interface_id, 
       name,
       data, 
+      tab_id,
       actions 
     }: { 
       interface_id: string; 
       name: string;
       data: Partial<Omit<TabData, 'id' | 'interface_id' | 'name' | 'created_at' | 'updated_at'>>; 
+      tab_id?: string;
       actions: GranularTabActions;
     }) => {
-      return actions.create(interface_id, name, data);
+      return actions.create(interface_id, name, data, tab_id);
     },
     onSuccess: (result) => {
       // Invalidate tabs query to refetch the list

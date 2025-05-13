@@ -35,33 +35,28 @@ export function updatePlotArgumentsForUsedTables(
   // Initialize with existing plot arguments
   const updatedPlotArguments = { ...plotArguments };
   
-  // Skip if not a plot tile
-  if (!plotTile.plot_tile) {
-    return updatedPlotArguments;
-  }
-  
   // Identify which tables are used in this plot by name
   const usedTableNames: string[] = [];
   
   // Check x-axis
-  if (plotTile.plot_tile.x_axis && plotTile.plot_tile.x_axis.includes(".")) {
-    const tableName = plotTile.plot_tile.x_axis.split(".")[0];
+  if (plotTile.plot_tile?.x_axis && plotTile.plot_tile?.x_axis?.includes(".")) {
+    const tableName = plotTile.plot_tile?.x_axis?.split(".")[0];
     if (!usedTableNames.includes(tableName)) {
       usedTableNames.push(tableName);
     }
   }
   
   // Check y-axis
-  if (plotTile.plot_tile.y_axis && plotTile.plot_tile.y_axis.includes(".")) {
-    const tableName = plotTile.plot_tile.y_axis.split(".")[0];
+  if (plotTile.plot_tile?.y_axis && plotTile.plot_tile?.y_axis?.includes(".")) {
+    const tableName = plotTile.plot_tile?.y_axis?.split(".")[0];
     if (!usedTableNames.includes(tableName)) {
       usedTableNames.push(tableName);
     }
   }
   
   // Check plot-group-by
-  if (plotTile.plot_tile.plot_group_by && plotTile.plot_tile.plot_group_by.includes(".")) {
-    const tableName = plotTile.plot_tile.plot_group_by.split(".")[0];
+  if (plotTile.plot_tile?.plot_group_by && plotTile.plot_tile?.plot_group_by?.includes(".")) {
+    const tableName = plotTile.plot_tile?.plot_group_by?.split(".")[0];
     if (!usedTableNames.includes(tableName)) {
       usedTableNames.push(tableName);
     }
