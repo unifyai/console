@@ -8,7 +8,7 @@ import { getValue, hasProperty } from "./data";
 import { drawAxes, generateTicks, reverseOrKeepDomain } from "./axes";
 import { getPrimaryColorFromNode } from "./common";
 import { renderGroupingKey } from "./key";
-import { showFixedTooltip, tooltipTemplate, positionTooltip } from "./tooltip";
+import { showFixedTooltip, tooltipTemplate, positionTooltipRelativeToPointer, positionTooltipRelativeToDatapoint } from "./tooltip";
 
 const getTooltipData = (
     data: LogProps, 
@@ -47,81 +47,33 @@ const getTooltipData = (
 }
 
 function onMouseOver (
-    event: any, 
     data: LogProps, 
-    fields: LogFieldsResponseProps, 
-    groupBy: string | undefined, 
-    aggregate: string | undefined, 
     xTable: string, 
-    yTable: string, 
-    selectedXAxisProperty: string | undefined, 
-    selectedYAxisProperty: string | undefined, 
-    xType: string | undefined, 
-    yType: string | undefined, 
-    g: d3.Selection<d3.BaseType, unknown, null, undefined>, 
-    tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
 ) {
-    const tooltipData = getTooltipData(data, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType);
-    const template = tooltipTemplate(tooltipData);
-    tooltip
-        .html(template)
-        .transition("opacity")
-        .style("opacity", 1)
-    positionTooltip(event, tooltip);
-    if (groupBy) {
-        g.selectAll("circle.data-point")
-            .transition("opacity")
-            .duration(200)
-            .attr("r", d => (d as LogProps)[`${xTable}.id`] === data[`${xTable}.id`] ? 4 : 3)
-            .style("opacity", d => getValue(fields, groupBy, d as LogProps, xTable) === getValue(fields, groupBy, data, xTable) ? 1 : 0.5)
-        g.selectAll("path.best-fit")
-            .transition("opacity")
-            .duration(200)
-            .style("opacity", (d: any) => d.groupKey === groupBy ? 1 : 0.5
-        );
-        g.selectAll("text.correlation-group")
-            .transition("opacity")
-            .duration(200)
-            .style("opacity", (d: any) => d.groupKey === groupBy ? 1 : 0.5);
-    } else {
-        g.selectAll("circle.data-point")
-            .filter((d: unknown) => (d as LogProps)[`${xTable}.id`] !== data[`${xTable}.id`])
-            .transition("opacity")
-            .duration(200)
-            .style("opacity", 0.5);
+    const containerNode = container.node();
+    if (containerNode) {
+        const setHoveredLog = (containerNode as any).__setHoveredLog
+        setHoveredLog((data as LogProps)[`${xTable}.id`])
     }
-
 }
 
 function onMouseMove(
     event: any, 
-    tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>
+    tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>,
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
 ) { 
-    positionTooltip(event, tooltip);
+    positionTooltipRelativeToPointer(event, tooltip, container);
 }
 
 function onMouseOut (
-    groupBy: string | undefined,
-    g: d3.Selection<d3.BaseType, unknown, null, undefined>,
-    tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
 ) {
-    tooltip.transition("opacity").style("opacity", 0)
-    if (groupBy) {
-        g.selectAll("circle.data-point")
-            .transition("opacity")
-            .duration(200)
-            .attr("r", 3)
-            .style("opacity", 1)
-        g.selectAll("path.best-fit, text.correlation-group")
-            .transition("opacity")
-            .duration(200)
-            .style("opacity", 1);
-    } else {
-        g.selectAll("circle.data-point")
-        .transition("opacity")
-        .duration(200)
-        .style("opacity", 1);
-    }  
+    const containerNode = container.node();
+    if (containerNode) {
+        const setHoveredLog = (containerNode as any).__setHoveredLog
+        setHoveredLog(undefined)
+    }
 }
 
 function onClick (
@@ -169,11 +121,13 @@ function onZoomEnd (
 function onZoom (
     event: any,
     zoomRef: any,
+    containerRef: any,
     initialX: d3.ScaleLinear<number, number, never>,
     initialY: d3.ScaleLinear<number, number, never>,
     scaleX: string,
     scaleY: string,
     svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>,
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
     dimensions: { width: number; height: number},
     margins: { [key: string]: number },
     reverseX: boolean,
@@ -231,7 +185,8 @@ function onZoom (
             return reverseY ? newY(Math.abs(value)) : newY(value);
         });
 
-    // Update regression lines
+        
+        // Update regression lines
     if (showRegression === "true") {
 
         const line = d3.line<[number, number]>()
@@ -281,10 +236,43 @@ function onZoom (
                     .attr("y", textY)
                     .attr("transform", `rotate(${angleDeg},${textX},${textY})`)
                     .attr("text-anchor", dx < 0 ? "end" : "start");
-            });
+                });
+    }
+
+    // Re-run the global hover logic check after zoom changes positions
+    // This ensures tooltips reposition correctly during/after zoom
+    if (containerRef.current) {
+        const hoveredLog = containerRef.current.__hoveredLog;
+        const currentTooltip = container.select<HTMLDivElement>(".plotTooltip"); // Get tooltip selection
+
+        if (hoveredLog && currentTooltip.node()) { // Check if tooltip exists
+            const hoveredData = data.find(d => d[`${xTable}.id`] === hoveredLog);
+            if (hoveredData) {
+                 const targetElem = g
+                    .selectAll<SVGCircleElement, LogProps>("circle.data-point")
+                    .filter(d => d[`${xTable}.id`] === hoveredLog)
+                    .node();
+
+                // Check if the tooltip element exists AND is currently meant to be visible
+                if (targetElem && parseFloat(currentTooltip.style("opacity")) > 0) {
+                     // Position the tooltip using the transform from the current zoom event
+                    positionTooltipRelativeToDatapoint(targetElem, currentTooltip, container, svg, event.transform);
+                }
+            } else {
+                // If hovered data not found (e.g., filtered out during zoom), hide tooltip
+                if (parseFloat(currentTooltip.style("opacity")) > 0) {
+                    currentTooltip.style("opacity", 0); // Optionally hide if data vanishes
+                }
+            }
+        } else {
+             // No log hovered or tooltip node doesn't exist, ensure opacity is 0
+             if (currentTooltip.node() && parseFloat(currentTooltip.style("opacity")) > 0) {
+                currentTooltip.style("opacity", 0); // Optionally hide
+             }
+        }
     }
 }
-
+        
 /**
  * Calculates the linear regression parameters (slope, y-intercept) and the correlation coefficient (r)
  * for a given set of data points using the least squares method.
@@ -349,12 +337,18 @@ export const drawScatterPlot = (
   yTable: string,
   logs: LogProps[],
   fields: LogFieldsResponseProps,
+  containerRef: any,
   zoomRef: any,
-  interactive: boolean = true
+  groupByColors: string = "schemeCategory10",
+  interactive: boolean = true,
 ) => {
-  
-    // Remove drawings from previous plots
+
+    // --- Define containers ---
     const g = svg.select(".plotData")
+    const zoomContainer = svg.select(".zoom-layer")
+    const tooltip = container.select(".plotTooltip").style("opacity", 0)
+
+    // --- Remove drawings from previous plots ---
     g.selectAll("path.line-item").remove();
     g.selectAll("rect.bar-item").remove();
     g.selectAll("rect.hist-item").remove();
@@ -362,7 +356,7 @@ export const drawScatterPlot = (
     g.selectAll("text.correlation").remove();
     if (showRegression != "true") g.selectAll("path.best-fit").remove()
 
-    // Prepare data
+    // --- Prepare data ---
     let data : LogProps[] = [];
     const properties = Object
             .entries(fields)
@@ -382,50 +376,46 @@ export const drawScatterPlot = (
         data = data?.length > 1000 ? sampleData(data, 1000) : data
     }
 
-    // Define scales
+    // --- Set scales and axes ---
     const [width, height] = [dimensions.width, dimensions.height];
     const [xValues, yValues] = [
         data.map(d => getValue(fields, xAxisProperty as string, d, xTable) as number),
         data.map(d => getValue(fields, yAxisProperty as string, d, yTable) as number)
     ]
     const [[minX = 0, maxX = 0], [minY = 0, maxY = 0]] = [d3.extent(xValues), d3.extent(yValues)];
-    const [xScale, yScale] = [
-        scaleX === "log" ? d3.scaleLog : d3.scaleLinear,
-        scaleY === "log" ? d3.scaleLog : d3.scaleLinear
-    ]
-    const reverseX = scaleX === "log" && xValues.every(v => v < 0);
-    const reverseY = scaleY === "log" && yValues.every(v => v < 0);
+    const [xScaleFn, yScaleFn] = [ 
+        scaleX === "log" ? d3.scaleLog : d3.scaleLinear, 
+        scaleY === "log" ? d3.scaleLog : d3.scaleLinear 
+    ];
+    const [reverseX, reverseY] = [
+        scaleX === "log" && xValues.every(v => v < 0),
+        scaleY === "log" && yValues.every(v => v < 0)
+    ];
     const [xDomain, yDomain] = [
         reverseOrKeepDomain(xValues, [minX, maxX], reverseX), 
-        reverseOrKeepDomain(yValues, [minY, maxY], reverseY)
-    ]
-    const [xRange, yRange] = [
-        [margins.left + axisPadding, width - margins.right - axisPadding],
-        [height - margins.bottom - axisPadding, margins.top + axisPadding]
-    ]
-    const [x, y] = [
-        xScale().domain(xDomain).range(xRange),
-        yScale().domain(yDomain).range(yRange)
-    ]
-
-    // Draw axes
+        reverseOrKeepDomain(yValues, [minY, maxY], reverseY) 
+    ];
+    const [xRange, yRange] = [ 
+        [margins.left + axisPadding, width - margins.right - axisPadding], 
+        [height - margins.bottom - axisPadding, margins.top + axisPadding] 
+    ];
+    const [ initialX, initialY ] = [ 
+        xScaleFn().domain(xDomain).range(xRange), 
+        yScaleFn().domain(yDomain).range(yRange)
+    ];
+    const currentTransform = zoomRef.current;
+    const x = currentTransform.rescaleX(initialX);
+    const y = currentTransform.rescaleY(initialY);
     const [xTicks, yTicks] = [
         generateTicks(minX, maxX, 10, scaleX === "log"),
         generateTicks(minY, maxY, 10, scaleY === "log")
     ]
-
     drawAxes("Scatter Plot", svg, dimensions, margins, x, y, xTicks, yTicks, reverseX, reverseY, xAxisProperty, yAxisProperty, xType, yType);
 
-    // Add tooltip
-    const tooltip = container.select(".plotTooltip").style("opacity", 0)
-
-    // Add data points
-    // If grouping is set:
-    // - Generate a color scheme based on the grouping values
-    // - Color the points based on their groupBy value
-    // - Pass the color info to the grouping key
+    // --- Define color schemes and handle grouping key ---
     const primary = getPrimaryColorFromNode(svg.node());
-    let color = d3.scaleOrdinal<string>().range(d3.schemeCategory10);
+    const colorRange = d3[groupByColors as keyof typeof d3] as readonly string[];
+    let color = d3.scaleOrdinal<string>().range(colorRange);
     if (groupBy) {
         let domain = data.map(d => JSON.stringify(getValue(fields, groupBy, d, xTable)));
         domain = Array.from(new Set(domain));
@@ -436,6 +426,7 @@ export const drawScatterPlot = (
         renderGroupingKey(settings, null);
     }
 
+    // --- Add points and hover areas ---
     const points = g
         .selectAll("circle.data-point")
         .data(data, (d: unknown) => (d as LogProps)[`${xTable}.id`] as string); // Use unique identifier to track point transitions
@@ -450,11 +441,12 @@ export const drawScatterPlot = (
             .attr("r", 3)
             .style("opacity", 0)
             .style("cursor", "pointer")
-            .on("mouseover", (event, data) => onMouseOver(event, data, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType, g, tooltip))
-            .on("mousemove", (event, _) => onMouseMove(event, tooltip))
-            .on("mouseout", (_) => onMouseOut(groupBy, g, tooltip))
+            .on("mouseover", (event, data) => onMouseOver(data, xTable, container))
+            .on("mousemove", (event, _) => onMouseMove(event, tooltip, container))
+            .on("mouseout", (event, data) => onMouseOut(container))
             .on("click", (event, data) => onClick(event, data, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType, settings))
-            .call(enter => enter.transition("enter").duration(200).style("opacity", 1)),
+            .call(
+                enter => enter.transition("enter").duration(200).style("opacity", 1)),
                 update => update
                     .attr("fill", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
                     .attr("stroke", groupBy ? (d) => color(JSON.stringify(getValue(fields, groupBy, d, xTable))) : primary)
@@ -468,16 +460,14 @@ export const drawScatterPlot = (
             ),
         exit => exit.call(exit => exit.transition("exit").duration(200).attr("r", 0).remove())
     );
-
-    // Add hover areas
     g
         .selectAll("circle.hover-area")
         .data(data)
         .join("circle")
         .style("cursor", "pointer")
-        .on("mouseover", (event, data) => onMouseOver(event, data, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType, g, tooltip))
-        .on("mousemove", (event, _) => onMouseMove(event, tooltip))
-        .on("mouseout", (_) => onMouseOut(groupBy, g, tooltip))
+        .on("mouseover", (event, data) => onMouseOver(data, xTable, container))
+        .on("mousemove", (event, _) => onMouseMove(event, tooltip, container))
+        .on("mouseout", (event, data) => onMouseOut(container))
         .on("click", (event, data) => onClick(event, data, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType, settings))
         .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable) as number) : getValue(fields, xAxisProperty as string, d, xTable) as number))
         .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable) as number) : getValue(fields, yAxisProperty as string, d, yTable) as number))
@@ -487,14 +477,14 @@ export const drawScatterPlot = (
         .style("pointer-events", "all")
         .attr("class", "hover-area");
 
-    // Add line of best fit
+    // --- Add line of best fit ---
     if (data.length > 1 && showRegression === "true") {
         if (groupBy) {
 
             // Group the data and calculate regression for each group
             let groups = data.map(d => JSON.stringify(getValue(fields, groupBy, d, xTable)));
             groups = Array.from(new Set(groups))
-            const color = d3.scaleOrdinal().domain(groups).range(d3.schemeCategory10);
+            const color = d3.scaleOrdinal().domain(groups).range(colorRange);
 
             const groupRegressions = groups.map(groupKey => {
                 const groupData = data.filter(d => 
@@ -647,33 +637,218 @@ export const drawScatterPlot = (
         }
     }
 
-    // Handle panning and zooming
-    const initialX = x.copy();
-    const initialY = y.copy();
-    const zoomContainer = svg
-        .select(".zoom-layer")
+    // --- Setup Zoom Behavior ---
+    zoomContainer
         .attr("x", 0)
         .attr("y", 0)
         .attr("width", dimensions.width)
         .attr("height", dimensions.height)
+        .on("wheel", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        })
+        .on('dblclick', () => {
+            zoomRef.current = d3.zoomIdentity;        
+            zoomContainer.transition("zoom").duration(500).call(zoom.transform as any, d3.zoomIdentity);
+        })
         .style("fill", "none")
         .style("pointer-events", interactive ? "all" : "none")
-        .lower();
-    
-    zoomContainer.on("wheel", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-    });
-    zoomContainer.on('dblclick', () => {
-        zoomRef.current = d3.zoomIdentity;        
-        zoomContainer.transition("zoom").duration(500).call(zoom.transform as any, d3.zoomIdentity);
-    });
+        .lower()
     const zoom = d3
         .zoom()
         .on('start', () => onZoomStart(g))
         .on('end', () => onZoomEnd(g))
-        .on('zoom', (event) => onZoom(event, zoomRef, initialX, initialY, scaleX, scaleY, svg, dimensions, margins, reverseX, reverseY, xAxisProperty, yAxisProperty, xType, yType, xTable, yTable, showRegression, data, fields, g));
-    // Attach zoom transform to container and reapply previous zoom if exists
+        .on('zoom', (event) => onZoom(event, zoomRef, containerRef, initialX, initialY, scaleX, scaleY, svg, container, dimensions, margins, reverseX, reverseY, xAxisProperty, yAxisProperty, xType, yType, xTable, yTable, showRegression, data, fields, g));
     zoomContainer.call(zoom as any);
-    zoomContainer.call(zoom.transform as any, zoomRef.current);
+    zoom.transform(zoomContainer as any, currentTransform);
+
+    // --- Synchronize hover tooltip across plots ---
+    const containerNode = container.node();    
+    if (containerNode && interactive) {
+        const hoveredLog = (containerNode as any).__hoveredLog;
+    
+        if (hoveredLog) {
+            const hoveredLogData = data.find(d => d[`${xTable}.id`] === hoveredLog);
+    
+            if (hoveredLogData) {
+                const targetSelection = g.selectAll<SVGCircleElement, LogProps>("circle.data-point").filter(d => d[`${xTable}.id`] === hoveredLog);
+                const targetNode = targetSelection.node();
+    
+                // --- If data point exists in this plot ---
+                if(targetNode) {
+                    const dataValueX = getValue(fields, xAxisProperty as string, hoveredLogData, xTable) as number;
+                    const dataValueY = getValue(fields, yAxisProperty as string, hoveredLogData, yTable) as number;
+    
+                    // Calculate screen coordinates using the *current* scales
+                    const targetScreenX = x(reverseX ? Math.abs(dataValueX) : dataValueX);
+                    const targetScreenY = y(reverseY ? Math.abs(dataValueY) : dataValueY);
+    
+                    const isOffScreen = targetScreenX < xRange[0] || targetScreenX > xRange[1] || targetScreenY > yRange[0] || targetScreenY < yRange[1];
+    
+                    // --- Prepare Tooltip and Highlighting (Always do this if point exists) ---
+                    const tooltipData = getTooltipData(hoveredLogData, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType);
+                    const template = tooltipTemplate(tooltipData);
+                    tooltip.html(template).style("opacity", 1); // Make tooltip visible NOW
+    
+                    // Highlight the point
+                    targetSelection
+                        .classed("hovered-point", true)
+                        .transition("emphasize_point")
+                        .duration(250)
+                        .attr("r", 5)
+                        .style("opacity", 1);
+    
+                    // --- Dimming Logic ---
+                     if (groupBy) {
+                         const hoveredGroupValue = getValue(fields, groupBy, hoveredLogData, xTable);
+                         const stringifiedHoveredGroup = JSON.stringify(hoveredGroupValue);
+    
+                         g.selectAll<SVGCircleElement, LogProps>("circle.data-point:not(.hovered-point)")
+                             .filter(d => JSON.stringify(getValue(fields, groupBy, d, xTable)) !== stringifiedHoveredGroup)
+                             .transition("dim_other_groups")
+                             .duration(200)
+                             .style("opacity", 0.2);
+                         g.selectAll<SVGCircleElement, LogProps>("circle.data-point:not(.hovered-point)")
+                             .filter(d => JSON.stringify(getValue(fields, groupBy, d, xTable)) === stringifiedHoveredGroup)
+                             .transition("undim_same_group")
+                             .duration(200)
+                             .style("opacity", 0.7);
+    
+                         if (showRegression === "true") {
+                             g.selectAll<SVGPathElement, any>("path.best-fit")
+                                 .filter(d => d.groupKey !== stringifiedHoveredGroup)
+                                 .transition("dim_other_fits")
+                                 .duration(200)
+                                 .style("opacity", 0.2);
+                             g.selectAll<SVGTextElement, any>("text.correlation-group")
+                                 .filter(d => d.groupKey !== stringifiedHoveredGroup)
+                                 .transition("dim_other_corr_text_g")
+                                 .duration(200)
+                                 .style("opacity", 0.2);
+                             g.selectAll<SVGPathElement, any>("path.best-fit")
+                                  .filter(d => d.groupKey === stringifiedHoveredGroup)
+                                  .transition("undim_same_fit")
+                                  .duration(200)
+                                  .style("opacity", 1);
+                              g.selectAll<SVGTextElement, any>("text.correlation-group")
+                                  .filter(d => d.groupKey === stringifiedHoveredGroup)
+                                  .transition("undim_same_corr_text_g")
+                                  .duration(200)
+                                  .style("opacity", 1);
+                         }
+                     } else {
+                         g.selectAll<SVGCircleElement, LogProps>("circle.data-point:not(.hovered-point)")
+                             .transition("dim_others_no_group")
+                             .duration(200)
+                             .style("opacity", 0.2);
+                         if (showRegression === "true") {
+                               g.selectAll("path.best-fit")
+                                   .transition("undim_single_fit")
+                                   .duration(200)
+                                   .style("opacity", 1);
+                               g.selectAll("text.correlation")
+                                   .transition("undim_single_corr_text")
+                                   .duration(200)
+                                   .style("opacity", 1);
+                         }
+                    }
+    
+                    // --- Pan or Position Tooltip ---
+                    if (isOffScreen) {
+                        // --- Calculate target transform ---
+                        const centerX = (xRange[0] + xRange[1]) / 2;
+                        const centerY = (yRange[1] + yRange[0]) / 2;
+                        const k = currentTransform.k;
+                        const dx = centerX - targetScreenX;
+                        const dy = centerY - targetScreenY;
+                        const targetTransform = d3.zoomIdentity
+                            .translate(currentTransform.x + dx, currentTransform.y + dy)
+                            .scale(k);
+    
+                        // --- Temporarily detach zoom listener ---
+                        zoomContainer.on('zoom', null);
+
+                        // Interrupt any ongoing zoom/pan before starting new one
+                        zoomContainer.interrupt("pan_to_hover");    
+                        zoomContainer
+                            .transition("pan_to_hover")
+                            .duration(500)
+                            .call(zoom.transform as any, targetTransform)
+                            .on("end", () => {
+                                // --- Animation finished ---
+                                // 1. Update zoomRef to the final state
+                                const finalTransform = d3.zoomTransform(zoomContainer.node()! as any);
+                                zoomRef.current = finalTransform; // Update ref
+
+                                // 2. Re-attach the zoom listener
+                                zoomContainer.on('zoom', (event) => onZoom(event, zoomRef, containerRef, initialX, initialY, scaleX, scaleY, svg, container, dimensions, margins, reverseX, reverseY, xAxisProperty, yAxisProperty, xType, yType, xTable, yTable, showRegression, data, fields, g));
+
+                                // 3. Position the tooltip using the final state
+                                // Verify hover state hasn't changed during animation
+                                const currentHoveredLog = (containerNode as any).__hoveredLog;
+                                if (currentHoveredLog === hoveredLog) {
+                                    const finalTargetSelection = g
+                                        .selectAll<SVGCircleElement, LogProps>("circle.data-point")
+                                        .filter(d => d[`${xTable}.id`] === hoveredLog);
+                                    const finalTargetNode = finalTargetSelection.node();    
+                                    if (finalTargetNode) {
+                                        // --- Recalculate scales based on finalTransform ---
+                                        const finalXScale = finalTransform.rescaleX(initialX);
+                                        const finalYScale = finalTransform.rescaleY(initialY);
+
+                                        // --- Calculate final SVG coordinates using NEW scales ---
+                                        const finalSvgX = finalXScale(reverseX ? Math.abs(dataValueX) : dataValueX);
+                                        const finalSvgY = finalYScale(reverseY ? Math.abs(dataValueY) : dataValueY);
+
+                                        // --- Convert final SVG coordinates to container coordinates ---
+                                        const svgNode =  svg.node();
+                                        const svgRect = (svgNode as any).getBoundingClientRect();
+                                        const containerRect = containerNode.getBoundingClientRect();
+                                        const finalContainerX = finalSvgX + (svgRect.left - containerRect.left);
+                                        const finalContainerY = finalSvgY + (svgRect.top - containerRect.top);
+
+                                        // --- Position Tooltip using calculated container coordinates ---
+                                        const tooltipNode = tooltip.node();
+                                        if(tooltipNode) {
+                                            tooltip.style("opacity", 1);
+                                            const tooltipRect = (tooltipNode as any).getBoundingClientRect();
+                                            const tooltipWidth = tooltipRect.width;
+                                            const tooltipHeight = tooltipRect.height;
+                                            const offsetX = 15;
+                                            const offsetY = 15;
+                                            const containerWidth = containerRect.width;
+                                            const containerHeight = containerRect.height;
+
+                                            let xPos = finalContainerX + offsetX;
+                                            let yPos = finalContainerY + offsetY;
+
+                                            // Adjust position based on container boundaries
+                                            if (xPos + tooltipWidth > containerWidth) { xPos = finalContainerX - tooltipWidth - offsetX; }
+                                            if (xPos < 0) { xPos = offsetX; }
+                                            if (yPos + tooltipHeight > containerHeight) { yPos = finalContainerY - tooltipHeight - offsetY; }
+                                            if (yPos < 0) { yPos = offsetY; }
+
+                                            tooltip.style("left", `${xPos}px`).style("top", `${yPos}px`);
+                                        } else {
+                                            tooltip.style("opacity", 0); // Hide if tooltip node vanished
+                                        }
+                                    } else {
+                                        tooltip.style("opacity", 0); // Hide if target disappeared
+                                    }
+                                }
+                            })
+                            .on("interrupt", () => {
+                                // Re attach listener
+                                zoomContainer.on('zoom', (event) => onZoom(event, zoomRef, containerRef, initialX, initialY, scaleX, scaleY, svg, container, dimensions, margins, reverseX, reverseY, xAxisProperty, yAxisProperty, xType, yType, xTable, yTable, showRegression, data, fields, g));
+                                // Update zoomRef with the *current* transform state from d3
+                                const interruptedTransform = d3.zoomTransform(zoomContainer.node()! as any);
+                                zoomRef.current = interruptedTransform;
+                            });
+    
+                    } else { positionTooltipRelativeToDatapoint(targetNode, tooltip, container, svg, currentTransform);} // Point is ON screen, position tooltip immediately
+                } else { tooltip.style("opacity", 0); }  // Hovered log's data point doesn't exist in this plot's current data/filter
+            } else { tooltip.style("opacity", 0); } // Hovered log exists but data not found in `logs` array for this plot
+        } else { tooltip.style("opacity", 0); } // No log is hovered
+    } else { tooltip.style("opacity", 0); } // Not interactive or containerNode not available
+
 };

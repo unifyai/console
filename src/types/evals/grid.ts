@@ -42,6 +42,7 @@ export interface TileProps {
     x_axis?: string;
     y_axis?: string;
     plot_group_by?: string;
+    plot_group_by_colors?: string;
     bin_count?: string;
     regression_line?: string;
     file_name?: string;
@@ -100,6 +101,7 @@ export type ItemType =
     | "x_axis"
     | "y_axis"
     | "plot_group_by"
+    | "plot_group_by_colors"
     | "selected"
     | "base_index"
     | "metric"
@@ -268,10 +270,11 @@ export interface ProjectsActions {
 
 export interface LogsActions {
     create: (project: string, context: string | null, params: { [param: string]: string }[], entries: { [entry: string | number]: string }[]) => Promise<ResponseProps>,
-    get: (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, return_ids_only: string | null, _timestamp: string | null) => Promise<LogsResponseProps>,
-    getLatest: (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, return_ids_only: string | null) => Promise<string>,
+    get: (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_ids: string | null, rom_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, return_ids_only: string | null, _timestamp: string | null) => Promise<LogsResponseProps>,
+    getLatest: (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_ids: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, return_ids_only: string | null) => Promise<string>,
     getMetrics: (project: string, context: string | null, filterExpression: string | null, groupingExpression: string | null, metricName: string, keyNames: string[]) => Promise<{ [key: string]: number } | { [key: string]: { [key: string]: { [key: string]: number } } }>,
     delete: (project: string, context: string | null, ids_and_fields: LogFieldsProps, source_type: string | null) => Promise<ResponseProps>,
+    update: (project: string, context: string | null, logs: number[], entries: LogItemProps, params: LogItemProps, overwrite?: boolean) => Promise<ResponseProps>
 }
 
 export interface DerivedEntryActions {

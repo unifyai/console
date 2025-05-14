@@ -247,21 +247,137 @@ export function showFixedTooltip( event: MouseEvent, data: InfoCardData | null, 
  *
  * @param event The mouse event (used for cursor position).
  * @param tooltip The D3 selection of the tooltip element.
+ * @param container The D3 selection of the plot container element.
  */
-export const positionTooltip = (event: any, tooltip: any) => {
+export const positionTooltipRelativeToPointer = (
+    event: MouseEvent,
+    tooltip: any,
+    container: any
+) => {
     const tooltipNode = tooltip.node();
-    if (!tooltipNode) return;
-    const [tooltipRect] = [tooltipNode.getBoundingClientRect()];
-    const [tooltipWidth, tooltipHeight] = [tooltipRect.width, tooltipRect.height];
-    const [pointerX, pointerY] = d3.pointer(event, event.target);
-    const [xOffset, yOffset] = [
-        pointerX - tooltipWidth / 2,
-        pointerY < tooltipHeight ? pointerY + tooltipHeight / 1.75 : pointerY - tooltipHeight / 1.15
-    ]
+    const containerNode = container.node();
+    
+
+    if (!tooltipNode || !containerNode) return;
+
+    tooltip.style("opacity", 1); // Ensure visible for measurement
+
+    const tooltipRect = tooltipNode.getBoundingClientRect();
+    const tooltipWidth = tooltipRect.width;
+    const tooltipHeight = tooltipRect.height;
+
+    // --- Use d3.pointer relative to the container ---
+    const [pointerX, pointerY] = d3.pointer(event, containerNode);
+
+    // --- Simple offset calculation relative to the container ---
+    // Place slightly below and to the right of the cursor within the container
+    const offsetX = 10;
+    const offsetY = 10;
+    let xPos = pointerX + offsetX;
+    let yPos = pointerY + offsetY;
+
+    // --- Boundary checks *within the container* ---
+    const containerRect = containerNode.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+
+    // If tooltip goes past the right edge of the container, flip it to the left of the cursor
+    if (xPos + tooltipWidth > containerWidth) {
+        xPos = pointerX - tooltipWidth - offsetX;
+    }
+    // If tooltip goes past the left edge (after potential flip), clamp it
+    if (xPos < 0) {
+        xPos = 0;
+    }
+
+    // If tooltip goes past the bottom edge, flip it above the cursor
+    if (yPos + tooltipHeight > containerHeight) {
+        yPos = pointerY - tooltipHeight - offsetY;
+    }
+    // If tooltip goes past the top edge (after potential flip), clamp it
+    if (yPos < 0) {
+        yPos = 0;
+    }
+
+    // Apply styles relative to the container
     tooltip
-        .style("left", `${xOffset}px`)
-        .style("top", `${yOffset}px`)
+        .style("left", `${xPos}px`)
+        .style("top", `${yPos}px`);
 };
+
+/**
+ * Positions the tooltip relative to a target SVG element within a container,
+ * accounting for SVG transforms (zoom/pan).
+ * @param targetElement The SVG element (e.g., circle, rect) to position against.
+ * @param tooltip The D3 selection of the tooltip HTML element.
+ * @param container The D3 selection of the main plot container div.
+ * @param svg The D3 selection of the SVG element.
+ * @param currentTransform The current d3.ZoomTransform applied to the plot.
+ */
+export function positionTooltipRelativeToDatapoint(
+    targetElement: SVGElement,
+    tooltip: any,
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+    svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>,
+    currentTransform: d3.ZoomTransform
+) {
+    const tooltipNode = tooltip.node();
+    const containerNode = container.node();
+    const svgNode = svg.node();
+
+    if (!tooltipNode || !containerNode || !svgNode || !targetElement) {
+        tooltip.style("opacity", 0); // Hide if essentials are missing
+        return;
+    }
+
+    // 1. Get BBox of the target element *in its local SVG coordinates*
+    const bbox = (targetElement as SVGGraphicsElement).getBBox(); // Use SVGGraphicsElement for getBBox
+
+    // 2. Calculate the center of the BBox in local SVG coordinates
+    const localX = bbox.x + bbox.width / 2;
+    const localY = bbox.y + bbox.height / 2;
+
+    // 3. Apply the current zoom/pan transform to get *screen coordinates relative to the SVG viewport*
+    const svgScreenX = currentTransform.applyX(localX);
+    const svgScreenY = currentTransform.applyY(localY);
+
+    // 4. Convert SVG screen coordinates to coordinates relative to the *container div*
+    const svgRect = svgNode.getBoundingClientRect();
+    const containerRect = containerNode.getBoundingClientRect();
+
+    // Position relative to the container's top-left corner
+    const containerRelativeX = svgScreenX + (svgRect.left - containerRect.left);
+    const containerRelativeY = svgScreenY + (svgRect.top - containerRect.top);
+
+    // 5. Position the tooltip near the calculated point, checking bounds
+    tooltip.style("opacity", 1); // Ensure visible
+    const tooltipRect = tooltipNode.getBoundingClientRect();
+    const tooltipWidth = tooltipRect.width;
+    const tooltipHeight = tooltipRect.height;
+    const offsetX = 15; // Increase offset slightly
+    const offsetY = 15;
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+
+    let xPos = containerRelativeX + offsetX;
+    let yPos = containerRelativeY + offsetY;
+
+    // Adjust position based on container boundaries
+    if (xPos + tooltipWidth > containerWidth) {
+        xPos = containerRelativeX - tooltipWidth - offsetX; // Move left
+    }
+    if (xPos < 0) {
+        xPos = offsetX; // Prevent going off left edge
+    }
+    if (yPos + tooltipHeight > containerHeight) {
+        yPos = containerRelativeY - tooltipHeight - offsetY; // Move up
+    }
+    if (yPos < 0) {
+        yPos = offsetY; // Prevent going off top edge
+    }
+
+    tooltip.style("left", `${xPos}px`).style("top", `${yPos}px`);
+}
 
 /**
  * Clears the content and hides the fixed tooltip container.

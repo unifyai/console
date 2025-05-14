@@ -17,13 +17,17 @@ import { updateNode } from "@/utils/misc/directory";
 import CancelButton from "../../Common/Buttons/Cancel";
 import SettingButton from "../../Common/Buttons/Setting";
 
-export default function FileDirectory ({ type,  data, defaultValue, isAutocompleteOpen, disabled, loading, setterFunction, renamingFunction, onOpen } : {
+export default function FileDirectory ({ type, text, variant, data, defaultValue, isAutocompleteOpen, disabled, loading, customOpen, setCustomOpen, setterFunction, renamingFunction, onOpen } : {
   type: string, 
+  text?: string,
+  variant?: "outline" | "ghost",
   data: FileProps[],
   defaultValue?: string | undefined,
   isAutocompleteOpen?: boolean,
   disabled?: boolean,
   loading?: boolean,
+  customOpen?: boolean,
+  setCustomOpen?: (open: boolean) => void,
   setterFunction: (x: FileProps | undefined) => void,
   renamingFunction: (name: string, newName: string) => Promise<ResponseProps>,
   onOpen?: () => void,
@@ -76,7 +80,7 @@ export default function FileDirectory ({ type,  data, defaultValue, isAutocomple
     <div className="flex flex-row gap-2 items-center">
       <BaseDialog
         button={
-            <SettingButton variant={type == "Projects" ? "ghost" : "outline"} icon={<Folder/>} tooltip={`Search ${type}`} disabled={disabled} />
+            <SettingButton variant={variant || "outline"} icon={<Folder/>} text={text} tooltip={`Search ${type}`} disabled={disabled} />
         }
         title="File Directory"
         description={`Search and organize your ${type.toLowerCase()} by folder. Double click on a file to select it.`}
@@ -103,6 +107,8 @@ export default function FileDirectory ({ type,  data, defaultValue, isAutocomple
           <SubmitButton text="Save" onClick={onSubmit} disabled={disabled}/>
           </>
         }
+        open={customOpen}
+        setOpen={setCustomOpen}
         onOpen={onOpen}
         disabled={disabled}
       />  

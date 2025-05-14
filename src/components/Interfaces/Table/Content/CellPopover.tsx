@@ -8,46 +8,99 @@ import { LogProps, LogItemProps } from "@/types/evals/logs";
 import { getPartAfterFirstUnderscore } from "@/utils/evals/selection";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import Markdown from "react-markdown";
-import { getValueType } from "../../Details/Selection/Views/ViewTypes";
 
 const CellPopover = ({cell, flatLogs, paramsValues, isCellExpanded, setExpandedCells}: {
-    cell: Cell<any, unknown>, 
+    cell: Cell<any, unknown>,
     flatLogs: LogProps[],
     paramsValues: LogItemProps,
     isCellExpanded: (cell: Cell<any, unknown>) => boolean,
     setExpandedCells: Dispatch<SetStateAction<{[k: string]: boolean}>>
 }) => {
-    
-    const [open, setOpen] = useState(isCellExpanded(cell))
-    
+
+    const [open, setOpen] = useState(isCellExpanded(cell));
+
     // Transform closing event into state update for expanded cells
     useEffect(() => {
-        if (!open)
-        setExpandedCells(expandedCells => ({
-            ...expandedCells, 
-            [cell.id]: false
-        }))
-    },[open])
+        if (!open) {
+            setExpandedCells(expandedCells => ({
+                ...expandedCells,
+                [cell.id]: false
+            }));
+        }
+    },[open, cell.id, setExpandedCells]);
 
     // Transform expand cell event to popover open state
     useEffect(() => {
-        if (isCellExpanded(cell)) 
-            setOpen(true) 
-        else setOpen(false)
-    }, [isCellExpanded(cell)])
+        setOpen(isCellExpanded(cell)); // Directly set open state based on expansion
+    }, [isCellExpanded, cell]);
 
-    /* Copy button */
-    const field = sanitizeId(getPartAfterFirstUnderscore(cell.id))
-    const content = cell.column.columnDef.meta?.fieldType === "param" ? paramsValues[field] : flatLogs.find(l => String(l.id) === cell.id.split("_")[0])?.entries[field] ?? ""
-    const copy = <div className="absolute top-1 right-1"><CopyButton content={content}/></div>
-    
+    // --- Determine Content ---
+    let content: any;
+    let displayContent: React.ReactNode;
+
+    const isGroupedCell = cell.getIsGrouped();
+    const columnId = cell.column.id;
+    const dataType = cell.column.columnDef.meta?.dataType;
+    const fieldType = cell.column.columnDef.meta?.fieldType;
+
+    if (isGroupedCell) {
+        // --- Content for Grouped Cells ---
+        content = cell.row.getValue(columnId);
+        const stringifiedContent = typeof content === 'object' && content !== null
+            ? JSON.stringify(content, null, 2)
+            : String(content ?? '');
+        displayContent = <Markdown className="prose dark:prose-invert max-w-none">{stringifiedContent}</Markdown>;
+
+    } else {
+        // --- Content for Regular Cells (Use flatLogs and paramsValues) ---
+        const field = sanitizeId(getPartAfterFirstUnderscore(cell.id));
+        const log = flatLogs.find(l => String(l.id) === cell.row.id);
+
+        if (fieldType === "param") {
+            content = paramsValues[field];
+        } else if (log) {
+            content = log.entries?.[field] ?? log.derived_entries?.[field] ?? "";
+        } else {
+            content = "";
+        }
+
+        // Determine how to display regular cell content
+        if (dataType === "image") {
+            displayContent = flexRender(cell.column.columnDef.cell, cell.getContext());
+        } else {
+            const stringifiedContent = typeof content === 'object' && content !== null
+                ? JSON.stringify(content, null, 2)
+                : String(content ?? '');
+            displayContent = <Markdown className="prose dark:prose-invert max-w-none">{stringifiedContent}</Markdown>;
+        }
+    }
+
+    // --- Prepare Content for Copy Button ---
+    const contentToCopy = typeof content === 'object' && content !== null
+        ? JSON.stringify(content)
+        : String(content ?? '');
+
+    const copy = <div className="absolute top-1 right-1"><CopyButton content={contentToCopy}/></div>;
+
     return (
-    <div style={{position: "absolute"}} onClick={(e) => e.stopPropagation()}>
-        <BasePopover context="tile" button={null} open={open} setOpen={setOpen} className="relative max-w-[500px] max-h-[200px] overflow-auto p-5">
-            {copy}
-            {cell.column.columnDef.meta?.dataType === "image" ? flexRender(cell.column.columnDef.cell, cell.getContext()) : <Markdown>{JSON.stringify(content)}</Markdown>}
-        </BasePopover>
-    </div>
+        <div style={{position: "absolute"}} onClick={(e) => e.stopPropagation()}>
+            <BasePopover
+                context="tile"
+                button={null}
+                open={open}
+                setOpen={setOpen}
+                // Apply white-space normal to ensure wrapping within the popover bounds
+                className="relative max-w-[500px] max-h-[300px] overflow-auto p-4 pt-6 whitespace-normal" // Added whitespace-normal
+                side="bottom"
+                align="start"
+            >
+                {copy}
+                {/* This div ensures the Markdown content respects the popover's bounds */}
+                <div className="w-full break-words">
+                    {displayContent}
+                </div>
+            </BasePopover>
+        </div>
     )
 }
 
