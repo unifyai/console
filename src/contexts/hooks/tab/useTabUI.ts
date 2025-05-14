@@ -22,6 +22,7 @@ export interface TabUIActions {
   setRefreshing: (refreshing: boolean) => void;
   setTilesPending: (pending: boolean) => void;
   setColor: (color: string | undefined) => void;
+  setHoveredLog: (hoveredLog: string | undefined) => void;
   setFocusDialog: (focusDialog: boolean) => void;
   setEditTile: (editTile: string | undefined) => void;
   setDataPending: (dataPending: boolean) => void;
@@ -111,6 +112,11 @@ export function useTabUI(
     return state.tabsById[tabId].color;
   });
 
+  const hoveredLog = useStoreContext(state => {
+    if (!tabExists || !tabId) return undefined;
+    return state.tabsById[tabId].hoveredLog;
+  })
+
   const focusDialog = useStoreContext(state => {
     if (!tabExists || !tabId) return false;
     return state.tabsById[tabId].focusDialog;
@@ -151,6 +157,7 @@ export function useTabUI(
       deleting,
       refreshing,
       color,
+      hoveredLog,
       focusDialog,
       editTile,
       dataPending,
@@ -169,6 +176,7 @@ export function useTabUI(
     deleting,
     refreshing,
     color,
+    hoveredLog,
     focusDialog,
     editTile,
     dataPending,
@@ -243,6 +251,12 @@ export function useTabUI(
     setColor: (color) => {
       if (tabId) {
         storeUpdateTab(tabId, { color });
+      }
+    },
+
+    setHoveredLog: (hoveredLog) => {
+      if (tabId) {
+        storeUpdateTab(tabId, { hoveredLog })
       }
     },
 

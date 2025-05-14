@@ -82,6 +82,10 @@ export default async function TileWrapper({
           <SelectionWrapper
             tile={tile}
             tabId={tabId}
+            projectId={projectId}
+            actions={{
+              logsActions: actions.logsActions
+            }}
           />
         );
       case "Editor":

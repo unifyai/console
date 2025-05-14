@@ -124,6 +124,7 @@ export default async function TableWrapper({
       groupSortingExpression,
       null,
       null,
+      null,
       limit,
       offset,
       groupingExpression ? 0 : null,

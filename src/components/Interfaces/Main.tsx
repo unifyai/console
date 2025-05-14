@@ -43,9 +43,13 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
         contexts = await contextActions.get(currentProject);
 
     // Get or create devbox
-    const devbox = await devboxActions.get();
-    if (devbox == null)
-        devboxActions.create();
+    try {
+        const devbox = await devboxActions.get();
+        if (devbox == null)
+            devboxActions.create();
+    } catch (error) {
+        console.log("Couldn't find or create devbox");
+    }
 
     // Get tabs
     const getTabsFromInterface = async (temporary: boolean) => {
@@ -190,9 +194,9 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
             Object
                 .entries(fields[idx])
                 .filter(([name, { data_type, field_type, artifacts }]) => columnContext ? name.startsWith(columnContext) : name)
-                .map(([name, { data_type, field_type, artifacts }]) => {
+                .map(([name, { data_type, field_type, artifacts, mutable, created_at }]) => {
                     const newName = columnContext ? processContext("split", columnContext, name) : name
-                    return [`${tile.name}.${newName}`, { data_type, field_type, artifacts }];
+                    return [`${tile.name}.${newName}`, { data_type, field_type, artifacts, mutable, created_at }];
                 })
         )
     }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
@@ -207,6 +211,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                 sortingExpressions[idx],
                 groupingExpressions[idx],
                 groupSortingExpressions[idx],
+                null,
                 null,
                 null,
                 limit,
@@ -288,7 +293,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                         data.logs = convertMetricsToLogs(groupFields, metric ? metric : "mean", fields[tableIdx], metrics as GroupedMetrics)
                     }
                     else {
-                        const rawData = await logsActions.get(currentProject, context ?? null, columnContext ?? null, filterExpression, null, null, null, subset, null, null, null, null, null, Date.now().toString());
+                        const rawData = await logsActions.get(currentProject, context ?? null, columnContext ?? null, filterExpression, null, null, null, null, subset, null, null, null, null, null, Date.now().toString());
                         data = replaceParamsIndicesWithValues(rawData)    
                     }
 

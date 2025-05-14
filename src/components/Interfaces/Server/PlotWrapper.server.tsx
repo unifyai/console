@@ -82,7 +82,7 @@ export default async function PlotWrapper({
   }
 
   // Create plotFields object
-  const plotFields: {[name: string]: {data_type: string, field_type: "entry" | "param" | "derived_entry", artifacts: string}} = {};
+  const plotFields: {[name: string]: {data_type: string, field_type: "entry" | "param" | "derived_entry", artifacts: string, mutable: "true" | "false", created_at: string}} = {};
   
   // fetch plot data for each table using the already built plotArguments
   const plotData_ = await Promise.all(usedTableNames.map(async (tableName) => {
@@ -145,7 +145,7 @@ export default async function PlotWrapper({
         context ?? null, 
         columnContext ?? null, 
         filterExpression, 
-        null, null, null, 
+        null, null, null, null,
         subset, 
         null, null, null, null, null, 
         Date.now().toString()

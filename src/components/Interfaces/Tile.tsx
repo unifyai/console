@@ -139,6 +139,8 @@ const Tile = ({
                                 </div>
                             }>
                                 <Selection
+                                    projectId={projectId}
+                                    logsActions={logsActions}   
                                     tileId={tileId}
                                     tabId={tabId}
                                 />

@@ -74,6 +74,21 @@ export default async function InterfaceWrapper({
     contexts = qc.getQueryData<Context[]>(["contexts", currentProject]) || [];
   }
 
+  // Get or create devbox
+  let devbox = null;
+  if (currentProject) {
+    await qc.prefetchQuery({
+      queryKey: ["devbox"],
+      queryFn: () => actions.devboxActions.get(),
+    });
+    devbox = qc.getQueryData(["devbox"]) || null;
+
+    // If devbox is not found, create it
+    if (!devbox) {
+      await actions.devboxActions.create();
+    }
+  }
+
   // Get interfaces
   let interfaces: InterfaceData[] = [];
   if (currentProject) {

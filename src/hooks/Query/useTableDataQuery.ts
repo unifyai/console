@@ -5,6 +5,7 @@ import { useTileMeta } from "@/contexts/hooks/tile";
 import { TableArguments } from "@/types/evals/logs";
 import { useTabMeta } from "@/contexts/hooks/tab";
 import { useMemo, useRef, useEffect, useCallback } from "react";
+import { setDeep } from "@/utils/objectPath";
 
 export const EMPTY_TABLEDATAITEM: TableDataItem = {
   columnContexts: [],
@@ -30,11 +31,11 @@ export const EMPTY_TABLEDATAITEM: TableDataItem = {
  * @param tileId ID of the tile to get data for
  */
 export function useTableDataQuery(
-  tileName: string | null,
-  tabName: string | null,
+  tileIdOrName: string | null,
+  tabIdOrName: string | null,
 ) {
   // Get tile meta information using the useTileMeta hook
-  const { tileId } = useTileMeta(tileName, tabName || null);
+  const { tileId } = useTileMeta(tileIdOrName, tabIdOrName || null);
 
   return useQuery<TableDataItem>({
     queryKey: ["tableDataItem", tileId],
@@ -48,16 +49,16 @@ export function useTableDataQuery(
 
 /**
  * Enhanced hook that provides table data with state tracking for sequential updates
- * @param tileName Name of the tile to get data for
- * @param tabName Name of the tab containing the tile
+ * @param tileIdOrName Name of the tile to get data for
+ * @param tabIdOrName Name of the tab containing the tile
  * @returns Object containing the table data, update functions, and loading states
  */
 export function useTableDataQueryWithTracking(
-  tileName: string | null,
-  tabName: string | null,
+  tileIdOrName: string | null,
+  tabIdOrName: string | null,
 ) {
   // Get tile meta information using the useTileMeta hook
-  const { tileId } = useTileMeta(tileName, tabName || null);
+  const { tileId } = useTileMeta(tileIdOrName, tabIdOrName || null);
 
   // Base React Query hook
   const { 
@@ -125,6 +126,65 @@ export function useTableDataQueryWithTracking(
     updateWithTracking(result as TableDataItem);
   }, [updateWithTracking]);
 
+  // Function for deep updating specific logs by row IDs
+  const updateLogsDeep = useCallback((
+    rowIds: string[], 
+    desc: { 
+      source: "entries" | "params"; 
+      path: (string | number)[]; 
+      newValue: any 
+    }
+  ) => {
+    if (!tileId || rowIds.length === 0) {
+      console.log("[DEBUG] Aborting updateLogsDeep – missing tileId or empty rowIds");
+      return;
+    }
+
+    // Work with our locally tracked current logs
+    const currentLogs = tableDataItemRef.current?.logs;
+
+    if (!currentLogs) {
+      console.log("[DEBUG] No currentLogs found – aborting");
+      return; // safety guard
+    }
+
+    const idSet = new Set(rowIds.map(String));
+
+    let changed = false;
+    const nextLogs = currentLogs.map((l: any) => {
+      if (!idSet.has(String(l.id))) return l;
+
+      const container = desc.source === "params" ? l.params ?? {} : l.entries ?? {};
+      const updated = setDeep(container, desc.path, desc.newValue);
+
+      if (updated === container) return l; // no real change
+
+      changed = true;
+
+      return {
+        ...l,
+        ...(desc.source === "params" ? { params: updated } : { entries: updated }),
+      };
+    });
+
+    if (!changed) {
+      console.log("[DEBUG] updateLogsDeep detected no changes – skipping state merge");
+      return; // nothing mutated
+    }
+
+    // Guard: avoid clobbering entire container if path is empty
+    if (desc.path.length === 0) {
+      console.warn("[DEBUG] updateLogsDeep – empty path, skipping to avoid overwriting container", { desc });
+      return;
+    }
+
+    // Update the entire logs array using our existing updateTableDataItem function
+    updateTableDataItem({
+      ...tableDataItemRef.current,
+      logs: nextLogs,
+    });
+  }, [tileId, updateTableDataItem]);
+
   // Adapter that accepts an updater function as well as partial updates
   const updateTableDataItemWithUpdater = useCallback((
     updater?: (prev: TableDataItem) => TableDataItem,
@@ -151,7 +211,8 @@ export function useTableDataQueryWithTracking(
     error,
     updateTableDataItem,
     mergeUpdatesIntoTableDataItem,
-    updateTableDataItemWithUpdater
+    updateTableDataItemWithUpdater,
+    updateLogsDeep
   };
 }
 
@@ -191,15 +252,15 @@ export function useTableDataQueries(
 
 /**
  * Hook for accessing table arguments (API call parameters) cached by the server component
- * @param tabName The name of the tab containing the tables
- * @param interfaceName Optional interface name
+ * @param tabIdOrName The name of the tab containing the tables
+ * @param interfaceIdOrName Optional interface name
  */
 export function useTableArgumentsQuery(
-  tabName: string | null,
-  interfaceName?: string | null,
+  tabIdOrName: string | null,
+  interfaceIdOrName?: string | null,
 ) {
   // Get tab meta information using the useTabMeta hook
-  const { tabId } = useTabMeta(tabName, interfaceName || null);
+  const { tabId } = useTabMeta(tabIdOrName, interfaceIdOrName || null);
 
   return useQuery<TableArguments>({
     queryKey: ["tableArguments", tabId],

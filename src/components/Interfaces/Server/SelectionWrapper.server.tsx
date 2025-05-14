@@ -6,17 +6,26 @@ import Selection from "../Details/Selection/Selection";
 import { ExpandProvider } from "@/contexts/ExpandContext";
 
 import type {
+  LogsActions,
   TileData
 } from "@/types/evals/grid";
+
+type SelectionWrapperActions = {
+  logsActions: LogsActions;
+};
 
 type SelectionWrapperProps = {
   tile: TileData;
   tabId: string;
+  projectId: string;
+  actions: SelectionWrapperActions;
 };
 
 export default async function SelectionWrapper({
   tile,
   tabId,
+  projectId,
+  actions
 }: SelectionWrapperProps) {
   const qc = getQueryClient();
 
@@ -36,6 +45,8 @@ export default async function SelectionWrapper({
             <Selection
               tileId={tile.id || ""}
               tabId={tabId}
+              projectId={projectId}
+              logsActions={actions.logsActions}
             />
           </Suspense>
         </ExpandProvider>

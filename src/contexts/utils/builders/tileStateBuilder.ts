@@ -129,6 +129,7 @@ function buildPlotTileData(plotTileData: PlotTileData): PlotTile {
     x_axis: plotTileData.x_axis,
     y_axis: plotTileData.y_axis,
     plot_group_by: plotTileData.plot_group_by,
+    plot_group_by_colors: plotTileData.plot_group_by_colors,
     bin_count: plotTileData.bin_count,
     regression_line: plotTileData.regression_line,
   };

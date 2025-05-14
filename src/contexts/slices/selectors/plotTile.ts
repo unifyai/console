@@ -27,6 +27,7 @@ export interface PlotTileData {
 
 // Plot tile UI - UI-related state
 export interface PlotTileUI {
+  plot_group_by_colors?: string | null; // Color scheme used for grouped plots. One of the schemes available at https://d3js.org/d3-scale-chromatic/categorical
 }
 
 // Combined Plot tile type
@@ -36,7 +37,7 @@ export type PlotTile = PlotTileMeta & PlotTileData & PlotTileUI;
 // a PlotTile into a TileProps
 export const PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS: (keyof PlotTile)[] = [
   "plot_type", "plot_scale_x", "plot_scale_y", "plot_aggregate",
-  "x_axis", "y_axis", "plot_group_by", "bin_count", "regression_line"
+  "x_axis", "y_axis", "plot_group_by", "plot_group_by_colors", "bin_count", "regression_line"
 ];
 
 // plotTileKeys: all fields for PlotTile
@@ -57,6 +58,7 @@ export function initPlotTile(initialState: Partial<PlotTile> = {}): PlotTile {
     x_axis: initialState.x_axis !== undefined ? initialState.x_axis : null,
     y_axis: initialState.y_axis !== undefined ? initialState.y_axis : null,
     plot_group_by: initialState.plot_group_by !== undefined ? initialState.plot_group_by : null,
+    plot_group_by_colors: initialState.plot_group_by_colors !== undefined ? initialState.plot_group_by_colors : null,
     bin_count: initialState.bin_count !== undefined ? initialState.bin_count : null,
     regression_line: initialState.regression_line !== undefined ? initialState.regression_line : null,
 

@@ -22,9 +22,6 @@ export const DEFAULT_PLOT_TILE_UI: PlotTileUI = {};
 // Default plot tile meta actions
 export const DEFAULT_PLOT_TILE_META_ACTIONS: PlotTileMetaActions = {};
 
-// Default plot tile UI actions
-export const DEFAULT_PLOT_TILE_UI_ACTIONS: PlotTileUIActions = {};
-
 /**
  * Interface for plot tile meta actions
  */
@@ -52,6 +49,7 @@ export interface PlotTileDataActions {
  */
 export interface PlotTileUIActions {
   // UI actions will be empty as per PlotTileUI
+  setPlotGroupByColors: (plotGroupByColors: string | undefined) => void;
 }
 
 /**
@@ -130,10 +128,16 @@ export function usePlotTile(
 
   // Access store for plot-specific UI state
   const plotUI = useMemo(() => {
-    if (!isPlotTile || !tileId) return null;
+    if (!isPlotTile || !tileId || !plotTile) return null;
     // Return empty object as per PlotTileUI interface
-    return DEFAULT_PLOT_TILE_UI as PlotTileUI;
-  }, [isPlotTile, tileId]);
+    return {
+      plot_group_by_colors: plotTile.plot_group_by_colors,
+    } as PlotTileUI;
+  }, [
+    isPlotTile, 
+    tileId,
+    plotTile?.plot_group_by_colors,
+  ]);
 
   // Get store update functions
   const storeUpdatePlotTile = useStoreContext(state => state.updatePlotTile);
@@ -222,7 +226,14 @@ export function usePlotTile(
     if (!isPlotTile || !tileId) return null;
     
     // Return empty object as per PlotTileUI interface
-    return DEFAULT_PLOT_TILE_UI_ACTIONS as PlotTileUIActions;
+    return {
+      setPlotGroupByColors: (plotGroupByColors) => {
+        const update: Partial<PlotTile> = { 
+          plot_group_by_colors: plotGroupByColors
+        };
+        storeUpdatePlotTile(tileId, update);
+      },
+    } as PlotTileUIActions;
   }, [isPlotTile, tileId]);
 
   // Build a final `plotTile` object from the separate meta, data, and UI objects

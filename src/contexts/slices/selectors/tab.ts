@@ -30,6 +30,7 @@ export interface TabUI {
   deleting: boolean;
   refreshing: boolean;
   color?: string;
+  hoveredLog?: string;
   focusDialog: boolean;
   editTile: string | undefined;
   dataPending: boolean;
@@ -71,6 +72,7 @@ export function initTab(tabId: string, initialState: Partial<Tab> = {}): Tab {
     deleting: initialState.deleting !== undefined ? initialState.deleting : false,
     refreshing: initialState.refreshing !== undefined ? initialState.refreshing : false,
     color: initialState.color,
+    hoveredLog: initialState.hoveredLog,
     focusDialog: initialState.focusDialog !== undefined ? initialState.focusDialog : false,
     editTile: initialState.editTile,
     dataPending: initialState.dataPending !== undefined ? initialState.dataPending : false,

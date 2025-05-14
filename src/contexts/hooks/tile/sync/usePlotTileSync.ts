@@ -11,7 +11,7 @@ import { useTileMeta } from "../useTileMeta";
 /**
  * Properties of the PlotTile that will be synced with the server
  */
-export type SyncedPlotProperties = 'plot_type' | 'x_axis' | 'y_axis' | 'plot_group_by' | 'plot_aggregate';
+export type SyncedPlotProperties = 'plot_type' | 'x_axis' | 'y_axis' | 'plot_group_by' | 'plot_group_by_colors' | 'plot_aggregate';
 
 /**
  * Loading states for each property
@@ -70,6 +70,7 @@ export function usePlotTileSync(
   const xAxisMutation = usePatchSpecializedTileQuery<"Plot">();
   const yAxisMutation = usePatchSpecializedTileQuery<"Plot">();
   const plotGroupByMutation = usePatchSpecializedTileQuery<"Plot">();
+  const plotGroupByColorsMutation = usePatchSpecializedTileQuery<"Plot">();
   const plotAggregateMutation = usePatchSpecializedTileQuery<"Plot">();
 
   // Create a mapping for the mutations to use in the loading and error states
@@ -78,6 +79,7 @@ export function usePlotTileSync(
     x_axis: xAxisMutation,
     y_axis: yAxisMutation,
     plot_group_by: plotGroupByMutation,
+    plot_group_by_colors: plotGroupByColorsMutation,
     plot_aggregate: plotAggregateMutation,
   };
 
@@ -178,6 +180,30 @@ export function usePlotTileSync(
     });
   };
 
+  const wrapPlotGroupByColors = (value: string | undefined) => {
+    if (!plotTileActions || !granularTileActions) return;
+    
+    // 1) Update local state immediately
+    plotTileActions.setPlotGroupByColors(value);
+    
+    // Don't attempt server update if we don't have required info
+    if (!tileName || !tabId) return;
+
+    // 2) Optimistic server update
+    plotGroupByColorsMutation.mutate({
+      tab_id: tabId,
+      name: tileName,
+      tileType: "Plot",
+      updateData: { plot_group_by_colors: value ?? null },
+      actions: granularTileActions
+    }, {
+      onSettled: () => {
+        // 3. Refresh the router and set the loading state
+        refreshRouter({ withLoading: true });
+      }
+    });
+  };
+
   const wrapAggregateProperty = (value: string | undefined) => {
     if (!plotTileActions || !granularTileActions) return;
     
@@ -213,6 +239,7 @@ export function usePlotTileSync(
       setXAxis: wrapXAxis,
       setYAxis: wrapYAxis,
       setPlotGroupBy: wrapPlotGroupBy,
+      setPlotGroupByColors: wrapPlotGroupByColors,
       setAggregateProperty: wrapAggregateProperty,
     } as PlotActions;
   }, [
@@ -232,6 +259,7 @@ export function usePlotTileSync(
         x_axis: false,
         y_axis: false,
         plot_group_by: false,
+        plot_group_by_colors: false,
         plot_aggregate: false,
         any: false
       },
@@ -240,6 +268,7 @@ export function usePlotTileSync(
         x_axis: null,
         y_axis: null,
         plot_group_by: null,
+        plot_group_by_colors: null,
         plot_aggregate: null,
         any: false
       },
@@ -253,6 +282,7 @@ export function usePlotTileSync(
     x_axis: mutations.x_axis.isPending,
     y_axis: mutations.y_axis.isPending,
     plot_group_by: mutations.plot_group_by.isPending,
+    plot_group_by_colors: mutations.plot_group_by_colors.isPending,
     plot_aggregate: mutations.plot_aggregate.isPending,
     any: false
   };
@@ -266,6 +296,7 @@ export function usePlotTileSync(
     x_axis: mutations.x_axis.error,
     y_axis: mutations.y_axis.error,
     plot_group_by: mutations.plot_group_by.error,
+    plot_group_by_colors: mutations.plot_group_by_colors.error,
     plot_aggregate: mutations.plot_aggregate.error,
     any: false
   };
