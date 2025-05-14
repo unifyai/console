@@ -21,7 +21,7 @@ function fetchLatestTimestamps(tables: string[], args: PlotArguments, project: s
             const tableColumnContext = tableArgs?.["column_context"] ?? null;
             const tableFilters = tableArgs?.["filters"] ?? null;
             const tableSubset = tableArgs?.["subset"] ?? null;
-            return logsActions.getLatest(project, tableContext, tableColumnContext, tableFilters, null, null, null, tableSubset, null, null, null, null, null);
+            return logsActions.getLatest(project, tableContext, tableColumnContext, tableFilters, null, null, null, null, tableSubset, null, null, null, null, null);
         });
         Promise.all(promises)
             .then(latestDates => {
@@ -88,9 +88,9 @@ function fetchAndMergeFields (tables: string[], args: PlotArguments, project: st
                         Object
                             .entries(fields)
                             .filter(([name, _]) => tableColumnContext ? name.startsWith(tableColumnContext) : name)
-                            .map(([name, { data_type, field_type, artifacts }]) => {
+                            .map(([name, { data_type, field_type, artifacts, created_at, mutable }]) => {
                                 const newName = tableColumnContext ? processContext("split", tableColumnContext, name) : name;
-                                return [`${table}.${newName}`, { data_type, field_type, artifacts }];
+                                return [`${table}.${newName}`, { data_type, field_type, artifacts, created_at, mutable }];
                             })
                     );
                     return newFields; // Return processed fields for this table
@@ -145,7 +145,7 @@ function fetchAndMergeLogs (tables: string[], item: TileProps | undefined, args:
                         });
                  } else {
                      fetchDataPromise = logsActions
-                        .get(project, tableContext, tableColumnContext, tableFilters, null, null, null, tableSubset, null, null, null, null, null, Date.now().toString())
+                        .get(project, tableContext, tableColumnContext, tableFilters, null, null, null, null, tableSubset, null, null, null, null, null, Date.now().toString())
                         .then(rawData => {
                             if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
                             return replaceParamsIndicesWithValues(rawData).logs as LogProps[];
@@ -153,7 +153,7 @@ function fetchAndMergeLogs (tables: string[], item: TileProps | undefined, args:
                  }
             } else {
                  fetchDataPromise = logsActions
-                    .get(project, tableContext, tableColumnContext, tableFilters, null, null, null, tableSubset, null, null, null, null, null, Date.now().toString())
+                    .get(project, tableContext, tableColumnContext, tableFilters, null, null, null, null, tableSubset, null, null, null, null, null, Date.now().toString())
                     .then(rawData => {
                         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
                         return replaceParamsIndicesWithValues(rawData).logs as LogProps[];

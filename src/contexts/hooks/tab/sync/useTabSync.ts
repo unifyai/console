@@ -7,7 +7,7 @@ import { useTab } from "../useTab";
 import { TabDataActions } from "../useTabData";
 import { TabUIActions } from "../useTabUI";
 import { v4 as uuidv4 } from 'uuid';
-import { convertToTileData } from "@/contexts/utils/sliceUtils";
+import { convertTileToTileData } from "@/contexts/utils/sliceUtils";
 import { Tile } from "@/contexts/slices/selectors/tile";
 import { getQueryClient } from '@/lib/react-query/getQueryClient';
 
@@ -17,6 +17,7 @@ import { getQueryClient } from '@/lib/react-query/getQueryClient';
  */
 export interface SyncedTabDataActions extends TabDataActions {
   removeContextFromTab: (context: string, setPending?: (pending: boolean) => void) => void;
+  setGlobalContext: (context: string | undefined, setPending?: (pending: boolean) => void) => void;
   // Add any other extended methods here that have additional parameters
 }
 
@@ -316,7 +317,7 @@ export function useTabSync(
       const newTileId = uuidv4();
       
       // Convert source tile to TileData format
-      const sourceTileData = convertToTileData(sourceTile as Tile);
+      const sourceTileData = convertTileToTileData(sourceTile as Tile);
       
       // Update the local state first
       tabDataActions.pasteCopiedTile(newTileName, sourceTileName, {
@@ -474,27 +475,62 @@ export function useTabSync(
   };
 
   /**
+   * Set global context for a tab
+   */
+  const wrapGlobalContext = async (context: string | undefined, setPending?: (pending: boolean) => void) => {
+    if (!tabId || !tabActions || !tabDataActions) return;
+
+    // Check if we have access to the tab data
+    if (!tabData) {
+      return;
+    }
+
+    // 1) Update local state immediately
+    tabDataActions.setGlobalContext(context);
+
+    // 2) Optimistic server update
+    await updateTabMutation.mutateAsync({
+      params: {
+        id: tabId,
+        data: {
+          global_context: context || ""
+        }
+      },
+      actions: tabActions
+    });
+      
+    // 3) Refresh the router to update UI with new data
+    // The pending state is handled by the router refresh hook
+    if (setPending) {
+      refreshRouter({
+        externalPendingSetters: [setPending]
+      });
+    }
+  };
+
+  /**
    * Update a tile
    */
   const wrapUpdateTile = (tileId: string, updateData: Partial<TileData>) => {
     if (!tileId || !tabDataActions || !tileActions) return;
 
-    // 1) Update local state immediately
-    tabDataActions.updateTile(tileId, updateData);
-
     // Determine if we need to reload the page
     let reload = false;
+    let setPending = false;
+    let setLoading = false;
 
     const tile = tabDataActions.getPartialTile(tileId);
 
     if ("type" in updateData && (updateData.type === "Table" || updateData.type === "Plot")) {
       reload = true;
+      setPending = true;
+      setLoading = true;
     }
     else if (("table_type" in updateData) || ("context" in updateData) || ("column_context" in updateData)) {
       // Check if the tile is a table tile or a plot tile
       if (tile?.type === "Table" || tile?.type === "Plot") {
         reload = true;
-
+        setLoading = true;
       }
     }
     else if ("auto_update" in updateData) {
@@ -505,8 +541,24 @@ export function useTabSync(
       }
     }
 
-    // Check if we need to reload the server
+    // Add pending and loading to the zustand state
+    let zustandUpdateData: Partial<Tile> = updateData;
 
+    if (setPending) {
+      zustandUpdateData = {
+        ...zustandUpdateData,
+        pending: true,
+      }
+    }
+
+    if (setLoading) {
+      zustandUpdateData = {
+        ...zustandUpdateData,
+        loading: true,
+      }
+    }
+    // 1) Update local state immediately
+    tabDataActions.updateTile(tileId, zustandUpdateData);
 
     // 2) Optimistic server update
     updateTileMutation.mutate({
@@ -588,7 +640,8 @@ export function useTabSync(
       removeTile: wrapRemoveTile,
       updateTile: wrapUpdateTile,
       updateTileLayout: wrapUpdateTileLayout,
-      updateTableTile: wrapUpdateTableTile
+      updateTableTile: wrapUpdateTableTile,
+      setGlobalContext: wrapGlobalContext
     } as SyncedTabDataActions;
   }, [
     tabDataActions,

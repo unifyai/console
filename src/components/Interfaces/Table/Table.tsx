@@ -43,6 +43,7 @@ import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data
 import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import ContextSelector from "./Content/ContextSelector";
 import ResetServerAction from "./Buttons/ResetServerAction";
+import CreateEmptyLogRow from "./Buttons/CreateEmptyLogRow"; // Import the new button
 import { getGroupedMetrics } from "@/utils/evals/common";
 import { deselectFromClickOutside } from "@/hooks/Logs/useCellSelection";
 
@@ -54,6 +55,7 @@ import { shallow } from "zustand/vanilla/shallow";
 import { useTableArgumentsQuery, useTableDataQueryWithTracking } from "@/hooks/Query/useTableDataQuery";
 import { getQueryClient } from '@/lib/react-query/getQueryClient'
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
+import { useRouter } from "next/navigation"; // Import useRouter
 
 const LogsTable = ({
   tileId,
@@ -76,6 +78,8 @@ const LogsTable = ({
   derivedEntryActions: DerivedEntryActions,
   contextActions: ContextActions,
 }) => {
+  const router = useRouter(); // Initialize useRouter
+
   // Get access to the project data and actions
   const { data: projectDataState } = useProject(projectId ?? null);
   const contexts = projectDataState?.contexts || [];
@@ -593,6 +597,27 @@ const LogsTable = ({
             setColumnVisibility={setColumnVisibility}
             context={item?.context ?? null}
           />
+           {projectId && (
+            <CreateEmptyLogRow
+              projectId={projectId}
+              globalContext={item?.context || context_}
+              fields={tableDataItem.fields}
+              interactive={interactive}
+              createLogsAction={logsActions.create}
+              onSuccess={() => {
+                // No need to call updateTab anymore since whenever we mutate
+                // tracked properties, we mutate the server state using the sync hooks
+                router.refresh();
+                setPending(true);
+              }}
+              onError={(errorMessage) => {
+                // Handle error, e.g., show a toast notification
+                console.error("Failed to create log:", errorMessage);
+                // You might want to use a more sophisticated error display mechanism
+                alert(`Error: ${errorMessage}`);
+              }}
+            />
+          )}
           <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => {setGrouping([]); setGroupSorting([])}}/>
           <ResetServerAction condition={(sorting.length > 0 || groupSorting.length > 0)} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => {setSorting([]); setGroupSorting([])}}/>
           <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); syncedTileDataActions?.setCommonFilter(undefined)}}/>
@@ -643,8 +668,11 @@ const LogsTable = ({
   // Handle cell deselection from clicks
   const containerRef = useRef<HTMLDivElement>(null); 
   const onContainerClick = (event: React.MouseEvent<HTMLElement, MouseEvent>) => {
-    if (tableTileActions) deselectFromClickOutside(event, containerRef, selectedCells, tableTileActions.setSelected, ["LogsTablePreferences"])
+    if (tableTileActions) deselectFromClickOutside(event, containerRef, selectedCells, tableTileActions.setSelected, ["LogsTable", "LogsTablePreferences"])
   }
+
+  //Ref for auto scroll
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   return (
     <div
@@ -660,7 +688,7 @@ const LogsTable = ({
       ) : (
         <div className="w-full h-full flex flex-col">
           {tableTop && tableTop}
-          <div className="w-full h-fit overflow-y-auto tutorial-logs-table">
+          <div ref={scrollContainerRef} className="w-full h-fit overflow-y-auto tutorial-logs-table">
             {projectId ? (
               <div className="relative flex-col gap-2">
                 {/* "summaryPending" can optionally show a small loader over the table if you like */}
@@ -672,6 +700,7 @@ const LogsTable = ({
                   columns={columns}
                   state={state}
                   setState={setState}
+                  scrollContainerRef={scrollContainerRef}
                   ColumnGroupBy={(column, groupLoading, setGroupLoading, setGroupSortLoading, setIsGrouped, renderMode = "button") => (
                     <ColumnGroupBy
                       interactive={interactive}

@@ -44,7 +44,6 @@ export function buildTabState(
     deleting: false,
     refreshing: false,
     color: tabData.color,
-    focusDialog: false,
     editTile: undefined,
     dataPending: false,
     pending: false,

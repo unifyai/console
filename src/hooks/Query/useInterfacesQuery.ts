@@ -449,4 +449,69 @@ export function useCreateInterfaceCheckpointQuery() {
       });
     },
   });
+}
+
+/**
+ * Hook to get a checkpoint for an interface by name
+ */
+export function useGetInterfaceCheckpointByNameQuery(
+  projectId: string | null,
+  name: string | null,
+  actions: GranularInterfaceActions
+) {
+  return useQuery({
+    queryKey: ['interface-checkpoint-by-name', projectId, name],
+    queryFn: async () => {
+      if (!projectId || !name) return null;
+      return actions.getCheckpointByName(projectId, name);
+    },
+    enabled: !!projectId && !!name,
+  });
+}
+
+/**
+ * Hook to get a checkpoint for an interface by ID
+ */
+export function useGetInterfaceCheckpointByIdQuery(
+  interfaceId: string | null,
+  actions: GranularInterfaceActions
+) {
+  return useQuery({
+    queryKey: ['interface-checkpoint-by-id', interfaceId],
+    queryFn: async () => {
+      if (!interfaceId) return null;
+      return actions.getCheckpointById(interfaceId);
+    },
+    enabled: !!interfaceId,
+  });
+}
+
+/**
+ * Unified hook to get a checkpoint for an interface by either ID or name
+ */
+export function useGetInterfaceCheckpointUnifiedQuery(
+  params: {
+    interfaceId?: string | null;
+    projectId?: string | null;
+    name?: string | null;
+  },
+  actions: GranularInterfaceActions
+) {
+  const { interfaceId, projectId, name } = params;
+  const usingId = !!interfaceId;
+  const usingPath = !!projectId && !!name;
+  
+  return useQuery({
+    queryKey: usingId 
+      ? ['interface-checkpoint-by-id', interfaceId] 
+      : ['interface-checkpoint-by-name', projectId, name],
+    queryFn: async () => {
+      return actions.getCheckpoint({
+        interface_id: interfaceId as string,
+        projectId: projectId as string,
+        name: name as string
+      });
+    },
+    enabled: usingId || usingPath,
+  });
 } 

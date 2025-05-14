@@ -24,7 +24,7 @@ import * as editorTileLogic from "../slices/selectors/editorTile";
  * @param tile - The Tile object from the zustand store
  * @returns A partial TileData object suitable for API operations
  */
-export function convertToTileData(tile: Tile): Partial<TileData> {
+export function convertTileToTileData(tile: Tile): Partial<TileData> {
   if (!tile) return {};
 
   const tileData: Partial<TileData> = {

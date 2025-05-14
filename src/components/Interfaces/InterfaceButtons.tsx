@@ -1,13 +1,12 @@
 "use client";
 
-import { TabProps, ContextActions, TileProps, LogsActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
+import { ContextActions, LogsActions, GranularTabActions, GranularTileActions, GranularInterfaceActions } from "@/types/evals/grid";
 import { Eye, Hammer, SquareMousePointer, Info, Ellipsis } from "lucide-react";
 import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon, Palette } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
 import { useRouter } from "next/navigation";
-import { ResponseProps } from "@/types/common";
 import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
 import Tooltip from "../Common/Misc/Tooltip";
@@ -22,34 +21,35 @@ import { useTab } from "@/contexts/hooks/tab";
 import { useProject } from "@/contexts/hooks/project";
 import { useTiles } from "@/contexts/hooks/useStore";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
-import { useUpdateTabQuery } from '@/hooks/Query/useTabsQuery';
 import { useRestoreLastSavedTabWithTilesQuery } from '@/hooks/Query/useRestoreLastSavedTabWithTilesQuery';
 import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
 
 const InterfaceButtons = ({
     tabIdOrName,
     interfaceId,
-    setSaveDialog,
     logsActions,
     contextActions,
     tabActions,
     tileActions,
+    interfaceActions,
     disabled,
 }: {
     tabIdOrName: string | null,
     interfaceId: string,
-    setSaveDialog: (value: SetStateAction<boolean>) => void,
     logsActions: LogsActions,
     contextActions: ContextActions,
     tabActions: GranularTabActions,
     tileActions: GranularTileActions,
+    interfaceActions: GranularInterfaceActions,
     disabled?: boolean,
 }) => {
     const router = useRouter();
     
     // Use hooks for tab operations
-    const updateTabMutation = useUpdateTabQuery();
     const restoreTabMutation = useRestoreLastSavedTabWithTilesQuery();
+
+    const setFocusPaneOpen = useStoreContext((state) => state.setFocusPaneOpen);
+    const setSaveInterfaceOpen = useStoreContext((state) => state.setSaveInterfaceOpen);
     
     // Get the project data and the contexts with granular access
     const project = useStoreContext((state) => state.activeProjectId);
@@ -96,24 +96,14 @@ const InterfaceButtons = ({
 
     // Handle context change 
     const handleContextChange = (ctx: string) => {
-        if (tabDataActions && tabUIActions && project && tabName) {
-            // First update the tab's context
-            tabDataActions.setGlobalContext(ctx);
+        if (syncedTabDataActions && tabUIActions && project && tabName) {
+            // First update the tab's context using synchronized action
+            syncedTabDataActions.setGlobalContext(ctx, (pending) => tabUIActions.setPending(pending));
             
-            // Update the context in the backend using the update tab mutation
-            updateTabMutation.mutate({
-                interface_id: project,
-                name: tabName,
-                data: {
-                    global_context: ctx
-                },
-                actions: tabActions
-            });
-
             // Then update each tile's context-related properties if needed
             tiles.forEach(tile => {
                 // Get the corresponding item to check current context
-                const item = items.find(i => i.name === tile.name);
+                const item = items.find(i => i.id === tile.id);
                 if (item) {
                     const validContext = contexts.some(c => c.name === ctx);
                     const validItemContext = item.context?.startsWith(ctx);
@@ -182,7 +172,7 @@ const InterfaceButtons = ({
                             icon={<FocusIcon />}
                             variant="ghost"
                             disabled={isDisabled}
-                            onClick={() => tabUIActions?.setFocusDialog(true)}
+                            onClick={() => setFocusPaneOpen(true)}
                         />
                     </div>
 
@@ -209,7 +199,7 @@ const InterfaceButtons = ({
                             icon={saveIcon}
                             variant={variant}
                             disabled={isDisabled}
-                            onClick={async () => setSaveDialog(true)}
+                            onClick={async () => setSaveInterfaceOpen(true)}
                         />
                     </div>
 
@@ -232,6 +222,7 @@ const InterfaceButtons = ({
                                     const result = await restoreTabMutation.mutateAsync({
                                         interface_id: interfaceId,
                                         tab_name: tabName,
+                                        interface_actions: interfaceActions,
                                         tab_actions: tabActions,
                                         tile_actions: tileActions
                                     });
@@ -283,7 +274,7 @@ const InterfaceButtons = ({
                                 <DropdownMenuItem
                                     key={idx}
                                     onSelect={() => {
-                                        if (tabDataActions && item.id) {
+                                        if (syncedTabDataActions && item.id) {
                                             syncedTabDataActions?.updateTile(item.id, {
                                                 position: {
                                                     x: (tileIds.length * 2) % 12,

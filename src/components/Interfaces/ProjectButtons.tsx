@@ -13,11 +13,10 @@ import { useEffect } from "react";
 import { useInterface } from "@/contexts/hooks/interface";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useTabUI } from "@/contexts/hooks/tab";
-import { defaultTiles, defaultInterface, defaultTab } from "@/constants/logs";
 import AutoComplete from "../Common/Misc/AutoComplete";
 import BaseDropdown from "../Common/Dropdowns/Base";
-import { useCreateProjectQuery } from "@/hooks/Query/useCreateProjectQuery";
-import { useListProjectsQuery, useCreateProjectQuery as useCreateSimpleProjectQuery, useDeleteProjectQuery } from "@/hooks/Query/useProjectsQuery";
+import { useCommand } from "@/contexts/hooks/commands/useCommand";
+import { useListProjectsQuery } from "@/hooks/Query/useProjectsQuery";
 
 const ProjectButtons = ({
     tabIdOrName,
@@ -46,12 +45,12 @@ const ProjectButtons = ({
 }) => {
     const router = useRouter();
     
-    // Initialize React Query hooks
-    const createProjectMutation = useCreateProjectQuery();
-    const listProjectsQuery = useListProjectsQuery(projectActions);
-    const deleteProjectMutation = useDeleteProjectQuery();
-    const createSimpleProjectMutation = useCreateSimpleProjectQuery();
-
+    // State for dialog controls
+    const createProjectOpen = useStoreContext((s) => s.createProjectOpen);
+    const setCreateProjectOpen = useStoreContext((s) => s.setCreateProjectOpen);
+    const deleteProjectOpen = useStoreContext((s) => s.deleteProjectOpen);
+    const setDeleteProjectOpen = useStoreContext((s) => s.setDeleteProjectOpen);
+    
     // Global states
     const project = projectQueryParam;
     const projects = useStoreContext((s) => s.projects);
@@ -60,10 +59,33 @@ const ProjectButtons = ({
     const setProject = setProjectQueryParam;
 
     // Interface states and actions with granular access
-    const { dataActions: interfaceDataActions } = useInterface(interfaceId);
     const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabIdOrName || "");
 
-    // Use React Query to load projects instead of direct server call
+    // Use React Query to load projects
+    const listProjectsQuery = useListProjectsQuery(projectActions);
+    
+    // Initialize command hooks with minimal parameters
+    const commandHooks = useCommand({
+        projectId: project,
+        interfaceId,
+        tabId: tabIdOrName,
+        setProject,
+        setTabQueryParam,
+        setInterfaceQueryParam,
+        projectActions,
+        interfaceActions,
+        tabActions,
+        tileActions,
+    });
+    
+    const { 
+        selectProject: selectProjectCommand, 
+        createProject: createProjectCommand, 
+        closeProject: closeProjectCommand, 
+        deleteProject: deleteProjectCommand
+    } = commandHooks;
+
+    // Use React Query to load projects
     useEffect(() => {
         if (listProjectsQuery.data) {
             setProjects(listProjectsQuery.data);
@@ -75,90 +97,8 @@ const ProjectButtons = ({
         listProjectsQuery.refetch();
     }
 
-    const setterFunction = (proj: FileProps | undefined) => {
-        const newProj = proj ? proj.path : null;
-        tabUIActions?.setPending(true);
-        tabUIActions?.setDataPending(true);
-        interfaceDataActions?.setTabNames([]);
-        setTabQueryParam(null);
-        setProject(newProj);
-    }
-    
-    const handleCreateProject = async (name: string) => {
-        try {
-            // Create a default interface for the new project
-            const newInterface = {
-                ...defaultInterface,
-                project_id: name,
-            };
-            
-            // Use the create project mutation to create interface, tab, and tiles
-            const result = await createProjectMutation.mutateAsync({
-                interface: newInterface,
-                tab: defaultTab,
-                tiles: defaultTiles,
-                actions: {
-                    interfaceActions,
-                    tabActions,
-                    tileActions
-                }
-            });
-            
-            // Update UI state after successful creation
-            setProject(name);
-            setInterfaceQueryParam("interface1");
-            setTabQueryParam("tab1");
-            tabUIActions?.setPending(true);
-            tabUIActions?.setDataPending(true);
-            interfaceDataActions?.setTabNames(["tab1"]);
-            
-            // Project list will be automatically updated through query invalidation
-            
-            return result.tab;
-        } catch (error) {
-            console.error("Error creating project:", error);
-            throw error;
-        }
-    };
-    
-    const handleDeleteProject = async (name: string) => {
-        try {
-            // Use the delete interface mutation with React Query
-            await deleteProjectMutation.mutateAsync({
-                name,
-                actions: projectActions
-            });
-            
-            // Update UI state after successful deletion
-            tabUIActions?.setPending(true);
-            tabUIActions?.setDataPending(true);
-            setTabQueryParam(null);
-            interfaceDataActions?.setTabNames([]);
-            setInterfaceQueryParam(null);
-            setProject(null);
-            
-            // Project list will be automatically updated through query invalidation
-            
-            // Return a response object that matches the expected ResponseProps type
-            return { info: "Project deleted successfully" } as unknown as ResponseProps;
-        } catch (error) {
-            console.error("Error deleting project:", error);
-            throw error;
-        }
-    };
-
-    // Wrapper for CreateProject component to match expected signature
-    const createProjectWrapper = (name: string, value: string) => {
-        // First create the basic project structure
-        return createSimpleProjectMutation.mutateAsync({
-            name,
-            actions: projectActions
-        }).then(async (response) => {
-            // Then create the interface, tab, and tiles
-            await handleCreateProject(name);
-            return response;
-        });
-    };
+    // Use combined disabled state from prop and other sources
+    const isDisabled = !project || tabUIState?.pending;
 
     return (
         <div className="w-fit gap-2 flex flex-row items-center px-4">
@@ -176,7 +116,7 @@ const ProjectButtons = ({
                         <FileDirectory
                             data={projectsData}
                             renamingFunction={projectActions.rename}
-                            setterFunction={setterFunction}
+                            setterFunction={(proj) => selectProjectCommand(proj)}
                             type="Projects"
                             defaultValue={project || undefined}
                             isAutocompleteOpen={defaultProject ? true : undefined}
@@ -186,14 +126,7 @@ const ProjectButtons = ({
                     </div>
                     {project && <div className="border-b py-1">
                         <CloseProject
-                            onClick={() => {
-                                tabUIActions?.setPending(true);
-                                tabUIActions?.setDataPending(true);
-                                setTabQueryParam(null);
-                                interfaceDataActions?.setTabNames([]);
-                                setInterfaceQueryParam(null);
-                                setProject(null);
-                            }}
+                            onClick={() => closeProjectCommand()}
                             variant="ghost"
                         />
                     </div>}
@@ -201,18 +134,30 @@ const ProjectButtons = ({
                         <DeleteDialog
                             type="project"
                             args={[project]}
-                            deletingFunction={handleDeleteProject}
-                            variant="ghost"
-                            onDelete={() => {
-                                // UI updates handled in the handleDeleteProject function
+                            deletingFunction={async () => {
+                                if (!project) {
+                                    return Promise.resolve({
+                                        detail: "No project selected"
+                                    } as unknown as ResponseProps);
+                                }
+                                return await deleteProjectCommand(project);
                             }}
+                            variant="ghost"
+                            onDelete={() => {}}
+                            customOpen={deleteProjectOpen}
+                            setCustomOpen={setDeleteProjectOpen}
                         />
                     </div>}
                     {projects && <div className="pt-1">
                         <CreateProject 
-                            creationFunction={createProjectWrapper}
-                            paths={projects} 
-                            variant="ghost" 
+                            creationFunction={async (name: string) => {
+                                return await createProjectCommand(name);
+                            }}
+                            createProjectOpen={createProjectOpen}
+                            setCreateProjectOpen={setCreateProjectOpen}
+                            paths={projects}
+                            text="Create project"
+                            variant="ghost"
                         />
                     </div>}
                 </div>
@@ -222,7 +167,7 @@ const ProjectButtons = ({
                 items={projects.map((project) => ({ label: project, value: project }))}
                 defaultValue={project || undefined}
                 isOpen={defaultProject ? true : undefined}
-                onSelect={(currentValue: string) => setterFunction({ path: currentValue })}
+                onSelect={(currentValue: string) => selectProjectCommand({ path: currentValue, type: "file" })}
                 onOpen={onOpen}
                 loading={listProjectsQuery.isLoading}
             />

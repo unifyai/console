@@ -72,7 +72,16 @@ import {
     deleteTileUnified,
     createTileCheckpointByName,
     createTileCheckpointById,
-    createTileCheckpointUnified
+    createTileCheckpointUnified,
+    getInterfaceCheckpointUnified,
+    getTabCheckpointById,
+    getTabCheckpointUnified,
+    getTileCheckpointUnified,
+    getInterfaceCheckpointByName,
+    getTabCheckpointByName,
+    getTileCheckpointByName,
+    getInterfaceCheckpointById,
+    getTileCheckpointById
 } from "./actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -148,6 +157,9 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
         updateInterfaceUnified,
         deleteInterfaceUnified,
         createInterfaceCheckpointUnified,
+        getInterfaceCheckpointByName,
+        getInterfaceCheckpointById,
+        getInterfaceCheckpointUnified,
         apiKey
     );
 
@@ -166,6 +178,9 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
         createTabCheckpointByName,
         createTabCheckpointById,
         createTabCheckpointUnified,
+        getTabCheckpointByName,
+        getTabCheckpointById,
+        getTabCheckpointUnified,
         apiKey
     );
 
@@ -190,6 +205,9 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
         createTileCheckpointByName,
         createTileCheckpointById,
         createTileCheckpointUnified,
+        getTileCheckpointByName,
+        getTileCheckpointById,
+        getTileCheckpointUnified,
         apiKey
     );
 

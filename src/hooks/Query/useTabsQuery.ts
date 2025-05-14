@@ -638,4 +638,69 @@ export function useCreateTabCheckpointUnifiedQuery() {
       // No need to invalidate queries for checkpoint creation
     },
   });
+}
+
+/**
+ * Hook to get a checkpoint for a tab by name
+ */
+export function useGetTabCheckpointByNameQuery(
+  interface_id: string | null,
+  name: string | null,
+  actions: GranularTabActions
+) {
+  return useQuery({
+    queryKey: ['tab-checkpoint-by-name', interface_id, name],
+    queryFn: async () => {
+      if (!interface_id || !name) return null;
+      return actions.getCheckpointByName(interface_id, name);
+    },
+    enabled: !!interface_id && !!name,
+  });
+}
+
+/**
+ * Hook to get a checkpoint for a tab by ID
+ */
+export function useGetTabCheckpointByIdQuery(
+  id: string | null,
+  actions: GranularTabActions
+) {
+  return useQuery({
+    queryKey: ['tab-checkpoint-by-id', id],
+    queryFn: async () => {
+      if (!id) return null;
+      return actions.getCheckpointById(id);
+    },
+    enabled: !!id,
+  });
+}
+
+/**
+ * Unified hook to get a checkpoint for a tab by either ID or name
+ */
+export function useGetTabCheckpointUnifiedQuery(
+  params: {
+    id?: string | null;
+    interface_id?: string | null;
+    name?: string | null;
+  },
+  actions: GranularTabActions
+) {
+  const { id, interface_id, name } = params;
+  const usingId = !!id;
+  const usingPath = !!interface_id && !!name;
+  
+  return useQuery({
+    queryKey: usingId 
+      ? ['tab-checkpoint-by-id', id] 
+      : ['tab-checkpoint-by-name', interface_id, name],
+    queryFn: async () => {
+      return actions.getCheckpoint({
+        id: id as string,
+        interface_id: interface_id as string,
+        name: name as string
+      });
+    },
+    enabled: usingId || usingPath,
+  });
 } 

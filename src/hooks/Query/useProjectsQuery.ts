@@ -35,7 +35,7 @@ export function useGetProjectByIdQuery(projectId: string | null, actions: Projec
 /**
  * Hook to create a new project
  */
-export function useCreateProjectQuery() {
+export function useCreateOnlyProjectQuery() {
   const queryClient = getQueryClient();
   
   return useMutation({

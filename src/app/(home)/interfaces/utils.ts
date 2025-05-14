@@ -32,6 +32,9 @@ export async function createInterfaceActions(
     updateInterfaceUnified: Function,
     deleteInterfaceUnified: Function,
     createInterfaceCheckpointUnified: Function,
+    getInterfaceCheckpointByName: Function,
+    getInterfaceCheckpointById: Function,
+    getInterfaceCheckpointUnified: Function,
     apiKey: string
 ): Promise<GranularInterfaceActions> {
     return {
@@ -48,7 +51,10 @@ export async function createInterfaceActions(
         delete: await deleteInterfaceUnified(apiKey),
         checkpointByName: await createInterfaceCheckpoint(apiKey),
         checkpointById: await createInterfaceCheckpointById(apiKey),
-        checkpoint: await createInterfaceCheckpointUnified(apiKey)
+        checkpoint: await createInterfaceCheckpointUnified(apiKey),
+        getCheckpointByName: await getInterfaceCheckpointByName(apiKey),
+        getCheckpointById: await getInterfaceCheckpointById(apiKey),
+        getCheckpoint: await getInterfaceCheckpointUnified(apiKey)
     };
 }
 
@@ -70,6 +76,9 @@ export async function createTabActions(
     createTabCheckpointByName: Function,
     createTabCheckpointById: Function,
     createTabCheckpointUnified: Function,
+    getTabCheckpointByName: Function,
+    getTabCheckpointById: Function,
+    getTabCheckpointUnified: Function,
     apiKey: string
 ): Promise<GranularTabActions> {
     return {
@@ -89,7 +98,10 @@ export async function createTabActions(
         delete: await deleteTabUnified(apiKey),
         checkpointByName: await createTabCheckpointByName(apiKey),
         checkpointById: await createTabCheckpointById(apiKey),
-        checkpoint: await createTabCheckpointUnified(apiKey)
+        checkpoint: await createTabCheckpointUnified(apiKey),
+        getCheckpointByName: await getTabCheckpointByName(apiKey),
+        getCheckpointById: await getTabCheckpointById(apiKey),
+        getCheckpoint: await getTabCheckpointUnified(apiKey)
     };
 }
 
@@ -117,6 +129,9 @@ export async function createTileActions(
     createTileCheckpointByName: Function,
     createTileCheckpointById: Function,
     createTileCheckpointUnified: Function,
+    getTileCheckpointByName: Function,
+    getTileCheckpointById: Function,
+    getTileCheckpointUnified: Function,
     apiKey: string
 ): Promise<GranularTileActions> {
     return {
@@ -139,6 +154,9 @@ export async function createTileActions(
         delete: await deleteTileUnified(apiKey),
         checkpointByName: await createTileCheckpointByName(apiKey),
         checkpointById: await createTileCheckpointById(apiKey),
-        checkpoint: await createTileCheckpointUnified(apiKey)
+        checkpoint: await createTileCheckpointUnified(apiKey),
+        getCheckpointByName: await getTileCheckpointByName(apiKey),
+        getCheckpointById: await getTileCheckpointById(apiKey),
+        getCheckpoint: await getTileCheckpointUnified(apiKey)
     };
 }

@@ -1,20 +1,33 @@
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
 
 import Tooltip from "@/components/Common/Misc/Tooltip";
-import { useTableTile, useTile } from "@/contexts/hooks/tile";
 import { useMemo } from "react";
-import { useTabData } from "@/contexts/hooks/tab";
-import { useProjectData } from "@/contexts/hooks/project";
 import { Braces, CircleX, Grid2x2, X } from "lucide-react";
 import { useTileItem } from "@/contexts/hooks/tile";
 import { buildNestedDropdownTree, getFieldsByColumnContext } from "@/utils/evals/common";
 import { useRouter } from "next/navigation";
-import { Context, ContextActions, LogsActions } from "@/types/evals/grid";
+import { Context, ContextActions, LogsActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
 import { ResponseProps } from "@/types/common";
 import RenderMenuItems from "@/components/Common/Dropdowns/RenderMenuItems";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
+import { useTabSync } from "@/contexts/hooks/tab/sync";
+import { useTableDataQuery } from "@/hooks/Query/useTableDataQuery";
+import { useTileSync } from "@/contexts/hooks/tile/sync";
 
-const ContextContent = ({ projectId, tabId, interfaceId, tileId, contexts, context, setContext, refresh, setPending, contextActions, logsActions }: {
+const ContextContent = ({
+    projectId,
+    tabId,
+    interfaceId,
+    tileId,
+    contexts,
+    context,
+    setContext,
+    setPending,
+    contextActions,
+    logsActions,
+    tabActions: serverTabActions,
+    tileActions: serverTileActions,
+}: {
     projectId?: string,
     tabId?: string,
     interfaceId?: string,
@@ -22,36 +35,53 @@ const ContextContent = ({ projectId, tabId, interfaceId, tileId, contexts, conte
     contexts: Context[],
     context?: string,
     setContext?: (context: string) => void,
-    refresh: () => Promise<ResponseProps>,
     setPending: (pending: boolean) => void,
     contextActions: ContextActions,
-    logsActions: LogsActions
+    logsActions: LogsActions,
+    tabActions?: GranularTabActions,
+    tileActions?: GranularTileActions,
 }) => {
     const router = useRouter();
 
-    const { dataActions: projectDataActions } = useProjectData(projectId || null);
-    const { dataActions: tabDataActions } = useTabData(tabId || null, interfaceId || null, projectId || null);
-    const { actions: tileActions, dataActions: tileDataActions } = useTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
-    const { itemActions: tileItemActions } = useTileItem(tileId || null, tabId || null, interfaceId || null);
+    // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
+    const { actions: syncedTabActions } = useTabSync(
+        tabId || null, 
+        interfaceId || null, 
+        serverTabActions, 
+        serverTileActions,
+    );
+    const syncedTabDataActions = syncedTabActions?.data ?? null;
 
-    const { 
-        tableTile: tableTileState,
-        tableTileActions,
-    } = useTableTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
+    // SYNCHRONISED TABLE-SPECIFIC ACTIONS (optimistic + router refresh)
+    const { actions: syncedTileActions } = useTileSync(
+        tileId || null,
+        tabId || null,
+        serverTileActions,
+    );
+    const syncedTileDataActions = syncedTileActions?.data ?? null;
 
+    const { itemActions: tileItemActions } = useTileItem(tileId || null, tabId || null);
     const item = useMemo(() => tileItemActions?.asTileItem(), [tileItemActions]);
 
-    const finalSetContext = (tileActions && tileDataActions && tableTileActions && item != undefined) ? (ctx: string) => {
+    const finalSetContext = (syncedTileDataActions && item != undefined) ? (ctx: string) => {
         if (ctx !== item.context) {
             // Update the tile's column_context
-            tableTileActions.setColumnContext("");
+            syncedTileDataActions.setColumnContext("");
 
             // Update the tile's context
-            tileDataActions.setContext(ctx);
+            syncedTileDataActions.setContext(ctx);
         }
     } : setContext;
 
-    const empty = contexts.length == 0 && tableTileState?.tableDataItem?.columnContexts?.length == 0;
+    // Use React Query to access tableDataItem
+    const { 
+        data: tableDataItem,
+        isLoading: isTableDataLoading,
+        isError: isTableDataError,
+        error: tableDataError
+    } = useTableDataQuery(tileId || null, tabId || null);
+
+    const empty = contexts.length == 0 && tableDataItem?.columnContexts?.length == 0;
 
     // Build and render the tree
     const contextNames = contexts.map(context => context.name).sort();
@@ -70,20 +100,15 @@ const ContextContent = ({ projectId, tabId, interfaceId, tileId, contexts, conte
                 return a.localeCompare(b);
             })
         );
-    const columnContextTree = buildNestedDropdownTree(tableTileState?.tableDataItem?.columnContexts || []);
+    const columnContextTree = buildNestedDropdownTree(tableDataItem?.columnContexts || []);
     const contextHeader = (item != undefined && context != undefined) ? (
         context == "" ? (context || "Context") : context
     ) : "Context";
 
     const onDelete = (ctx: string) => {
         if (ctx) {
-            tabDataActions?.removeContextFromTab(ctx);
+            syncedTabDataActions?.removeContextFromTab(ctx);
         }
-
-        refresh().then(() => {
-            router.refresh();
-            setPending(true);
-        });
     }
 
     return (
@@ -138,7 +163,7 @@ const ContextContent = ({ projectId, tabId, interfaceId, tileId, contexts, conte
                     />
                 ))}
             </div> : <></>}
-            {item && tileActions && tableTileActions && (tableTileState?.tableDataItem?.columnContexts) && tableTileState.tableDataItem.columnContexts.length > 0 && <div className="pt-2">
+            {item && syncedTileDataActions && (tableDataItem?.columnContexts) && tableDataItem.columnContexts.length > 0 && <div className="pt-2">
                 <div className="font-bold text-sm px-2 pb-2 border-b flex justify-between items-center">
                     <div className="flex gap-2 items-center">
                         <Grid2x2 size={18} /> Column Context
@@ -146,7 +171,7 @@ const ContextContent = ({ projectId, tabId, interfaceId, tileId, contexts, conte
                     {item.column_context && <Tooltip content="Clear column context">
                         <X
                             size={18}
-                            onClick={() => tableTileActions?.setColumnContext("")}
+                            onClick={() => syncedTileDataActions.setColumnContext("")}
                             className="cursor-pointer hover:text-primary"
                         />
                     </Tooltip>}
@@ -164,7 +189,7 @@ const ContextContent = ({ projectId, tabId, interfaceId, tileId, contexts, conte
                         showRoot={true}
                         attr={item.column_context}
                         isColumnContext={true}
-                        setter={(value) => tableTileActions?.setColumnContext(value)}
+                        setter={(value) => syncedTileDataActions.setColumnContext(value)}
                         deleteDialog={
                             projectId ? <div onClick={(e) => e.stopPropagation()}>
                                 <DeleteDialog
@@ -175,7 +200,7 @@ const ContextContent = ({ projectId, tabId, interfaceId, tileId, contexts, conte
                                             projectId,
                                             context,
                                             getFieldsByColumnContext(
-                                                tableTileState?.tableDataItem?.fields as LogFieldsResponseProps,
+                                                tableDataItem?.fields as LogFieldsResponseProps,
                                                 name !== "<root>" ? name : context ?? ""
                                             ).map(field => [null, field])
                                         ]

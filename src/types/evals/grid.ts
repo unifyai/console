@@ -342,7 +342,13 @@ export interface GranularInterfaceActions {
     checkpointByName: (projectId: string, name: string, description: string) => Promise<ResponseProps>;
     checkpointById: (interface_id: string, description: string) => Promise<ResponseProps>;
     checkpoint: (params: { interface_id?: string; projectId?: string; name?: string; description: string }) => Promise<ResponseProps>;
+
+    // Checkpoint retrieval methods (read)
+    getCheckpointByName: (projectId: string, name: string) => Promise<InterfaceData>;
+    getCheckpointById: (interface_id: string) => Promise<InterfaceData>;
+    getCheckpoint: (params: { interface_id?: string; projectId?: string; name?: string }) => Promise<InterfaceData | null>;
 }
+
 export interface GranularTabActions {
     // Get tab by name (hierarchical path)
     getByName: (interface_id: string, name: string, checkpoint?: boolean) => Promise<TabData | null>;
@@ -412,6 +418,11 @@ export interface GranularTabActions {
     checkpointByName: (interface_id: string, name: string, description: string) => Promise<ResponseProps>;
     checkpointById: (id: string, description: string) => Promise<ResponseProps>;
     checkpoint: (params: { id?: string; interface_id?: string; name?: string; description: string }) => Promise<ResponseProps>;
+
+    // Checkpoint retrieval methods (read)
+    getCheckpointByName: (interface_id: string, name: string) => Promise<TabData>;
+    getCheckpointById: (id: string) => Promise<TabData>;
+    getCheckpoint: (params: { id?: string; interface_id?: string; name?: string }) => Promise<TabData | null>;
 }
 
 export interface GranularTileActions {
@@ -654,4 +665,9 @@ export interface GranularTileActions {
     checkpointByName: (tab_id: string, name: string, description: string) => Promise<ResponseProps>;
     checkpointById: (id: string, description: string) => Promise<ResponseProps>;
     checkpoint: (params: { id?: string; tab_id?: string; name?: string; description: string }) => Promise<ResponseProps>;
+
+    // Checkpoint retrieval methods (read)
+    getCheckpointByName: (tab_id: string, name: string) => Promise<TileData>;
+    getCheckpointById: (id: string) => Promise<TileData>;
+    getCheckpoint: (params: { id?: string; tab_id?: string; name?: string }) => Promise<TileData | null>;
 }

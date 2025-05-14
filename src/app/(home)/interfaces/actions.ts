@@ -1913,3 +1913,170 @@ export const createTileCheckpointUnified = async (apiKey: string) => {
         return { error: "Missing required parameters to identify the tile" };
     };
 };
+
+// ===== Checkpoint Retrieval Helpers =====
+
+// Interface checkpoint by name
+export const getInterfaceCheckpointByName = async (apiKey: string) => {
+    return async (projectId: string, name: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/interface/checkpoint?project=${projectId}&name=${encodeURIComponent(name)}`,
+            {
+                method: "GET",
+                headers: { apiKey: apiKey },
+                cache: "no-store",
+            }
+        );
+        if (!response.ok) {
+            return { error: `Failed to get interface checkpoint: ${response.status}` };
+        }
+        return await response.json();
+    };
+};
+
+export const getInterfaceCheckpointById = async (apiKey: string) => {
+    return async (interface_id: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/interface/checkpoint?interface_id=${interface_id}`,
+            {
+                method: "GET",
+                headers: { apiKey: apiKey },
+                cache: "no-store",
+            }
+        );
+        if (!response.ok) {
+            return { error: `Failed to get interface checkpoint: ${response.status}` };
+        }
+        return await response.json();
+    };
+};
+
+export const getInterfaceCheckpointUnified = async (apiKey: string) => {
+    return async (params: { interface_id?: string; projectId?: string; name?: string }) => {
+        "use server";
+        const { interface_id, projectId, name } = params;
+        if (interface_id) {
+            const fn = await getInterfaceCheckpointById(apiKey);
+            return fn(interface_id);
+        }
+        if (projectId && name) {
+            const fn = await getInterfaceCheckpointByName(apiKey);
+            return fn(projectId, name);
+        }
+        return { error: "Missing parameters to identify the interface checkpoint" };
+    };
+};
+
+// Tab checkpoint
+export const getTabCheckpointByName = async (apiKey: string) => {
+    return async (interface_id: string, name: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tab/checkpoint?interface_id=${interface_id}&name=${encodeURIComponent(name)}`,
+            {
+                method: "GET",
+                headers: { apiKey: apiKey },
+                cache: "no-store",
+            }
+        );
+        if (!response.ok) {
+            return { error: `Failed to get tab checkpoint: ${response.status}` };
+        }
+        return await response.json();
+    };
+};
+
+export const getTabCheckpointById = async (apiKey: string) => {
+    return async (tab_id: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tab/checkpoint?tab_id=${tab_id}`,
+            {
+                method: "GET",
+                headers: { apiKey: apiKey },
+                cache: "no-store",
+            }
+        );
+        if (!response.ok) {
+            return { error: `Failed to get tab checkpoint: ${response.status}` };
+        }
+        return await response.json();
+    };
+};
+
+export const getTabCheckpointUnified = async (apiKey: string) => {
+    return async (params: { id?: string; interface_id?: string; name?: string }) => {
+        "use server";
+        const { id, interface_id, name } = params;
+        if (id) {
+            const fn = await getTabCheckpointById(apiKey);
+            return fn(id);
+        }
+        if (interface_id && name) {
+            const fn = await getTabCheckpointByName(apiKey);
+            return fn(interface_id, name);
+        }
+        return { error: "Missing parameters to identify the tab checkpoint" };
+    };
+};
+
+// Tile checkpoint
+export const getTileCheckpointByName = async (apiKey: string) => {
+    return async (tab_id: string, name: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tile/checkpoint?tab_id=${tab_id}&name=${encodeURIComponent(name)}`,
+            {
+                method: "GET",
+                headers: { apiKey: apiKey },
+                cache: "no-store",
+            }
+        );
+        if (!response.ok) {
+            return { error: `Failed to get tile checkpoint: ${response.status}` };
+        }
+        return await response.json();
+    };
+};
+
+export const getTileCheckpointById = async (apiKey: string) => {
+    return async (tile_id: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tile/checkpoint?tile_id=${tile_id}`,
+            {
+                method: "GET",
+                headers: { apiKey: apiKey },
+                cache: "no-store",
+            }
+        );
+        if (!response.ok) {
+            return { error: `Failed to get tile checkpoint: ${response.status}` };
+        }
+        return await response.json();
+    };
+};
+
+export const getTileCheckpointUnified = async (apiKey: string) => {
+    return async (params: { id?: string; tab_id?: string; name?: string }) => {
+        "use server";
+        const { id, tab_id, name } = params;
+        if (id) {
+            const fn = await getTileCheckpointById(apiKey);
+            return fn(id);
+        }
+        if (tab_id && name) {
+            const fn = await getTileCheckpointByName(apiKey);
+            return fn(tab_id, name);
+        }
+        return { error: "Missing parameters to identify the tile checkpoint" };
+    };
+};

@@ -12,6 +12,7 @@ import { FieldsActions, LogsActions, PlotDataItem } from '@/types/evals/grid';
 
 import { PlotActions } from '@/contexts/hooks/tile/usePlotTile';
 import { TileDataActions } from '@/contexts/hooks';
+import { PlotTile } from '@/contexts/slices/selectors/plotTile';
 
 import PlotType from './Buttons/PlotType';
 import PlotAxis from './Buttons/PlotAxis';
@@ -23,6 +24,7 @@ import PlotAggregate from './Buttons/PlotAggregate';
 import PlotRegression from './Buttons/PlotRegression';
 import PlotRefresh from './Buttons/PlotRefresh';
 import PlotReset from './Buttons/PlotReset';
+import { ColorSchemePicker } from '@/components/Common/Misc/ColorSchemePicker';
 
 
 const PlotSettings = ({
@@ -63,6 +65,7 @@ const PlotSettings = ({
   fieldsActions,
   plotTileActions,
   tileDataActions,
+  plotTileState
 }: {
   /* Statuses */
   interactive: boolean;
@@ -126,6 +129,9 @@ const PlotSettings = ({
   tileDataActions: TileDataActions | null;
   logsActions: LogsActions ;
   fieldsActions: FieldsActions;
+
+  /* UI state */
+  plotTileState: PlotTile | null
 }) => {
   const [isOpen, setIsOpen] = useState(true);
 
@@ -337,6 +343,13 @@ const PlotSettings = ({
       {/* Folded State Icons */}
       {!isOpen && (
          <div className="flex flex-col items-center p-2">
+            {showGroupByKey && (
+              <ColorSchemePicker
+                placeholder="Select a grouping color scheme"
+                value={plotTileState?.plot_group_by_colors ?? undefined}
+                onChange={(scheme) => plotTileActions?.setPlotGroupByColors(scheme)}
+              />
+            )}
             <PlotRefresh
               tileId={tileId}
               tabId={tabId}

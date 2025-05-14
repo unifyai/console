@@ -49,6 +49,8 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, tabAction
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
     const disabled = tabUIState?.pending || tabUIState?.resetting || anyTileLoading;
 
+    const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
+
     // Get the buttons ref from our registry
     const buttonsRef = getTileButtonsRef(tileId);
 
@@ -60,7 +62,7 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, tabAction
                         url={
                             item?.tab === "Plot" ? "https://docs.unify.ai/interfaces/plots" :
                             item?.tab === "View" ? "https://docs.unify.ai/interfaces/views" :
-                            item?.tab === "Editor" ? "https://docs.unify.ai/interfaces/views" :
+                            item?.tab === "Editor" ? "https://docs.unify.ai/interfaces/editors" :
                             "https://docs.unify.ai/interfaces/tables"
                         }
                     />
@@ -119,7 +121,7 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, tabAction
                         if (!focusedTileNames.includes(item?.name)) {
                             tabUIActions?.setFocusedTileNames([item?.name, focusedTileNames[0] || focusedTileNames[1]] as [string | undefined, string | undefined]);
                         }
-                        tabUIActions?.setFocusDialog(true);
+                        setFocusPaneOpen(true);
                     }}
                     icon={<Maximize2 />}
                     tooltip="Open in focus pane"

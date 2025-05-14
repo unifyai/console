@@ -32,7 +32,11 @@ const LogsPlot = ({
 }) => {
 
     // Use granular hooks for better performance
-    const { ui: tileUIState, dataActions: tileDataActions } = useTile(tileId, tabId);
+    const {
+        ui: tileUIState,
+        dataActions: tileDataActions,
+        plotTile: plotTileState,
+    } = useTile(tileId, tabId);
 
     // SYNCHRONISED PLOT-SPECIFIC ACTIONS (optimistic + router refresh)
     const { plotTileActions } = usePlotTileSync(tileId, tabId, tileActions);
@@ -40,7 +44,14 @@ const LogsPlot = ({
     const { itemActions } = useTileItem(tileId, tabId);
     
     // Get access to the tab context and actions with granular access
-    const { ui: tabUIState } = useTab(tabId, interfaceId);
+    const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId, interfaceId);
+
+    useEffect(() => {
+        if (containerRef.current) {
+            (containerRef.current as any).__hoveredLog = tabUIState?.hoveredLog;
+            (containerRef.current as any).__setHoveredLog = tabUIActions?.setHoveredLog;
+        }
+      }, [tabUIState?.hoveredLog, tabUIActions?.setHoveredLog]);
 
     // Get the item representation for the current tile
     const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
@@ -164,7 +175,8 @@ const LogsPlot = ({
             containerRef,
             setLogScaleXEnabled,
             setLogScaleYEnabled,
-            plotTileActions
+            plotTileActions,
+            plotTileState
         );
     }, [
         logs,
@@ -182,15 +194,17 @@ const LogsPlot = ({
         showRegression,
         aggregateProperty,
         interactive,
-        tileUIState?.color
+        tileUIState?.color,
+        plotTileState?.plot_group_by_colors,
+        tabUIState?.hoveredLog
     ]);
 
 return (
-    <div className="flex flex-row w-full h-full items-stretch min-h-0">
+    <div className="flex flex-row w-full h-full items-stretch min-h-0 overflow-hidden">
   
       {/* Chart Container */}
       <div
-        className="flex flex-1 h-full bg-background relative border-t border-border"
+        className="flex flex-1 h-full bg-background relative border-t border-border overflow-hidden"
         ref={containerRef}
       >
         {/* SVG content*/}
@@ -211,7 +225,7 @@ return (
            <g className="yAxis" transform={`translate(${margins.left}, 0)`} />
         </svg>
         {/* Hover Tooltip */}
-        <div style={{ position: "fixed", minWidth: "160px", maxWidth: "300px", pointerEvents: "none", background: "var(--background)", border: "1px solid var(--foreground)", padding: "8px", borderRadius: "4px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", transition: "opacity 0.2s", fontSize: "14px", opacity: 0, zIndex: 1000 }} className="plotTooltip gap-2 overflow-hidden" />
+        <div style={{ position: "absolute", minWidth: "160px", maxWidth: "300px", pointerEvents: "none", background: "var(--background)", border: "1px solid var(--foreground)", padding: "8px", borderRadius: "4px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", transition: "opacity 0.2s", fontSize: "14px", opacity: 0, zIndex: 1000 }} className="plotTooltip gap-2 overflow-hidden" />
       </div>
   
       {/* Settings Panel */}
@@ -249,6 +263,7 @@ return (
             fieldsActions={fieldsActions}
             plotTileActions={plotTileActions}
             tileDataActions={tileDataActions}
+            plotTileState={plotTileState}
             isTooltipMinimized={isTooltipMinimized}
             setIsTooltipMinimized={setIsTooltipMinimized}
             isGroupingKeyMinimized={isGroupingKeyMinimized}

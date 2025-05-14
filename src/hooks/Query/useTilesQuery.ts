@@ -469,4 +469,69 @@ export function usePatchSpecializedTileQuery<
       }
     },
   });
+}
+
+/**
+ * Hook to get a checkpoint for a tile by name
+ */
+export function useGetTileCheckpointByNameQuery(
+  tab_id: string | null,
+  name: string | null,
+  actions: GranularTileActions
+) {
+  return useQuery({
+    queryKey: ['tile-checkpoint-by-name', tab_id, name],
+    queryFn: async () => {
+      if (!tab_id || !name) return null;
+      return actions.getCheckpointByName(tab_id, name);
+    },
+    enabled: !!tab_id && !!name,
+  });
+}
+
+/**
+ * Hook to get a checkpoint for a tile by ID
+ */
+export function useGetTileCheckpointByIdQuery(
+  id: string | null,
+  actions: GranularTileActions
+) {
+  return useQuery({
+    queryKey: ['tile-checkpoint-by-id', id],
+    queryFn: async () => {
+      if (!id) return null;
+      return actions.getCheckpointById(id);
+    },
+    enabled: !!id,
+  });
+}
+
+/**
+ * Unified hook to get a checkpoint for a tile by either ID or name
+ */
+export function useGetTileCheckpointUnifiedQuery(
+  params: {
+    id?: string | null;
+    tab_id?: string | null;
+    name?: string | null;
+  },
+  actions: GranularTileActions
+) {
+  const { id, tab_id, name } = params;
+  const usingId = !!id;
+  const usingPath = !!tab_id && !!name;
+  
+  return useQuery({
+    queryKey: usingId 
+      ? ['tile-checkpoint-by-id', id] 
+      : ['tile-checkpoint-by-name', tab_id, name],
+    queryFn: async () => {
+      return actions.getCheckpoint({
+        id: id as string,
+        tab_id: tab_id as string,
+        name: name as string
+      });
+    },
+    enabled: usingId || usingPath,
+  });
 } 
