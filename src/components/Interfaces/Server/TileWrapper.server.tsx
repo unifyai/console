@@ -92,7 +92,8 @@ export default async function TileWrapper({
             interfaceId={interfaceId}
             projectId={projectId}
             actions={{
-              codeActions: actions.codeActions
+              codeActions: actions.codeActions,
+              tileActions: actions.tileActions
             }}
           />
         );

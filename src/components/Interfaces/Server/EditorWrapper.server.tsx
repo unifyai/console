@@ -8,6 +8,7 @@ import type {
   CodeActions,
   TileData
 } from "@/types/evals/grid";
+import { GranularTileActions } from "@/types/evals/grid";
 
 type EditorWrapperProps = {
   tile: TileData;
@@ -16,6 +17,7 @@ type EditorWrapperProps = {
   projectId: string;
   actions: {
     codeActions: CodeActions;
+    tileActions: GranularTileActions;
   };
 };
 
@@ -52,6 +54,7 @@ export default async function EditorWrapper({
             interfaceId={interfaceId}
             projectId={projectId}
             codeActions={actions.codeActions}
+            tileActions={actions.tileActions}
           />
         </Suspense>
       </div>

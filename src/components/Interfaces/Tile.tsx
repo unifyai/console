@@ -155,6 +155,7 @@ const Tile = ({
                             interfaceId={interfaceId}
                             projectId={projectId}
                             codeActions={codeActions}
+                            tileActions={tileActions}
                         />
                     </div>
                 );
